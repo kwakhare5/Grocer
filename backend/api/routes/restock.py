@@ -1,7 +1,227 @@
-from fastapi import APIRouter
+"""
+Restock Alert API — Task 2.3
+Exposes endpoints to:
+  - GET  /api/restock/{user_id}          → list recent alerts for a household
+  - POST /api/restock/{user_id}/check-now → trigger an immediate depletion check
 
-router = APIRouter(prefix="/api/restock", tags=["restock"])
+Depletion check logic:
+  1. Query consumption_models for items depleting within ALERT_THRESHOLD_DAYS.
+  2. Filter out items already alerted in the last 24h (de-duplication).
+  3. Return the list — caller (scheduler or manual trigger) decides whether to send WhatsApp.
 
-@router.get("/")
-async def get_restock_alerts():
-    return {"message": "Restock alerts endpoint"}
+Why this separation: the check function is pure data; sending WhatsApp is a side-effect.
+Keeping them separate makes the depletion logic independently testable.
+"""
+
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, func
+from datetime import datetime, timedelta, timezone
+
+from backend.database.connection import get_db
+from backend.database.models import Household, ConsumptionModel, RestockAlert
+from backend.config import settings
+
+router = APIRouter(prefix='/api/restock', tags=['restock'])
+
+
+# ---------------------------------------------------------------------------
+# Internal helpers
+# ---------------------------------------------------------------------------
+
+async def _get_household_by_user_id(user_id: str, db: AsyncSession) -> Household:
+    """Raise 404 if household does not exist yet (user must sync first)."""
+    result = await db.execute(
+        select(Household).where(Household.user_id == user_id)
+    )
+    household = result.scalar_one_or_none()
+    if not household:
+        raise HTTPException(
+            status_code=404,
+            detail=f'Household not found for user_id={user_id}. Run /sync first.'
+        )
+    return household
+
+
+async def check_depletions_for_household(household_id: str, db: AsyncSession) -> list[dict]:
+    """
+    Return items that are predicted to deplete within ALERT_THRESHOLD_DAYS
+    and have confidence >= MIN_CONFIDENCE, excluding any item already alerted
+    in the last 24 hours.
+
+    Returns a list of dicts — one per depleting item — sorted by urgency
+    (soonest depletion first).
+    """
+    threshold_days = settings.ALERT_THRESHOLD_DAYS
+    min_confidence = settings.MIN_CONFIDENCE
+    now = datetime.now(timezone.utc)
+    window_end = now + timedelta(days=threshold_days)
+
+    # --- Step 1: find depleting items ----------------------------------------
+    stmt = select(ConsumptionModel).where(
+        ConsumptionModel.household_id == household_id,
+        ConsumptionModel.confidence_score >= min_confidence,
+        ConsumptionModel.estimated_depletion_date.isnot(None),
+        ConsumptionModel.estimated_depletion_date >= now,
+        ConsumptionModel.estimated_depletion_date <= window_end,
+    ).order_by(ConsumptionModel.estimated_depletion_date.asc())
+
+    result = await db.execute(stmt)
+    depleting_models = result.scalars().all()
+
+    if not depleting_models:
+        return []
+
+    # --- Step 2: load item_ids alerted in last 24h ---------------------------
+    cutoff = now - timedelta(hours=24)
+    recent_stmt = select(RestockAlert).where(
+        RestockAlert.household_id == household_id,
+        RestockAlert.sent_at >= cutoff,
+        RestockAlert.status.in_(['sent', 'acted']),
+    )
+    recent_result = await db.execute(recent_stmt)
+    recent_alerts = recent_result.scalars().all()
+
+    # item_ids is stored as a JSON list in RestockAlert
+    recently_alerted_ids: set[str] = set()
+    for alert in recent_alerts:
+        if alert.item_ids:
+            for item_id in alert.item_ids:
+                recently_alerted_ids.add(str(item_id))
+
+    # --- Step 3: filter and format -------------------------------------------
+    depleting = []
+    for model in depleting_models:
+        if str(model.item_id) in recently_alerted_ids:
+            continue  # already alerted in last 24h — skip
+
+        now_aware = now
+        depletion_aware = model.estimated_depletion_date
+        # Make both timezone-aware if needed for safe subtraction
+        if depletion_aware.tzinfo is None:
+            depletion_aware = depletion_aware.replace(tzinfo=timezone.utc)
+
+        days_remaining = (depletion_aware - now_aware).total_seconds() / 86400
+
+        depleting.append({
+            'item_id':                 str(model.item_id),
+            'item_name':               model.item_name,
+            'category':                model.category,
+            'confidence_score':        model.confidence_score,
+            'confidence_label':        _confidence_label(model.confidence_score),
+            'avg_daily_consumption':   model.avg_daily_consumption,
+            'estimated_depletion_date': model.estimated_depletion_date.isoformat(),
+            'days_remaining':          round(days_remaining, 1),
+            'last_purchase_date':      model.last_purchase_date.isoformat() if model.last_purchase_date else None,
+        })
+
+    return depleting
+
+
+def _confidence_label(score: float) -> str:
+    """Inline label — avoids importing ConfidenceScorer in the route layer."""
+    if score >= 0.80: return 'Very high'
+    if score >= 0.65: return 'High'
+    if score >= 0.50: return 'Moderate'
+    if score >= 0.30: return 'Low'
+    return 'Insufficient data'
+
+
+# ---------------------------------------------------------------------------
+# Endpoints
+# ---------------------------------------------------------------------------
+
+@router.get('/{user_id}')
+async def get_restock_status(user_id: str, db: AsyncSession = Depends(get_db)):
+    """
+    Return the current depletion status for a household.
+    Useful for the dashboard to show the "Items Running Low" section.
+    Does NOT trigger a WhatsApp alert — read-only.
+    """
+    household = await _get_household_by_user_id(user_id, db)
+    items = await check_depletions_for_household(str(household.id), db)
+    return {
+        'user_id':          user_id,
+        'household_id':     str(household.id),
+        'threshold_days':   settings.ALERT_THRESHOLD_DAYS,
+        'min_confidence':   settings.MIN_CONFIDENCE,
+        'depleting_count':  len(items),
+        'depleting_items':  items,
+    }
+
+
+@router.post('/{user_id}/check-now')
+async def trigger_restock_check(user_id: str, db: AsyncSession = Depends(get_db)):
+    """
+    Manually trigger a depletion check and log a RestockAlert record if items are found.
+    In production this endpoint is called by APScheduler every morning at 8am.
+    For demo purposes it can also be called directly via curl.
+
+    Note: WhatsApp sending is handled separately by the notifications layer.
+    This endpoint only persists the alert record with status='pending'.
+    """
+    household = await _get_household_by_user_id(user_id, db)
+    items = await check_depletions_for_household(str(household.id), db)
+
+    if not items:
+        return {
+            'alerts_triggered': 0,
+            'message':          'No items depleting within threshold window.',
+            'items':            [],
+        }
+
+    # Persist a RestockAlert record so we can de-duplicate future checks
+    # and track whether the user eventually acted on it.
+    alert = RestockAlert(
+        household_id=household.id,
+        item_ids=[item['item_id'] for item in items],
+        sent_at=datetime.now(timezone.utc),
+        status='pending',
+    )
+    db.add(alert)
+    await db.commit()
+    await db.refresh(alert)
+
+    return {
+        'alerts_triggered': len(items),
+        'alert_id':         str(alert.id),
+        'message':          f'{len(items)} item(s) depleting within {settings.ALERT_THRESHOLD_DAYS} days.',
+        'items':            [
+            {
+                'name':           i['item_name'],
+                'days_remaining': i['days_remaining'],
+                'confidence':     i['confidence_label'],
+            }
+            for i in items
+        ],
+    }
+
+
+@router.get('/{user_id}/history')
+async def get_alert_history(user_id: str, limit: int = 20, db: AsyncSession = Depends(get_db)):
+    """
+    Return the last N restock alerts for a household.
+    Used by the dashboard to show "Alert History" and track acted/dismissed status.
+    """
+    household = await _get_household_by_user_id(user_id, db)
+
+    stmt = select(RestockAlert).where(
+        RestockAlert.household_id == household.id
+    ).order_by(RestockAlert.sent_at.desc()).limit(limit)
+
+    result = await db.execute(stmt)
+    alerts = result.scalars().all()
+
+    return {
+        'user_id':   user_id,
+        'alerts': [
+            {
+                'id':        str(a.id),
+                'item_ids':  a.item_ids,
+                'sent_at':   a.sent_at.isoformat() if a.sent_at else None,
+                'status':    a.status,
+                'acted_at':  a.acted_at.isoformat() if a.acted_at else None,
+            }
+            for a in alerts
+        ],
+    }

@@ -7,11 +7,11 @@
 
 | Tag | Model | Use it for |
 |-----|-------|------------|
-| 🟣 OPUS | Claude Opus 4 | Complex agent graphs, high-stakes writing |
-| 🟢 SONNET | Claude Sonnet 4.6 | Everyday coding workhorse (80% of tasks) |
+| 🟣 OPUS | Claude Opus | Complex agent graphs, high-stakes writing |
+| 🟢 SONNET | Claude Sonnet | Everyday coding workhorse (80% of tasks) |
 | 🟡 FLASH | Gemini 3 Flash | Boilerplate, config, quick fixes |
-| 🔴 GPH | Gemini 3.1 Pro (high thinking) | ML code, debugging, reading full codebase |
-| ⚫ GPL | Gemini 3.1 Pro (low thinking) | Medium logic, data viz, second opinion |
+| 🔴 GPH | Gemini 3.1 Pro High | ML code, debugging, reading full codebase |
+| ⚫ GPL | Gemini 3.1 Pro Low | Medium logic, data viz, second opinion |
 
 **Core rule:** Opus only 3 times total (restock agent, recipe agent, pitch application). GPH for anything ML or debugging. Sonnet for everything else with real logic. Flash for anything you could copy-paste from docs.
 
@@ -1472,7 +1472,7 @@ async def track_and_alert(db):
 
 ### Task 4.6 — Demo Seed Data (Make It Impressive) 🔴 GPH
 
-> Use Gemini Pro High for this. Paste your existing `generate_orders.py` and ask it to: "Modify the seed data generator so that: (1) Milk has exactly 2.1-day average cycle with ±0.3 days variance. (2) Oil has exactly 14.7-day cycle. (3) Last oil purchase was exactly 13 days ago so it shows as depleting NOW in the demo. (4) Add 30 days of price_history rows for tomatoes showing a clear spike in the last 7 days (+140%). (5) Make the travel gap span days 43-53 exactly so anomaly detection fires clearly. Return the full modified script."
+> Use Gemini 3.1 Pro High for this. Paste your existing `generate_orders.py` and ask it to: "Modify the seed data generator so that: (1) Milk has exactly 2.1-day average cycle with ±0.3 days variance. (2) Oil has exactly 14.7-day cycle. (3) Last oil purchase was exactly 13 days ago so it shows as depleting NOW in the demo. (4) Add 30 days of price_history rows for tomatoes showing a clear spike in the last 7 days (+140%). (5) Make the travel gap span days 43-53 exactly so anomaly detection fires clearly. Return the full modified script."
 
 Also run prediction accuracy verification:
 ```bash
@@ -1480,11 +1480,9 @@ python -m backend.tests.verify_prediction_accuracy
 # Target: avg error < 2 days across all modeled items
 ```
 
----
-
 ### Task 4.7 — Final Integration Debugging 🔴 GPH
 
-> If anything is broken across the full pipeline, paste ALL relevant files to Gemini Pro High in one go. Its long context window handles reading your entire codebase simultaneously and spots the integration issues Sonnet misses when it only sees one file.
+> If anything is broken across the full pipeline, paste ALL relevant files to Gemini 3.1 Pro High in one go. Its long context window handles reading your entire codebase simultaneously and spots the integration issues Sonnet misses when it only sees one file.
 
 ---
 
@@ -1614,19 +1612,19 @@ GROUP BY item_name ORDER BY orders DESC;
 
 | # | Task | Model |
 |---|------|-------|
-| 1 | All folder/config/boilerplate | 🟡 Flash |
-| 2 | DB models, API routes, React components | 🟢 Sonnet |
-| 3 | Prophet ML model builder | 🔴 GPH |
-| 4 | Anomaly detector | 🔴 GPH |
-| 5 | **Restock LangGraph agent** | 🟣 **Opus** |
-| 6 | Confidence scorer, household profiler | 🟢 Sonnet |
-| 7 | WhatsApp webhook + Twilio | 🟢 Sonnet |
-| 8 | Price chart (Recharts) | ⚫ GPL |
-| 9 | Pantry state estimator | ⚫ GPL |
-| 10 | **Recipe LangGraph agent** | 🟣 **Opus** |
-| 11 | Recipe ingredient parser (prompt eng) | 🟢 Sonnet |
-| 12 | Price tracker + commodity alerts | 🟢 Sonnet |
-| 13 | Demo seed data (make numbers impressive) | 🔴 GPH |
-| 14 | Full codebase debugging | 🔴 GPH |
-| 15 | **Swiggy Builders Club application** | 🟣 **Opus** |
-| 16 | README + docs | 🟢 Sonnet |
+| 1 | All folder/config/boilerplate | 🟡 Gemini 3 Flash |
+| 2 | DB models, API routes, React components | 🟢 Claude Sonnet |
+| 3 | Prophet ML model builder | 🔴 Gemini 3.1 Pro High |
+| 4 | Anomaly detector | 🔴 Gemini 3.1 Pro High |
+| 5 | **Restock LangGraph agent** | 🟣 **Claude Opus** |
+| 6 | Confidence scorer, household profiler | 🟢 Claude Sonnet |
+| 7 | WhatsApp webhook + Twilio | 🟢 Claude Sonnet |
+| 8 | Price chart (Recharts) | ⚫ Gemini 3.1 Pro Low |
+| 9 | Pantry state estimator | ⚫ Gemini 3.1 Pro Low |
+| 10 | **Recipe LangGraph agent** | 🟣 **Claude Opus** |
+| 11 | Recipe ingredient parser (prompt eng) | 🟢 Claude Sonnet |
+| 12 | Price tracker + commodity alerts | 🟢 Claude Sonnet |
+| 13 | Demo seed data (make numbers impressive) | 🔴 Gemini 3.1 Pro High |
+| 14 | Full codebase debugging | 🔴 Gemini 3.1 Pro High |
+| 15 | **Swiggy Builders Club application** | 🟣 **Claude Opus** |
+| 16 | README + docs | 🟢 Claude Sonnet |

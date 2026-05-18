@@ -9,3 +9,4 @@
 - [2026-05-18T08:45:10] refactor: streamline state handlers in PhoneMockup
 - [2026-05-18T11:15:33] style: harmonize badge font-display typography
 - [2026-05-18T14:30:02] fix: correct progress bar border rendering
+- [2026-05-18T19:10:55] test: add unit tests for restock checkpointer

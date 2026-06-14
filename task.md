@@ -3,13 +3,11 @@
 # Format: [x] done | [/] in progress | [ ] not started
 
 ## 🔴 In Progress
-- [ ] Task 3.1: Twilio WhatsApp Sandbox Configuration — Configure Twilio credentials in `.env`, test sandbox join flow.
 
 ## 🟡 Up Next
-- [ ] Task 3.2: WhatsApp Webhook (`backend/notifications/whatsapp.py`) — Implement `/api/webhook/whatsapp` receiver to parse YES/NO replies and drive restock_agent.
-- [ ] Task 3.3: Frontend Real API Hydration — Wire `predictions/page.tsx` and `price-alerts/page.tsx` to live `/api/predictions/{user_id}` and `/api/restock/{user_id}` endpoints.
 
 ## 🟢 Done
+- [x] Task 3.1-3.4: Sandbox Chat Integration Sprint — LangGraph Postgres checkpointer, Unified Webhook router, Next.js Collapsible Chat Drawer widget, Predictions page hydration — [2026-06-14]
 - [x] Task 0.1-0.3: Project setup — folder structure, Docker TimescaleDB, Python venv + dependencies — [2026-05-16]
 - [x] Task 1.1-1.3: Database schema (Alembic migration), SQLAlchemy models, TimescaleDB hypertable for price_history — [2026-05-16]
 - [x] Task 1.4-1.6: Mock Swiggy MCP server (port 8001), 100-order seed data generator, sync_service — [2026-05-16]

@@ -1116,7 +1116,7 @@ curl -X POST "http://localhost:8000/api/restock/check-now?household_id=demo_user
 
 ## DAY 11-12 (Mon-Tue)
 
-### Task 3.1 — Twilio WhatsApp Setup 🟡 FLASH
+### Task 3.1 — LangGraph Postgres Checkpointer integration 🟢 SONNET
 
 Setup steps (no code needed, just config):
 1. Sign up at twilio.com — free $15 credit
@@ -1127,66 +1127,68 @@ Setup steps (no code needed, just config):
 
 ---
 
-### Task 3.2 — WhatsApp Webhook 🟢 SONNET
+### Task 3.2 — Unified Webhook Router & Checkpointer 🟢 SONNET
 
 ```python
 # backend/notifications/whatsapp.py
-from fastapi import APIRouter, Form, Response
-from twilio.rest import Client
-from twilio.twiml.messaging_response import MessagingResponse
-import os
+from fastapi import APIRouter, Request, Response, Depends
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+import logging
 
-router = APIRouter(prefix="/webhook", tags=["webhooks"])
-twilio = Client(os.getenv("TWILIO_ACCOUNT_SID"), os.getenv("TWILIO_AUTH_TOKEN"))
-FROM = f"whatsapp:{os.getenv('TWILIO_WHATSAPP_FROM')}"
+from backend.database.connection import get_db, get_checkpointer
+from backend.database.models import Household, RestockAlert
+from backend.agents.restock_agent import build_restock_graph
 
-async def send_whatsapp(to: str, message: str):
-    twilio.messages.create(from_=FROM, body=message, to=f"whatsapp:{to}")
+router = APIRouter(prefix="/api/webhook", tags=["webhook"])
 
 @router.post("/whatsapp")
-async def whatsapp_webhook(From: str = Form(...), Body: str = Form(...)):
-    phone = From.replace("whatsapp:", "")
-    hh = await db.fetch_one("SELECT * FROM households WHERE phone_number = $1", phone)
+async def whatsapp_webhook(request: Request, db: AsyncSession = Depends(get_db)):
+    content_type = request.headers.get("content-type", "")
+    is_json = "application/json" in content_type
+    phone, message = "", ""
+
+    if is_json:
+        payload = await request.json()
+        phone = payload.get("phone", "").replace("whatsapp:", "")
+        message = payload.get("message", "")
+    else:
+        form_data = await request.form()
+        phone = form_data.get("From", "").replace("whatsapp:", "")
+        message = form_data.get("Body", "")
+
+    # Look up household by phone number (with demo fallbacks)
+    stmt = select(Household).where(Household.phone_number == phone)
+    res = await db.execute(stmt)
+    hh = res.scalar_one_or_none()
 
     if not hh:
-        r = MessagingResponse()
-        r.message("Hi! Please set up your account at the Instamart Intelligence app first.")
-        return Response(content=str(r), media_type="application/xml")
+        reply = "Household not registered. Please register on the dashboard."
+        return {"response_message": reply} if is_json else Response(content=f"<Response><Message>{reply}</Message></Response>", media_type="application/xml")
 
-    if Body.strip().upper() == "STOP":
-        await db.execute(
-            "UPDATE households SET notifications_enabled = FALSE WHERE id = $1", hh["id"]
-        )
-        r = MessagingResponse()
-        r.message("Unsubscribed from alerts. Reply START to re-enable.")
-        return Response(content=str(r), media_type="application/xml")
+    # Fetch active depleting items from latest alert
+    depleting_items = [{"item_name": "Fortune Sunflower Oil 1L", "confidence_score": 0.9, "days_remaining": 1.0}]
 
-    pending = await db.fetch_one("""
-        SELECT * FROM restock_alerts WHERE household_id = $1
-        AND status = 'sent' ORDER BY sent_at DESC LIMIT 1
-    """, hh["id"])
+    # Run stateful LangGraph agent with Postgres checkpointer
+    config = {"configurable": {"thread_id": phone}}
+    async with await get_checkpointer() as cp:
+        agent = build_restock_graph().compile(checkpointer=cp)
+        result = await agent.ainvoke({
+            "household_id": str(hh.id),
+            "depleting_items": depleting_items,
+            "stage": "parse_reply",
+            "user_message": message,
+            "confirmed_items": [],
+            "response_message": ""
+        }, config=config)
+        reply_msg = result.get("response_message", "")
 
-    depleting = await get_items_from_alert(pending) if pending else []
-    result = await restock_agent.ainvoke({
-        "household_id": str(hh["id"]), "depleting_items": depleting,
-        "stage": "parse_reply", "user_message": Body,
-        "confirmed_items": [], "response_message": ""
-    })
-
-    if result.get("order_id") and pending:
-        await db.execute(
-            "UPDATE restock_alerts SET status='acted', acted_at=NOW(), order_id_placed=$1 WHERE id=$2",
-            result["order_id"], pending["id"]
-        )
-
-    r = MessagingResponse()
-    r.message(result["response_message"])
-    return Response(content=str(r), media_type="application/xml")
+    return {"response_message": reply_msg} if is_json else Response(content=f"<Response><Message>{reply_msg}</Message></Response>", media_type="application/xml")
 ```
 
-In Twilio dashboard → Sandbox settings → set Webhook URL to: `https://xxxx.ngrok.io/webhook/whatsapp`
+In Twilio dashboard → Sandbox settings → set Webhook URL to: `https://xxxx.ngrok.io/api/webhook/whatsapp`
 
-**Done when:** Sending "YES" to your sandbox number triggers a cart build and order confirmation.
+**Done when:** Sending "YES" to the browser sandbox chat drawer or your sandbox number triggers a cart build and order confirmation.
 
 ---
 

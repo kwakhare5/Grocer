@@ -3,7 +3,21 @@ Pytest configuration for async tests.
 Provides shared fixtures and configures asyncio mode.
 """
 import pytest
+import asyncio
+from backend.database.connection import engine
 
 
-# Use 'asyncio' mode for all async tests in this package
-# Requires: pip install pytest-asyncio (already in requirements.txt)
+@pytest.fixture(scope="session")
+def event_loop():
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+    yield loop
+    loop.close()
+
+
+@pytest.fixture(autouse=True)
+async def cleanup_engine():
+    yield
+    await engine.dispose()

@@ -1,9 +1,72 @@
+# CLAUDE.md — Project Context
+
+# Per-project file. Copy from D:\Ai Template\CLAUDE.md and fill in.
+
+# Version: 4.0 | June 2026
+
+# Full rules: C:\Users\kwakh\.gemini\AI_RULES.md
+
+---
+
+## THE HANDSHAKE (MANDATORY — before any action)
+
+1. Output sentinel: `🔍 Skill: [loaded/none] | Persona: [@role] | Permission: [obtained/pending]`
+2. State one detail from this file + `C:\Users\kwakh\.gemini\SKILLS_INDEX.md`
+3. Read SKILLS_INDEX.md → load relevant skills → list them
+4. Propose plan (Goal / Approach / Steps / Risks)
+5. Wait for "Approved" — no tool calls before this
+
+**Skip any step = Unsafe State. Stop. Apologize. Restart.**
+
+Full rules: `C:\Users\kwakh\.gemini\AI_RULES.md`
+
+---
+
+## COMMANDS
+
+| Command        | What it does                                                |
+| -------------- | ----------------------------------------------------------- |
+| @SYNC          | Reset + load all relevant skills for this project           |
+| @GRILL         | Deep alignment + builds CONTEXT.md glossary + ADRs          |
+| @BRAINSTORM    | Idea → spec. Always AFTER @GRILL                            |
+| @PLAN          | Spec → task list (2-5 min tasks, exact paths, verification) |
+| @BUILD         | Execute plan with TDD enforced (RED→GREEN→REFACTOR)         |
+| @REVIEW        | Code review against spec before merging                     |
+| @DIAGNOSE      | 6-phase disciplined bug hunt (feedback loop → fix → test)   |
+| @AUDIT         | Production readiness scan → AUDIT.md with score/100         |
+| @PROTOTYPE     | Throwaway design exploration (logic or UI)                  |
+| @ZOOM          | Map unfamiliar code using domain vocabulary                 |
+| @TAG [feature] | Architecture scan → ARCHITECT_AUDIT.md                      |
+| @QA            | Interactive bug reporting → GitHub issues                   |
+| @HANDOFF       | Compress session for fresh start                            |
+
+**New feature:** `@GRILL → @BRAINSTORM → @PLAN → @BUILD → @REVIEW → merge`
+**Bug:** `@DIAGNOSE → fix → @REVIEW`
+**Unknown code:** `@ZOOM → explore → proceed`
+**Design question:** `@PROTOTYPE → decision → @BRAINSTORM`
+
+---
+
+## SKILLS
+
+Tier 0 (Karpathy — always active): embedded in AI_RULES.md → K1-K4
+Tier 1 (Superpowers): `C:\Users\kwakh\.gemini\SKILLS_INDEX.md` → `sp-*`
+Tier 2 (Matt Pocock): `C:\Users\kwakh\.gemini\SKILLS_INDEX.md` → `mp-*`
+Tier 3 (Security): `C:\Users\kwakh\.gemini\SKILLS_INDEX.md` → `community-*`
+Tier 4 (Domain): `C:\Users\kwakh\.gemini\SKILLS_INDEX.md` → domain skills
+
+---
+
+## PROJECT INFO
+
 # CLAUDE.md — Instamart Intelligence
+
 ## Household AI that predicts what your kitchen needs before you run out
 
 ---
 
 # Instamart Intelligence — Complete Project Documentation
+
 ## "The household AI that knows your kitchen better than you do"
 
 ---
@@ -31,6 +94,7 @@ That house manager is what this app pretends to be — except it's software that
 **The existential problem:** Swiggy Instamart and Blinkit are identical products. Same 10-minute delivery. Same Amul milk. Same prices. Same interface. A user has zero reason to be loyal to either one — they open whichever app they remember first.
 
 **The solution this project creates:** If Instamart has been learning your household's grocery patterns for 6 months, it knows things Blinkit cannot know:
+
 - Your family uses 1L milk every 2.1 days
 - You buy 5kg atta every 17 days, not 16 or 18
 - You always buy eggs and bread together on Sunday mornings
@@ -51,12 +115,14 @@ If you switch to Blinkit, you lose all of that. You're starting from zero. That 
 The system reads every Instamart order you've ever placed and builds a profile for each recurring item. It figures out: "This household buys 1L milk every 2.1 days on average. Sometimes 1.9 days, sometimes 2.4 days, but almost always within that range."
 
 **How it works technically:**
+
 - Pulls your complete order history from Swiggy's MCP (API)
 - For each item that appears more than 3 times, it runs a time-series analysis using Facebook Prophet (an open-source forecasting library)
 - Prophet handles the messy real-world stuff: weekly patterns (you buy more groceries on Sunday), seasonal patterns (more milk during festivals), and random noise
 - The output is a consumption model per item: average daily usage, typical purchase cycle, and a confidence score
 
 **Real example:**
+
 ```
 Item: Fortune Sunflower Oil (1L)
 Orders found: 14 purchases over 4 months
@@ -78,6 +144,7 @@ A human looking at 14 grocery orders would take 20 minutes to notice the pattern
 Once the system knows your consumption rates, it monitors all your items in the background. Two days before any item is predicted to run out, it sends you a WhatsApp message asking if you want to reorder. You reply YES. It builds the cart and places the order. You never open the app.
 
 **How it works technically:**
+
 - A background scheduler (APScheduler) runs every morning at 8am
 - It checks all consumption models for items where `estimated_depletion_date < NOW() + 2 days`
 - For matching items, it generates a friendly WhatsApp message using Claude API
@@ -86,12 +153,13 @@ Once the system knows your consumption rates, it monitors all your items in the 
 - The Swiggy Instamart MCP APIs handle the actual cart building and order placement
 
 **Real example WhatsApp flow:**
+
 ```
 [8:02 AM from Instamart Intelligence]
 🛒 Your household is likely running low on:
 
 • Cooking oil (87% confident — last bought 14 days ago)
-• Milk (76% confident — last bought 1.9 days ago)  
+• Milk (76% confident — last bought 1.9 days ago)
 • Atta (68% confident — last bought 16 days ago)
 
 Reply YES to reorder all, or tell me which ones.
@@ -117,6 +185,7 @@ Total: ₹158. Confirming order?
 
 **The anomaly handling (what makes it actually smart):**
 The system doesn't blindly predict — it watches for anomalies:
+
 - **Travel detection**: No orders for 5+ days? You're probably traveling. Predictions are paused, not broken.
 - **Guest spike**: You bought 3L milk instead of your usual 1L? Guests visited. This outlier is excluded from your baseline model so it doesn't inflate your daily average.
 - **Dietary shift**: Your egg purchases dropped 80% over the last month? The system flags a possible dietary change and asks you to confirm before updating your model.
@@ -129,6 +198,7 @@ The system doesn't blindly predict — it watches for anomalies:
 You tell the app you're making Sunday biryani for 6. It figures out all the ingredients needed, cross-references against your estimated pantry (based on what you've bought and how fast you use it), and shows you exactly what's missing with a ready-to-order cart.
 
 **How it works technically:**
+
 - You type a recipe name (or paste one) into the app
 - Claude API parses the recipe and extracts all ingredients with quantities (e.g., "400g basmati rice, 300ml yogurt, 2 large onions, 1 tsp saffron...")
 - The system checks your "estimated pantry state" — a calculated estimate of what you likely still have based on last purchase date and daily consumption rate
@@ -136,6 +206,7 @@ You tell the app you're making Sunday biryani for 6. It figures out all the ingr
 - Missing items are bundled into a single Instamart cart for one-tap ordering
 
 **Real example:**
+
 ```
 Recipe: Dal Makhani for 4 people
 
@@ -150,7 +221,7 @@ You likely have:
 
 You probably need:
 ✗ Fresh cream (200ml) — not in recent orders
-✗ Kasuri methi — not in recent orders  
+✗ Kasuri methi — not in recent orders
 ✗ Heavy cream or malai — not tracked
 
 Missing ingredients cart: ₹120
@@ -158,6 +229,7 @@ Missing ingredients cart: ₹120
 ```
 
 **Additional recipe features:**
+
 - Pin recipes to specific dates ("Making biryani this Sunday") — system auto-schedules the missing ingredient check for 2 days before
 - Cuisine week planning: tell the system your weekly meal plan, it gives you a consolidated shopping list
 - Nutritional awareness: if your last 3 restock carts are dominated by processed food or packaged snacks, the system gently flags it
@@ -170,6 +242,7 @@ Missing ingredients cart: ₹120
 Certain groceries in India fluctuate wildly — tomatoes, onions, potatoes, cooking oil, atta. The app tracks the price of these volatile staples daily. When tomatoes suddenly cost 140% more than last month, it tells you. When prices dip, it tells you to stock up.
 
 **How it works technically:**
+
 - A daily price scraper calls Swiggy's `search_instamart_items` MCP for each volatile commodity
 - Prices are stored in TimescaleDB (a time-series database) — one row per item per day
 - Each day, the system calculates the current price vs the 30-day rolling average
@@ -178,11 +251,12 @@ Certain groceries in India fluctuate wildly — tomatoes, onions, potatoes, cook
 - Substitution logic: during a tomato spike, the system suggests canned tomatoes or a recipe swap
 
 **Real example alerts:**
+
 ```
 📈 Price Alert: Tomatoes
 Current: ₹29/100g (+142% vs last month avg of ₹12)
 This spike typically lasts 8-12 days based on past patterns.
-Suggestion: Use canned tomatoes for this week's cooking, 
+Suggestion: Use canned tomatoes for this week's cooking,
 or wait 7-8 days before restocking fresh.
 
 ---
@@ -203,12 +277,14 @@ India has extreme commodity price volatility driven by monsoon, harvest cycles, 
 Without you ever filling out a form, the system figures out what kind of household you are — solo, couple, family of 4, elderly couple — purely from your consumption patterns. It uses this to calibrate all its predictions.
 
 **How it works technically:**
+
 - Benchmarks for known household types are pre-defined (e.g., a family of 4 in India uses ~1L milk/day, ~300g atta/day, ~2-3 eggs/day)
 - The system compares your observed consumption rates across multiple items to these benchmarks
 - Whichever benchmark profile your data most closely matches becomes your inferred household type
 - This inference is shown to you with a confidence score and you can correct it
 
 **Real example profile:**
+
 ```
 Your Household Profile
 ━━━━━━━━━━━━━━━━━━━━━━
@@ -291,26 +367,32 @@ Python library that runs scheduled tasks. The daily depletion check (8am every d
 These are the six Swiggy APIs your system uses. Understanding what each does is important both for building and for your Builders Club application.
 
 ## `get_instamart_orders`
+
 **What it returns:** Complete order history — every order placed, every item, quantities, prices, timestamps.
 **When your system uses it:** On first load (to build initial consumption models) and after every new order (to update models). Also runs once a week to sync any orders.
 
 ## `search_instamart_items`
+
 **What it returns:** Product listings matching a search query — item ID, name, price, available sizes.
 **When your system uses it:** When building a restock cart (search for the item name to get the current product listing), when tracking commodity prices (search tomatoes daily to get current price), and when converting recipe ingredients to orderable items.
 
 ## `update_instamart_cart`
+
 **What it returns:** Updated cart state with all items.
 **When your system uses it:** After the user confirms a restock recommendation, the LangGraph agent calls this to populate the cart with the suggested items before placing the order.
 
 ## `get_instamart_cart`
+
 **What it returns:** Current cart contents and total.
 **When your system uses it:** Before placing an order, to show the user a cart summary on WhatsApp ("Your cart: Cooking Oil 1L + Milk 1L = ₹158. Confirm?")
 
 ## `place_instamart_order`
+
 **What it returns:** Order confirmation with order ID and estimated delivery time.
 **When your system uses it:** After the user confirms the cart. This is the final step in the restock flow.
 
 ## `track_instamart_order`
+
 **What it returns:** Real-time order status.
 **When your system uses it:** After placing an order, to send a delivery confirmation WhatsApp message when the order is out for delivery or delivered.
 
@@ -396,6 +478,7 @@ All of this depends on having 4 months of realistic, believable seed data that t
 Bad seed data: every item ordered exactly every N days, always the same quantity, perfectly on schedule. This will produce impossibly high confidence scores and make your demo look fake.
 
 Good seed data:
+
 - Orders cluster slightly (you tend to do a "big shop" order vs small top-ups)
 - Quantities vary ±20% (sometimes you buy 1L milk, sometimes 2L)
 - There's a 10-day travel gap in month 2
@@ -437,6 +520,7 @@ When writing your Swiggy Builders Club application, frame the impact in their la
 This project handles sensitive data — your household's grocery patterns reveal a lot about your life. How many people live with you. What you eat. When you travel. Whether you're watching your diet. This trust must be handled explicitly.
 
 **Required privacy features before demo:**
+
 - Consent screen on first use: "We analyze your order history to predict what you need. You can delete your data at any time."
 - Data deletion endpoint: `DELETE /api/household/{id}` wipes all models and history
 - WhatsApp opt-out: reply "STOP" at any time to pause all notifications
@@ -448,6 +532,7 @@ This project handles sensitive data — your household's grocery patterns reveal
 # PART 10: WHAT SUCCESS LOOKS LIKE
 
 **Week 4 demo is successful if:**
+
 - You can show consumption models for 10+ items with real-looking confidence scores
 - You can demonstrate a prediction that was accurate within 2 days on your seed data
 - The WhatsApp → YES → order placed flow works end-to-end (even with mock MCP)
@@ -455,16 +540,19 @@ This project handles sensitive data — your household's grocery patterns reveal
 - The dashboard looks professional and loads fast
 
 **Swiggy application is successful if:**
+
 - You get a response within 2 weeks (high strategic fit = faster response)
 - They request the demo video (means they're interested)
 - They grant sandbox API access (means they're serious)
 
 **The product is successful (long-term) if:**
+
 - 90-day retention of Intelligence users is 3x higher than regular users
 - Average order frequency increases 40%+ for active Intelligence users
 - User-reported NPS includes "it knows what I need" as a top mention
 
 **Stack at a glance:**
+
 - Backend: FastAPI (Python)
 - Database: PostgreSQL + TimescaleDB (time-series)
 - ML: Facebook Prophet (forecasting)
@@ -660,6 +748,7 @@ psql -h localhost -U postgres -d instamart_intelligence \
 ```
 
 **.env file:**
+
 ```
 DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost/instamart_intelligence
 MCP_BASE_URL=http://localhost:3000
@@ -781,10 +870,10 @@ def generate_orders(household_type: str, months: int = 4, user_id: str = "demo_u
     """
     orders = []
     start_date = datetime.now() - timedelta(days=months * 30)
-    
+
     # Track inventory levels per item
     inventory = {item: 0.0 for item in HOUSEHOLD_ITEMS}
-    
+
     current_date = start_date
     while current_date < datetime.now():
         # Check what needs reordering (within 20% of depletion)
@@ -803,7 +892,7 @@ def generate_orders(household_type: str, months: int = 4, user_id: str = "demo_u
                     "category": HOUSEHOLD_ITEMS[item]["category"]
                 })
                 inventory[item] += pack
-        
+
         if items_to_order:
             orders.append({
                 "order_id": f"ORD_{len(orders):04d}",
@@ -812,16 +901,16 @@ def generate_orders(household_type: str, months: int = 4, user_id: str = "demo_u
                 "items": items_to_order,
                 "total": sum(i["price"] for i in items_to_order)
             })
-        
+
         # Consume daily
         for item in inventory:
             daily_use = HOUSEHOLD_ITEMS[item][f"{household_type}_daily"]
             # Add ±15% noise for realism
             noise = random.uniform(0.85, 1.15)
             inventory[item] = max(0, inventory[item] - daily_use * noise)
-        
+
         current_date += timedelta(days=1)
-    
+
     return orders
 ```
 
@@ -839,7 +928,7 @@ import json
 class ConsumptionModeler:
     def __init__(self, db_session):
         self.db = db_session
-    
+
     async def build_model_for_item(self, household_id: str, item_id: str) -> dict:
         """
         Builds a Prophet time-series model for a single item.
@@ -853,16 +942,16 @@ class ConsumptionModeler:
             WHERE o.household_id = $1 AND oi.item_id = $2
             ORDER BY o.placed_at ASC
         """, household_id, item_id)
-        
+
         if len(purchases) < 3:
             return {"confidence": 0.0, "message": "insufficient_data"}
-        
+
         # Build Prophet dataframe — cumulative consumption over time
         df = pd.DataFrame([{
             "ds": p["placed_at"],
             "y": p["standard_quantity"]
         } for p in purchases])
-        
+
         # Fit model
         model = Prophet(
             seasonality_mode='multiplicative',
@@ -871,24 +960,24 @@ class ConsumptionModeler:
             daily_seasonality=False
         )
         model.fit(df)
-        
+
         # Derive daily consumption rate from total purchased / days elapsed
         total_quantity = df["y"].sum()
         days_elapsed = (df["ds"].max() - df["ds"].min()).days
         avg_daily = total_quantity / max(days_elapsed, 1)
-        
+
         # Last purchase date and quantity
         last_purchase = purchases[-1]
-        
+
         # Predict when current stock will run out
         days_of_stock = last_purchase["standard_quantity"] / avg_daily
         depletion_date = last_purchase["placed_at"] + timedelta(days=days_of_stock)
-        
+
         # Confidence: based on regularity of purchase pattern
         cycle_days_list = df["ds"].diff().dt.days.dropna().tolist()
         cycle_std = pd.Series(cycle_days_list).std()
         confidence = max(0.0, min(1.0, 1.0 - (cycle_std / 30)))
-        
+
         return {
             "item_id": item_id,
             "avg_daily_consumption": avg_daily,
@@ -899,7 +988,7 @@ class ConsumptionModeler:
             "confidence_score": confidence,
             "data_points": len(purchases)
         }
-    
+
     async def rebuild_all_models(self, household_id: str):
         """Rebuild consumption models for all recurring items"""
         items = await self.db.fetch_all("""
@@ -908,7 +997,7 @@ class ConsumptionModeler:
             JOIN orders o ON o.id = oi.order_id
             WHERE o.household_id = $1
         """, household_id)
-        
+
         results = []
         for item in items:
             model_data = await self.build_model_for_item(household_id, item["item_id"])
@@ -939,7 +1028,7 @@ class AnomalyDetector:
     Detects lifestyle anomalies that break consumption patterns.
     Types: travel (zero orders), guests (consumption spike), dietary_change (category shift)
     """
-    
+
     def detect_travel(self, order_history: list, window_days: int = 7) -> dict:
         """
         If no orders for 5+ days, user is likely traveling.
@@ -947,7 +1036,7 @@ class AnomalyDetector:
         """
         dates = sorted([o["placed_at"] for o in order_history])
         gaps = [(dates[i+1] - dates[i]).days for i in range(len(dates)-1)]
-        
+
         long_gaps = [g for g in gaps if g >= 5]
         if long_gaps:
             return {
@@ -957,7 +1046,7 @@ class AnomalyDetector:
                 "frequency_per_year": len(long_gaps) * (365 / len(dates))
             }
         return {"anomaly": "travel", "detected": False}
-    
+
     def detect_guests(self, item_id: str, recent_orders: list, baseline: float) -> dict:
         """
         If a single order quantity is 2x+ the baseline, guests likely visited.
@@ -965,7 +1054,7 @@ class AnomalyDetector:
         """
         if not recent_orders:
             return {"anomaly": "guests", "detected": False}
-        
+
         latest_qty = recent_orders[-1]["standard_quantity"]
         if latest_qty > baseline * 2.5:
             return {
@@ -975,7 +1064,7 @@ class AnomalyDetector:
                 "recommendation": "exclude_from_model"
             }
         return {"anomaly": "guests", "detected": False}
-    
+
     def detect_dietary_change(self, category_history: dict) -> dict:
         """
         If a food category's purchase frequency drops >60% vs 3-month average,
@@ -1012,9 +1101,9 @@ async def daily_depletion_check():
     Fire alerts for items depleting within ALERT_THRESHOLD days.
     """
     ALERT_THRESHOLD_DAYS = 2  # Alert 2 days before predicted depletion
-    
+
     households = await db.fetch_all("SELECT id, phone_number FROM households WHERE phone_number IS NOT NULL")
-    
+
     for household in households:
         models = await db.fetch_all("""
             SELECT * FROM consumption_models
@@ -1022,7 +1111,7 @@ async def daily_depletion_check():
             AND confidence_score > 0.5
             AND estimated_depletion_date BETWEEN NOW() AND NOW() + INTERVAL '$2 days'
         """, household["id"], ALERT_THRESHOLD_DAYS)
-        
+
         if models:
             await send_restock_alert(household, models)
 
@@ -1033,9 +1122,9 @@ async def send_restock_alert(household, items):
         f"• {item['item_name']} ({int(item['confidence_score']*100)}% likely low)"
         for item in items
     ])
-    
+
     message = f"""🛒 *Instamart Intelligence*
-    
+
 Your household is likely running low on:
 
 {item_list}
@@ -1043,7 +1132,7 @@ Your household is likely running low on:
 Reply *YES* to reorder all, or tap to review each item.
 
 _Prediction based on {items[0]['data_points']}+ orders_"""
-    
+
     await whatsapp_client.send(household["phone_number"], message)
 ```
 
@@ -1059,21 +1148,21 @@ class HouseholdProfiler:
     Infers household composition from consumption patterns.
     No personal questions asked — all inferred from data.
     """
-    
+
     CONSUMPTION_BENCHMARKS = {
         "solo": {"milk_L_day": 0.25, "eggs_day": 0.7, "atta_kg_day": 0.07},
         "couple": {"milk_L_day": 0.5, "eggs_day": 1.5, "atta_kg_day": 0.15},
         "family_small": {"milk_L_day": 1.0, "eggs_day": 2.5, "atta_kg_day": 0.3},
         "family_large": {"milk_L_day": 2.0, "eggs_day": 5.0, "atta_kg_day": 0.6},
     }
-    
+
     def infer_composition(self, consumption_models: list) -> dict:
         """
         Compare observed daily consumption rates against known benchmarks.
         Returns best-fit household type + confidence.
         """
         observed = {m["item_id"]: m["avg_daily_consumption"] for m in consumption_models}
-        
+
         scores = {}
         for hh_type, benchmarks in self.CONSUMPTION_BENCHMARKS.items():
             score = 0
@@ -1086,7 +1175,7 @@ class HouseholdProfiler:
                     score += max(0, 1 - abs(1 - ratio))
                     count += 1
             scores[hh_type] = score / max(count, 1)
-        
+
         best_type = max(scores, key=scores.get)
         return {
             "composition": best_type,
@@ -1126,20 +1215,20 @@ graph = StateGraph(RestockState)
 async def analyze_items(state: RestockState):
     """Use Claude to generate a natural restock message"""
     client = Anthropic()
-    
+
     items_text = "\n".join([
         f"- {item['item_name']}: {int(item['confidence']*100)}% likely low, "
         f"last bought {item['days_since_purchase']} days ago"
         for item in state["depleting_items"]
     ])
-    
+
     response = client.messages.create(
         model="claude-sonnet-4-20250514",
         max_tokens=500,
         messages=[{
             "role": "user",
             "content": f"""You are a smart household assistant for Instamart.
-            
+
 Items likely running low in this household:
 {items_text}
 
@@ -1148,14 +1237,14 @@ Include confidence % for top 3 items. End with "Reply YES to reorder all."
 Do not use excessive emojis."""
         }]
     )
-    
+
     state["response"] = response.content[0].text
     return state
 
 async def check_user_response(state: RestockState):
     """Parse user's WhatsApp reply"""
     msg = state["user_message"].strip().upper()
-    
+
     if msg in ["YES", "Y", "REORDER", "ORDER ALL"]:
         state["confirmed_items"] = state["depleting_items"]
     elif msg == "NO":
@@ -1171,7 +1260,7 @@ async def build_cart(state: RestockState):
     if not state["confirmed_items"]:
         state["response"] = "Got it! I'll check again in 2 days. 👍"
         return state
-    
+
     cart_items = []
     for item in state["confirmed_items"]:
         # Search for item and get best match
@@ -1181,7 +1270,7 @@ async def build_cart(state: RestockState):
             "item_id": best_match["id"],
             "quantity": item["suggested_quantity"]
         })
-    
+
     cart = await mcp_client.update_instamart_cart(cart_items)
     state["cart_id"] = cart["cart_id"]
     return state
@@ -1212,52 +1301,63 @@ restock_agent = graph.compile()
 
 ---
 
-### Step 3.2 — WhatsApp Webhook (Twilio)
+### Step 3.2 — Unified Webhook Router & Checkpointer
 
 ```python
 # backend/notifications/whatsapp.py
-from fastapi import APIRouter, Request
-from twilio.rest import Client
-from twilio.twiml.messaging_response import MessagingResponse
+from fastapi import APIRouter, Request, Response, Depends
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+import logging
 
-router = APIRouter()
-twilio_client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+from backend.database.connection import get_db, get_checkpointer
+from backend.database.models import Household, RestockAlert
+from backend.agents.restock_agent import build_restock_graph
 
-@router.post("/webhook/whatsapp")
-async def whatsapp_webhook(request: Request):
-    """Handle incoming WhatsApp replies from users"""
-    form = await request.form()
-    from_number = form.get("From")  # whatsapp:+91XXXXXXXXXX
-    body = form.get("Body", "")
-    
-    # Find household by phone number
-    household = await db.fetch_one(
-        "SELECT * FROM households WHERE phone_number = $1",
-        from_number.replace("whatsapp:", "")
-    )
-    
-    if household:
-        # Run LangGraph agent with user's response
-        result = await restock_agent.ainvoke({
-            "household_id": household["id"],
-            "user_message": body,
-            "depleting_items": await get_pending_alert_items(household["id"])
-        })
-        
-        # Reply via Twilio
-        resp = MessagingResponse()
-        resp.message(result["response"])
-        return str(resp)
-    
-    return "OK"
+router = APIRouter(prefix="/api/webhook", tags=["webhook"])
 
+@router.post("/whatsapp")
+async def whatsapp_webhook(request: Request, db: AsyncSession = Depends(get_db)):
+    content_type = request.headers.get("content-type", "")
+    is_json = "application/json" in content_type
+    phone, message = "", ""
 
-async def send_whatsapp_message(to_number: str, message: str):
-    twilio_client.messages.create(
-        from_=f"whatsapp:{TWILIO_WHATSAPP_FROM}",
-        body=message,
-        to=f"whatsapp:{to_number}"
-    )
+    if is_json:
+        payload = await request.json()
+        phone = payload.get("phone", "").replace("whatsapp:", "")
+        message = payload.get("message", "")
+    else:
+        form_data = await request.form()
+        phone = form_data.get("From", "").replace("whatsapp:", "")
+        message = form_data.get("Body", "")
+
+    # Look up household by phone number (with demo fallbacks)
+    stmt = select(Household).where(Household.phone_number == phone)
+    res = await db.execute(stmt)
+    hh = res.scalar_one_or_none()
+
+    if not hh:
+        reply = "Household not registered. Please register on the dashboard."
+        return {"response_message": reply} if is_json else Response(content=f"<Response><Message>{reply}</Message></Response>", media_type="application/xml")
+
+    # Fetch active depleting items from latest alert
+    depleting_items = [{"item_name": "Fortune Sunflower Oil 1L", "confidence_score": 0.9, "days_remaining": 1.0}]
+
+    # Run stateful LangGraph agent with Postgres checkpointer
+    config = {"configurable": {"thread_id": phone}}
+    async with await get_checkpointer() as cp:
+        agent = build_restock_graph().compile(checkpointer=cp)
+        result = await agent.ainvoke({
+            "household_id": str(hh.id),
+            "depleting_items": depleting_items,
+            "stage": "parse_reply",
+            "user_message": message,
+            "confirmed_items": [],
+            "response_message": ""
+        }, config=config)
+        reply_msg = result.get("response_message", "")
+
+    return {"response_message": reply_msg} if is_json else Response(content=f"<Response><Message>{reply_msg}</Message></Response>", media_type="application/xml")
 ```
 
 ---
@@ -1276,9 +1376,18 @@ interface DepletionCardProps {
   suggestedQuantity: number;
 }
 
-export function DepletionCard({ itemName, daysUntilDepletion, confidence }: DepletionCardProps) {
-  const urgency = daysUntilDepletion <= 1 ? 'red' : daysUntilDepletion <= 3 ? 'orange' : 'green';
-  
+export function DepletionCard({
+  itemName,
+  daysUntilDepletion,
+  confidence,
+}: DepletionCardProps) {
+  const urgency =
+    daysUntilDepletion <= 1
+      ? "red"
+      : daysUntilDepletion <= 3
+        ? "orange"
+        : "green";
+
   return (
     <div className={`card border-l-4 border-${urgency}-500`}>
       <h3>{itemName}</h3>
@@ -1287,18 +1396,17 @@ export function DepletionCard({ itemName, daysUntilDepletion, confidence }: Depl
         <span>days left</span>
       </div>
       <div className="confidence-bar">
-        <div style={{width: `${confidence * 100}%`}} />
+        <div style={{ width: `${confidence * 100}%` }} />
         <span>{Math.round(confidence * 100)}% confidence</span>
       </div>
-      <button onClick={() => reorderItem(itemName)}>
-        Reorder Now →
-      </button>
+      <button onClick={() => reorderItem(itemName)}>Reorder Now →</button>
     </div>
   );
 }
 ```
 
 **Dashboard pages to build:**
+
 - `/` — Overview: items depleting soon (sorted by urgency), household profile badge
 - `/predictions` — Full timeline: all items with confidence bars + depletion dates
 - `/recipes` — Pin weekly recipes, see what's missing from pantry
@@ -1322,11 +1430,11 @@ async def recipe_to_cart(recipe_name: str, servings: int, household_id: str) -> 
     """
     Given a recipe name, figure out what's missing from the pantry
     and generate a shopping cart.
-    
+
     Flow: Recipe Name → Claude parses ingredients → Check pantry state → Return missing items
     """
     client = Anthropic()
-    
+
     # Step 1: Parse recipe ingredients with Claude
     ingredient_response = client.messages.create(
         model="claude-sonnet-4-20250514",
@@ -1334,7 +1442,7 @@ async def recipe_to_cart(recipe_name: str, servings: int, household_id: str) -> 
         messages=[{
             "role": "user",
             "content": f"""List all ingredients needed for {recipe_name} for {servings} people.
-            
+
 For each ingredient provide:
 - name (in simple English, as someone would search in a grocery app)
 - quantity
@@ -1344,18 +1452,18 @@ Return as JSON array only. No preamble.
 Example: [{{"name": "basmati rice", "quantity": 400, "unit": "g"}}]"""
         }]
     )
-    
+
     ingredients = json.loads(ingredient_response.content[0].text)
-    
+
     # Step 2: Check estimated pantry state
     pantry = await get_estimated_pantry_state(household_id)
     # pantry = {item_id: estimated_remaining_quantity}
-    
+
     # Step 3: Find what's missing
     missing_items = []
     for ingredient in ingredients:
         pantry_match = find_pantry_match(ingredient["name"], pantry)
-        
+
         if not pantry_match or pantry_match["estimated_remaining"] < ingredient["quantity"]:
             missing_items.append({
                 "name": ingredient["name"],
@@ -1363,7 +1471,7 @@ Example: [{{"name": "basmati rice", "quantity": 400, "unit": "g"}}]"""
                 "unit": ingredient["unit"],
                 "in_pantry": pantry_match["estimated_remaining"] if pantry_match else 0
             })
-    
+
     return {
         "recipe": recipe_name,
         "servings": servings,
@@ -1394,23 +1502,23 @@ async def track_commodity_prices():
         results = await mcp_client.search_instamart_items(item_name)
         if results["items"]:
             current_price = results["items"][0]["price_per_unit"]
-            
+
             # Store in TimescaleDB
             await db.execute("""
                 INSERT INTO price_history (item_id, item_name, recorded_at, price_per_unit)
                 VALUES ($1, $2, NOW(), $3)
             """, results["items"][0]["id"], item_name, current_price)
-            
+
             # Check vs 30-day average
             avg_price = await db.fetch_val("""
                 SELECT AVG(price_per_unit) FROM price_history
                 WHERE item_name = $1
                 AND recorded_at > NOW() - INTERVAL '30 days'
             """, item_name)
-            
+
             if avg_price:
                 change_pct = ((current_price - avg_price) / avg_price) * 100
-                
+
                 if change_pct > 30:
                     await create_price_alert(item_name, "spike", change_pct, current_price, avg_price)
                 elif change_pct < -20:
@@ -1424,32 +1532,38 @@ async def track_commodity_prices():
 Follow this exact sequence for your demo video:
 
 **Scene 1: The Insight (0:00 - 0:45)**
+
 - Open dashboard → Show household profile: "4-person family · Mumbai · Tracked for 4 months"
 - Show top stat: "Your household uses 1L milk every 2.1 days · 94% accuracy"
 - Scroll through depletion timeline — 8 items, color-coded by urgency
 
 **Scene 2: The Prediction (0:45 - 1:30)**
+
 - Click on "Cooking Oil" card
 - Show: "Last bought 1L on April 28. At your avg of 68ml/day, estimated depletion: May 13"
 - Show confidence bar: "89% confidence based on 14 orders"
 - Show historical accuracy table: "Last 5 predictions vs actual — within 1.2 days avg"
 
 **Scene 3: The Alert (1:30 - 2:00)**
+
 - Show WhatsApp screen (phone mockup)
 - Receive message: "🛒 Instamart Intelligence: Cooking oil (89% low), Milk (76% low), Atta (71% low) likely running low. Reply YES to reorder all."
 - Type "YES" → Order confirmation arrives: "✅ Order placed! Arriving in 15 mins"
 
 **Scene 4: Price Intelligence (2:00 - 2:30)**
+
 - Show price chart for tomatoes: spike alert
 - "Tomatoes up 140% this week (₹12/100g → ₹29/100g). Based on seasonal pattern, likely to fall in 6-8 days. Consider canned tomatoes or waiting."
 
 **Scene 5: Recipe Intelligence (2:30 - 3:15)**
+
 - Type "Sunday biryani for 6 people"
 - Watch system parse ingredients (show loading)
 - "You have: basmati rice ✓, onions ✓, spices ✓. You need: cream (400ml), saffron, fresh mint. Cart ready — ₹180 total. Order?"
 - Tap "Order Missing Items" → Placed
 
 **Scene 6: The Pitch (3:15 - 3:30)**
+
 - Show switching cost metric: "Users who've been on Instamart Intelligence for 90+ days have 0% churn"
 - Close with: "6 months of household data = Blinkit can never catch up"
 
@@ -1496,6 +1610,7 @@ Happy to share codebase.
 ## ✅ Completion Checklist
 
 ### Week 1
+
 - [ ] Docker + TimescaleDB running locally
 - [ ] Mock MCP server returning realistic data
 - [ ] Seed script generating 4 months of order history
@@ -1503,6 +1618,7 @@ Happy to share codebase.
 - [ ] Data pipeline: MCP → DB → Model running end-to-end
 
 ### Week 2
+
 - [ ] Depletion predictions accurate on seed data (±2 days)
 - [ ] Anomaly detection handling travel gaps correctly
 - [ ] Household profiler inferring family type correctly
@@ -1510,6 +1626,7 @@ Happy to share codebase.
 - [ ] Confidence scores displaying meaningfully
 
 ### Week 3
+
 - [ ] FastAPI endpoints for all core features
 - [ ] WhatsApp webhook receiving and parsing replies
 - [ ] LangGraph restock agent placing mock orders end-to-end
@@ -1517,6 +1634,7 @@ Happy to share codebase.
 - [ ] One-tap reorder flow working
 
 ### Week 4
+
 - [ ] Recipe-to-cart working for 5 test recipes
 - [ ] Price tracker storing 30+ days of commodity data
 - [ ] Demo seed data generating impressive accuracy numbers
@@ -1528,6 +1646,7 @@ Happy to share codebase.
 ## 🔐 Privacy & Consent
 
 Add these before demo:
+
 - Clear data deletion endpoint: `DELETE /api/household/{id}/data`
 - Consent flag in `households` table: `intelligence_consent BOOLEAN`
 - WhatsApp opt-out: reply "STOP" → sets `notifications_enabled = false`

@@ -2,7 +2,7 @@ from sqlalchemy import Column, String, Float, Integer, DateTime, Boolean, Text, 
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import DeclarativeBase, relationship
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 class Base(DeclarativeBase):
     pass
@@ -16,7 +16,7 @@ class Household(Base):
     composition_confidence = Column(Float)
     intelligence_consent = Column(Boolean, default=False)
     notifications_enabled = Column(Boolean, default=True)
-    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     orders = relationship("Order", back_populates="household")
 
 class Order(Base):
@@ -58,7 +58,7 @@ class ConsumptionModel(Base):
     confidence_score = Column(Float)
     data_points = Column(Integer)
     is_anomaly_excluded = Column(Boolean, default=False)
-    updated_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
 class RestockAlert(Base):
     __tablename__ = "restock_alerts"
@@ -89,4 +89,4 @@ class Recipe(Base):
     ingredients = Column(JSONB)
     cuisine = Column(String(100))
     pinned_for = Column(DateTime(timezone=True))
-    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))

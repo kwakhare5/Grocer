@@ -96,11 +96,8 @@ async def daily_depletion_check_all() -> None:
                     continue
 
                 item_ids_list = [item["item_id"] for item in items]
-                names = [item["item_name"] for item in items]
-                message = (
-                    f"[ALERT] Running low: {', '.join(names[:3])}{'...' if len(names) > 3 else ''}. "
-                    f"Reply YES to reorder or NO to skip."
-                )
+                from backend.seed.catalog import format_restock_alert_message
+                message = format_restock_alert_message(items)
                 alert = RestockAlert(
                     household_id=hh.id,
                     item_ids=item_ids_list,

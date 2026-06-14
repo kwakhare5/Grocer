@@ -27,6 +27,38 @@ export default function ChatDrawer() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
 
+  // Fetch latest pending alert when sandbox is opened
+  useEffect(() => {
+    if (!isOpen) return;
+    async function loadLatestAlert() {
+      try {
+        const res = await fetch("http://localhost:8000/api/restock/demo_user_001/history");
+        if (res.ok) {
+          const data = await res.json();
+          if (data.alerts && data.alerts.length > 0) {
+            const latest = data.alerts[0];
+            // If the alert is pending, show the real message as the starting point!
+            if (latest.status === "pending" && latest.message) {
+              const timeStr = latest.sent_at 
+                ? new Date(latest.sent_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                : new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+              setMessages([
+                {
+                  sender: "bot",
+                  text: latest.message,
+                  timestamp: timeStr
+                }
+              ]);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn("Failed to fetch latest alert for simulator", err);
+      }
+    }
+    loadLatestAlert();
+  }, [isOpen]);
+
   const handleSendMessage = async () => {
     if (!input.trim() || loading) return;
     const userText = input;

@@ -18,6 +18,8 @@ class Settings(BaseSettings):
     TWILIO_WHATSAPP_FROM: str = 'whatsapp:+14155238886'  # Twilio sandbox number
     ALERT_THRESHOLD_DAYS: int = 7                  # Items depleting within N days trigger alerts
     MIN_CONFIDENCE: float = 0.50                   # Minimum Prophet confidence to surface a prediction
+    GROQ_API_KEY: str = ''                         # Free tier Groq API key
+    NVIDIA_API_KEY: str = ''                       # Free tier NVIDIA NIM API key
 
     model_config = SettingsConfigDict(env_file='.env', extra='ignore')
 

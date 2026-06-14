@@ -9,3 +9,4 @@ dist/
 build/
 *.log
 backend/seed/generated_orders.json
+api_keys_backup.md

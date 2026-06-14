@@ -8,3 +8,4 @@ node_modules/
 dist/
 build/
 *.log
+backend/seed/generated_orders.json

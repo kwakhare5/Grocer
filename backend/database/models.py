@@ -64,12 +64,12 @@ class RestockAlert(Base):
     __tablename__ = "restock_alerts"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     household_id = Column(UUID(as_uuid=True), ForeignKey("households.id"))
-    item_ids = Column(JSONB)                   # list of item IDs in this alert
-    message_sent = Column(Text)
+    item_ids = Column(JSONB)                         # list of item_id strings e.g. ["INS_001", "INS_003"]
+    message_sent = Column(Text)                      # the WhatsApp message that was or will be sent
     sent_at = Column(DateTime(timezone=True))
     status = Column(String(50), default='pending')   # pending/sent/acted/dismissed
     acted_at = Column(DateTime(timezone=True))
-    order_id_placed = Column(String(255))
+    order_id_placed = Column(String(255))            # Instamart order ID once acted upon
 
 class PriceHistory(Base):
     __tablename__ = "price_history"

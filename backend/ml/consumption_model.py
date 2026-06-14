@@ -6,6 +6,7 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from backend.database.models import Order, OrderItem, ConsumptionModel
 from backend.config import settings
+from backend.ml.confidence_scorer import ConfidenceScorer
 
 logger = logging.getLogger(__name__)
 
@@ -69,11 +70,11 @@ class ConsumptionModeler:
         else:
             depletion = None
 
-        # Confidence Score Calculation
-        cycle_std = float(time_diffs.std()) if len(time_diffs) > 1 else 30.0
-        regularity = max(0.0, 1.0 - (cycle_std / 14.0))
-        data_score = min(1.0, len(purchases) / 20.0)
-        confidence = (regularity * 0.6) + (data_score * 0.4)
+        # Confidence Score — delegate to ConfidenceScorer (single source of truth)
+        # Why: avoids duplicating the formula here and in confidence_scorer.py
+        scorer = ConfidenceScorer()
+        purchase_dates = [p["placed_at"] for p in purchases]
+        confidence = scorer.score(purchase_dates, len(purchases))
 
         if confidence < settings.MIN_CONFIDENCE:
             return None
@@ -133,6 +134,7 @@ class ConsumptionModeler:
                     results["skipped"] += 1
             except Exception as e:
                 logger.error(f"Error building model for {item['item_name']}: {e}")
+                await db.rollback()
                 results["errors"] += 1
                 
         await db.commit()

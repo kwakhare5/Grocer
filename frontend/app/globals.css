@@ -1,26 +1,158 @@
 @import "tailwindcss";
 
+/* ─── Design Tokens ──────────────────────────────────────────────────── */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --background: #f7f6f3;
+  --surface:    #ffffff;
+  --foreground: #0f0e0d;
+  --muted:      #6b6560;
+  --accent:     #ff5a00;
+  --accent-dim: rgba(255, 90, 0, 0.12);
+  --danger:     #dc2626;
+  --warning:    #d97706;
+  --ok:         #16a34a;
+  --grid-line:  rgba(0, 0, 0, 0.07);
+  --border:     rgba(0, 0, 0, 0.12);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #0a0909;
+    --surface:    #141312;
+    --foreground: #f0ede8;
+    --muted:      #8a8480;
+    --accent:     #ff5a00;
+    --accent-dim: rgba(255, 90, 0, 0.15);
+    --danger:     #ef4444;
+    --warning:    #f59e0b;
+    --ok:         #22c55e;
+    --grid-line:  rgba(255, 255, 255, 0.05);
+    --border:     rgba(255, 255, 255, 0.10);
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@theme inline {
+  --color-background: var(--background);
+  --color-surface:    var(--surface);
+  --color-foreground: var(--foreground);
+  --color-muted:      var(--muted);
+  --color-accent:     var(--accent);
+  --color-accent-dim: var(--accent-dim);
+  --color-danger:     var(--danger);
+
+  --color-warning:    var(--warning);
+  --color-ok:         var(--ok);
+  --color-grid:       var(--grid-line);
+  --color-border:     var(--border);
+  --font-sans:        var(--font-geist-sans);
+  --font-mono:        var(--font-geist-mono);
 }
+
+/* ─── Base ───────────────────────────────────────────────────────────── */
+* { box-sizing: border-box; }
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), sans-serif;
+  /* Subtle dot grid — less distracting than lines */
+  background-image: radial-gradient(circle, var(--grid-line) 1px, transparent 1px);
+  background-size: 24px 24px;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ─── Utility Classes ────────────────────────────────────────────────── */
+.font-data {
+  font-family: var(--font-mono), monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+
+/* Depletion bar — the visual heartbeat of this product */
+.depletion-bar {
+  height: 3px;
+  background: var(--border);
+  overflow: hidden;
+  position: relative;
+}
+.depletion-bar-fill {
+  height: 100%;
+  transition: width 0.6s ease;
+}
+
+/* Status pill */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-mono), monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 2px;
+}
+.pill-danger  { background: rgba(220,38,38,0.12);  color: var(--danger);  }
+.pill-warning { background: rgba(217,119,6,0.12);   color: var(--warning); }
+.pill-ok      { background: rgba(22,163,74,0.12);   color: var(--ok);      }
+.pill-muted   { background: var(--grid-line);        color: var(--muted);   }
+.pill-accent  { background: var(--accent-dim);       color: var(--accent);  }
+
+/* Confidence bar */
+.conf-track {
+  height: 4px;
+  background: var(--grid-line);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.conf-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+}
+
+/* Stat block */
+.stat-block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.stat-value {
+  font-family: var(--font-mono), monospace;
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  color: var(--foreground);
+}
+.stat-label {
+  font-family: var(--font-mono), monospace;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* Pulse dot for critical items */
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.4); }
+}
+.dot-pulse {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--danger);
+  display: inline-block;
+  animation: pulse-dot 1.4s ease-in-out infinite;
+}
+
+/* Sparkline SVG */
+.sparkline { display: block; overflow: visible; }

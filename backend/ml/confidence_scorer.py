@@ -38,7 +38,7 @@ class ConfidenceScorer:
             return 0.0
 
         dates = pd.to_datetime(sorted(purchase_dates))
-        diffs = dates.diff().dt.days.dropna()
+        diffs = pd.Series(dates).diff().dt.days.dropna()
 
         if len(diffs) < 2:
             # Only one interval — not enough to measure regularity yet.

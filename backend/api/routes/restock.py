@@ -21,6 +21,9 @@ from datetime import datetime, timedelta, timezone
 from backend.database.connection import get_db
 from backend.database.models import Household, ConsumptionModel, RestockAlert
 from backend.config import settings
+from backend.ml.confidence_scorer import ConfidenceScorer
+
+_scorer = ConfidenceScorer()
 
 router = APIRouter(prefix='/api/restock', tags=['restock'])
 
@@ -82,7 +85,7 @@ async def check_depletions_for_household(household_id: str, db: AsyncSession) ->
     recent_result = await db.execute(recent_stmt)
     recent_alerts = recent_result.scalars().all()
 
-    # item_ids is stored as a JSON list in RestockAlert
+    # item_ids is a JSONB list of item_id strings in RestockAlert
     recently_alerted_ids: set[str] = set()
     for alert in recent_alerts:
         if alert.item_ids:
@@ -108,7 +111,7 @@ async def check_depletions_for_household(household_id: str, db: AsyncSession) ->
             'item_name':               model.item_name,
             'category':                model.category,
             'confidence_score':        model.confidence_score,
-            'confidence_label':        _confidence_label(model.confidence_score),
+            'confidence_label':        _scorer.human_readable(model.confidence_score),
             'avg_daily_consumption':   model.avg_daily_consumption,
             'estimated_depletion_date': model.estimated_depletion_date.isoformat(),
             'days_remaining':          round(days_remaining, 1),
@@ -117,14 +120,6 @@ async def check_depletions_for_household(household_id: str, db: AsyncSession) ->
 
     return depleting
 
-
-def _confidence_label(score: float) -> str:
-    """Inline label — avoids importing ConfidenceScorer in the route layer."""
-    if score >= 0.80: return 'Very high'
-    if score >= 0.65: return 'High'
-    if score >= 0.50: return 'Moderate'
-    if score >= 0.30: return 'Low'
-    return 'Insufficient data'
 
 
 # ---------------------------------------------------------------------------
@@ -170,23 +165,31 @@ async def trigger_restock_check(user_id: str, db: AsyncSession = Depends(get_db)
             'items':            [],
         }
 
-    # Persist a RestockAlert record so we can de-duplicate future checks
-    # and track whether the user eventually acted on it.
+    # Write one RestockAlert per household check (JSONB list of all depleting item IDs)
+    now = datetime.now(timezone.utc)
+    names = [i['item_name'] for i in items]
+    message = (
+        f"[ALERT] Running low: {', '.join(names[:3])}{'...' if len(names) > 3 else ''}. "
+        f"Reply YES to reorder or NO to skip."
+    )
     alert = RestockAlert(
         household_id=household.id,
         item_ids=[item['item_id'] for item in items],
-        sent_at=datetime.now(timezone.utc),
+        message_sent=message,
+        sent_at=now,
         status='pending',
     )
     db.add(alert)
+    await db.flush()
+    alert_id = str(alert.id)
     await db.commit()
-    await db.refresh(alert)
 
     return {
         'alerts_triggered': len(items),
-        'alert_id':         str(alert.id),
+        'alert_id':         alert_id,
         'message':          f'{len(items)} item(s) depleting within {settings.ALERT_THRESHOLD_DAYS} days.',
-        'items':            [
+        'whatsapp_preview':  message,
+        'items': [
             {
                 'name':           i['item_name'],
                 'days_remaining': i['days_remaining'],

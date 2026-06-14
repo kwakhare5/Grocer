@@ -5,6 +5,7 @@ import json
 import os
 import uuid
 import random
+from backend.seed.catalog import CATALOG as MOCK_CATALOG
 
 app = FastAPI(title="Mock Swiggy Instamart MCP")
 
@@ -35,21 +36,9 @@ async def get_orders(user_id: str = "demo_user_001", limit: int = 100):
 @app.post("/search_instamart_items")
 async def search_items(body: dict):
     query = body.get("query", "").lower()
-    # Simple mock: return relevant items based on query keyword
-    MOCK_CATALOG = [
-        {"id": "INS_001", "name": "Amul Taza Milk 1L", "price": 28, "price_per_unit": 28, "unit": "L", "category": "dairy"},
-        {"id": "INS_002", "name": "Aashirvaad Atta 5kg", "price": 198, "price_per_unit": 39.6, "unit": "kg", "category": "staples"},
-        {"id": "INS_003", "name": "Fortune Sunflower Oil 1L", "price": 127, "price_per_unit": 127, "unit": "L", "category": "staples"},
-        {"id": "INS_004", "name": "India Gate Basmati Rice 5kg", "price": 310, "price_per_unit": 62, "unit": "kg", "category": "staples"},
-        {"id": "INS_005", "name": "Nandini Eggs (Pack of 12)", "price": 84, "price_per_unit": 7, "unit": "piece", "category": "protein"},
-        {"id": "INS_006", "name": "Tomatoes (500g)", "price": 29, "price_per_unit": 58, "unit": "kg", "category": "vegetables"},
-        {"id": "INS_007", "name": "Onions (1kg)", "price": 42, "price_per_unit": 42, "unit": "kg", "category": "vegetables"},
-        {"id": "INS_008", "name": "Amul Butter 500g", "price": 270, "price_per_unit": 540, "unit": "kg", "category": "dairy"},
-        {"id": "INS_009", "name": "Amul Fresh Cream 200ml", "price": 55, "price_per_unit": 275, "unit": "L", "category": "dairy"},
-        {"id": "INS_010", "name": "Tata Salt 1kg", "price": 28, "price_per_unit": 28, "unit": "kg", "category": "staples"},
-    ]
-    results = [item for item in MOCK_CATALOG if query in item["name"].lower() or query in item["category"].lower()]
+    results = [item for item in MOCK_CATALOG if query in item["name"].lower() or query in item.get("category", "").lower()]
     return {"items": results if results else MOCK_CATALOG[:3]}
+
 
 class CartUpdate(BaseModel):
     items: list

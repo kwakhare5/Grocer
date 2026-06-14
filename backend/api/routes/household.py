@@ -1,15 +1,17 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+
 from backend.database.connection import get_db
-from backend.database.models import Household, Order, OrderItem
-from backend.config import settings
-import httpx
-from datetime import datetime
+from backend.database.models import Household
+from backend.services.sync_service import fetch_and_sync_orders
+from backend.ml.household_profiler import update_household_profile
 
 router = APIRouter(prefix='/api/household', tags=['household'])
 
-async def get_or_create_household(user_id: str, db: AsyncSession):
+
+async def get_or_create_household(user_id: str, db: AsyncSession) -> Household:
+    """Get an existing household or create one for this user."""
     result = await db.execute(select(Household).where(Household.user_id == user_id))
     household = result.scalar_one_or_none()
     if not household:
@@ -19,71 +21,38 @@ async def get_or_create_household(user_id: str, db: AsyncSession):
         await db.refresh(household)
     return household
 
-def normalize_quantity(quantity: int, unit: str, standard_quantity: float = None) -> float:
-    if standard_quantity:
-        return standard_quantity
-    return float(quantity)
-
-async def sync_orders(household_id: str, user_id: str, db: AsyncSession):
-    async with httpx.AsyncClient() as client:
-        try:
-            response = await client.get(
-                f'{settings.MCP_BASE_URL}/get_instamart_orders',
-                params={"user_id": user_id, "limit": 200}
-            )
-            response.raise_for_status()
-            data = response.json()
-        except Exception as e:
-            raise HTTPException(status_code=503, detail=f"Failed to fetch from MCP: {str(e)}")
-    
-    orders_synced = 0
-    for raw_order in data["orders"]:
-        # Check if already synced
-        result = await db.execute(select(Order).where(Order.instamart_order_id == raw_order["order_id"]))
-        if result.scalar_one_or_none():
-            continue
-        
-        # Insert order
-        new_order = Order(
-            household_id=household_id,
-            instamart_order_id=raw_order["order_id"],
-            placed_at=datetime.fromisoformat(raw_order["placed_at"]),
-            total_amount=raw_order["total"],
-            raw_data=raw_order
-        )
-        db.add(new_order)
-        await db.flush()  # Get ID without committing yet
-        
-        # Insert line items
-        for item in raw_order["items"]:
-            std_qty = normalize_quantity(item["quantity"], item.get("unit"), item.get("standard_quantity"))
-            new_item = OrderItem(
-                order_id=new_order.id,
-                item_id=item["item_id"],
-                item_name=item["item_name"],
-                category=item.get("category"),
-                quantity=item["quantity"],
-                unit=item.get("unit"),
-                standard_quantity=std_qty,
-                price=item.get("price")
-            )
-            db.add(new_item)
-        
-        orders_synced += 1
-    
-    await db.commit()
-    return orders_synced
 
 @router.post("/{user_id}/sync")
 async def sync_household_orders(user_id: str, db: AsyncSession = Depends(get_db)):
+    """Fetch the latest orders from the MCP server and persist new ones to the DB."""
     household = await get_or_create_household(user_id, db)
-    synced = await sync_orders(str(household.id), user_id, db)
+    synced = await fetch_and_sync_orders(str(household.id), user_id, db)
     return {"message": f"Synced {synced} new orders", "household_id": str(household.id)}
 
+
 @router.post("/{user_id}/rebuild-models")
-async def rebuild_household_models(user_id: str, db: AsyncSession = Depends(get_db)):
+async def rebuild_household_models(
+    user_id: str,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db)
+):
+    """Trigger ML model rebuild as a background task — does not block the HTTP thread.
+    After models rebuild, automatically re-infers household composition.
+    """
     from backend.ml.consumption_model import ConsumptionModeler
+
     household = await get_or_create_household(user_id, db)
+    household_id = str(household.id)
     modeler = ConsumptionModeler()
-    results = await modeler.rebuild_all_models(str(household.id), db)
-    return results
+
+    async def _rebuild_then_profile():
+        # Why separate function: BackgroundTasks can only accept a single callable.
+        # We chain rebuild → profiler here so both run in the same background task.
+        await modeler.rebuild_all_models(household_id, db)
+        await update_household_profile(household_id, db)
+
+    background_tasks.add_task(_rebuild_then_profile)
+    return {
+        "message": "Model rebuild + profile inference queued. Check predictions in ~60 seconds.",
+        "household_id": household_id
+    }

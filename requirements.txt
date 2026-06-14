@@ -1,0 +1,35 @@
+# Instamart Intelligence — Backend Dependencies
+# Install: pip install -r requirements.txt
+
+# ── Web Framework ──────────────────────────────────────────────
+fastapi==0.115.6
+uvicorn[standard]==0.32.1
+
+# ── Database ───────────────────────────────────────────────────
+sqlalchemy[asyncio]==2.0.36
+asyncpg==0.30.0
+alembic==1.14.0
+
+# ── ML / Data ──────────────────────────────────────────────────
+pandas==3.0.2
+numpy==2.2.6
+scikit-learn==1.5.2
+prophet==1.1.6
+
+# ── AI / Agents ────────────────────────────────────────────────
+anthropic==0.102.0
+langgraph==1.1.9
+langgraph-prebuilt==1.0.10
+
+# ── HTTP Client ────────────────────────────────────────────────
+httpx==0.28.1
+
+# ── Config / Validation ────────────────────────────────────────
+pydantic==2.13.3
+pydantic-settings==2.14.0
+
+# ── Scheduling ─────────────────────────────────────────────────
+apscheduler==3.11.0
+
+# ── Notifications ──────────────────────────────────────────────
+twilio==9.5.0

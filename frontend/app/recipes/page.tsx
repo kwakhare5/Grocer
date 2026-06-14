@@ -1,14 +1,15 @@
 'use client';
 /* ─────────────────────────────────────────────────────────
-   Recipe Intelligence — Demo Scene 5
+   Recipe Intelligence — Demo Scene 5 (hydrated)
    "Type Sunday biryani for 6. Show ingredient parsing.
     Show the pantry check. Show the missing items cart."
    — CLAUDE.md Part 7
 
    This page has ONE primary interaction: type a dish name,
    get a pantry-aware ingredient check. The search is the UI.
-───────────────────────────────────────────────────────── */
-import { useState } from 'react';
+ ───────────────────────────────────────────────────────── */
+import { useState, useEffect } from 'react';
+import { recipesApi, predictionsApi, APIRecipe, APIPrediction } from '../../lib/api';
 
 type Ingredient = {
   name: string;
@@ -24,13 +25,13 @@ type RecipeResult = {
   ingredients: Ingredient[];
 };
 
-/* Simulated pantry-aware results for demo dishes */
+/* Simulated base pantry-aware recipe structures */
 const RECIPE_DB: Record<string, RecipeResult> = {
   biryani: {
     dish: "Chicken Biryani",
     servings: 6,
     ingredients: [
-      { name: "India Gate Basmati Rice",  needed: "600g",  status: "have",    estimated: "~800g left"   },
+      { name: "Basmati Rice",             needed: "600g",  status: "have",    estimated: "~800g left"   },
       { name: "Onions",                   needed: "400g",  status: "have",    estimated: "~600g left"   },
       { name: "Fortune Sunflower Oil",    needed: "80ml",  status: "low",     estimated: "~90ml left", price: 127 },
       { name: "Amul Fresh Cream",         needed: "200ml", status: "missing", price: 55 },
@@ -76,15 +77,88 @@ export default function RecipesPage() {
   const [result, setResult]   = useState<RecipeResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [ordered, setOrdered] = useState(false);
+  const [savedRecipes, setSavedRecipes] = useState<APIRecipe[]>([]);
+  const [predictions, setPredictions] = useState<APIPrediction[]>([]);
+
+  useEffect(() => {
+    async function loadRecipesAndPantry() {
+      try {
+        const [recRes, predRes] = await Promise.all([
+          recipesApi.getForHousehold("demo_user_001"),
+          predictionsApi.getForHousehold("demo_user_001")
+        ]);
+        if (recRes.data && recRes.data.recipes) {
+          setSavedRecipes(recRes.data.recipes);
+        }
+        if (predRes.data && predRes.data.predictions) {
+          setPredictions(predRes.data.predictions);
+        }
+      } catch (err) {
+        console.warn("Failed to fetch recipes/pantry details, running on local fallbacks.", err);
+      }
+    }
+    loadRecipesAndPantry();
+  }, []);
 
   const handleSearch = (q: string) => {
     setQuery(q);
     setOrdered(false);
     if (!q.trim()) { setResult(null); return; }
     setLoading(true);
-    // Simulate API latency
+
+    // Simulate pantry lookup delay
     setTimeout(() => {
-      setResult(findRecipe(q));
+      const baseRecipe = findRecipe(q);
+      if (baseRecipe) {
+        // Hydrate ingredients list with live predictions from backend
+        const hydratedIngredients = baseRecipe.ingredients.map(ing => {
+          const predMatch = predictions.find(p => 
+            p.item_name.toLowerCase().includes(ing.name.toLowerCase()) ||
+            ing.name.toLowerCase().includes(p.item_name.split(" — ")[0].split(" (")[0].toLowerCase())
+          );
+
+          if (predMatch) {
+            let status: 'have' | 'low' | 'missing' = 'have';
+            if (predMatch.status === 'depleted' || predMatch.status === 'critical') {
+              status = 'missing';
+            } else if (predMatch.status === 'low') {
+              status = 'low';
+            }
+
+            let estimated = ing.estimated;
+            if (predMatch.days_remaining !== null) {
+              const remainingQty = predMatch.avg_daily_consumption * Math.max(0, predMatch.days_remaining);
+              if (remainingQty > 0) {
+                const unit = predMatch.item_name.includes("Milk") || predMatch.item_name.includes("Oil") ? "L" : "kg";
+                if (unit === "L" && remainingQty < 1.0) {
+                  estimated = `~${Math.round(remainingQty * 1000)}ml left`;
+                } else if (unit === "kg" && remainingQty < 1.0) {
+                  estimated = `~${Math.round(remainingQty * 1000)}g left`;
+                } else {
+                  estimated = `~${remainingQty.toFixed(1)}${unit} left`;
+                }
+              } else {
+                estimated = "Empty";
+              }
+            }
+
+            return {
+              ...ing,
+              status,
+              estimated,
+              price: ing.price || Math.round(predMatch.last_purchase_quantity * 50) || 120
+            };
+          }
+          return ing;
+        });
+
+        setResult({
+          ...baseRecipe,
+          ingredients: hydratedIngredients
+        });
+      } else {
+        setResult(null);
+      }
       setLoading(false);
     }, 600);
   };
@@ -100,7 +174,7 @@ export default function RecipesPage() {
       {/* ── Header ──────────────────────────────────────────── */}
       <div className="flex flex-col gap-3">
         <div className="font-data text-accent text-[10px] tracking-widest uppercase">
-          M-03 · Recipe Intelligence
+          M-03 · Recipe Intelligence {savedRecipes.length > 0 && `(${savedRecipes.length} Pinned)`}
         </div>
         <h1 className="text-5xl font-light tracking-tight uppercase leading-none">
           Recipe<br />

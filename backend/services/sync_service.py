@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.database.models import Order, OrderItem
 from backend.config import settings
+from backend.mcp.client import mcp_client
 
 logger = logging.getLogger(__name__)
 
@@ -46,18 +47,12 @@ async def fetch_and_sync_orders(household_id: str, user_id: str, db: AsyncSessio
     """
     from fastapi import HTTPException
 
-    async with httpx.AsyncClient(timeout=httpx.Timeout(10.0, connect=5.0)) as client:
-        try:
-            response = await client.get(
-                f'{settings.MCP_BASE_URL}/get_instamart_orders',
-                params={"user_id": user_id, "limit": 200}
-            )
-            response.raise_for_status()
-            data = response.json()
-        except httpx.TimeoutException:
-            raise HTTPException(status_code=503, detail="MCP server timed out. Please try again.")
-        except Exception as e:
-            raise HTTPException(status_code=503, detail=f"Failed to fetch from MCP: {str(e)}")
+    try:
+        data = await mcp_client.get_instamart_orders(user_id, limit=200)
+    except httpx.TimeoutException:
+        raise HTTPException(status_code=503, detail="MCP server timed out. Please try again.")
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=f"Failed to fetch from MCP: {str(e)}")
 
     orders_synced = 0
     raw_orders = data.get("orders", [])

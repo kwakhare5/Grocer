@@ -131,3 +131,36 @@ async def whatsapp_webhook(
         return {"response_message": reply_msg}
     else:
         return Response(content=f"<Response><Message>{reply_msg}</Message></Response>", media_type="application/xml")
+
+
+async def send_whatsapp_message(to_phone: str, body: str) -> bool:
+    """
+    Sends a WhatsApp message using Twilio API.
+    Falls back to logging if Twilio credentials are not set.
+    """
+    from backend.config import settings
+    
+    # Clean up phone format (ensure it starts with whatsapp:)
+    to_whatsapp = to_phone
+    if not to_whatsapp.startswith("whatsapp:"):
+        to_whatsapp = f"whatsapp:{to_phone}"
+        
+    logger.info(f"[WhatsApp] Attempting to send message to {to_whatsapp}: {body}")
+    
+    if not settings.TWILIO_ACCOUNT_SID or not settings.TWILIO_AUTH_TOKEN:
+        logger.warning("[WhatsApp] Twilio credentials not set. Message logged but not sent via Twilio.")
+        return True
+        
+    try:
+        from twilio.rest import Client
+        client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
+        client.messages.create(
+            from_=settings.TWILIO_WHATSAPP_FROM,
+            body=body,
+            to=to_whatsapp
+        )
+        logger.info(f"[WhatsApp] Message successfully dispatched to {to_whatsapp}")
+        return True
+    except Exception as e:
+        logger.error(f"[WhatsApp] Failed to send message via Twilio: {e}")
+        return False

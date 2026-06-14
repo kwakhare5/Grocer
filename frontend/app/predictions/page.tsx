@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { predictionsApi } from "../../lib/api";
+import { predictionsApi, APIPrediction } from "../../lib/api";
 
 interface PredictionItem {
   id: string;
@@ -130,7 +130,7 @@ export default function PredictionsPage() {
       try {
         const res = await predictionsApi.getForHousehold("demo_user_001");
         if (res.data && res.data.predictions && res.data.predictions.length > 0) {
-          const apiItems = res.data.predictions.map((p: any) => {
+          const apiItems = res.data.predictions.map((p: APIPrediction) => {
             const daysLeft = p.days_remaining !== null ? Math.round(p.days_remaining) : 10;
             // Generate some mock history cycles for the detail breakdown
             const mockHist = [

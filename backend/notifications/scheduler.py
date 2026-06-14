@@ -128,47 +128,22 @@ async def daily_depletion_check_all() -> None:
 async def track_commodity_prices() -> None:
     """
     Run every morning at 07:00 IST (before depletion check).
-    Samples a price for every item in CATALOG with realistic market noise,
-    then inserts a row into price_history.
-
-    Why simulated prices?
-      We have no live commodity API. But real price history with category-
-      specific volatility (tomatoes ±30%, salt ±3%) makes the Price
-      Intelligence dashboard tell a believable, demo-worthy story.
-
-    Why recorded_at = now?
-      PriceHistory is a TimescaleDB hypertable partitioned on recorded_at.
-      One row per item per day gives us a proper time-series to query
-      against for sparklines and 30-day baseline comparisons.
+    Triggers the Price Intelligence Agent to sample latest Swiggy Instamart mock catalog
+    prices, write them to TimescaleDB, analyze price changes, and dispatch WhatsApp alerts.
     """
     now = datetime.now(timezone.utc)
     logger.info("[Scheduler] track_commodity_prices started — %s", now.isoformat())
 
     async with AsyncSessionLocal() as db:
-        rows: list[PriceHistory] = []
-        for item in CATALOG:
-            volatility = _VOLATILITY.get(item["category"], 0.08)
-            noise      = random.uniform(1 - volatility, 1 + volatility)
-            price      = round(item["price"] * noise, 2)
-            price_unit = round(item["price_per_unit"] * noise, 2)
-
-            rows.append(
-                PriceHistory(
-                    item_id=item["id"],
-                    item_name=item["name"],
-                    recorded_at=now,
-                    price=price,
-                    price_per_unit=price_unit,
-                )
-            )
-
-        db.add_all(rows)
+        from backend.agents.price_agent import track_and_alert_prices
         try:
-            await db.commit()
-            logger.info("[Scheduler] Recorded prices for %d items", len(rows))
+            result = await track_and_alert_prices(db)
+            logger.info(
+                "[Scheduler] Price agent executed: recorded=%d alerts=%d",
+                result["prices_recorded"], len(result["alerts_triggered"])
+            )
         except Exception as exc:
-            await db.rollback()
-            logger.error("[Scheduler] Price tracking failed: %s", exc)
+            logger.error("[Scheduler] Price tracking agent failed: %s", exc)
 
 
 # ---------------------------------------------------------------------------

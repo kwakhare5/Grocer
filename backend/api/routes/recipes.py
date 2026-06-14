@@ -65,12 +65,66 @@ async def get_recipes(user_id: str, db: AsyncSession = Depends(get_db)):
     }
 
 
+from pydantic import BaseModel
+from datetime import datetime
+
+class RecipeParseRequest(BaseModel):
+    recipe: str
+    servings: int = 4
+    household_id: str
+
+class RecipePinRequest(BaseModel):
+    household_id: str
+    recipe_name: str
+    servings: int = 4
+    ingredients: list
+    pinned_for: str
+    cuisine: str = "Indian"
+
+@router.post("/parse")
+async def parse_recipe(body: RecipeParseRequest, db: AsyncSession = Depends(get_db)):
+    from backend.agents.recipe_agent import recipe_to_cart
+    result = await recipe_to_cart(body.recipe, body.servings, body.household_id, db)
+    return result
+
+@router.post("/pin")
+async def pin_recipe(body: RecipePinRequest, db: AsyncSession = Depends(get_db)):
+    # Resolve user_id to household UUID
+    result = await db.execute(select(Household).where(Household.user_id == body.household_id))
+    hh = result.scalar_one_or_none()
+    if not hh:
+        raise HTTPException(status_code=404, detail="Household not found")
+
+    try:
+        pinned_date = datetime.fromisoformat(body.pinned_for.replace("Z", "+00:00"))
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid pinned_for date format. Use ISO format.")
+
+    recipe = Recipe(
+        household_id=hh.id,
+        name=body.recipe_name,
+        servings=body.servings,
+        ingredients=body.ingredients,
+        cuisine=body.cuisine,
+        pinned_for=pinned_date
+    )
+    db.add(recipe)
+    await db.commit()
+    await db.refresh(recipe)
+    
+    return {
+        "success": True,
+        "recipe_id": str(recipe.id),
+        "pinned_for": recipe.pinned_for.isoformat()
+    }
+
 @router.get('/')
 async def recipes_index():
     """Index endpoint — lists available recipe routes."""
     return {
         'endpoints': [
             'GET /api/recipes/{user_id} — list saved recipes for a household',
-        ],
-        'note': 'Recipe AI generation is planned as a post-Week-3 backlog feature.',
+            'POST /api/recipes/parse — parse recipe ingredients and build cart',
+            'POST /api/recipes/pin — save/pin a recipe for a future date',
+        ]
     }

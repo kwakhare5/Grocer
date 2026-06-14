@@ -56,3 +56,23 @@ async def rebuild_household_models(
         "message": "Model rebuild + profile inference queued. Check predictions in ~60 seconds.",
         "household_id": household_id
     }
+
+
+@router.get("/{user_id}")
+async def get_household_profile(user_id: str, db: AsyncSession = Depends(get_db)):
+    """Get household profile details, including inferred composition."""
+    result = await db.execute(select(Household).where(Household.user_id == user_id))
+    hh = result.scalar_one_or_none()
+    if not hh:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Household not found")
+    return {
+        "id": str(hh.id),
+        "user_id": hh.user_id,
+        "phone_number": hh.phone_number,
+        "composition": hh.composition,
+        "composition_confidence": hh.composition_confidence,
+        "intelligence_consent": hh.intelligence_consent,
+        "notifications_enabled": hh.notifications_enabled,
+        "created_at": hh.created_at.isoformat() if hh.created_at else None
+    }

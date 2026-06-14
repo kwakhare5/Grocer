@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from 'next/link';
-import { predictionsApi } from "../lib/api";
+import { predictionsApi, APIPrediction } from "../lib/api";
 
 interface DepletingItem {
   name: string;
@@ -47,7 +47,7 @@ export default function Home() {
       try {
         const res = await predictionsApi.getForHousehold("demo_user_001");
         if (res.data && res.data.predictions && res.data.predictions.length > 0) {
-          const apiItems = res.data.predictions.map((p: any) => ({
+          const apiItems = res.data.predictions.map((p: APIPrediction) => ({
             name: p.item_name,
             days: p.days_remaining !== null ? Math.round(p.days_remaining) : 10,
             conf: Math.round((p.confidence_score || 0.5) * 100),

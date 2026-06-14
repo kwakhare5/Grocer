@@ -1,12 +1,33 @@
+'use client';
 /* ─────────────────────────────────────────────────────────
-   Household Profile — Demo Scene 1 (detail)
+   Household Profile — Demo Scene 1 (hydrated)
    Shows: composition inference, key consumption rates,
    system health, and detected anomalies.
    The "wow" moment: seeing that the AI knows you're a
    family of 4 just from grocery order patterns.
-───────────────────────────────────────────────────────── */
+ ───────────────────────────────────────────────────────── */
+import { useEffect, useState } from 'react';
+import { householdApi, predictionsApi, APIPrediction } from '../../lib/api';
 
-const PROFILE = {
+interface ProfileData {
+  type: string;
+  confidence: number;
+  trackedSince: string;
+  monthsTracked: number;
+  itemsModeled: number;
+  accuracy: string;
+  ordersAnalyzed: number;
+  stockoutsPrevented: number;
+}
+
+interface ConsumptionItem {
+  label: string;
+  rate: string;
+  conf: number;
+  id: string;
+}
+
+const FALLBACK_PROFILE: ProfileData = {
   type:        "Family (3–4 members)",
   confidence:  84,
   trackedSince: "January 2026",
@@ -17,7 +38,7 @@ const PROFILE = {
   stockoutsPrevented: 12,
 };
 
-const CONSUMPTION = [
+const FALLBACK_CONSUMPTION: ConsumptionItem[] = [
   { label: "Amul Milk",        rate: "1.1 L/day",   conf: 76, id: "INS_001" },
   { label: "Aashirvaad Atta",  rate: "280 g/day",   conf: 68, id: "INS_002" },
   { label: "Sunflower Oil",    rate: "68 ml/day",   conf: 87, id: "INS_003" },
@@ -42,14 +63,89 @@ const ANOMALIES = [
   },
 ];
 
+const COMPOSITION_LABELS: Record<string, string> = {
+  "solo":         "Solo (1 person)",
+  "couple":       "Couple (2 people)",
+  "family_small": "Family (3–4 members)",
+  "family_large": "Large Family (5+ members)",
+};
+
+function formatRate(rate: number, name: string): string {
+  const lowerName = name.toLowerCase();
+  if (lowerName.includes("oil")) {
+    return `${Math.round(rate * 1000)} ml/day`;
+  }
+  if (lowerName.includes("milk")) {
+    return `${rate.toFixed(1)} L/day`;
+  }
+  if (lowerName.includes("atta") || lowerName.includes("rice") || lowerName.includes("salt") || lowerName.includes("butter")) {
+    if (rate < 1.0) {
+      return `${Math.round(rate * 1000)} g/day`;
+    }
+    return `${rate.toFixed(2)} kg/day`;
+  }
+  if (lowerName.includes("eggs")) {
+    return `${rate.toFixed(1)} pcs/day`;
+  }
+  return `${rate.toFixed(2)} units/day`;
+}
+
 export default function HouseholdPage() {
+  const [profile, setProfile] = useState<ProfileData>(FALLBACK_PROFILE);
+  const [consumption, setConsumption] = useState<ConsumptionItem[]>(FALLBACK_CONSUMPTION);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const [profRes, predRes] = await Promise.all([
+          householdApi.getProfile("demo_user_001"),
+          predictionsApi.getForHousehold("demo_user_001")
+        ]);
+
+        const prof = profRes.data;
+        const pred = predRes.data;
+
+        if (prof) {
+          setProfile({
+            type: COMPOSITION_LABELS[prof.composition] || FALLBACK_PROFILE.type,
+            confidence: prof.composition_confidence ? Math.round(prof.composition_confidence * 100) : FALLBACK_PROFILE.confidence,
+            trackedSince: prof.created_at ? new Date(prof.created_at).toLocaleDateString("en-US", { month: "long", year: "numeric" }) : FALLBACK_PROFILE.trackedSince,
+            monthsTracked: FALLBACK_PROFILE.monthsTracked,
+            itemsModeled: pred.total_items || FALLBACK_PROFILE.itemsModeled,
+            accuracy: FALLBACK_PROFILE.accuracy,
+            ordersAnalyzed: FALLBACK_PROFILE.ordersAnalyzed,
+            stockoutsPrevented: FALLBACK_PROFILE.stockoutsPrevented
+          });
+        }
+
+        if (pred && pred.predictions && pred.predictions.length > 0) {
+          const formattedConsumption = pred.predictions.map((p: APIPrediction) => ({
+            label: p.item_name.split(" — ")[0].split(" (")[0], // Clean name
+            rate: formatRate(p.avg_daily_consumption, p.item_name),
+            conf: Math.round((p.confidence_score || 0.5) * 100),
+            id: p.item_id
+          }));
+          setConsumption(formattedConsumption.slice(0, 5));
+        }
+
+      } catch (err) {
+        console.warn("Failed to load household profile from DB, using fallback mocks.", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadData();
+  }, []);
+
   return (
     <div className="flex flex-col gap-12">
 
       {/* ── Header ──────────────────────────────────────────── */}
       <div className="flex flex-col gap-3">
         <div className="font-data text-accent text-[10px] tracking-widest uppercase">
-          M-01 · Household Profile
+          M-01 · Household Profile {loading && "(LOADING...)"}
         </div>
         <h1 className="text-5xl font-light tracking-tight uppercase leading-none">
           Profile<br />
@@ -67,16 +163,16 @@ export default function HouseholdPage() {
           <div className="font-data text-[10px] text-muted tracking-widest uppercase">
             Inferred Household Type
           </div>
-          <div className="text-4xl font-black tracking-tight">{PROFILE.type}</div>
+          <div className="text-4xl font-black tracking-tight">{profile.type}</div>
           <div className="font-data text-xs text-muted">
-            Based on: milk (1.1L/d) · atta (280g/d) · eggs (2.3/d)
+            Based on: milk · atta · oil · eggs baseline consumption rates.
           </div>
         </div>
         <div className="flex flex-col items-start sm:items-end gap-2 shrink-0">
-          <div className="stat-value text-accent">{PROFILE.confidence}%</div>
+          <div className="stat-value text-accent">{profile.confidence}%</div>
           <div className="stat-label">Confidence</div>
           <div className="conf-track w-32">
-            <div className="conf-fill" style={{ width: `${PROFILE.confidence}%` }} />
+            <div className="conf-fill" style={{ width: `${profile.confidence}%` }} />
           </div>
         </div>
       </div>
@@ -91,10 +187,10 @@ export default function HouseholdPage() {
           </div>
           <div className="grid grid-cols-2 gap-6">
             {[
-              { value: PROFILE.ordersAnalyzed,      label: "Orders Analysed" },
-              { value: PROFILE.itemsModeled,         label: "Items Modeled" },
-              { value: PROFILE.monthsTracked + "mo", label: "Data Depth" },
-              { value: PROFILE.stockoutsPrevented,   label: "Stockouts Prevented" },
+              { value: profile.ordersAnalyzed,      label: "Orders Analysed" },
+              { value: profile.itemsModeled,         label: "Items Modeled" },
+              { value: profile.monthsTracked + "mo", label: "Data Depth" },
+              { value: profile.stockoutsPrevented,   label: "Stockouts Prevented" },
             ].map((s) => (
               <div key={s.label} className="stat-block">
                 <div className="stat-value">{s.value}</div>
@@ -103,8 +199,8 @@ export default function HouseholdPage() {
             ))}
           </div>
           <div className="border-t border-border pt-4 font-data text-xs text-muted flex justify-between">
-            <span>Tracking since {PROFILE.trackedSince}</span>
-            <span className="text-ok">Accuracy {PROFILE.accuracy}</span>
+            <span>Tracking since {profile.trackedSince}</span>
+            <span className="text-ok">Accuracy {profile.accuracy}</span>
           </div>
         </div>
 
@@ -114,7 +210,7 @@ export default function HouseholdPage() {
             Modeled Consumption Rates
           </div>
           <div className="flex flex-col gap-5">
-            {CONSUMPTION.map((item) => (
+            {consumption.map((item) => (
               <div key={item.id} className="flex flex-col gap-2">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-semibold">{item.label}</span>

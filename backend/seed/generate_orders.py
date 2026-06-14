@@ -1,207 +1,240 @@
+"""
+Seed Data Generator — Task 4.6
+Generates realistic Swiggy Instamart order history for an Indian household.
+Guarantees exact cycle lengths, last purchase dates, travel gaps, and guest spikes.
+"""
+
 import json
 import random
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import os
 
+# Aligned with backend/seed/catalog.py
 HOUSEHOLD_ITEMS = {
     "INS_001": {
         "name": "Amul Taza Milk 1L",
         "category": "dairy",
         "unit": "L",
         "pack_size": 1.0,
-        "family_daily_use": 1.0,    # 1L per day for family of 4
-        "base_price": 28,
-        "price_variance": 0.05      # ±5% price variation
+        "family_daily_use": 1.0,          # 1L/day for family
+        "cycle": 2.1,                     # 2.1 days cycle
+        "variance": 0.3,
+        "last_purchase_days_ago": 1,
+        "base_price": 28
     },
     "INS_002": {
         "name": "Aashirvaad Atta 5kg",
         "category": "staples",
         "unit": "kg",
         "pack_size": 5.0,
-        "family_daily_use": 0.30,   # 300g/day (6-8 rotis per meal x 2 meals)
-        "base_price": 198,
-        "price_variance": 0.10
+        "family_daily_use": 0.30,         # ~17 days cycle (5 / 0.3 = 16.7d)
+        "cycle": 16.7,
+        "variance": 1.0,
+        "last_purchase_days_ago": 5,
+        "base_price": 198
     },
     "INS_003": {
         "name": "Fortune Sunflower Oil 1L",
         "category": "staples",
         "unit": "L",
         "pack_size": 1.0,
-        "family_daily_use": 0.068,  # 68ml/day
-        "base_price": 127,
-        "price_variance": 0.15      # Oil prices fluctuate more
+        "family_daily_use": 0.068,        # exactly 14.7 days cycle (1 / 0.068 = 14.7d)
+        "cycle": 14.7,
+        "variance": 0.0,                  # exact cycle for demo
+        "last_purchase_days_ago": 13,     # exactly 13 days ago (depletes in 1.7 days!)
+        "base_price": 127
     },
     "INS_004": {
         "name": "India Gate Basmati Rice 5kg",
         "category": "staples",
         "unit": "kg",
         "pack_size": 5.0,
-        "family_daily_use": 0.25,   # 250g/day
-        "base_price": 310,
-        "price_variance": 0.08
+        "family_daily_use": 0.20,         # 25 days cycle
+        "cycle": 25.0,
+        "variance": 2.0,
+        "last_purchase_days_ago": 10,
+        "base_price": 310
     },
     "INS_005": {
         "name": "Nandini Eggs (Pack of 12)",
         "category": "protein",
         "unit": "piece",
         "pack_size": 12.0,
-        "family_daily_use": 2.5,    # 2-3 eggs/day for family
-        "base_price": 84,
-        "price_variance": 0.12
+        "family_daily_use": 2.5,          # ~4.8 days cycle (12 / 2.5 = 4.8d)
+        "cycle": 4.8,
+        "variance": 0.5,
+        "last_purchase_days_ago": 3,
+        "base_price": 84
     },
     "INS_006": {
         "name": "Tomatoes (500g)",
         "category": "vegetables",
         "unit": "kg",
         "pack_size": 0.5,
-        "family_daily_use": 0.15,
-        "base_price": 20,
-        "price_variance": 0.40      # Tomatoes are highly volatile!
+        "family_daily_use": 0.15,         # ~3.3 days cycle
+        "cycle": 3.3,
+        "variance": 0.4,
+        "last_purchase_days_ago": 2,
+        "base_price": 29
     },
     "INS_007": {
         "name": "Onions (1kg)",
         "category": "vegetables",
         "unit": "kg",
         "pack_size": 1.0,
-        "family_daily_use": 0.10,
-        "base_price": 35,
-        "price_variance": 0.35
+        "family_daily_use": 0.14,         # ~7.1 days cycle
+        "cycle": 7.1,
+        "variance": 0.8,
+        "last_purchase_days_ago": 3,
+        "base_price": 42
     },
     "INS_008": {
         "name": "Amul Butter 500g",
         "category": "dairy",
         "unit": "kg",
         "pack_size": 0.5,
-        "family_daily_use": 0.025,
-        "base_price": 270,
-        "price_variance": 0.05
+        "family_daily_use": 0.025,        # 20 days cycle
+        "cycle": 20.0,
+        "variance": 1.5,
+        "last_purchase_days_ago": 8,
+        "base_price": 270
     },
     "INS_009": {
+        "name": "Amul Fresh Cream 200ml",
+        "category": "dairy",
+        "unit": "L",
+        "pack_size": 0.2,
+        "family_daily_use": 0.05,         # 4 days cycle
+        "cycle": 4.0,
+        "variance": 0.5,
+        "last_purchase_days_ago": 2,
+        "base_price": 55
+    },
+    "INS_010": {
         "name": "Tata Salt 1kg",
         "category": "staples",
         "unit": "kg",
         "pack_size": 1.0,
-        "family_daily_use": 0.008,  # 8g/day — very slow consumption
-        "base_price": 28,
-        "price_variance": 0.03
+        "family_daily_use": 0.008,        # 125 days cycle
+        "cycle": 125.0,
+        "variance": 5.0,
+        "last_purchase_days_ago": 40,
+        "base_price": 28
     },
-    "INS_010": {
-        "name": "Britannia Bread (Large)",
+    "INS_011": {
+        "name": "Britannia Whole Wheat Bread",
         "category": "bakery",
-        "unit": "piece",
+        "unit": "400g",
         "pack_size": 1.0,
-        "family_daily_use": 0.25,   # ~1 loaf every 4 days
-        "base_price": 55,
-        "price_variance": 0.04
+        "family_daily_use": 0.25,         # 4 days cycle
+        "cycle": 4.0,
+        "variance": 0.4,
+        "last_purchase_days_ago": 1,
+        "base_price": 50
     },
+    "INS_012": {
+        "name": "Farm Fresh Onion 1kg",
+        "category": "vegetables",
+        "unit": "kg",
+        "pack_size": 1.0,
+        "family_daily_use": 0.10,         # 10 days cycle
+        "cycle": 10.0,
+        "variance": 1.0,
+        "last_purchase_days_ago": 4,
+        "base_price": 45
+    }
 }
 
-def generate_realistic_orders(months: int = 4, household_type: str = "family"):
-    """
-    Generates orders with realistic patterns:
-    - Reorder happens 0-2 days AFTER predicted depletion (slight delay, human behavior)
-    - Quantity varies ±15% (buy extra sometimes, or less)
-    - Travel gap: no orders for 10 days in month 2
-    - Guest spike: 3x milk in one order in month 3
-    - Weekend clustering: slight preference for Saturday/Sunday orders
-    """
-    
-    start_date = datetime.now() - timedelta(days=months * 30)
-    end_date = datetime.now() - timedelta(days=1)
-    
-    # Track inventory (in standard units)
-    inventory = {item_id: item["pack_size"] for item_id, item in HOUSEHOLD_ITEMS.items()}
-    
-    # Define anomaly windows
-    travel_start = start_date + timedelta(days=45)
-    travel_end = travel_start + timedelta(days=10)
+
+def generate_realistic_orders(months: int = 4, user_id: str = "demo_user_001"):
+    now = datetime.now(timezone.utc)
+    start_date = now - timedelta(days=months * 30)
+
+    # 1. Travel gap spans days 43-53 exactly relative to start_date
+    travel_start = start_date + timedelta(days=43)
+    travel_end = start_date + timedelta(days=53)
+
+    # 2. Guest spike in dairy in month 3 (day 75)
     guest_date = start_date + timedelta(days=75)
-    
-    # Collect: {date_str: [items to order that day]}
-    pending_orders_by_date = {}
-    
-    current_date = start_date
-    while current_date < end_date:
-        
-        # Skip travel window
-        is_traveling = travel_start <= current_date <= travel_end
-        
-        for item_id, item in HOUSEHOLD_ITEMS.items():
-            daily_use = item["family_daily_use"]
-            
-            # Guest spike: on guest_date, milk consumption was 3x
-            if abs((current_date - guest_date).days) < 2 and item_id == "INS_001":
-                daily_use = daily_use * 3
-            
-            # Consume inventory
-            noise = random.uniform(0.85, 1.15)
-            if not is_traveling:
-                inventory[item_id] = max(0, inventory[item_id] - daily_use * noise)
-            
-            # Check if needs reorder (2 days of stock or less)
-            buffer_days = 2
-            if inventory[item_id] <= daily_use * buffer_days and not is_traveling:
-                # Human delay: reorder 0-2 days after the system would say to
-                reorder_delay = random.randint(0, 2)
-                reorder_date = current_date + timedelta(days=reorder_delay)
-                date_key = reorder_date.strftime("%Y-%m-%d")
-                
-                # Quantity variation: ±20%
-                quantity_multiplier = random.uniform(0.8, 1.2)
-                packs_to_buy = max(1, round(item["pack_size"] * quantity_multiplier / item["pack_size"]))
-                
-                if date_key not in pending_orders_by_date:
-                    pending_orders_by_date[date_key] = []
-                
-                pending_orders_by_date[date_key].append({
-                    "item_id": item_id,
-                    "item_name": item["name"],
-                    "quantity": packs_to_buy,
-                    "standard_quantity": packs_to_buy * item["pack_size"],
-                    "unit": item["unit"],
-                    "category": item["category"],
-                    "price": round(item["base_price"] * packs_to_buy * random.uniform(1 - item["price_variance"], 1 + item["price_variance"]), 2)
-                })
-                
-                # Restock inventory
-                inventory[item_id] += packs_to_buy * item["pack_size"]
-        
-        current_date += timedelta(days=1)
-    
-    # Convert to order objects
+
+    # Dictionary: {date_str: [items ordered]}
+    order_items_by_date = {}
+
+    for item_id, item in HOUSEHOLD_ITEMS.items():
+        cycle = item["cycle"]
+        variance = item["variance"]
+        last_buy_days = item["last_purchase_days_ago"]
+
+        # Track dates backward from last purchase
+        current_date = now - timedelta(days=last_buy_days)
+
+        while current_date > start_date:
+            # Skip travel gap
+            if travel_start <= current_date <= travel_end:
+                current_date = current_date - timedelta(days=cycle + random.uniform(-variance, variance))
+                continue
+
+            date_str = current_date.strftime("%Y-%m-%d")
+            if date_str not in order_items_by_date:
+                order_items_by_date[date_str] = []
+
+            # Determine quantity
+            qty = 1
+            # Guest spike: order 3x milk on guest date
+            if item_id == "INS_001" and abs((current_date - guest_date).days) <= 1:
+                qty = 3
+
+            price = round(item["base_price"] * qty * random.uniform(0.96, 1.04), 2)
+
+            order_items_by_date[date_str].append({
+                "item_id": item_id,
+                "item_name": item["name"],
+                "quantity": qty,
+                "standard_quantity": qty * item["pack_size"],
+                "unit": item["unit"],
+                "category": item["category"],
+                "price": price
+            })
+
+            # Move backwards
+            current_date = current_date - timedelta(days=cycle + random.uniform(-variance, variance))
+
+    # Convert to standard orders
     orders = []
     order_counter = 1
-    
-    for date_str in sorted(pending_orders_by_date.keys()):
-        items = pending_orders_by_date[date_str]
+
+    for date_str in sorted(order_items_by_date.keys()):
+        items = order_items_by_date[date_str]
         if not items:
             continue
-        
-        # Sometimes combine nearby orders (within 2 days) into one — realistic clustering
-        order_hour = random.choice([9, 10, 11, 18, 19, 20, 21])  # Morning or evening
+
+        order_hour = random.choice([8, 9, 10, 18, 19, 20])
         order_minute = random.randint(0, 59)
-        
+
         orders.append({
             "order_id": f"INS_MOCK_{order_counter:04d}",
-            "user_id": "demo_user_001",
+            "user_id": user_id,
             "placed_at": f"{date_str}T{order_hour:02d}:{order_minute:02d}:00+05:30",
             "items": items,
             "total": round(sum(i["price"] for i in items), 2),
             "status": "delivered"
         })
         order_counter += 1
-    
+
     return orders
 
 
 if __name__ == "__main__":
-    print("Generating seed data...")
-    orders = generate_realistic_orders(months=4)
-    
+    print("Generating precision seed orders...")
+    orders = generate_realistic_orders()
+
     output_dir = os.path.dirname(__file__)
     output_path = os.path.join(output_dir, "generated_orders.json")
     with open(output_path, "w") as f:
         json.dump(orders, f, indent=2)
-    
-    print(f"Generated {len(orders)} orders over 4 months")
-    print(f"   Saved to {output_path}")
+
+    print(f"Generated {len(orders)} precision orders over 4 months.")
+    print(f"  Travel gap: Day 43 to Day 53.")
+    print(f"  Milk cycle: exactly 2.1 days average.")
+    print(f"  Oil cycle: exactly 14.7 days, last bought 13 days ago.")
+    print(f"  Saved to {output_path}")

@@ -1,6 +1,6 @@
 'use client';
 /* ─────────────────────────────────────────────────────────
-   Price Intelligence — Demo Scene 4
+   Price Intelligence — Demo Scene 4 (hydrated)
    "Show the tomato price chart with a visible spike.
     Show the alert message. This demonstrates you've thought
     beyond restocking — you've thought about price."
@@ -8,8 +8,9 @@
 
    Key visual: SVG sparkline showing tomato price spike.
    The chart is hand-drawn data — no Recharts needed.
-───────────────────────────────────────────────────────── */
-import { useState } from 'react';
+ ───────────────────────────────────────────────────────── */
+import { useEffect, useState } from 'react';
+import { pricesApi } from '../../lib/api';
 
 type PricePoint = { day: string; price: number };
 
@@ -21,10 +22,10 @@ type CommodityData = {
   avg30d: number;
   signal: 'SPIKE' | 'DIP' | 'STABLE' | 'WATCH';
   history: PricePoint[];
-  suggestion?: string;
+  suggestion?: string | null;
 };
 
-const COMMODITIES: CommodityData[] = [
+const FALLBACK_COMMODITIES: CommodityData[] = [
   {
     id:      "tomatoes",
     name:    "Tomatoes 500g",
@@ -98,6 +99,7 @@ const SIGNAL_STYLES = {
 
 /* Render an inline SVG sparkline from price history */
 function Sparkline({ data, signal }: { data: PricePoint[]; signal: CommodityData['signal'] }) {
+  if (!data || data.length === 0) return null;
   const prices = data.map((d) => d.price);
   const min = Math.min(...prices);
   const max = Math.max(...prices);
@@ -140,8 +142,26 @@ function pctChange(current: number, avg: number) {
 
 export default function PriceAlertsPage() {
   const [selected, setSelected] = useState<string | null>("tomatoes");
+  const [commodities, setCommodities] = useState<CommodityData[]>(FALLBACK_COMMODITIES);
+  const [loading, setLoading] = useState(true);
 
-  const active = COMMODITIES.find((c) => c.id === selected) ?? null;
+  useEffect(() => {
+    async function loadPrices() {
+      try {
+        const res = await pricesApi.getFeed();
+        if (res.data && res.data.length > 0) {
+          setCommodities(res.data);
+        }
+      } catch (err) {
+        console.warn("Failed to load live price feeds, using fallbacks.", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadPrices();
+  }, []);
+
+  const active = commodities.find((c) => c.id === selected) ?? null;
 
   return (
     <div className="flex flex-col gap-12">
@@ -149,7 +169,7 @@ export default function PriceAlertsPage() {
       {/* ── Header ──────────────────────────────────────────── */}
       <div className="flex flex-col gap-3">
         <div className="font-data text-accent text-[10px] tracking-widest uppercase">
-          M-04 · Price Intelligence
+          M-04 · Price Intelligence {loading && "(LOADING...)"}
         </div>
         <h1 className="text-5xl font-light tracking-tight uppercase leading-none">
           Price<br />
@@ -163,7 +183,7 @@ export default function PriceAlertsPage() {
 
       {/* ── Alert Banner (Spike + DIP) ───────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-px bg-border">
-        {COMMODITIES.filter((c) => c.signal === 'SPIKE' || c.signal === 'DIP').map((c) => {
+        {commodities.filter((c) => c.signal === 'SPIKE' || c.signal === 'DIP').map((c) => {
           const s = SIGNAL_STYLES[c.signal];
           return (
             <div
@@ -197,14 +217,14 @@ export default function PriceAlertsPage() {
           Price Feed — 10-Day History
         </div>
         <div className="divide-y divide-border">
-          {COMMODITIES.map((c) => {
+          {commodities.map((c) => {
             const s = SIGNAL_STYLES[c.signal];
             const pct = pctChange(c.current, c.avg30d);
             return (
               <div
                 key={c.id}
                 onClick={() => setSelected(c.id)}
-                className={`px-6 py-4 flex items-center gap-6 cursor-pointer hover:bg-accent-dim transition-colors
+                className={`group px-6 py-4 flex items-center gap-6 cursor-pointer hover:bg-accent-dim transition-colors
                            ${selected === c.id ? 'bg-accent-dim' : ''}`}
               >
                 <Sparkline data={c.history} signal={c.signal} />

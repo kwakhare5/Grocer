@@ -2,17 +2,8 @@
   {
     "order_id": "INS_MOCK_0001",
     "user_id": "demo_user_001",
-    "placed_at": "2026-02-14T09:57:00+05:30",
+    "placed_at": "2026-02-15T18:29:00+05:30",
     "items": [
-      {
-        "item_id": "INS_001",
-        "item_name": "Amul Taza Milk 1L",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "L",
-        "category": "dairy",
-        "price": 29.08
-      },
       {
         "item_id": "INS_006",
         "item_name": "Tomatoes (500g)",
@@ -20,7 +11,7 @@
         "standard_quantity": 0.5,
         "unit": "kg",
         "category": "vegetables",
-        "price": 28.56
+        "price": 28.11
       },
       {
         "item_id": "INS_009",
@@ -29,16 +20,16 @@
         "standard_quantity": 0.2,
         "unit": "L",
         "category": "dairy",
-        "price": 55.68
+        "price": 56.49
       }
     ],
-    "total": 113.32,
+    "total": 84.6,
     "status": "delivered"
   },
   {
     "order_id": "INS_MOCK_0002",
     "user_id": "demo_user_001",
-    "placed_at": "2026-02-16T09:41:00+05:30",
+    "placed_at": "2026-02-16T08:00:00+05:30",
     "items": [
       {
         "item_id": "INS_001",
@@ -47,7 +38,25 @@
         "standard_quantity": 1.0,
         "unit": "L",
         "category": "dairy",
-        "price": 27.04
+        "price": 28.41
+      }
+    ],
+    "total": 28.41,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0003",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-02-17T20:23:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_001",
+        "item_name": "Amul Taza Milk 1L",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "L",
+        "category": "dairy",
+        "price": 28.65
       },
       {
         "item_id": "INS_005",
@@ -56,25 +65,25 @@
         "standard_quantity": 12.0,
         "unit": "piece",
         "category": "protein",
-        "price": 83.27
+        "price": 81.97
       },
       {
-        "item_id": "INS_011",
-        "item_name": "Britannia Whole Wheat Bread",
+        "item_id": "INS_007",
+        "item_name": "Onions (1kg)",
         "quantity": 1,
         "standard_quantity": 1.0,
-        "unit": "400g",
-        "category": "bakery",
-        "price": 48.07
+        "unit": "kg",
+        "category": "vegetables",
+        "price": 43.68
       }
     ],
-    "total": 158.38,
+    "total": 154.3,
     "status": "delivered"
   },
   {
-    "order_id": "INS_MOCK_0003",
+    "order_id": "INS_MOCK_0004",
     "user_id": "demo_user_001",
-    "placed_at": "2026-02-17T10:22:00+05:30",
+    "placed_at": "2026-02-18T20:23:00+05:30",
     "items": [
       {
         "item_id": "INS_006",
@@ -83,16 +92,25 @@
         "standard_quantity": 0.5,
         "unit": "kg",
         "category": "vegetables",
-        "price": 28.37
+        "price": 29.83
+      },
+      {
+        "item_id": "INS_011",
+        "item_name": "Britannia Whole Wheat Bread",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "400g",
+        "category": "bakery",
+        "price": 50.33
       }
     ],
-    "total": 28.37,
+    "total": 80.16,
     "status": "delivered"
   },
   {
-    "order_id": "INS_MOCK_0004",
+    "order_id": "INS_MOCK_0005",
     "user_id": "demo_user_001",
-    "placed_at": "2026-02-18T20:01:00+05:30",
+    "placed_at": "2026-02-19T10:06:00+05:30",
     "items": [
       {
         "item_id": "INS_001",
@@ -110,7 +128,7 @@
         "standard_quantity": 1.0,
         "unit": "L",
         "category": "staples",
-        "price": 126.51
+        "price": 123.5
       },
       {
         "item_id": "INS_009",
@@ -119,97 +137,34 @@
         "standard_quantity": 0.2,
         "unit": "L",
         "category": "dairy",
-        "price": 53.91
+        "price": 55.81
       }
     ],
-    "total": 208.67,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0005",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-02-19T08:18:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_012",
-        "item_name": "Farm Fresh Onion 1kg",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "kg",
-        "category": "vegetables",
-        "price": 44.17
-      }
-    ],
-    "total": 44.17,
+    "total": 207.56,
     "status": "delivered"
   },
   {
     "order_id": "INS_MOCK_0006",
     "user_id": "demo_user_001",
-    "placed_at": "2026-02-20T18:24:00+05:30",
+    "placed_at": "2026-02-20T08:29:00+05:30",
     "items": [
       {
-        "item_id": "INS_001",
-        "item_name": "Amul Taza Milk 1L",
+        "item_id": "INS_012",
+        "item_name": "Farm Fresh Onion 1kg",
         "quantity": 1,
         "standard_quantity": 1.0,
-        "unit": "L",
-        "category": "dairy",
-        "price": 27.97
+        "unit": "kg",
+        "category": "vegetables",
+        "price": 44.75
       }
     ],
-    "total": 27.97,
+    "total": 44.75,
     "status": "delivered"
   },
   {
     "order_id": "INS_MOCK_0007",
     "user_id": "demo_user_001",
-    "placed_at": "2026-02-21T09:04:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_005",
-        "item_name": "Nandini Eggs (Pack of 12)",
-        "quantity": 1,
-        "standard_quantity": 12.0,
-        "unit": "piece",
-        "category": "protein",
-        "price": 86.27
-      },
-      {
-        "item_id": "INS_006",
-        "item_name": "Tomatoes (500g)",
-        "quantity": 1,
-        "standard_quantity": 0.5,
-        "unit": "kg",
-        "category": "vegetables",
-        "price": 28.21
-      },
-      {
-        "item_id": "INS_007",
-        "item_name": "Onions (1kg)",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "kg",
-        "category": "vegetables",
-        "price": 41.75
-      },
-      {
-        "item_id": "INS_011",
-        "item_name": "Britannia Whole Wheat Bread",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "400g",
-        "category": "bakery",
-        "price": 48.03
-      }
-    ],
-    "total": 204.26,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0008",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-02-22T19:35:00+05:30",
+    "placed_at": "2026-02-22T08:20:00+05:30",
     "items": [
       {
         "item_id": "INS_001",
@@ -218,2050 +173,7 @@
         "standard_quantity": 1.0,
         "unit": "L",
         "category": "dairy",
-        "price": 28.67
-      },
-      {
-        "item_id": "INS_009",
-        "item_name": "Amul Fresh Cream 200ml",
-        "quantity": 1,
-        "standard_quantity": 0.2,
-        "unit": "L",
-        "category": "dairy",
-        "price": 57.04
-      }
-    ],
-    "total": 85.71,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0009",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-02-23T08:14:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_004",
-        "item_name": "India Gate Basmati Rice 5kg",
-        "quantity": 1,
-        "standard_quantity": 5.0,
-        "unit": "kg",
-        "category": "staples",
-        "price": 301.44
-      }
-    ],
-    "total": 301.44,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0010",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-02-24T10:56:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_001",
-        "item_name": "Amul Taza Milk 1L",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "L",
-        "category": "dairy",
-        "price": 28.54
-      },
-      {
-        "item_id": "INS_006",
-        "item_name": "Tomatoes (500g)",
-        "quantity": 1,
-        "standard_quantity": 0.5,
-        "unit": "kg",
-        "category": "vegetables",
-        "price": 29.02
-      },
-      {
-        "item_id": "INS_008",
-        "item_name": "Amul Butter 500g",
-        "quantity": 1,
-        "standard_quantity": 0.5,
-        "unit": "kg",
-        "category": "dairy",
-        "price": 266.8
-      }
-    ],
-    "total": 324.36,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0011",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-02-25T19:10:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_011",
-        "item_name": "Britannia Whole Wheat Bread",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "400g",
-        "category": "bakery",
-        "price": 50.09
-      }
-    ],
-    "total": 50.09,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0012",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-02-26T18:43:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_001",
-        "item_name": "Amul Taza Milk 1L",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "L",
-        "category": "dairy",
-        "price": 28.8
-      },
-      {
-        "item_id": "INS_005",
-        "item_name": "Nandini Eggs (Pack of 12)",
-        "quantity": 1,
-        "standard_quantity": 12.0,
-        "unit": "piece",
-        "category": "protein",
-        "price": 86.12
-      },
-      {
-        "item_id": "INS_009",
-        "item_name": "Amul Fresh Cream 200ml",
-        "quantity": 1,
-        "standard_quantity": 0.2,
-        "unit": "L",
-        "category": "dairy",
-        "price": 53.36
-      }
-    ],
-    "total": 168.28,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0013",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-02-28T20:46:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_001",
-        "item_name": "Amul Taza Milk 1L",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "L",
-        "category": "dairy",
-        "price": 27.78
-      },
-      {
-        "item_id": "INS_006",
-        "item_name": "Tomatoes (500g)",
-        "quantity": 1,
-        "standard_quantity": 0.5,
-        "unit": "kg",
-        "category": "vegetables",
-        "price": 29.89
-      },
-      {
-        "item_id": "INS_007",
-        "item_name": "Onions (1kg)",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "kg",
-        "category": "vegetables",
-        "price": 40.54
-      }
-    ],
-    "total": 98.21,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0014",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-03-01T10:40:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_002",
-        "item_name": "Aashirvaad Atta 5kg",
-        "quantity": 1,
-        "standard_quantity": 5.0,
-        "unit": "kg",
-        "category": "staples",
-        "price": 199.34
-      },
-      {
-        "item_id": "INS_011",
-        "item_name": "Britannia Whole Wheat Bread",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "400g",
-        "category": "bakery",
-        "price": 48.71
-      },
-      {
-        "item_id": "INS_012",
-        "item_name": "Farm Fresh Onion 1kg",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "kg",
-        "category": "vegetables",
-        "price": 44.13
-      }
-    ],
-    "total": 292.18,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0015",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-03-02T09:21:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_001",
-        "item_name": "Amul Taza Milk 1L",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "L",
-        "category": "dairy",
-        "price": 28.97
-      }
-    ],
-    "total": 28.97,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0016",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-03-03T09:13:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_005",
-        "item_name": "Nandini Eggs (Pack of 12)",
-        "quantity": 1,
-        "standard_quantity": 12.0,
-        "unit": "piece",
-        "category": "protein",
-        "price": 86.85
-      },
-      {
-        "item_id": "INS_006",
-        "item_name": "Tomatoes (500g)",
-        "quantity": 1,
-        "standard_quantity": 0.5,
-        "unit": "kg",
-        "category": "vegetables",
-        "price": 29.1
-      },
-      {
-        "item_id": "INS_009",
-        "item_name": "Amul Fresh Cream 200ml",
-        "quantity": 1,
-        "standard_quantity": 0.2,
-        "unit": "L",
-        "category": "dairy",
-        "price": 55.58
-      }
-    ],
-    "total": 171.53,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0017",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-03-04T19:13:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_001",
-        "item_name": "Amul Taza Milk 1L",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "L",
-        "category": "dairy",
-        "price": 28.05
-      }
-    ],
-    "total": 28.05,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0018",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-03-05T19:55:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_003",
-        "item_name": "Fortune Sunflower Oil 1L",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "L",
-        "category": "staples",
-        "price": 126.43
-      },
-      {
-        "item_id": "INS_011",
-        "item_name": "Britannia Whole Wheat Bread",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "400g",
-        "category": "bakery",
-        "price": 51.52
-      }
-    ],
-    "total": 177.95,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0019",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-03-06T18:45:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_001",
-        "item_name": "Amul Taza Milk 1L",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "L",
-        "category": "dairy",
-        "price": 27.48
-      },
-      {
-        "item_id": "INS_006",
-        "item_name": "Tomatoes (500g)",
-        "quantity": 1,
-        "standard_quantity": 0.5,
-        "unit": "kg",
-        "category": "vegetables",
-        "price": 30.12
-      }
-    ],
-    "total": 57.6,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0020",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-03-07T09:07:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_005",
-        "item_name": "Nandini Eggs (Pack of 12)",
-        "quantity": 1,
-        "standard_quantity": 12.0,
-        "unit": "piece",
-        "category": "protein",
-        "price": 84.09
-      },
-      {
-        "item_id": "INS_007",
-        "item_name": "Onions (1kg)",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "kg",
-        "category": "vegetables",
-        "price": 43.03
-      },
-      {
-        "item_id": "INS_009",
-        "item_name": "Amul Fresh Cream 200ml",
-        "quantity": 1,
-        "standard_quantity": 0.2,
-        "unit": "L",
-        "category": "dairy",
-        "price": 55.37
-      }
-    ],
-    "total": 182.49,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0021",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-03-09T09:45:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_001",
-        "item_name": "Amul Taza Milk 1L",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "L",
-        "category": "dairy",
-        "price": 28.08
-      },
-      {
-        "item_id": "INS_011",
-        "item_name": "Britannia Whole Wheat Bread",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "400g",
-        "category": "bakery",
-        "price": 50.62
-      }
-    ],
-    "total": 78.7,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0022",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-03-10T20:43:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_001",
-        "item_name": "Amul Taza Milk 1L",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "L",
-        "category": "dairy",
-        "price": 28.63
-      },
-      {
-        "item_id": "INS_006",
-        "item_name": "Tomatoes (500g)",
-        "quantity": 1,
-        "standard_quantity": 0.5,
-        "unit": "kg",
-        "category": "vegetables",
-        "price": 29.33
-      }
-    ],
-    "total": 57.96,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0023",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-03-11T18:59:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_009",
-        "item_name": "Amul Fresh Cream 200ml",
-        "quantity": 1,
-        "standard_quantity": 0.2,
-        "unit": "L",
-        "category": "dairy",
-        "price": 56.25
-      }
-    ],
-    "total": 56.25,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0024",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-03-12T09:20:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_005",
-        "item_name": "Nandini Eggs (Pack of 12)",
-        "quantity": 1,
-        "standard_quantity": 12.0,
-        "unit": "piece",
-        "category": "protein",
-        "price": 81.13
-      },
-      {
-        "item_id": "INS_012",
-        "item_name": "Farm Fresh Onion 1kg",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "kg",
-        "category": "vegetables",
-        "price": 44.56
-      }
-    ],
-    "total": 125.69,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0025",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-03-13T09:58:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_001",
-        "item_name": "Amul Taza Milk 1L",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "L",
-        "category": "dairy",
-        "price": 28.93
-      },
-      {
-        "item_id": "INS_006",
-        "item_name": "Tomatoes (500g)",
-        "quantity": 1,
-        "standard_quantity": 0.5,
-        "unit": "kg",
-        "category": "vegetables",
-        "price": 28.62
-      },
-      {
-        "item_id": "INS_011",
-        "item_name": "Britannia Whole Wheat Bread",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "400g",
-        "category": "bakery",
-        "price": 48.38
-      }
-    ],
-    "total": 105.93,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0026",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-03-14T19:54:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_007",
-        "item_name": "Onions (1kg)",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "kg",
-        "category": "vegetables",
-        "price": 43.17
-      }
-    ],
-    "total": 43.17,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0027",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-03-15T20:03:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_001",
-        "item_name": "Amul Taza Milk 1L",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "L",
-        "category": "dairy",
-        "price": 27.72
-      }
-    ],
-    "total": 27.72,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0028",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-03-16T20:49:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_009",
-        "item_name": "Amul Fresh Cream 200ml",
-        "quantity": 1,
-        "standard_quantity": 0.2,
-        "unit": "L",
-        "category": "dairy",
-        "price": 53.65
-      }
-    ],
-    "total": 53.65,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0029",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-03-17T18:24:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_001",
-        "item_name": "Amul Taza Milk 1L",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "L",
-        "category": "dairy",
-        "price": 28.8
-      },
-      {
-        "item_id": "INS_005",
-        "item_name": "Nandini Eggs (Pack of 12)",
-        "quantity": 1,
-        "standard_quantity": 12.0,
-        "unit": "piece",
-        "category": "protein",
-        "price": 87.14
-      },
-      {
-        "item_id": "INS_006",
-        "item_name": "Tomatoes (500g)",
-        "quantity": 1,
-        "standard_quantity": 0.5,
-        "unit": "kg",
-        "category": "vegetables",
-        "price": 28.1
-      },
-      {
-        "item_id": "INS_008",
-        "item_name": "Amul Butter 500g",
-        "quantity": 1,
-        "standard_quantity": 0.5,
-        "unit": "kg",
-        "category": "dairy",
-        "price": 260.69
-      }
-    ],
-    "total": 404.73,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0030",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-03-18T19:27:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_001",
-        "item_name": "Amul Taza Milk 1L",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "L",
-        "category": "dairy",
-        "price": 28.16
-      },
-      {
-        "item_id": "INS_002",
-        "item_name": "Aashirvaad Atta 5kg",
-        "quantity": 1,
-        "standard_quantity": 5.0,
-        "unit": "kg",
-        "category": "staples",
-        "price": 194.35
-      },
-      {
-        "item_id": "INS_011",
-        "item_name": "Britannia Whole Wheat Bread",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "400g",
-        "category": "bakery",
-        "price": 49.42
-      }
-    ],
-    "total": 271.93,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0031",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-03-19T09:45:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_003",
-        "item_name": "Fortune Sunflower Oil 1L",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "L",
-        "category": "staples",
-        "price": 126.21
-      }
-    ],
-    "total": 126.21,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0032",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-03-20T10:48:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_001",
-        "item_name": "Amul Taza Milk 1L",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "L",
-        "category": "dairy",
-        "price": 27.35
-      },
-      {
-        "item_id": "INS_006",
-        "item_name": "Tomatoes (500g)",
-        "quantity": 1,
-        "standard_quantity": 0.5,
-        "unit": "kg",
-        "category": "vegetables",
-        "price": 29.28
-      },
-      {
-        "item_id": "INS_007",
-        "item_name": "Onions (1kg)",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "kg",
-        "category": "vegetables",
-        "price": 42.7
-      },
-      {
-        "item_id": "INS_009",
-        "item_name": "Amul Fresh Cream 200ml",
-        "quantity": 1,
-        "standard_quantity": 0.2,
-        "unit": "L",
-        "category": "dairy",
-        "price": 54.3
-      }
-    ],
-    "total": 153.63,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0033",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-03-21T20:56:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_004",
-        "item_name": "India Gate Basmati Rice 5kg",
-        "quantity": 1,
-        "standard_quantity": 5.0,
-        "unit": "kg",
-        "category": "staples",
-        "price": 317.3
-      }
-    ],
-    "total": 317.3,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0034",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-03-22T20:03:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_001",
-        "item_name": "Amul Taza Milk 1L",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "L",
-        "category": "dairy",
-        "price": 28.41
-      },
-      {
-        "item_id": "INS_005",
-        "item_name": "Nandini Eggs (Pack of 12)",
-        "quantity": 1,
-        "standard_quantity": 12.0,
-        "unit": "piece",
-        "category": "protein",
-        "price": 80.75
-      },
-      {
-        "item_id": "INS_011",
-        "item_name": "Britannia Whole Wheat Bread",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "400g",
-        "category": "bakery",
-        "price": 49.84
-      },
-      {
-        "item_id": "INS_012",
-        "item_name": "Farm Fresh Onion 1kg",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "kg",
-        "category": "vegetables",
-        "price": 44.87
-      }
-    ],
-    "total": 203.87,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0035",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-03-23T20:59:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_006",
-        "item_name": "Tomatoes (500g)",
-        "quantity": 1,
-        "standard_quantity": 0.5,
-        "unit": "kg",
-        "category": "vegetables",
-        "price": 28.02
-      }
-    ],
-    "total": 28.02,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0036",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-03-24T20:33:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_001",
-        "item_name": "Amul Taza Milk 1L",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "L",
-        "category": "dairy",
-        "price": 28.28
-      },
-      {
-        "item_id": "INS_009",
-        "item_name": "Amul Fresh Cream 200ml",
-        "quantity": 1,
-        "standard_quantity": 0.2,
-        "unit": "L",
-        "category": "dairy",
-        "price": 55.19
-      }
-    ],
-    "total": 83.47,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0037",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-03-26T08:57:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_005",
-        "item_name": "Nandini Eggs (Pack of 12)",
-        "quantity": 1,
-        "standard_quantity": 12.0,
-        "unit": "piece",
-        "category": "protein",
-        "price": 83.33
-      },
-      {
-        "item_id": "INS_006",
-        "item_name": "Tomatoes (500g)",
-        "quantity": 1,
-        "standard_quantity": 0.5,
-        "unit": "kg",
-        "category": "vegetables",
-        "price": 27.98
-      },
-      {
-        "item_id": "INS_011",
-        "item_name": "Britannia Whole Wheat Bread",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "400g",
-        "category": "bakery",
-        "price": 50.81
-      }
-    ],
-    "total": 162.12,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0038",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-03-27T08:03:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_001",
-        "item_name": "Amul Taza Milk 1L",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "L",
-        "category": "dairy",
-        "price": 27.11
-      },
-      {
-        "item_id": "INS_007",
-        "item_name": "Onions (1kg)",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "kg",
-        "category": "vegetables",
-        "price": 43.06
-      }
-    ],
-    "total": 70.17,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0039",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-03-28T08:07:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_009",
-        "item_name": "Amul Fresh Cream 200ml",
-        "quantity": 1,
-        "standard_quantity": 0.2,
-        "unit": "L",
-        "category": "dairy",
-        "price": 53.17
-      }
-    ],
-    "total": 53.17,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0040",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-04-08T10:36:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_001",
-        "item_name": "Amul Taza Milk 1L",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "L",
-        "category": "dairy",
-        "price": 27.04
-      },
-      {
-        "item_id": "INS_006",
-        "item_name": "Tomatoes (500g)",
-        "quantity": 1,
-        "standard_quantity": 0.5,
-        "unit": "kg",
-        "category": "vegetables",
-        "price": 29.19
-      }
-    ],
-    "total": 56.23,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0041",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-04-09T18:45:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_009",
-        "item_name": "Amul Fresh Cream 200ml",
-        "quantity": 1,
-        "standard_quantity": 0.2,
-        "unit": "L",
-        "category": "dairy",
-        "price": 54.66
-      }
-    ],
-    "total": 54.66,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0042",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-04-10T19:06:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_005",
-        "item_name": "Nandini Eggs (Pack of 12)",
-        "quantity": 1,
-        "standard_quantity": 12.0,
-        "unit": "piece",
-        "category": "protein",
-        "price": 82.75
-      },
-      {
-        "item_id": "INS_007",
-        "item_name": "Onions (1kg)",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "kg",
-        "category": "vegetables",
-        "price": 41.87
-      },
-      {
-        "item_id": "INS_011",
-        "item_name": "Britannia Whole Wheat Bread",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "400g",
-        "category": "bakery",
-        "price": 49.58
-      },
-      {
-        "item_id": "INS_012",
-        "item_name": "Farm Fresh Onion 1kg",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "kg",
-        "category": "vegetables",
-        "price": 46.38
-      }
-    ],
-    "total": 220.58,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0043",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-04-11T09:38:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_001",
-        "item_name": "Amul Taza Milk 1L",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "L",
-        "category": "dairy",
-        "price": 28.92
-      },
-      {
-        "item_id": "INS_006",
-        "item_name": "Tomatoes (500g)",
-        "quantity": 1,
-        "standard_quantity": 0.5,
-        "unit": "kg",
-        "category": "vegetables",
-        "price": 28.2
-      }
-    ],
-    "total": 57.12,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0044",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-04-12T10:03:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_001",
-        "item_name": "Amul Taza Milk 1L",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "L",
-        "category": "dairy",
-        "price": 28.61
-      }
-    ],
-    "total": 28.61,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0045",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-04-13T19:12:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_009",
-        "item_name": "Amul Fresh Cream 200ml",
-        "quantity": 1,
-        "standard_quantity": 0.2,
-        "unit": "L",
-        "category": "dairy",
-        "price": 55.57
-      }
-    ],
-    "total": 55.57,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0046",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-04-14T19:31:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_004",
-        "item_name": "India Gate Basmati Rice 5kg",
-        "quantity": 1,
-        "standard_quantity": 5.0,
-        "unit": "kg",
-        "category": "staples",
-        "price": 314.31
-      },
-      {
-        "item_id": "INS_006",
-        "item_name": "Tomatoes (500g)",
-        "quantity": 1,
-        "standard_quantity": 0.5,
-        "unit": "kg",
-        "category": "vegetables",
-        "price": 29.43
-      },
-      {
-        "item_id": "INS_011",
-        "item_name": "Britannia Whole Wheat Bread",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "400g",
-        "category": "bakery",
-        "price": 51.3
-      }
-    ],
-    "total": 395.04,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0047",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-04-15T19:14:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_001",
-        "item_name": "Amul Taza Milk 1L",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "L",
-        "category": "dairy",
-        "price": 28.6
-      },
-      {
-        "item_id": "INS_005",
-        "item_name": "Nandini Eggs (Pack of 12)",
-        "quantity": 1,
-        "standard_quantity": 12.0,
-        "unit": "piece",
-        "category": "protein",
-        "price": 82.81
-      }
-    ],
-    "total": 111.41,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0048",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-04-17T08:59:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_001",
-        "item_name": "Amul Taza Milk 1L",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "L",
-        "category": "dairy",
-        "price": 28.42
-      },
-      {
-        "item_id": "INS_009",
-        "item_name": "Amul Fresh Cream 200ml",
-        "quantity": 1,
-        "standard_quantity": 0.2,
-        "unit": "L",
-        "category": "dairy",
-        "price": 57.02
-      }
-    ],
-    "total": 85.44,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0049",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-04-18T09:21:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_003",
-        "item_name": "Fortune Sunflower Oil 1L",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "L",
-        "category": "staples",
-        "price": 125.67
-      },
-      {
-        "item_id": "INS_006",
-        "item_name": "Tomatoes (500g)",
-        "quantity": 1,
-        "standard_quantity": 0.5,
-        "unit": "kg",
-        "category": "vegetables",
-        "price": 28.95
-      },
-      {
-        "item_id": "INS_007",
-        "item_name": "Onions (1kg)",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "kg",
-        "category": "vegetables",
-        "price": 42.88
-      },
-      {
-        "item_id": "INS_011",
-        "item_name": "Britannia Whole Wheat Bread",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "400g",
-        "category": "bakery",
-        "price": 51.91
-      }
-    ],
-    "total": 249.41,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0050",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-04-19T08:46:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_001",
-        "item_name": "Amul Taza Milk 1L",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "L",
-        "category": "dairy",
-        "price": 27.87
-      },
-      {
-        "item_id": "INS_005",
-        "item_name": "Nandini Eggs (Pack of 12)",
-        "quantity": 1,
-        "standard_quantity": 12.0,
-        "unit": "piece",
-        "category": "protein",
-        "price": 82.33
-      }
-    ],
-    "total": 110.2,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0051",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-04-21T10:45:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_001",
-        "item_name": "Amul Taza Milk 1L",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "L",
-        "category": "dairy",
-        "price": 27.19
-      },
-      {
-        "item_id": "INS_002",
-        "item_name": "Aashirvaad Atta 5kg",
-        "quantity": 1,
-        "standard_quantity": 5.0,
-        "unit": "kg",
-        "category": "staples",
-        "price": 198.33
-      },
-      {
-        "item_id": "INS_006",
-        "item_name": "Tomatoes (500g)",
-        "quantity": 1,
-        "standard_quantity": 0.5,
-        "unit": "kg",
-        "category": "vegetables",
-        "price": 28.4
-      },
-      {
-        "item_id": "INS_009",
-        "item_name": "Amul Fresh Cream 200ml",
-        "quantity": 1,
-        "standard_quantity": 0.2,
-        "unit": "L",
-        "category": "dairy",
-        "price": 53.12
-      },
-      {
-        "item_id": "INS_012",
-        "item_name": "Farm Fresh Onion 1kg",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "kg",
-        "category": "vegetables",
-        "price": 43.27
-      }
-    ],
-    "total": 350.31,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0052",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-04-22T09:49:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_011",
-        "item_name": "Britannia Whole Wheat Bread",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "400g",
-        "category": "bakery",
-        "price": 49.4
-      }
-    ],
-    "total": 49.4,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0053",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-04-23T19:05:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_001",
-        "item_name": "Amul Taza Milk 1L",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "L",
-        "category": "dairy",
-        "price": 26.92
-      }
-    ],
-    "total": 26.92,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0054",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-04-24T20:20:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_005",
-        "item_name": "Nandini Eggs (Pack of 12)",
-        "quantity": 1,
-        "standard_quantity": 12.0,
-        "unit": "piece",
-        "category": "protein",
-        "price": 82.28
-      },
-      {
-        "item_id": "INS_006",
-        "item_name": "Tomatoes (500g)",
-        "quantity": 1,
-        "standard_quantity": 0.5,
-        "unit": "kg",
-        "category": "vegetables",
-        "price": 30.02
-      }
-    ],
-    "total": 112.3,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0055",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-04-25T09:53:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_001",
-        "item_name": "Amul Taza Milk 1L",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "L",
-        "category": "dairy",
-        "price": 27.72
-      },
-      {
-        "item_id": "INS_007",
-        "item_name": "Onions (1kg)",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "kg",
-        "category": "vegetables",
-        "price": 42.28
-      },
-      {
-        "item_id": "INS_009",
-        "item_name": "Amul Fresh Cream 200ml",
-        "quantity": 1,
-        "standard_quantity": 0.2,
-        "unit": "L",
-        "category": "dairy",
-        "price": 56.38
-      }
-    ],
-    "total": 126.38,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0056",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-04-26T18:21:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_011",
-        "item_name": "Britannia Whole Wheat Bread",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "400g",
-        "category": "bakery",
-        "price": 49.47
-      }
-    ],
-    "total": 49.47,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0057",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-04-27T18:33:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_001",
-        "item_name": "Amul Taza Milk 1L",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "L",
-        "category": "dairy",
-        "price": 27.16
-      },
-      {
-        "item_id": "INS_006",
-        "item_name": "Tomatoes (500g)",
-        "quantity": 1,
-        "standard_quantity": 0.5,
-        "unit": "kg",
-        "category": "vegetables",
-        "price": 28.81
-      },
-      {
-        "item_id": "INS_008",
-        "item_name": "Amul Butter 500g",
-        "quantity": 1,
-        "standard_quantity": 0.5,
-        "unit": "kg",
-        "category": "dairy",
-        "price": 276.29
-      }
-    ],
-    "total": 332.26,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0058",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-04-29T10:42:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_001",
-        "item_name": "Amul Taza Milk 1L",
-        "quantity": 3,
-        "standard_quantity": 3.0,
-        "unit": "L",
-        "category": "dairy",
-        "price": 83.91
-      },
-      {
-        "item_id": "INS_005",
-        "item_name": "Nandini Eggs (Pack of 12)",
-        "quantity": 1,
-        "standard_quantity": 12.0,
-        "unit": "piece",
-        "category": "protein",
-        "price": 82.71
-      },
-      {
-        "item_id": "INS_009",
-        "item_name": "Amul Fresh Cream 200ml",
-        "quantity": 1,
-        "standard_quantity": 0.2,
-        "unit": "L",
-        "category": "dairy",
-        "price": 57.05
-      }
-    ],
-    "total": 223.67,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0059",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-04-30T19:50:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_006",
-        "item_name": "Tomatoes (500g)",
-        "quantity": 1,
-        "standard_quantity": 0.5,
-        "unit": "kg",
-        "category": "vegetables",
-        "price": 28.43
-      },
-      {
-        "item_id": "INS_011",
-        "item_name": "Britannia Whole Wheat Bread",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "400g",
-        "category": "bakery",
-        "price": 49.64
-      },
-      {
-        "item_id": "INS_012",
-        "item_name": "Farm Fresh Onion 1kg",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "kg",
-        "category": "vegetables",
-        "price": 44.25
-      }
-    ],
-    "total": 122.32,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0060",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-05-01T19:50:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_001",
-        "item_name": "Amul Taza Milk 1L",
-        "quantity": 3,
-        "standard_quantity": 3.0,
-        "unit": "L",
-        "category": "dairy",
-        "price": 87.28
-      }
-    ],
-    "total": 87.28,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0061",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-05-02T09:15:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_003",
-        "item_name": "Fortune Sunflower Oil 1L",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "L",
-        "category": "staples",
-        "price": 123.34
-      },
-      {
-        "item_id": "INS_007",
-        "item_name": "Onions (1kg)",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "kg",
-        "category": "vegetables",
-        "price": 41.43
-      }
-    ],
-    "total": 164.77,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0062",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-05-03T19:33:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_001",
-        "item_name": "Amul Taza Milk 1L",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "L",
-        "category": "dairy",
-        "price": 27.83
-      },
-      {
-        "item_id": "INS_006",
-        "item_name": "Tomatoes (500g)",
-        "quantity": 1,
-        "standard_quantity": 0.5,
-        "unit": "kg",
-        "category": "vegetables",
-        "price": 28.23
-      },
-      {
-        "item_id": "INS_011",
-        "item_name": "Britannia Whole Wheat Bread",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "400g",
-        "category": "bakery",
-        "price": 51.87
-      }
-    ],
-    "total": 107.93,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0063",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-05-04T10:43:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_005",
-        "item_name": "Nandini Eggs (Pack of 12)",
-        "quantity": 1,
-        "standard_quantity": 12.0,
-        "unit": "piece",
-        "category": "protein",
-        "price": 82.25
-      },
-      {
-        "item_id": "INS_009",
-        "item_name": "Amul Fresh Cream 200ml",
-        "quantity": 1,
-        "standard_quantity": 0.2,
-        "unit": "L",
-        "category": "dairy",
-        "price": 54.88
-      }
-    ],
-    "total": 137.13,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0064",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-05-05T08:02:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_001",
-        "item_name": "Amul Taza Milk 1L",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "L",
-        "category": "dairy",
-        "price": 27.53
-      },
-      {
-        "item_id": "INS_010",
-        "item_name": "Tata Salt 1kg",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "kg",
-        "category": "staples",
-        "price": 27.39
-      }
-    ],
-    "total": 54.92,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0065",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-05-07T18:11:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_001",
-        "item_name": "Amul Taza Milk 1L",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "L",
-        "category": "dairy",
-        "price": 28.96
-      },
-      {
-        "item_id": "INS_002",
-        "item_name": "Aashirvaad Atta 5kg",
-        "quantity": 1,
-        "standard_quantity": 5.0,
-        "unit": "kg",
-        "category": "staples",
-        "price": 203.72
-      },
-      {
-        "item_id": "INS_006",
-        "item_name": "Tomatoes (500g)",
-        "quantity": 1,
-        "standard_quantity": 0.5,
-        "unit": "kg",
-        "category": "vegetables",
-        "price": 28.11
-      },
-      {
-        "item_id": "INS_009",
-        "item_name": "Amul Fresh Cream 200ml",
-        "quantity": 1,
-        "standard_quantity": 0.2,
-        "unit": "L",
-        "category": "dairy",
-        "price": 53.4
-      },
-      {
-        "item_id": "INS_011",
-        "item_name": "Britannia Whole Wheat Bread",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "400g",
-        "category": "bakery",
-        "price": 50.1
-      }
-    ],
-    "total": 364.29,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0066",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-05-08T10:27:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_005",
-        "item_name": "Nandini Eggs (Pack of 12)",
-        "quantity": 1,
-        "standard_quantity": 12.0,
-        "unit": "piece",
-        "category": "protein",
-        "price": 86.19
-      },
-      {
-        "item_id": "INS_007",
-        "item_name": "Onions (1kg)",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "kg",
-        "category": "vegetables",
-        "price": 41.22
-      }
-    ],
-    "total": 127.41,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0067",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-05-09T09:18:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_001",
-        "item_name": "Amul Taza Milk 1L",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "L",
-        "category": "dairy",
-        "price": 27.45
-      }
-    ],
-    "total": 27.45,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0068",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-05-10T18:08:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_004",
-        "item_name": "India Gate Basmati Rice 5kg",
-        "quantity": 1,
-        "standard_quantity": 5.0,
-        "unit": "kg",
-        "category": "staples",
-        "price": 300.19
-      },
-      {
-        "item_id": "INS_006",
-        "item_name": "Tomatoes (500g)",
-        "quantity": 1,
-        "standard_quantity": 0.5,
-        "unit": "kg",
-        "category": "vegetables",
-        "price": 28.91
-      },
-      {
-        "item_id": "INS_012",
-        "item_name": "Farm Fresh Onion 1kg",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "kg",
-        "category": "vegetables",
-        "price": 46.69
-      }
-    ],
-    "total": 375.79,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0069",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-05-11T08:57:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_009",
-        "item_name": "Amul Fresh Cream 200ml",
-        "quantity": 1,
-        "standard_quantity": 0.2,
-        "unit": "L",
-        "category": "dairy",
-        "price": 53.33
-      },
-      {
-        "item_id": "INS_011",
-        "item_name": "Britannia Whole Wheat Bread",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "400g",
-        "category": "bakery",
-        "price": 50.82
-      }
-    ],
-    "total": 104.15,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0070",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-05-12T09:38:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_001",
-        "item_name": "Amul Taza Milk 1L",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "L",
-        "category": "dairy",
-        "price": 27.49
-      }
-    ],
-    "total": 27.49,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0071",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-05-13T10:36:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_005",
-        "item_name": "Nandini Eggs (Pack of 12)",
-        "quantity": 1,
-        "standard_quantity": 12.0,
-        "unit": "piece",
-        "category": "protein",
-        "price": 83.69
-      },
-      {
-        "item_id": "INS_006",
-        "item_name": "Tomatoes (500g)",
-        "quantity": 1,
-        "standard_quantity": 0.5,
-        "unit": "kg",
-        "category": "vegetables",
-        "price": 29.6
-      }
-    ],
-    "total": 113.29,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0072",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-05-14T10:33:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_001",
-        "item_name": "Amul Taza Milk 1L",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "L",
-        "category": "dairy",
-        "price": 28.62
-      },
-      {
-        "item_id": "INS_007",
-        "item_name": "Onions (1kg)",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "kg",
-        "category": "vegetables",
-        "price": 40.98
-      }
-    ],
-    "total": 69.6,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0073",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-05-15T18:19:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_009",
-        "item_name": "Amul Fresh Cream 200ml",
-        "quantity": 1,
-        "standard_quantity": 0.2,
-        "unit": "L",
-        "category": "dairy",
-        "price": 56.96
-      },
-      {
-        "item_id": "INS_011",
-        "item_name": "Britannia Whole Wheat Bread",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "400g",
-        "category": "bakery",
-        "price": 50.56
-      }
-    ],
-    "total": 107.52,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0074",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-05-16T10:15:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_001",
-        "item_name": "Amul Taza Milk 1L",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "L",
-        "category": "dairy",
-        "price": 28.06
-      },
-      {
-        "item_id": "INS_006",
-        "item_name": "Tomatoes (500g)",
-        "quantity": 1,
-        "standard_quantity": 0.5,
-        "unit": "kg",
-        "category": "vegetables",
-        "price": 28.16
-      }
-    ],
-    "total": 56.22,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0075",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-05-17T18:31:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_003",
-        "item_name": "Fortune Sunflower Oil 1L",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "L",
-        "category": "staples",
-        "price": 124.54
-      }
-    ],
-    "total": 124.54,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0076",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-05-18T08:46:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_001",
-        "item_name": "Amul Taza Milk 1L",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "L",
-        "category": "dairy",
-        "price": 28.77
-      },
-      {
-        "item_id": "INS_005",
-        "item_name": "Nandini Eggs (Pack of 12)",
-        "quantity": 1,
-        "standard_quantity": 12.0,
-        "unit": "piece",
-        "category": "protein",
-        "price": 81.86
-      },
-      {
-        "item_id": "INS_008",
-        "item_name": "Amul Butter 500g",
-        "quantity": 1,
-        "standard_quantity": 0.5,
-        "unit": "kg",
-        "category": "dairy",
-        "price": 259.74
-      },
-      {
-        "item_id": "INS_009",
-        "item_name": "Amul Fresh Cream 200ml",
-        "quantity": 1,
-        "standard_quantity": 0.2,
-        "unit": "L",
-        "category": "dairy",
-        "price": 53.51
-      }
-    ],
-    "total": 423.88,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0077",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-05-19T09:20:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_011",
-        "item_name": "Britannia Whole Wheat Bread",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "400g",
-        "category": "bakery",
-        "price": 49.6
-      }
-    ],
-    "total": 49.6,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0078",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-05-20T19:04:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_001",
-        "item_name": "Amul Taza Milk 1L",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "L",
-        "category": "dairy",
-        "price": 27.38
-      },
-      {
-        "item_id": "INS_006",
-        "item_name": "Tomatoes (500g)",
-        "quantity": 1,
-        "standard_quantity": 0.5,
-        "unit": "kg",
-        "category": "vegetables",
-        "price": 29.52
-      },
-      {
-        "item_id": "INS_012",
-        "item_name": "Farm Fresh Onion 1kg",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "kg",
-        "category": "vegetables",
-        "price": 43.94
-      }
-    ],
-    "total": 100.84,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0079",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-05-21T19:07:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_007",
-        "item_name": "Onions (1kg)",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "kg",
-        "category": "vegetables",
-        "price": 40.98
-      }
-    ],
-    "total": 40.98,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0080",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-05-23T09:48:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_001",
-        "item_name": "Amul Taza Milk 1L",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "L",
-        "category": "dairy",
-        "price": 27.46
+        "price": 28.71
       },
       {
         "item_id": "INS_005",
@@ -2279,7 +191,1051 @@
         "standard_quantity": 0.5,
         "unit": "kg",
         "category": "vegetables",
-        "price": 29.52
+        "price": 28.28
+      },
+      {
+        "item_id": "INS_011",
+        "item_name": "Britannia Whole Wheat Bread",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "400g",
+        "category": "bakery",
+        "price": 50.85
+      }
+    ],
+    "total": 191.44,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0008",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-02-24T09:45:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_001",
+        "item_name": "Amul Taza Milk 1L",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "L",
+        "category": "dairy",
+        "price": 28.99
+      },
+      {
+        "item_id": "INS_004",
+        "item_name": "India Gate Basmati Rice 5kg",
+        "quantity": 1,
+        "standard_quantity": 5.0,
+        "unit": "kg",
+        "category": "staples",
+        "price": 298.82
+      },
+      {
+        "item_id": "INS_009",
+        "item_name": "Amul Fresh Cream 200ml",
+        "quantity": 1,
+        "standard_quantity": 0.2,
+        "unit": "L",
+        "category": "dairy",
+        "price": 54.34
+      }
+    ],
+    "total": 382.15,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0009",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-02-25T10:17:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_006",
+        "item_name": "Tomatoes (500g)",
+        "quantity": 1,
+        "standard_quantity": 0.5,
+        "unit": "kg",
+        "category": "vegetables",
+        "price": 29.76
+      },
+      {
+        "item_id": "INS_007",
+        "item_name": "Onions (1kg)",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "kg",
+        "category": "vegetables",
+        "price": 43.08
+      }
+    ],
+    "total": 72.84,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0010",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-02-26T08:44:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_001",
+        "item_name": "Amul Taza Milk 1L",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "L",
+        "category": "dairy",
+        "price": 28.04
+      },
+      {
+        "item_id": "INS_005",
+        "item_name": "Nandini Eggs (Pack of 12)",
+        "quantity": 1,
+        "standard_quantity": 12.0,
+        "unit": "piece",
+        "category": "protein",
+        "price": 86.5
+      },
+      {
+        "item_id": "INS_008",
+        "item_name": "Amul Butter 500g",
+        "quantity": 1,
+        "standard_quantity": 0.5,
+        "unit": "kg",
+        "category": "dairy",
+        "price": 264.38
+      },
+      {
+        "item_id": "INS_011",
+        "item_name": "Britannia Whole Wheat Bread",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "400g",
+        "category": "bakery",
+        "price": 48.26
+      }
+    ],
+    "total": 427.18,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0011",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-02-27T18:16:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_002",
+        "item_name": "Aashirvaad Atta 5kg",
+        "quantity": 1,
+        "standard_quantity": 5.0,
+        "unit": "kg",
+        "category": "staples",
+        "price": 195.25
+      },
+      {
+        "item_id": "INS_009",
+        "item_name": "Amul Fresh Cream 200ml",
+        "quantity": 1,
+        "standard_quantity": 0.2,
+        "unit": "L",
+        "category": "dairy",
+        "price": 56.85
+      }
+    ],
+    "total": 252.1,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0012",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-02-28T20:56:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_001",
+        "item_name": "Amul Taza Milk 1L",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "L",
+        "category": "dairy",
+        "price": 27.86
+      }
+    ],
+    "total": 27.86,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0013",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-03-01T08:05:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_006",
+        "item_name": "Tomatoes (500g)",
+        "quantity": 1,
+        "standard_quantity": 0.5,
+        "unit": "kg",
+        "category": "vegetables",
+        "price": 28.69
+      }
+    ],
+    "total": 28.69,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0014",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-03-02T20:01:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_011",
+        "item_name": "Britannia Whole Wheat Bread",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "400g",
+        "category": "bakery",
+        "price": 51.7
+      }
+    ],
+    "total": 51.7,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0015",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-03-03T18:57:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_001",
+        "item_name": "Amul Taza Milk 1L",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "L",
+        "category": "dairy",
+        "price": 28.05
+      },
+      {
+        "item_id": "INS_005",
+        "item_name": "Nandini Eggs (Pack of 12)",
+        "quantity": 1,
+        "standard_quantity": 12.0,
+        "unit": "piece",
+        "category": "protein",
+        "price": 80.93
+      },
+      {
+        "item_id": "INS_009",
+        "item_name": "Amul Fresh Cream 200ml",
+        "quantity": 1,
+        "standard_quantity": 0.2,
+        "unit": "L",
+        "category": "dairy",
+        "price": 52.97
+      },
+      {
+        "item_id": "INS_012",
+        "item_name": "Farm Fresh Onion 1kg",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "kg",
+        "category": "vegetables",
+        "price": 45.73
+      }
+    ],
+    "total": 207.68,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0016",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-03-04T20:44:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_006",
+        "item_name": "Tomatoes (500g)",
+        "quantity": 1,
+        "standard_quantity": 0.5,
+        "unit": "kg",
+        "category": "vegetables",
+        "price": 28.9
+      }
+    ],
+    "total": 28.9,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0017",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-03-05T08:21:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_001",
+        "item_name": "Amul Taza Milk 1L",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "L",
+        "category": "dairy",
+        "price": 27.85
+      },
+      {
+        "item_id": "INS_003",
+        "item_name": "Fortune Sunflower Oil 1L",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "L",
+        "category": "staples",
+        "price": 127.76
+      },
+      {
+        "item_id": "INS_007",
+        "item_name": "Onions (1kg)",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "kg",
+        "category": "vegetables",
+        "price": 41.37
+      }
+    ],
+    "total": 196.98,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0018",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-03-06T18:18:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_011",
+        "item_name": "Britannia Whole Wheat Bread",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "400g",
+        "category": "bakery",
+        "price": 49.94
+      }
+    ],
+    "total": 49.94,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0019",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-03-07T20:12:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_001",
+        "item_name": "Amul Taza Milk 1L",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "L",
+        "category": "dairy",
+        "price": 28.4
+      },
+      {
+        "item_id": "INS_006",
+        "item_name": "Tomatoes (500g)",
+        "quantity": 1,
+        "standard_quantity": 0.5,
+        "unit": "kg",
+        "category": "vegetables",
+        "price": 28.79
+      },
+      {
+        "item_id": "INS_009",
+        "item_name": "Amul Fresh Cream 200ml",
+        "quantity": 1,
+        "standard_quantity": 0.2,
+        "unit": "L",
+        "category": "dairy",
+        "price": 56.91
+      }
+    ],
+    "total": 114.1,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0020",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-03-08T09:24:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_005",
+        "item_name": "Nandini Eggs (Pack of 12)",
+        "quantity": 1,
+        "standard_quantity": 12.0,
+        "unit": "piece",
+        "category": "protein",
+        "price": 84.68
+      }
+    ],
+    "total": 84.68,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0021",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-03-09T20:23:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_001",
+        "item_name": "Amul Taza Milk 1L",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "L",
+        "category": "dairy",
+        "price": 27.22
+      }
+    ],
+    "total": 27.22,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0022",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-03-10T09:57:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_011",
+        "item_name": "Britannia Whole Wheat Bread",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "400g",
+        "category": "bakery",
+        "price": 50.54
+      }
+    ],
+    "total": 50.54,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0023",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-03-11T09:41:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_001",
+        "item_name": "Amul Taza Milk 1L",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "L",
+        "category": "dairy",
+        "price": 28.75
+      },
+      {
+        "item_id": "INS_006",
+        "item_name": "Tomatoes (500g)",
+        "quantity": 1,
+        "standard_quantity": 0.5,
+        "unit": "kg",
+        "category": "vegetables",
+        "price": 28.77
+      },
+      {
+        "item_id": "INS_009",
+        "item_name": "Amul Fresh Cream 200ml",
+        "quantity": 1,
+        "standard_quantity": 0.2,
+        "unit": "L",
+        "category": "dairy",
+        "price": 53.43
+      }
+    ],
+    "total": 110.95,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0024",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-03-12T10:56:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_007",
+        "item_name": "Onions (1kg)",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "kg",
+        "category": "vegetables",
+        "price": 43.44
+      },
+      {
+        "item_id": "INS_012",
+        "item_name": "Farm Fresh Onion 1kg",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "kg",
+        "category": "vegetables",
+        "price": 44.09
+      }
+    ],
+    "total": 87.53,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0025",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-03-13T18:56:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_001",
+        "item_name": "Amul Taza Milk 1L",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "L",
+        "category": "dairy",
+        "price": 28.17
+      },
+      {
+        "item_id": "INS_005",
+        "item_name": "Nandini Eggs (Pack of 12)",
+        "quantity": 1,
+        "standard_quantity": 12.0,
+        "unit": "piece",
+        "category": "protein",
+        "price": 86.29
+      }
+    ],
+    "total": 114.46,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0026",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-03-14T09:04:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_006",
+        "item_name": "Tomatoes (500g)",
+        "quantity": 1,
+        "standard_quantity": 0.5,
+        "unit": "kg",
+        "category": "vegetables",
+        "price": 29.17
+      },
+      {
+        "item_id": "INS_011",
+        "item_name": "Britannia Whole Wheat Bread",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "400g",
+        "category": "bakery",
+        "price": 49.65
+      }
+    ],
+    "total": 78.82,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0027",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-03-15T20:15:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_001",
+        "item_name": "Amul Taza Milk 1L",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "L",
+        "category": "dairy",
+        "price": 28.88
+      },
+      {
+        "item_id": "INS_009",
+        "item_name": "Amul Fresh Cream 200ml",
+        "quantity": 1,
+        "standard_quantity": 0.2,
+        "unit": "L",
+        "category": "dairy",
+        "price": 53.1
+      }
+    ],
+    "total": 81.98,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0028",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-03-17T20:24:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_001",
+        "item_name": "Amul Taza Milk 1L",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "L",
+        "category": "dairy",
+        "price": 27.18
+      },
+      {
+        "item_id": "INS_002",
+        "item_name": "Aashirvaad Atta 5kg",
+        "quantity": 1,
+        "standard_quantity": 5.0,
+        "unit": "kg",
+        "category": "staples",
+        "price": 194.04
+      },
+      {
+        "item_id": "INS_006",
+        "item_name": "Tomatoes (500g)",
+        "quantity": 1,
+        "standard_quantity": 0.5,
+        "unit": "kg",
+        "category": "vegetables",
+        "price": 27.94
+      },
+      {
+        "item_id": "INS_008",
+        "item_name": "Amul Butter 500g",
+        "quantity": 1,
+        "standard_quantity": 0.5,
+        "unit": "kg",
+        "category": "dairy",
+        "price": 263.42
+      }
+    ],
+    "total": 512.58,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0029",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-03-18T09:32:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_005",
+        "item_name": "Nandini Eggs (Pack of 12)",
+        "quantity": 1,
+        "standard_quantity": 12.0,
+        "unit": "piece",
+        "category": "protein",
+        "price": 82.59
+      },
+      {
+        "item_id": "INS_009",
+        "item_name": "Amul Fresh Cream 200ml",
+        "quantity": 1,
+        "standard_quantity": 0.2,
+        "unit": "L",
+        "category": "dairy",
+        "price": 53.07
+      },
+      {
+        "item_id": "INS_011",
+        "item_name": "Britannia Whole Wheat Bread",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "400g",
+        "category": "bakery",
+        "price": 48.94
+      }
+    ],
+    "total": 184.6,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0030",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-03-19T08:19:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_001",
+        "item_name": "Amul Taza Milk 1L",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "L",
+        "category": "dairy",
+        "price": 27.32
+      }
+    ],
+    "total": 27.32,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0031",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-03-20T19:06:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_003",
+        "item_name": "Fortune Sunflower Oil 1L",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "L",
+        "category": "staples",
+        "price": 128.65
+      },
+      {
+        "item_id": "INS_006",
+        "item_name": "Tomatoes (500g)",
+        "quantity": 1,
+        "standard_quantity": 0.5,
+        "unit": "kg",
+        "category": "vegetables",
+        "price": 28.46
+      },
+      {
+        "item_id": "INS_007",
+        "item_name": "Onions (1kg)",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "kg",
+        "category": "vegetables",
+        "price": 40.48
+      }
+    ],
+    "total": 197.59,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0032",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-03-22T19:02:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_001",
+        "item_name": "Amul Taza Milk 1L",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "L",
+        "category": "dairy",
+        "price": 28.28
+      },
+      {
+        "item_id": "INS_004",
+        "item_name": "India Gate Basmati Rice 5kg",
+        "quantity": 1,
+        "standard_quantity": 5.0,
+        "unit": "kg",
+        "category": "staples",
+        "price": 312.47
+      },
+      {
+        "item_id": "INS_009",
+        "item_name": "Amul Fresh Cream 200ml",
+        "quantity": 1,
+        "standard_quantity": 0.2,
+        "unit": "L",
+        "category": "dairy",
+        "price": 56.04
+      },
+      {
+        "item_id": "INS_011",
+        "item_name": "Britannia Whole Wheat Bread",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "400g",
+        "category": "bakery",
+        "price": 49.2
+      },
+      {
+        "item_id": "INS_012",
+        "item_name": "Farm Fresh Onion 1kg",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "kg",
+        "category": "vegetables",
+        "price": 46.23
+      }
+    ],
+    "total": 492.22,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0033",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-03-23T08:58:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_005",
+        "item_name": "Nandini Eggs (Pack of 12)",
+        "quantity": 1,
+        "standard_quantity": 12.0,
+        "unit": "piece",
+        "category": "protein",
+        "price": 82.19
+      },
+      {
+        "item_id": "INS_006",
+        "item_name": "Tomatoes (500g)",
+        "quantity": 1,
+        "standard_quantity": 0.5,
+        "unit": "kg",
+        "category": "vegetables",
+        "price": 27.86
+      }
+    ],
+    "total": 110.05,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0034",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-03-24T19:49:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_001",
+        "item_name": "Amul Taza Milk 1L",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "L",
+        "category": "dairy",
+        "price": 28.49
+      }
+    ],
+    "total": 28.49,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0035",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-03-26T18:05:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_001",
+        "item_name": "Amul Taza Milk 1L",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "L",
+        "category": "dairy",
+        "price": 27.65
+      },
+      {
+        "item_id": "INS_009",
+        "item_name": "Amul Fresh Cream 200ml",
+        "quantity": 1,
+        "standard_quantity": 0.2,
+        "unit": "L",
+        "category": "dairy",
+        "price": 56.37
+      },
+      {
+        "item_id": "INS_011",
+        "item_name": "Britannia Whole Wheat Bread",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "400g",
+        "category": "bakery",
+        "price": 48.4
+      }
+    ],
+    "total": 132.42,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0036",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-03-27T09:41:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_005",
+        "item_name": "Nandini Eggs (Pack of 12)",
+        "quantity": 1,
+        "standard_quantity": 12.0,
+        "unit": "piece",
+        "category": "protein",
+        "price": 85.89
+      },
+      {
+        "item_id": "INS_006",
+        "item_name": "Tomatoes (500g)",
+        "quantity": 1,
+        "standard_quantity": 0.5,
+        "unit": "kg",
+        "category": "vegetables",
+        "price": 28.34
+      },
+      {
+        "item_id": "INS_007",
+        "item_name": "Onions (1kg)",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "kg",
+        "category": "vegetables",
+        "price": 41.8
+      }
+    ],
+    "total": 156.03,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0037",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-03-28T18:03:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_001",
+        "item_name": "Amul Taza Milk 1L",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "L",
+        "category": "dairy",
+        "price": 27.75
+      }
+    ],
+    "total": 27.75,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0038",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-03-29T08:46:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_011",
+        "item_name": "Britannia Whole Wheat Bread",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "400g",
+        "category": "bakery",
+        "price": 50.54
+      }
+    ],
+    "total": 50.54,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0039",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-04-09T10:03:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_001",
+        "item_name": "Amul Taza Milk 1L",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "L",
+        "category": "dairy",
+        "price": 27.74
+      },
+      {
+        "item_id": "INS_007",
+        "item_name": "Onions (1kg)",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "kg",
+        "category": "vegetables",
+        "price": 42.93
+      }
+    ],
+    "total": 70.67,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0040",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-04-10T20:29:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_011",
+        "item_name": "Britannia Whole Wheat Bread",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "400g",
+        "category": "bakery",
+        "price": 48.14
+      }
+    ],
+    "total": 48.14,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0041",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-04-11T09:44:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_001",
+        "item_name": "Amul Taza Milk 1L",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "L",
+        "category": "dairy",
+        "price": 28.11
+      },
+      {
+        "item_id": "INS_005",
+        "item_name": "Nandini Eggs (Pack of 12)",
+        "quantity": 1,
+        "standard_quantity": 12.0,
+        "unit": "piece",
+        "category": "protein",
+        "price": 81.22
+      },
+      {
+        "item_id": "INS_006",
+        "item_name": "Tomatoes (500g)",
+        "quantity": 1,
+        "standard_quantity": 0.5,
+        "unit": "kg",
+        "category": "vegetables",
+        "price": 29.27
+      },
+      {
+        "item_id": "INS_009",
+        "item_name": "Amul Fresh Cream 200ml",
+        "quantity": 1,
+        "standard_quantity": 0.2,
+        "unit": "L",
+        "category": "dairy",
+        "price": 56.0
+      },
+      {
+        "item_id": "INS_012",
+        "item_name": "Farm Fresh Onion 1kg",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "kg",
+        "category": "vegetables",
+        "price": 44.11
+      }
+    ],
+    "total": 238.71,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0042",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-04-13T20:46:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_001",
+        "item_name": "Amul Taza Milk 1L",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "L",
+        "category": "dairy",
+        "price": 27.79
+      }
+    ],
+    "total": 27.79,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0043",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-04-14T10:26:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_011",
+        "item_name": "Britannia Whole Wheat Bread",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "400g",
+        "category": "bakery",
+        "price": 49.88
+      }
+    ],
+    "total": 49.88,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0044",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-04-15T10:54:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_006",
+        "item_name": "Tomatoes (500g)",
+        "quantity": 1,
+        "standard_quantity": 0.5,
+        "unit": "kg",
+        "category": "vegetables",
+        "price": 29.32
       },
       {
         "item_id": "INS_009",
@@ -2291,40 +1247,13 @@
         "price": 54.28
       }
     ],
-    "total": 194.86,
+    "total": 83.6,
     "status": "delivered"
   },
   {
-    "order_id": "INS_MOCK_0081",
+    "order_id": "INS_MOCK_0045",
     "user_id": "demo_user_001",
-    "placed_at": "2026-05-24T08:52:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_002",
-        "item_name": "Aashirvaad Atta 5kg",
-        "quantity": 1,
-        "standard_quantity": 5.0,
-        "unit": "kg",
-        "category": "staples",
-        "price": 193.81
-      },
-      {
-        "item_id": "INS_011",
-        "item_name": "Britannia Whole Wheat Bread",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "400g",
-        "category": "bakery",
-        "price": 48.36
-      }
-    ],
-    "total": 242.17,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0082",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-05-25T19:46:00+05:30",
+    "placed_at": "2026-04-16T09:10:00+05:30",
     "items": [
       {
         "item_id": "INS_001",
@@ -2333,16 +1262,151 @@
         "standard_quantity": 1.0,
         "unit": "L",
         "category": "dairy",
-        "price": 27.66
+        "price": 28.49
+      },
+      {
+        "item_id": "INS_005",
+        "item_name": "Nandini Eggs (Pack of 12)",
+        "quantity": 1,
+        "standard_quantity": 12.0,
+        "unit": "piece",
+        "category": "protein",
+        "price": 82.85
+      },
+      {
+        "item_id": "INS_007",
+        "item_name": "Onions (1kg)",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "kg",
+        "category": "vegetables",
+        "price": 41.42
       }
     ],
-    "total": 27.66,
+    "total": 152.76,
     "status": "delivered"
   },
   {
-    "order_id": "INS_MOCK_0083",
+    "order_id": "INS_MOCK_0046",
     "user_id": "demo_user_001",
-    "placed_at": "2026-05-26T19:54:00+05:30",
+    "placed_at": "2026-04-17T08:41:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_004",
+        "item_name": "India Gate Basmati Rice 5kg",
+        "quantity": 1,
+        "standard_quantity": 5.0,
+        "unit": "kg",
+        "category": "staples",
+        "price": 316.42
+      }
+    ],
+    "total": 316.42,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0047",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-04-18T10:29:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_001",
+        "item_name": "Amul Taza Milk 1L",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "L",
+        "category": "dairy",
+        "price": 28.88
+      },
+      {
+        "item_id": "INS_006",
+        "item_name": "Tomatoes (500g)",
+        "quantity": 1,
+        "standard_quantity": 0.5,
+        "unit": "kg",
+        "category": "vegetables",
+        "price": 28.93
+      },
+      {
+        "item_id": "INS_009",
+        "item_name": "Amul Fresh Cream 200ml",
+        "quantity": 1,
+        "standard_quantity": 0.2,
+        "unit": "L",
+        "category": "dairy",
+        "price": 54.55
+      },
+      {
+        "item_id": "INS_011",
+        "item_name": "Britannia Whole Wheat Bread",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "400g",
+        "category": "bakery",
+        "price": 48.0
+      }
+    ],
+    "total": 160.36,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0048",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-04-19T20:01:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_003",
+        "item_name": "Fortune Sunflower Oil 1L",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "L",
+        "category": "staples",
+        "price": 128.38
+      }
+    ],
+    "total": 128.38,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0049",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-04-20T08:06:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_001",
+        "item_name": "Amul Taza Milk 1L",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "L",
+        "category": "dairy",
+        "price": 28.78
+      },
+      {
+        "item_id": "INS_002",
+        "item_name": "Aashirvaad Atta 5kg",
+        "quantity": 1,
+        "standard_quantity": 5.0,
+        "unit": "kg",
+        "category": "staples",
+        "price": 197.64
+      },
+      {
+        "item_id": "INS_005",
+        "item_name": "Nandini Eggs (Pack of 12)",
+        "quantity": 1,
+        "standard_quantity": 12.0,
+        "unit": "piece",
+        "category": "protein",
+        "price": 82.76
+      }
+    ],
+    "total": 309.18,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0050",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-04-21T18:52:00+05:30",
     "items": [
       {
         "item_id": "INS_006",
@@ -2351,16 +1415,187 @@
         "standard_quantity": 0.5,
         "unit": "kg",
         "category": "vegetables",
-        "price": 28.46
+        "price": 29.16
+      },
+      {
+        "item_id": "INS_012",
+        "item_name": "Farm Fresh Onion 1kg",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "kg",
+        "category": "vegetables",
+        "price": 45.91
       }
     ],
-    "total": 28.46,
+    "total": 75.07,
     "status": "delivered"
   },
   {
-    "order_id": "INS_MOCK_0084",
+    "order_id": "INS_MOCK_0051",
     "user_id": "demo_user_001",
-    "placed_at": "2026-05-27T10:27:00+05:30",
+    "placed_at": "2026-04-22T20:08:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_001",
+        "item_name": "Amul Taza Milk 1L",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "L",
+        "category": "dairy",
+        "price": 28.03
+      },
+      {
+        "item_id": "INS_007",
+        "item_name": "Onions (1kg)",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "kg",
+        "category": "vegetables",
+        "price": 42.13
+      },
+      {
+        "item_id": "INS_009",
+        "item_name": "Amul Fresh Cream 200ml",
+        "quantity": 1,
+        "standard_quantity": 0.2,
+        "unit": "L",
+        "category": "dairy",
+        "price": 54.76
+      },
+      {
+        "item_id": "INS_011",
+        "item_name": "Britannia Whole Wheat Bread",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "400g",
+        "category": "bakery",
+        "price": 49.52
+      }
+    ],
+    "total": 174.44,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0052",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-04-24T18:35:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_006",
+        "item_name": "Tomatoes (500g)",
+        "quantity": 1,
+        "standard_quantity": 0.5,
+        "unit": "kg",
+        "category": "vegetables",
+        "price": 29.05
+      }
+    ],
+    "total": 29.05,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0053",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-04-25T18:00:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_001",
+        "item_name": "Amul Taza Milk 1L",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "L",
+        "category": "dairy",
+        "price": 28.08
+      },
+      {
+        "item_id": "INS_005",
+        "item_name": "Nandini Eggs (Pack of 12)",
+        "quantity": 1,
+        "standard_quantity": 12.0,
+        "unit": "piece",
+        "category": "protein",
+        "price": 82.75
+      }
+    ],
+    "total": 110.83,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0054",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-04-26T20:39:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_009",
+        "item_name": "Amul Fresh Cream 200ml",
+        "quantity": 1,
+        "standard_quantity": 0.2,
+        "unit": "L",
+        "category": "dairy",
+        "price": 54.78
+      },
+      {
+        "item_id": "INS_011",
+        "item_name": "Britannia Whole Wheat Bread",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "400g",
+        "category": "bakery",
+        "price": 51.89
+      }
+    ],
+    "total": 106.67,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0055",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-04-27T10:23:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_001",
+        "item_name": "Amul Taza Milk 1L",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "L",
+        "category": "dairy",
+        "price": 27.06
+      }
+    ],
+    "total": 27.06,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0056",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-04-28T19:55:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_006",
+        "item_name": "Tomatoes (500g)",
+        "quantity": 1,
+        "standard_quantity": 0.5,
+        "unit": "kg",
+        "category": "vegetables",
+        "price": 28.5
+      },
+      {
+        "item_id": "INS_008",
+        "item_name": "Amul Butter 500g",
+        "quantity": 1,
+        "standard_quantity": 0.5,
+        "unit": "kg",
+        "category": "dairy",
+        "price": 267.23
+      }
+    ],
+    "total": 295.73,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0057",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-04-29T20:19:00+05:30",
     "items": [
       {
         "item_id": "INS_001",
@@ -2378,7 +1613,25 @@
         "standard_quantity": 12.0,
         "unit": "piece",
         "category": "protein",
-        "price": 83.0
+        "price": 86.66
+      }
+    ],
+    "total": 113.59,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0058",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-04-30T19:04:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_007",
+        "item_name": "Onions (1kg)",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "kg",
+        "category": "vegetables",
+        "price": 40.54
       },
       {
         "item_id": "INS_009",
@@ -2387,17 +1640,8 @@
         "standard_quantity": 0.2,
         "unit": "L",
         "category": "dairy",
-        "price": 55.79
-      }
-    ],
-    "total": 165.72,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0085",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-05-28T09:36:00+05:30",
-    "items": [
+        "price": 55.39
+      },
       {
         "item_id": "INS_011",
         "item_name": "Britannia Whole Wheat Bread",
@@ -2405,52 +1649,7 @@
         "standard_quantity": 1.0,
         "unit": "400g",
         "category": "bakery",
-        "price": 50.72
-      }
-    ],
-    "total": 50.72,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0086",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-05-29T10:31:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_001",
-        "item_name": "Amul Taza Milk 1L",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "L",
-        "category": "dairy",
-        "price": 27.15
-      },
-      {
-        "item_id": "INS_007",
-        "item_name": "Onions (1kg)",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "kg",
-        "category": "vegetables",
-        "price": 42.92
-      }
-    ],
-    "total": 70.07,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0087",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-05-30T18:42:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_006",
-        "item_name": "Tomatoes (500g)",
-        "quantity": 1,
-        "standard_quantity": 0.5,
-        "unit": "kg",
-        "category": "vegetables",
-        "price": 29.45
+        "price": 49.34
       },
       {
         "item_id": "INS_012",
@@ -2459,16 +1658,43 @@
         "standard_quantity": 1.0,
         "unit": "kg",
         "category": "vegetables",
-        "price": 44.09
+        "price": 45.23
       }
     ],
-    "total": 73.54,
+    "total": 190.5,
     "status": "delivered"
   },
   {
-    "order_id": "INS_MOCK_0088",
+    "order_id": "INS_MOCK_0059",
     "user_id": "demo_user_001",
-    "placed_at": "2026-05-31T08:33:00+05:30",
+    "placed_at": "2026-05-01T19:40:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_001",
+        "item_name": "Amul Taza Milk 1L",
+        "quantity": 3,
+        "standard_quantity": 3.0,
+        "unit": "L",
+        "category": "dairy",
+        "price": 85.38
+      },
+      {
+        "item_id": "INS_006",
+        "item_name": "Tomatoes (500g)",
+        "quantity": 1,
+        "standard_quantity": 0.5,
+        "unit": "kg",
+        "category": "vegetables",
+        "price": 29.56
+      }
+    ],
+    "total": 114.94,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0060",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-05-03T20:52:00+05:30",
     "items": [
       {
         "item_id": "INS_001",
@@ -2477,26 +1703,8 @@
         "standard_quantity": 1.0,
         "unit": "L",
         "category": "dairy",
-        "price": 28.52
+        "price": 28.6
       },
-      {
-        "item_id": "INS_009",
-        "item_name": "Amul Fresh Cream 200ml",
-        "quantity": 1,
-        "standard_quantity": 0.2,
-        "unit": "L",
-        "category": "dairy",
-        "price": 55.48
-      }
-    ],
-    "total": 84.0,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0089",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-06-01T19:02:00+05:30",
-    "items": [
       {
         "item_id": "INS_003",
         "item_name": "Fortune Sunflower Oil 1L",
@@ -2504,8 +1712,26 @@
         "standard_quantity": 1.0,
         "unit": "L",
         "category": "staples",
-        "price": 126.97
+        "price": 128.91
       },
+      {
+        "item_id": "INS_009",
+        "item_name": "Amul Fresh Cream 200ml",
+        "quantity": 1,
+        "standard_quantity": 0.2,
+        "unit": "L",
+        "category": "dairy",
+        "price": 54.58
+      }
+    ],
+    "total": 212.09,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0061",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-05-04T20:40:00+05:30",
+    "items": [
       {
         "item_id": "INS_005",
         "item_name": "Nandini Eggs (Pack of 12)",
@@ -2513,7 +1739,7 @@
         "standard_quantity": 12.0,
         "unit": "piece",
         "category": "protein",
-        "price": 83.07
+        "price": 83.4
       },
       {
         "item_id": "INS_011",
@@ -2522,16 +1748,16 @@
         "standard_quantity": 1.0,
         "unit": "400g",
         "category": "bakery",
-        "price": 50.3
+        "price": 51.65
       }
     ],
-    "total": 260.34,
+    "total": 135.05,
     "status": "delivered"
   },
   {
-    "order_id": "INS_MOCK_0090",
+    "order_id": "INS_MOCK_0062",
     "user_id": "demo_user_001",
-    "placed_at": "2026-06-02T20:00:00+05:30",
+    "placed_at": "2026-05-05T08:07:00+05:30",
     "items": [
       {
         "item_id": "INS_001",
@@ -2540,7 +1766,7 @@
         "standard_quantity": 1.0,
         "unit": "L",
         "category": "dairy",
-        "price": 27.09
+        "price": 28.22
       },
       {
         "item_id": "INS_006",
@@ -2549,160 +1775,34 @@
         "standard_quantity": 0.5,
         "unit": "kg",
         "category": "vegetables",
-        "price": 28.59
+        "price": 29.52
       }
     ],
-    "total": 55.68,
+    "total": 57.74,
     "status": "delivered"
   },
   {
-    "order_id": "INS_MOCK_0091",
+    "order_id": "INS_MOCK_0063",
     "user_id": "demo_user_001",
-    "placed_at": "2026-06-04T09:55:00+05:30",
+    "placed_at": "2026-05-06T08:35:00+05:30",
     "items": [
       {
-        "item_id": "INS_001",
-        "item_name": "Amul Taza Milk 1L",
+        "item_id": "INS_010",
+        "item_name": "Tata Salt 1kg",
         "quantity": 1,
         "standard_quantity": 1.0,
-        "unit": "L",
-        "category": "dairy",
-        "price": 27.53
-      },
-      {
-        "item_id": "INS_004",
-        "item_name": "India Gate Basmati Rice 5kg",
-        "quantity": 1,
-        "standard_quantity": 5.0,
         "unit": "kg",
         "category": "staples",
-        "price": 321.77
-      },
-      {
-        "item_id": "INS_007",
-        "item_name": "Onions (1kg)",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "kg",
-        "category": "vegetables",
-        "price": 41.7
-      },
-      {
-        "item_id": "INS_009",
-        "item_name": "Amul Fresh Cream 200ml",
-        "quantity": 1,
-        "standard_quantity": 0.2,
-        "unit": "L",
-        "category": "dairy",
-        "price": 56.01
+        "price": 28.69
       }
     ],
-    "total": 447.01,
+    "total": 28.69,
     "status": "delivered"
   },
   {
-    "order_id": "INS_MOCK_0092",
+    "order_id": "INS_MOCK_0064",
     "user_id": "demo_user_001",
-    "placed_at": "2026-06-05T08:39:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_006",
-        "item_name": "Tomatoes (500g)",
-        "quantity": 1,
-        "standard_quantity": 0.5,
-        "unit": "kg",
-        "category": "vegetables",
-        "price": 29.57
-      },
-      {
-        "item_id": "INS_011",
-        "item_name": "Britannia Whole Wheat Bread",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "400g",
-        "category": "bakery",
-        "price": 49.36
-      }
-    ],
-    "total": 78.93,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0093",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-06-06T10:57:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_001",
-        "item_name": "Amul Taza Milk 1L",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "L",
-        "category": "dairy",
-        "price": 27.86
-      },
-      {
-        "item_id": "INS_005",
-        "item_name": "Nandini Eggs (Pack of 12)",
-        "quantity": 1,
-        "standard_quantity": 12.0,
-        "unit": "piece",
-        "category": "protein",
-        "price": 86.85
-      },
-      {
-        "item_id": "INS_008",
-        "item_name": "Amul Butter 500g",
-        "quantity": 1,
-        "standard_quantity": 0.5,
-        "unit": "kg",
-        "category": "dairy",
-        "price": 277.22
-      }
-    ],
-    "total": 391.93,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0094",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-06-08T18:40:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_001",
-        "item_name": "Amul Taza Milk 1L",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "L",
-        "category": "dairy",
-        "price": 27.5
-      },
-      {
-        "item_id": "INS_006",
-        "item_name": "Tomatoes (500g)",
-        "quantity": 1,
-        "standard_quantity": 0.5,
-        "unit": "kg",
-        "category": "vegetables",
-        "price": 30.0
-      },
-      {
-        "item_id": "INS_009",
-        "item_name": "Amul Fresh Cream 200ml",
-        "quantity": 1,
-        "standard_quantity": 0.2,
-        "unit": "L",
-        "category": "dairy",
-        "price": 56.69
-      }
-    ],
-    "total": 114.19,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0095",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-06-09T19:53:00+05:30",
+    "placed_at": "2026-05-07T20:11:00+05:30",
     "items": [
       {
         "item_id": "INS_002",
@@ -2711,61 +1811,7 @@
         "standard_quantity": 5.0,
         "unit": "kg",
         "category": "staples",
-        "price": 193.73
-      },
-      {
-        "item_id": "INS_011",
-        "item_name": "Britannia Whole Wheat Bread",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "400g",
-        "category": "bakery",
-        "price": 49.7
-      }
-    ],
-    "total": 243.43,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0096",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-06-10T19:06:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_012",
-        "item_name": "Farm Fresh Onion 1kg",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "kg",
-        "category": "vegetables",
-        "price": 43.67
-      }
-    ],
-    "total": 43.67,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0097",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-06-11T10:21:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_001",
-        "item_name": "Amul Taza Milk 1L",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "L",
-        "category": "dairy",
-        "price": 28.64
-      },
-      {
-        "item_id": "INS_005",
-        "item_name": "Nandini Eggs (Pack of 12)",
-        "quantity": 1,
-        "standard_quantity": 12.0,
-        "unit": "piece",
-        "category": "protein",
-        "price": 80.81
+        "price": 199.63
       },
       {
         "item_id": "INS_007",
@@ -2774,25 +1820,7 @@
         "standard_quantity": 1.0,
         "unit": "kg",
         "category": "vegetables",
-        "price": 42.83
-      }
-    ],
-    "total": 152.28,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0098",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-06-12T20:29:00+05:30",
-    "items": [
-      {
-        "item_id": "INS_006",
-        "item_name": "Tomatoes (500g)",
-        "quantity": 1,
-        "standard_quantity": 0.5,
-        "unit": "kg",
-        "category": "vegetables",
-        "price": 29.8
+        "price": 40.55
       },
       {
         "item_id": "INS_009",
@@ -2801,16 +1829,16 @@
         "standard_quantity": 0.2,
         "unit": "L",
         "category": "dairy",
-        "price": 54.39
+        "price": 53.13
       }
     ],
-    "total": 84.19,
+    "total": 293.31,
     "status": "delivered"
   },
   {
-    "order_id": "INS_MOCK_0099",
+    "order_id": "INS_MOCK_0065",
     "user_id": "demo_user_001",
-    "placed_at": "2026-06-13T09:55:00+05:30",
+    "placed_at": "2026-05-08T09:03:00+05:30",
     "items": [
       {
         "item_id": "INS_001",
@@ -2819,7 +1847,16 @@
         "standard_quantity": 1.0,
         "unit": "L",
         "category": "dairy",
-        "price": 27.01
+        "price": 28.67
+      },
+      {
+        "item_id": "INS_006",
+        "item_name": "Tomatoes (500g)",
+        "quantity": 1,
+        "standard_quantity": 0.5,
+        "unit": "kg",
+        "category": "vegetables",
+        "price": 29.42
       },
       {
         "item_id": "INS_011",
@@ -2828,10 +1865,955 @@
         "standard_quantity": 1.0,
         "unit": "400g",
         "category": "bakery",
-        "price": 50.7
+        "price": 51.65
       }
     ],
-    "total": 77.71,
+    "total": 109.74,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0066",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-05-09T08:37:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_005",
+        "item_name": "Nandini Eggs (Pack of 12)",
+        "quantity": 1,
+        "standard_quantity": 12.0,
+        "unit": "piece",
+        "category": "protein",
+        "price": 86.65
+      }
+    ],
+    "total": 86.65,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0067",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-05-10T10:31:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_001",
+        "item_name": "Amul Taza Milk 1L",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "L",
+        "category": "dairy",
+        "price": 27.42
+      },
+      {
+        "item_id": "INS_004",
+        "item_name": "India Gate Basmati Rice 5kg",
+        "quantity": 1,
+        "standard_quantity": 5.0,
+        "unit": "kg",
+        "category": "staples",
+        "price": 321.25
+      },
+      {
+        "item_id": "INS_012",
+        "item_name": "Farm Fresh Onion 1kg",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "kg",
+        "category": "vegetables",
+        "price": 46.35
+      }
+    ],
+    "total": 395.02,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0068",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-05-11T08:07:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_006",
+        "item_name": "Tomatoes (500g)",
+        "quantity": 1,
+        "standard_quantity": 0.5,
+        "unit": "kg",
+        "category": "vegetables",
+        "price": 29.03
+      },
+      {
+        "item_id": "INS_009",
+        "item_name": "Amul Fresh Cream 200ml",
+        "quantity": 1,
+        "standard_quantity": 0.2,
+        "unit": "L",
+        "category": "dairy",
+        "price": 55.53
+      }
+    ],
+    "total": 84.56,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0069",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-05-12T19:53:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_001",
+        "item_name": "Amul Taza Milk 1L",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "L",
+        "category": "dairy",
+        "price": 26.99
+      },
+      {
+        "item_id": "INS_011",
+        "item_name": "Britannia Whole Wheat Bread",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "400g",
+        "category": "bakery",
+        "price": 48.87
+      }
+    ],
+    "total": 75.86,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0070",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-05-13T20:21:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_005",
+        "item_name": "Nandini Eggs (Pack of 12)",
+        "quantity": 1,
+        "standard_quantity": 12.0,
+        "unit": "piece",
+        "category": "protein",
+        "price": 82.4
+      }
+    ],
+    "total": 82.4,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0071",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-05-14T18:12:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_001",
+        "item_name": "Amul Taza Milk 1L",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "L",
+        "category": "dairy",
+        "price": 28.36
+      },
+      {
+        "item_id": "INS_006",
+        "item_name": "Tomatoes (500g)",
+        "quantity": 1,
+        "standard_quantity": 0.5,
+        "unit": "kg",
+        "category": "vegetables",
+        "price": 29.94
+      },
+      {
+        "item_id": "INS_007",
+        "item_name": "Onions (1kg)",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "kg",
+        "category": "vegetables",
+        "price": 40.76
+      }
+    ],
+    "total": 99.06,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0072",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-05-15T18:53:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_009",
+        "item_name": "Amul Fresh Cream 200ml",
+        "quantity": 1,
+        "standard_quantity": 0.2,
+        "unit": "L",
+        "category": "dairy",
+        "price": 55.25
+      }
+    ],
+    "total": 55.25,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0073",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-05-16T09:26:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_001",
+        "item_name": "Amul Taza Milk 1L",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "L",
+        "category": "dairy",
+        "price": 28.44
+      },
+      {
+        "item_id": "INS_011",
+        "item_name": "Britannia Whole Wheat Bread",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "400g",
+        "category": "bakery",
+        "price": 51.23
+      }
+    ],
+    "total": 79.67,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0074",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-05-18T18:04:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_003",
+        "item_name": "Fortune Sunflower Oil 1L",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "L",
+        "category": "staples",
+        "price": 129.47
+      },
+      {
+        "item_id": "INS_005",
+        "item_name": "Nandini Eggs (Pack of 12)",
+        "quantity": 1,
+        "standard_quantity": 12.0,
+        "unit": "piece",
+        "category": "protein",
+        "price": 85.51
+      },
+      {
+        "item_id": "INS_006",
+        "item_name": "Tomatoes (500g)",
+        "quantity": 1,
+        "standard_quantity": 0.5,
+        "unit": "kg",
+        "category": "vegetables",
+        "price": 28.9
+      }
+    ],
+    "total": 243.88,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0075",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-05-19T09:26:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_001",
+        "item_name": "Amul Taza Milk 1L",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "L",
+        "category": "dairy",
+        "price": 28.4
+      },
+      {
+        "item_id": "INS_008",
+        "item_name": "Amul Butter 500g",
+        "quantity": 1,
+        "standard_quantity": 0.5,
+        "unit": "kg",
+        "category": "dairy",
+        "price": 276.36
+      }
+    ],
+    "total": 304.76,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0076",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-05-20T18:49:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_009",
+        "item_name": "Amul Fresh Cream 200ml",
+        "quantity": 1,
+        "standard_quantity": 0.2,
+        "unit": "L",
+        "category": "dairy",
+        "price": 54.32
+      },
+      {
+        "item_id": "INS_011",
+        "item_name": "Britannia Whole Wheat Bread",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "400g",
+        "category": "bakery",
+        "price": 50.84
+      }
+    ],
+    "total": 105.16,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0077",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-05-21T18:29:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_001",
+        "item_name": "Amul Taza Milk 1L",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "L",
+        "category": "dairy",
+        "price": 28.59
+      },
+      {
+        "item_id": "INS_012",
+        "item_name": "Farm Fresh Onion 1kg",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "kg",
+        "category": "vegetables",
+        "price": 43.43
+      }
+    ],
+    "total": 72.02,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0078",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-05-22T19:28:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_006",
+        "item_name": "Tomatoes (500g)",
+        "quantity": 1,
+        "standard_quantity": 0.5,
+        "unit": "kg",
+        "category": "vegetables",
+        "price": 28.25
+      },
+      {
+        "item_id": "INS_007",
+        "item_name": "Onions (1kg)",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "kg",
+        "category": "vegetables",
+        "price": 43.32
+      }
+    ],
+    "total": 71.57,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0079",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-05-23T18:02:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_001",
+        "item_name": "Amul Taza Milk 1L",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "L",
+        "category": "dairy",
+        "price": 27.26
+      },
+      {
+        "item_id": "INS_005",
+        "item_name": "Nandini Eggs (Pack of 12)",
+        "quantity": 1,
+        "standard_quantity": 12.0,
+        "unit": "piece",
+        "category": "protein",
+        "price": 82.76
+      }
+    ],
+    "total": 110.02,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0080",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-05-24T20:08:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_009",
+        "item_name": "Amul Fresh Cream 200ml",
+        "quantity": 1,
+        "standard_quantity": 0.2,
+        "unit": "L",
+        "category": "dairy",
+        "price": 54.3
+      },
+      {
+        "item_id": "INS_011",
+        "item_name": "Britannia Whole Wheat Bread",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "400g",
+        "category": "bakery",
+        "price": 48.5
+      }
+    ],
+    "total": 102.8,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0081",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-05-25T18:06:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_001",
+        "item_name": "Amul Taza Milk 1L",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "L",
+        "category": "dairy",
+        "price": 27.75
+      },
+      {
+        "item_id": "INS_002",
+        "item_name": "Aashirvaad Atta 5kg",
+        "quantity": 1,
+        "standard_quantity": 5.0,
+        "unit": "kg",
+        "category": "staples",
+        "price": 193.7
+      },
+      {
+        "item_id": "INS_006",
+        "item_name": "Tomatoes (500g)",
+        "quantity": 1,
+        "standard_quantity": 0.5,
+        "unit": "kg",
+        "category": "vegetables",
+        "price": 29.75
+      }
+    ],
+    "total": 251.2,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0082",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-05-27T10:22:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_001",
+        "item_name": "Amul Taza Milk 1L",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "L",
+        "category": "dairy",
+        "price": 27.79
+      },
+      {
+        "item_id": "INS_009",
+        "item_name": "Amul Fresh Cream 200ml",
+        "quantity": 1,
+        "standard_quantity": 0.2,
+        "unit": "L",
+        "category": "dairy",
+        "price": 54.04
+      }
+    ],
+    "total": 81.83,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0083",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-05-28T18:47:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_005",
+        "item_name": "Nandini Eggs (Pack of 12)",
+        "quantity": 1,
+        "standard_quantity": 12.0,
+        "unit": "piece",
+        "category": "protein",
+        "price": 82.59
+      },
+      {
+        "item_id": "INS_006",
+        "item_name": "Tomatoes (500g)",
+        "quantity": 1,
+        "standard_quantity": 0.5,
+        "unit": "kg",
+        "category": "vegetables",
+        "price": 29.43
+      },
+      {
+        "item_id": "INS_007",
+        "item_name": "Onions (1kg)",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "kg",
+        "category": "vegetables",
+        "price": 40.59
+      },
+      {
+        "item_id": "INS_011",
+        "item_name": "Britannia Whole Wheat Bread",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "400g",
+        "category": "bakery",
+        "price": 51.4
+      }
+    ],
+    "total": 204.01,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0084",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-05-30T10:17:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_001",
+        "item_name": "Amul Taza Milk 1L",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "L",
+        "category": "dairy",
+        "price": 29.05
+      }
+    ],
+    "total": 29.05,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0085",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-05-31T19:43:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_006",
+        "item_name": "Tomatoes (500g)",
+        "quantity": 1,
+        "standard_quantity": 0.5,
+        "unit": "kg",
+        "category": "vegetables",
+        "price": 29.43
+      },
+      {
+        "item_id": "INS_012",
+        "item_name": "Farm Fresh Onion 1kg",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "kg",
+        "category": "vegetables",
+        "price": 45.59
+      }
+    ],
+    "total": 75.02,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0086",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-06-01T20:29:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_001",
+        "item_name": "Amul Taza Milk 1L",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "L",
+        "category": "dairy",
+        "price": 27.47
+      },
+      {
+        "item_id": "INS_009",
+        "item_name": "Amul Fresh Cream 200ml",
+        "quantity": 1,
+        "standard_quantity": 0.2,
+        "unit": "L",
+        "category": "dairy",
+        "price": 54.83
+      },
+      {
+        "item_id": "INS_011",
+        "item_name": "Britannia Whole Wheat Bread",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "400g",
+        "category": "bakery",
+        "price": 51.57
+      }
+    ],
+    "total": 133.87,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0087",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-06-02T10:51:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_003",
+        "item_name": "Fortune Sunflower Oil 1L",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "L",
+        "category": "staples",
+        "price": 122.0
+      },
+      {
+        "item_id": "INS_005",
+        "item_name": "Nandini Eggs (Pack of 12)",
+        "quantity": 1,
+        "standard_quantity": 12.0,
+        "unit": "piece",
+        "category": "protein",
+        "price": 81.23
+      }
+    ],
+    "total": 203.23,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0088",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-06-03T18:24:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_001",
+        "item_name": "Amul Taza Milk 1L",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "L",
+        "category": "dairy",
+        "price": 28.23
+      },
+      {
+        "item_id": "INS_006",
+        "item_name": "Tomatoes (500g)",
+        "quantity": 1,
+        "standard_quantity": 0.5,
+        "unit": "kg",
+        "category": "vegetables",
+        "price": 29.54
+      }
+    ],
+    "total": 57.77,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0089",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-06-04T08:55:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_009",
+        "item_name": "Amul Fresh Cream 200ml",
+        "quantity": 1,
+        "standard_quantity": 0.2,
+        "unit": "L",
+        "category": "dairy",
+        "price": 56.52
+      }
+    ],
+    "total": 56.52,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0090",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-06-05T18:22:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_001",
+        "item_name": "Amul Taza Milk 1L",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "L",
+        "category": "dairy",
+        "price": 28.0
+      },
+      {
+        "item_id": "INS_004",
+        "item_name": "India Gate Basmati Rice 5kg",
+        "quantity": 1,
+        "standard_quantity": 5.0,
+        "unit": "kg",
+        "category": "staples",
+        "price": 304.38
+      },
+      {
+        "item_id": "INS_007",
+        "item_name": "Onions (1kg)",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "kg",
+        "category": "vegetables",
+        "price": 41.66
+      },
+      {
+        "item_id": "INS_011",
+        "item_name": "Britannia Whole Wheat Bread",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "400g",
+        "category": "bakery",
+        "price": 48.3
+      }
+    ],
+    "total": 422.34,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0091",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-06-06T09:30:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_006",
+        "item_name": "Tomatoes (500g)",
+        "quantity": 1,
+        "standard_quantity": 0.5,
+        "unit": "kg",
+        "category": "vegetables",
+        "price": 28.44
+      }
+    ],
+    "total": 28.44,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0092",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-06-07T20:24:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_001",
+        "item_name": "Amul Taza Milk 1L",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "L",
+        "category": "dairy",
+        "price": 28.92
+      },
+      {
+        "item_id": "INS_005",
+        "item_name": "Nandini Eggs (Pack of 12)",
+        "quantity": 1,
+        "standard_quantity": 12.0,
+        "unit": "piece",
+        "category": "protein",
+        "price": 80.98
+      },
+      {
+        "item_id": "INS_008",
+        "item_name": "Amul Butter 500g",
+        "quantity": 1,
+        "standard_quantity": 0.5,
+        "unit": "kg",
+        "category": "dairy",
+        "price": 275.22
+      }
+    ],
+    "total": 385.12,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0093",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-06-08T19:11:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_009",
+        "item_name": "Amul Fresh Cream 200ml",
+        "quantity": 1,
+        "standard_quantity": 0.2,
+        "unit": "L",
+        "category": "dairy",
+        "price": 54.15
+      }
+    ],
+    "total": 54.15,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0094",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-06-09T20:47:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_001",
+        "item_name": "Amul Taza Milk 1L",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "L",
+        "category": "dairy",
+        "price": 27.65
+      },
+      {
+        "item_id": "INS_011",
+        "item_name": "Britannia Whole Wheat Bread",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "400g",
+        "category": "bakery",
+        "price": 51.57
+      }
+    ],
+    "total": 79.22,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0095",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-06-10T09:56:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_002",
+        "item_name": "Aashirvaad Atta 5kg",
+        "quantity": 1,
+        "standard_quantity": 5.0,
+        "unit": "kg",
+        "category": "staples",
+        "price": 194.51
+      },
+      {
+        "item_id": "INS_006",
+        "item_name": "Tomatoes (500g)",
+        "quantity": 1,
+        "standard_quantity": 0.5,
+        "unit": "kg",
+        "category": "vegetables",
+        "price": 30.13
+      }
+    ],
+    "total": 224.64,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0096",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-06-11T09:42:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_001",
+        "item_name": "Amul Taza Milk 1L",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "L",
+        "category": "dairy",
+        "price": 28.02
+      },
+      {
+        "item_id": "INS_012",
+        "item_name": "Farm Fresh Onion 1kg",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "kg",
+        "category": "vegetables",
+        "price": 45.15
+      }
+    ],
+    "total": 73.17,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0097",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-06-12T18:29:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_005",
+        "item_name": "Nandini Eggs (Pack of 12)",
+        "quantity": 1,
+        "standard_quantity": 12.0,
+        "unit": "piece",
+        "category": "protein",
+        "price": 82.32
+      },
+      {
+        "item_id": "INS_007",
+        "item_name": "Onions (1kg)",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "kg",
+        "category": "vegetables",
+        "price": 42.58
+      }
+    ],
+    "total": 124.9,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0098",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-06-13T10:12:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_006",
+        "item_name": "Tomatoes (500g)",
+        "quantity": 1,
+        "standard_quantity": 0.5,
+        "unit": "kg",
+        "category": "vegetables",
+        "price": 28.7
+      },
+      {
+        "item_id": "INS_009",
+        "item_name": "Amul Fresh Cream 200ml",
+        "quantity": 1,
+        "standard_quantity": 0.2,
+        "unit": "L",
+        "category": "dairy",
+        "price": 55.81
+      }
+    ],
+    "total": 84.51,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0099",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-06-14T18:43:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_001",
+        "item_name": "Amul Taza Milk 1L",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "L",
+        "category": "dairy",
+        "price": 27.59
+      },
+      {
+        "item_id": "INS_011",
+        "item_name": "Britannia Whole Wheat Bread",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "400g",
+        "category": "bakery",
+        "price": 50.41
+      }
+    ],
+    "total": 78.0,
     "status": "delivered"
   }
 ]

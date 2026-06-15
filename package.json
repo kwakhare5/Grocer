@@ -3,10 +3,10 @@
   "version": "1.0.0",
   "description": "Household AI that predicts what your kitchen needs before you run out",
   "scripts": {
-    "kill": "npx kill-port 3000 3001 3002 8080",
+    "kill": "npx kill-port 3000 8001 3001 3002 8080",
     "save": "git add -A && git commit -m \"checkpoint: $(date)\" && git push",
     "dev:backend":  "cd backend && ../venv/Scripts/uvicorn main:app --reload",
-    "dev:mock":     "cd backend && ../venv/Scripts/uvicorn mcp.mock_server:app --port 3001 --reload",
+    "dev:mock":     "cd backend && ../venv/Scripts/uvicorn mcp.mock_server:app --port 8001 --reload",
     "dev:frontend": "cd frontend && npm run dev",
     "dev": "npm run dev:backend & npm run dev:mock & npm run dev:frontend"
   },

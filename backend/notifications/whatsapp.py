@@ -27,7 +27,7 @@ async def whatsapp_webhook(
 
     # Secure webhook verification (Twilio signature check)
     from backend.config import settings
-    if settings.TWILIO_AUTH_TOKEN and not settings.DATABASE_URL.startswith("sqlite"):
+    if settings.TWILIO_AUTH_TOKEN and settings.TWILIO_AUTH_TOKEN != "your_token" and not is_json and not settings.DATABASE_URL.startswith("sqlite"):
         signature = request.headers.get("X-Twilio-Signature")
         if not signature:
             logger.warning("Rejecting request: Missing X-Twilio-Signature header.")

@@ -1,12 +1,7 @@
 'use client';
-/* ─────────────────────────────────────────────────────────
-   Household Profile — Demo Scene 1 (hydrated)
-   Shows: composition inference, key consumption rates,
-   system health, and detected anomalies.
-   The "wow" moment: seeing that the AI knows you're a
-   family of 4 just from grocery order patterns.
- ───────────────────────────────────────────────────────── */
+
 import { useEffect, useState } from 'react';
+import { Users, History, Layers, ShieldCheck, Map, Calendar, Sparkles } from 'lucide-react';
 import { householdApi, predictionsApi, APIPrediction } from '../../lib/api';
 
 interface ProfileData {
@@ -33,7 +28,7 @@ const FALLBACK_PROFILE: ProfileData = {
   trackedSince: "January 2026",
   monthsTracked: 4,
   itemsModeled: 34,
-  accuracy:    "±1.4 days",
+  accuracy:    "±1 day",
   ordersAnalyzed: 87,
   stockoutsPrevented: 12,
 };
@@ -48,18 +43,18 @@ const FALLBACK_CONSUMPTION: ConsumptionItem[] = [
 
 const ANOMALIES = [
   {
-    type:  "TRAVEL_GAP",
-    color: "text-amber-500",
+    type:  "Family Travel",
+    color: "text-amber-600",
     bg:    "bg-amber-500/10",
     date:  "March 15 – 24, 2026",
-    desc:  "9-day order gap detected. Predictions paused for this window.",
+    desc:  "9-day travel gap detected. Refill alerts were automatically paused.",
   },
   {
-    type:  "GUEST_SPIKE",
-    color: "text-blue-500",
+    type:  "Special Event / Guests",
+    color: "text-blue-600",
     bg:    "bg-blue-500/10",
     date:  "February 8, 2026",
-    desc:  "3× milk consumption spike. Event excluded from baseline model.",
+    desc:  "3x surge in dairy consumption. Spike was excluded from normal averages.",
   },
 ];
 
@@ -73,21 +68,27 @@ const COMPOSITION_LABELS: Record<string, string> = {
 function formatRate(rate: number, name: string): string {
   const lowerName = name.toLowerCase();
   if (lowerName.includes("oil")) {
-    return `${Math.round(rate * 1000)} ml/day`;
+    return `${Math.round(rate * 1000)} ml daily`;
   }
   if (lowerName.includes("milk")) {
-    return `${rate.toFixed(1)} L/day`;
+    return `${rate.toFixed(1)} L daily`;
   }
   if (lowerName.includes("atta") || lowerName.includes("rice") || lowerName.includes("salt") || lowerName.includes("butter")) {
     if (rate < 1.0) {
-      return `${Math.round(rate * 1000)} g/day`;
+      return `${Math.round(rate * 1000)} g daily`;
     }
-    return `${rate.toFixed(2)} kg/day`;
+    return `${rate.toFixed(2)} kg daily`;
   }
   if (lowerName.includes("eggs")) {
-    return `${rate.toFixed(1)} pcs/day`;
+    return `${rate.toFixed(1)} eggs daily`;
   }
-  return `${rate.toFixed(2)} units/day`;
+  return `${rate.toFixed(2)} units daily`;
+}
+
+function certaintyLabel(conf: number) {
+  if (conf >= 85) return "Very High";
+  if (conf >= 70) return "High";
+  return "Moderate";
 }
 
 export default function HouseholdPage() {
@@ -140,37 +141,40 @@ export default function HouseholdPage() {
   }, []);
 
   return (
-    <div className="flex flex-col gap-12">
+    <div className="flex flex-col gap-10">
 
       {/* ── Header ──────────────────────────────────────────── */}
-      <div className="flex flex-col gap-3">
-        <div className="font-data text-accent text-[10px] tracking-widest uppercase">
-          M-01 · Household Profile {loading && "(LOADING...)"}
+      <div className="flex flex-col gap-2.5">
+        <div className="text-accent text-[11px] font-bold tracking-wider uppercase">
+          Kitchen Profile & Dossier {loading && "(LOADING...)"}
         </div>
-        <h1 className="text-5xl font-light tracking-tight uppercase leading-none">
-          Profile<br />
-          <span className="font-black">Dossier</span>
+        <h1 className="text-4xl font-light tracking-tight leading-tight">
+          My Kitchen <span className="font-extrabold text-accent">Usage Profile</span>
         </h1>
-        <p className="font-data text-sm text-muted max-w-lg">
-          Household composition inferred from consumption patterns.
-          No forms filled. No data entered. The AI figured it out.
+        <p className="text-sm text-muted max-w-lg leading-relaxed">
+          Analyze eating habits, tracking depth, and unusual pantry patterns calculated automatically from Swiggy Instamart order patterns.
         </p>
       </div>
 
       {/* ── Composition Banner ──────────────────────────────── */}
-      <div className="card p-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
-        <div className="flex flex-col gap-2">
-          <div className="font-data text-[10px] text-muted tracking-widest uppercase">
-            Inferred Household Type
+      <div className="glass-card p-8 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+        <div className="flex items-start gap-4">
+          <div className="p-4 bg-accent-dim rounded-2xl text-accent shrink-0 mt-1">
+            <Users className="h-6 w-6" />
           </div>
-          <div className="text-4xl font-black tracking-tight">{profile.type}</div>
-          <div className="font-data text-xs text-muted">
-            Based on: milk · atta · oil · eggs baseline consumption rates.
+          <div className="flex flex-col gap-1.5">
+            <div className="text-[10px] text-accent font-bold uppercase tracking-widest font-display">
+              Inferred Family Size
+            </div>
+            <div className="text-2xl font-black text-foreground font-display">{profile.type}</div>
+            <div className="text-xs text-muted font-semibold leading-relaxed">
+              Automatically analyzed from milk, eggs, atta, and cooking oil usage cycles.
+            </div>
           </div>
         </div>
-        <div className="flex flex-col items-start sm:items-end gap-2 shrink-0">
-          <div className="stat-value text-accent">{profile.confidence}%</div>
-          <div className="stat-label">Confidence</div>
+        <div className="flex flex-col items-start sm:items-end gap-2 shrink-0 pl-14 sm:pl-0">
+          <div className="text-3xl font-black text-accent font-display">{profile.confidence}%</div>
+          <div className="text-[10px] font-bold uppercase tracking-wider text-muted font-display">Analysis Certainty</div>
           <div className="conf-track w-32">
             <div className="conf-fill" style={{ width: `${profile.confidence}%` }} />
           </div>
@@ -178,45 +182,48 @@ export default function HouseholdPage() {
       </div>
 
       {/* ── Two-column: System Metrics + Consumption ────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-px bg-border">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
         {/* System Metrics */}
-        <div className="card p-6 flex flex-col gap-6">
-          <div className="font-data text-[10px] text-muted uppercase tracking-widest border-b border-border pb-3">
-            System Metrics
+        <div className="glass-card p-6 flex flex-col gap-6 rounded-2xl">
+          <div className="text-xs font-bold text-foreground uppercase tracking-wider border-b border-border/60 pb-3.5 font-display">
+            Pantry Track Metrics
           </div>
           <div className="grid grid-cols-2 gap-6">
             {[
-              { value: profile.ordersAnalyzed,      label: "Orders Analysed" },
-              { value: profile.itemsModeled,         label: "Items Modeled" },
-              { value: profile.monthsTracked + "mo", label: "Data Depth" },
-              { value: profile.stockoutsPrevented,   label: "Stockouts Prevented" },
+              { value: profile.ordersAnalyzed,      label: "Refills Tracked", icon: <History className="h-4 w-4 text-accent/80" /> },
+              { value: profile.itemsModeled,         label: "Staples Modeled", icon: <Layers className="h-4 w-4 text-accent/80" /> },
+              { value: profile.monthsTracked + " mo", label: "History Checked", icon: <Calendar className="h-4 w-4 text-accent/80" /> },
+              { value: profile.stockoutsPrevented,   label: "Stockouts Saved", icon: <ShieldCheck className="h-4 w-4 text-accent/80" /> },
             ].map((s) => (
-              <div key={s.label} className="stat-block">
-                <div className="stat-value">{s.value}</div>
-                <div className="stat-label">{s.label}</div>
+              <div key={s.label} className="stat-block flex flex-col gap-1.5">
+                <div className="flex items-center gap-1.5">
+                  {s.icon}
+                  <div className="text-2xl font-black text-foreground font-display leading-none">{s.value}</div>
+                </div>
+                <div className="text-[10px] font-bold uppercase tracking-wider text-muted font-display">{s.label}</div>
               </div>
             ))}
           </div>
-          <div className="border-t border-border pt-4 font-data text-xs text-muted flex justify-between">
-            <span>Tracking since {profile.trackedSince}</span>
-            <span className="text-ok">Accuracy {profile.accuracy}</span>
+          <div className="border-t border-border/60 pt-4 text-xs text-muted flex justify-between font-medium">
+            <span>Tracking active since {profile.trackedSince}</span>
+            <span className="text-ok font-semibold">Accuracy {profile.accuracy}</span>
           </div>
         </div>
 
         {/* Key Consumption Rates */}
-        <div className="card p-6 flex flex-col gap-6">
-          <div className="font-data text-[10px] text-muted uppercase tracking-widest border-b border-border pb-3">
-            Modeled Consumption Rates
+        <div className="glass-card p-6 flex flex-col gap-6 rounded-2xl">
+          <div className="text-xs font-bold text-foreground uppercase tracking-wider border-b border-border/60 pb-3.5 font-display">
+            Household Refill Averages
           </div>
           <div className="flex flex-col gap-5">
             {consumption.map((item) => (
               <div key={item.id} className="flex flex-col gap-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-semibold">{item.label}</span>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-bold text-foreground">{item.label}</span>
                   <div className="flex items-center gap-3">
-                    <span className="font-data text-xs text-muted">{item.rate}</span>
-                    <span className="font-data text-xs text-accent">{item.conf}%</span>
+                    <span className="text-muted font-medium">{item.rate}</span>
+                    <span className="text-accent font-bold">{certaintyLabel(item.conf)}</span>
                   </div>
                 </div>
                 <div className="conf-track">
@@ -229,26 +236,26 @@ export default function HouseholdPage() {
       </div>
 
       {/* ── Anomaly Log ─────────────────────────────────────── */}
-      <div className="card overflow-hidden">
-        <div className="px-6 py-4 border-b border-border font-data text-[10px] text-muted uppercase tracking-widest">
-          Anomalies Detected &amp; Filtered
+      <div className="glass-card overflow-hidden rounded-2xl border border-border/80">
+        <div className="px-6 py-4 border-b border-border/60 text-xs font-bold text-foreground uppercase tracking-wider font-display">
+          Kitchen Schedule Alterations
         </div>
-        <div className="divide-y divide-border">
+        <div className="divide-y divide-border/60">
           {ANOMALIES.map((a) => (
             <div key={a.type} className="px-6 py-5 flex flex-col sm:flex-row sm:items-start gap-4">
-              <div className={`pill ${a.bg} ${a.color} shrink-0 self-start`}>
-                {a.type}
+              <div className={`pill ${a.bg} ${a.color} shrink-0 self-start font-semibold font-display flex items-center justify-center gap-1.5 h-11 px-4.5 rounded-full`}>
+                {a.type === "Family Travel" ? <Map className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />}
+                <span>{a.type}</span>
               </div>
-              <div className="flex flex-col gap-1">
-                <div className="font-data text-xs text-muted">{a.date}</div>
-                <div className="text-sm text-foreground/80">{a.desc}</div>
+              <div className="flex flex-col gap-1 min-h-[44px] justify-center">
+                <div className="text-xs text-muted font-semibold">{a.date}</div>
+                <div className="text-xs text-foreground/80 leading-relaxed font-medium">{a.desc}</div>
               </div>
             </div>
           ))}
         </div>
-        <div className="px-6 py-3 bg-surface border-t border-border font-data text-[11px] text-muted">
-          Anomalies are excluded from consumption models to preserve accuracy.
-          Travel gaps pause predictions; guest spikes are excluded from baseline.
+        <div className="px-6 py-4 bg-neutral-50/20 dark:bg-neutral-900/10 border-t border-border/60 text-[11px] text-muted font-medium leading-relaxed">
+          The system excludes temporary disruptions (trips away, guest spikes) to keep baseline pantry alerts accurate.
         </div>
       </div>
 

@@ -123,10 +123,10 @@ export default function ChatDrawer() {
 
       {/* ── Chat Widget Panel ────────────────────────────── */}
       {isOpen && (
-        <div className="bg-surface border border-border rounded-lg shadow-2xl w-80 sm:w-96 h-[460px] flex flex-col overflow-hidden animate-in slide-in-from-bottom-5 duration-300">
+        <div className="bg-white dark:bg-[#121110] border border-border rounded-2xl shadow-2xl w-80 sm:w-96 h-[460px] flex flex-col overflow-hidden animate-in slide-in-from-bottom-5 duration-300">
           
           {/* Header */}
-          <div className="border-b border-border px-4 py-3 flex justify-between items-center bg-muted/50">
+          <div className="border-b border-border px-4 py-3 flex justify-between items-center bg-neutral-50 dark:bg-neutral-900/60">
             <div className="flex items-center gap-2">
               <span className="h-2 w-2 rounded-full bg-ok animate-pulse"></span>
               <span className="text-[10px] text-accent font-bold tracking-wider uppercase">
@@ -142,7 +142,7 @@ export default function ChatDrawer() {
           </div>
 
           {/* Messages Container */}
-          <div className="flex-1 p-4 overflow-y-auto space-y-4 bg-dot-grid">
+          <div className="flex-1 p-4 overflow-y-auto space-y-4 bg-[#faf9f8] dark:bg-[#0c0b0a]">
             {messages.map((m, idx) => (
               <div
                 key={idx}
@@ -162,7 +162,7 @@ export default function ChatDrawer() {
                     className={`rounded-lg px-3 py-2 text-xs leading-relaxed whitespace-pre-wrap select-text border ${
                       m.sender === "user"
                         ? "bg-accent/5 border-accent/20 text-accent"
-                        : "bg-surface border-border text-muted-foreground"
+                        : "bg-white dark:bg-[#1c1a18] border-border text-foreground"
                     }`}
                   >
                     {m.text}
@@ -198,7 +198,7 @@ export default function ChatDrawer() {
               onChange={e => setInput(e.target.value)}
               onKeyDown={e => e.key === "Enter" && handleSendMessage()}
               placeholder="Type YES, NO or ingredients..."
-              className="flex-1 bg-neutral-900 border border-border rounded px-3 py-2 text-xs text-white placeholder:text-muted focus:outline-none focus:border-accent transition-colors"
+              className="flex-1 bg-white dark:bg-neutral-900 border border-border rounded-xl px-3 py-2 text-xs text-foreground placeholder:text-muted/70 focus:outline-none focus:border-accent transition-colors"
             />
             <button
               onClick={handleSendMessage}

@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
-import Link from 'next/link';
 import ChatDrawer from '../components/ChatDrawer';
+import Header from '../components/Header';
 import './globals.css';
 
 const geistSans = Geist({
@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Instamart Intelligence',
-  description: 'Household grocery consumption forecasting — AI that knows your kitchen.',
+  title: 'Instamart Kitchen Assistant',
+  description: 'Your household kitchen helper that knows what you need before you run out.',
 };
 
 export default function RootLayout({
@@ -29,39 +29,25 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col selection:bg-accent selection:text-white">
+      <body className="min-h-full flex flex-col selection:bg-accent selection:text-white relative overflow-x-hidden">
+        
+        {/* Backdrop Glow Blobs */}
+        <div className="glow-blob top-[-100px] left-[-100px] w-[350px] h-[350px] bg-accent" />
+        <div className="glow-blob top-[400px] right-[-100px] w-[300px] h-[300px] bg-amber-500/80" />
 
         {/* ── Top Nav ──────────────────────────────────────── */}
-        <header className="border-b border-border bg-surface/90 backdrop-blur-sm sticky top-0 z-50">
-          <div className="max-w-6xl mx-auto px-6 h-12 flex items-center justify-between">
-            <div className="flex items-center gap-6">
-              <Link href="/" className="font-data text-xs font-bold text-accent tracking-widest uppercase">
-                Instamart_INTEL
-              </Link>
-              <span className="font-data text-[10px] text-muted hidden sm:inline tracking-widest uppercase">
-                <span className="text-ok">●</span> Online · 34 items modeled
-              </span>
-            </div>
-            <nav className="flex items-center gap-5 font-data text-[11px] uppercase tracking-widest">
-              <Link href="/"             className="text-muted hover:text-accent transition-colors">Index</Link>
-              <Link href="/household"    className="text-muted hover:text-accent transition-colors">Household</Link>
-              <Link href="/predictions"  className="text-muted hover:text-accent transition-colors">Predictions</Link>
-              <Link href="/recipes"      className="text-muted hover:text-accent transition-colors hidden sm:inline">Recipes</Link>
-              <Link href="/price-alerts" className="text-muted hover:text-accent transition-colors hidden sm:inline">Prices</Link>
-            </nav>
-          </div>
-        </header>
+        <Header />
 
         {/* ── Page Content ─────────────────────────────────── */}
-        <main className="flex-1 w-full max-w-6xl mx-auto px-6 py-12">
+        <main className="flex-1 w-full max-w-6xl mx-auto px-6 py-10 md:py-12 relative z-10">
           {children}
         </main>
 
         {/* ── System Footer ────────────────────────────────── */}
-        <footer className="border-t border-border mt-auto">
-          <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between font-data text-[10px] text-muted uppercase tracking-widest">
-            <span>Instamart Intelligence · Swiggy Builders Club Demo</span>
-            <span>4mo data · Prophet + LangGraph + Claude</span>
+        <footer className="border-t border-border mt-auto relative z-10 bg-surface/40 backdrop-blur-sm">
+          <div className="max-w-6xl mx-auto px-6 py-5 flex items-center justify-between text-xs text-muted font-medium">
+            <span>Instamart Kitchen Assistant · Swiggy Builders Club Demo</span>
+            <span>Automatically keeping your pantry stocked</span>
           </div>
         </footer>
 
@@ -70,6 +56,5 @@ export default function RootLayout({
 
       </body>
     </html>
-
   );
 }

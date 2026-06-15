@@ -1,15 +1,7 @@
 'use client';
-/* ─────────────────────────────────────────────────────────
-   Price Intelligence — Demo Scene 4 (hydrated)
-   "Show the tomato price chart with a visible spike.
-    Show the alert message. This demonstrates you've thought
-    beyond restocking — you've thought about price."
-   — CLAUDE.md Part 7
 
-   Key visual: SVG sparkline showing tomato price spike.
-   The chart is hand-drawn data — no Recharts needed.
- ───────────────────────────────────────────────────────── */
 import { useEffect, useState } from 'react';
+import { Tag, TrendingUp, TrendingDown } from 'lucide-react';
 import { pricesApi } from '../../lib/api';
 
 type PricePoint = { day: string; price: number };
@@ -33,7 +25,7 @@ const FALLBACK_COMMODITIES: CommodityData[] = [
     current: 48,
     avg30d:  20,
     signal:  "SPIKE",
-    suggestion: "Use canned tomatoes for this week. Spike typically lasts 8-12 days based on past patterns.",
+    suggestion: "Use canned tomatoes or tomato puree for cooking this week. This price spike typically lasts 8-12 days before returning to normal.",
     history: [
       { day: "Apr 18", price: 19 }, { day: "Apr 21", price: 21 },
       { day: "Apr 24", price: 20 }, { day: "Apr 27", price: 22 },
@@ -49,7 +41,7 @@ const FALLBACK_COMMODITIES: CommodityData[] = [
     current: 98,
     avg30d:  127,
     signal:  "DIP",
-    suggestion: "Good time to stock 2-3 bottles. Currently 23% below your 30-day average.",
+    suggestion: "Excellent time to stock up 2-3 bottles! Cooking oil is currently 23% cheaper than your normal household purchase price.",
     history: [
       { day: "Apr 18", price: 130 }, { day: "Apr 21", price: 128 },
       { day: "Apr 24", price: 127 }, { day: "Apr 27", price: 125 },
@@ -91,13 +83,12 @@ const FALLBACK_COMMODITIES: CommodityData[] = [
 ];
 
 const SIGNAL_STYLES = {
-  SPIKE:  { pill: "pill-danger",  label: "SPIKE ↑",      color: "#dc2626" },
-  DIP:    { pill: "pill-ok",      label: "DIP — BUY ↓",  color: "#16a34a" },
-  WATCH:  { pill: "pill-accent",  label: "WATCH →",      color: "#ff5a00" },
-  STABLE: { pill: "pill-muted",   label: "STABLE",        color: "#6b6560" },
+  SPIKE:  { pill: "pill-danger",  label: "Price Spike (Expensive)", color: "#ff5a00" },
+  DIP:    { pill: "pill-ok",      label: "Good Deal (Save Money)",  color: "#16a34a" },
+  WATCH:  { pill: "pill-accent",  label: "Rising Price",               color: "#ff5a00" },
+  STABLE: { pill: "pill-muted",   label: "Stable Price",               color: "#6b6560" },
 };
 
-/* Render an inline SVG sparkline from price history */
 function Sparkline({ data, signal }: { data: PricePoint[]; signal: CommodityData['signal'] }) {
   if (!data || data.length === 0) return null;
   const prices = data.map((d) => d.price);
@@ -118,18 +109,36 @@ function Sparkline({ data, signal }: { data: PricePoint[]; signal: CommodityData
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} width={W} height={H} className="sparkline">
-      {/* Fill area */}
+      <defs>
+        <linearGradient id={`grad-${signal}`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity="0.25" />
+          <stop offset="100%" stopColor={color} stopOpacity="0.0" />
+        </linearGradient>
+      </defs>
       <polygon
         points={`${pad},${H - pad} ${points} ${W - pad},${H - pad}`}
-        fill={color}
-        fillOpacity={0.1}
+        fill={`url(#grad-${signal})`}
       />
-      {/* Line */}
       <polyline points={points} fill="none" stroke={color} strokeWidth="1.5" />
-      {/* Last dot */}
       {(() => {
         const last = points.split(' ').pop()!.split(',');
-        return <circle cx={last[0]} cy={last[1]} r="3" fill={color} />;
+        const cx = last[0];
+        const cy = last[1];
+        return (
+          <g>
+            {/* Pulsing indicator ring */}
+            <circle
+              cx={cx}
+              cy={cy}
+              r="6"
+              fill={color}
+              className="animate-ping"
+              style={{ transformOrigin: `${cx}px ${cy}px`, opacity: 0.4 }}
+            />
+            {/* Solid core dot */}
+            <circle cx={cx} cy={cy} r="3" fill={color} />
+          </g>
+        );
       })()}
     </svg>
   );
@@ -164,20 +173,19 @@ export default function PriceAlertsPage() {
   const active = commodities.find((c) => c.id === selected) ?? null;
 
   return (
-    <div className="flex flex-col gap-12">
+    <div className="flex flex-col gap-10">
 
       {/* ── Header ──────────────────────────────────────────── */}
-      <div className="flex flex-col gap-3">
-        <div className="font-data text-accent text-[10px] tracking-widest uppercase">
-          M-04 · Price Intelligence {loading && "(LOADING...)"}
+      <div className="flex flex-col gap-2.5">
+        <div className="text-accent text-[11px] font-bold tracking-wider uppercase flex items-center gap-1.5">
+          <Tag className="h-4 w-4" />
+          <span>Smart Price Alerts</span>
         </div>
-        <h1 className="text-5xl font-light tracking-tight uppercase leading-none">
-          Price<br />
-          <span className="font-black">Intelligence</span>
+        <h1 className="text-4xl font-light tracking-tight leading-tight">
+          Staple Grocery <span className="font-extrabold text-accent">Price Drops & Spikes</span>
         </h1>
-        <p className="font-data text-sm text-muted max-w-lg">
-          Daily commodity price tracking vs your 30-day purchase baseline.
-          India&apos;s grocery prices are volatile — this gives you a 1-2 day edge.
+        <p className="text-sm text-muted max-w-lg leading-relaxed">
+          Grocery prices fluctuate daily. Instamart automatically checks prices, alert you to high-priced spikes, and recommends items to stock up on.
         </p>
       </div>
 
@@ -189,22 +197,25 @@ export default function PriceAlertsPage() {
             <div
               key={c.id}
               onClick={() => setSelected(c.id)}
-              className={`card p-6 cursor-pointer flex flex-col gap-4 hover:border-accent transition-all
-                         ${selected === c.id ? 'border-accent' : ''}`}
+              className={`card p-6 cursor-pointer flex flex-col gap-4 hover:border-accent transition-all bg-surface rounded-md
+                         ${selected === c.id ? 'border-accent shadow-sm' : ''}`}
             >
               <div className="flex items-center justify-between">
-                <span className={`pill ${s.pill}`}>{s.label}</span>
-                <span className="font-data text-xs text-muted">{c.name}</span>
+                <span className={`pill ${s.pill} font-semibold flex items-center gap-1`}>
+                  {c.signal === 'SPIKE' ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                  <span>{s.label}</span>
+                </span>
+                <span className="text-xs text-muted font-medium">{c.name}</span>
               </div>
               <div className="flex items-end justify-between gap-4">
                 <div>
-                  <div className="stat-value" style={{ color: s.color }}>₹{c.current}</div>
-                  <div className="stat-label">{c.unit}</div>
+                  <div className="text-3xl font-black text-foreground" style={{ color: s.color }}>₹{c.current}</div>
+                  <div className="text-xs text-muted font-medium">{c.unit}</div>
                 </div>
                 <Sparkline data={c.history} signal={c.signal} />
               </div>
-              <div className="font-data text-xs text-muted">
-                {pctChange(c.current, c.avg30d)} vs 30-day avg (₹{c.avg30d})
+              <div className="text-xs text-muted font-medium">
+                {pctChange(c.current, c.avg30d)} compared to your 30-day average (₹{c.avg30d})
               </div>
             </div>
           );
@@ -212,9 +223,9 @@ export default function PriceAlertsPage() {
       </div>
 
       {/* ── All Commodities ─────────────────────────────────── */}
-      <div className="card overflow-hidden">
-        <div className="px-6 py-4 border-b border-border font-data text-[10px] text-muted uppercase tracking-widest">
-          Price Feed — 10-Day History
+      <div className="card overflow-hidden bg-surface rounded-md">
+        <div className="px-6 py-4 border-b border-border text-xs font-bold text-muted uppercase tracking-wider">
+          Price Feed (Last 10 Days Trend)
         </div>
         <div className="divide-y divide-border">
           {commodities.map((c) => {
@@ -224,21 +235,25 @@ export default function PriceAlertsPage() {
               <div
                 key={c.id}
                 onClick={() => setSelected(c.id)}
-                className={`group px-6 py-4 flex items-center gap-6 cursor-pointer hover:bg-accent-dim transition-colors
-                           ${selected === c.id ? 'bg-accent-dim' : ''}`}
+                className={`group px-6 py-4 flex items-center gap-6 cursor-pointer hover:bg-neutral-50/50 dark:hover:bg-neutral-900/10 transition-colors
+                           ${selected === c.id ? 'bg-neutral-50/40 dark:bg-neutral-900/10' : ''}`}
               >
                 <Sparkline data={c.history} signal={c.signal} />
                 <div className="flex-1 min-w-0">
-                  <div className="font-semibold text-sm truncate">{c.name}</div>
-                  <div className="font-data text-xs text-muted mt-1">
-                    ₹{c.current} {c.unit} · 30d avg ₹{c.avg30d}
+                  <div className="font-bold text-sm text-foreground truncate">{c.name}</div>
+                  <div className="text-xs text-muted mt-1 font-medium">
+                    ₹{c.current} {c.unit} · 30-day average ₹{c.avg30d}
                   </div>
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
-                  <span className={`font-data text-sm font-bold`} style={{ color: s.color }}>
+                  <span className={`text-sm font-bold`} style={{ color: s.color }}>
                     {pct}
                   </span>
-                  <span className={`pill ${s.pill}`}>{s.label}</span>
+                  <span className={`pill ${s.pill} font-semibold flex items-center gap-1`}>
+                    {c.signal === 'SPIKE' || c.signal === 'WATCH' ? <TrendingUp className="h-3 w-3" /> :
+                     c.signal === 'DIP' ? <TrendingDown className="h-3 w-3" /> : null}
+                    <span>{s.label.split(" (")[0]}</span>
+                  </span>
                 </div>
               </div>
             );
@@ -248,20 +263,20 @@ export default function PriceAlertsPage() {
 
       {/* ── Detail Panel for selected commodity ─────────────── */}
       {active && active.suggestion && (
-        <div className="card p-6 flex flex-col gap-4 border-accent">
-          <div className="font-data text-[10px] text-accent uppercase tracking-widest">
-            AI Recommendation · {active.name}
+        <div className="card p-6 flex flex-col gap-4 border-accent rounded-md bg-surface shadow-sm">
+          <div className="text-xs font-bold text-accent uppercase tracking-wider">
+            Refill Suggestion · {active.name}
           </div>
-          <p className="text-sm leading-relaxed">{active.suggestion}</p>
-          <div className="grid grid-cols-3 gap-4 pt-2 border-t border-border">
+          <p className="text-sm leading-relaxed text-foreground">{active.suggestion}</p>
+          <div className="grid grid-cols-3 gap-4 pt-4 border-t border-border">
             {[
-              { label: "Current Price",  value: `₹${active.current}` },
-              { label: "30d Average",    value: `₹${active.avg30d}`  },
-              { label: "Change",         value: pctChange(active.current, active.avg30d) },
+              { label: "Today's Price",  value: `₹${active.current}` },
+              { label: "Normal Price",    value: `₹${active.avg30d}`  },
+              { label: "Price Change",         value: pctChange(active.current, active.avg30d) },
             ].map((s) => (
-              <div key={s.label} className="flex flex-col gap-1">
-                <span className="font-data text-[10px] text-muted uppercase tracking-widest">{s.label}</span>
-                <span className="font-data text-lg font-bold">{s.value}</span>
+              <div key={s.label} className="flex flex-col gap-1.5">
+                <span className="text-[10px] font-bold text-muted uppercase tracking-wider">{s.label}</span>
+                <span className="text-base font-extrabold text-foreground">{s.value}</span>
               </div>
             ))}
           </div>

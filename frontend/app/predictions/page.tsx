@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { predictionsApi, APIPrediction } from "../../lib/api";
+import { Milk, Droplets, CircleDot, Package, Clock, Sparkles, ChevronDown, ChevronUp, Activity, Calendar } from "lucide-react";
 
 interface PredictionItem {
   id: string;
@@ -116,14 +117,33 @@ const FALLBACK_ITEMS: PredictionItem[] = [
 ];
 
 function urgencyStyle(days: number) {
-  if (days <= 2) return { pill: "pill-danger",  bar: "#dc2626", label: "CRITICAL" };
-  if (days <= 5) return { pill: "pill-warning", bar: "#d97706", label: "LOW"      };
-  return             { pill: "pill-muted",    bar: "#6b6560", label: "OK"       };
+  if (days <= 2) return { pill: "pill-danger",  bar: "#ff5a00", label: "Needs Reorder" };
+  if (days <= 5) return { pill: "pill-warning", bar: "#d97706", label: "Running Low"   };
+  return             { pill: "pill-muted",    bar: "#7c7267", label: "In Stock"      };
+}
+
+function certaintyLabel(conf: number) {
+  if (conf >= 85) return "Very High";
+  if (conf >= 70) return "High";
+  return "Moderate";
+}
+
+function getCategoryIcon(cat: string) {
+  const c = cat.toLowerCase();
+  if (c.includes("dairy") || c.includes("milk")) return <Milk className="h-5 w-5 text-accent/80" />;
+  if (c.includes("oil") || c.includes("staples")) return <Droplets className="h-5 w-5 text-accent/80" />;
+  if (c.includes("protein") || c.includes("egg")) return <CircleDot className="h-5 w-5 text-accent/80" />;
+  return <Package className="h-5 w-5 text-accent/80" />;
 }
 
 export default function PredictionsPage() {
   const [items, setItems] = useState<PredictionItem[]>(FALLBACK_ITEMS);
   const [loading, setLoading] = useState(true);
+  const [showDetails, setShowDetails] = useState<Record<string, boolean>>({});
+
+  const toggleDetails = (id: string) => {
+    setShowDetails(prev => ({ ...prev, [id]: !prev[id] }));
+  };
 
   useEffect(() => {
     async function loadPredictions() {
@@ -132,7 +152,6 @@ export default function PredictionsPage() {
         if (res.data && res.data.predictions && res.data.predictions.length > 0) {
           const apiItems = res.data.predictions.map((p: APIPrediction) => {
             const daysLeft = p.days_remaining !== null ? Math.round(p.days_remaining) : 10;
-            // Generate some mock history cycles for the detail breakdown
             const mockHist = [
               { predicted: "3 cycles ago", actual: "3 cycles ago", error: 0 },
               { predicted: "2 cycles ago", actual: "2 cycles ago", error: 1 },
@@ -165,34 +184,38 @@ export default function PredictionsPage() {
   }, []);
 
   return (
-    <div className="flex flex-col gap-12">
+    <div className="flex flex-col gap-10 relative">
+      <div className="absolute top-[-50px] left-[-100px] w-[250px] h-[250px] bg-accent/6 blur-[100px] pointer-events-none -z-10" />
 
       {/* ── Header ──────────────────────────────────────────── */}
-      <div className="flex flex-col gap-3">
-        <div className="font-data text-accent text-[10px] tracking-widest uppercase">
-          M-02 · Depletion Predictions {loading && "(LOADING...)"}
+      <div className="flex flex-col gap-2.5">
+        <div className="text-accent text-[11px] font-bold tracking-widest uppercase font-display">
+          Pantry Inventory & Timeline {loading && "(LOADING...)"}
         </div>
-        <h1 className="text-5xl font-light tracking-tight uppercase leading-none">
-          Depletion<br />
-          <span className="font-black">Timeline</span>
+        <h1 className="text-4xl font-extrabold tracking-tight leading-tight font-display text-foreground">
+          When Will Things <span className="text-accent">Run Out?</span>
         </h1>
-        <p className="font-data text-sm text-muted max-w-lg">
-          Facebook Prophet time-series forecasting per item.
-          Confidence derived from purchase regularity + data depth.
+        <p className="text-sm text-muted max-w-lg leading-relaxed font-medium">
+          Check estimated depleting timelines and remaining stock. Tap any item to inspect historical calculations and averages.
         </p>
       </div>
 
       {/* ── Accuracy Banner ─────────────────────────────────── */}
-      <div className="grid grid-cols-3 gap-px bg-border">
+      <div className="grid grid-cols-3 gap-4">
         {[
-          { value: "±1.4d",  label: "Mean Prediction Error",    sub: "last 30 days" },
-          { value: String(items.length), label: "Active Models",             sub: "items with conf ≥ 50%" },
-          { value: items.length > 0 ? `${items[0].conf}%` : "87%", label: "Top Confidence",            sub: items.length > 0 ? items[0].name : "Sunflower Oil" },
+          { value: "±1 day",  label: "Prediction Delay", sub: "average error margin", icon: <Clock className="h-5 w-5 text-accent/80" /> },
+          { value: String(items.length), label: "Staples Tracked", sub: "automatic profiles active", icon: <Activity className="h-5 w-5 text-accent/80" /> },
+          { value: items.length > 0 ? `${items[0].conf}%` : "87%", label: "Top Tracker Accuracy", sub: items.length > 0 ? items[0].name.split(" — ")[0] : "Sunflower Oil", icon: <Sparkles className="h-5 w-5 text-accent/80" /> },
         ].map((s) => (
-          <div key={s.label} className="card p-5 flex flex-col gap-2">
-            <div className="stat-value text-accent">{s.value}</div>
-            <div className="stat-label">{s.label}</div>
-            <div className="font-data text-[11px] text-muted">{s.sub}</div>
+          <div key={s.label} className="glass-card p-5 rounded-2xl flex flex-col gap-2 hover:-translate-y-1 hover:shadow-md transition-all duration-300">
+            <div className="flex items-center justify-between">
+              <div className="text-2xl font-black text-accent font-display">{s.value}</div>
+              {s.icon}
+            </div>
+            <div className="flex flex-col gap-0.5">
+              <div className="text-xs font-bold text-foreground tracking-wide font-display">{s.label}</div>
+              <div className="text-[11px] text-muted font-medium leading-normal">{s.sub}</div>
+            </div>
           </div>
         ))}
       </div>
@@ -202,86 +225,110 @@ export default function PredictionsPage() {
         {items.map((item) => {
           const u = urgencyStyle(item.days);
           const fill = Math.max(4, Math.min(100, Math.round((item.days / 30) * 100)));
+          const isOpen = !!showDetails[item.id];
+
           return (
-            <div key={item.id} className="card overflow-hidden">
+            <div key={item.id} className="glass-card overflow-hidden rounded-2xl border border-border/80 flex flex-col hover:shadow-sm transition-all duration-200">
 
               {/* Item header row */}
               <div className="px-6 py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-4 min-w-0">
-                  <span className={`pill ${u.pill}`}>{u.label}</span>
+                  <div className="p-2.5 bg-neutral-100 dark:bg-neutral-800/80 rounded-xl shrink-0">
+                    {getCategoryIcon(item.category)}
+                  </div>
                   <div className="flex flex-col min-w-0">
-                    <span className="font-bold tracking-wide truncate">{item.name}</span>
-                    <span className="font-data text-xs text-muted">{item.category} · Last bought {item.lastBuy} ({item.qty})</span>
+                    <span className="font-extrabold tracking-wide text-sm text-foreground font-display truncate">{item.name}</span>
+                    <span className="text-xs text-muted/95 mt-1 font-medium">{item.category} · Last restocked {item.lastBuy} ({item.qty})</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-6 shrink-0">
-                  <div className="flex flex-col items-end gap-1">
-                    <span className="font-data text-xs text-muted">DEPLETES</span>
-                    <span className="font-data text-sm font-bold">{item.depletes}</span>
+                  <div className="flex flex-col items-start sm:items-end gap-0.5">
+                    <span className="text-[10px] font-bold text-muted uppercase tracking-wider font-display">Runs Out On</span>
+                    <span className="text-sm font-extrabold text-foreground font-display">{item.depletes}</span>
                   </div>
-                  <div className="flex flex-col items-end gap-1">
-                    <span className="font-data text-xs text-muted">CONF</span>
-                    <span className="font-data text-sm font-bold text-accent">{item.conf}%</span>
+                  <div className="flex flex-col items-start sm:items-end gap-0.5">
+                    <span className="text-[10px] font-bold text-muted uppercase tracking-wider font-display">Refill Status</span>
+                    <span className={`pill ${u.pill} font-semibold font-display`}>{u.label}</span>
                   </div>
                 </div>
               </div>
 
               {/* Full-width depletion bar */}
-              <div className="depletion-bar">
-                <div className="depletion-bar-fill" style={{ width: `${fill}%`, background: u.bar }} />
+              <div className="depletion-bar h-1.5 bg-neutral-200/50 dark:bg-neutral-800/40">
+                <div
+                  className="depletion-bar-fill"
+                  style={{
+                    width: `${fill}%`,
+                    background: `linear-gradient(90deg, ${u.bar} 0%, #ff8a00 100%)`
+                  }}
+                />
               </div>
 
-              {/* Detail panel */}
-              <div className="px-6 py-4 bg-surface border-t border-border grid grid-cols-2 sm:grid-cols-4 gap-6">
-                <div className="flex flex-col gap-1">
-                  <span className="font-data text-[10px] text-muted uppercase tracking-widest">Daily Use</span>
-                  <span className="font-data text-sm">{item.avg}</span>
-                </div>
-                <div className="flex flex-col gap-1">
-                  <span className="font-data text-[10px] text-muted uppercase tracking-widest">Avg Cycle</span>
-                  <span className="font-data text-sm">{item.cycle}</span>
-                </div>
-                <div className="flex flex-col gap-1">
-                  <span className="font-data text-[10px] text-muted uppercase tracking-widest">Days Left</span>
-                  <span className="font-data text-sm">{item.days} days</span>
-                </div>
-                <div className="flex flex-col gap-1">
-                  <span className="font-data text-[10px] text-muted uppercase tracking-widest">Data Points</span>
-                  <span className="font-data text-sm">{item.history.length} cycles</span>
-                </div>
-              </div>
+              {/* Details Toggle Button */}
+              <button
+                onClick={() => toggleDetails(item.id)}
+                className="text-xs text-accent hover:text-accent/95 font-bold flex items-center justify-between px-6 h-11 border-t border-border/60 bg-neutral-50/20 dark:bg-neutral-900/10 cursor-pointer font-display transition-colors"
+              >
+                <span>{isOpen ? "Close detailed calculations & histories" : "Inspect pantry usage & refill cycles"}</span>
+                {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              </button>
 
-              {/* Prediction accuracy table */}
-              <div className="border-t border-border">
-                <div className="px-6 py-3 font-data text-[10px] text-muted uppercase tracking-widest">
-                  Prediction Accuracy — Last 5 Cycles
+              {/* Collapsible Details */}
+              {isOpen && (
+                <div className="border-t border-border/60 animate-in fade-in duration-300">
+                  {/* Detail panel */}
+                  <div className="px-6 py-5 bg-white/40 dark:bg-neutral-900/10 grid grid-cols-2 sm:grid-cols-4 gap-6 text-xs border-b border-border/60">
+                    <div className="flex flex-col gap-1.5">
+                      <span className="text-[10px] text-muted uppercase tracking-wider font-bold font-display">Daily Usage</span>
+                      <span className="font-extrabold text-foreground font-display text-sm">{item.avg}</span>
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <span className="text-[10px] text-muted uppercase tracking-wider font-bold font-display">Average Cycle</span>
+                      <span className="font-extrabold text-foreground font-display text-sm">{item.cycle}</span>
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <span className="text-[10px] text-muted uppercase tracking-wider font-bold font-display">Remaining Days</span>
+                      <span className="font-extrabold text-foreground font-display text-sm">{item.days} days</span>
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <span className="text-[10px] text-muted uppercase tracking-wider font-bold font-display">History Logs</span>
+                      <span className="font-extrabold text-foreground font-display text-sm">{item.history.length} purchases</span>
+                    </div>
+                  </div>
+
+                  {/* Prediction accuracy table */}
+                  <div className="bg-white/10 dark:bg-neutral-900/5">
+                    <div className="px-6 py-4 text-[10px] text-muted uppercase tracking-wider font-bold font-display">
+                      Refill Timing Analysis (Historical Checks)
+                    </div>
+                    <div className="px-6 pb-5 overflow-x-auto">
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="text-muted border-b border-border/40">
+                            <th className="text-left pb-2.5 pr-6 font-bold uppercase tracking-wider text-[10px] font-display">Predicted Date</th>
+                            <th className="text-left pb-2.5 pr-6 font-bold uppercase tracking-wider text-[10px] font-display">Actual Refill</th>
+                            <th className="text-left pb-2.5 font-bold uppercase tracking-wider text-[10px] font-display">Delay/Advance</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border/40 font-medium">
+                          {item.history.map((h, i) => (
+                            <tr key={i} className="hover:bg-neutral-50/50 dark:hover:bg-neutral-900/10 transition-colors">
+                              <td className="py-3 pr-6 text-foreground">{h.predicted}</td>
+                              <td className="py-3 pr-6 text-foreground">{h.actual}</td>
+                              <td className={`py-3 font-extrabold font-display ${
+                                h.actual === "—" ? "text-muted" :
+                                Math.abs(h.error) <= 1 ? "text-ok" : "text-warning"
+                              }`}>
+                                {h.actual === "—" ? "In progress" : h.error === 0 ? "Perfect" : `${h.error > 0 ? "Late by " : "Early by "}${Math.abs(h.error)}d`}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
                 </div>
-                <div className="px-6 pb-4 overflow-x-auto">
-                  <table className="w-full font-data text-xs">
-                    <thead>
-                      <tr className="text-muted">
-                        <th className="text-left pb-2 pr-6 font-medium">Predicted</th>
-                        <th className="text-left pb-2 pr-6 font-medium">Actual</th>
-                        <th className="text-left pb-2 font-medium">Error</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border">
-                      {item.history.map((h, i) => (
-                        <tr key={i} className="hover:bg-grid transition-colors">
-                          <td className="py-2 pr-6">{h.predicted}</td>
-                          <td className="py-2 pr-6">{h.actual}</td>
-                          <td className={`py-2 font-bold ${
-                            h.actual === "—" ? "text-muted" :
-                            Math.abs(h.error) <= 1 ? "text-ok" : "text-warning"
-                          }`}>
-                            {h.actual === "—" ? "pending" : h.error === 0 ? "exact" : `${h.error > 0 ? "+" : ""}${h.error}d`}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
+              )}
 
             </div>
           );
@@ -291,4 +338,3 @@ export default function PredictionsPage() {
     </div>
   );
 }
-

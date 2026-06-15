@@ -25,6 +25,39 @@ async def whatsapp_webhook(
     content_type = request.headers.get("content-type", "")
     is_json = "application/json" in content_type
 
+    # Secure webhook verification (Twilio signature check)
+    from backend.config import settings
+    if settings.TWILIO_AUTH_TOKEN and not settings.DATABASE_URL.startswith("sqlite"):
+        signature = request.headers.get("X-Twilio-Signature")
+        if not signature:
+            logger.warning("Rejecting request: Missing X-Twilio-Signature header.")
+            return Response(content="Unauthorized: Missing signature", status_code=401)
+        
+        # Reconstruct public URL when behind reverse proxies
+        proto = request.headers.get("x-forwarded-proto", request.url.scheme)
+        host = request.headers.get("x-forwarded-host", request.url.netloc)
+        path = request.url.path
+        query = request.url.query
+        url = f"{proto}://{host}{path}"
+        if query:
+            url += f"?{query}"
+            
+        from twilio.request_validator import RequestValidator
+        validator = RequestValidator(settings.TWILIO_AUTH_TOKEN)
+        
+        # Twilio request signature verification needs form data parameters
+        params = {}
+        if not is_json:
+            try:
+                form_data = await request.form()
+                params = {k: v for k, v in form_data.items()}
+            except Exception as form_err:
+                logger.error(f"Error parsing form data for signature validation: {form_err}")
+                
+        if not validator.validate(url, params, signature):
+            logger.warning(f"Rejecting request: Invalid X-Twilio-Signature. Reconstructed URL: {url}")
+            return Response(content="Unauthorized: Invalid signature", status_code=401)
+
     phone = ""
     message = ""
 

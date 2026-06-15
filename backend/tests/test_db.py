@@ -36,13 +36,17 @@ async def test_consumption_model_readable():
 async def test_restock_alert_schema():
     """Verify RestockAlert model columns match actual DB columns."""
     async with AsyncSessionLocal() as db:
-        result = await db.execute(text("""
-            SELECT column_name
-            FROM information_schema.columns
-            WHERE table_name = 'restock_alerts'
-            ORDER BY ordinal_position
-        """))
-        db_columns = {row[0] for row in result}
+        if db.bind.dialect.name == 'sqlite':
+            result = await db.execute(text("PRAGMA table_info(restock_alerts)"))
+            db_columns = {row[1] for row in result}
+        else:
+            result = await db.execute(text("""
+                SELECT column_name
+                FROM information_schema.columns
+                WHERE table_name = 'restock_alerts'
+                ORDER BY ordinal_position
+            """))
+            db_columns = {row[0] for row in result}
 
     expected_columns = {'id', 'household_id', 'item_ids', 'message_sent', 'sent_at', 'status', 'acted_at', 'order_id_placed'}
     assert expected_columns.issubset(db_columns), (
@@ -54,12 +58,16 @@ async def test_restock_alert_schema():
 async def test_price_history_schema():
     """Verify price_history hypertable columns exist."""
     async with AsyncSessionLocal() as db:
-        result = await db.execute(text("""
-            SELECT column_name
-            FROM information_schema.columns
-            WHERE table_name = 'price_history'
-        """))
-        db_columns = {row[0] for row in result}
+        if db.bind.dialect.name == 'sqlite':
+            result = await db.execute(text("PRAGMA table_info(price_history)"))
+            db_columns = {row[1] for row in result}
+        else:
+            result = await db.execute(text("""
+                SELECT column_name
+                FROM information_schema.columns
+                WHERE table_name = 'price_history'
+            """))
+            db_columns = {row[0] for row in result}
 
     assert 'item_id' in db_columns
     assert 'recorded_at' in db_columns

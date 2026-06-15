@@ -22,7 +22,7 @@ class Household(Base):
 class Order(Base):
     __tablename__ = "orders"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    household_id = Column(UUID(as_uuid=True), ForeignKey("households.id"))
+    household_id = Column(UUID(as_uuid=True), ForeignKey("households.id"), index=True)
     instamart_order_id = Column(String(255), unique=True)
     placed_at = Column(DateTime(timezone=True), nullable=False)
     total_amount = Column(Float)
@@ -33,8 +33,8 @@ class Order(Base):
 class OrderItem(Base):
     __tablename__ = "order_items"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    order_id = Column(UUID(as_uuid=True), ForeignKey("orders.id"))
-    item_id = Column(String(255), nullable=False)
+    order_id = Column(UUID(as_uuid=True), ForeignKey("orders.id"), index=True)
+    item_id = Column(String(255), nullable=False, index=True)
     item_name = Column(String(500), nullable=False)
     category = Column(String(100))
     quantity = Column(Integer)
@@ -46,7 +46,7 @@ class OrderItem(Base):
 class ConsumptionModel(Base):
     __tablename__ = "consumption_models"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    household_id = Column(UUID(as_uuid=True), ForeignKey("households.id"))
+    household_id = Column(UUID(as_uuid=True), ForeignKey("households.id"), index=True)
     item_id = Column(String(255))
     item_name = Column(String(500))
     category = Column(String(100))
@@ -63,7 +63,7 @@ class ConsumptionModel(Base):
 class RestockAlert(Base):
     __tablename__ = "restock_alerts"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    household_id = Column(UUID(as_uuid=True), ForeignKey("households.id"))
+    household_id = Column(UUID(as_uuid=True), ForeignKey("households.id"), index=True)
     item_ids = Column(JSONB)                         # list of item_id strings e.g. ["INS_001", "INS_003"]
     message_sent = Column(Text)                      # the WhatsApp message that was or will be sent
     sent_at = Column(DateTime(timezone=True))

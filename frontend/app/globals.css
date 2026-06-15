@@ -111,6 +111,7 @@ body {
 .depletion-bar-fill {
   height: 100%;
   transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: width;
 }
 
 /* Status pill */
@@ -186,6 +187,7 @@ body {
 .liquid-fill-animate {
   transform-origin: bottom center;
   animation: slosh 6s ease-in-out infinite;
+  will-change: transform;
 }
 
 /* Floating jar lid on hover */

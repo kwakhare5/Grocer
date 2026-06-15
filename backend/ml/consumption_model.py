@@ -40,6 +40,7 @@ class ConsumptionModeler:
             log.getLogger('prophet').setLevel(log.WARNING)
             log.getLogger('cmdstanpy').setLevel(log.WARNING)
             
+            import asyncio
             model = Prophet(
                 seasonality_mode='multiplicative',
                 yearly_seasonality=False,
@@ -47,7 +48,7 @@ class ConsumptionModeler:
                 daily_seasonality=False,
                 interval_width=0.80
             )
-            model.fit(df)
+            await asyncio.to_thread(model.fit, df)
         except Exception as e:
             logger.error(f"Prophet failed for {item_name}: {e}")
             return None

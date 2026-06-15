@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import Link from 'next/link';
+import useSWR from "swr";
 import { predictionsApi, householdApi, APIPrediction } from "../lib/api";
 import { Package, ShieldCheck, Zap, Sparkles, ShoppingCart, Calendar, Bell, BellOff, ArrowRight, X } from "lucide-react";
 
@@ -187,6 +188,8 @@ function ConfettiEffect({ active }: { active: boolean }) {
   );
 }
 
+const fetcher = (userId: string) => predictionsApi.getForHousehold(userId).then(res => res.data);
+
 export default function Home() {
   const [depleting, setDepleting] = useState<DepletingItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -204,18 +207,19 @@ export default function Home() {
   const [switchingScenario, setSwitchingScenario] = useState(false);
   const [panelOpen, setPanelOpen] = useState(false);
 
-  const handleScenarioChange = async (scenario: string) => {
-    if (switchingScenario) return;
-    setSwitchingScenario(true);
-    setLoading(true);
-    try {
-      await householdApi.switchScenario("demo_user_001", scenario);
-      setActiveScenario(scenario);
-      triggerToast(`Switched to ${scenario === "standard" ? "Standard Staples" : scenario === "party" ? "Party Spike" : "Vacation Mode"}!`);
-      
-      const res = await predictionsApi.getForHousehold("demo_user_001");
-      if (res.data && res.data.predictions) {
-        const apiItems = res.data.predictions.map((p: APIPrediction) => ({
+  const { data: predictionsData, error: predictionsError, mutate: mutatePredictions } = useSWR(
+    "demo_user_001",
+    fetcher,
+    {
+      revalidateOnFocus: false,
+      dedupingInterval: 60000,
+    }
+  );
+
+  useEffect(() => {
+    if (predictionsData) {
+      if (predictionsData.predictions && predictionsData.predictions.length > 0) {
+        const apiItems = predictionsData.predictions.map((p: APIPrediction) => ({
           name: p.item_name,
           days: p.days_remaining !== null ? Math.round(p.days_remaining) : 10,
           conf: Math.round((p.confidence_score || 0.5) * 100),
@@ -224,9 +228,33 @@ export default function Home() {
           urgent: p.days_remaining !== null && p.days_remaining <= 3
         }));
         setDepleting(apiItems);
+      } else {
+        setDepleting(FALLBACK_DEPLETING);
       }
+      setLoading(false);
+    } else if (predictionsError) {
+      setDepleting(FALLBACK_DEPLETING);
+      setLoading(false);
+    }
+  }, [predictionsData, predictionsError]);
+
+  const handleScenarioChange = async (scenario: string) => {
+    if (switchingScenario) return;
+    setSwitchingScenario(true);
+    setLoading(true);
+    
+    // Optimistic Update
+    const previousScenario = activeScenario;
+    setActiveScenario(scenario);
+    
+    try {
+      await householdApi.switchScenario("demo_user_001", scenario);
+      triggerToast(`Switched to ${scenario === "standard" ? "Standard Staples" : scenario === "party" ? "Party Spike" : "Vacation Mode"}!`);
+      await mutatePredictions();
     } catch (err) {
       console.warn("Failed to switch scenario", err);
+      // Revert on failure
+      setActiveScenario(previousScenario);
       triggerToast("⚠️ Failed to switch demo scenario.");
     } finally {
       setSwitchingScenario(false);
@@ -285,33 +313,7 @@ export default function Home() {
     setPhoneAlert(null);
   };
 
-  useEffect(() => {
-    async function loadDashboardData() {
-      try {
-        const res = await predictionsApi.getForHousehold("demo_user_001");
-        if (res.data && res.data.predictions && res.data.predictions.length > 0) {
-          const apiItems = res.data.predictions.map((p: APIPrediction) => ({
-            name: p.item_name,
-            days: p.days_remaining !== null ? Math.round(p.days_remaining) : 10,
-            conf: Math.round((p.confidence_score || 0.5) * 100),
-            avg: `${p.avg_daily_consumption.toFixed(2)}/day`,
-            cycle: `${p.consumption_cycle_days || 7}d`,
-            urgent: p.days_remaining !== null && p.days_remaining <= 3
-          }));
-          setDepleting(apiItems);
-        } else {
-          // If response is successful but empty, default to fallback data
-          setDepleting(FALLBACK_DEPLETING);
-        }
-      } catch (err) {
-        console.warn("Failed to load dashboard live predictions from API, using static fallbacks.", err);
-        setDepleting(FALLBACK_DEPLETING);
-      } finally {
-        setLoading(false);
-      }
-    }
-    loadDashboardData();
-  }, []);
+  // Caching predictions are handled via SWR hook mutates
 
   const triggerToast = (msg: string) => {
     setToastMessage(msg);

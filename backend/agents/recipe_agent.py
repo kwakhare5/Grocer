@@ -26,6 +26,14 @@ logger = logging.getLogger(__name__)
 anthropic_client = Anthropic(api_key=settings.ANTHROPIC_API_KEY)
 CLAUDE_MODEL = "claude-3-5-sonnet-latest"
 
+from backend.agents.restock_agent import (
+    is_anthropic_configured,
+    is_groq_configured,
+    is_nvidia_configured,
+    call_groq_api,
+    call_nvidia_api
+)
+
 
 class RecipeState(TypedDict):
     db: AsyncSession
@@ -122,13 +130,39 @@ Return ONLY a JSON array of objects, no conversation, no markdown code block wra
 
 Units must be: g, kg, ml, L, piece, tbsp, tsp"""
 
+    text = None
+
+    if is_anthropic_configured():
+        try:
+            response = anthropic_client.messages.create(
+                model=CLAUDE_MODEL,
+                max_tokens=1000,
+                messages=[{"role": "user", "content": prompt}]
+            )
+            text = response.content[0].text.strip()
+        except Exception as e:
+            logger.error(f"Failed to parse recipe ingredients using Claude: {e}")
+
+    if not text and is_groq_configured():
+        try:
+            text = await call_groq_api(prompt=prompt)
+            text = text.strip()
+        except Exception as e:
+            logger.error(f"Failed to parse recipe ingredients using Groq: {e}")
+
+    if not text and is_nvidia_configured():
+        try:
+            text = await call_nvidia_api(prompt=prompt)
+            text = text.strip()
+        except Exception as e:
+            logger.error(f"Failed to parse recipe ingredients using NVIDIA: {e}")
+
+    if not text:
+        logger.warning("All LLM providers unavailable for recipe parsing. Falling back to empty list.")
+        state["parsed_ingredients"] = []
+        return state
+
     try:
-        response = anthropic_client.messages.create(
-            model=CLAUDE_MODEL,
-            max_tokens=1000,
-            messages=[{"role": "user", "content": prompt}]
-        )
-        text = response.content[0].text.strip()
         # Clean up any potential markdown code blocks
         if "```json" in text:
             text = text.split("```json")[1].split("```")[0].strip()
@@ -138,7 +172,7 @@ Units must be: g, kg, ml, L, piece, tbsp, tsp"""
         ingredients = json.loads(text)
         state["parsed_ingredients"] = ingredients
     except Exception as e:
-        logger.error(f"Failed to parse recipe ingredients using Claude: {e}")
+        logger.error(f"Failed to parse recipe JSON ingredients: {e}. Raw text: {text}")
         state["parsed_ingredients"] = []
 
     return state

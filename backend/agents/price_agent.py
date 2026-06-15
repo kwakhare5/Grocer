@@ -10,7 +10,6 @@ from typing import List, Tuple
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 
-from backend.config import settings
 from backend.mcp.client import mcp_client
 from backend.database.models import PriceHistory, Household, RestockAlert
 from backend.notifications.whatsapp import send_whatsapp_message
@@ -106,7 +105,6 @@ async def track_and_alert_prices(db: AsyncSession) -> dict:
 
                     # Construct message
                     direction = "📈 Price Alert" if is_spike else "📉 Price Dip"
-                    action_word = "spike" if is_spike else "dip"
                     change_sign = "+" if pct_change > 0 else ""
                     
                     suggestion = SUGGESTIONS.get(query, "Purchase as needed.")
@@ -118,7 +116,7 @@ async def track_and_alert_prices(db: AsyncSession) -> dict:
                                 f"Recommendation: {suggestion}"
 
                     # 4. Dispatch alert to opted-in households
-                    stmt_hh = select(Household).where(Household.notifications_enabled == True)
+                    stmt_hh = select(Household).where(Household.notifications_enabled)
                     res_hh = await db.execute(stmt_hh)
                     households = res_hh.scalars().all()
 
@@ -134,8 +132,8 @@ async def track_and_alert_prices(db: AsyncSession) -> dict:
                         db.add(alert_record)
 
                         # Send WhatsApp message if phone is set
-                        if hh.phone_number:
-                            await send_whatsapp_message(hh.phone_number, alert_msg)
+                        if hh.phone_number:  # type: ignore
+                            await send_whatsapp_message(hh.phone_number, alert_msg)  # type: ignore
                     
                     alerts_triggered.append({
                         "item_name": item_name,

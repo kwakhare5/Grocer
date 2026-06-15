@@ -556,63 +556,92 @@ This project handles sensitive data — your household's grocery patterns reveal
 - Backend: FastAPI (Python)
 - Database: PostgreSQL + TimescaleDB (time-series)
 - ML: Facebook Prophet (forecasting)
-- AI Agent: LangGraph + Claude API
-- Vector Search: pgvector (for item similarity)
+- AI Agent: LangGraph + Groq / NVIDIA NIM API
 - Notifications: Twilio WhatsApp API
-- Frontend: Next.js dashboard
-- MCP: Swiggy Instamart MCP (localhost for dev)
+- Frontend: Next.js 15 dashboard (Tailwind CSS v4)
+- MCP: Swiggy Instamart MCP (localhost mock for dev)
 
 ---
 
 ## 📁 Project Structure
 
 ```
-instamart-intelligence/
+Instamart-Intelligence/
 ├── backend/
-│   ├── main.py                        # FastAPI entry point
-│   ├── config.py                      # Env vars, settings
+│   ├── main.py                        # FastAPI entry point — lifespan, CORS, GZip, router registration
+│   ├── config.py                      # Pydantic Settings — DATABASE_URL, MCP_BASE_URL, Twilio, Groq, NVIDIA
+│   ├── active_scenario.json           # Persists active demo scenario across server restarts
 │   ├── database/
-│   │   ├── connection.py              # DB connection pool
-│   │   ├── models.py                  # SQLAlchemy models
+│   │   ├── connection.py              # Async engine, SessionLocal, init_db(), get_checkpointer()
+│   │   ├── models.py                  # SQLAlchemy ORM models (6 tables)
 │   │   └── migrations/                # Alembic migrations
 │   ├── mcp/
-│   │   ├── client.py                  # Swiggy MCP client wrapper
-│   │   └── mock_server.py             # Localhost mock MCP server
+│   │   ├── client.py                  # SwiggyMCPClient wrapper
+│   │   └── mock_server.py             # Localhost mock MCP server (port 8001), /reload_mock_orders
 │   ├── ml/
-│   │   ├── consumption_model.py       # Per-item Prophet forecasting
-│   │   ├── anomaly_detector.py        # Guest/travel detection
-│   │   ├── household_profiler.py      # Solo/couple/family inference
-│   │   └── confidence_scorer.py       # Prediction confidence
+│   │   ├── consumption_model.py       # ConsumptionModeler — Prophet fitting + rebuild_all_models()
+│   │   ├── anomaly_detector.py        # Travel gap / guest spike / dietary change detection
+│   │   ├── household_profiler.py      # Infers solo/couple/family_small/family_large composition
+│   │   └── confidence_scorer.py       # human_readable() confidence labels
 │   ├── agents/
-│   │   ├── restock_agent.py           # LangGraph orchestration
-│   │   ├── recipe_agent.py            # Recipe → cart agent
-│   │   └── price_agent.py             # Price tracking agent
+│   │   ├── restock_agent.py           # LangGraph stateful restock graph (6 stages)
+│   │   ├── recipe_agent.py            # Recipe → ingredient extraction → pantry check → cart
+│   │   └── price_agent.py             # Price tracking → spike/dip alerts → WhatsApp dispatch
 │   ├── api/
-│   │   ├── routes/
-│   │   │   ├── household.py           # Household endpoints
-│   │   │   ├── predictions.py         # Depletion predictions
-│   │   │   ├── restock.py             # Restock management
-│   │   │   └── recipes.py             # Recipe intelligence
-│   │   └── schemas.py                 # Pydantic models
+│   │   ├── schemas.py                 # Pydantic request/response schemas
+│   │   └── routes/
+│   │       ├── household.py           # GET/POST profile, sync, rebuild-models, scenario switch
+│   │       ├── predictions.py         # GET predictions with days_remaining + stock_fill_percent
+│   │       ├── restock.py             # GET/POST depletion check (≤45% stock, ≤7 days), alert history
+│   │       ├── recipes.py             # GET list; POST parse, pin
+│   │       ├── prices.py              # GET /feed and /alerts — 10-day price history + signals
+│   │       └── orders.py              # GET raw order history from seed JSON
 │   ├── notifications/
-│   │   ├── whatsapp.py                # Twilio WhatsApp
-│   │   └── scheduler.py               # APScheduler for daily checks
-│   └── seed/
-│       ├── generate_orders.py         # Seed data generator
-│       └── catalog.py                 # Indian household item catalog
+│   │   ├── whatsapp.py                # POST /api/webhook/whatsapp — Twilio + JSON sandbox + LangGraph runner
+│   │   └── scheduler.py               # APScheduler: 07:00 prices, 08:00 depletions, 02:00 Sun rebuild
+│   ├── services/
+│   │   └── sync_service.py            # fetch_and_sync_orders() — MCP → DB with batch dedup
+│   ├── seed/
+│   │   ├── catalog.py                 # 13-item CATALOG (INS_001–INS_013) + format_restock_alert_message()
+│   │   ├── generate_orders.py         # Standard household order generator
+│   │   ├── scenarios.py               # generate_scenario_orders() — standard / party / vacation
+│   │   ├── seed_prices.py             # Backfills 30-day realistic price history into TimescaleDB
+│   │   └── generated_orders.json      # Active seed data (auto-regenerated on scenario switch)
+│   └── tests/                         # 16 tests — async SQLite in-memory, no Docker required
+│       ├── conftest.py                # SQLite engine, MCP mocks, checkpointer mock, demo household
+│       ├── test_db.py
+│       ├── test_ml.py
+│       ├── test_prices.py
+│       ├── test_recipes.py
+│       ├── test_webhook.py
+│       └── test_checkpointer.py
 ├── frontend/
 │   ├── app/
-│   │   ├── page.tsx                   # Dashboard home
+│   │   ├── globals.css                # CSS tokens, liquid wave + jar lid animations
+│   │   ├── layout.tsx                 # Root layout — Header + ChatDrawer
+│   │   ├── page.tsx                   # Dashboard — Virtual Pantry Shelf + Depletion Timeline + Scenario Panel
 │   │   ├── household/page.tsx         # Household profile
-│   │   ├── predictions/page.tsx       # Depletion timeline
-│   │   ├── recipes/page.tsx           # Recipe planner
-│   │   └── price-alerts/page.tsx      # Price intelligence
+│   │   ├── predictions/page.tsx       # Full prediction list with SWR
+│   │   ├── recipes/page.tsx           # Recipe planner — parse + pin
+│   │   └── price-alerts/page.tsx      # Commodity price feed — sparklines + signals
 │   ├── components/
-│   │   ├── ChatDrawer.tsx             # WhatsApp sandbox simulator drawer
-│   │   └── Header.tsx                 # Main application navigation header
+│   │   ├── ChatDrawer.tsx             # WhatsApp Sandbox Simulator — floating chat with suggestion chips
+│   │   └── Header.tsx                 # Navigation header
 │   └── lib/
-│       └── api.ts                     # API client
-├── docker-compose.yml                 # Postgres + TimescaleDB
+│       └── api.ts                     # Axios client + TypeScript interfaces (householdApi, predictionsApi, recipesApi, pricesApi)
+├── docs/
+│   ├── specs/                         # Feature specs from @BRAINSTORM sessions
+│   ├── adr/                           # Architecture Decision Records from @GRILL sessions
+│   ├── builders_club_application.md
+│   └── project_analysis_refinements.md
+├── AUDIT.md                           # Production readiness audit — 100/100
+├── CONTEXT.md                         # Domain glossary and architecture vocabulary
+├── docker-compose.yml                 # Postgres + TimescaleDB container
+├── alembic.ini
+├── pytest.ini
+├── pyrightconfig.json
+├── requirements.txt
+├── run_backend.py                     # Dev helper: starts backend + mock server
 ├── .env.example
 └── README.md
 ```
@@ -631,36 +660,38 @@ CREATE TABLE households (
     phone_number VARCHAR(20),
     composition VARCHAR(50),        -- 'solo', 'couple', 'family_small', 'family_large'
     composition_confidence FLOAT,
+    intelligence_consent BOOLEAN DEFAULT FALSE,
+    notifications_enabled BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Orders (synced from Instamart MCP)
+-- Orders (synced from Instamart MCP mock server)
 CREATE TABLE orders (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    household_id UUID REFERENCES households(id),
+    household_id UUID REFERENCES households(id),   -- indexed
     instamart_order_id VARCHAR(255) UNIQUE,
     placed_at TIMESTAMPTZ NOT NULL,
-    total_amount DECIMAL(10,2),
+    total_amount FLOAT,
     raw_data JSONB
 );
 
 -- Order line items
 CREATE TABLE order_items (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    order_id UUID REFERENCES orders(id),
-    item_id VARCHAR(255) NOT NULL,
+    order_id UUID REFERENCES orders(id),           -- indexed
+    item_id VARCHAR(255) NOT NULL,                 -- indexed
     item_name VARCHAR(500) NOT NULL,
     category VARCHAR(100),
     quantity INTEGER,
     unit VARCHAR(50),               -- 'L', 'kg', 'pack', 'piece'
-    standard_quantity FLOAT,        -- normalized (e.g., 500ml → 0.5L)
-    price DECIMAL(10,2)
+    standard_quantity FLOAT,        -- normalized (e.g., 500ml → 0.5)
+    price FLOAT
 );
 
 -- Consumption models (one per item per household)
 CREATE TABLE consumption_models (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    household_id UUID REFERENCES households(id),
+    household_id UUID REFERENCES households(id),   -- indexed
     item_id VARCHAR(255),
     item_name VARCHAR(500),
     category VARCHAR(100),
@@ -671,31 +702,32 @@ CREATE TABLE consumption_models (
     estimated_depletion_date TIMESTAMPTZ,
     confidence_score FLOAT,         -- 0.0 to 1.0
     data_points INTEGER,            -- number of orders used to compute
+    is_anomaly_excluded BOOLEAN DEFAULT FALSE,
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE(household_id, item_id)
 );
 
 -- Restock alerts
+-- NOTE: item_ids is a JSONB list (e.g. ["INS_001", "INS_003"]) — one row per alert event
 CREATE TABLE restock_alerts (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    household_id UUID REFERENCES households(id),
-    item_id VARCHAR(255),
-    item_name VARCHAR(500),
-    alert_type VARCHAR(50),         -- 'depletion_warning', 'price_dip', 'bundle_suggestion'
-    confidence FLOAT,
-    message TEXT,
+    household_id UUID REFERENCES households(id),   -- indexed
+    item_ids JSONB,                 -- list of item_id strings
+    message_sent TEXT,              -- the WhatsApp message text
     sent_at TIMESTAMPTZ,
     status VARCHAR(50) DEFAULT 'pending',  -- 'pending', 'sent', 'acted', 'dismissed'
-    acted_at TIMESTAMPTZ
+    acted_at TIMESTAMPTZ,
+    order_id_placed VARCHAR(255)    -- Instamart order ID once placed
 );
 
--- Price history (TimescaleDB hypertable)
+-- Price history (TimescaleDB hypertable — partitioned by recorded_at)
 CREATE TABLE price_history (
     item_id VARCHAR(255) NOT NULL,
     item_name VARCHAR(500),
     recorded_at TIMESTAMPTZ NOT NULL,
-    price DECIMAL(10,2),
-    price_per_unit DECIMAL(10,2)
+    price FLOAT,
+    price_per_unit FLOAT,
+    PRIMARY KEY (item_id, recorded_at)
 );
 SELECT create_hypertable('price_history', 'recorded_at');
 
@@ -705,9 +737,9 @@ CREATE TABLE recipes (
     household_id UUID REFERENCES households(id),
     name VARCHAR(500),
     servings INTEGER,
-    ingredients JSONB,              -- [{item_name, quantity, unit}]
+    ingredients JSONB,              -- [{name, needed, status, estimated?, price?}]
     cuisine VARCHAR(100),
-    pinned_for DATE,                -- which date it's planned for
+    pinned_for TIMESTAMPTZ,         -- which date it's planned for
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 ```
@@ -724,36 +756,43 @@ CREATE TABLE recipes (
 
 ```bash
 # 1. Clone and init project
-mkdir instamart-intelligence && cd instamart-intelligence
-python -m venv venv && source venv/bin/activate
+git clone https://github.com/kwakhare5/Instamart-Intelligence.git
+cd Instamart-Intelligence
+python -m venv venv && venv\Scripts\activate  # Windows
 
 # 2. Install Python dependencies
-pip install fastapi uvicorn sqlalchemy asyncpg alembic \
-    prophet pandas numpy scikit-learn langchain langgraph \
-    anthropic twilio apscheduler pgvector python-dotenv \
-    httpx pydantic
+pip install -r requirements.txt
 
 # 3. Start TimescaleDB via Docker
-docker run -d --name timescaledb \
-  -p 5432:5432 \
-  -e POSTGRES_PASSWORD=postgres \
-  -e POSTGRES_DB=instamart_intelligence \
-  timescale/timescaledb:latest-pg15
+docker-compose up -d
 
-# 4. Enable pgvector
-psql -h localhost -U postgres -d instamart_intelligence \
-  -c "CREATE EXTENSION vector;"
+# 4. Seed order history and price data
+python -m backend.seed.generate_orders
+python -m backend.seed.seed_prices
+
+# 5. Start all three servers
+# Terminal 1 — Mock MCP server (port 8001)
+python -m uvicorn backend.mcp.mock_server:app --port 8001
+
+# Terminal 2 — FastAPI backend (port 8000)
+python -m uvicorn backend.main:app --port 8000
+
+# Terminal 3 — Next.js frontend (port 3000)
+cd frontend && npm install && npm run dev
 ```
 
 **.env file:**
 
 ```
 DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost/instamart_intelligence
-MCP_BASE_URL=http://localhost:3000
-ANTHROPIC_API_KEY=your_key_here
+MCP_BASE_URL=http://localhost:8001
 TWILIO_ACCOUNT_SID=your_sid
 TWILIO_AUTH_TOKEN=your_token
 TWILIO_WHATSAPP_FROM=whatsapp:+14155238886
+ALERT_THRESHOLD_DAYS=7
+MIN_CONFIDENCE=0.50
+GROQ_API_KEY=your_key_here
+NVIDIA_API_KEY=your_key_here
 ```
 
 ---

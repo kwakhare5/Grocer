@@ -1,20 +1,19 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 from datetime import datetime
+from contextlib import asynccontextmanager
 import json
 import os
 import uuid
 import random
 from backend.seed.catalog import CATALOG as MOCK_CATALOG
 
-app = FastAPI(title="Mock Swiggy Instamart MCP")
-
 # In-memory store for mock orders — loaded from seed data file
 MOCK_ORDERS = []
 MOCK_CART = {"items": [], "cart_id": None}
 
-@app.on_event("startup")
-async def load_seed_data():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     global MOCK_ORDERS
     seed_file = os.path.join(os.path.dirname(__file__), "..", "seed", "generated_orders.json")
     if os.path.exists(seed_file):
@@ -23,6 +22,9 @@ async def load_seed_data():
         print(f"Loaded {len(MOCK_ORDERS)} mock orders")
     else:
         print(f"Seed file not found at {seed_file}. Please run generate_orders.py first.")
+    yield
+
+app = FastAPI(title="Mock Swiggy Instamart MCP", lifespan=lifespan)
 
 @app.get("/get_instamart_orders")
 async def get_orders(user_id: str = "demo_user_001", limit: int = 100):
@@ -36,7 +38,7 @@ async def get_orders(user_id: str = "demo_user_001", limit: int = 100):
 @app.post("/search_instamart_items")
 async def search_items(body: dict):
     query = body.get("query", "").lower()
-    results = [item for item in MOCK_CATALOG if query in item["name"].lower() or query in item.get("category", "").lower()]
+    results = [item for item in MOCK_CATALOG if query in str(item["name"]).lower() or query in str(item.get("category", "")).lower()]
     return {"items": results if results else MOCK_CATALOG[:3]}
 
 
@@ -81,8 +83,10 @@ async def place_order(body: PlaceOrder):
         "INS_012": 1.0,
     }
     
+    # In-memory store for mock orders — loaded from seed data file
+    global MOCK_ORDERS, MOCK_CART
     if MOCK_CART.get("cart_id") == body.cart_id:
-        for item in MOCK_CART.get("items", []):
+        for item in (MOCK_CART.get("items") or []):
             item_id = item.get("item_id")
             # Lookup in CATALOG to get canonical details
             cat_item = next((c for c in MOCK_CATALOG if c["id"] == item_id), None)

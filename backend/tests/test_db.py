@@ -8,10 +8,9 @@ Tests:
 """
 
 import pytest
-import pytest_asyncio
 from sqlalchemy import text
 from backend.database.connection import AsyncSessionLocal, init_db
-from backend.database.models import ConsumptionModel, RestockAlert
+from backend.database.models import ConsumptionModel
 from sqlalchemy import select
 
 

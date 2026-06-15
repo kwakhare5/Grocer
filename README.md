@@ -20,7 +20,6 @@
   <br/>
 
   <a href="#-about-the-project">About</a> &nbsp;·&nbsp;
-  <a href="#-demo">Demo</a> &nbsp;·&nbsp;
   <a href="#-features">Features</a> &nbsp;·&nbsp;
   <a href="#-tech-stack">Tech Stack</a> &nbsp;·&nbsp;
   <a href="#-quickstart">Quickstart</a> &nbsp;·&nbsp;
@@ -28,16 +27,6 @@
   <a href="#-author">Author</a>
 
 </div>
-
----
-
-## 🎬 Demo
-
-<div align="center">
-  <img src="https://raw.githubusercontent.com/kwakhare5/Instamart-Intelligence/main/docs/assets/dashboard_preview.png" alt="Instamart Intelligence Demo" width="800"/>
-</div>
-
-<br/>
 
 ---
 
@@ -63,6 +52,8 @@ Instamart Intelligence watches how your household consumes groceries over time, 
 | ✅ | **Pantry-Aware Recipe Planner** | Extracts ingredients from user recipe queries, checks estimated remaining pantry quantities, and bundles only missing items into the cart. |
 | ✅ | **Commodity Price Intelligence** | Tracks tomatoes, onions, oil, atta, and milk in a TimescaleDB hypertable, alerting users on spikes/dips and offering substitutions. |
 | ✅ | **Lifestyle Anomaly Filtering** | Automatically filters out outlier events like travel gaps (predictions paused) and guest spikes so forecasting stays highly accurate. |
+| ✅ | **Interactive Demo Scenario Switcher** | Collapsible control panel lets reviewers hot-swap between Standard Staples, Weekend Party, and Vacation Mode scenarios — regenerates seed data and rebuilds Prophet models on the fly. |
+| ✅ | **WhatsApp Chat Sandbox Drawer** | Floating in-browser chat widget simulates the full multi-turn restock conversation (stock check → cart build → CONFIRM order) without needing a real phone. |
 
 <br/>
 
@@ -88,9 +79,10 @@ Instamart Intelligence watches how your household consumes groceries over time, 
 | Layer | Technology | Purpose |
 |---|---|---|
 | **Language** | Python / TypeScript | Python for ML models & backends; TypeScript for responsive dashboards |
-| **Framework** | FastAPI & Next.js 16 | Robust backend API and stateful agents; React server component page layouts |
-| **Styling** | Vanilla CSS | Sleek industrial utilitarian layout, dark mode dashboard aesthetics |
-| **API / Engine** | Facebook Prophet & LangGraph | ML time-series forecasting & stateful conversational agents |
+| **Framework** | FastAPI & Next.js 15 | Robust backend API and stateful agents; React server component page layouts |
+| **Styling** | Tailwind CSS v4 | Utility-first premium design system with dark mode and micro-animations |
+| **ML / Agents** | Facebook Prophet & LangGraph | Time-series consumption forecasting & stateful multi-turn restock agent |
+| **LLM** | Groq API / NVIDIA NIM | Recipe ingredient extraction and natural language message generation |
 | **Deployment** | Vercel & Docker | Containerized PostgreSQL/TimescaleDB and server deployments |
 
 <br/>
@@ -118,21 +110,54 @@ flowchart LR
 Instamart-Intelligence/
 │
 ├── docker-compose.yml              # Orchestrates the PostgreSQL with TimescaleDB container
-├── pyrightconfig.json              # Configures local python virtual environment for development tools
-├── requirements.txt                # Lists Python backend dependencies (FastAPI, Prophet, etc.)
+├── pyrightconfig.json              # Configures local Python virtual environment for development tools
+├── requirements.txt                # Python backend dependencies (FastAPI, Prophet, LangGraph, etc.)
+├── AUDIT.md                        # Production readiness audit — 100/100 score
+├── CONTEXT.md                      # Domain glossary and architecture vocabulary
 │
 ├── backend/                        # FastAPI Web Server, ML Models, and Database Modules
-│   ├── main.py                     # Entry point for FastAPI backend
-│   ├── database/                   # Database connection pools, SQLAlchemy models, and Alembic migrations
-│   ├── ml/                         # Prophet forecasting, anomaly detection, and household profiling
-│   └── agents/                     # LangGraph workflow orchestration (Restock, Recipe, Price agents)
+│   ├── main.py                     # Entry point: lifespan, middleware (CORS, GZip), router registration
+│   ├── config.py                   # Pydantic Settings — DATABASE_URL, Twilio, Groq, NVIDIA keys
+│   ├── active_scenario.json        # Persists active demo scenario across restarts
+│   ├── database/                   # Async engine, SQLAlchemy ORM models, Alembic migrations
+│   ├── ml/                         # Prophet forecasting, anomaly detection, household profiling, confidence scorer
+│   ├── agents/                     # LangGraph agents (Restock, Recipe, Price)
+│   ├── services/
+│   │   └── sync_service.py         # fetch_and_sync_orders() — MCP → DB with batch dedup
+│   ├── api/routes/
+│   │   ├── household.py            # Profile, sync, rebuild-models, scenario switcher
+│   │   ├── predictions.py          # Consumption model predictions with urgency status
+│   │   ├── restock.py              # Depletion check, alert history (≤45% stock, ≤7 days)
+│   │   ├── recipes.py              # Recipe list, parse, and pin endpoints
+│   │   ├── prices.py               # Commodity price feed and spike/dip alerts
+│   │   └── orders.py               # Raw order history from seed JSON
+│   ├── notifications/
+│   │   ├── whatsapp.py             # Webhook handler (Twilio + JSON sandbox) + LangGraph runner
+│   │   └── scheduler.py            # APScheduler: 07:00 prices, 08:00 depletions, 02:00 Sun rebuild
+│   ├── mcp/
+│   │   ├── client.py               # SwiggyMCPClient wrapper
+│   │   └── mock_server.py          # Localhost mock MCP server (port 8001)
+│   ├── seed/
+│   │   ├── catalog.py              # 13-item CATALOG + format_restock_alert_message()
+│   │   ├── generate_orders.py      # Standard order history generator
+│   │   ├── scenarios.py            # Deterministic scenario generator (standard/party/vacation)
+│   │   ├── seed_prices.py          # Backfills 30-day price history into TimescaleDB
+│   │   └── generated_orders.json   # Active seed data (auto-regenerated on scenario switch)
+│   └── tests/                      # 16 tests — async SQLite in-memory, no Docker required
 │
-├── frontend/                       # Next.js Dashboard React Client
-│   ├── app/                        # Pages (dashboard, predictions timeline, recipe planning)
-│   ├── components/                 # Reusable UI elements (WhatsApp sandbox drawer, navigation headers)
-│   └── lib/api.ts                  # Axios API request and response client configurations
+├── frontend/                       # Next.js 15 Dashboard
+│   ├── app/
+│   │   ├── page.tsx                # Dashboard — Virtual Pantry Shelf + Depletion Timeline + Scenario Panel
+│   │   ├── predictions/page.tsx    # Full prediction list with SWR caching
+│   │   ├── recipes/page.tsx        # Recipe planner — parse and pin
+│   │   ├── price-alerts/page.tsx   # Price intelligence — sparkline charts and signals
+│   │   └── household/page.tsx      # Household profile
+│   ├── components/
+│   │   ├── ChatDrawer.tsx          # WhatsApp Sandbox Simulator — floating chat with suggestion chips
+│   │   └── Header.tsx              # Navigation header
+│   └── lib/api.ts                  # Axios client + TypeScript interfaces for all API responses
 │
-├── docs/                           # Performance optimization plans, audits, and walk-throughs
+├── docs/                           # Specs, ADRs, Builders Club application
 └── README.md
 ```
 

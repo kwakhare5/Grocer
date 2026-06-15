@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 import logging
 from datetime import datetime, timezone
+from typing import Any
 
 from backend.database.connection import get_db, get_checkpointer
 from backend.database.models import Household, RestockAlert
@@ -63,12 +64,12 @@ async def whatsapp_webhook(
     try:
         if is_json:
             payload = await request.json()
-            phone = payload.get("phone", "").replace("whatsapp:", "")
-            message = payload.get("message", "")
+            phone = str(payload.get("phone", "")).replace("whatsapp:", "")
+            message = str(payload.get("message", ""))
         else:
             form_data = await request.form()
-            phone = form_data.get("From", "").replace("whatsapp:", "")
-            message = form_data.get("Body", "")
+            phone = str(form_data.get("From") or "").replace("whatsapp:", "")
+            message = str(form_data.get("Body") or "")
     except Exception as e:
         logger.error(f"Error parsing request payload: {e}")
         reply = "Invalid request format."
@@ -91,7 +92,7 @@ async def whatsapp_webhook(
             hh = res_fallback.scalars().first()
             if hh:
                 # Link this phone number to the demo household for convenience
-                hh.phone_number = phone
+                hh.phone_number = phone  # type: ignore
                 await db.commit()
                 logger.info(f"Auto-mapped phone {phone} to demo household {hh.user_id}")
     except Exception as e:
@@ -110,7 +111,6 @@ async def whatsapp_webhook(
         else:
             return Response(content=f"<Response><Message>{reply}</Message></Response>", media_type="application/xml")
 
-    # Step 2: Handle manual check command
     if message.strip().lower() == "check":
         try:
             from backend.api.routes.restock import check_depletions_for_household
@@ -134,7 +134,7 @@ async def whatsapp_webhook(
                 await db.commit()
                 
                 # Reset the agent's checkpointer thread state for this new alert list
-                config = {"configurable": {"thread_id": phone}}
+                config: Any = {"configurable": {"thread_id": phone}}
                 new_depleting = [
                     {
                         "item_name": item["item_name"],
@@ -185,7 +185,7 @@ async def whatsapp_webhook(
             else:
                 reply_msg = "All set! No items are currently running low in your household. 👍"
                 # Reset agent state to "done"
-                config = {"configurable": {"thread_id": phone}}
+                config: Any = {"configurable": {"thread_id": phone}}
                 try:
                     agent = build_restock_graph().compile(checkpointer=memory_checkpointer)
                     await agent.aupdate_state(config, {
@@ -237,10 +237,10 @@ async def whatsapp_webhook(
         res_alert = await db.execute(stmt_alert)
         alert = res_alert.scalars().first()
         
-        if alert and alert.item_ids:
-            if alert.status == "pending":
+        if alert is not None and alert.item_ids is not None:
+            if alert.status == "pending":  # type: ignore
                 is_new_alert = True
-                alert.status = "sent"
+                alert.status = "sent"  # type: ignore
                 await db.commit()
                 logger.info(f"New alert detected for household {hh.user_id}, status updated to 'sent'.")
             
@@ -249,22 +249,23 @@ async def whatsapp_webhook(
             from backend.database.models import ConsumptionModel
             
             # Query the database for the actual consumption models for these items
+            alert_item_ids: list[str] = alert.item_ids  # type: ignore
             stmt_models = select(ConsumptionModel).where(
                 ConsumptionModel.household_id == hh.id,
-                ConsumptionModel.item_id.in_(alert.item_ids)
+                ConsumptionModel.item_id.in_(alert_item_ids)
             )
             res_models = await db.execute(stmt_models)
             models_list = res_models.scalars().all()
-            models_by_item = {m.item_id: m for m in models_list}
+            models_by_item = {str(m.item_id): m for m in models_list}
 
             depleting_items = []
-            for item_id in alert.item_ids:
+            for item_id in alert_item_ids:
                 model = models_by_item.get(item_id)
                 days_remaining = 1.0
                 confidence_score = 0.8
                 if model:
                     confidence_score = model.confidence_score if model.confidence_score is not None else 0.8
-                    if model.estimated_depletion_date:
+                    if model.estimated_depletion_date is not None:
                         dep_date = model.estimated_depletion_date
                         if dep_date.tzinfo is None:
                             dep_date = dep_date.replace(tzinfo=timezone.utc)
@@ -303,7 +304,7 @@ async def whatsapp_webhook(
         depleting_items = [{"item_name": "Fortune Sunflower Oil 1L", "confidence_score": 0.9, "days_remaining": 1.0}]
 
     # Step 4: Run the stateful LangGraph agent
-    config = {"configurable": {"thread_id": phone}}
+    config: Any = {"configurable": {"thread_id": phone}}
     reply_msg = ""
     final_stage = None
     order_id = None
@@ -361,7 +362,7 @@ async def whatsapp_webhook(
                     "response_message": "",
                     "error": None
                 }
-                await agent.aupdate_state(config, initial_values)
+                await agent.aupdate_state(config, initial_values)  # type: ignore
                 logger.info(f"Reset LangGraph memory state for thread {phone}")
                 
             payload = {"user_message": message}
@@ -381,9 +382,9 @@ async def whatsapp_webhook(
         try:
             if final_stage == "done":
                 if order_id:
-                    alert.status = "acted"
+                    alert.status = "acted"  # type: ignore
                     alert.order_id_placed = order_id
-                    alert.acted_at = datetime.now(timezone.utc)
+                    alert.acted_at = datetime.now(timezone.utc)  # type: ignore
                     
                     # Sync the order from the mock server to the database and rebuild models
                     try:
@@ -392,7 +393,7 @@ async def whatsapp_webhook(
                         from backend.ml.household_profiler import update_household_profile
                         
                         logger.info(f"Syncing orders after successful chatbot checkout for household {hh.user_id}")
-                        await fetch_and_sync_orders(str(hh.id), hh.user_id, db)
+                        await fetch_and_sync_orders(str(hh.id), str(hh.user_id), db)
                         
                         logger.info(f"Rebuilding ML consumption models for household {hh.user_id}")
                         modeler = ConsumptionModeler()
@@ -402,10 +403,10 @@ async def whatsapp_webhook(
                     except Exception as sync_err:
                         logger.error(f"Failed to sync orders/rebuild models in webhook: {sync_err}")
                 else:
-                    alert.status = "dismissed"
-                    alert.acted_at = datetime.now(timezone.utc)
+                    alert.status = "dismissed"  # type: ignore
+                    alert.acted_at = datetime.now(timezone.utc)  # type: ignore
             elif final_stage:
-                alert.status = "sent"
+                alert.status = "sent"  # type: ignore
             
             await db.commit()
             logger.info(f"Updated DB alert status to '{alert.status}' for household {hh.user_id}")

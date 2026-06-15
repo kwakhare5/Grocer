@@ -85,7 +85,7 @@ async def check_depletions_for_household(household_id: str, db: AsyncSession, by
     # item_ids is a JSONB list of item_id strings in RestockAlert
     recently_alerted_ids: set[str] = set()
     for alert in recent_alerts:
-        if alert.item_ids:
+        if alert.item_ids is not None:
             for item_id in alert.item_ids:
                 recently_alerted_ids.add(str(item_id))
 
@@ -99,13 +99,13 @@ async def check_depletions_for_household(household_id: str, db: AsyncSession, by
             depletion_aware = depletion_aware.replace(tzinfo=timezone.utc)
 
         days_remaining = (depletion_aware - now_aware).total_seconds() / 86400
-        cycle = model.consumption_cycle_days or 30.0
+        cycle: float = model.consumption_cycle_days or 30.0  # type: ignore
         
         # Stock remaining level in %
         fill_percent = (days_remaining / cycle) * 100 if cycle > 0 else 0.0
         
-        # Only alert if stock level is below or equal to 45%
-        if fill_percent > 45.0:
+        # Only alert if stock level is below or equal to 45% and days remaining is within threshold
+        if days_remaining > threshold_days or fill_percent > 45.0:
             continue
 
         if not bypass_cooldown and str(model.item_id) in recently_alerted_ids:
@@ -116,11 +116,11 @@ async def check_depletions_for_household(household_id: str, db: AsyncSession, by
             'item_name':               model.item_name,
             'category':                model.category,
             'confidence_score':        model.confidence_score,
-            'confidence_label':        _scorer.human_readable(model.confidence_score),
+            'confidence_label':        _scorer.human_readable(model.confidence_score),  # type: ignore
             'avg_daily_consumption':   model.avg_daily_consumption,
             'estimated_depletion_date': model.estimated_depletion_date.isoformat(),
             'days_remaining':          round(days_remaining, 1),
-            'last_purchase_date':      model.last_purchase_date.isoformat() if model.last_purchase_date else None,
+            'last_purchase_date':      model.last_purchase_date.isoformat() if model.last_purchase_date is not None else None,
         })
 
     # Sort by days_remaining ascending so most urgent items are first
@@ -226,9 +226,9 @@ async def get_alert_history(user_id: str, limit: int = 20, db: AsyncSession = De
                 'id':        str(a.id),
                 'item_ids':  a.item_ids,
                 'message':   a.message_sent,
-                'sent_at':   a.sent_at.isoformat() if a.sent_at else None,
+                'sent_at':   a.sent_at.isoformat() if a.sent_at is not None else None,
                 'status':    a.status,
-                'acted_at':  a.acted_at.isoformat() if a.acted_at else None,
+                'acted_at':  a.acted_at.isoformat() if a.acted_at is not None else None,
             }
             for a in alerts
         ],

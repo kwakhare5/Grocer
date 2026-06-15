@@ -1,6 +1,5 @@
 import pytest
 from backend.database.connection import get_checkpointer
-from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
 @pytest.mark.asyncio
 async def test_postgres_saver_connection():

@@ -22,8 +22,8 @@ async def test_parse_recipe_endpoint():
             "servings": 6,
             "household_id": "demo_user_001"
         }
-        # Note: This will invoke the LangGraph agent which calls Claude.
-        # Since we have the API key configured, it will run the live integration flow.
+        # Note: This will invoke the LangGraph agent which calls LLMs (Groq/NVIDIA).
+        # Since we have the API keys configured, it will run the live integration flow.
         response = await client.post("/api/recipes/parse", json=payload)
         assert response.status_code == 200
         data = response.json()

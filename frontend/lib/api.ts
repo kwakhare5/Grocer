@@ -27,6 +27,7 @@ export interface APIPrediction {
   last_purchase_quantity: number;
   estimated_depletion_date: string | null;
   days_remaining: number | null;
+  stock_fill_percent?: number;
   confidence_score: number;
   data_points: number;
   status: 'depleted' | 'critical' | 'low' | 'ok' | 'unknown';

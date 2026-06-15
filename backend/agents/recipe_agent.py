@@ -11,28 +11,21 @@ from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any
 
 from langgraph.graph import StateGraph, END
-from anthropic import Anthropic
 from typing_extensions import TypedDict
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
-from backend.config import settings
 from backend.mcp.client import mcp_client
 from backend.database.models import Household, ConsumptionModel
 
-logger = logging.getLogger(__name__)
-
-# Anthropic client
-anthropic_client = Anthropic(api_key=settings.ANTHROPIC_API_KEY)
-CLAUDE_MODEL = "claude-3-5-sonnet-latest"
-
 from backend.agents.restock_agent import (
-    is_anthropic_configured,
     is_groq_configured,
     is_nvidia_configured,
     call_groq_api,
     call_nvidia_api
 )
+
+logger = logging.getLogger(__name__)
 
 
 class RecipeState(TypedDict):
@@ -132,18 +125,7 @@ Units must be: g, kg, ml, L, piece, tbsp, tsp"""
 
     text = None
 
-    if is_anthropic_configured():
-        try:
-            response = anthropic_client.messages.create(
-                model=CLAUDE_MODEL,
-                max_tokens=1000,
-                messages=[{"role": "user", "content": prompt}]
-            )
-            text = response.content[0].text.strip()
-        except Exception as e:
-            logger.error(f"Failed to parse recipe ingredients using Claude: {e}")
-
-    if not text and is_groq_configured():
+    if is_groq_configured():
         try:
             text = await call_groq_api(prompt=prompt)
             text = text.strip()
@@ -194,7 +176,7 @@ async def check_pantry_node(state: RecipeState) -> RecipeState:
             state["pantry_items"] = []
             return state
 
-        state["household_uuid"] = hh.id
+        state["household_uuid"] = hh.id  # type: ignore
 
         # Retrieve consumption models
         stmt_models = select(ConsumptionModel).where(ConsumptionModel.household_id == hh.id)
@@ -206,7 +188,7 @@ async def check_pantry_node(state: RecipeState) -> RecipeState:
 
         for m in models:
             estimated_remaining = 0.0
-            if m.last_purchase_date and m.last_purchase_quantity:
+            if m.last_purchase_date is not None and m.last_purchase_quantity is not None:
                 lp_date = m.last_purchase_date
                 if lp_date.tzinfo is None:
                     lp_date = lp_date.replace(tzinfo=timezone.utc)
@@ -260,7 +242,6 @@ async def identify_missing_node(state: RecipeState) -> RecipeState:
                     "estimated": f"{pantry_qty:.2f} standard units left"
                 })
             else:
-                deficit_standard = needed_norm - pantry_qty
                 you_need.append({
                     "name": ing["name"],
                     "quantity": needed_qty,
@@ -365,7 +346,7 @@ async def build_cart_node(state: RecipeState) -> RecipeState:
 # Graph Construction
 # ---------------------------------------------------------------------------
 
-workflow = StateGraph(RecipeState)
+workflow = StateGraph(RecipeState)  # type: ignore
 
 workflow.add_node("parse_recipe", parse_recipe_node)
 workflow.add_node("check_pantry", check_pantry_node)
@@ -391,7 +372,7 @@ async def recipe_to_cart(recipe_name: str, servings: int, household_id: str, db:
     """
     Stateful execution wrapper that runs the Recipe Graph from end to end.
     """
-    initial_state = {
+    initial_state: RecipeState = {
         "db": db,
         "household_id": household_id,
         "recipe_name": recipe_name,

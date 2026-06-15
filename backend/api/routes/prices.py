@@ -7,7 +7,7 @@ Endpoints:
   - GET /api/prices/alerts — returns active spike/dip alerts
 """
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from datetime import datetime, timedelta, timezone
@@ -85,7 +85,7 @@ async def get_price_feed(db: AsyncSession = Depends(get_db)):
         day_str = h.recorded_at.strftime("%b %d")
         history_by_item[h.item_id].append({
             "day": day_str,
-            "price": float(h.price)
+            "price": float(h.price)  # type: ignore
         })
 
     feed = []

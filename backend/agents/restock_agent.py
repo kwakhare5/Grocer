@@ -30,10 +30,9 @@ Why LangGraph?
 import json
 import logging
 import string
-from typing import Optional
+from typing import Optional, Any
 
 from langgraph.graph import StateGraph, END
-from anthropic import Anthropic
 from typing_extensions import TypedDict
 import httpx
 
@@ -41,14 +40,6 @@ from backend.config import settings
 from backend.mcp.client import mcp_client
 
 logger = logging.getLogger(__name__)
-
-# ---------------------------------------------------------------------------
-# Anthropic client — uses ANTHROPIC_API_KEY from .env via config
-# ---------------------------------------------------------------------------
-anthropic_client = Anthropic(api_key=settings.ANTHROPIC_API_KEY)
-
-# Claude model to use for message generation and reply parsing.
-CLAUDE_MODEL = "claude-3-5-sonnet-latest"
 
 
 def levenshtein_distance(s1: str, s2: str) -> int:
@@ -94,11 +85,6 @@ def is_fuzzy_match(w1: str, w2: str) -> bool:
         return dist <= 3
 
 
-def is_anthropic_configured() -> bool:
-    key = settings.ANTHROPIC_API_KEY
-    return bool(key and key.strip() and "your_key_here" not in key)
-
-
 def is_groq_configured() -> bool:
     key = settings.GROQ_API_KEY
     return bool(key and key.strip() and "your_key_here" not in key)
@@ -126,7 +112,7 @@ async def call_groq_api(prompt: str, system_prompt: Optional[str] = None, json_m
     last_err = None
     
     for model in models:
-        payload = {
+        payload: dict[str, Any] = {
             "model": model,
             "messages": messages,
             "temperature": 0.2
@@ -177,7 +163,7 @@ async def call_nvidia_api(prompt: str, system_prompt: Optional[str] = None, json
     last_err = None
     
     for model in models:
-        payload = {
+        payload: dict[str, Any] = {
             "model": model,
             "messages": messages,
             "temperature": 0.2
@@ -256,32 +242,6 @@ async def generate_alert_message(state: RestockState) -> dict:
     items_text = "\n".join(detailed_lines)
 
     message = None
-    if is_anthropic_configured():
-        try:
-            response = anthropic_client.messages.create(
-                model=CLAUDE_MODEL,
-                max_tokens=300,
-                messages=[{
-                    "role": "user",
-                    "content": (
-                        f"You are a smart household assistant for Swiggy Instamart.\n\n"
-                        f"Items likely running low:\n{items_text}\n\n"
-                        f"Write a WhatsApp message under 150 words. You MUST list all items from the list above, showing for each item:\n"
-                        f"- Its whole name\n"
-                        f"- Qty: 1\n"
-                        f"- Price (e.g. ₹X)\n"
-                        f"- Unit and Category\n"
-                        f"- Confidence % and Days remaining\n\n"
-                        f"At the end of the item list, calculate and mention the estimated total amount (Estimated Total: ₹{total_amount:.0f}).\n"
-                        f"Be friendly but brief. Max 2 emojis. End with: "
-                        f"'Would you like to order them?' "
-                        f"Mention this is based on their purchase pattern. Write ONLY the message."
-                    ),
-                }],
-            )
-            message = response.content[0].text
-        except Exception as e:
-            logger.error(f"Claude API error in generate_alert: {e}")
 
     if not message and is_groq_configured():
         try:
@@ -386,35 +346,6 @@ async def parse_user_reply(state: RestockState) -> dict:
     wanted = None
     unrecognized = False
 
-    # Try Anthropic (Claude)
-    if is_anthropic_configured():
-        try:
-            resp = anthropic_client.messages.create(
-                model=CLAUDE_MODEL,
-                max_tokens=200,
-                messages=[{
-                    "role": "user",
-                    "content": (
-                        f"The user has these items in their cart:\n{items_list}\n\n"
-                        f"Their reply: \"{state['user_message']}\"\n\n"
-                        f"Analyze their reply and return a JSON object with two keys:\n"
-                        f"1. 'wanted': a list of item names they want to keep or add to the cart. By default, they want to keep all items in their cart unless they specify to skip or remove some.\n"
-                        f"2. 'unrecognized': a boolean. Set to true ONLY if their reply is completely unrelated garbage, gibberish, or unrelated chit-chat (e.g. 'hello', 'who are you', 'testing'). If they are confirming, rejecting, or editing items, set it to false.\n"
-                        f"Format the output strictly as a JSON object, like: {{\"wanted\": [\"Amul Taza Milk 1L\"], \"unrecognized\": false}}."
-                    ),
-                }],
-            )
-            resp_text = resp.content[0].text.strip()
-            if "```json" in resp_text:
-                resp_text = resp_text.split("```json")[1].split("```")[0].strip()
-            elif "```" in resp_text:
-                resp_text = resp_text.split("```")[1].split("```")[0].strip()
-            parsed = json.loads(resp_text)
-            wanted = parsed.get("wanted", [])
-            unrecognized = parsed.get("unrecognized", False)
-        except Exception as e:
-            logger.error(f"Claude parse error: {e}")
-
     # Try Groq (Llama)
     if wanted is None and is_groq_configured():
         try:
@@ -474,7 +405,8 @@ async def parse_user_reply(state: RestockState) -> dict:
                     break
             if not matched:
                 for cat_item in CATALOG:
-                    if name.lower() in cat_item["name"].lower() or cat_item["name"].lower() in name.lower():
+                    cat_name = str(cat_item["name"])
+                    if name.lower() in cat_name.lower() or cat_name.lower() in name.lower():
                         if not any(c["item_name"] == cat_item["name"] for c in confirmed):
                             confirmed.append({
                                 "item_name": cat_item["name"],
@@ -578,7 +510,7 @@ async def parse_user_reply(state: RestockState) -> dict:
         # 4. Check for additions from CATALOG
         from backend.seed.catalog import CATALOG
         for cat_item in CATALOG:
-            cat_name_lower = cat_item["name"].lower()
+            cat_name_lower = str(cat_item["name"]).lower()
             matched = False
             for uw in search_words:
                 if is_fuzzy_match(uw, cat_name_lower) or any(is_fuzzy_match(uw, part) for part in cat_name_lower.split()):
@@ -593,7 +525,7 @@ async def parse_user_reply(state: RestockState) -> dict:
                         break
             if matched:
                 # check if already in confirmed
-                if not any(c["item_name"].lower() == cat_item["name"].lower() for c in confirmed):
+                if not any(str(c["item_name"]).lower() == str(cat_item["name"]).lower() for c in confirmed):
                     confirmed.append({
                         "item_name": cat_item["name"],
                         "confidence_score": 1.0,
@@ -639,7 +571,7 @@ async def parse_order_intent(state: RestockState) -> dict:
     Extracts item names and quantities from the message, looks them up in the catalog,
     and reports matched/unmatched items before asking for cart confirmation.
     """
-    from backend.seed.catalog import CATALOG, lookup_catalog_item
+    from backend.seed.catalog import lookup_catalog_item
     import re
 
     user_msg = (state.get("user_message") or "").strip()
@@ -656,25 +588,7 @@ async def parse_order_intent(state: RestockState) -> dict:
     raw_items = None
     not_an_order = False
 
-    if is_anthropic_configured():
-        try:
-            resp = anthropic_client.messages.create(
-                model=CLAUDE_MODEL,
-                max_tokens=300,
-                messages=[{"role": "user", "content": extraction_prompt}],
-            )
-            resp_text = resp.content[0].text.strip()
-            if "```json" in resp_text:
-                resp_text = resp_text.split("```json")[1].split("```")[0].strip()
-            elif "```" in resp_text:
-                resp_text = resp_text.split("```")[1].split("```")[0].strip()
-            parsed = json.loads(resp_text)
-            raw_items = parsed.get("items", [])
-            not_an_order = parsed.get("not_an_order", False)
-        except Exception as e:
-            logger.error(f"Claude extraction error in parse_order_intent: {e}")
-
-    if raw_items is None and is_groq_configured():
+    if is_groq_configured():
         try:
             resp_text = await call_groq_api(prompt=extraction_prompt, json_mode=True)
             parsed = json.loads(resp_text)
@@ -898,7 +812,14 @@ async def place_order(state: RestockState) -> dict:
     On success, returns order ID and ETA for the WhatsApp confirmation.
     """
     try:
-        data = await mcp_client.place_instamart_order(state["cart_id"])
+        cart_id = state.get("cart_id")
+        if not cart_id:
+            return {
+                "response_message": "⚠️ No active cart found. Please try adding items first.",
+                "stage": "done",
+                "error": "missing_cart_id",
+            }
+        data = await mcp_client.place_instamart_order(cart_id)
 
         if data.get("success"):
             order_id = data["order_id"]
@@ -990,7 +911,7 @@ def build_restock_graph() -> StateGraph:
 
     Entry: routes dynamically based on conversation stage.
     """
-    graph = StateGraph(RestockState)
+    graph = StateGraph(RestockState)  # type: ignore
 
     # Register nodes
     graph.add_node("generate_alert", generate_alert_message)

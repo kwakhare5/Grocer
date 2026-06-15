@@ -12,7 +12,6 @@ class Settings(BaseSettings):
     """
     DATABASE_URL: str
     MCP_BASE_URL: str = 'http://localhost:8001'   # Mock Swiggy MCP server
-    ANTHROPIC_API_KEY: str = ''                    # Required for LangGraph agent
     TWILIO_ACCOUNT_SID: str = ''                   # Required for WhatsApp (Task 3.1+)
     TWILIO_AUTH_TOKEN: str = ''
     TWILIO_WHATSAPP_FROM: str = 'whatsapp:+14155238886'  # Twilio sandbox number
@@ -24,4 +23,4 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file='.env', extra='ignore')
 
 
-settings = Settings()
+settings = Settings()  # type: ignore

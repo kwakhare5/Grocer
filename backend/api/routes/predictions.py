@@ -38,6 +38,26 @@ async def get_predictions(user_id: str, db: AsyncSession = Depends(get_db)):
     Sorted by urgency: items depleting soonest appear first.
     Items with no depletion date (avg_daily=0) appear at the end.
     """
+    import os
+    import json
+    from backend.api.routes.household import reset_scenario_data
+    
+    # Get currently active scenario or default to standard
+    scenario = "standard"
+    try:
+        active_scenario_path = os.path.join(os.path.dirname(__file__), "..", "..", "active_scenario.json")
+        if os.path.exists(active_scenario_path):
+            with open(active_scenario_path, "r") as f:
+                data = json.load(f)
+                scenario = data.get("scenario", "standard")
+    except Exception as e:
+        print(f"Warning: Failed to read active scenario: {e}")
+        
+    try:
+        await reset_scenario_data(user_id, scenario, db)
+    except Exception as e:
+        print(f"Warning: Failed to auto-reset scenario data: {e}")
+
     hh = await _get_household(user_id, db)
 
     result = await db.execute(
@@ -52,14 +72,21 @@ async def get_predictions(user_id: str, db: AsyncSession = Depends(get_db)):
 
     for m in models:
         days_remaining: float | None = None
+        stock_fill_percent: float | None = None
         status = 'unknown'
 
-        if m.estimated_depletion_date:
+        if m.estimated_depletion_date is not None:
             dep = m.estimated_depletion_date
             # Normalize timezone — DB may store naive UTC datetimes
             if dep.tzinfo is None:
                 dep = dep.replace(tzinfo=timezone.utc)
-            days_remaining = round((dep - now).total_seconds() / 86400, 1)
+            raw_days = (dep - now).total_seconds() / 86400
+            
+            cycle = float(m.consumption_cycle_days or 30.0)  # type: ignore
+            fill_val = (raw_days / cycle) * 100 if cycle > 0 else 0.0
+            stock_fill_percent = max(0.0, min(100.0, fill_val))
+            
+            days_remaining = round(raw_days, 1)
 
             if days_remaining < 0:
                 status = 'depleted'
@@ -76,14 +103,15 @@ async def get_predictions(user_id: str, db: AsyncSession = Depends(get_db)):
             'category':                  m.category,
             'avg_daily_consumption':     m.avg_daily_consumption,
             'consumption_cycle_days':    m.consumption_cycle_days,
-            'last_purchase_date':        m.last_purchase_date.isoformat() if m.last_purchase_date else None,
+            'last_purchase_date':        m.last_purchase_date.isoformat() if m.last_purchase_date is not None else None,
             'last_purchase_quantity':    m.last_purchase_quantity,
-            'estimated_depletion_date':  m.estimated_depletion_date.isoformat() if m.estimated_depletion_date else None,
+            'estimated_depletion_date':  m.estimated_depletion_date.isoformat() if m.estimated_depletion_date is not None else None,
             'days_remaining':            days_remaining,
+            'stock_fill_percent':        round(stock_fill_percent, 1) if stock_fill_percent is not None else 100.0,
             'confidence_score':          m.confidence_score,
             'data_points':               m.data_points,
             'status':                    status,  # depleted / critical / low / ok / unknown
-            'updated_at':                m.updated_at.isoformat() if m.updated_at else None,
+            'updated_at':                m.updated_at.isoformat() if m.updated_at is not None else None,
         })
 
     return {

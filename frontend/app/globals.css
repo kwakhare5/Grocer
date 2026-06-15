@@ -13,6 +13,8 @@
   --ok:         #10b981;
   --grid-line:  rgba(255, 90, 0, 0.04);
   --border:     rgba(0, 0, 0, 0.06); /* Frosted border */
+  --text-glow:  0 0 6px rgba(252, 251, 250, 0.95), 0 1px 2px rgba(252, 251, 250, 0.9);
+  --text-glow-muted: 0 0 4px rgba(252, 251, 250, 0.9), 0 1px 1px rgba(252, 251, 250, 0.85);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -28,6 +30,8 @@
     --ok:         #34d399;
     --grid-line:  rgba(255, 90, 0, 0.02);
     --border:     rgba(255, 255, 255, 0.06);
+    --text-glow:  0 0 6px rgba(15, 14, 13, 0.95), 0 1px 2px rgba(15, 14, 13, 0.9);
+    --text-glow-muted: 0 0 4px rgba(15, 14, 13, 0.9), 0 1px 1px rgba(15, 14, 13, 0.85);
   }
 }
 
@@ -176,6 +180,14 @@ body {
 
 .sparkline { display: block; overflow: visible; }
 
+.jar-text-glow {
+  text-shadow: none;
+}
+
+.jar-text-glow-muted {
+  text-shadow: none;
+}
+
 /* ─── Premium Micro-animations & Transitions ─────────────────────────── */
 
 /* Jar sloshing liquid wave effect */
@@ -187,6 +199,27 @@ body {
 .liquid-fill-animate {
   transform-origin: bottom center;
   animation: slosh 6s ease-in-out infinite;
+  will-change: transform;
+}
+
+/* Horizontal repeating wave scrolling animations */
+@keyframes wave-move-front {
+  0% { transform: translate3d(0, 0, 0); }
+  100% { transform: translate3d(-50%, 0, 0); }
+}
+
+@keyframes wave-move-back {
+  0% { transform: translate3d(-50%, 0, 0); }
+  100% { transform: translate3d(0, 0, 0); }
+}
+
+.wave-front-animate {
+  animation: wave-move-front 8s linear infinite;
+  will-change: transform;
+}
+
+.wave-back-animate {
+  animation: wave-move-back 12s linear infinite;
   will-change: transform;
 }
 

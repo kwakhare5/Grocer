@@ -1,10 +1,10 @@
-import json
-import os
 import random
 from datetime import datetime, timedelta, timezone
 from backend.seed.generate_orders import HOUSEHOLD_ITEMS
 
 def generate_scenario_orders(scenario: str, months: int = 4, user_id: str = "demo_user_001"):
+    # Seed random generator to ensure generated fake data is deterministic and identical on every refresh/regenerate
+    random.seed(42)
     # Create a deep copy of HOUSEHOLD_ITEMS
     items = {k: dict(v) for k, v in HOUSEHOLD_ITEMS.items()}
     
@@ -50,9 +50,11 @@ def generate_scenario_orders(scenario: str, months: int = 4, user_id: str = "dem
     order_items_by_date = {}
 
     for item_id, item in items.items():
-        cycle = float(item["cycle"])
-        variance = float(item["variance"])
-        last_buy_days = int(item["last_purchase_days_ago"])
+        cycle: float = float(item["cycle"])
+        variance: float = float(item["variance"])
+        last_buy_days: int = int(item["last_purchase_days_ago"])
+        pack_size: float = float(item["pack_size"])
+        base_price: float = float(item["base_price"])
 
         current_date = now - timedelta(days=last_buy_days)
 
@@ -69,13 +71,13 @@ def generate_scenario_orders(scenario: str, months: int = 4, user_id: str = "dem
             if item_id == "INS_001" and abs((current_date - guest_date).days) <= 1:
                 qty = 3
 
-            price = round(float(item["base_price"]) * qty * random.uniform(0.96, 1.04), 2)
+            price = round(base_price * qty * random.uniform(0.96, 1.04), 2)
 
             order_items_by_date[date_str].append({
                 "item_id": item_id,
                 "item_name": item["name"],
                 "quantity": qty,
-                "standard_quantity": float(qty) * float(item["pack_size"]),
+                "standard_quantity": float(qty) * pack_size,
                 "unit": item["unit"],
                 "category": item["category"],
                 "price": price

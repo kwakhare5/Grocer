@@ -3,9 +3,8 @@ Orders API — returns past order history for a household.
 Reads directly from the generated_orders.json seed file.
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 import json
-import os
 from pathlib import Path
 
 router = APIRouter(prefix="/api/orders", tags=["orders"])

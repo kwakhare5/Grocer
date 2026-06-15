@@ -8,8 +8,11 @@ import { Package, ShieldCheck, Zap, Sparkles, ShoppingCart, Calendar, Bell, Bell
 
 
 interface DepletingItem {
+  id: string;
   name: string;
   days: number;
+  rawDays: number;
+  fillPct: number;
   conf: number;
   avg: string;
   cycle: string;
@@ -18,17 +21,17 @@ interface DepletingItem {
 
 const STATS = [
   { value: "34",     label: "Groceries Monitored",   sub: "Automatically tracked" },
-  { value: "98%",    label: "Accuracy Rate",          sub: "Based on your habits" },
+  { value: "98%",    label: "Accuracy",              sub: "Based on your habits" },
   { value: "12",     label: "Stockouts Avoided",      sub: "Saved from running out" },
   { value: "High",   label: "Smart Helper",           sub: "Covering your main items" },
 ];
 
 const FALLBACK_DEPLETING: DepletingItem[] = [
-  { name: "Amul Taza Milk 1L",         days: 2,  conf: 76, avg: "1.1L/day",  cycle: "2.1d"  },
-  { name: "Tomatoes (500g)",           days: 1,  conf: 78, avg: "150g/day",  cycle: "3d"    },
-  { name: "Nandini Eggs (Pack of 12)", days: 2,  conf: 88, avg: "2.3/day",   cycle: "5d"    },
-  { name: "Fortune Sunflower Oil 1L",  days: 2,  conf: 87, avg: "68ml/day",  cycle: "15d"   },
-  { name: "Aashirvaad Atta 5kg",       days: 12, conf: 68, avg: "280g/day",  cycle: "13d"   },
+  { id: "fallback-milk", name: "Amul Taza Milk 1L",         days: 1, rawDays: 1, fillPct: 30, conf: 76, avg: "0.48L/day",  cycle: "1.8d" },
+  { id: "fallback-tomatoes", name: "Tomatoes (500g)",       days: 1, rawDays: 1, fillPct: 14, conf: 78, avg: "140g/day",   cycle: "3.1d" },
+  { id: "fallback-eggs", name: "Nandini Eggs (Pack of 12)", days: 2, rawDays: 2, fillPct: 43, conf: 88, avg: "2.4/day",    cycle: "4.6d" },
+  { id: "fallback-bread", name: "Britannia Whole Wheat Bread", days: 3, rawDays: 3, fillPct: 77, conf: 82, avg: "0.24/day",  cycle: "3.9d" },
+  { id: "fallback-onions", name: "Onions (1kg)",            days: 5, rawDays: 5, fillPct: 53, conf: 72, avg: "130g/day",   cycle: "7.7d" },
 ];
 
 
@@ -45,9 +48,9 @@ function urgencyLabel(days: number, fillPercent: number) {
 }
 
 function certaintyLabel(conf: number) {
-  if (conf >= 85) return "Very Accurate";
-  if (conf >= 70) return "Highly Likely";
-  return "Estimated";
+  if (conf >= 85) return "Very sure";
+  if (conf >= 70) return "Pretty sure";
+  return "Guessing";
 }
 
 function formatAvg(avg: string) {
@@ -64,23 +67,7 @@ function formatCycle(cycle: string) {
   return `Bought every ${Math.round(d)} days`;
 }
 
-function jarFluidStyle(name: string, fillPercent: number) {
-  let fluidColor = "rgba(16, 185, 129, 0.4)"; // default ok green
-  let border = "var(--ok)";
-  
-  if (fillPercent <= 20) {
-    fluidColor = "rgba(225, 29, 72, 0.45)"; // urgent red (danger)
-    border = "var(--danger)";
-  } else if (fillPercent <= 45) {
-    fluidColor = "rgba(217, 119, 6, 0.45)"; // low warning amber (warning)
-    border = "var(--warning)";
-  }
-  
-  return {
-    backgroundColor: fluidColor,
-    borderTop: `1px solid ${border}`
-  };
-}
+
 
 function ConfettiEffect({ active }: { active: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -210,7 +197,7 @@ export default function Home() {
     }, 3000);
   }
 
-  const { data: predictionsData, mutate: mutatePredictions, isLoading: predictionsLoading, isValidating: predictionsValidating } = useSWR(
+  const { data: predictionsData, mutate: mutatePredictions, isLoading: predictionsLoading } = useSWR(
     "demo_user_001",
     fetcher,
     {
@@ -228,12 +215,15 @@ export default function Home() {
     return () => window.removeEventListener("refresh-dashboard", handleRefresh);
   }, [mutatePredictions]);
 
-  const loading = predictionsLoading || predictionsValidating || switchingScenario;
+  const loading = predictionsLoading || switchingScenario;
 
   const depleting = predictionsData?.predictions && predictionsData.predictions.length > 0
     ? predictionsData.predictions.map((p: APIPrediction) => ({
+        id: p.item_id,
         name: p.item_name,
         days: p.days_remaining !== null ? Math.round(p.days_remaining) : 10,
+        rawDays: p.days_remaining !== null ? p.days_remaining : 10,
+        fillPct: p.stock_fill_percent !== undefined ? Math.round(p.stock_fill_percent) : 100,
         conf: Math.round((p.confidence_score || 0.5) * 100),
         avg: `${p.avg_daily_consumption.toFixed(2)}/day`,
         cycle: `${p.consumption_cycle_days || 7}d`,
@@ -476,14 +466,13 @@ export default function Home() {
             ))
           ) : depleting.length === 0 ? (
             <div className="col-span-full py-8 text-center text-xs text-muted font-bold font-display uppercase tracking-widest">
-              No depletions predicted. All stocked up! 👍
+              All groceries are stocked up! 👍
             </div>
           ) : (
             [...depleting]
               .map((item) => {
                 const isRefilled = refilledItems.has(item.name);
-                const cycleDays = parseFloat(item.cycle) || 30;
-                const fillPercent = isRefilled ? 95 : Math.max(8, Math.min(95, Math.round((item.days / cycleDays) * 100)));
+                const fillPercent = isRefilled ? 95 : Math.max(0, item.fillPct);
                 return { ...item, fillPercent, isRefilled };
               })
               .sort((a, b) => a.fillPercent - b.fillPercent)
@@ -491,16 +480,34 @@ export default function Home() {
               .map((item, idx) => {
                 const isAdded = addedItems.has(item.name);
                 const fp = item.fillPercent;
-                const liquidColor = fp <= 20
-                  ? { base: "rgba(220,38,38,0.55)",  wave: "rgba(220,38,38,0.75)",  bubble: "rgba(254,202,202,0.7)"  }
+                const colors = fp <= 20
+                  ? {
+                      frontStart: "rgba(254, 205, 211, 0.95)",
+                      frontMid: "rgba(239, 68, 68, 0.8)",
+                      frontEnd: "rgba(159, 18, 57, 0.95)",
+                      backStart: "rgba(239, 68, 68, 0.5)",
+                      backEnd: "rgba(136, 19, 55, 0.75)",
+                    }
                   : fp <= 45
-                  ? { base: "rgba(180,83,9,0.50)",   wave: "rgba(217,119,6,0.75)",  bubble: "rgba(253,230,138,0.7)"  }
-                  : { base: "rgba(5,150,105,0.45)",  wave: "rgba(16,185,129,0.70)", bubble: "rgba(167,243,208,0.7)"  };
-                const waveDelay = `${idx * 0.4}s`;
+                  ? {
+                      frontStart: "rgba(253, 230, 138, 0.95)",
+                      frontMid: "rgba(245, 158, 11, 0.8)",
+                      frontEnd: "rgba(180, 83, 9, 0.95)",
+                      backStart: "rgba(245, 158, 11, 0.5)",
+                      backEnd: "rgba(146, 64, 14, 0.75)",
+                    }
+                  : {
+                      frontStart: "rgba(167, 243, 208, 0.95)",
+                      frontMid: "rgba(16, 185, 129, 0.75)",
+                      frontEnd: "rgba(4, 120, 87, 0.95)",
+                      backStart: "rgba(16, 185, 129, 0.45)",
+                      backEnd: "rgba(6, 95, 70, 0.75)",
+                    };
+                const waveDelay = `${idx * -1.2}s`; // Negative delay offsets start times so waves are out of phase immediately
 
                 return (
                   <div
-                    key={item.name}
+                    key={item.id || item.name}
                     className="relative w-full h-48 rounded-2xl glass-card overflow-hidden group hover:border-accent hover:shadow-[0_8px_30px_rgba(255,90,0,0.08)] transition-all duration-300 flex flex-col justify-between p-4 cursor-pointer"
                     onClick={(e) => handleAddToCart(item.name, e)}
                   >
@@ -509,61 +516,64 @@ export default function Home() {
 
                     {/* Liquid body */}
                     <div
-                      className="absolute bottom-0 left-0 w-full z-10 transition-all duration-1000 ease-out"
-                      style={{ height: `${fp}%`, background: liquidColor.base }}
+                      className="absolute bottom-0 left-0 w-full z-10 transition-all duration-1000 ease-out liquid-fill-animate"
+                      style={{ height: `${fp}%` }}
                     >
-                      {/* Animated SVG wave at surface */}
-                      <svg viewBox="0 0 200 20" preserveAspectRatio="none" className="absolute -top-4 left-0 w-full h-5">
+                      {/* Animated SVG wave & body (Seamless, no horizontal seam line, horizontally scrolling repeating waves) */}
+                      <svg
+                        viewBox="0 0 400 100"
+                        preserveAspectRatio="none"
+                        className="absolute top-0 left-0 w-[200%] h-full overflow-visible"
+                      >
+                        <defs>
+                          <linearGradient id={`grad-back-${idx}`} x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" stopColor={colors.backStart} />
+                            <stop offset="100%" stopColor={colors.backEnd} />
+                          </linearGradient>
+                          <linearGradient id={`grad-front-${idx}`} x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" stopColor={colors.frontStart} />
+                            <stop offset="12%" stopColor={colors.frontMid} />
+                            <stop offset="100%" stopColor={colors.frontEnd} />
+                          </linearGradient>
+                        </defs>
+                        {/* Back Wave Layer */}
                         <path
-                          d="M0,10 C30,0 70,20 100,10 C130,0 170,20 200,10 L200,20 L0,20 Z"
-                          fill={liquidColor.wave}
-                          style={{ animation: `liquidWave 2.8s ease-in-out infinite`, animationDelay: waveDelay }}
+                          d="M 0,25 Q 50,33 100,25 Q 150,17 200,25 Q 250,33 300,25 Q 350,17 400,25 L 400,100 L 0,100 Z"
+                          fill={`url(#grad-back-${idx})`}
+                          className="wave-back-animate"
+                          style={{ animationDelay: waveDelay }}
                         />
+                        {/* Front Wave Layer */}
                         <path
-                          d="M0,12 C40,4 80,18 120,10 C150,4 180,16 200,12 L200,20 L0,20 Z"
-                          fill={liquidColor.base}
-                          style={{ animation: `liquidWave 3.5s ease-in-out infinite reverse`, animationDelay: waveDelay }}
+                          d="M 0,20 Q 50,12 100,20 Q 150,28 200,20 Q 250,12 300,20 Q 350,28 400,20 L 400,100 L 0,100 Z"
+                          fill={`url(#grad-front-${idx})`}
+                          className="wave-front-animate"
+                          style={{ animationDelay: waveDelay }}
                         />
                       </svg>
-
-                      {/* Rising bubbles */}
-                      {[0,1,2].map((b) => (
-                        <div key={b} className="absolute rounded-full" style={{
-                          width: b === 1 ? "3px" : b === 2 ? "4px" : "5px",
-                          height: b === 1 ? "3px" : b === 2 ? "4px" : "5px",
-                          background: liquidColor.bubble,
-                          left: b === 0 ? "22%" : b === 1 ? "52%" : "72%",
-                          bottom: "8%",
-                          animation: `bubbleRise ${2.4 + b * 0.7}s ease-in infinite`,
-                          animationDelay: `${b * 1.1 + idx * 0.35}s`,
-                        }} />
-                      ))}
-
-                      {/* Inner shimmer */}
-                      <div className="absolute inset-0" style={{ background: "linear-gradient(180deg,rgba(255,255,255,0.18) 0%,transparent 55%,rgba(0,0,0,0.10) 100%)" }} />
                     </div>
 
                     {/* Content */}
                     <div className="relative z-20 flex flex-col h-full justify-between pointer-events-none">
                       <div className="flex flex-col gap-0.5">
-                        <span className="text-[10px] uppercase font-bold text-muted font-display tracking-wider">
+                        <span className="text-[10px] uppercase font-bold text-foreground/75 font-display tracking-wider jar-text-glow-muted">
                           {item.name.toLowerCase().includes("milk") ? "Dairy" :
                            item.name.toLowerCase().includes("oil") ? "Oils" :
                            item.name.toLowerCase().includes("egg") ? "Proteins" : "Staple"}
                         </span>
-                        <span className="font-extrabold text-xs text-foreground tracking-tight line-clamp-2 leading-tight font-display drop-shadow-sm">
+                        <span className="font-extrabold text-xs text-foreground tracking-tight line-clamp-2 leading-tight font-display jar-text-glow">
                           {item.name.split(" — ")[0]}
                         </span>
                       </div>
                       <div className="flex flex-col items-start my-auto">
-                        <span className="text-2xl font-black text-foreground font-display leading-none drop-shadow-sm">
+                        <span className="text-2xl font-black text-foreground font-display leading-none jar-text-glow">
                           {item.isRefilled ? "✓" : item.days}
                         </span>
-                        <span className="text-[10px] font-bold text-muted uppercase tracking-wider font-display mt-0.5">
+                        <span className="text-[10px] font-bold text-foreground/80 uppercase tracking-wider font-display mt-0.5 jar-text-glow-muted">
                           {item.isRefilled ? "Refilled" : item.days === 1 ? "day left" : "days left"}
                         </span>
                       </div>
-                      <div className="text-[9px] font-bold text-muted/90 uppercase tracking-widest font-display">
+                      <div className="text-[9px] font-bold text-foreground/80 uppercase tracking-widest font-display jar-text-glow-muted">
                         {item.isRefilled ? "95% full" : `${fp}% full`}
                       </div>
                     </div>
@@ -595,7 +605,7 @@ export default function Home() {
             <span className="text-xs font-bold uppercase tracking-wider text-foreground font-display">Running Out Soon</span>
           </div>
           <Link href="/predictions" className="text-xs font-bold text-accent hover:text-accent/85 hover:underline transition-colors flex items-center gap-1">
-            View Full Timeline <ArrowRight className="h-3 w-3" />
+            View Full List <ArrowRight className="h-3 w-3" />
           </Link>
         </div>
 
@@ -622,14 +632,13 @@ export default function Home() {
             ))
           ) : depleting.length === 0 ? (
             <div className="py-10 text-center text-xs text-muted font-bold font-display uppercase tracking-widest">
-              No active depletions tracked.
+              No items running out soon.
             </div>
           ) : (
             [...depleting]
               .map((item) => {
                 const isRefilled = refilledItems.has(item.name);
-                const cycleDays = parseFloat(item.cycle) || 30;
-                const fillPct = isRefilled ? 95 : Math.max(8, Math.min(95, Math.round((item.days / cycleDays) * 100)));
+                const fillPct = isRefilled ? 95 : Math.max(0, item.fillPct);
                 return { ...item, fillPct, isRefilled };
               })
               .sort((a, b) => a.fillPct - b.fillPct)
@@ -645,7 +654,7 @@ export default function Home() {
 
                 return (
                   <div
-                    key={item.name}
+                    key={item.id || item.name}
                     className={`group px-6 py-5.5 flex flex-col gap-4 hover:bg-white/40 dark:hover:bg-neutral-900/10 transition-all ${
                       isSnoozed ? "opacity-35" : ""
                     }`}

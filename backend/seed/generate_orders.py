@@ -63,7 +63,7 @@ HOUSEHOLD_ITEMS = {
         "family_daily_use": 0.15,         # ~3.3 days cycle
         "cycle": 3.3,
         "variance": 0.4,
-        "last_purchase_days_ago": 2,
+        "last_purchase_days_ago": 3,
         "base_price": 29
     },
     "INS_007": {
@@ -93,6 +93,8 @@ HOUSEHOLD_ITEMS = {
 
 
 def generate_realistic_orders(months: int = 4, user_id: str = "demo_user_001"):
+    # Seed random generator to ensure generated mock data is deterministic and identical
+    random.seed(42)
     now = datetime.now(timezone.utc)
     start_date = now - timedelta(days=months * 30)
 
@@ -107,9 +109,9 @@ def generate_realistic_orders(months: int = 4, user_id: str = "demo_user_001"):
     order_items_by_date = {}
 
     for item_id, item in HOUSEHOLD_ITEMS.items():
-        cycle = float(item["cycle"])
-        variance = float(item["variance"])
-        last_buy_days = int(item["last_purchase_days_ago"])
+        cycle = item["cycle"]
+        variance = item["variance"]
+        last_buy_days = item["last_purchase_days_ago"]
 
         # Track dates backward from last purchase
         current_date = now - timedelta(days=last_buy_days)
@@ -136,7 +138,7 @@ def generate_realistic_orders(months: int = 4, user_id: str = "demo_user_001"):
                 "item_id": item_id,
                 "item_name": item["name"],
                 "quantity": qty,
-                "standard_quantity": float(qty) * float(item["pack_size"]),
+                "standard_quantity": float(qty) * item["pack_size"],
                 "unit": item["unit"],
                 "category": item["category"],
                 "price": price
@@ -180,7 +182,7 @@ if __name__ == "__main__":
         json.dump(orders, f, indent=2)
 
     print(f"Generated {len(orders)} precision orders over 4 months.")
-    print(f"  Travel gap: Day 43 to Day 53.")
-    print(f"  Milk cycle: exactly 2.1 days average.")
-    print(f"  Oil cycle: exactly 14.7 days, last bought 13 days ago.")
+    print("  Travel gap: Day 43 to Day 53.")
+    print("  Milk cycle: exactly 2.1 days average.")
+    print("  Oil cycle: exactly 14.7 days, last bought 13 days ago.")
     print(f"  Saved to {output_path}")

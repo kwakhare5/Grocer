@@ -1,4 +1,5 @@
 import os
+# ruff: noqa: E402
 import pytest
 import asyncio
 from sqlalchemy.pool import StaticPool
@@ -9,8 +10,8 @@ os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///file:memdb?mode=memory&cache=s
 
 # Monkeypatch SQLiteTypeCompiler to handle PostgreSQL JSONB and UUID types in SQLite
 from sqlalchemy.dialects.sqlite.base import SQLiteTypeCompiler
-SQLiteTypeCompiler.visit_JSONB = lambda self, type_, **kw: "JSON"
-SQLiteTypeCompiler.visit_UUID = lambda self, type_, **kw: "TEXT"
+setattr(SQLiteTypeCompiler, "visit_JSONB", lambda self, type_, **kw: "JSON")
+setattr(SQLiteTypeCompiler, "visit_UUID", lambda self, type_, **kw: "TEXT")
 
 # Monkeypatch SQLAlchemy UUID column bind processors to accept strings gracefully
 import sqlalchemy.dialects.postgresql
@@ -48,7 +49,7 @@ from backend.seed.catalog import CATALOG as MOCK_CATALOG
 
 async def mock_search_instamart_items(self, query: str) -> dict:
     query_str = query.lower()
-    results = [item for item in MOCK_CATALOG if query_str in item["name"].lower() or query_str in item.get("category", "").lower()]
+    results = [item for item in MOCK_CATALOG if query_str in str(item.get("name") or "").lower() or query_str in str(item.get("category") or "").lower()]
     return {"items": results if results else MOCK_CATALOG[:3]}
 
 async def mock_get_instamart_orders(self, user_id: str, limit: int = 200) -> dict:
@@ -110,7 +111,7 @@ async def mock_get_checkpointer():
     return MockCheckpointerCtx(shared_saver)
 
 import backend.database.connection
-backend.database.connection.get_checkpointer = mock_get_checkpointer
+backend.database.connection.get_checkpointer = mock_get_checkpointer  # type: ignore
 
 from backend.database.connection import engine, init_db
 
@@ -132,11 +133,10 @@ async def setup_test_db(event_loop):
         
         # Seed basic demo user household
         from backend.database.models import Household
-        from sqlalchemy.ext.asyncio import AsyncSession
-        from sqlalchemy.orm import sessionmaker
+        from sqlalchemy.ext.asyncio import async_sessionmaker
         
-        async_session = sessionmaker(
-            engine, class_=AsyncSession, expire_on_commit=False
+        async_session = async_sessionmaker(
+            engine, expire_on_commit=False
         )
         async with async_session() as session:
             # Check if demo_user_001 already exists

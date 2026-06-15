@@ -101,7 +101,7 @@ async def infer_composition(household_id: str, db: AsyncSession) -> dict:
         # Average over items that were found; 0 if no matching items
         scores[hh_type] = sum(match_parts) / max(len(match_parts), 1) if match_parts else 0.0
 
-    best = max(scores, key=scores.get)
+    best = max(scores, key=lambda k: scores[k])
     confidence = round(scores[best], 2)
 
     logger.info(

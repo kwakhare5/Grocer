@@ -18,6 +18,7 @@ interface PredictionItem {
   name: string;
   category: string;
   days: number;
+  rawDays: number;
   conf: number;
   avg: string;
   cycle: string;
@@ -27,11 +28,11 @@ interface PredictionItem {
 }
 
 const FALLBACK_ITEMS: PredictionItem[] = [
-  { id: "INS_001", name: "Amul Taza Milk 1L",          category: "Dairy",    days: 1,  conf: 76, avg: "1.1 L/day",   cycle: "2.1 days",  depletes: "Tomorrow",        lastBuy: "2 days ago", fillPct: 30 },
-  { id: "INS_003", name: "Fortune Sunflower Oil 1L",   category: "Staples",  days: 2,  conf: 87, avg: "68 ml/day",   cycle: "14.7 days", depletes: "In 2 days",       lastBuy: "12 days ago", fillPct: 14 },
-  { id: "INS_005", name: "Nandini Eggs (Pack of 12)",  category: "Protein",  days: 4,  conf: 88, avg: "2.3 pcs/day", cycle: "6.2 days",  depletes: "In 4 days",       lastBuy: "2 days ago", fillPct: 65 },
-  { id: "INS_002", name: "Aashirvaad Atta 5kg",        category: "Staples",  days: 12, conf: 68, avg: "280 g/day",   cycle: "17 days",   depletes: "In 12 days",      lastBuy: "5 days ago", fillPct: 71 },
-  { id: "INS_004", name: "India Gate Basmati Rice 5kg",category: "Staples",  days: 19, conf: 71, avg: "200 g/day",   cycle: "25 days",   depletes: "In 19 days",      lastBuy: "6 days ago", fillPct: 76 },
+  { id: "INS_001", name: "Amul Taza Milk 1L",          category: "Dairy",    days: 1,  rawDays: 1,  conf: 76, avg: "1.1 L/day",   cycle: "2.1 days",  depletes: "Tomorrow",        lastBuy: "2 days ago", fillPct: 30 },
+  { id: "INS_003", name: "Fortune Sunflower Oil 1L",   category: "Staples",  days: 2,  rawDays: 2,  conf: 87, avg: "68 ml/day",   cycle: "14.7 days", depletes: "In 2 days",       lastBuy: "12 days ago", fillPct: 14 },
+  { id: "INS_005", name: "Nandini Eggs (Pack of 12)",  category: "Protein",  days: 4,  rawDays: 4,  conf: 88, avg: "2.3 pcs/day", cycle: "6.2 days",  depletes: "In 4 days",       lastBuy: "2 days ago", fillPct: 65 },
+  { id: "INS_002", name: "Aashirvaad Atta 5kg",        category: "Staples",  days: 12, rawDays: 12, conf: 68, avg: "280 g/day",   cycle: "17 days",   depletes: "In 12 days",      lastBuy: "5 days ago", fillPct: 71 },
+  { id: "INS_004", name: "India Gate Basmati Rice 5kg",category: "Staples",  days: 19, rawDays: 19, conf: 71, avg: "200 g/day",   cycle: "25 days",   depletes: "In 19 days",      lastBuy: "6 days ago", fillPct: 76 },
 ];
 
 function stockLabel(fillPct: number) {
@@ -99,14 +100,15 @@ export default function PredictionsPage() {
   const items: PredictionItem[] = predictionsData?.predictions && predictionsData.predictions.length > 0
     ? predictionsData.predictions
         .map((p: APIPrediction) => {
-          const daysLeft = p.days_remaining !== null ? Math.round(p.days_remaining) : 10;
-          const cycle = p.consumption_cycle_days || 30.0;
-          const fillPct = Math.max(8, Math.min(95, Math.round((daysLeft / cycle) * 100)));
+          const rawDays = p.days_remaining !== null ? p.days_remaining : 10;
+          const daysLeft = Math.round(rawDays);
+          const fillPct = p.stock_fill_percent !== undefined ? Math.round(p.stock_fill_percent) : 100;
           return {
             id: p.item_id,
             name: p.item_name,
             category: p.category || "General",
             days: daysLeft,
+            rawDays: rawDays,
             conf: Math.round((p.confidence_score || 0.5) * 100),
             avg: `${p.avg_daily_consumption.toFixed(2)} /day`,
             cycle: `${p.consumption_cycle_days || 7} days`,
@@ -153,13 +155,13 @@ export default function PredictionsPage() {
       {/* ── Header ──────────────────────────────────────────── */}
       <div className="flex flex-col gap-2.5">
         <div className="text-accent text-[11px] font-bold tracking-widest uppercase font-display">
-          Grocery Inventory {loading && "(LOADING...)"}
+          My Groceries {loading && "(LOADING...)"}
         </div>
         <h1 className="text-4xl font-extrabold tracking-tight leading-tight font-display text-foreground">
-          What's in Your <span className="text-accent">Kitchen?</span>
+          {"What's in Your "}<span className="text-accent">Kitchen?</span>
         </h1>
         <p className="text-sm text-muted max-w-lg leading-relaxed font-medium">
-          See all your tracked groceries, how much is left, and when each one was last bought. Tap any item to see its order history.
+          See all your tracked groceries, how much is left, and when each one was last bought. Tap any item to see its past buys.
         </p>
       </div>
 
@@ -234,7 +236,7 @@ export default function PredictionsPage() {
                 onClick={() => toggleDetails(item.id)}
                 className="text-xs text-accent hover:text-accent/95 font-bold flex items-center justify-between px-6 h-11 border-t border-border/60 bg-neutral-50/20 dark:bg-neutral-900/10 cursor-pointer font-display transition-colors"
               >
-                <span>{isOpen ? "Hide order history" : "See past orders for this item"}</span>
+                <span>{isOpen ? "Hide past buys" : "See when you last bought this"}</span>
                 {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
               </button>
 

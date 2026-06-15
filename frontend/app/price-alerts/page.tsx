@@ -152,7 +152,6 @@ function pctChange(current: number, avg: number) {
 export default function PriceAlertsPage() {
   const [selected, setSelected] = useState<string | null>("tomatoes");
   const [commodities, setCommodities] = useState<CommodityData[]>(FALLBACK_COMMODITIES);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function loadPrices() {
@@ -163,8 +162,6 @@ export default function PriceAlertsPage() {
         }
       } catch (err) {
         console.warn("Failed to load live price feeds, using fallbacks.", err);
-      } finally {
-        setLoading(false);
       }
     }
     loadPrices();

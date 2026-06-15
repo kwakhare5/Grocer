@@ -7,7 +7,7 @@ from backend.database.connection import AsyncSessionLocal
 
 # Configure terminal to print UTF-8 characters cleanly on Windows
 if sys.platform == "win32":
-    sys.stdout.reconfigure(encoding='utf-8')
+    getattr(sys.stdout, "reconfigure")(encoding='utf-8')
 
 API_URL = "http://127.0.0.1:8000"
 

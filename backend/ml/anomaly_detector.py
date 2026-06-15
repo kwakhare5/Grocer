@@ -1,5 +1,4 @@
 from datetime import datetime
-from collections import defaultdict
 
 class AnomalyDetector:
 

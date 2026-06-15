@@ -86,9 +86,9 @@ function formatRate(rate: number, name: string): string {
 }
 
 function certaintyLabel(conf: number) {
-  if (conf >= 85) return "Very High";
-  if (conf >= 70) return "High";
-  return "Normal";
+  if (conf >= 85) return "Very sure";
+  if (conf >= 70) return "Pretty sure";
+  return "Guessing";
 }
 
 export default function HouseholdPage() {
@@ -152,7 +152,7 @@ export default function HouseholdPage() {
           My Kitchen <span className="font-extrabold text-accent">Habits</span>
         </h1>
         <p className="text-sm text-muted max-w-lg leading-relaxed">
-          See your family's eating habits, tracking accuracy, and past schedule changes calculated from Swiggy Instamart orders.
+          {"See your family's eating habits, tracking accuracy, and past schedule changes calculated from Swiggy Instamart orders."}
         </p>
       </div>
 
@@ -174,7 +174,7 @@ export default function HouseholdPage() {
         </div>
         <div className="flex flex-col items-start sm:items-end gap-2 shrink-0 pl-14 sm:pl-0">
           <div className="text-3xl font-black text-accent font-display">{profile.confidence}%</div>
-          <div className="text-[10px] font-bold uppercase tracking-wider text-muted font-display">Accuracy Rating</div>
+          <div className="text-[10px] font-bold uppercase tracking-wider text-muted font-display">Accuracy</div>
           <div className="conf-track w-32">
             <div className="conf-fill" style={{ width: `${profile.confidence}%` }} />
           </div>
@@ -191,9 +191,9 @@ export default function HouseholdPage() {
           </div>
           <div className="grid grid-cols-2 gap-6">
             {[
-              { value: profile.ordersAnalyzed,      label: "Refills Tracked", icon: <History className="h-4 w-4 text-accent/80" /> },
+              { value: profile.ordersAnalyzed,      label: "Orders Checked", icon: <History className="h-4 w-4 text-accent/80" /> },
               { value: profile.itemsModeled,         label: "Items Tracked", icon: <Layers className="h-4 w-4 text-accent/80" /> },
-              { value: profile.monthsTracked + " mo", label: "Months Monitored", icon: <Calendar className="h-4 w-4 text-accent/80" /> },
+              { value: profile.monthsTracked + " mo", label: "Months Active", icon: <Calendar className="h-4 w-4 text-accent/80" /> },
               { value: profile.stockoutsPrevented,   label: "Saved from running out", icon: <ShieldCheck className="h-4 w-4 text-accent/80" /> },
             ].map((s) => (
               <div key={s.label} className="stat-block flex flex-col gap-1.5">

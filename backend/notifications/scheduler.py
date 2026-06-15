@@ -26,7 +26,6 @@ Why separate functions instead of inline lambdas?
 """
 
 import logging
-import random
 from datetime import datetime, timezone
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -34,9 +33,8 @@ from apscheduler.triggers.cron import CronTrigger
 from sqlalchemy import select
 
 from backend.database.connection import AsyncSessionLocal
-from backend.database.models import Household, PriceHistory, RestockAlert
+from backend.database.models import Household, RestockAlert
 from backend.ml.consumption_model import ConsumptionModeler
-from backend.seed.catalog import CATALOG
 
 logger = logging.getLogger(__name__)
 
@@ -72,7 +70,6 @@ async def daily_depletion_check_all() -> None:
       single-value columns, not a JSON list. One row per item gives us clean
       per-item audit trails and lets us update status independently.
     """
-    from backend.config import settings  # avoid circular import at module load
 
     now = datetime.now(timezone.utc)
     logger.info("[Scheduler] daily_depletion_check_all started — %s", now.isoformat())

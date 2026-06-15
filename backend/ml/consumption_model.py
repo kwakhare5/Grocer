@@ -43,9 +43,9 @@ class ConsumptionModeler:
             import asyncio
             model = Prophet(
                 seasonality_mode='multiplicative',
-                yearly_seasonality=False,
-                weekly_seasonality=(len(purchases) >= 10),
-                daily_seasonality=False,
+                yearly_seasonality=False,  # type: ignore
+                weekly_seasonality=(len(purchases) >= 10),  # type: ignore
+                daily_seasonality=False,  # type: ignore
                 interval_width=0.80
             )
             await asyncio.to_thread(model.fit, df)
@@ -58,7 +58,7 @@ class ConsumptionModeler:
         avg_daily = float(total_qty / days_elapsed)
 
         # Calculate average cycle days
-        time_diffs = df["ds"].diff().dt.days.dropna()
+        time_diffs = df["ds"].diff().dt.days.dropna()  # type: ignore
         cycle_days = float(time_diffs.mean()) if not time_diffs.empty else 0.0
 
         last = purchases[-1]

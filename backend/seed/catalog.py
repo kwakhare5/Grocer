@@ -28,7 +28,7 @@ CATALOG = [
 ]
 
 
-def lookup_catalog_item(query: str) -> dict:
+def lookup_catalog_item(query: str) -> dict | None:
     """
     Find a catalog item by name or id using exact, substring, or fuzzy matching.
     """
@@ -38,12 +38,12 @@ def lookup_catalog_item(query: str) -> dict:
     
     # 1. Exact ID or Name match
     for item in CATALOG:
-        if item["id"].lower() == query_lower or item["name"].lower() == query_lower:
+        if str(item["id"]).lower() == query_lower or str(item["name"]).lower() == query_lower:
             return item
             
     # 2. Check for exact substring match
     for item in CATALOG:
-        name_lower = item["name"].lower()
+        name_lower = str(item["name"]).lower()
         if query_lower in name_lower or name_lower in query_lower:
             return item
             
@@ -64,7 +64,7 @@ def lookup_catalog_item(query: str) -> dict:
     query_words = [normalize_word(w) for w in cleaned_query.split() if len(w) > 2]
     
     for item in CATALOG:
-        name_words = [normalize_word(w) for w in item["name"].lower().translate(str.maketrans("", "", string.punctuation)).split() if len(w) > 2]
+        name_words = [normalize_word(w) for w in str(item["name"]).lower().translate(str.maketrans("", "", string.punctuation)).split() if len(w) > 2]
         # Match if any query word normalizes to a name word
         for qw in query_words:
             for nw in name_words:
@@ -89,7 +89,7 @@ def lookup_catalog_item(query: str) -> dict:
         return prev[-1]
         
     for item in CATALOG:
-        name_lower = item["name"].lower()
+        name_lower = str(item["name"]).lower()
         # Check distance on words
         for w1 in cleaned_query.split():
             if len(w1) < 3:

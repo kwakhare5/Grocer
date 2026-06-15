@@ -15,7 +15,7 @@ Keeping them separate makes the depletion logic independently testable.
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select
 from datetime import datetime, timedelta, timezone
 
 from backend.database.connection import get_db
@@ -58,20 +58,18 @@ async def check_depletions_for_household(household_id: str, db: AsyncSession, by
     threshold_days = settings.ALERT_THRESHOLD_DAYS
     min_confidence = settings.MIN_CONFIDENCE
     now = datetime.now(timezone.utc)
-    window_end = now + timedelta(days=threshold_days)
 
-    # --- Step 1: find depleting items ----------------------------------------
+    # --- Step 1: find all candidate items ------------------------------------
     stmt = select(ConsumptionModel).where(
         ConsumptionModel.household_id == household_id,
         ConsumptionModel.confidence_score >= min_confidence,
         ConsumptionModel.estimated_depletion_date.isnot(None),
-        ConsumptionModel.estimated_depletion_date <= window_end,
-    ).order_by(ConsumptionModel.estimated_depletion_date.asc())
+    )
 
     result = await db.execute(stmt)
-    depleting_models = result.scalars().all()
+    candidate_models = result.scalars().all()
 
-    if not depleting_models:
+    if not candidate_models:
         return []
 
     # --- Step 2: load item_ids alerted in last 24h ---------------------------
@@ -91,12 +89,9 @@ async def check_depletions_for_household(household_id: str, db: AsyncSession, by
             for item_id in alert.item_ids:
                 recently_alerted_ids.add(str(item_id))
 
-    # --- Step 3: filter and format -------------------------------------------
+    # --- Step 3: filter using 45% stock level and format ---------------------
     depleting = []
-    for model in depleting_models:
-        if not bypass_cooldown and str(model.item_id) in recently_alerted_ids:
-            continue  # already alerted in last 24h — skip
-
+    for model in candidate_models:
         now_aware = now
         depletion_aware = model.estimated_depletion_date
         # Make both timezone-aware if needed for safe subtraction
@@ -104,6 +99,17 @@ async def check_depletions_for_household(household_id: str, db: AsyncSession, by
             depletion_aware = depletion_aware.replace(tzinfo=timezone.utc)
 
         days_remaining = (depletion_aware - now_aware).total_seconds() / 86400
+        cycle = model.consumption_cycle_days or 30.0
+        
+        # Stock remaining level in %
+        fill_percent = (days_remaining / cycle) * 100 if cycle > 0 else 0.0
+        
+        # Only alert if stock level is below or equal to 45%
+        if fill_percent > 45.0:
+            continue
+
+        if not bypass_cooldown and str(model.item_id) in recently_alerted_ids:
+            continue  # already alerted in last 24h — skip
 
         depleting.append({
             'item_id':                 str(model.item_id),
@@ -117,6 +123,8 @@ async def check_depletions_for_household(household_id: str, db: AsyncSession, by
             'last_purchase_date':      model.last_purchase_date.isoformat() if model.last_purchase_date else None,
         })
 
+    # Sort by days_remaining ascending so most urgent items are first
+    depleting.sort(key=lambda x: x['days_remaining'])
     return depleting
 
 

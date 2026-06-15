@@ -185,13 +185,13 @@ export default function RecipesPage() {
       <div className="flex flex-col gap-2.5">
         <div className="text-accent text-[11px] font-bold tracking-widest uppercase font-display flex items-center gap-1.5">
           <ChefHat className="h-4 w-4" />
-          <span>Meal Planner & Auto-Cart</span>
+          <span>Meal Planner</span>
         </div>
         <h1 className="text-4xl font-extrabold tracking-tight leading-tight font-display text-foreground">
-          Pantry-Aware <span className="text-accent">Recipe Checker</span>
+          Recipe <span className="text-accent">Cooking Checker</span>
         </h1>
         <p className="text-sm text-muted max-w-lg leading-relaxed font-medium">
-          Plan what you want to cook. The system cross-references against estimated pantry levels and builds a checkout cart for what you need.
+          Choose what you want to cook. We check your pantry levels and add the missing items to your cart.
         </p>
       </div>
 
@@ -237,7 +237,7 @@ export default function RecipesPage() {
       {loading && (
         <div className="glass-card p-8 flex items-center gap-4 rounded-2xl border border-border/80 bg-surface">
           <Loader2 className="h-5 w-5 text-accent animate-spin" />
-          <span className="text-sm text-muted font-medium">Checking kitchen inventory matching history...</span>
+          <span className="text-sm text-muted font-medium">Checking your kitchen stock...</span>
         </div>
       )}
 
@@ -277,7 +277,7 @@ export default function RecipesPage() {
           {/* Ingredients table */}
           <div className="glass-card overflow-hidden rounded-2xl border border-border/80">
             <div className="px-6 py-4 border-b border-border/60 text-xs font-bold text-muted uppercase tracking-wider font-display bg-white/40 dark:bg-neutral-900/20">
-              Ingredient Checklist ({result.ingredients.length} total items)
+              Ingredients needed ({result.ingredients.length} total items)
             </div>
             <div className="divide-y divide-border/60">
               {result.ingredients.map((ing) => (
@@ -318,7 +318,7 @@ export default function RecipesPage() {
             <div className="glass-card overflow-hidden border-2 border-dashed border-accent/40 rounded-2xl shadow-sm bg-white/60 dark:bg-neutral-900/10">
               <div className="px-6 py-4.5 border-b border-dashed border-border/60 flex items-center justify-between bg-accent-dim/20">
                 <div className="text-xs font-bold text-accent uppercase tracking-wider font-display">
-                  Missing Items Auto-Cart
+                  Missing Items to Order
                 </div>
                 <span className="pill pill-accent font-semibold font-display">{cartItems.length} items to order</span>
               </div>
@@ -338,7 +338,7 @@ export default function RecipesPage() {
                              hover:bg-accent/90 transition-all cursor-pointer flex items-center justify-center gap-1.5 font-display shadow-sm"
                 >
                   <ShoppingCart className="h-4 w-4" />
-                  Order Missing Items →
+                  Add to Cart & Order →
                 </button>
               </div>
             </div>

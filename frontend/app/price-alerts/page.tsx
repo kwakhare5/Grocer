@@ -83,9 +83,9 @@ const FALLBACK_COMMODITIES: CommodityData[] = [
 ];
 
 const SIGNAL_STYLES = {
-  SPIKE:  { pill: "pill-danger",  label: "Price Spike (Expensive)", color: "#ff5a00" },
-  DIP:    { pill: "pill-ok",      label: "Good Deal (Save Money)",  color: "#16a34a" },
-  WATCH:  { pill: "pill-accent",  label: "Rising Price",               color: "#ff5a00" },
+  SPIKE:  { pill: "pill-danger",  label: "Price Spiked (Expensive)", color: "#ff5a00" },
+  DIP:    { pill: "pill-ok",      label: "Price Dropped (Good Deal)",  color: "#16a34a" },
+  WATCH:  { pill: "pill-accent",  label: "Price Rising",               color: "#ff5a00" },
   STABLE: { pill: "pill-muted",   label: "Stable Price",               color: "#6b6560" },
 };
 
@@ -179,25 +179,25 @@ export default function PriceAlertsPage() {
       <div className="flex flex-col gap-2.5">
         <div className="text-accent text-[11px] font-bold tracking-wider uppercase flex items-center gap-1.5">
           <Tag className="h-4 w-4" />
-          <span>Smart Price Alerts</span>
+          <span>Price Alerts</span>
         </div>
         <h1 className="text-4xl font-light tracking-tight leading-tight">
-          Staple Grocery <span className="font-extrabold text-accent">Price Drops & Spikes</span>
+          Grocery Deals & <span className="font-extrabold text-accent">Price Alerts</span>
         </h1>
         <p className="text-sm text-muted max-w-lg leading-relaxed">
-          Grocery prices fluctuate daily. Instamart automatically checks prices, alert you to high-priced spikes, and recommends items to stock up on.
+          Prices change every day. We track these changes and let you know when things are cheap to stock up, or expensive.
         </p>
       </div>
 
       {/* ── Alert Banner (Spike + DIP) ───────────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-px bg-border">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {commodities.filter((c) => c.signal === 'SPIKE' || c.signal === 'DIP').map((c) => {
           const s = SIGNAL_STYLES[c.signal];
           return (
             <div
               key={c.id}
               onClick={() => setSelected(c.id)}
-              className={`card p-6 cursor-pointer flex flex-col gap-4 hover:border-accent transition-all bg-surface rounded-md
+              className={`card p-6 cursor-pointer flex flex-col gap-4 hover:border-accent transition-all bg-surface border border-border rounded-md
                          ${selected === c.id ? 'border-accent shadow-sm' : ''}`}
             >
               <div className="flex items-center justify-between">
@@ -225,7 +225,7 @@ export default function PriceAlertsPage() {
       {/* ── All Commodities ─────────────────────────────────── */}
       <div className="card overflow-hidden bg-surface rounded-md">
         <div className="px-6 py-4 border-b border-border text-xs font-bold text-muted uppercase tracking-wider">
-          Price Feed (Last 10 Days Trend)
+          Price History (Last 10 Days)
         </div>
         <div className="divide-y divide-border">
           {commodities.map((c) => {

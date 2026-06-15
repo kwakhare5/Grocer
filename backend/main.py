@@ -8,7 +8,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
-from backend.api.routes import household, predictions, restock, recipes, prices
+from backend.api.routes import household, predictions, restock, recipes, prices, orders
 from backend.notifications import whatsapp
 from backend.database.connection import init_db
 from backend.notifications.scheduler import start_scheduler, stop_scheduler
@@ -67,6 +67,7 @@ app.include_router(predictions.router)
 app.include_router(restock.router)
 app.include_router(recipes.router)
 app.include_router(prices.router)
+app.include_router(orders.router)
 app.include_router(whatsapp.router)
 
 

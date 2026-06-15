@@ -1,7 +1,6 @@
 from fastapi import APIRouter, Request, Response, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-import json
 import logging
 from datetime import datetime, timezone
 
@@ -153,6 +152,7 @@ async def whatsapp_webhook(
                         "depleting_items": new_depleting,
                         "stage": "awaiting_reply",
                         "confirmed_items": [],
+                        "confirmed_quantities": {},
                         "cart_id": None,
                         "cart_total": None,
                         "order_id": None,
@@ -171,6 +171,7 @@ async def whatsapp_webhook(
                             "depleting_items": new_depleting,
                             "stage": "awaiting_reply",
                             "confirmed_items": [],
+                            "confirmed_quantities": {},
                             "cart_id": None,
                             "cart_total": None,
                             "order_id": None,
@@ -280,7 +281,24 @@ async def whatsapp_webhook(
     except Exception as e:
         logger.warning(f"Error fetching active alert details: {e}")
 
-    # Fallback to catalog defaults if no active alert items exist
+    # Fallback to database active depletions or catalog defaults if no active alert items exist
+    if not depleting_items:
+        try:
+            from backend.api.routes.restock import check_depletions_for_household
+            db_depletions = await check_depletions_for_household(str(hh.id), db, bypass_cooldown=True)
+            if db_depletions:
+                depleting_items = [
+                    {
+                        "item_name": item["item_name"],
+                        "confidence_score": item["confidence_score"],
+                        "days_remaining": item["days_remaining"]
+                    }
+                    for item in db_depletions
+                ]
+                logger.info(f"Chatbot auto-synced with {len(depleting_items)} active depletions from DB.")
+        except Exception as e:
+            logger.warning(f"Failed to fetch on-the-fly depletions for chatbot: {e}")
+            
     if not depleting_items:
         depleting_items = [{"item_name": "Fortune Sunflower Oil 1L", "confidence_score": 0.9, "days_remaining": 1.0}]
 
@@ -293,7 +311,7 @@ async def whatsapp_webhook(
     try:
         async with await get_checkpointer() as cp:
             agent = build_restock_graph().compile(checkpointer=cp)
-            existing_state = agent.get_state(config)
+            existing_state = await agent.aget_state(config)
             
             should_reset = is_new_alert or not existing_state or not existing_state.values
             
@@ -301,8 +319,9 @@ async def whatsapp_webhook(
                 initial_values = {
                     "household_id": str(hh.id),
                     "depleting_items": depleting_items,
-                    "stage": "awaiting_reply",
+                    "stage": "awaiting_reply" if is_new_alert else "awaiting_order",
                     "confirmed_items": [],
+                    "confirmed_quantities": {},
                     "cart_id": None,
                     "cart_total": None,
                     "order_id": None,
@@ -316,7 +335,7 @@ async def whatsapp_webhook(
             result = await agent.ainvoke(payload, config=config)
             reply_msg = result.get("response_message", "")
             
-            final_state = agent.get_state(config)
+            final_state = await agent.aget_state(config)
             if final_state and final_state.values:
                 final_stage = final_state.values.get("stage")
                 order_id = final_state.values.get("order_id")
@@ -333,8 +352,9 @@ async def whatsapp_webhook(
                 initial_values = {
                     "household_id": str(hh.id),
                     "depleting_items": depleting_items,
-                    "stage": "awaiting_reply",
+                    "stage": "awaiting_reply" if is_new_alert else "awaiting_order",
                     "confirmed_items": [],
+                    "confirmed_quantities": {},
                     "cart_id": None,
                     "cart_total": None,
                     "order_id": None,
@@ -364,6 +384,23 @@ async def whatsapp_webhook(
                     alert.status = "acted"
                     alert.order_id_placed = order_id
                     alert.acted_at = datetime.now(timezone.utc)
+                    
+                    # Sync the order from the mock server to the database and rebuild models
+                    try:
+                        from backend.services.sync_service import fetch_and_sync_orders
+                        from backend.ml.consumption_model import ConsumptionModeler
+                        from backend.ml.household_profiler import update_household_profile
+                        
+                        logger.info(f"Syncing orders after successful chatbot checkout for household {hh.user_id}")
+                        await fetch_and_sync_orders(str(hh.id), hh.user_id, db)
+                        
+                        logger.info(f"Rebuilding ML consumption models for household {hh.user_id}")
+                        modeler = ConsumptionModeler()
+                        await modeler.rebuild_all_models(str(hh.id), db)
+                        await update_household_profile(str(hh.id), db)
+                        logger.info(f"ML models successfully rebuilt for household {hh.user_id}")
+                    except Exception as sync_err:
+                        logger.error(f"Failed to sync orders/rebuild models in webhook: {sync_err}")
                 else:
                     alert.status = "dismissed"
                     alert.acted_at = datetime.now(timezone.utc)

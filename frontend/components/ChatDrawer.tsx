@@ -9,12 +9,19 @@ interface Message {
   timestamp: string;
 }
 
+function getGreeting(): string {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  return "Good evening";
+}
+
 export default function ChatDrawer() {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     {
       sender: "bot",
-      text: "🛒 Assistant initialized. I monitor your grocery consumption patterns. You can say 'YES' to reorder depleting items or request recipe ingredient checks.",
+      text: `${getGreeting()}, Karan! 👋\n\nWhat would you like to order? You can tell me item names (e.g. "2 milk and eggs") or tap 🔍 Check Stock to see what's running low.`,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     }
   ]);
@@ -32,6 +39,21 @@ export default function ChatDrawer() {
     const handleOpenChat = () => setIsOpen(true);
     window.addEventListener("open-whatsapp-chat", handleOpenChat);
     return () => window.removeEventListener("open-whatsapp-chat", handleOpenChat);
+  }, []);
+
+  // Listen for scenario-switched event to reset the chat history
+  useEffect(() => {
+    const handleScenarioSwitched = () => {
+      setMessages([
+        {
+          sender: "bot",
+          text: `🔄 Inventory refreshed, Dev! What would you like to order? Or tap 🔍 Check Stock to see what's running low.`,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        }
+      ]);
+    };
+    window.addEventListener("scenario-switched", handleScenarioSwitched);
+    return () => window.removeEventListener("scenario-switched", handleScenarioSwitched);
   }, []);
 
   // Fetch latest pending alert on mount and dispatch push notification if pending
@@ -82,17 +104,28 @@ export default function ChatDrawer() {
     if (!lastMsg) return [{ label: "🔍 Check Stock", value: "check" }];
 
     const txt = lastMsg.text;
-    if (txt.includes("reorder all, or tell me which ones")) {
+
+    // Stage: confirm_add_to_cart — bot found items and is asking to add to cart
+    if (txt.includes("Would you like to add them to your cart?") || txt.includes("add them to your cart")) {
       return [
-        { label: "✅ YES", value: "YES" },
-        { label: "🥛 Just Milk", value: "only Milk" },
-        { label: "❌ NO (Cancel)", value: "NO" }
+        { label: "👍 YES, Add to Cart", value: "YES" },
+        { label: "❌ NO, Cancel", value: "NO" }
       ];
     }
-    if (txt.includes("Reply CONFIRM to place order")) {
+
+    // Stage: awaiting_confirm — cart is ready, asking to place the order
+    if (txt.includes("Reply CONFIRM to place order") || txt.includes("CONFIRM to place")) {
       return [
-        { label: "🚀 CONFIRM", value: "CONFIRM" },
+        { label: "🚀 CONFIRM Order", value: "CONFIRM" },
         { label: "❌ CANCEL", value: "CANCEL" }
+      ];
+    }
+
+    // Stage: awaiting_reply — bot shows low stock alert and asks if user wants to order
+    if (txt.includes("Would you like to order them?") || txt.includes("reorder all, or tell me which ones")) {
+      return [
+        { label: "✅ YES, Order All", value: "YES" },
+        { label: "❌ NO, Thanks", value: "NO" }
       ];
     }
     
@@ -136,6 +169,7 @@ export default function ChatDrawer() {
         if (data.response_message.includes("Order placed") || data.response_message.includes("Order #") || data.response_message.includes("✅ Order")) {
           window.dispatchEvent(new CustomEvent("order-placed"));
         }
+        window.dispatchEvent(new CustomEvent("refresh-dashboard"));
       }
     } catch (err) {
       console.error(err);
@@ -192,6 +226,7 @@ export default function ChatDrawer() {
         if (data.response_message.includes("Order placed") || data.response_message.includes("Order #") || data.response_message.includes("✅ Order")) {
           window.dispatchEvent(new CustomEvent("order-placed"));
         }
+        window.dispatchEvent(new CustomEvent("refresh-dashboard"));
       }
     } catch (err) {
       console.error(err);
@@ -312,7 +347,7 @@ export default function ChatDrawer() {
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={e => e.key === "Enter" && handleSendMessage()}
-              placeholder="Type YES, NO or ingredients..."
+              placeholder="e.g. '2 milk, eggs' or type 'check'..."
               className="flex-1 bg-white dark:bg-neutral-900 border border-border rounded-xl px-3 py-2 text-xs text-foreground placeholder:text-muted/70 focus:outline-none focus:border-accent transition-colors"
             />
             <button

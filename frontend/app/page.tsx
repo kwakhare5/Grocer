@@ -4,7 +4,8 @@ import { useEffect, useState, useRef } from "react";
 import Link from 'next/link';
 import useSWR from "swr";
 import { predictionsApi, householdApi, APIPrediction } from "../lib/api";
-import { Package, ShieldCheck, Zap, Sparkles, ShoppingCart, Calendar, Bell, BellOff, ArrowRight, X } from "lucide-react";
+import { Package, ShieldCheck, Zap, Sparkles, ShoppingCart, Calendar, Bell, BellOff, ArrowRight } from "lucide-react";
+
 
 interface DepletingItem {
   name: string;
@@ -12,23 +13,24 @@ interface DepletingItem {
   conf: number;
   avg: string;
   cycle: string;
-  urgent: boolean;
 }
 
+
 const STATS = [
-  { value: "34",     label: "Pantry Staples Tracked", sub: "automatic tracking active" },
-  { value: "98%",    label: "Prediction Accuracy",    sub: "based on last 30 refills" },
-  { value: "12",     label: "Stockouts Prevented",    sub: "automatic refills saved" },
-  { value: "High",   label: "Smart Coverage",        sub: "across all kitchen essentials" },
+  { value: "34",     label: "Groceries Monitored",   sub: "Automatically tracked" },
+  { value: "98%",    label: "Accuracy Rate",          sub: "Based on your habits" },
+  { value: "12",     label: "Stockouts Avoided",      sub: "Saved from running out" },
+  { value: "High",   label: "Smart Helper",           sub: "Covering your main items" },
 ];
 
 const FALLBACK_DEPLETING: DepletingItem[] = [
-  { name: "Amul Taza Milk 1L",        days: 2,  conf: 76, avg: "1.1L/day",  cycle: "2.1d",  urgent: false },
-  { name: "Tomatoes (500g)",          days: 1,  conf: 78, avg: "150g/day",  cycle: "3d",    urgent: true  },
-  { name: "Nandini Eggs (Pack of 12)", days: 2,  conf: 88, avg: "2.3/day",   cycle: "5d",    urgent: true  },
-  { name: "Fortune Sunflower Oil 1L",  days: 2,  conf: 87, avg: "68ml/day",  cycle: "15d",   urgent: true  },
-  { name: "Aashirvaad Atta 5kg",       days: 12, conf: 68, avg: "280g/day",  cycle: "13d",   urgent: false },
+  { name: "Amul Taza Milk 1L",         days: 2,  conf: 76, avg: "1.1L/day",  cycle: "2.1d"  },
+  { name: "Tomatoes (500g)",           days: 1,  conf: 78, avg: "150g/day",  cycle: "3d"    },
+  { name: "Nandini Eggs (Pack of 12)", days: 2,  conf: 88, avg: "2.3/day",   cycle: "5d"    },
+  { name: "Fortune Sunflower Oil 1L",  days: 2,  conf: 87, avg: "68ml/day",  cycle: "15d"   },
+  { name: "Aashirvaad Atta 5kg",       days: 12, conf: 68, avg: "280g/day",  cycle: "13d"   },
 ];
+
 
 function urgencyColor(days: number, fillPercent: number) {
   if (fillPercent <= 20) return { bar: "#ff5a00", text: "text-red-500",   pill: "pill-danger"  };
@@ -43,23 +45,23 @@ function urgencyLabel(days: number, fillPercent: number) {
 }
 
 function certaintyLabel(conf: number) {
-  if (conf >= 85) return "Very High Certainty";
-  if (conf >= 70) return "High Certainty";
-  return "Calculated Estimate";
+  if (conf >= 85) return "Very Accurate";
+  if (conf >= 70) return "Highly Likely";
+  return "Estimated";
 }
 
 function formatAvg(avg: string) {
-  return `Uses ${avg.replace("/day", " daily")}`;
+  return `Uses ${avg.replace("/day", " per day")}`;
 }
 
 function formatCycle(cycle: string) {
   const d = parseFloat(cycle);
-  if (isNaN(d)) return `Restocked every ${cycle}`;
-  if (d <= 2.5) return "Restocked every 2 days";
-  if (d >= 6 && d <= 7.5) return "Restocked weekly";
-  if (d >= 13 && d <= 16) return "Restocked every 2 weeks";
-  if (d >= 25 && d <= 30) return "Restocked monthly";
-  return `Restocked every ${Math.round(d)} days`;
+  if (isNaN(d)) return `Bought every ${cycle}`;
+  if (d <= 2.5) return "Bought every 2 days";
+  if (d >= 6 && d <= 7.5) return "Bought weekly";
+  if (d >= 13 && d <= 16) return "Bought every 2 weeks";
+  if (d >= 25 && d <= 30) return "Bought monthly";
+  return `Bought every ${Math.round(d)} days`;
 }
 
 function jarFluidStyle(name: string, fillPercent: number) {
@@ -192,7 +194,7 @@ export default function Home() {
   const [pinnedItems, setPinnedItems] = useState<Set<string>>(new Set());
   const [snoozedItems, setSnoozedItems] = useState<Set<string>>(new Set());
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [phoneAlert, setPhoneAlert] = useState<string | null>(null);
+
   const [showConfetti, setShowConfetti] = useState(false);
   const [refilledItems, setRefilledItems] = useState<Set<string>>(new Set());
   
@@ -217,6 +219,15 @@ export default function Home() {
     }
   );
 
+  // Listen to refresh-dashboard event to trigger revalidation of predictions
+  useEffect(() => {
+    const handleRefresh = () => {
+      mutatePredictions();
+    };
+    window.addEventListener("refresh-dashboard", handleRefresh);
+    return () => window.removeEventListener("refresh-dashboard", handleRefresh);
+  }, [mutatePredictions]);
+
   const loading = predictionsLoading || predictionsValidating || switchingScenario;
 
   const depleting = predictionsData?.predictions && predictionsData.predictions.length > 0
@@ -226,9 +237,9 @@ export default function Home() {
         conf: Math.round((p.confidence_score || 0.5) * 100),
         avg: `${p.avg_daily_consumption.toFixed(2)}/day`,
         cycle: `${p.consumption_cycle_days || 7}d`,
-        urgent: p.days_remaining !== null && p.days_remaining <= 3
       }))
     : FALLBACK_DEPLETING;
+
 
   const handleScenarioChange = async (scenario: string) => {
     if (switchingScenario) return;
@@ -241,6 +252,7 @@ export default function Home() {
     try {
       await householdApi.switchScenario("demo_user_001", scenario);
       triggerToast(`Switched to ${scenario === "standard" ? "Standard Staples" : scenario === "party" ? "Party Spike" : "Vacation Mode"}!`);
+      window.dispatchEvent(new CustomEvent("scenario-switched"));
       await mutatePredictions();
     } catch (err) {
       console.warn("Failed to switch scenario", err);
@@ -274,34 +286,9 @@ export default function Home() {
     return () => window.removeEventListener("order-placed", handleOrderPlaced);
   }, [depleting]);
 
-  // Listen to whatsapp-alert event to show smartphone push notifications
-  useEffect(() => {
-    const handleAlert = (e: Event) => {
-      const customEvent = e as CustomEvent;
-      const text = customEvent.detail?.text || "";
-      if (text && (text.includes("likely running low on") || text.includes("reorder") || text.includes("ready with") || text.includes("Order placed"))) {
-        let summary = text;
-        if (text.includes("likely running low on") || text.includes("purchase patterns")) {
-          summary = "🛒 Proactive low-stock alert! Tap to open details.";
-        } else if (text.includes("ready with")) {
-          summary = "🛒 Instamart cart ready! Tap to confirm order.";
-        } else if (text.includes("Order placed")) {
-          summary = "✅ Order placed successfully! Arriving in 15 mins.";
-        } else {
-          summary = "💬 New Restock update available.";
-        }
-        setPhoneAlert(summary);
-      }
-    };
-    
-    window.addEventListener("whatsapp-alert", handleAlert);
-    return () => window.removeEventListener("whatsapp-alert", handleAlert);
-  }, []);
 
-  const handleToastClick = () => {
-    window.dispatchEvent(new CustomEvent("open-whatsapp-chat"));
-    setPhoneAlert(null);
-  };
+
+
 
   // Caching predictions are handled via SWR hook mutates
 
@@ -376,7 +363,7 @@ export default function Home() {
           My Kitchen <span className="text-accent">Pantry Checker</span>
         </h1>
         <p className="text-sm text-muted max-w-lg leading-relaxed font-medium">
-          Predicts when your staples are running low. Tap to instantly add to your Instamart checkout cart, pin to meal planner, or adjust settings.
+          Shows when your groceries are running out. Tap to add to your cart, save for Sunday recipes, or change settings.
         </p>
       </div>
 
@@ -398,9 +385,9 @@ export default function Home() {
         {panelOpen && (
           <div className="p-6 bg-white dark:bg-[#121110] border-t border-border/50 animate-in fade-in slide-in-from-top-2 duration-300 flex flex-col gap-4">
             <div className="flex flex-col gap-1.5">
-              <span className="font-extrabold text-xs text-foreground font-display uppercase tracking-wide">Select Household Lifestyle Scenario</span>
+              <span className="font-extrabold text-xs text-foreground font-display uppercase tracking-wide">Choose a Scenario to Demo</span>
               <p className="text-[11px] leading-relaxed text-muted font-medium">
-                {"Changing scenarios instantly regenerates the household's order history, runs Swiggy's Prophet ML model predictions, and profiles household composition in real-time."}
+                {"Switch scenarios to see how the assistant adapts to different situations, like a normal week, holiday vacation, or weekend party."}
               </p>
             </div>
             
@@ -414,8 +401,8 @@ export default function Home() {
                     : "bg-white dark:bg-[#1c1a18] border-border hover:border-muted text-foreground"
                 } disabled:opacity-50`}
               >
-                <span className="font-extrabold text-xs font-display">🌾 Standard Staples</span>
-                <span className="text-[10px] leading-normal text-muted font-medium">Standard Indian household consumption cycles and predictable restocking windows.</span>
+                <span className="font-extrabold text-xs font-display">🌾 Regular Week</span>
+                <span className="text-[10px] leading-normal text-muted font-medium">Normal family routine with regular shopping patterns.</span>
               </button>
 
               <button
@@ -427,8 +414,8 @@ export default function Home() {
                     : "bg-white dark:bg-[#1c1a18] border-border hover:border-muted text-foreground"
                 } disabled:opacity-50`}
               >
-                <span className="font-extrabold text-xs font-display">🥛 Weekend Party Spike</span>
-                <span className="text-[10px] leading-normal text-muted font-medium">Sudden heavy consumption spike of party staples (Cream, Milk, Butter) causing instant depletion.</span>
+                <span className="font-extrabold text-xs font-display">🥛 Weekend Party</span>
+                <span className="text-[10px] leading-normal text-muted font-medium">Family buys extra milk, butter, and cream for hosting guests, causing stock to run out quickly.</span>
               </button>
 
               <button
@@ -440,8 +427,8 @@ export default function Home() {
                     : "bg-white dark:bg-[#1c1a18] border-border hover:border-muted text-foreground"
                 } disabled:opacity-50`}
               >
-                <span className="font-extrabold text-xs font-display">✈️ Vacation Mode</span>
-                <span className="text-[10px] leading-normal text-muted font-medium">Household travels for a vacation. Consumption stops and predictions adjust to reflect full pantry items.</span>
+                <span className="font-extrabold text-xs font-display">✈️ On Vacation</span>
+                <span className="text-[10px] leading-normal text-muted font-medium">Family travels, meaning no groceries are used and everything stays full.</span>
               </button>
             </div>
           </div>
@@ -471,7 +458,7 @@ export default function Home() {
             Virtual Kitchen Shelf
           </div>
           <span className="text-[11px] text-muted font-semibold hidden sm:inline">
-            Visual level represents remaining stock
+            Jars show how much is left in your kitchen
           </span>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
@@ -501,69 +488,93 @@ export default function Home() {
               })
               .sort((a, b) => a.fillPercent - b.fillPercent)
               .slice(0, 5)
-              .map((item) => {
+              .map((item, idx) => {
                 const isAdded = addedItems.has(item.name);
-                const style = jarFluidStyle(item.name, item.fillPercent);
+                const fp = item.fillPercent;
+                const liquidColor = fp <= 20
+                  ? { base: "rgba(220,38,38,0.55)",  wave: "rgba(220,38,38,0.75)",  bubble: "rgba(254,202,202,0.7)"  }
+                  : fp <= 45
+                  ? { base: "rgba(180,83,9,0.50)",   wave: "rgba(217,119,6,0.75)",  bubble: "rgba(253,230,138,0.7)"  }
+                  : { base: "rgba(5,150,105,0.45)",  wave: "rgba(16,185,129,0.70)", bubble: "rgba(167,243,208,0.7)"  };
+                const waveDelay = `${idx * 0.4}s`;
 
                 return (
                   <div
                     key={item.name}
-                    className="relative w-full h-48 rounded-2xl glass-card overflow-hidden group hover:border-accent hover:shadow-[0_8px_30px_rgba(255,90,0,0.06)] transition-all duration-300 flex flex-col justify-between p-4 cursor-pointer"
+                    className="relative w-full h-48 rounded-2xl glass-card overflow-hidden group hover:border-accent hover:shadow-[0_8px_30px_rgba(255,90,0,0.08)] transition-all duration-300 flex flex-col justify-between p-4 cursor-pointer"
                     onClick={(e) => handleAddToCart(item.name, e)}
                   >
-                    {/* Jar Lid detail */}
-                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-12 h-2 bg-neutral-300/80 dark:bg-neutral-700/80 rounded-b-md z-20 jar-lid-transition group-hover:-translate-y-0.5 group-hover:scale-x-105" />
+                    {/* Jar Lid */}
+                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-14 h-2.5 bg-gradient-to-b from-neutral-300 to-neutral-400 dark:from-neutral-600 dark:to-neutral-700 rounded-b-lg z-20 transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:scale-x-105 shadow-sm" />
 
-                    {/* Liquid Fill */}
+                    {/* Liquid body */}
                     <div
-                      className="absolute bottom-0 left-0 w-full transition-all duration-1000 ease-out z-10 liquid-fill-animate"
-                      style={{
-                        height: `${item.fillPercent}%`,
-                        backgroundImage: "linear-gradient(180deg, rgba(255, 255, 255, 0.15) 0%, rgba(0, 0, 0, 0.15) 100%)",
-                        ...style
-                      }}
-                    />
+                      className="absolute bottom-0 left-0 w-full z-10 transition-all duration-1000 ease-out"
+                      style={{ height: `${fp}%`, background: liquidColor.base }}
+                    >
+                      {/* Animated SVG wave at surface */}
+                      <svg viewBox="0 0 200 20" preserveAspectRatio="none" className="absolute -top-4 left-0 w-full h-5">
+                        <path
+                          d="M0,10 C30,0 70,20 100,10 C130,0 170,20 200,10 L200,20 L0,20 Z"
+                          fill={liquidColor.wave}
+                          style={{ animation: `liquidWave 2.8s ease-in-out infinite`, animationDelay: waveDelay }}
+                        />
+                        <path
+                          d="M0,12 C40,4 80,18 120,10 C150,4 180,16 200,12 L200,20 L0,20 Z"
+                          fill={liquidColor.base}
+                          style={{ animation: `liquidWave 3.5s ease-in-out infinite reverse`, animationDelay: waveDelay }}
+                        />
+                      </svg>
 
-                    {/* Content Overlay */}
+                      {/* Rising bubbles */}
+                      {[0,1,2].map((b) => (
+                        <div key={b} className="absolute rounded-full" style={{
+                          width: b === 1 ? "3px" : b === 2 ? "4px" : "5px",
+                          height: b === 1 ? "3px" : b === 2 ? "4px" : "5px",
+                          background: liquidColor.bubble,
+                          left: b === 0 ? "22%" : b === 1 ? "52%" : "72%",
+                          bottom: "8%",
+                          animation: `bubbleRise ${2.4 + b * 0.7}s ease-in infinite`,
+                          animationDelay: `${b * 1.1 + idx * 0.35}s`,
+                        }} />
+                      ))}
+
+                      {/* Inner shimmer */}
+                      <div className="absolute inset-0" style={{ background: "linear-gradient(180deg,rgba(255,255,255,0.18) 0%,transparent 55%,rgba(0,0,0,0.10) 100%)" }} />
+                    </div>
+
+                    {/* Content */}
                     <div className="relative z-20 flex flex-col h-full justify-between pointer-events-none">
-                      {/* Top: Name and category */}
                       <div className="flex flex-col gap-0.5">
                         <span className="text-[10px] uppercase font-bold text-muted font-display tracking-wider">
                           {item.name.toLowerCase().includes("milk") ? "Dairy" :
                            item.name.toLowerCase().includes("oil") ? "Oils" :
                            item.name.toLowerCase().includes("egg") ? "Proteins" : "Staple"}
                         </span>
-                        <span className="font-extrabold text-xs text-foreground tracking-tight line-clamp-2 leading-tight font-display">
+                        <span className="font-extrabold text-xs text-foreground tracking-tight line-clamp-2 leading-tight font-display drop-shadow-sm">
                           {item.name.split(" — ")[0]}
                         </span>
                       </div>
-
-                      {/* Middle: Big Countdown */}
                       <div className="flex flex-col items-start my-auto">
-                        <span className="text-2xl font-black text-foreground font-display leading-none">
+                        <span className="text-2xl font-black text-foreground font-display leading-none drop-shadow-sm">
                           {item.isRefilled ? "✓" : item.days}
                         </span>
                         <span className="text-[10px] font-bold text-muted uppercase tracking-wider font-display mt-0.5">
                           {item.isRefilled ? "Refilled" : item.days === 1 ? "day left" : "days left"}
                         </span>
                       </div>
-
-                      {/* Bottom Info */}
                       <div className="text-[9px] font-bold text-muted/90 uppercase tracking-widest font-display">
-                        {item.isRefilled ? "95% full" : `${item.fillPercent}% full`}
+                        {item.isRefilled ? "95% full" : `${fp}% full`}
                       </div>
                     </div>
 
-                    {/* Circular Add-To-Cart Plus Button (44px target) */}
+                    {/* Add-to-cart button */}
                     <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleAddToCart(item.name, e);
-                      }}
+                      onClick={(e) => { e.stopPropagation(); handleAddToCart(item.name, e); }}
                       className={`absolute bottom-3 right-3 w-11 h-11 rounded-full flex items-center justify-center transition-all duration-300 z-30 cursor-pointer shadow-md border ${
                         isAdded
                           ? "bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-500"
-                          : "bg-white dark:bg-neutral-800 text-muted hover:text-accent hover:border-accent border-border"
+                          : "bg-white/90 dark:bg-neutral-800 text-muted hover:text-accent hover:border-accent border-border"
                       }`}
                       aria-label={`Add ${item.name} to cart`}
                     >
@@ -741,42 +752,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* ── Smartphone Push Notification ──────────────────── */}
-      {phoneAlert && (
-        <div 
-          onClick={handleToastClick}
-          className="fixed top-6 right-6 z-50 max-w-sm w-full bg-black/90 dark:bg-neutral-900/95 text-white p-4 rounded-2xl shadow-2xl border border-neutral-800 backdrop-blur-md cursor-pointer spring-notification flex gap-3 hover:scale-[1.02] active:scale-[0.98] transition-all"
-        >
-          {/* Simulated App Icon */}
-          <div className="h-10 w-10 bg-accent rounded-xl flex items-center justify-center text-white font-extrabold text-xs shrink-0 shadow-lg shadow-accent/25">
-            INS
-          </div>
-          <div className="flex-1 flex flex-col gap-0.5">
-            <div className="flex justify-between items-center">
-              <span className="text-[10px] uppercase font-bold text-accent tracking-widest font-display">SWIGGY INSTAMART</span>
-              <span className="text-[9px] text-muted font-bold font-display font-sans">NOW</span>
-            </div>
-            <span className="font-extrabold text-xs tracking-tight text-white font-display mt-0.5">
-              Pantry Depletion Alert
-            </span>
-            <p className="text-[11px] leading-relaxed text-neutral-300 font-sans mt-0.5">
-              {phoneAlert}
-            </p>
-            <span className="text-[9px] text-accent/90 font-bold uppercase tracking-wider font-display mt-1.5 flex items-center gap-0.5 animate-pulse">
-              Tap to open WhatsApp & reorder →
-            </span>
-          </div>
-          <button 
-            onClick={(e) => {
-              e.stopPropagation();
-              setPhoneAlert(null);
-            }}
-            className="text-muted hover:text-white transition-colors self-start p-1 cursor-pointer"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-      )}
+
 
     </div>
   );

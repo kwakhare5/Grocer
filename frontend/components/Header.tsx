@@ -7,9 +7,9 @@ import { UtensilsCrossed } from "lucide-react";
 const NAV_ITEMS = [
   { href: "/", label: "Home" },
   { href: "/household", label: "Profile" },
-  { href: "/predictions", label: "Timeline" },
-  { href: "/recipes", label: "Planner", hideMobile: true },
-  { href: "/price-alerts", label: "Alerts", hideMobile: true },
+  { href: "/predictions", label: "Inventory" },
+  { href: "/recipes", label: "Recipes", hideMobile: true },
+  { href: "/price-alerts", label: "Price Alerts", hideMobile: true },
 ];
 
 export default function Header() {

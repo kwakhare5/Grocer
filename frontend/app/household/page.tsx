@@ -88,7 +88,7 @@ function formatRate(rate: number, name: string): string {
 function certaintyLabel(conf: number) {
   if (conf >= 85) return "Very High";
   if (conf >= 70) return "High";
-  return "Moderate";
+  return "Normal";
 }
 
 export default function HouseholdPage() {
@@ -146,13 +146,13 @@ export default function HouseholdPage() {
       {/* ── Header ──────────────────────────────────────────── */}
       <div className="flex flex-col gap-2.5">
         <div className="text-accent text-[11px] font-bold tracking-wider uppercase">
-          Kitchen Profile & Dossier {loading && "(LOADING...)"}
+          Kitchen Profile {loading && "(LOADING...)"}
         </div>
         <h1 className="text-4xl font-light tracking-tight leading-tight">
-          My Kitchen <span className="font-extrabold text-accent">Usage Profile</span>
+          My Kitchen <span className="font-extrabold text-accent">Habits</span>
         </h1>
         <p className="text-sm text-muted max-w-lg leading-relaxed">
-          Analyze eating habits, tracking depth, and unusual pantry patterns calculated automatically from Swiggy Instamart order patterns.
+          See your family's eating habits, tracking accuracy, and past schedule changes calculated from Swiggy Instamart orders.
         </p>
       </div>
 
@@ -164,17 +164,17 @@ export default function HouseholdPage() {
           </div>
           <div className="flex flex-col gap-1.5">
             <div className="text-[10px] text-accent font-bold uppercase tracking-widest font-display">
-              Inferred Family Size
+              Estimated Family Size
             </div>
             <div className="text-2xl font-black text-foreground font-display">{profile.type}</div>
             <div className="text-xs text-muted font-semibold leading-relaxed">
-              Automatically analyzed from milk, eggs, atta, and cooking oil usage cycles.
+              Automatically checked from your milk, eggs, flour, and oil purchase cycles.
             </div>
           </div>
         </div>
         <div className="flex flex-col items-start sm:items-end gap-2 shrink-0 pl-14 sm:pl-0">
           <div className="text-3xl font-black text-accent font-display">{profile.confidence}%</div>
-          <div className="text-[10px] font-bold uppercase tracking-wider text-muted font-display">Analysis Certainty</div>
+          <div className="text-[10px] font-bold uppercase tracking-wider text-muted font-display">Accuracy Rating</div>
           <div className="conf-track w-32">
             <div className="conf-fill" style={{ width: `${profile.confidence}%` }} />
           </div>
@@ -187,14 +187,14 @@ export default function HouseholdPage() {
         {/* System Metrics */}
         <div className="glass-card p-6 flex flex-col gap-6 rounded-2xl">
           <div className="text-xs font-bold text-foreground uppercase tracking-wider border-b border-border/60 pb-3.5 font-display">
-            Pantry Track Metrics
+            Tracking Summary
           </div>
           <div className="grid grid-cols-2 gap-6">
             {[
               { value: profile.ordersAnalyzed,      label: "Refills Tracked", icon: <History className="h-4 w-4 text-accent/80" /> },
-              { value: profile.itemsModeled,         label: "Staples Modeled", icon: <Layers className="h-4 w-4 text-accent/80" /> },
-              { value: profile.monthsTracked + " mo", label: "History Checked", icon: <Calendar className="h-4 w-4 text-accent/80" /> },
-              { value: profile.stockoutsPrevented,   label: "Stockouts Saved", icon: <ShieldCheck className="h-4 w-4 text-accent/80" /> },
+              { value: profile.itemsModeled,         label: "Items Tracked", icon: <Layers className="h-4 w-4 text-accent/80" /> },
+              { value: profile.monthsTracked + " mo", label: "Months Monitored", icon: <Calendar className="h-4 w-4 text-accent/80" /> },
+              { value: profile.stockoutsPrevented,   label: "Saved from running out", icon: <ShieldCheck className="h-4 w-4 text-accent/80" /> },
             ].map((s) => (
               <div key={s.label} className="stat-block flex flex-col gap-1.5">
                 <div className="flex items-center gap-1.5">
@@ -214,7 +214,7 @@ export default function HouseholdPage() {
         {/* Key Consumption Rates */}
         <div className="glass-card p-6 flex flex-col gap-6 rounded-2xl">
           <div className="text-xs font-bold text-foreground uppercase tracking-wider border-b border-border/60 pb-3.5 font-display">
-            Household Refill Averages
+            Grocery Buying History
           </div>
           <div className="flex flex-col gap-5">
             {consumption.map((item) => (
@@ -238,7 +238,7 @@ export default function HouseholdPage() {
       {/* ── Anomaly Log ─────────────────────────────────────── */}
       <div className="glass-card overflow-hidden rounded-2xl border border-border/80">
         <div className="px-6 py-4 border-b border-border/60 text-xs font-bold text-foreground uppercase tracking-wider font-display">
-          Kitchen Schedule Alterations
+          Schedule Changes
         </div>
         <div className="divide-y divide-border/60">
           {ANOMALIES.map((a) => (
@@ -255,7 +255,7 @@ export default function HouseholdPage() {
           ))}
         </div>
         <div className="px-6 py-4 bg-neutral-50/20 dark:bg-neutral-900/10 border-t border-border/60 text-[11px] text-muted font-medium leading-relaxed">
-          The system excludes temporary disruptions (trips away, guest spikes) to keep baseline pantry alerts accurate.
+          We ignore one-time changes (like holidays or party guest spikes) to keep your normal alerts correct.
         </div>
       </div>
 

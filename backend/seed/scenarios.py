@@ -15,15 +15,18 @@ def generate_scenario_orders(scenario: str, months: int = 4, user_id: str = "dem
         items["INS_001"]["cycle"] = 1.0
         items["INS_001"]["last_purchase_days_ago"] = 1
         
-        items["INS_008"]["cycle"] = 4.0
-        items["INS_008"]["last_purchase_days_ago"] = 3
+        if "INS_008" in items:
+            items["INS_008"]["cycle"] = 4.0
+            items["INS_008"]["last_purchase_days_ago"] = 3
         
-        items["INS_009"]["cycle"] = 2.0
-        items["INS_009"]["last_purchase_days_ago"] = 2
+        if "INS_009" in items:
+            items["INS_009"]["cycle"] = 2.0
+            items["INS_009"]["last_purchase_days_ago"] = 2
         
         # Increase tomatoes and onions depletion
-        items["INS_006"]["cycle"] = 2.0
-        items["INS_006"]["last_purchase_days_ago"] = 2
+        if "INS_006" in items:
+            items["INS_006"]["cycle"] = 2.0
+            items["INS_006"]["last_purchase_days_ago"] = 2
 
     elif scenario == "vacation":
         # Simulate vacation/travel: zero consumption recently, or they just stocked up everything
@@ -31,7 +34,7 @@ def generate_scenario_orders(scenario: str, months: int = 4, user_id: str = "dem
         for item_id in items:
             items[item_id]["last_purchase_days_ago"] = 1
             # Adjust cycle to be longer
-            items[item_id]["cycle"] = items[item_id]["cycle"] * 1.5
+            items[item_id]["cycle"] = float(items[item_id]["cycle"]) * 1.5
             
     # Now generate orders using these scenario-specific parameters
     now = datetime.now(timezone.utc)
@@ -47,9 +50,9 @@ def generate_scenario_orders(scenario: str, months: int = 4, user_id: str = "dem
     order_items_by_date = {}
 
     for item_id, item in items.items():
-        cycle = item["cycle"]
-        variance = item["variance"]
-        last_buy_days = item["last_purchase_days_ago"]
+        cycle = float(item["cycle"])
+        variance = float(item["variance"])
+        last_buy_days = int(item["last_purchase_days_ago"])
 
         current_date = now - timedelta(days=last_buy_days)
 
@@ -66,13 +69,13 @@ def generate_scenario_orders(scenario: str, months: int = 4, user_id: str = "dem
             if item_id == "INS_001" and abs((current_date - guest_date).days) <= 1:
                 qty = 3
 
-            price = round(item["base_price"] * qty * random.uniform(0.96, 1.04), 2)
+            price = round(float(item["base_price"]) * qty * random.uniform(0.96, 1.04), 2)
 
             order_items_by_date[date_str].append({
                 "item_id": item_id,
                 "item_name": item["name"],
                 "quantity": qty,
-                "standard_quantity": qty * item["pack_size"],
+                "standard_quantity": float(qty) * float(item["pack_size"]),
                 "unit": item["unit"],
                 "category": item["category"],
                 "price": price

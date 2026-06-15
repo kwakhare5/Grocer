@@ -44,17 +44,6 @@ HOUSEHOLD_ITEMS = {
         "last_purchase_days_ago": 13,     # exactly 13 days ago (depletes in 1.7 days!)
         "base_price": 127
     },
-    "INS_004": {
-        "name": "India Gate Basmati Rice 5kg",
-        "category": "staples",
-        "unit": "kg",
-        "pack_size": 5.0,
-        "family_daily_use": 0.20,         # 25 days cycle
-        "cycle": 25.0,
-        "variance": 2.0,
-        "last_purchase_days_ago": 10,
-        "base_price": 310
-    },
     "INS_005": {
         "name": "Nandini Eggs (Pack of 12)",
         "category": "protein",
@@ -88,39 +77,6 @@ HOUSEHOLD_ITEMS = {
         "last_purchase_days_ago": 3,
         "base_price": 42
     },
-    "INS_008": {
-        "name": "Amul Butter 500g",
-        "category": "dairy",
-        "unit": "kg",
-        "pack_size": 0.5,
-        "family_daily_use": 0.025,        # 20 days cycle
-        "cycle": 20.0,
-        "variance": 1.5,
-        "last_purchase_days_ago": 8,
-        "base_price": 270
-    },
-    "INS_009": {
-        "name": "Amul Fresh Cream 200ml",
-        "category": "dairy",
-        "unit": "L",
-        "pack_size": 0.2,
-        "family_daily_use": 0.05,         # 4 days cycle
-        "cycle": 4.0,
-        "variance": 0.5,
-        "last_purchase_days_ago": 2,
-        "base_price": 55
-    },
-    "INS_010": {
-        "name": "Tata Salt 1kg",
-        "category": "staples",
-        "unit": "kg",
-        "pack_size": 1.0,
-        "family_daily_use": 0.008,        # 125 days cycle
-        "cycle": 125.0,
-        "variance": 5.0,
-        "last_purchase_days_ago": 40,
-        "base_price": 28
-    },
     "INS_011": {
         "name": "Britannia Whole Wheat Bread",
         "category": "bakery",
@@ -131,19 +87,9 @@ HOUSEHOLD_ITEMS = {
         "variance": 0.4,
         "last_purchase_days_ago": 1,
         "base_price": 50
-    },
-    "INS_012": {
-        "name": "Farm Fresh Onion 1kg",
-        "category": "vegetables",
-        "unit": "kg",
-        "pack_size": 1.0,
-        "family_daily_use": 0.10,         # 10 days cycle
-        "cycle": 10.0,
-        "variance": 1.0,
-        "last_purchase_days_ago": 4,
-        "base_price": 45
     }
 }
+
 
 
 def generate_realistic_orders(months: int = 4, user_id: str = "demo_user_001"):
@@ -161,9 +107,9 @@ def generate_realistic_orders(months: int = 4, user_id: str = "demo_user_001"):
     order_items_by_date = {}
 
     for item_id, item in HOUSEHOLD_ITEMS.items():
-        cycle = item["cycle"]
-        variance = item["variance"]
-        last_buy_days = item["last_purchase_days_ago"]
+        cycle = float(item["cycle"])
+        variance = float(item["variance"])
+        last_buy_days = int(item["last_purchase_days_ago"])
 
         # Track dates backward from last purchase
         current_date = now - timedelta(days=last_buy_days)
@@ -184,13 +130,13 @@ def generate_realistic_orders(months: int = 4, user_id: str = "demo_user_001"):
             if item_id == "INS_001" and abs((current_date - guest_date).days) <= 1:
                 qty = 3
 
-            price = round(item["base_price"] * qty * random.uniform(0.96, 1.04), 2)
+            price = round(float(item["base_price"]) * qty * random.uniform(0.96, 1.04), 2)
 
             order_items_by_date[date_str].append({
                 "item_id": item_id,
                 "item_name": item["name"],
                 "quantity": qty,
-                "standard_quantity": qty * item["pack_size"],
+                "standard_quantity": float(qty) * float(item["pack_size"]),
                 "unit": item["unit"],
                 "category": item["category"],
                 "price": price

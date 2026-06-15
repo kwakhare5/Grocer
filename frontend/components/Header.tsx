@@ -57,10 +57,6 @@ export default function Header() {
               >
                 <span>{item.label}</span>
                 
-                {/* Active Indicator Dot */}
-                {isActive && (
-                  <span className="absolute bottom-1.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-accent animate-pulse" />
-                )}
               </Link>
             );
           })}

@@ -116,7 +116,10 @@ async def whatsapp_webhook(
         try:
             from backend.api.routes.restock import check_depletions_for_household
             from backend.seed.catalog import CATALOG
-            items = await check_depletions_for_household(str(hh.id), db)
+
+            # Query existing pre-computed model predictions directly from DB to prevent drift
+            logger.info(f"Querying pre-computed model predictions for household {hh.id} (user {hh.user_id}) during 'check'")
+            items = await check_depletions_for_household(str(hh.id), db, bypass_cooldown=True)
             
             if items:
                 from backend.seed.catalog import format_restock_alert_message
@@ -133,10 +136,13 @@ async def whatsapp_webhook(
                 
                 # Reset the agent's checkpointer thread state for this new alert list
                 config = {"configurable": {"thread_id": phone}}
-                catalog_lookup = {item["id"]: item["name"] for item in CATALOG}
                 new_depleting = [
-                    {"item_name": catalog_lookup.get(item_id, item_id), "confidence_score": 0.8, "days_remaining": 1.0}
-                    for item_id in alert.item_ids
+                    {
+                        "item_name": item["item_name"],
+                        "confidence_score": item["confidence_score"],
+                        "days_remaining": item["days_remaining"]
+                    }
+                    for item in items
                 ]
                 
                 # Reset memory checkpointer
@@ -237,13 +243,40 @@ async def whatsapp_webhook(
                 await db.commit()
                 logger.info(f"New alert detected for household {hh.user_id}, status updated to 'sent'.")
             
-            # Map item IDs to human-readable names from our catalog
+            # Map item IDs to human-readable names from our catalog and lookup actual predictions
             from backend.seed.catalog import CATALOG
-            catalog_lookup = {item["id"]: item["name"] for item in CATALOG}
-            depleting_items = [
-                {"item_name": catalog_lookup.get(item_id, item_id), "confidence_score": 0.8, "days_remaining": 1.0}
-                for item_id in alert.item_ids
-            ]
+            from backend.database.models import ConsumptionModel
+            
+            # Query the database for the actual consumption models for these items
+            stmt_models = select(ConsumptionModel).where(
+                ConsumptionModel.household_id == hh.id,
+                ConsumptionModel.item_id.in_(alert.item_ids)
+            )
+            res_models = await db.execute(stmt_models)
+            models_list = res_models.scalars().all()
+            models_by_item = {m.item_id: m for m in models_list}
+
+            depleting_items = []
+            for item_id in alert.item_ids:
+                model = models_by_item.get(item_id)
+                days_remaining = 1.0
+                confidence_score = 0.8
+                if model:
+                    confidence_score = model.confidence_score if model.confidence_score is not None else 0.8
+                    if model.estimated_depletion_date:
+                        dep_date = model.estimated_depletion_date
+                        if dep_date.tzinfo is None:
+                            dep_date = dep_date.replace(tzinfo=timezone.utc)
+                        days_remaining = (dep_date - datetime.now(timezone.utc)).total_seconds() / 86400
+
+                cat_item = next((item for item in CATALOG if item["id"] == item_id), None)
+                item_name = cat_item["name"] if cat_item else item_id
+
+                depleting_items.append({
+                    "item_name": item_name,
+                    "confidence_score": confidence_score,
+                    "days_remaining": round(days_remaining, 1)
+                })
     except Exception as e:
         logger.warning(f"Error fetching active alert details: {e}")
 

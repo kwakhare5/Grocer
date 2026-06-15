@@ -599,7 +599,7 @@ instamart-intelligence/
 │   │   └── scheduler.py               # APScheduler for daily checks
 │   └── seed/
 │       ├── generate_orders.py         # Seed data generator
-│       └── realistic_items.py         # Indian household item catalog
+│       └── catalog.py                 # Indian household item catalog
 ├── frontend/
 │   ├── app/
 │   │   ├── page.tsx                   # Dashboard home
@@ -608,10 +608,8 @@ instamart-intelligence/
 │   │   ├── recipes/page.tsx           # Recipe planner
 │   │   └── price-alerts/page.tsx      # Price intelligence
 │   ├── components/
-│   │   ├── DepletionCard.tsx          # Item countdown card
-│   │   ├── HouseholdProfile.tsx       # Inferred household stats
-│   │   ├── RecipeCart.tsx             # Recipe → missing items
-│   │   └── PriceChart.tsx             # Commodity price history
+│   │   ├── ChatDrawer.tsx             # WhatsApp sandbox simulator drawer
+│   │   └── Header.tsx                 # Main application navigation header
 │   └── lib/
 │       └── api.ts                     # API client
 ├── docker-compose.yml                 # Postgres + TimescaleDB

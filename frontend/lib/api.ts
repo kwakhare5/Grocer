@@ -83,6 +83,7 @@ export interface APIPriceAlertsResponse {
 export const householdApi = {
   sync: (userId: string) => api.post<{ message: string; household_id: string }>(`/api/household/${userId}/sync`),
   getProfile: (userId: string) => api.get<APIHouseholdProfile>(`/api/household/${userId}`),
+  switchScenario: (userId: string, scenario: string) => api.post<{ success: boolean; message: string }>(`/api/household/${userId}/scenario`, { scenario }),
 };
 
 export const predictionsApi = {

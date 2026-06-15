@@ -46,7 +46,7 @@ async def _get_household_by_user_id(user_id: str, db: AsyncSession) -> Household
     return household
 
 
-async def check_depletions_for_household(household_id: str, db: AsyncSession) -> list[dict]:
+async def check_depletions_for_household(household_id: str, db: AsyncSession, bypass_cooldown: bool = False) -> list[dict]:
     """
     Return items that are predicted to deplete within ALERT_THRESHOLD_DAYS
     and have confidence >= MIN_CONFIDENCE, excluding any item already alerted
@@ -65,7 +65,6 @@ async def check_depletions_for_household(household_id: str, db: AsyncSession) ->
         ConsumptionModel.household_id == household_id,
         ConsumptionModel.confidence_score >= min_confidence,
         ConsumptionModel.estimated_depletion_date.isnot(None),
-        ConsumptionModel.estimated_depletion_date >= now,
         ConsumptionModel.estimated_depletion_date <= window_end,
     ).order_by(ConsumptionModel.estimated_depletion_date.asc())
 
@@ -95,7 +94,7 @@ async def check_depletions_for_household(household_id: str, db: AsyncSession) ->
     # --- Step 3: filter and format -------------------------------------------
     depleting = []
     for model in depleting_models:
-        if str(model.item_id) in recently_alerted_ids:
+        if not bypass_cooldown and str(model.item_id) in recently_alerted_ids:
             continue  # already alerted in last 24h — skip
 
         now_aware = now

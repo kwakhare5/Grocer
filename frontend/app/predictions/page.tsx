@@ -59,7 +59,7 @@ const FALLBACK_ITEMS: PredictionItem[] = [
   },
   {
     id:       "INS_005",
-    name:     "Nandini Eggs — Pack of 12",
+    name:     "Nandini Eggs (Pack of 12)",
     category: "Protein",
     days:     4,
     conf:     88,

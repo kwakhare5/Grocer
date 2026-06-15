@@ -27,9 +27,15 @@ export default function ChatDrawer() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
 
-  // Fetch latest pending alert when sandbox is opened
+  // Listen for open-whatsapp-chat event to open the drawer
   useEffect(() => {
-    if (!isOpen) return;
+    const handleOpenChat = () => setIsOpen(true);
+    window.addEventListener("open-whatsapp-chat", handleOpenChat);
+    return () => window.removeEventListener("open-whatsapp-chat", handleOpenChat);
+  }, []);
+
+  // Fetch latest pending alert on mount and dispatch push notification if pending
+  useEffect(() => {
     async function loadLatestAlert() {
       try {
         const res = await fetch("http://localhost:8000/api/restock/demo_user_001/history");
@@ -42,6 +48,7 @@ export default function ChatDrawer() {
               const timeStr = latest.sent_at 
                 ? new Date(latest.sent_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                 : new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+              
               setMessages([
                 {
                   sender: "bot",
@@ -49,6 +56,9 @@ export default function ChatDrawer() {
                   timestamp: timeStr
                 }
               ]);
+
+              // Dispatch push notification alert
+              window.dispatchEvent(new CustomEvent("whatsapp-alert", { detail: { text: latest.message } }));
             }
           }
         }
@@ -57,7 +67,90 @@ export default function ChatDrawer() {
       }
     }
     loadLatestAlert();
-  }, [isOpen]);
+  }, []);
+
+  interface SuggestionChip {
+    label: string;
+    value: string;
+  }
+
+  const getSuggestionChips = (): SuggestionChip[] => {
+    if (loading) return [];
+    
+    // Find last bot message
+    const lastMsg = [...messages].reverse().find(m => m.sender === "bot");
+    if (!lastMsg) return [{ label: "🔍 Check Stock", value: "check" }];
+
+    const txt = lastMsg.text;
+    if (txt.includes("reorder all, or tell me which ones")) {
+      return [
+        { label: "✅ YES", value: "YES" },
+        { label: "🥛 Just Milk", value: "only Milk" },
+        { label: "❌ NO (Cancel)", value: "NO" }
+      ];
+    }
+    if (txt.includes("Reply CONFIRM to place order")) {
+      return [
+        { label: "🚀 CONFIRM", value: "CONFIRM" },
+        { label: "❌ CANCEL", value: "CANCEL" }
+      ];
+    }
+    
+    return [{ label: "🔍 Check Stock", value: "check" }];
+  };
+
+  const handleChipClick = async (value: string) => {
+    if (loading) return;
+    const timeString = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    setMessages(prev => [...prev, { sender: "user", text: value, timestamp: timeString }]);
+    setLoading(true);
+
+    try {
+      const res = await fetch("http://localhost:8000/api/webhook/whatsapp", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          phone: "+919999999999", // Sandbox demo phone
+          message: value
+        })
+      });
+
+      if (!res.ok) {
+        throw new Error("API Connection error");
+      }
+
+      const data = await res.json();
+      setMessages(prev => [
+        ...prev,
+        {
+          sender: "bot",
+          text: data.response_message || "Received, processing.",
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        }
+      ]);
+
+      if (data.response_message) {
+        window.dispatchEvent(new CustomEvent("whatsapp-alert", { detail: { text: data.response_message } }));
+        if (data.response_message.includes("Order placed") || data.response_message.includes("Order #") || data.response_message.includes("✅ Order")) {
+          window.dispatchEvent(new CustomEvent("order-placed"));
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      setMessages(prev => [
+        ...prev,
+        {
+          sender: "bot",
+          text: "⚠️ System Offline: Webhook connection refused. Make sure backend FastAPI is running on port 8000.",
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        }
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSendMessage = async () => {
     if (!input.trim() || loading) return;
@@ -93,6 +186,13 @@ export default function ChatDrawer() {
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         }
       ]);
+
+      if (data.response_message) {
+        window.dispatchEvent(new CustomEvent("whatsapp-alert", { detail: { text: data.response_message } }));
+        if (data.response_message.includes("Order placed") || data.response_message.includes("Order #") || data.response_message.includes("✅ Order")) {
+          window.dispatchEvent(new CustomEvent("order-placed"));
+        }
+      }
     } catch (err) {
       console.error(err);
       setMessages(prev => [
@@ -189,6 +289,21 @@ export default function ChatDrawer() {
             )}
             <div ref={messagesEndRef} />
           </div>
+
+          {/* Dynamic Suggestion Chips */}
+          {!loading && (
+            <div className="px-3 py-1.5 flex gap-1.5 overflow-x-auto bg-[#faf9f8] dark:bg-[#0c0b0a] border-t border-border/40 shrink-0">
+              {getSuggestionChips().map((chip) => (
+                <button
+                  key={chip.value}
+                  onClick={() => handleChipClick(chip.value)}
+                  className="bg-accent/5 hover:bg-accent/10 text-accent font-bold text-[9px] uppercase px-3 py-1.5 rounded-full border border-accent/20 cursor-pointer transition-all duration-200 shrink-0 select-none hover:scale-[1.02] active:scale-[0.98]"
+                >
+                  {chip.label}
+                </button>
+              ))}
+            </div>
+          )}
 
           {/* Form Input */}
           <div className="p-3 border-t border-border flex bg-muted/20 gap-2">

@@ -76,3 +76,17 @@ async def track_order(order_id: str):
         "status": "out_for_delivery",
         "estimated_arrival": "10-15 minutes"
     }
+
+@app.post("/reload_mock_orders")
+async def reload_mock_orders():
+    global MOCK_ORDERS
+    seed_file = os.path.join(os.path.dirname(__file__), "..", "seed", "generated_orders.json")
+    if os.path.exists(seed_file):
+        try:
+            with open(seed_file) as f:
+                MOCK_ORDERS = json.load(f)
+            print(f"Mock server reloaded {len(MOCK_ORDERS)} orders")
+            return {"success": True, "loaded_orders": len(MOCK_ORDERS)}
+        except Exception as e:
+            return {"success": False, "error": f"Failed to parse json: {e}"}
+    return {"success": False, "error": "Seed file not found"}

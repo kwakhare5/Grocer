@@ -25,7 +25,10 @@ The project is fully staging-ready. All 16 backend unit and integration tests co
 | **Backend** | **Checkpointer Safety** | PASS | **Excellent** | MemorySaver checkpointer fallback is fully integrated. Conversational LangGraph states reset automatically on fresh checks. |
 | **Backend** | **Scenario Switcher** | PASS | **Excellent** | Added `/scenario` endpoint that regenerates order history datasets (Staples, Party Spike, Vacation) and re-runs Prophet ML models on the fly. |
 | **Backend** | **Production Security** | PASS | **Excellent** | Added Twilio request signature verification. Inspected all database select/insert methods to guarantee 100% query parameterization. |
+| **Backend** | **Latency & Load Handling** | PASS | **Excellent** | Added GZipMiddleware to compress large JSON responses. Offloaded Prophet training to separate thread pools using `asyncio.to_thread` to protect the Uvicorn event loop. |
+| **Backend** | **Query Efficiency** | PASS | **Excellent** | Created explicit database indexes on all frequently-queried foreign keys (`household_id`, `order_id`, `item_id`). |
 | **Backend** | **Test Coverage** | PASS | **Excellent** | 16/16 backend tests pass successfully. Tests run cleanly offline using an in-memory async SQLite engine with static connection pooling. |
+| **Frontend** | **Client-Side Caching** | PASS | **Excellent** | Integrated SWR (Stale-While-Revalidate) in predictions and dashboard views to cache data client-side, making tab switching instant. |
 | **Frontend** | **Micro-animations** | PASS | **Excellent** | Implemented realistic CSS liquid sloshing wave keyframes, lid floating spring keyframes, and stat card hover shadow transitions. |
 | **Frontend** | **Touch Targets & Accessibility** | PASS | **Excellent** | Expanded all action buttons, tag pills, and checkout links to a minimum height of **`h-11` (44px)** to meet touch target standards. |
 | **Frontend** | **Push Notifications & Confetti** | PASS | **Excellent** | Smartphone push notification toasts trigger dynamically on stock checks. Canvas confetti and refill animations fire on confirmed orders. |

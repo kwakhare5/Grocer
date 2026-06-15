@@ -62,10 +62,6 @@ function formatCycle(cycle: string) {
   return `Restocked every ${Math.round(d)} days`;
 }
 
-function barFill(days: number) {
-  return Math.min(100, Math.max(4, Math.round((days / 30) * 100)));
-}
-
 function jarFluidStyle(name: string, fillPercent: number) {
   let fluidColor = "rgba(16, 185, 129, 0.4)"; // default ok green
   let border = "var(--ok)";
@@ -191,9 +187,6 @@ function ConfettiEffect({ active }: { active: boolean }) {
 const fetcher = (userId: string) => predictionsApi.getForHousehold(userId).then(res => res.data);
 
 export default function Home() {
-  const [depleting, setDepleting] = useState<DepletingItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  
   // Interactive Local UI states
   const [addedItems, setAddedItems] = useState<Set<string>>(new Set());
   const [pinnedItems, setPinnedItems] = useState<Set<string>>(new Set());
@@ -207,7 +200,15 @@ export default function Home() {
   const [switchingScenario, setSwitchingScenario] = useState(false);
   const [panelOpen, setPanelOpen] = useState(false);
 
-  const { data: predictionsData, error: predictionsError, mutate: mutatePredictions } = useSWR(
+  // Hoisted Toast handler
+  function triggerToast(msg: string) {
+    setToastMessage(msg);
+    setTimeout(() => {
+      setToastMessage((prev) => (prev === msg ? null : prev));
+    }, 3000);
+  }
+
+  const { data: predictionsData, mutate: mutatePredictions, isLoading: predictionsLoading, isValidating: predictionsValidating } = useSWR(
     "demo_user_001",
     fetcher,
     {
@@ -216,32 +217,22 @@ export default function Home() {
     }
   );
 
-  useEffect(() => {
-    if (predictionsData) {
-      if (predictionsData.predictions && predictionsData.predictions.length > 0) {
-        const apiItems = predictionsData.predictions.map((p: APIPrediction) => ({
-          name: p.item_name,
-          days: p.days_remaining !== null ? Math.round(p.days_remaining) : 10,
-          conf: Math.round((p.confidence_score || 0.5) * 100),
-          avg: `${p.avg_daily_consumption.toFixed(2)}/day`,
-          cycle: `${p.consumption_cycle_days || 7}d`,
-          urgent: p.days_remaining !== null && p.days_remaining <= 3
-        }));
-        setDepleting(apiItems);
-      } else {
-        setDepleting(FALLBACK_DEPLETING);
-      }
-      setLoading(false);
-    } else if (predictionsError) {
-      setDepleting(FALLBACK_DEPLETING);
-      setLoading(false);
-    }
-  }, [predictionsData, predictionsError]);
+  const loading = predictionsLoading || predictionsValidating || switchingScenario;
+
+  const depleting = predictionsData?.predictions && predictionsData.predictions.length > 0
+    ? predictionsData.predictions.map((p: APIPrediction) => ({
+        name: p.item_name,
+        days: p.days_remaining !== null ? Math.round(p.days_remaining) : 10,
+        conf: Math.round((p.confidence_score || 0.5) * 100),
+        avg: `${p.avg_daily_consumption.toFixed(2)}/day`,
+        cycle: `${p.consumption_cycle_days || 7}d`,
+        urgent: p.days_remaining !== null && p.days_remaining <= 3
+      }))
+    : FALLBACK_DEPLETING;
 
   const handleScenarioChange = async (scenario: string) => {
     if (switchingScenario) return;
     setSwitchingScenario(true);
-    setLoading(true);
     
     // Optimistic Update
     const previousScenario = activeScenario;
@@ -258,7 +249,6 @@ export default function Home() {
       triggerToast("⚠️ Failed to switch demo scenario.");
     } finally {
       setSwitchingScenario(false);
-      setLoading(false);
     }
   };
 
@@ -315,13 +305,6 @@ export default function Home() {
 
   // Caching predictions are handled via SWR hook mutates
 
-  const triggerToast = (msg: string) => {
-    setToastMessage(msg);
-    setTimeout(() => {
-      setToastMessage((prev) => (prev === msg ? null : prev));
-    }, 3000);
-  };
-
   const handleAddToCart = (name: string, e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
@@ -371,10 +354,10 @@ export default function Home() {
   };
 
   const STATS_ICONS = [
-    <Package className="h-5 w-5 text-accent/80" />,
-    <ShieldCheck className="h-5 w-5 text-accent/80" />,
-    <Zap className="h-5 w-5 text-accent/80" />,
-    <Sparkles className="h-5 w-5 text-accent/80" />
+    <Package key="package" className="h-5 w-5 text-accent/80" />,
+    <ShieldCheck key="shield" className="h-5 w-5 text-accent/80" />,
+    <Zap key="zap" className="h-5 w-5 text-accent/80" />,
+    <Sparkles key="sparkles" className="h-5 w-5 text-accent/80" />
   ];
 
   return (
@@ -417,7 +400,7 @@ export default function Home() {
             <div className="flex flex-col gap-1.5">
               <span className="font-extrabold text-xs text-foreground font-display uppercase tracking-wide">Select Household Lifestyle Scenario</span>
               <p className="text-[11px] leading-relaxed text-muted font-medium">
-                Changing scenarios instantly regenerates the household's order history, runs Swiggy's Prophet ML model predictions, and profiles household composition in real-time.
+                {"Changing scenarios instantly regenerates the household's order history, runs Swiggy's Prophet ML model predictions, and profiles household composition in real-time."}
               </p>
             </div>
             

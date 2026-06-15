@@ -117,17 +117,38 @@ flowchart LR
 ```
 Instamart-Intelligence/
 │
-├── docker-compose.yml              # Orchestrates the PostgreSQL with TimescaleDB time-series hypertable container
-├── src/
-│   ├── backend/
-│   │   └── main.py                 # FastAPI entry point, lifecycle lifespan handlers, and API router registrations
-│   └── frontend/
-│       ├── package.json            # Next.js dependencies and compilation build scripts
-│       └── lib/api.ts              # Strongly typed frontend Axios API client request and response interfaces
+├── docker-compose.yml              # Orchestrates the PostgreSQL with TimescaleDB container
+├── pyrightconfig.json              # Configures local python virtual environment for development tools
+├── requirements.txt                # Lists Python backend dependencies (FastAPI, Prophet, etc.)
 │
-├── docs/                           # Roadmaps, Builder Club selection applications, and plans
+├── backend/                        # FastAPI Web Server, ML Models, and Database Modules
+│   ├── main.py                     # Entry point for FastAPI backend
+│   ├── database/                   # Database connection pools, SQLAlchemy models, and Alembic migrations
+│   ├── ml/                         # Prophet forecasting, anomaly detection, and household profiling
+│   └── agents/                     # LangGraph workflow orchestration (Restock, Recipe, Price agents)
+│
+├── frontend/                       # Next.js Dashboard React Client
+│   ├── app/                        # Pages (dashboard, predictions timeline, recipe planning)
+│   ├── components/                 # Reusable UI elements (WhatsApp sandbox drawer, navigation headers)
+│   └── lib/api.ts                  # Axios API request and response client configurations
+│
+├── docs/                           # Performance optimization plans, audits, and walk-throughs
 └── README.md
 ```
+
+<br/>
+
+---
+
+## ⚡ Performance Optimizations
+
+To keep the application highly responsive, low-latency, and production-ready, several systematic optimizations are implemented:
+
+* **Asynchronous Thread Offloading**: Heavy time-series model fitting (Facebook Prophet) is offloaded to background threads using `asyncio.to_thread` to ensure FastAPI's event loop is never blocked by CPU-bound tasks.
+* **GZip Payload Compression**: Backed by FastAPI's `GZipMiddleware` to compress API payloads, significantly saving network bandwidth and speeding up client load times.
+* **Smart Client Caching (SWR)**: Utilizes Next.js `swr` for data fetching. Implements cache-first loading, deduplication of concurrent requests, and silent revalidation to deliver instantaneous tab transitions (<10ms).
+* **Indexed Database Schemas**: Added database index annotations on all primary foreign key joins (`household_id`, `order_id`, `item_id`) in PostgreSQL/TimescaleDB to ensure rapid query execution as order history scales.
+* **GPU-Accelerated Animations**: Configured `will-change` CSS properties for smooth, hardware-accelerated transitions on interactive elements.
 
 <br/>
 

@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import useSWR from "swr";
 import { predictionsApi, APIPrediction } from "../../lib/api";
-import { Milk, Droplets, CircleDot, Package, Clock, Sparkles, ChevronDown, ChevronUp, Activity, Calendar } from "lucide-react";
+import { Milk, Droplets, CircleDot, Package, Clock, Sparkles, ChevronDown, ChevronUp, Activity } from "lucide-react";
 
 interface PredictionItem {
   id: string;
@@ -123,12 +123,6 @@ function urgencyStyle(days: number) {
   return             { pill: "pill-muted",    bar: "#7c7267", label: "In Stock"      };
 }
 
-function certaintyLabel(conf: number) {
-  if (conf >= 85) return "Very High";
-  if (conf >= 70) return "High";
-  return "Moderate";
-}
-
 function getCategoryIcon(cat: string) {
   const c = cat.toLowerCase();
   if (c.includes("dairy") || c.includes("milk")) return <Milk className="h-5 w-5 text-accent/80" />;
@@ -140,15 +134,13 @@ function getCategoryIcon(cat: string) {
 const fetcher = (userId: string) => predictionsApi.getForHousehold(userId).then(res => res.data);
 
 export default function PredictionsPage() {
-  const [items, setItems] = useState<PredictionItem[]>(FALLBACK_ITEMS);
-  const [loading, setLoading] = useState(true);
   const [showDetails, setShowDetails] = useState<Record<string, boolean>>({});
 
   const toggleDetails = (id: string) => {
     setShowDetails(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
-  const { data: predictionsData, error: predictionsError } = useSWR(
+  const { data: predictionsData, isLoading: predictionsLoading, isValidating: predictionsValidating } = useSWR(
     "demo_user_001",
     fetcher,
     {
@@ -157,41 +149,32 @@ export default function PredictionsPage() {
     }
   );
 
-  useEffect(() => {
-    if (predictionsData) {
-      if (predictionsData.predictions && predictionsData.predictions.length > 0) {
-        const apiItems = predictionsData.predictions.map((p: APIPrediction) => {
-          const daysLeft = p.days_remaining !== null ? Math.round(p.days_remaining) : 10;
-          const mockHist = [
-            { predicted: "3 cycles ago", actual: "3 cycles ago", error: 0 },
-            { predicted: "2 cycles ago", actual: "2 cycles ago", error: 1 },
-            { predicted: "Last cycle", actual: "Last cycle", error: 0 }
-          ];
-          
-          return {
-            id: p.item_id,
-            name: p.item_name,
-            category: p.category || "General",
-            days: daysLeft,
-            conf: Math.round((p.confidence_score || 0.5) * 100),
-            avg: `${p.avg_daily_consumption.toFixed(2)} /day`,
-            cycle: `${p.consumption_cycle_days || 7} days`,
-            depletes: p.estimated_depletion_date ? new Date(p.estimated_depletion_date).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) : "Unknown",
-            lastBuy: p.last_purchase_date ? new Date(p.last_purchase_date).toLocaleDateString([], { month: 'short', day: 'numeric' }) : "Unknown",
-            qty: `${p.last_purchase_quantity || 1}`,
-            history: mockHist
-          };
-        });
-        setItems(apiItems);
-      } else {
-        setItems(FALLBACK_ITEMS);
-      }
-      setLoading(false);
-    } else if (predictionsError) {
-      setItems(FALLBACK_ITEMS);
-      setLoading(false);
-    }
-  }, [predictionsData, predictionsError]);
+  const loading = predictionsLoading || predictionsValidating;
+
+  const items = predictionsData?.predictions && predictionsData.predictions.length > 0
+    ? predictionsData.predictions.map((p: APIPrediction) => {
+        const daysLeft = p.days_remaining !== null ? Math.round(p.days_remaining) : 10;
+        const mockHist = [
+          { predicted: "3 cycles ago", actual: "3 cycles ago", error: 0 },
+          { predicted: "2 cycles ago", actual: "2 cycles ago", error: 1 },
+          { predicted: "Last cycle", actual: "Last cycle", error: 0 }
+        ];
+        
+        return {
+          id: p.item_id,
+          name: p.item_name,
+          category: p.category || "General",
+          days: daysLeft,
+          conf: Math.round((p.confidence_score || 0.5) * 100),
+          avg: `${p.avg_daily_consumption.toFixed(2)} /day`,
+          cycle: `${p.consumption_cycle_days || 7} days`,
+          depletes: p.estimated_depletion_date ? new Date(p.estimated_depletion_date).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) : "Unknown",
+          lastBuy: p.last_purchase_date ? new Date(p.last_purchase_date).toLocaleDateString([], { month: 'short', day: 'numeric' }) : "Unknown",
+          qty: `${p.last_purchase_quantity || 1}`,
+          history: mockHist
+        };
+      })
+    : FALLBACK_ITEMS;
 
   return (
     <div className="flex flex-col gap-10 relative">

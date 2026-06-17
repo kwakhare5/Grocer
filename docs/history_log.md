@@ -21,3 +21,4 @@
 - [2026-07-11T11:00:18] style: align recipe checker ingredient status pills
 - [2026-07-11T14:15:52] refactor: unify typography scale tokens
 - [2026-07-11T18:30:27] docs: update architecture overview diagram
+- [2026-06-17T10:30:14] feat: enhance daily consumption velocity tracker

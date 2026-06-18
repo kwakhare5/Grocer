@@ -12,3 +12,4 @@
 - [2026-05-18T19:10:55] test: add unit tests for restock checkpointer
 - [2026-06-18T10:05:40] refactor: optimize layout transitions and active states
 - [2026-06-18T14:22:19] style: update WhatsApp chat drawer elevation
+- [2026-06-18T16:50:08] perf: reduce unneeded re-renders on subtab change

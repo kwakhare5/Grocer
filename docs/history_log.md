@@ -23,3 +23,4 @@
 - [2026-07-11T18:30:27] docs: update architecture overview diagram
 - [2026-06-17T10:30:14] feat: enhance daily consumption velocity tracker
 - [2026-06-17T15:15:48] style: adjust pantry fill bar progress animation
+- [2026-06-19T09:40:22] refactor: optimize recipe ingredient lookup DB

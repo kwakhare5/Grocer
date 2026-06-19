@@ -24,3 +24,4 @@
 - [2026-06-17T10:30:14] feat: enhance daily consumption velocity tracker
 - [2026-06-17T15:15:48] style: adjust pantry fill bar progress animation
 - [2026-06-19T09:40:22] refactor: optimize recipe ingredient lookup DB
+- [2026-06-19T14:50:09] fix: resolve ingredient toggle state flicker

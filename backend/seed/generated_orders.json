@@ -2,7 +2,7 @@
   {
     "order_id": "INS_MOCK_0001",
     "user_id": "demo_user_001",
-    "placed_at": "2026-02-16T10:22:00+05:30",
+    "placed_at": "2026-02-21T10:22:00+05:30",
     "items": [
       {
         "item_id": "INS_001",
@@ -38,7 +38,7 @@
   {
     "order_id": "INS_MOCK_0002",
     "user_id": "demo_user_001",
-    "placed_at": "2026-02-18T20:32:00+05:30",
+    "placed_at": "2026-02-23T20:32:00+05:30",
     "items": [
       {
         "item_id": "INS_001",
@@ -65,7 +65,7 @@
   {
     "order_id": "INS_MOCK_0003",
     "user_id": "demo_user_001",
-    "placed_at": "2026-02-19T18:43:00+05:30",
+    "placed_at": "2026-02-24T18:43:00+05:30",
     "items": [
       {
         "item_id": "INS_003",
@@ -101,7 +101,7 @@
   {
     "order_id": "INS_MOCK_0004",
     "user_id": "demo_user_001",
-    "placed_at": "2026-02-20T19:21:00+05:30",
+    "placed_at": "2026-02-25T19:21:00+05:30",
     "items": [
       {
         "item_id": "INS_001",
@@ -128,7 +128,7 @@
   {
     "order_id": "INS_MOCK_0005",
     "user_id": "demo_user_001",
-    "placed_at": "2026-02-22T08:07:00+05:30",
+    "placed_at": "2026-02-27T08:07:00+05:30",
     "items": [
       {
         "item_id": "INS_001",
@@ -155,7 +155,7 @@
   {
     "order_id": "INS_MOCK_0006",
     "user_id": "demo_user_001",
-    "placed_at": "2026-02-23T10:11:00+05:30",
+    "placed_at": "2026-02-28T10:11:00+05:30",
     "items": [
       {
         "item_id": "INS_006",
@@ -173,7 +173,7 @@
   {
     "order_id": "INS_MOCK_0007",
     "user_id": "demo_user_001",
-    "placed_at": "2026-02-24T19:16:00+05:30",
+    "placed_at": "2026-03-01T19:16:00+05:30",
     "items": [
       {
         "item_id": "INS_001",
@@ -200,7 +200,7 @@
   {
     "order_id": "INS_MOCK_0008",
     "user_id": "demo_user_001",
-    "placed_at": "2026-02-26T08:06:00+05:30",
+    "placed_at": "2026-03-03T08:06:00+05:30",
     "items": [
       {
         "item_id": "INS_001",
@@ -236,7 +236,7 @@
   {
     "order_id": "INS_MOCK_0009",
     "user_id": "demo_user_001",
-    "placed_at": "2026-02-28T19:27:00+05:30",
+    "placed_at": "2026-03-05T19:27:00+05:30",
     "items": [
       {
         "item_id": "INS_005",
@@ -263,7 +263,7 @@
   {
     "order_id": "INS_MOCK_0010",
     "user_id": "demo_user_001",
-    "placed_at": "2026-03-01T10:46:00+05:30",
+    "placed_at": "2026-03-06T10:46:00+05:30",
     "items": [
       {
         "item_id": "INS_001",
@@ -290,7 +290,7 @@
   {
     "order_id": "INS_MOCK_0011",
     "user_id": "demo_user_001",
-    "placed_at": "2026-03-02T10:27:00+05:30",
+    "placed_at": "2026-03-07T10:27:00+05:30",
     "items": [
       {
         "item_id": "INS_002",
@@ -308,7 +308,7 @@
   {
     "order_id": "INS_MOCK_0012",
     "user_id": "demo_user_001",
-    "placed_at": "2026-03-03T19:32:00+05:30",
+    "placed_at": "2026-03-08T19:32:00+05:30",
     "items": [
       {
         "item_id": "INS_001",
@@ -326,7 +326,7 @@
   {
     "order_id": "INS_MOCK_0013",
     "user_id": "demo_user_001",
-    "placed_at": "2026-03-04T08:24:00+05:30",
+    "placed_at": "2026-03-09T08:24:00+05:30",
     "items": [
       {
         "item_id": "INS_006",
@@ -353,7 +353,7 @@
   {
     "order_id": "INS_MOCK_0014",
     "user_id": "demo_user_001",
-    "placed_at": "2026-03-05T19:12:00+05:30",
+    "placed_at": "2026-03-10T19:12:00+05:30",
     "items": [
       {
         "item_id": "INS_001",
@@ -389,7 +389,7 @@
   {
     "order_id": "INS_MOCK_0015",
     "user_id": "demo_user_001",
-    "placed_at": "2026-03-06T10:02:00+05:30",
+    "placed_at": "2026-03-11T10:02:00+05:30",
     "items": [
       {
         "item_id": "INS_003",
@@ -407,7 +407,7 @@
   {
     "order_id": "INS_MOCK_0016",
     "user_id": "demo_user_001",
-    "placed_at": "2026-03-07T20:27:00+05:30",
+    "placed_at": "2026-03-12T20:27:00+05:30",
     "items": [
       {
         "item_id": "INS_001",
@@ -425,7 +425,7 @@
   {
     "order_id": "INS_MOCK_0017",
     "user_id": "demo_user_001",
-    "placed_at": "2026-03-08T08:33:00+05:30",
+    "placed_at": "2026-03-13T08:33:00+05:30",
     "items": [
       {
         "item_id": "INS_006",
@@ -452,7 +452,7 @@
   {
     "order_id": "INS_MOCK_0018",
     "user_id": "demo_user_001",
-    "placed_at": "2026-03-09T19:43:00+05:30",
+    "placed_at": "2026-03-14T19:43:00+05:30",
     "items": [
       {
         "item_id": "INS_001",
@@ -479,7 +479,7 @@
   {
     "order_id": "INS_MOCK_0019",
     "user_id": "demo_user_001",
-    "placed_at": "2026-03-11T20:47:00+05:30",
+    "placed_at": "2026-03-16T20:47:00+05:30",
     "items": [
       {
         "item_id": "INS_001",
@@ -506,7 +506,7 @@
   {
     "order_id": "INS_MOCK_0020",
     "user_id": "demo_user_001",
-    "placed_at": "2026-03-12T20:42:00+05:30",
+    "placed_at": "2026-03-17T20:42:00+05:30",
     "items": [
       {
         "item_id": "INS_007",
@@ -533,7 +533,7 @@
   {
     "order_id": "INS_MOCK_0021",
     "user_id": "demo_user_001",
-    "placed_at": "2026-03-13T09:23:00+05:30",
+    "placed_at": "2026-03-18T09:23:00+05:30",
     "items": [
       {
         "item_id": "INS_001",
@@ -551,7 +551,7 @@
   {
     "order_id": "INS_MOCK_0022",
     "user_id": "demo_user_001",
-    "placed_at": "2026-03-14T18:04:00+05:30",
+    "placed_at": "2026-03-19T18:04:00+05:30",
     "items": [
       {
         "item_id": "INS_005",
@@ -569,7 +569,7 @@
   {
     "order_id": "INS_MOCK_0023",
     "user_id": "demo_user_001",
-    "placed_at": "2026-03-15T20:58:00+05:30",
+    "placed_at": "2026-03-20T20:58:00+05:30",
     "items": [
       {
         "item_id": "INS_001",
@@ -596,7 +596,7 @@
   {
     "order_id": "INS_MOCK_0024",
     "user_id": "demo_user_001",
-    "placed_at": "2026-03-16T10:39:00+05:30",
+    "placed_at": "2026-03-21T10:39:00+05:30",
     "items": [
       {
         "item_id": "INS_011",
@@ -614,7 +614,7 @@
   {
     "order_id": "INS_MOCK_0025",
     "user_id": "demo_user_001",
-    "placed_at": "2026-03-17T10:42:00+05:30",
+    "placed_at": "2026-03-22T10:42:00+05:30",
     "items": [
       {
         "item_id": "INS_001",
@@ -632,7 +632,7 @@
   {
     "order_id": "INS_MOCK_0026",
     "user_id": "demo_user_001",
-    "placed_at": "2026-03-18T08:46:00+05:30",
+    "placed_at": "2026-03-23T08:46:00+05:30",
     "items": [
       {
         "item_id": "INS_006",
@@ -650,7 +650,7 @@
   {
     "order_id": "INS_MOCK_0027",
     "user_id": "demo_user_001",
-    "placed_at": "2026-03-19T10:32:00+05:30",
+    "placed_at": "2026-03-24T10:32:00+05:30",
     "items": [
       {
         "item_id": "INS_002",
@@ -686,7 +686,7 @@
   {
     "order_id": "INS_MOCK_0028",
     "user_id": "demo_user_001",
-    "placed_at": "2026-03-20T10:42:00+05:30",
+    "placed_at": "2026-03-25T10:42:00+05:30",
     "items": [
       {
         "item_id": "INS_001",
@@ -713,17 +713,8 @@
   {
     "order_id": "INS_MOCK_0029",
     "user_id": "demo_user_001",
-    "placed_at": "2026-03-21T18:20:00+05:30",
+    "placed_at": "2026-03-26T18:20:00+05:30",
     "items": [
-      {
-        "item_id": "INS_001",
-        "item_name": "Amul Taza Milk 1L",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "L",
-        "category": "dairy",
-        "price": 27.91
-      },
       {
         "item_id": "INS_003",
         "item_name": "Fortune Sunflower Oil 1L",
@@ -743,13 +734,31 @@
         "price": 28.39
       }
     ],
-    "total": 187.84,
+    "total": 159.93,
     "status": "delivered"
   },
   {
     "order_id": "INS_MOCK_0030",
     "user_id": "demo_user_001",
-    "placed_at": "2026-03-24T18:44:00+05:30",
+    "placed_at": "2026-03-27T18:44:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_001",
+        "item_name": "Amul Taza Milk 1L",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "L",
+        "category": "dairy",
+        "price": 27.91
+      }
+    ],
+    "total": 27.91,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0031",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-03-29T10:35:00+05:30",
     "items": [
       {
         "item_id": "INS_001",
@@ -777,7 +786,16 @@
         "unit": "kg",
         "category": "vegetables",
         "price": 29.22
-      },
+      }
+    ],
+    "total": 141.47,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0032",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-03-30T09:12:00+05:30",
+    "items": [
       {
         "item_id": "INS_011",
         "item_name": "Britannia Whole Wheat Bread",
@@ -788,13 +806,13 @@
         "price": 49.33
       }
     ],
-    "total": 190.8,
+    "total": 49.33,
     "status": "delivered"
   },
   {
-    "order_id": "INS_MOCK_0031",
+    "order_id": "INS_MOCK_0033",
     "user_id": "demo_user_001",
-    "placed_at": "2026-03-26T10:35:00+05:30",
+    "placed_at": "2026-03-31T18:42:00+05:30",
     "items": [
       {
         "item_id": "INS_001",
@@ -819,9 +837,9 @@
     "status": "delivered"
   },
   {
-    "order_id": "INS_MOCK_0032",
+    "order_id": "INS_MOCK_0034",
     "user_id": "demo_user_001",
-    "placed_at": "2026-03-27T09:12:00+05:30",
+    "placed_at": "2026-04-01T18:43:00+05:30",
     "items": [
       {
         "item_id": "INS_006",
@@ -837,9 +855,9 @@
     "status": "delivered"
   },
   {
-    "order_id": "INS_MOCK_0033",
+    "order_id": "INS_MOCK_0035",
     "user_id": "demo_user_001",
-    "placed_at": "2026-03-28T18:42:00+05:30",
+    "placed_at": "2026-04-02T20:57:00+05:30",
     "items": [
       {
         "item_id": "INS_001",
@@ -855,9 +873,9 @@
     "status": "delivered"
   },
   {
-    "order_id": "INS_MOCK_0034",
+    "order_id": "INS_MOCK_0036",
     "user_id": "demo_user_001",
-    "placed_at": "2026-03-29T18:43:00+05:30",
+    "placed_at": "2026-04-03T09:39:00+05:30",
     "items": [
       {
         "item_id": "INS_005",
@@ -882,9 +900,9 @@
     "status": "delivered"
   },
   {
-    "order_id": "INS_MOCK_0035",
+    "order_id": "INS_MOCK_0037",
     "user_id": "demo_user_001",
-    "placed_at": "2026-04-09T20:57:00+05:30",
+    "placed_at": "2026-04-14T19:19:00+05:30",
     "items": [
       {
         "item_id": "INS_001",
@@ -900,9 +918,9 @@
     "status": "delivered"
   },
   {
-    "order_id": "INS_MOCK_0036",
+    "order_id": "INS_MOCK_0038",
     "user_id": "demo_user_001",
-    "placed_at": "2026-04-10T09:39:00+05:30",
+    "placed_at": "2026-04-15T18:35:00+05:30",
     "items": [
       {
         "item_id": "INS_006",
@@ -918,9 +936,27 @@
     "status": "delivered"
   },
   {
-    "order_id": "INS_MOCK_0037",
+    "order_id": "INS_MOCK_0039",
     "user_id": "demo_user_001",
-    "placed_at": "2026-04-11T19:19:00+05:30",
+    "placed_at": "2026-04-16T08:19:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_011",
+        "item_name": "Britannia Whole Wheat Bread",
+        "quantity": 1,
+        "standard_quantity": 1.0,
+        "unit": "400g",
+        "category": "bakery",
+        "price": 51.46
+      }
+    ],
+    "total": 51.46,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0040",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-04-17T10:13:00+05:30",
     "items": [
       {
         "item_id": "INS_001",
@@ -932,24 +968,6 @@
         "price": 28.13
       },
       {
-        "item_id": "INS_011",
-        "item_name": "Britannia Whole Wheat Bread",
-        "quantity": 1,
-        "standard_quantity": 1.0,
-        "unit": "400g",
-        "category": "bakery",
-        "price": 51.46
-      }
-    ],
-    "total": 79.59,
-    "status": "delivered"
-  },
-  {
-    "order_id": "INS_MOCK_0038",
-    "user_id": "demo_user_001",
-    "placed_at": "2026-04-12T18:35:00+05:30",
-    "items": [
-      {
         "item_id": "INS_005",
         "item_name": "Nandini Eggs (Pack of 12)",
         "quantity": 1,
@@ -959,13 +977,13 @@
         "price": 81.12
       }
     ],
-    "total": 81.12,
+    "total": 109.25,
     "status": "delivered"
   },
   {
-    "order_id": "INS_MOCK_0039",
+    "order_id": "INS_MOCK_0041",
     "user_id": "demo_user_001",
-    "placed_at": "2026-04-13T08:19:00+05:30",
+    "placed_at": "2026-04-18T18:50:00+05:30",
     "items": [
       {
         "item_id": "INS_006",
@@ -981,9 +999,9 @@
     "status": "delivered"
   },
   {
-    "order_id": "INS_MOCK_0040",
+    "order_id": "INS_MOCK_0042",
     "user_id": "demo_user_001",
-    "placed_at": "2026-04-14T10:13:00+05:30",
+    "placed_at": "2026-04-19T19:38:00+05:30",
     "items": [
       {
         "item_id": "INS_001",
@@ -999,9 +1017,9 @@
     "status": "delivered"
   },
   {
-    "order_id": "INS_MOCK_0041",
+    "order_id": "INS_MOCK_0043",
     "user_id": "demo_user_001",
-    "placed_at": "2026-04-15T18:50:00+05:30",
+    "placed_at": "2026-04-20T20:20:00+05:30",
     "items": [
       {
         "item_id": "INS_011",
@@ -1017,9 +1035,9 @@
     "status": "delivered"
   },
   {
-    "order_id": "INS_MOCK_0042",
+    "order_id": "INS_MOCK_0044",
     "user_id": "demo_user_001",
-    "placed_at": "2026-04-16T19:38:00+05:30",
+    "placed_at": "2026-04-21T18:28:00+05:30",
     "items": [
       {
         "item_id": "INS_001",
@@ -1053,9 +1071,9 @@
     "status": "delivered"
   },
   {
-    "order_id": "INS_MOCK_0043",
+    "order_id": "INS_MOCK_0045",
     "user_id": "demo_user_001",
-    "placed_at": "2026-04-17T20:20:00+05:30",
+    "placed_at": "2026-04-22T18:43:00+05:30",
     "items": [
       {
         "item_id": "INS_005",
@@ -1071,9 +1089,9 @@
     "status": "delivered"
   },
   {
-    "order_id": "INS_MOCK_0044",
+    "order_id": "INS_MOCK_0046",
     "user_id": "demo_user_001",
-    "placed_at": "2026-04-18T18:28:00+05:30",
+    "placed_at": "2026-04-23T09:32:00+05:30",
     "items": [
       {
         "item_id": "INS_001",
@@ -1089,9 +1107,9 @@
     "status": "delivered"
   },
   {
-    "order_id": "INS_MOCK_0045",
+    "order_id": "INS_MOCK_0047",
     "user_id": "demo_user_001",
-    "placed_at": "2026-04-19T18:43:00+05:30",
+    "placed_at": "2026-04-24T18:50:00+05:30",
     "items": [
       {
         "item_id": "INS_003",
@@ -1116,9 +1134,9 @@
     "status": "delivered"
   },
   {
-    "order_id": "INS_MOCK_0046",
+    "order_id": "INS_MOCK_0048",
     "user_id": "demo_user_001",
-    "placed_at": "2026-04-20T09:32:00+05:30",
+    "placed_at": "2026-04-25T20:10:00+05:30",
     "items": [
       {
         "item_id": "INS_001",
@@ -1130,15 +1148,6 @@
         "price": 28.33
       },
       {
-        "item_id": "INS_002",
-        "item_name": "Aashirvaad Atta 5kg",
-        "quantity": 1,
-        "standard_quantity": 5.0,
-        "unit": "kg",
-        "category": "staples",
-        "price": 200.2
-      },
-      {
         "item_id": "INS_006",
         "item_name": "Tomatoes (500g)",
         "quantity": 1,
@@ -1148,13 +1157,31 @@
         "price": 28.53
       }
     ],
-    "total": 257.06,
+    "total": 56.86,
     "status": "delivered"
   },
   {
-    "order_id": "INS_MOCK_0047",
+    "order_id": "INS_MOCK_0049",
     "user_id": "demo_user_001",
-    "placed_at": "2026-04-22T18:50:00+05:30",
+    "placed_at": "2026-04-26T20:05:00+05:30",
+    "items": [
+      {
+        "item_id": "INS_002",
+        "item_name": "Aashirvaad Atta 5kg",
+        "quantity": 1,
+        "standard_quantity": 5.0,
+        "unit": "kg",
+        "category": "staples",
+        "price": 200.2
+      }
+    ],
+    "total": 200.2,
+    "status": "delivered"
+  },
+  {
+    "order_id": "INS_MOCK_0050",
+    "user_id": "demo_user_001",
+    "placed_at": "2026-04-27T10:32:00+05:30",
     "items": [
       {
         "item_id": "INS_001",
@@ -1179,9 +1206,9 @@
     "status": "delivered"
   },
   {
-    "order_id": "INS_MOCK_0048",
+    "order_id": "INS_MOCK_0051",
     "user_id": "demo_user_001",
-    "placed_at": "2026-04-23T20:10:00+05:30",
+    "placed_at": "2026-04-28T20:40:00+05:30",
     "items": [
       {
         "item_id": "INS_006",
@@ -1215,9 +1242,9 @@
     "status": "delivered"
   },
   {
-    "order_id": "INS_MOCK_0049",
+    "order_id": "INS_MOCK_0052",
     "user_id": "demo_user_001",
-    "placed_at": "2026-04-24T20:05:00+05:30",
+    "placed_at": "2026-04-29T19:21:00+05:30",
     "items": [
       {
         "item_id": "INS_001",
@@ -1233,9 +1260,9 @@
     "status": "delivered"
   },
   {
-    "order_id": "INS_MOCK_0050",
+    "order_id": "INS_MOCK_0053",
     "user_id": "demo_user_001",
-    "placed_at": "2026-04-26T10:32:00+05:30",
+    "placed_at": "2026-05-01T08:52:00+05:30",
     "items": [
       {
         "item_id": "INS_001",
@@ -1269,9 +1296,9 @@
     "status": "delivered"
   },
   {
-    "order_id": "INS_MOCK_0051",
+    "order_id": "INS_MOCK_0054",
     "user_id": "demo_user_001",
-    "placed_at": "2026-04-27T20:40:00+05:30",
+    "placed_at": "2026-05-02T09:43:00+05:30",
     "items": [
       {
         "item_id": "INS_011",
@@ -1287,9 +1314,9 @@
     "status": "delivered"
   },
   {
-    "order_id": "INS_MOCK_0052",
+    "order_id": "INS_MOCK_0055",
     "user_id": "demo_user_001",
-    "placed_at": "2026-04-28T19:21:00+05:30",
+    "placed_at": "2026-05-03T10:14:00+05:30",
     "items": [
       {
         "item_id": "INS_001",
@@ -1305,9 +1332,9 @@
     "status": "delivered"
   },
   {
-    "order_id": "INS_MOCK_0053",
+    "order_id": "INS_MOCK_0056",
     "user_id": "demo_user_001",
-    "placed_at": "2026-04-29T08:52:00+05:30",
+    "placed_at": "2026-05-04T09:09:00+05:30",
     "items": [
       {
         "item_id": "INS_007",
@@ -1323,9 +1350,9 @@
     "status": "delivered"
   },
   {
-    "order_id": "INS_MOCK_0054",
+    "order_id": "INS_MOCK_0057",
     "user_id": "demo_user_001",
-    "placed_at": "2026-04-30T09:43:00+05:30",
+    "placed_at": "2026-05-05T08:02:00+05:30",
     "items": [
       {
         "item_id": "INS_001",
@@ -1350,9 +1377,9 @@
     "status": "delivered"
   },
   {
-    "order_id": "INS_MOCK_0055",
+    "order_id": "INS_MOCK_0058",
     "user_id": "demo_user_001",
-    "placed_at": "2026-05-01T10:14:00+05:30",
+    "placed_at": "2026-05-06T09:30:00+05:30",
     "items": [
       {
         "item_id": "INS_005",
@@ -1377,9 +1404,9 @@
     "status": "delivered"
   },
   {
-    "order_id": "INS_MOCK_0056",
+    "order_id": "INS_MOCK_0059",
     "user_id": "demo_user_001",
-    "placed_at": "2026-05-02T09:09:00+05:30",
+    "placed_at": "2026-05-07T19:54:00+05:30",
     "items": [
       {
         "item_id": "INS_001",
@@ -1395,9 +1422,9 @@
     "status": "delivered"
   },
   {
-    "order_id": "INS_MOCK_0057",
+    "order_id": "INS_MOCK_0060",
     "user_id": "demo_user_001",
-    "placed_at": "2026-05-03T08:02:00+05:30",
+    "placed_at": "2026-05-08T08:29:00+05:30",
     "items": [
       {
         "item_id": "INS_006",
@@ -1413,9 +1440,9 @@
     "status": "delivered"
   },
   {
-    "order_id": "INS_MOCK_0058",
+    "order_id": "INS_MOCK_0061",
     "user_id": "demo_user_001",
-    "placed_at": "2026-05-04T09:30:00+05:30",
+    "placed_at": "2026-05-09T18:56:00+05:30",
     "items": [
       {
         "item_id": "INS_001",
@@ -1440,9 +1467,9 @@
     "status": "delivered"
   },
   {
-    "order_id": "INS_MOCK_0059",
+    "order_id": "INS_MOCK_0062",
     "user_id": "demo_user_001",
-    "placed_at": "2026-05-05T19:54:00+05:30",
+    "placed_at": "2026-05-10T20:36:00+05:30",
     "items": [
       {
         "item_id": "INS_005",
@@ -1467,9 +1494,9 @@
     "status": "delivered"
   },
   {
-    "order_id": "INS_MOCK_0060",
+    "order_id": "INS_MOCK_0063",
     "user_id": "demo_user_001",
-    "placed_at": "2026-05-06T08:29:00+05:30",
+    "placed_at": "2026-05-11T09:45:00+05:30",
     "items": [
       {
         "item_id": "INS_001",
@@ -1494,9 +1521,9 @@
     "status": "delivered"
   },
   {
-    "order_id": "INS_MOCK_0061",
+    "order_id": "INS_MOCK_0064",
     "user_id": "demo_user_001",
-    "placed_at": "2026-05-07T18:56:00+05:30",
+    "placed_at": "2026-05-12T20:24:00+05:30",
     "items": [
       {
         "item_id": "INS_002",
@@ -1521,9 +1548,9 @@
     "status": "delivered"
   },
   {
-    "order_id": "INS_MOCK_0062",
+    "order_id": "INS_MOCK_0065",
     "user_id": "demo_user_001",
-    "placed_at": "2026-05-08T20:36:00+05:30",
+    "placed_at": "2026-05-13T18:25:00+05:30",
     "items": [
       {
         "item_id": "INS_001",
@@ -1539,9 +1566,9 @@
     "status": "delivered"
   },
   {
-    "order_id": "INS_MOCK_0063",
+    "order_id": "INS_MOCK_0066",
     "user_id": "demo_user_001",
-    "placed_at": "2026-05-09T09:45:00+05:30",
+    "placed_at": "2026-05-14T09:09:00+05:30",
     "items": [
       {
         "item_id": "INS_011",
@@ -1557,9 +1584,9 @@
     "status": "delivered"
   },
   {
-    "order_id": "INS_MOCK_0064",
+    "order_id": "INS_MOCK_0067",
     "user_id": "demo_user_001",
-    "placed_at": "2026-05-10T20:24:00+05:30",
+    "placed_at": "2026-05-15T20:44:00+05:30",
     "items": [
       {
         "item_id": "INS_005",
@@ -1584,9 +1611,9 @@
     "status": "delivered"
   },
   {
-    "order_id": "INS_MOCK_0065",
+    "order_id": "INS_MOCK_0068",
     "user_id": "demo_user_001",
-    "placed_at": "2026-05-11T18:25:00+05:30",
+    "placed_at": "2026-05-16T08:57:00+05:30",
     "items": [
       {
         "item_id": "INS_001",
@@ -1602,9 +1629,9 @@
     "status": "delivered"
   },
   {
-    "order_id": "INS_MOCK_0066",
+    "order_id": "INS_MOCK_0069",
     "user_id": "demo_user_001",
-    "placed_at": "2026-05-13T09:09:00+05:30",
+    "placed_at": "2026-05-18T08:49:00+05:30",
     "items": [
       {
         "item_id": "INS_001",
@@ -1638,9 +1665,9 @@
     "status": "delivered"
   },
   {
-    "order_id": "INS_MOCK_0067",
+    "order_id": "INS_MOCK_0070",
     "user_id": "demo_user_001",
-    "placed_at": "2026-05-14T20:44:00+05:30",
+    "placed_at": "2026-05-19T18:14:00+05:30",
     "items": [
       {
         "item_id": "INS_005",
@@ -1665,9 +1692,9 @@
     "status": "delivered"
   },
   {
-    "order_id": "INS_MOCK_0068",
+    "order_id": "INS_MOCK_0071",
     "user_id": "demo_user_001",
-    "placed_at": "2026-05-15T08:57:00+05:30",
+    "placed_at": "2026-05-20T09:51:00+05:30",
     "items": [
       {
         "item_id": "INS_001",
@@ -1683,9 +1710,9 @@
     "status": "delivered"
   },
   {
-    "order_id": "INS_MOCK_0069",
+    "order_id": "INS_MOCK_0072",
     "user_id": "demo_user_001",
-    "placed_at": "2026-05-16T08:49:00+05:30",
+    "placed_at": "2026-05-21T20:33:00+05:30",
     "items": [
       {
         "item_id": "INS_006",
@@ -1701,9 +1728,9 @@
     "status": "delivered"
   },
   {
-    "order_id": "INS_MOCK_0070",
+    "order_id": "INS_MOCK_0073",
     "user_id": "demo_user_001",
-    "placed_at": "2026-05-17T18:14:00+05:30",
+    "placed_at": "2026-05-22T18:03:00+05:30",
     "items": [
       {
         "item_id": "INS_001",
@@ -1728,9 +1755,9 @@
     "status": "delivered"
   },
   {
-    "order_id": "INS_MOCK_0071",
+    "order_id": "INS_MOCK_0074",
     "user_id": "demo_user_001",
-    "placed_at": "2026-05-18T09:51:00+05:30",
+    "placed_at": "2026-05-23T19:15:00+05:30",
     "items": [
       {
         "item_id": "INS_003",
@@ -1746,9 +1773,9 @@
     "status": "delivered"
   },
   {
-    "order_id": "INS_MOCK_0072",
+    "order_id": "INS_MOCK_0075",
     "user_id": "demo_user_001",
-    "placed_at": "2026-05-19T20:33:00+05:30",
+    "placed_at": "2026-05-24T08:29:00+05:30",
     "items": [
       {
         "item_id": "INS_001",
@@ -1764,9 +1791,9 @@
     "status": "delivered"
   },
   {
-    "order_id": "INS_MOCK_0073",
+    "order_id": "INS_MOCK_0076",
     "user_id": "demo_user_001",
-    "placed_at": "2026-05-20T18:03:00+05:30",
+    "placed_at": "2026-05-25T09:51:00+05:30",
     "items": [
       {
         "item_id": "INS_005",
@@ -1791,9 +1818,9 @@
     "status": "delivered"
   },
   {
-    "order_id": "INS_MOCK_0074",
+    "order_id": "INS_MOCK_0077",
     "user_id": "demo_user_001",
-    "placed_at": "2026-05-21T19:15:00+05:30",
+    "placed_at": "2026-05-26T18:42:00+05:30",
     "items": [
       {
         "item_id": "INS_001",
@@ -1827,9 +1854,9 @@
     "status": "delivered"
   },
   {
-    "order_id": "INS_MOCK_0075",
+    "order_id": "INS_MOCK_0078",
     "user_id": "demo_user_001",
-    "placed_at": "2026-05-23T08:29:00+05:30",
+    "placed_at": "2026-05-28T19:35:00+05:30",
     "items": [
       {
         "item_id": "INS_001",
@@ -1854,9 +1881,9 @@
     "status": "delivered"
   },
   {
-    "order_id": "INS_MOCK_0076",
+    "order_id": "INS_MOCK_0079",
     "user_id": "demo_user_001",
-    "placed_at": "2026-05-24T09:51:00+05:30",
+    "placed_at": "2026-05-29T19:20:00+05:30",
     "items": [
       {
         "item_id": "INS_002",
@@ -1881,9 +1908,9 @@
     "status": "delivered"
   },
   {
-    "order_id": "INS_MOCK_0077",
+    "order_id": "INS_MOCK_0080",
     "user_id": "demo_user_001",
-    "placed_at": "2026-05-25T18:42:00+05:30",
+    "placed_at": "2026-05-30T18:39:00+05:30",
     "items": [
       {
         "item_id": "INS_001",
@@ -1899,9 +1926,9 @@
     "status": "delivered"
   },
   {
-    "order_id": "INS_MOCK_0078",
+    "order_id": "INS_MOCK_0081",
     "user_id": "demo_user_001",
-    "placed_at": "2026-05-26T19:35:00+05:30",
+    "placed_at": "2026-05-31T20:57:00+05:30",
     "items": [
       {
         "item_id": "INS_011",
@@ -1917,9 +1944,9 @@
     "status": "delivered"
   },
   {
-    "order_id": "INS_MOCK_0079",
+    "order_id": "INS_MOCK_0082",
     "user_id": "demo_user_001",
-    "placed_at": "2026-05-27T19:20:00+05:30",
+    "placed_at": "2026-06-01T19:27:00+05:30",
     "items": [
       {
         "item_id": "INS_001",
@@ -1944,9 +1971,9 @@
     "status": "delivered"
   },
   {
-    "order_id": "INS_MOCK_0080",
+    "order_id": "INS_MOCK_0083",
     "user_id": "demo_user_001",
-    "placed_at": "2026-05-29T18:39:00+05:30",
+    "placed_at": "2026-06-03T19:28:00+05:30",
     "items": [
       {
         "item_id": "INS_001",
@@ -1989,9 +2016,9 @@
     "status": "delivered"
   },
   {
-    "order_id": "INS_MOCK_0081",
+    "order_id": "INS_MOCK_0084",
     "user_id": "demo_user_001",
-    "placed_at": "2026-05-30T20:57:00+05:30",
+    "placed_at": "2026-06-04T09:47:00+05:30",
     "items": [
       {
         "item_id": "INS_006",
@@ -2007,9 +2034,9 @@
     "status": "delivered"
   },
   {
-    "order_id": "INS_MOCK_0082",
+    "order_id": "INS_MOCK_0085",
     "user_id": "demo_user_001",
-    "placed_at": "2026-05-31T19:27:00+05:30",
+    "placed_at": "2026-06-05T18:28:00+05:30",
     "items": [
       {
         "item_id": "INS_001",
@@ -2025,9 +2052,9 @@
     "status": "delivered"
   },
   {
-    "order_id": "INS_MOCK_0083",
+    "order_id": "INS_MOCK_0086",
     "user_id": "demo_user_001",
-    "placed_at": "2026-06-02T19:28:00+05:30",
+    "placed_at": "2026-06-07T10:48:00+05:30",
     "items": [
       {
         "item_id": "INS_001",
@@ -2061,9 +2088,9 @@
     "status": "delivered"
   },
   {
-    "order_id": "INS_MOCK_0084",
+    "order_id": "INS_MOCK_0087",
     "user_id": "demo_user_001",
-    "placed_at": "2026-06-03T09:47:00+05:30",
+    "placed_at": "2026-06-08T09:53:00+05:30",
     "items": [
       {
         "item_id": "INS_005",
@@ -2088,9 +2115,9 @@
     "status": "delivered"
   },
   {
-    "order_id": "INS_MOCK_0085",
+    "order_id": "INS_MOCK_0088",
     "user_id": "demo_user_001",
-    "placed_at": "2026-06-04T18:28:00+05:30",
+    "placed_at": "2026-06-09T20:17:00+05:30",
     "items": [
       {
         "item_id": "INS_001",
@@ -2106,9 +2133,9 @@
     "status": "delivered"
   },
   {
-    "order_id": "INS_MOCK_0086",
+    "order_id": "INS_MOCK_0089",
     "user_id": "demo_user_001",
-    "placed_at": "2026-06-05T10:48:00+05:30",
+    "placed_at": "2026-06-10T19:31:00+05:30",
     "items": [
       {
         "item_id": "INS_007",
@@ -2124,9 +2151,9 @@
     "status": "delivered"
   },
   {
-    "order_id": "INS_MOCK_0087",
+    "order_id": "INS_MOCK_0090",
     "user_id": "demo_user_001",
-    "placed_at": "2026-06-06T09:53:00+05:30",
+    "placed_at": "2026-06-11T20:15:00+05:30",
     "items": [
       {
         "item_id": "INS_001",
@@ -2160,9 +2187,9 @@
     "status": "delivered"
   },
   {
-    "order_id": "INS_MOCK_0088",
+    "order_id": "INS_MOCK_0091",
     "user_id": "demo_user_001",
-    "placed_at": "2026-06-07T20:17:00+05:30",
+    "placed_at": "2026-06-12T10:28:00+05:30",
     "items": [
       {
         "item_id": "INS_005",
@@ -2178,9 +2205,9 @@
     "status": "delivered"
   },
   {
-    "order_id": "INS_MOCK_0089",
+    "order_id": "INS_MOCK_0092",
     "user_id": "demo_user_001",
-    "placed_at": "2026-06-08T19:31:00+05:30",
+    "placed_at": "2026-06-13T08:45:00+05:30",
     "items": [
       {
         "item_id": "INS_001",
@@ -2196,9 +2223,9 @@
     "status": "delivered"
   },
   {
-    "order_id": "INS_MOCK_0090",
+    "order_id": "INS_MOCK_0093",
     "user_id": "demo_user_001",
-    "placed_at": "2026-06-09T20:15:00+05:30",
+    "placed_at": "2026-06-14T10:15:00+05:30",
     "items": [
       {
         "item_id": "INS_006",
@@ -2214,9 +2241,9 @@
     "status": "delivered"
   },
   {
-    "order_id": "INS_MOCK_0091",
+    "order_id": "INS_MOCK_0094",
     "user_id": "demo_user_001",
-    "placed_at": "2026-06-10T10:28:00+05:30",
+    "placed_at": "2026-06-15T10:21:00+05:30",
     "items": [
       {
         "item_id": "INS_001",
@@ -2250,9 +2277,9 @@
     "status": "delivered"
   },
   {
-    "order_id": "INS_MOCK_0092",
+    "order_id": "INS_MOCK_0095",
     "user_id": "demo_user_001",
-    "placed_at": "2026-06-12T08:45:00+05:30",
+    "placed_at": "2026-06-17T10:57:00+05:30",
     "items": [
       {
         "item_id": "INS_001",
@@ -2295,9 +2322,9 @@
     "status": "delivered"
   },
   {
-    "order_id": "INS_MOCK_0093",
+    "order_id": "INS_MOCK_0096",
     "user_id": "demo_user_001",
-    "placed_at": "2026-06-14T10:15:00+05:30",
+    "placed_at": "2026-06-19T19:05:00+05:30",
     "items": [
       {
         "item_id": "INS_001",

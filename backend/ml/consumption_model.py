@@ -50,8 +50,8 @@ class ConsumptionModeler:
             )
             await asyncio.to_thread(model.fit, df)
         except Exception as e:
-            logger.error(f"Prophet failed for {item_name}: {e}")
-            return None
+            logger.warning(f"Prophet fit failed for {item_name}: {e}. Falling back to arithmetic time-series regression.")
+
 
         total_qty = df["y"].sum()
         days_elapsed = max((df["ds"].max() - df["ds"].min()).days, 1)

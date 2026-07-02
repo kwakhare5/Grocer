@@ -27,3 +27,4 @@
 - [2026-06-19T14:50:09] fix: resolve ingredient toggle state flicker
 - [2026-07-02T11:20:35] docs: detail WhatsApp restock notification flow
 - [2026-07-02T14:40:18] style: align status bar network icon padding
+- [2026-07-02T18:10:52] test: add unit test for order restock confirmation

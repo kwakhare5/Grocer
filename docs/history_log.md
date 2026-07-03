@@ -14,3 +14,4 @@
 - [2026-06-18T14:22:19] style: update WhatsApp chat drawer elevation
 - [2026-06-18T16:50:08] perf: reduce unneeded re-renders on subtab change
 - [2026-07-03T09:30:12] docs: detail Prophet ML consumption baseline model
+- [2026-07-03T12:15:45] style: standardize CTA button heights across tabs

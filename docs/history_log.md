@@ -16,3 +16,4 @@
 - [2026-07-03T09:30:12] docs: detail Prophet ML consumption baseline model
 - [2026-07-03T12:15:45] style: standardize CTA button heights across tabs
 - [2026-07-03T15:00:22] fix: adjust floating cart drawer z-index hierarchy
+- [2026-07-03T17:45:39] refactor: clean up unused Lucide icon imports

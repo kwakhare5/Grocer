@@ -29,3 +29,4 @@
 - [2026-07-02T14:40:18] style: align status bar network icon padding
 - [2026-07-02T18:10:52] test: add unit test for order restock confirmation
 - [2026-07-04T10:05:14] feat: add commodity price spike visual indicators
+- [2026-07-04T15:30:41] perf: cache active household scenario calculations

@@ -47,7 +47,7 @@ async def fetch_and_sync_orders(household_id: str, user_id: str, db: AsyncSessio
     from fastapi import HTTPException
 
     try:
-        data = await mcp_client.get_instamart_orders(user_id, limit=200)
+        data = await mcp_client.get_platform_orders(user_id, limit=200)
     except httpx.TimeoutException:
         raise HTTPException(status_code=503, detail="MCP server timed out. Please try again.")
     except Exception as e:
@@ -57,51 +57,58 @@ async def fetch_and_sync_orders(household_id: str, user_id: str, db: AsyncSessio
     raw_orders = data.get("orders", [])
 
     # Batch check: load all existing order IDs in one query to avoid N+1
-    instamart_ids = [o["order_id"] for o in raw_orders]
-    if instamart_ids:
+    platform_ids = [o["order_id"] for o in raw_orders]
+    if platform_ids:
         existing_result = await db.execute(
-            select(Order.instamart_order_id).where(Order.instamart_order_id.in_(instamart_ids))
+            select(Order.platform_order_id).where(Order.platform_order_id.in_(platform_ids))
         )
         already_synced = {row[0] for row in existing_result.all()}
     else:
         already_synced = set()
 
     seen = set()
-    for raw_order in raw_orders:
-        order_id = raw_order["order_id"]
-        if order_id in already_synced or order_id in seen:
-            continue  # Skip orders already in DB or already processed in this batch
-        seen.add(order_id)
+    try:
+        for raw_order in raw_orders:
+            order_id = raw_order["order_id"]
+            if order_id in already_synced or order_id in seen:
+                continue  # Skip orders already in DB or already processed in this batch
+            seen.add(order_id)
 
-        new_order = Order(
-            household_id=household_id,
-            instamart_order_id=raw_order["order_id"],
-            placed_at=datetime.fromisoformat(raw_order["placed_at"]),
-            total_amount=raw_order.get("total"),
-            raw_data=raw_order
-        )
-        db.add(new_order)
-        await db.flush()  # Get the new order's ID before committing
-
-        for item in raw_order.get("items", []):
-            std_qty = _normalize_quantity(
-                item.get("quantity"),
-                item.get("unit", ""),
-                item.get("standard_quantity")
+            new_order = Order(
+                household_id=household_id,
+                platform_order_id=raw_order["order_id"],
+                platform=raw_order.get("platform", "instamart"),
+                placed_at=datetime.fromisoformat(raw_order["placed_at"]),
+                total_amount=raw_order.get("total"),
+                raw_data=raw_order
             )
-            new_item = OrderItem(
-                order_id=new_order.id,
-                item_id=item["item_id"],
-                item_name=item["item_name"],
-                category=item.get("category"),
-                quantity=item.get("quantity"),
-                unit=item.get("unit"),
-                standard_quantity=std_qty,
-                price=item.get("price")
-            )
-            db.add(new_item)
+            db.add(new_order)
+            await db.flush()  # Get the new order's ID before committing
 
-        orders_synced += 1
+            for item in raw_order.get("items", []):
+                std_qty = _normalize_quantity(
+                    item.get("quantity"),
+                    item.get("unit", ""),
+                    item.get("standard_quantity")
+                )
+                new_item = OrderItem(
+                    order_id=new_order.id,
+                    item_id=item["item_id"],
+                    item_name=item["item_name"],
+                    category=item.get("category"),
+                    quantity=item.get("quantity"),
+                    unit=item.get("unit"),
+                    standard_quantity=std_qty,
+                    price=item.get("price")
+                )
+                db.add(new_item)
 
-    await db.commit()
+            orders_synced += 1
+
+        await db.commit()
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"Database error during order sync, rolling back: {e}")
+        raise
+        
     return orders_synced

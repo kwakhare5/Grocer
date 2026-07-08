@@ -8,8 +8,11 @@ Endpoints:
       frontend Predictions page. Sorted by days_remaining ascending (most urgent first).
 
 Why read directly from ConsumptionModel table (not re-run Prophet)?
-  Prophet fitting is slow (~2-10s per item). The scheduler rebuilds models weekly.
-  The API just reads the pre-computed predictions. This keeps the endpoint fast (<100ms).
+  Prophet fitting is slow (~2-10s per item). The scheduler rebuilds models weekly,
+  and POST /api/household/{user_id}/rebuild-models triggers it on demand.
+  This endpoint is READ-ONLY and has no side effects — it does not regenerate
+  scenario data or touch ML models. Use POST /api/household/{user_id}/scenario
+  to switch demo scenarios instead.
 """
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -19,6 +22,7 @@ from datetime import datetime, timezone
 
 from backend.database.connection import get_db
 from backend.database.models import Household, ConsumptionModel
+from backend.services.cache import get_cached, set_cached
 
 router = APIRouter(prefix='/api/predictions', tags=['predictions'])
 
@@ -37,26 +41,13 @@ async def get_predictions(user_id: str, db: AsyncSession = Depends(get_db)):
     Return all consumption model predictions for a household.
     Sorted by urgency: items depleting soonest appear first.
     Items with no depletion date (avg_daily=0) appear at the end.
+
+    Pure read — see module docstring. No scenario reset, no model rebuild.
     """
-    import os
-    import json
-    from backend.api.routes.household import reset_scenario_data
-    
-    # Get currently active scenario or default to standard
-    scenario = "standard"
-    try:
-        active_scenario_path = os.path.join(os.path.dirname(__file__), "..", "..", "active_scenario.json")
-        if os.path.exists(active_scenario_path):
-            with open(active_scenario_path, "r") as f:
-                data = json.load(f)
-                scenario = data.get("scenario", "standard")
-    except Exception as e:
-        print(f"Warning: Failed to read active scenario: {e}")
-        
-    try:
-        await reset_scenario_data(user_id, scenario, db)
-    except Exception as e:
-        print(f"Warning: Failed to auto-reset scenario data: {e}")
+    cache_key = f"predictions:{user_id}"
+    cached = await get_cached(cache_key)
+    if cached is not None:
+        return cached
 
     hh = await _get_household(user_id, db)
 
@@ -77,15 +68,14 @@ async def get_predictions(user_id: str, db: AsyncSession = Depends(get_db)):
 
         if m.estimated_depletion_date is not None:
             dep = m.estimated_depletion_date
-            # Normalize timezone — DB may store naive UTC datetimes
             if dep.tzinfo is None:
                 dep = dep.replace(tzinfo=timezone.utc)
             raw_days = (dep - now).total_seconds() / 86400
-            
+
             cycle = float(m.consumption_cycle_days or 30.0)  # type: ignore
             fill_val = (raw_days / cycle) * 100 if cycle > 0 else 0.0
             stock_fill_percent = max(0.0, min(100.0, fill_val))
-            
+
             days_remaining = round(raw_days, 1)
 
             if days_remaining < 0:
@@ -110,11 +100,12 @@ async def get_predictions(user_id: str, db: AsyncSession = Depends(get_db)):
             'stock_fill_percent':        round(stock_fill_percent, 1) if stock_fill_percent is not None else 100.0,
             'confidence_score':          m.confidence_score,
             'data_points':               m.data_points,
-            'status':                    status,  # depleted / critical / low / ok / unknown
+            'status':                    status,
             'updated_at':                m.updated_at.isoformat() if m.updated_at is not None else None,
+            'is_anomaly_excluded':       getattr(m, 'is_anomaly_excluded', False),  # NEW — additive field, see C2
         })
 
-    return {
+    response = {
         'user_id':          user_id,
         'household_id':     str(hh.id),
         'total_items':      len(predictions),
@@ -122,10 +113,12 @@ async def get_predictions(user_id: str, db: AsyncSession = Depends(get_db)):
         'generated_at':     now.isoformat(),
     }
 
+    await set_cached(cache_key, response, ttl_seconds=20)
+    return response
+
 
 @router.get('/')
 async def predictions_index():
-    """Index endpoint — lists available prediction routes."""
     return {
         'endpoints': [
             'GET /api/predictions/{user_id} — full prediction list for a household',

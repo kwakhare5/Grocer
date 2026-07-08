@@ -40,19 +40,22 @@ original_create_async_engine = sqlalchemy.ext.asyncio.create_async_engine
 
 def mock_create_async_engine(*args, **kwargs):
     kwargs["poolclass"] = StaticPool
+    kwargs.pop("pool_size", None)
+    kwargs.pop("max_overflow", None)
+    kwargs.pop("pool_pre_ping", None)
     return original_create_async_engine(*args, **kwargs)
 
 sqlalchemy.ext.asyncio.create_async_engine = mock_create_async_engine
 
-# Mock SwiggyMCPClient methods to avoid network requests during tests
+# Mock PreFillMCPClient methods to avoid network requests during tests
 from backend.seed.catalog import CATALOG as MOCK_CATALOG
 
-async def mock_search_instamart_items(self, query: str) -> dict:
+async def mock_search_platform_items(self, query: str) -> dict:
     query_str = query.lower()
     results = [item for item in MOCK_CATALOG if query_str in str(item.get("name") or "").lower() or query_str in str(item.get("category") or "").lower()]
     return {"items": results if results else MOCK_CATALOG[:3]}
 
-async def mock_get_instamart_orders(self, user_id: str, limit: int = 200) -> dict:
+async def mock_get_platform_orders(self, user_id: str, limit: int = 200) -> dict:
     import json
     # Determine the seed file location relative to this test file
     seed_file = os.path.join(os.path.dirname(__file__), "..", "seed", "generated_orders.json")
@@ -67,13 +70,13 @@ async def mock_get_instamart_orders(self, user_id: str, limit: int = 200) -> dic
         "orders": orders[-limit:]
     }
 
-async def mock_update_instamart_cart(self, items: list) -> dict:
+async def mock_update_platform_cart(self, items: list) -> dict:
     import uuid
     cart_id = f"CART_{str(uuid.uuid4())[:8]}"
     total = sum(item.get("price", 50) * item.get("quantity", 1) for item in items)
     return {"success": True, "cart_id": cart_id, "items": items, "total": total}
 
-async def mock_place_instamart_order(self, cart_id: str) -> dict:
+async def mock_place_platform_order(self, cart_id: str) -> dict:
     import random
     order_id = f"INS_{random.randint(10000, 99999)}"
     return {
@@ -81,14 +84,15 @@ async def mock_place_instamart_order(self, cart_id: str) -> dict:
         "order_id": order_id,
         "cart_id": cart_id,
         "status": "placed",
+        "platform": "instamart",
         "placed_at": "2026-06-15T00:00:00"
     }
 
-from backend.mcp.client import SwiggyMCPClient
-SwiggyMCPClient.search_instamart_items = mock_search_instamart_items
-SwiggyMCPClient.get_instamart_orders = mock_get_instamart_orders
-SwiggyMCPClient.update_instamart_cart = mock_update_instamart_cart
-SwiggyMCPClient.place_instamart_order = mock_place_instamart_order
+from backend.mcp.client import PreFillMCPClient
+PreFillMCPClient.search_platform_items = mock_search_platform_items
+PreFillMCPClient.get_platform_orders = mock_get_platform_orders
+PreFillMCPClient.update_platform_cart = mock_update_platform_cart
+PreFillMCPClient.place_platform_order = mock_place_platform_order
 
 # Mock get_checkpointer to prevent it from connecting to PostgreSQL
 from langgraph.checkpoint.memory import MemorySaver
@@ -112,6 +116,59 @@ async def mock_get_checkpointer():
 
 import backend.database.connection
 backend.database.connection.get_checkpointer = mock_get_checkpointer  # type: ignore
+
+# Mock LLM Client to avoid actual network calls
+from langchain_core.messages import AIMessage
+import json
+
+class MockLLM:
+    def with_structured_output(self, schema):
+        self._schema = schema
+        return self
+        
+    def with_config(self, config):
+        return self
+        
+    async def ainvoke(self, messages, *args, **kwargs):
+        # Determine behavior based on the prompt content
+        content = ""
+        if messages and len(messages) > 0:
+            prompt = messages[0].content.lower()
+            if "recipe" in prompt:
+                # Return dummy recipe ingredients
+                if hasattr(self, '_schema'):
+                    # Using Pydantic structured output
+                    return self._schema(ingredients=[
+                        {"name": "mock ingredient 1", "quantity": 1.0, "unit": "kg"},
+                        {"name": "mock ingredient 2", "quantity": 500, "unit": "g"}
+                    ])
+                else:
+                    content = json.dumps([
+                        {"name": "mock ingredient 1", "quantity": 1.0, "unit": "kg"},
+                        {"name": "mock ingredient 2", "quantity": 500, "unit": "g"}
+                    ])
+            elif "analyze their reply" in prompt:
+                # Mock restock agent parsing
+                content = json.dumps({"wanted": [], "unrecognized": False})
+            elif "extract" in prompt and "order" in prompt:
+                # Mock order intent parsing
+                content = json.dumps({"items": [], "not_an_order": False})
+            else:
+                content = "Mocked LLM response"
+                
+        return AIMessage(content=content)
+
+def mock_get_llm():
+    return MockLLM()
+
+import backend.agents.llm_client
+import backend.agents.restock_agent
+import backend.agents.recipe_agent
+
+backend.agents.llm_client.get_llm = mock_get_llm
+backend.agents.restock_agent.get_llm = mock_get_llm
+backend.agents.recipe_agent.get_llm = mock_get_llm
+
 
 from backend.database.connection import engine, init_db
 

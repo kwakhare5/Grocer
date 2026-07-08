@@ -1,10 +1,9 @@
 """
 Recipe Suggestion Agent — Task 4.1 & 4.2
 Stateful one-shot agent for parsing recipes, evaluating estimated pantry states,
-detecting missing items, and preparing a Swiggy Instamart checkout cart.
+detecting missing items, and preparing a PreFill checkout cart.
 """
 
-import json
 import logging
 import uuid
 from datetime import datetime, timezone
@@ -18,12 +17,9 @@ from sqlalchemy import select
 from backend.mcp.client import mcp_client
 from backend.database.models import Household, ConsumptionModel
 
-from backend.agents.restock_agent import (
-    is_groq_configured,
-    is_nvidia_configured,
-    call_groq_api,
-    call_nvidia_api
-)
+from backend.agents.llm_client import get_llm
+from pydantic import BaseModel, Field
+from langchain_core.messages import HumanMessage
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +39,14 @@ class RecipeState(TypedDict):
     cart_id: Optional[str]
     estimated_cost: float
     ready_to_cook: bool
+
+class ParsedIngredient(BaseModel):
+    name: str = Field(description="The standard Indian grocery app name of the ingredient")
+    quantity: float = Field(description="The numeric quantity needed")
+    unit: str = Field(description="The unit (g, kg, ml, L, piece, tbsp, tsp)")
+
+class RecipeIngredients(BaseModel):
+    ingredients: List[ParsedIngredient]
 
 
 # ---------------------------------------------------------------------------
@@ -113,48 +117,15 @@ async def parse_recipe_node(state: RecipeState) -> RecipeState:
 
     prompt = f"""List all ingredients needed for "{recipe_name}" for {servings} people.
 Use standard Indian grocery app names (e.g. "basmati rice" not "long-grain rice", "onions" instead of "red onions").
-
-Return ONLY a JSON array of objects, no conversation, no markdown code block wrapper:
-[
-  {{"name": "basmati rice", "quantity": 600, "unit": "g"}},
-  {{"name": "onions", "quantity": 400, "unit": "g"}},
-  {{"name": "fortune sunflower oil", "quantity": 80, "unit": "ml"}}
-]
-
-Units must be: g, kg, ml, L, piece, tbsp, tsp"""
-
-    text = None
-
-    if is_groq_configured():
-        try:
-            text = await call_groq_api(prompt=prompt)
-            text = text.strip()
-        except Exception as e:
-            logger.error(f"Failed to parse recipe ingredients using Groq: {e}")
-
-    if not text and is_nvidia_configured():
-        try:
-            text = await call_nvidia_api(prompt=prompt)
-            text = text.strip()
-        except Exception as e:
-            logger.error(f"Failed to parse recipe ingredients using NVIDIA: {e}")
-
-    if not text:
-        logger.warning("All LLM providers unavailable for recipe parsing. Falling back to empty list.")
-        state["parsed_ingredients"] = []
-        return state
+Units must be: g, kg, ml, L, piece, tbsp, tsp.
+"""
 
     try:
-        # Clean up any potential markdown code blocks
-        if "```json" in text:
-            text = text.split("```json")[1].split("```")[0].strip()
-        elif "```" in text:
-            text = text.split("```")[1].split("```")[0].strip()
-        
-        ingredients = json.loads(text)
-        state["parsed_ingredients"] = ingredients
+        llm = get_llm().with_structured_output(RecipeIngredients)
+        parsed: RecipeIngredients = await llm.ainvoke([HumanMessage(content=prompt)])
+        state["parsed_ingredients"] = [i.model_dump() for i in parsed.ingredients]
     except Exception as e:
-        logger.error(f"Failed to parse recipe JSON ingredients: {e}. Raw text: {text}")
+        logger.error(f"Failed to parse recipe ingredients: {e}")
         state["parsed_ingredients"] = []
 
     return state
@@ -250,7 +221,8 @@ async def identify_missing_node(state: RecipeState) -> RecipeState:
                 missing_items.append({
                     "name": match["item_name"],  # use catalog name
                     "quantity": needed_qty,
-                    "unit": unit
+                    "unit": unit,
+                    "matched": True
                 })
         else:
             # No matching item in pantry models
@@ -262,7 +234,8 @@ async def identify_missing_node(state: RecipeState) -> RecipeState:
             missing_items.append({
                 "name": ing["name"],
                 "quantity": needed_qty,
-                "unit": unit
+                "unit": unit,
+                "matched": False
             })
 
     state["you_have"] = you_have
@@ -273,14 +246,14 @@ async def identify_missing_node(state: RecipeState) -> RecipeState:
 
 
 async def search_items_node(state: RecipeState) -> RecipeState:
-    """Searches the Instamart catalog for each missing item to find standard products and prices."""
+    """Searches the PreFill catalog for each missing item to find standard products and prices."""
     missing_items = state["missing_items"]
     cart_items = []
     estimated_cost = 0.0
 
     for item in missing_items:
         try:
-            res = await mcp_client.search_instamart_items(item["name"])
+            res = await mcp_client.search_platform_items(item["name"])
             catalog_items = res.get("items", [])
             if catalog_items:
                 best_match = catalog_items[0]
@@ -316,7 +289,7 @@ async def search_items_node(state: RecipeState) -> RecipeState:
 
 
 async def build_cart_node(state: RecipeState) -> RecipeState:
-    """Calls Instamart MCP update cart endpoint to populate the checkout basket."""
+    """Calls PreFill MCP update cart endpoint to populate the checkout basket."""
     cart_items = state["cart_items"]
     if not cart_items:
         state["cart_id"] = None
@@ -327,7 +300,7 @@ async def build_cart_node(state: RecipeState) -> RecipeState:
             {"item_id": item["item_id"], "quantity": item["quantity"]}
             for item in cart_items
         ]
-        res = await mcp_client.update_instamart_cart(items_payload)
+        res = await mcp_client.update_platform_cart(items_payload)
         if res.get("success"):
             state["cart_id"] = res.get("cart_id")
             # Update estimated cost with official cart total if available
@@ -336,7 +309,7 @@ async def build_cart_node(state: RecipeState) -> RecipeState:
         else:
             state["cart_id"] = None
     except Exception as e:
-        logger.error(f"Failed to populate Swiggy cart: {e}")
+        logger.error(f"Failed to populate PreFill cart: {e}")
         state["cart_id"] = None
 
     return state

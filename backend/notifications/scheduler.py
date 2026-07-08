@@ -122,7 +122,7 @@ async def daily_depletion_check_all() -> None:
 async def track_commodity_prices() -> None:
     """
     Run every morning at 07:00 IST (before depletion check).
-    Triggers the Price Intelligence Agent to sample latest Swiggy Instamart mock catalog
+    Triggers the Price Intelligence Agent to sample latest PreFill mock catalog
     prices, write them to TimescaleDB, analyze price changes, and dispatch WhatsApp alerts.
     """
     now = datetime.now(timezone.utc)

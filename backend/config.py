@@ -20,7 +20,20 @@ class Settings(BaseSettings):
     GROQ_API_KEY: str = ''                         # Free tier Groq API key
     NVIDIA_API_KEY: str = ''                       # Free tier NVIDIA NIM API key
 
+    # NEW settings
+    ENVIRONMENT: str = 'development'          # 'development' | 'staging' | 'production'
+    CORS_ALLOWED_ORIGINS: str = 'http://localhost:3000'  # comma-separated
+    REDIS_URL: str = ''                        # optional — enables caching + webhook idempotency
+
     model_config = SettingsConfigDict(env_file='.env', extra='ignore')
+
+    @property
+    def cors_origins_list(self) -> list[str]:
+        return [o.strip() for o in self.CORS_ALLOWED_ORIGINS.split(',') if o.strip()]
+
+    def is_twilio_configured(self) -> bool:
+        token = self.TWILIO_AUTH_TOKEN
+        return bool(token and token.strip() and "your_token" not in token)
 
 
 settings = Settings()  # type: ignore

@@ -1,0 +1,23 @@
+# .editorconfig — Enforces code style at the TOOL level, not the AI prompt level.
+# Editors (VS Code, WebStorm, etc.) and formatters (Prettier) read this automatically.
+# This file fixes: CRLF vs LF, indent size, quote style — without asking the AI.
+# Copy this to EVERY project root.
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
+
+[*.md]
+trim_trailing_whitespace = false
+
+[*.{json,yml,yaml}]
+indent_size = 2
+
+[Makefile]
+indent_style = tab

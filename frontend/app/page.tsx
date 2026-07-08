@@ -269,7 +269,7 @@ export default function Home() {
         setRefilledItems(new Set());
       }, 12000);
 
-      triggerToast("🎉 Swiggy Instamart Order Confirmed!");
+      triggerToast("🎉 PreFill Order Confirmed!");
     };
 
     window.addEventListener("order-placed", handleOrderPlaced);
@@ -292,7 +292,7 @@ export default function Home() {
         triggerToast(`Removed ${name.split(" — ")[0]} from Cart`);
       } else {
         next.add(name);
-        triggerToast(`Added ${name.split(" — ")[0]} to your Instamart Cart!`);
+        triggerToast(`Added ${name.split(" — ")[0]} to your PreFill Cart!`);
       }
       return next;
     });
@@ -347,7 +347,7 @@ export default function Home() {
       {/* ── Header ──────────────────────────────────────────── */}
       <div className="flex flex-col gap-2.5">
         <div className="text-accent text-[11px] font-bold tracking-widest uppercase font-display">
-          Instamart Assistant {loading && "(LOADING...)"}
+          PreFill Assistant {loading && "(LOADING...)"}
         </div>
         <h1 className="text-4xl font-extrabold tracking-tight leading-tight font-display text-foreground">
           My Kitchen <span className="text-accent">Pantry Checker</span>
@@ -365,7 +365,7 @@ export default function Home() {
         >
           <div className="flex items-center gap-2">
             <Sparkles className="h-4.5 w-4.5 animate-pulse" />
-            <span>Swiggy Reviewer Demo Settings</span>
+            <span>PreFill Reviewer Demo Settings</span>
           </div>
           <span className="text-[10px] text-muted font-bold tracking-normal font-sans">
             {panelOpen ? "Collapse ▴" : "Expand scenario tools ▾"}

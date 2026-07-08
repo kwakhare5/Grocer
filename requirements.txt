@@ -1,4 +1,4 @@
-# Instamart Intelligence — Backend Dependencies
+# PreFill — Backend Dependencies
 # Install: pip install -r requirements.txt
 
 # ── Web Framework ──────────────────────────────────────────────

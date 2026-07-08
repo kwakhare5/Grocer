@@ -64,6 +64,7 @@ async def check_depletions_for_household(household_id: str, db: AsyncSession, by
         ConsumptionModel.household_id == household_id,
         ConsumptionModel.confidence_score >= min_confidence,
         ConsumptionModel.estimated_depletion_date.isnot(None),
+        ConsumptionModel.is_anomaly_excluded.isnot(True),
     )
 
     result = await db.execute(stmt)

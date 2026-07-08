@@ -50,6 +50,8 @@ async def rebuild_household_models(
         # We chain rebuild → profiler here so both run in the same background task.
         await modeler.rebuild_all_models(household_id, db)
         await update_household_profile(household_id, db)
+        from backend.services.cache import delete_cached
+        await delete_cached(f"predictions:{user_id}")
 
     background_tasks.add_task(_rebuild_then_profile)
     return {
@@ -84,54 +86,59 @@ async def reset_scenario_data(user_id: str, scenario: str, db: AsyncSession):
     from backend.ml.consumption_model import ConsumptionModeler
     from backend.ml.household_profiler import update_household_profile
     from backend.database.models import Order, ConsumptionModel, RestockAlert, OrderItem
+    from backend.services.cache import delete_cached
     import os
     import json
     import httpx
+    import asyncio
     from sqlalchemy import delete
     
     household = await get_or_create_household(user_id, db)
     household_id = str(household.id)
     
-    # 1. Clear database history to ensure clean sync state and avoid unique key violations across households
-    await db.execute(delete(ConsumptionModel))
+    await db.execute(delete(ConsumptionModel).where(ConsumptionModel.household_id == household.id))
     await db.execute(delete(OrderItem))
-    await db.execute(delete(Order))
-    await db.execute(delete(RestockAlert))
+    await db.execute(delete(Order).where(Order.household_id == household.id))
+    await db.execute(delete(RestockAlert).where(RestockAlert.household_id == household.id))
     await db.commit()
     
-    # 2. Generate and write scenario orders
     orders_data = generate_scenario_orders(scenario=scenario, months=4, user_id=user_id)
     seed_dir = os.path.join(os.path.dirname(__file__), "..", "..", "seed")
     seed_path = os.path.join(seed_dir, "generated_orders.json")
     
-    try:
+    def _write_seed():
         with open(seed_path, "w") as f:
             json.dump(orders_data, f, indent=2)
+
+    try:
+        await asyncio.to_thread(_write_seed)
     except Exception as e:
         raise Exception(f"Failed to write seed file: {e}")
         
-    # 3. Trigger mock server reload
     try:
         async with httpx.AsyncClient() as client:
             await client.post("http://127.0.0.1:8001/reload_mock_orders", timeout=5.0)
     except Exception as e:
         print(f"Warning: Mock server reload request failed: {e}")
         
-    # 4. Sync orders back to DB
     await fetch_and_sync_orders(household_id, user_id, db)
     
-    # 5. Rebuild ML models
     modeler = ConsumptionModeler()
     rebuild_res = await modeler.rebuild_all_models(household_id, db)
     await update_household_profile(household_id, db)
     
-    # Write active scenario to config file
-    try:
-        active_scenario_path = os.path.join(os.path.dirname(__file__), "..", "..", "active_scenario.json")
+    active_scenario_path = os.path.join(os.path.dirname(__file__), "..", "..", "active_scenario.json")
+    
+    def _write_active_scenario():
         with open(active_scenario_path, "w") as f:
             json.dump({"scenario": scenario}, f)
+
+    try:
+        await asyncio.to_thread(_write_active_scenario)
     except Exception as e:
         print(f"Warning: Failed to save active scenario: {e}")
+
+    await delete_cached(f"predictions:{user_id}")
         
     return {
         "orders_generated": len(orders_data),

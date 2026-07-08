@@ -96,10 +96,15 @@ def generate_scenario_orders(scenario: str, months: int = 4, user_id: str = "dem
         order_hour = random.choice([8, 9, 10, 18, 19, 20])
         order_minute = random.randint(0, 59)
 
+        platform = ["instamart", "blinkit", "zepto"][order_counter % 3]
+        prefix = {"instamart": "INS_", "blinkit": "BLK_", "zepto": "ZEP_"}[platform]
+        order_id = f"{prefix}MOCK_{order_counter:04d}"
+
         orders.append({
-            "order_id": f"INS_MOCK_{order_counter:04d}",
+            "order_id": order_id,
             "user_id": user_id,
             "placed_at": f"{date_str}T{order_hour:02d}:{order_minute:02d}:00+05:30",
+            "platform": platform,
             "items": items_list,
             "total": round(sum(i["price"] for i in items_list), 2),
             "status": "delivered"

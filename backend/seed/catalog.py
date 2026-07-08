@@ -1,5 +1,5 @@
 """
-Canonical product catalog for Instamart Intelligence.
+Canonical product catalog for PreFill.
 This is the single source of truth for item IDs, names, categories, prices, and units.
 
 Used by:
@@ -30,80 +30,21 @@ CATALOG = [
 
 def lookup_catalog_item(query: str) -> dict | None:
     """
-    Find a catalog item by name or id using exact, substring, or fuzzy matching.
+    Find a catalog item by name or id using rapidfuzz from text_matching.py.
     """
+    from backend.ml.text_matching import fuzzy_match_item
+    
+    # Check exact ID first
     if not query:
         return None
     query_lower = query.lower().strip()
-    
-    # 1. Exact ID or Name match
     for item in CATALOG:
-        if str(item["id"]).lower() == query_lower or str(item["name"]).lower() == query_lower:
+        if str(item["id"]).lower() == query_lower:
             return item
             
-    # 2. Check for exact substring match
-    for item in CATALOG:
-        name_lower = str(item["name"]).lower()
-        if query_lower in name_lower or name_lower in query_lower:
-            return item
-            
-    # 3. Check for plural/singular spelling (e.g. "tomato" -> "tomatoes", "egg" -> "eggs", "onion" -> "onions")
-    # Clean query from punctuation
-    import string
-    cleaned_query = query_lower.translate(str.maketrans("", "", string.punctuation))
-    
-    # Simple normalizer for plural / common variants
-    def normalize_word(w: str) -> str:
-        w = w.strip()
-        if w.endswith("es"):
-            return w[:-2]
-        if w.endswith("s"):
-            return w[:-1]
-        return w
-        
-    query_words = [normalize_word(w) for w in cleaned_query.split() if len(w) > 2]
-    
-    for item in CATALOG:
-        name_words = [normalize_word(w) for w in str(item["name"]).lower().translate(str.maketrans("", "", string.punctuation)).split() if len(w) > 2]
-        # Match if any query word normalizes to a name word
-        for qw in query_words:
-            for nw in name_words:
-                if qw in nw or nw in qw:
-                    return item
-                    
-    # 4. Levenshtein-based fuzzy match fallback
-    def lev_dist(s1: str, s2: str) -> int:
-        if len(s1) < len(s2):
-            return lev_dist(s2, s1)
-        if len(s2) == 0:
-            return len(s1)
-        prev = range(len(s2) + 1)
-        for i, c1 in enumerate(s1):
-            curr = [i + 1]
-            for j, c2 in enumerate(s2):
-                ins = prev[j + 1] + 1
-                dl = curr[j] + 1
-                sub = prev[j] + (c1 != c2)
-                curr.append(min(ins, dl, sub))
-            prev = curr
-        return prev[-1]
-        
-    for item in CATALOG:
-        name_lower = str(item["name"]).lower()
-        # Check distance on words
-        for w1 in cleaned_query.split():
-            if len(w1) < 3:
-                continue
-            for w2 in name_lower.split():
-                if len(w2) < 3:
-                    continue
-                # If length <= 4, dist <= 1, else dist <= 2
-                max_len = max(len(w1), len(w2))
-                dist = lev_dist(w1, w2)
-                if (max_len <= 4 and dist <= 1) or (max_len <= 7 and dist <= 2) or dist <= 3:
-                    return item
-                    
-    return None
+    # Then fuzzy match on names
+    catalog_dict = {item["id"]: item for item in CATALOG}
+    return fuzzy_match_item(query, catalog_dict)
 
 
 def format_restock_alert_message(items: list[dict]) -> str:

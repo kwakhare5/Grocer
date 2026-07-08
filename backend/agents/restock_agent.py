@@ -7,7 +7,7 @@ Graph nodes:
   2. parse_reply       — Interprets user reply to a stock-check alert (YES/NO/partial)
   3. parse_order_intent — Parses a direct order request (e.g. "2 milk, eggs")
   4. reset_to_order    — Cancels current flow and returns to order prompt
-  5. build_cart        — Searches MCP catalog and builds the Instamart cart
+  5. build_cart        — Searches MCP catalog and builds the PreFill cart
   6. place_order       — Places the order via MCP
 
 State transitions:
@@ -30,162 +30,19 @@ Why LangGraph?
 import json
 import logging
 import string
-from typing import Optional, Any
+from typing import Optional
 
 from langgraph.graph import StateGraph, END
 from typing_extensions import TypedDict
-import httpx
 
-from backend.config import settings
 from backend.mcp.client import mcp_client
 
 logger = logging.getLogger(__name__)
 
 
-def levenshtein_distance(s1: str, s2: str) -> int:
-    """Calculate the Levenshtein edit distance between two strings."""
-    if len(s1) < len(s2):
-        return levenshtein_distance(s2, s1)
-    if len(s2) == 0:
-        return len(s1)
-    
-    previous_row = range(len(s2) + 1)
-    for i, c1 in enumerate(s1):
-        current_row = [i + 1]
-        for j, c2 in enumerate(s2):
-            insertions = previous_row[j + 1] + 1
-            deletions = current_row[j] + 1
-            substitutions = previous_row[j] + (c1 != c2)
-            current_row.append(min(insertions, deletions, substitutions))
-        previous_row = current_row
-        
-    return previous_row[-1]
-
-
-def is_fuzzy_match(w1: str, w2: str) -> bool:
-    """Check if two words are a fuzzy match based on substring check or Levenshtein distance."""
-    w1 = w1.lower().strip()
-    w2 = w2.lower().strip()
-    
-    if len(w1) < 3 or len(w2) < 3:
-        return w1 == w2
-        
-    # Substring match (succeeds first)
-    if w1 in w2 or w2 in w1:
-        return True
-        
-    # Levenshtein check for spelling mistakes
-    dist = levenshtein_distance(w1, w2)
-    max_len = max(len(w1), len(w2))
-    if max_len <= 4:
-        return dist <= 1
-    elif max_len <= 7:
-        return dist <= 2
-    else:
-        return dist <= 3
-
-
-def is_groq_configured() -> bool:
-    key = settings.GROQ_API_KEY
-    return bool(key and key.strip() and "your_key_here" not in key)
-
-
-async def call_groq_api(prompt: str, system_prompt: Optional[str] = None, json_mode: bool = False) -> str:
-    """
-    Call Groq API using HTTPX AsyncClient with model fallback.
-    """
-    if not settings.GROQ_API_KEY:
-        raise ValueError("GROQ_API_KEY is not set.")
-    
-    url = "https://api.groq.com/openai/v1/chat/completions"
-    headers = {
-        "Authorization": f"Bearer {settings.GROQ_API_KEY}",
-        "Content-Type": "application/json"
-    }
-    
-    messages = []
-    if system_prompt:
-        messages.append({"role": "system", "content": system_prompt})
-    messages.append({"role": "user", "content": prompt})
-    
-    models = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "llama3-8b-8192"]
-    last_err = None
-    
-    for model in models:
-        payload: dict[str, Any] = {
-            "model": model,
-            "messages": messages,
-            "temperature": 0.2
-        }
-        if json_mode:
-            payload["response_format"] = {"type": "json_object"}
-            
-        try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.post(url, headers=headers, json=payload)
-                response.raise_for_status()
-                data = response.json()
-                content = data["choices"][0]["message"]["content"]
-                logger.info(f"Groq API call succeeded with model {model}")
-                return content
-        except Exception as e:
-            logger.warning(f"Groq API call failed with model {model}: {e}")
-            last_err = e
-            continue
-            
-    raise last_err or ValueError("Failed to call Groq API with any models.")
-
-
-def is_nvidia_configured() -> bool:
-    key = settings.NVIDIA_API_KEY
-    return bool(key and key.strip() and "your_key_here" not in key)
-
-
-async def call_nvidia_api(prompt: str, system_prompt: Optional[str] = None, json_mode: bool = False) -> str:
-    """
-    Call NVIDIA NIM API using HTTPX AsyncClient with model fallback.
-    """
-    if not settings.NVIDIA_API_KEY:
-        raise ValueError("NVIDIA_API_KEY is not set.")
-    
-    url = "https://integrate.api.nvidia.com/v1/chat/completions"
-    headers = {
-        "Authorization": f"Bearer {settings.NVIDIA_API_KEY}",
-        "Content-Type": "application/json"
-    }
-    
-    messages = []
-    if system_prompt:
-        messages.append({"role": "system", "content": system_prompt})
-    messages.append({"role": "user", "content": prompt})
-    
-    models = ["meta/llama-3.1-70b-instruct", "meta/llama-3.1-8b-instruct", "meta/llama3-70b-instruct"]
-    last_err = None
-    
-    for model in models:
-        payload: dict[str, Any] = {
-            "model": model,
-            "messages": messages,
-            "temperature": 0.2
-        }
-        if json_mode:
-            payload["response_format"] = {"type": "json_object"}
-            
-        try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.post(url, headers=headers, json=payload)
-                response.raise_for_status()
-                data = response.json()
-                content = data["choices"][0]["message"]["content"]
-                logger.info(f"NVIDIA API call succeeded with model {model}")
-                return content
-        except Exception as e:
-            logger.warning(f"NVIDIA API call failed with model {model}: {e}")
-            last_err = e
-            continue
-            
-    raise last_err or ValueError("Failed to call NVIDIA API with any models.")
-
+from backend.ml.text_matching import is_fuzzy_match
+from backend.agents.llm_client import get_llm
+from langchain_core.messages import HumanMessage
 
 # ---------------------------------------------------------------------------
 # Agent State — everything the graph needs to track across nodes
@@ -243,45 +100,26 @@ async def generate_alert_message(state: RestockState) -> dict:
 
     message = None
 
-    if not message and is_groq_configured():
-        try:
-            prompt = (
-                f"You are a smart household assistant for Swiggy Instamart.\n\n"
-                f"Items likely running low:\n{items_text}\n\n"
-                f"Write a WhatsApp message under 150 words. You MUST list all items from the list above, showing for each item:\n"
-                f"- Its whole name\n"
-                f"- Qty: 1\n"
-                f"- Price (e.g. ₹X)\n"
-                f"- Unit and Category\n"
-                f"- Confidence % and Days remaining\n\n"
-                f"At the end of the item list, calculate and mention the estimated total amount (Estimated Total: ₹{total_amount:.0f}).\n"
-                f"Be friendly but brief. Max 2 emojis. End with: "
-                f"'Would you like to order them?' "
-                f"Mention this is based on their purchase pattern. Write ONLY the message."
-            )
-            message = await call_groq_api(prompt=prompt)
-        except Exception as e:
-            logger.error(f"Groq API error in generate_alert: {e}")
-
-    if not message and is_nvidia_configured():
-        try:
-            prompt = (
-                f"You are a smart household assistant for Swiggy Instamart.\n\n"
-                f"Items likely running low:\n{items_text}\n\n"
-                f"Write a WhatsApp message under 150 words. You MUST list all items from the list above, showing for each item:\n"
-                f"- Its whole name\n"
-                f"- Qty: 1\n"
-                f"- Price (e.g. ₹X)\n"
-                f"- Unit and Category\n"
-                f"- Confidence % and Days remaining\n\n"
-                f"At the end of the item list, calculate and mention the estimated total amount (Estimated Total: ₹{total_amount:.0f}).\n"
-                f"Be friendly but brief. Max 2 emojis. End with: "
-                f"'Would you like to order them?' "
-                f"Mention this is based on their purchase pattern. Write ONLY the message."
-            )
-            message = await call_nvidia_api(prompt=prompt)
-        except Exception as e:
-            logger.error(f"NVIDIA API error in generate_alert: {e}")
+    try:
+        prompt = (
+            f"You are a smart household assistant for PreFill.\n\n"
+            f"Items likely running low:\n{items_text}\n\n"
+            f"Write a WhatsApp message under 150 words. You MUST list all items from the list above, showing for each item:\n"
+            f"- Its whole name\n"
+            f"- Qty: 1\n"
+            f"- Price (e.g. ₹X)\n"
+            f"- Unit and Category\n"
+            f"- Confidence % and Days remaining\n\n"
+            f"At the end of the item list, calculate and mention the estimated total amount (Estimated Total: ₹{total_amount:.0f}).\n"
+            f"Be friendly but brief. Max 2 emojis. End with: "
+            f"'Would you like to order them?' "
+            f"Mention this is based on their purchase pattern. Write ONLY the message."
+        )
+        llm = get_llm()
+        resp = await llm.ainvoke([HumanMessage(content=prompt)])
+        message = resp.content
+    except Exception as e:
+        logger.error(f"LLM API error in generate_alert: {e}")
 
     if not message:
         # Fallback to a template if Claude, Groq, and NVIDIA are unavailable
@@ -346,43 +184,22 @@ async def parse_user_reply(state: RestockState) -> dict:
     wanted = None
     unrecognized = False
 
-    # Try Groq (Llama)
-    if wanted is None and is_groq_configured():
-        try:
-            prompt = (
-                f"The user has these items in their cart:\n{items_list}\n\n"
-                f"Their reply: \"{state['user_message']}\"\n\n"
-                f"Analyze their reply and return a JSON object with two keys:\n"
-                f"1. 'wanted': a list of item names they want to keep or add to the cart. By default, they want to keep all items in their cart unless they specify to skip or remove some.\n"
-                f"2. 'unrecognized': a boolean. Set to true ONLY if their reply is completely unrelated garbage, gibberish, or unrelated chit-chat (e.g. 'hello', 'who are you', 'testing'). If they are confirming, rejecting, or editing items, set it to false.\n"
-                f"ONLY output valid JSON, like: {{\"wanted\": [\"item1\"], \"unrecognized\": false}}."
-            )
-            resp_text = await call_groq_api(prompt=prompt, json_mode=True)
-            logger.info(f"Groq parse raw response: {resp_text}")
-            parsed = json.loads(resp_text)
-            wanted = parsed.get("wanted", [])
-            unrecognized = parsed.get("unrecognized", False)
-        except Exception as e:
-            logger.error(f"Groq parse error: {e}")
-
-    # Try NVIDIA (Llama)
-    if wanted is None and is_nvidia_configured():
-        try:
-            prompt = (
-                f"The user has these items in their cart:\n{items_list}\n\n"
-                f"Their reply: \"{state['user_message']}\"\n\n"
-                f"Analyze their reply and return a JSON object with two keys:\n"
-                f"1. 'wanted': a list of item names they want to keep or add to the cart. By default, they want to keep all items in their cart unless they specify to skip or remove some.\n"
-                f"2. 'unrecognized': a boolean. Set to true ONLY if their reply is completely unrelated garbage, gibberish, or unrelated chit-chat (e.g. 'hello', 'who are you', 'testing'). If they are confirming, rejecting, or editing items, set it to false.\n"
-                f"ONLY output valid JSON, like: {{\"wanted\": [\"item1\"], \"unrecognized\": false}}."
-            )
-            resp_text = await call_nvidia_api(prompt=prompt, json_mode=True)
-            logger.info(f"NVIDIA parse raw response: {resp_text}")
-            parsed = json.loads(resp_text)
-            wanted = parsed.get("wanted", [])
-            unrecognized = parsed.get("unrecognized", False)
-        except Exception as e:
-            logger.error(f"NVIDIA parse error: {e}")
+    try:
+        prompt = (
+            f"The user has these items in their cart:\n{items_list}\n\n"
+            f"Their reply: \"{state['user_message']}\"\n\n"
+            f"Analyze their reply and return a JSON object with two keys:\n"
+            f"1. 'wanted': a list of item names they want to keep or add to the cart. By default, they want to keep all items in their cart unless they specify to skip or remove some.\n"
+            f"2. 'unrecognized': a boolean. Set to true ONLY if their reply is completely unrelated garbage, gibberish, or unrelated chit-chat (e.g. 'hello', 'who are you', 'testing'). If they are confirming, rejecting, or editing items, set it to false.\n"
+            f"ONLY output valid JSON, like: {{\"wanted\": [\"item1\"], \"unrecognized\": false}}."
+        )
+        llm = get_llm().with_config({"response_format": {"type": "json_object"}})
+        resp = await llm.ainvoke([HumanMessage(content=prompt)])
+        parsed = json.loads(resp.content)
+        wanted = parsed.get("wanted", [])
+        unrecognized = parsed.get("unrecognized", False)
+    except Exception as e:
+        logger.error(f"LLM parse error: {e}")
 
     # If LLM parsed as unrecognized
     if unrecognized:
@@ -588,23 +405,14 @@ async def parse_order_intent(state: RestockState) -> dict:
     raw_items = None
     not_an_order = False
 
-    if is_groq_configured():
-        try:
-            resp_text = await call_groq_api(prompt=extraction_prompt, json_mode=True)
-            parsed = json.loads(resp_text)
-            raw_items = parsed.get("items", [])
-            not_an_order = parsed.get("not_an_order", False)
-        except Exception as e:
-            logger.error(f"Groq extraction error in parse_order_intent: {e}")
-
-    if raw_items is None and is_nvidia_configured():
-        try:
-            resp_text = await call_nvidia_api(prompt=extraction_prompt, json_mode=True)
-            parsed = json.loads(resp_text)
-            raw_items = parsed.get("items", [])
-            not_an_order = parsed.get("not_an_order", False)
-        except Exception as e:
-            logger.error(f"NVIDIA extraction error in parse_order_intent: {e}")
+    try:
+        llm = get_llm().with_config({"response_format": {"type": "json_object"}})
+        resp = await llm.ainvoke([HumanMessage(content=extraction_prompt)])
+        parsed = json.loads(resp.content)
+        raw_items = parsed.get("items", [])
+        not_an_order = parsed.get("not_an_order", False)
+    except Exception as e:
+        logger.error(f"LLM extraction error in parse_order_intent: {e}")
 
     # Regex fallback: extract quantities + words if LLM unavailable
     if raw_items is None:
@@ -700,7 +508,7 @@ async def parse_order_intent(state: RestockState) -> dict:
 async def build_cart(state: RestockState) -> dict:
     """
     For each confirmed item, search the MCP catalog to get the current product
-    listing, then add all items to a single Instamart cart.
+    listing, then add all items to a single PreFill cart.
 
     Why search before carting?
       The consumption model tracks item_ids (INS_001), but the cart needs the
@@ -723,7 +531,7 @@ async def build_cart(state: RestockState) -> dict:
         # Search MCP for each confirmed item
         for item in state["confirmed_items"]:
             try:
-                r = await mcp_client.search_instamart_items(item["item_name"])
+                r = await mcp_client.search_platform_items(item["item_name"])
                 results = r.get("items", [])
                 if results:
                     match = None
@@ -753,18 +561,18 @@ async def build_cart(state: RestockState) -> dict:
 
         if not cart_items:
             return {
-                "response_message": "Couldn't find those items right now. Please try ordering directly on Instamart.",
+                "response_message": "Couldn't find those items right now. Please try ordering directly on PreFill.",
                 "stage": "done",
                 "error": "no_items_found",
             }
 
         # Build the cart via MCP
-        cart_data = await mcp_client.update_instamart_cart(cart_items)
+        cart_data = await mcp_client.update_platform_cart(cart_items)
 
     except Exception as e:
         logger.error(f"Cart build failed: {e}")
         return {
-            "response_message": "⚠️ Couldn't build the cart right now. Please try directly on Instamart.",
+            "response_message": "⚠️ Couldn't build the cart right now. Please try directly on PreFill.",
             "stage": "done",
             "error": str(e),
         }
@@ -808,7 +616,7 @@ async def build_cart(state: RestockState) -> dict:
 # ---------------------------------------------------------------------------
 async def place_order(state: RestockState) -> dict:
     """
-    Final step: call Instamart MCP to place the order.
+    Final step: call PreFill MCP to place the order.
     On success, returns order ID and ETA for the WhatsApp confirmation.
     """
     try:
@@ -819,19 +627,20 @@ async def place_order(state: RestockState) -> dict:
                 "stage": "done",
                 "error": "missing_cart_id",
             }
-        data = await mcp_client.place_instamart_order(cart_id)
+        data = await mcp_client.place_platform_order(cart_id)
 
         if data.get("success"):
             order_id = data["order_id"]
             eta = data.get("estimated_delivery_minutes", 15)
+            platform = data.get("platform", "quick commerce provider")
             return {
                 "order_id": order_id,
-                "response_message": f"✅ Order placed! Arriving in ~{eta} mins. Order #{order_id}",
+                "response_message": f"✅ Order placed on {platform.title()}! Arriving in ~{eta} mins. Order #{order_id}",
                 "stage": "done",
             }
         else:
             return {
-                "response_message": "⚠️ Couldn't place order. Please try directly on Instamart.",
+                "response_message": "⚠️ Couldn't place order. Please try directly on the app.",
                 "stage": "done",
                 "error": "order_placement_failed",
             }
@@ -839,7 +648,7 @@ async def place_order(state: RestockState) -> dict:
     except Exception as e:
         logger.error(f"Order placement failed: {e}")
         return {
-            "response_message": "⚠️ Couldn't place order. Please try directly on Instamart.",
+            "response_message": "⚠️ Couldn't place order. Please try directly on the app.",
             "stage": "done",
             "error": str(e),
         }

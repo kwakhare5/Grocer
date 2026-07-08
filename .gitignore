@@ -11,3 +11,7 @@ build/
 backend/seed/generated_orders.json
 api_keys_backup.md
 .codegraph/
+
+# Build artifacts / local env
+tsconfig.tsbuildinfo
+.env.local

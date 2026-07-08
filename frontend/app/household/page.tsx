@@ -152,7 +152,7 @@ export default function HouseholdPage() {
           My Kitchen <span className="font-extrabold text-accent">Habits</span>
         </h1>
         <p className="text-sm text-muted max-w-lg leading-relaxed">
-          {"See your family's eating habits, tracking accuracy, and past schedule changes calculated from Swiggy Instamart orders."}
+          {"See your family's eating habits, tracking accuracy, and past schedule changes calculated from PreFill orders."}
         </p>
       </div>
 

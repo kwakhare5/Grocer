@@ -6,6 +6,7 @@ import json
 import os
 import uuid
 import random
+import asyncio
 from backend.seed.catalog import CATALOG as MOCK_CATALOG
 
 # In-memory store for mock orders — loaded from seed data file
@@ -24,9 +25,9 @@ async def lifespan(app: FastAPI):
         print(f"Seed file not found at {seed_file}. Please run generate_orders.py first.")
     yield
 
-app = FastAPI(title="Mock Swiggy Instamart MCP", lifespan=lifespan)
+app = FastAPI(title="PreFill Mock Q-Commerce MCP", lifespan=lifespan)
 
-@app.get("/get_instamart_orders")
+@app.get("/get_platform_orders")
 async def get_orders(user_id: str = "demo_user_001", limit: int = 100):
     return {
         "success": True,
@@ -35,7 +36,7 @@ async def get_orders(user_id: str = "demo_user_001", limit: int = 100):
         "orders": MOCK_ORDERS[-limit:]
     }
 
-@app.post("/search_instamart_items")
+@app.post("/search_platform_items")
 async def search_items(body: dict):
     query = body.get("query", "").lower()
     results = [item for item in MOCK_CATALOG if query in str(item["name"]).lower() or query in str(item.get("category", "")).lower()]
@@ -45,23 +46,25 @@ async def search_items(body: dict):
 class CartUpdate(BaseModel):
     items: list
 
-@app.post("/update_instamart_cart")
+@app.post("/update_platform_cart")
 async def update_cart(body: CartUpdate):
     MOCK_CART["cart_id"] = f"CART_{str(uuid.uuid4())[:8]}"
     MOCK_CART["items"] = body.items
     total = sum(item.get("price", 50) * item.get("quantity", 1) for item in body.items)
     return {"success": True, "cart_id": MOCK_CART["cart_id"], "items": body.items, "total": total}
 
-@app.get("/get_instamart_cart")
+@app.get("/get_platform_cart")
 async def get_cart():
     return {"success": True, **MOCK_CART}
 
 class PlaceOrder(BaseModel):
     cart_id: str
 
-@app.post("/place_instamart_order")
+@app.post("/place_platform_order")
 async def place_order(body: PlaceOrder):
-    order_id = f"INS_{random.randint(10000, 99999)}"
+    platform = random.choice(["instamart", "zepto", "blinkit"])
+    prefix = {"instamart": "INS_", "zepto": "ZEP_", "blinkit": "BLK_"}[platform]
+    order_id = f"{prefix}{random.randint(10000, 99999)}"
     
     # Look up items in the mock cart
     items = []
@@ -83,7 +86,6 @@ async def place_order(body: PlaceOrder):
         "INS_012": 1.0,
     }
     
-    # In-memory store for mock orders — loaded from seed data file
     global MOCK_ORDERS, MOCK_CART
     if MOCK_CART.get("cart_id") == body.cart_id:
         for item in (MOCK_CART.get("items") or []):
@@ -125,6 +127,7 @@ async def place_order(body: PlaceOrder):
         "order_id": order_id,
         "user_id": "demo_user_001",
         "placed_at": datetime.now().isoformat(),
+        "platform": platform,
         "items": items,
         "total": total,
         "status": "placed"
@@ -136,8 +139,11 @@ async def place_order(body: PlaceOrder):
     # Persist the orders list to the JSON seed file to sync permanently
     try:
         seed_file = os.path.join(os.path.dirname(__file__), "..", "seed", "generated_orders.json")
-        with open(seed_file, "w") as f:
-            json.dump(MOCK_ORDERS, f, indent=2)
+        def write_seed():
+            with open(seed_file, "w") as f:
+                json.dump(MOCK_ORDERS, f, indent=2)
+        
+        await asyncio.to_thread(write_seed)
         print(f"Mock server appended new order {order_id} and updated generated_orders.json")
     except Exception as e:
         print(f"Mock server failed to write generated_orders.json: {e}")
@@ -147,11 +153,12 @@ async def place_order(body: PlaceOrder):
         "order_id": order_id,
         "cart_id": body.cart_id,
         "status": "placed",
+        "platform": platform,
         "estimated_delivery_minutes": random.randint(12, 20),
         "placed_at": new_order["placed_at"]
     }
 
-@app.get("/track_instamart_order/{order_id}")
+@app.get("/track_platform_order/{order_id}")
 async def track_order(order_id: str):
     return {
         "order_id": order_id,
@@ -165,8 +172,11 @@ async def reload_mock_orders():
     seed_file = os.path.join(os.path.dirname(__file__), "..", "seed", "generated_orders.json")
     if os.path.exists(seed_file):
         try:
-            with open(seed_file) as f:
-                MOCK_ORDERS = json.load(f)
+            def read_seed():
+                with open(seed_file) as f:
+                    return json.load(f)
+            
+            MOCK_ORDERS = await asyncio.to_thread(read_seed)
             print(f"Mock server reloaded {len(MOCK_ORDERS)} orders")
             return {"success": True, "loaded_orders": len(MOCK_ORDERS)}
         except Exception as e:

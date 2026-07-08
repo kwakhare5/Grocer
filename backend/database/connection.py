@@ -1,8 +1,16 @@
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from backend.config import settings
 
-# Why: echo=False — suppress SQL logs in production; NullPool avoids connection leaks with alembic
-engine = create_async_engine(settings.DATABASE_URL, echo=False)
+# Explicit pool sizing + pre-ping for a long-running API process.
+# (Previous comment claimed NullPool but never actually passed poolclass —
+# NullPool is correct for Alembic's short-lived env.py, not for this engine.)
+engine = create_async_engine(
+    settings.DATABASE_URL,
+    echo=False,
+    pool_size=10,
+    max_overflow=20,
+    pool_pre_ping=True,   # avoids stale-connection errors after DB idle periods
+)
 
 AsyncSessionLocal = async_sessionmaker(
     engine, expire_on_commit=False

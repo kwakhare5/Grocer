@@ -29,8 +29,8 @@ export default function Header() {
               <UtensilsCrossed className="h-4 w-4" />
             </div>
             <span className="font-bold">
-              <span className="text-foreground dark:text-neutral-200">Instamart</span>{" "}
-              <span className="text-accent">Kitchen</span>
+              <span className="text-foreground dark:text-neutral-200">Pre</span>
+              <span className="text-accent">Fill</span>
             </span>
           </Link>
           <span className="text-[10px] text-muted/70 hidden lg:flex items-center gap-1.5 font-bold uppercase tracking-wider pl-2 border-l border-border/60">

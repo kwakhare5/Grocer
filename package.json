@@ -1,5 +1,5 @@
 {
-  "name": "instamart-intelligence",
+  "name": "prefill",
   "version": "1.0.0",
   "description": "Household AI that predicts what your kitchen needs before you run out",
   "scripts": {
@@ -10,7 +10,7 @@
     "dev:frontend": "cd frontend && npm run dev",
     "dev": "npm run dev:backend & npm run dev:mock & npm run dev:frontend"
   },
-  "keywords": ["ai", "grocery", "instamart", "langraph", "fastapi"],
+  "keywords": ["ai", "grocery", "prefill", "langraph", "fastapi"],
   "author": "",
   "license": "ISC"
 }

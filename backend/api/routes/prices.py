@@ -14,6 +14,7 @@ from datetime import datetime, timedelta, timezone
 
 from backend.database.connection import get_db
 from backend.database.models import PriceHistory
+from backend.services.cache import cache_response
 
 router = APIRouter(prefix='/api/prices', tags=['prices'])
 
@@ -47,6 +48,7 @@ COMMODITY_MAPPINGS = {
 
 
 @router.get('/feed')
+@cache_response(ttl=3600, key_prefix="price_feed")
 async def get_price_feed(db: AsyncSession = Depends(get_db)):
     """
     Returns the daily price feed for the commodities:
@@ -121,6 +123,7 @@ async def get_price_feed(db: AsyncSession = Depends(get_db)):
 
 
 @router.get('/alerts')
+@cache_response(ttl=3600, key_prefix="price_alerts")
 async def get_price_alerts(db: AsyncSession = Depends(get_db)):
     """
     Returns only active price alerts (spikes or dips).

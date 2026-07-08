@@ -11,6 +11,7 @@ interface OrderHistoryEntry {
   items: { item_name: string; quantity: number; price: number }[];
   total: number;
   status: string;
+  platform?: string;
 }
 
 interface PredictionItem {
@@ -34,6 +35,12 @@ const FALLBACK_ITEMS: PredictionItem[] = [
   { id: "INS_002", name: "Aashirvaad Atta 5kg",        category: "Staples",  days: 12, rawDays: 12, conf: 68, avg: "280 g/day",   cycle: "17 days",   depletes: "In 12 days",      lastBuy: "5 days ago", fillPct: 71 },
   { id: "INS_004", name: "India Gate Basmati Rice 5kg",category: "Staples",  days: 19, rawDays: 19, conf: 71, avg: "200 g/day",   cycle: "25 days",   depletes: "In 19 days",      lastBuy: "6 days ago", fillPct: 76 },
 ];
+
+const platformColors: Record<string, string> = {
+  instamart: "bg-[#ff5a00]/10 text-[#ff5a00] border-[#ff5a00]/20",
+  zepto: "bg-[#5c24b3]/10 text-[#5c24b3] border-[#5c24b3]/20",
+  blinkit: "bg-[#f5c609]/15 text-[#856b00] border-[#f5c609]/30",
+};
 
 function stockLabel(fillPct: number) {
   if (fillPct <= 20) return { pill: "pill-danger",  label: "Almost Empty" };
@@ -133,13 +140,13 @@ export default function PredictionsPage() {
     : [];
 
   // Per-item order history
-  function getItemOrders(itemName: string): { date: string; qty: number; price: number }[] {
+  function getItemOrders(itemName: string): { date: string; qty: number; price: number; platform?: string }[] {
     if (!recentOrders.length) return [];
-    const results: { date: string; qty: number; price: number }[] = [];
+    const results: { date: string; qty: number; price: number; platform?: string }[] = [];
     for (const order of recentOrders) {
       for (const oi of order.items) {
         if (oi.item_name.toLowerCase() === itemName.toLowerCase()) {
-          results.push({ date: order.placed_at, qty: oi.quantity, price: oi.price });
+          results.push({ date: order.placed_at, qty: oi.quantity, price: oi.price, platform: order.platform });
         }
       }
     }
@@ -279,7 +286,14 @@ export default function PredictionsPage() {
                                   {i + 1}
                                 </div>
                                 <div className="flex flex-col">
-                                  <span className="text-xs font-bold text-foreground font-display">{timeAgo(o.date)}</span>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs font-bold text-foreground font-display">{timeAgo(o.date)}</span>
+                                    {o.platform && (
+                                      <span className={`text-[8px] px-1.5 py-0.5 rounded border font-extrabold font-display uppercase tracking-wider ${platformColors[o.platform.toLowerCase()] || "bg-neutral-100 text-neutral-600 border-neutral-200"}`}>
+                                        {o.platform}
+                                      </span>
+                                    )}
+                                  </div>
                                   <span className="text-[10px] text-muted font-medium">
                                     {new Date(o.date).toLocaleDateString([], { day: "numeric", month: "short", year: "numeric" })}
                                   </span>

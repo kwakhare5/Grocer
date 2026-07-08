@@ -20,8 +20,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Instamart Kitchen Assistant',
-  description: 'Your household kitchen helper that knows what you need before you run out.',
+  title: 'PreFill Pantry Assistant',
+  description: 'Your household helper that knows what you need before you run out.',
 };
 
 export default function RootLayout({
@@ -51,7 +51,7 @@ export default function RootLayout({
         {/* ── System Footer ────────────────────────────────── */}
         <footer className="border-t border-border mt-auto relative z-10 bg-surface/40 backdrop-blur-sm">
           <div className="max-w-6xl mx-auto px-6 py-5 flex items-center justify-between text-xs text-muted font-medium">
-            <span>Instamart Kitchen Assistant · Swiggy Builders Club Demo</span>
+            <span>PreFill Pantry Assistant</span>
             <span>Automatically keeping your pantry stocked</span>
           </div>
         </footer>

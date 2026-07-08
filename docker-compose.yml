@@ -1,15 +1,15 @@
-version: '3.8'
+name: prefill
 
 services:
   timescaledb:
     image: timescale/timescaledb:latest-pg15
-    container_name: instamart_db
+    container_name: prefill_db
     ports:
       - "5432:5432"
     environment:
       - POSTGRES_USER=${DB_USER:-postgres}
       - POSTGRES_PASSWORD=${DB_PASSWORD:-postgres}
-      - POSTGRES_DB=${DB_NAME:-instamart_intelligence}
+      - POSTGRES_DB=${DB_NAME:-prefill}
     volumes:
       - timescale_data:/var/lib/postgresql/data
 

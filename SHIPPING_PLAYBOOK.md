@@ -6,31 +6,41 @@ This document serves as the master checklist and guide for deploying **PreFill**
 
 ## 🛠️ SECTION 1: INFRASTRUCTURE DEPLOYMENT GUIDE
 
-### 1.1 Railway Deployment (Backend + PostgreSQL)
+### 1.1 Render & Neon Deployment (Backend + PostgreSQL)
 
-Railway handles the FastAPI application, APScheduler background jobs, and PostgreSQL database.
+Render handles the FastAPI application and APScheduler background jobs, while Neon.tech handles the serverless PostgreSQL database. This is a 100% free setup.
 
-#### Step 1: Initialize Database & App Services
-1. Go to [Railway.app](https://railway.app) and sign in.
-2. Click **New Project** → **Provision PostgreSQL**. This spins up a dedicated Postgres database instance.
-3. Click **New** → **Github Repo** → Select `kwakhare5/PreFill`.
-4. Click on the newly added backend service, go to **Settings**, and under **Build & Deploy**:
-   - Set **Build Command** to `pip install -r requirements.txt`
-   - Set **Start Command** to `uvicorn backend.main:app --host 0.0.0.0 --port $PORT` (Railway injects the `$PORT` automatically).
+#### Step 1: Create a Serverless Postgres Database on Neon
+1. Go to [Neon.tech](https://neon.tech/) and sign up.
+2. Create a new project named `prefill`.
+3. Under **Connection Details**, copy your connection string. It will look like:
+   `postgresql://[user]:[password]@[host]/neondb?sslmode=require`
+4. Add `+asyncpg` to the prefix so SQLAlchemy can use it asynchronously:
+   `postgresql+asyncpg://[user]:[password]@[host]/neondb?sslmode=require`
 
-#### Step 2: Environment Variables Configuration
-Navigate to the **Variables** tab of your FastAPI service and add the following keys:
+#### Step 2: Initialize FastAPI Web Service on Render
+1. Go to [Render.com](https://render.com/) and sign in with GitHub.
+2. Click **New** → **Web Service** and select `kwakhare5/PreFill`.
+3. Configure the settings:
+   - **Name**: `prefill-backend`
+   - **Language**: `Python 3`
+   - **Build Command**: `pip install -r requirements.txt`
+   - **Start Command**: `uvicorn backend.main:app --host 0.0.0.0 --port $PORT`
+   - **Instance Type**: Select the **Free** tier.
+
+#### Step 3: Environment Variables Configuration
+Navigate to the **Environment** tab of your Render service and add the following keys:
 
 | Variable Name | Value / Format | Purpose |
 |---|---|---|
-| `DATABASE_URL` | `postgresql+asyncpg://...` | DB connection string (use reference from the provisioning step, e.g. `${{ Postgres.DATABASE_URL }}` but replace driver from `postgresql://` to `postgresql+asyncpg://`) |
-| `MCP_BASE_URL` | `https://prefill-mock-mcp.railway.app` | The production URL of the mock/live Swiggy MCP server |
+| `DATABASE_URL` | `postgresql+asyncpg://...` | Neon connection string with asyncpg prefix |
+| `MCP_BASE_URL` | `https://prefill-mock-mcp.onrender.com` | The production URL of the mock/live Swiggy MCP server |
 | `GROQ_API_KEY` | `gsk_...` | Groq API Key (for LLM Restock parsing) |
 | `NVIDIA_API_KEY` | `nvapi-...` | NVIDIA API Key (fallback or alternate agent models) |
 | `TWILIO_ACCOUNT_SID` | `AC...` | Twilio API credential for WhatsApp |
 | `TWILIO_AUTH_TOKEN` | `[Token]` | Twilio API authentication token |
-| `TWILIO_WHATSAPP_FROM` | `whatsapp:+14155238886` | Twilio sandbox or verified sender number |
-| `ALLOWED_ORIGINS` | `https://prefill.vercel.app` | Vercel production frontend URL (handles CORS) |
+| `TWILIO_WHATSAPP_FROM` | `whatsapp:+14155238886` | Twilio sandbox number |
+| `ALLOWED_ORIGINS` | `https://prefill.vercel.app` | Vercel production frontend URL |
 
 ---
 
@@ -48,7 +58,7 @@ In the **Environment Variables** section of Vercel, add:
 
 | Variable Name | Value | Purpose |
 |---|---|---|
-| `NEXT_PUBLIC_API_URL` | `https://prefill-backend.railway.app` | Production URL of the Railway backend API |
+| `NEXT_PUBLIC_API_URL` | `https://prefill-backend.onrender.com` | Production URL of the Render backend API |
 
 #### Step 3: Deploy
 - Click **Deploy**. Vercel will build the frontend and provide a live URL (e.g., `https://prefill.vercel.app`).
@@ -59,9 +69,9 @@ In the **Environment Variables** section of Vercel, add:
 1. Log in to [Twilio Console](https://console.twilio.com).
 2. Go to **Messaging** → **Try it out** → **Send a WhatsApp message**.
 3. Follow the steps to connect your personal phone to the sandbox (e.g., sending `join <code-here>`).
-4. Set the **Sandbox Webhook** URL for incoming messages to your Railway endpoint:
+4. Set the **Sandbox Webhook** URL for incoming messages to your Render endpoint:
    ```
-   https://prefill-backend.railway.app/api/webhook/whatsapp
+   https://prefill-backend.onrender.com/api/webhook/whatsapp
    ```
 
 ---

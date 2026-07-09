@@ -117,7 +117,7 @@ async def get_predictions(user_id: str, db: AsyncSession = Depends(get_db)):
     return response
 
 
-@router.get('/')
+@router.get('/', include_in_schema=False)
 async def predictions_index():
     return {
         'endpoints': [

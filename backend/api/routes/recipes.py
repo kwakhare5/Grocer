@@ -80,13 +80,13 @@ class RecipePinRequest(BaseModel):
     pinned_for: str
     cuisine: str = "Indian"
 
-@router.post("/parse")
+@router.post("/parse", include_in_schema=False)
 async def parse_recipe(body: RecipeParseRequest, db: AsyncSession = Depends(get_db)):
     from backend.agents.recipe_agent import recipe_to_cart
     result = await recipe_to_cart(body.recipe, body.servings, body.household_id, db)
     return result
 
-@router.post("/pin")
+@router.post("/pin", include_in_schema=False)
 async def pin_recipe(body: RecipePinRequest, db: AsyncSession = Depends(get_db)):
     # Resolve user_id to household UUID
     result = await db.execute(select(Household).where(Household.user_id == body.household_id))
@@ -117,7 +117,7 @@ async def pin_recipe(body: RecipePinRequest, db: AsyncSession = Depends(get_db))
         "pinned_for": recipe.pinned_for.isoformat()
     }
 
-@router.get('/')
+@router.get('/', include_in_schema=False)
 async def recipes_index():
     """Index endpoint — lists available recipe routes."""
     return {

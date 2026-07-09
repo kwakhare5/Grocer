@@ -6,8 +6,8 @@ import dynamic from 'next/dynamic';
 import { JarWave } from '../components/JarWave';
 
 const ConfettiEffect = dynamic(() => import('../components/ConfettiEffect'), { ssr: false });
-import useSWR from "swr";
 import { predictionsApi, householdApi, APIPrediction } from "../lib/api";
+import { usePredictions } from "../lib/hooks";
 import { getCategoryTheme } from "../lib/theme";
 import { ShieldCheck, Sparkles, ShoppingCart, ArrowRight, Eye, ChefHat, Coffee, Users, Database, AlertCircle, Receipt, Layers, Cpu, Calendar, Milk, Apple, Egg, Croissant, Droplets, Package } from "lucide-react";
 
@@ -109,8 +109,6 @@ function getLevelColors(fillPct: number) {
 
 
 
-const fetcher = (userId: string) => predictionsApi.getForHousehold(userId).then(res => res.data);
-
 function DashboardContent() {
   // Interactive Local UI states
   const [addedItems, setAddedItems] = useState<Set<string>>(new Set());
@@ -130,14 +128,7 @@ function DashboardContent() {
     }, 3000);
   }
 
-  const { data: predictionsData, mutate: mutatePredictions, isLoading: predictionsLoading } = useSWR(
-    "demo_user_001",
-    fetcher,
-    {
-      revalidateOnFocus: false,
-      dedupingInterval: 60000,
-    }
-  );
+  const { predictionsData, mutatePredictions, isLoading: predictionsLoading } = usePredictions("demo_user_001");
 
   // Listen to refresh-dashboard event to trigger revalidation of predictions
   useEffect(() => {

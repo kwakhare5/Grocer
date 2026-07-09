@@ -1,41 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import useSWR from "swr";
-import { predictionsApi, APIPrediction } from "../../lib/api";
+import { APIPrediction, APIOrder } from "../../lib/api";
+import { usePredictions, useOrders } from "../../lib/hooks";
+import { transformPredictionsData, PredictionItem, timeAgo } from "../../lib/utils";
 import { getCategoryTheme } from "../../lib/theme";
 import { Milk, Droplets, CircleDot, Package, Clock, Sparkles, ChevronDown, ChevronUp, Activity, ShoppingBag, Database, AlertCircle, Receipt, Apple, Egg, Croissant } from "lucide-react";
-
-interface OrderHistoryEntry {
-  order_id: string;
-  placed_at: string;
-  items: { item_name: string; quantity: number; price: number }[];
-  total: number;
-  status: string;
-  platform?: string;
-}
-
-interface PredictionItem {
-  id: string;
-  name: string;
-  category: string;
-  days: number;
-  rawDays: number;
-  conf: number;
-  avg: string;
-  cycle: string;
-  depletes: string;
-  lastBuy: string;
-  fillPct: number;
-}
-
-const FALLBACK_ITEMS: PredictionItem[] = [
-  { id: "INS_001", name: "Amul Taza Milk 1L",          category: "Dairy",    days: 1,  rawDays: 1,  conf: 76, avg: "1.1 L/day",   cycle: "2.1 days",  depletes: "Tomorrow",        lastBuy: "2 days ago", fillPct: 30 },
-  { id: "INS_003", name: "Fortune Sunflower Oil 1L",   category: "Oils",     days: 2,  rawDays: 2,  conf: 87, avg: "68 ml/day",   cycle: "14.7 days", depletes: "In 2 days",       lastBuy: "12 days ago", fillPct: 14 },
-  { id: "INS_005", name: "Nandini Eggs (Pack of 12)",  category: "Protein",  days: 4,  rawDays: 4,  conf: 88, avg: "2.3 pcs/day", cycle: "6.2 days",  depletes: "In 4 days",       lastBuy: "2 days ago", fillPct: 65 },
-  { id: "INS_002", name: "Aashirvaad Atta 5kg",        category: "Staples",  days: 12, rawDays: 12, conf: 68, avg: "280 g/day",   cycle: "17 days",   depletes: "In 12 days",      lastBuy: "5 days ago", fillPct: 71 },
-  { id: "INS_004", name: "India Gate Basmati Rice 5kg",category: "Staples",  days: 19, rawDays: 19, conf: 71, avg: "200 g/day",   cycle: "25 days",   depletes: "In 19 days",      lastBuy: "6 days ago", fillPct: 76 },
-];
 
 function stockLabel(fillPct: number) {
   if (fillPct <= 20) return { pill: "pill-danger",  label: "Almost Empty" };
@@ -49,19 +19,9 @@ function barColor(fillPct: number) {
   return "var(--ok)";
 }
 
-function timeAgo(dateStr: string) {
-  const d = new Date(dateStr);
-  const diff = Math.floor((Date.now() - d.getTime()) / 1000 / 60 / 60 / 24);
-  if (diff === 0) return "Today";
-  if (diff === 1) return "Yesterday";
-  if (diff < 7)  return `${diff} days ago`;
-  if (diff < 14) return "Last week";
-  if (diff < 30) return `${Math.floor(diff / 7)} weeks ago`;
-  return d.toLocaleDateString([], { day: "numeric", month: "short", year: "numeric" });
-}
 
-const predFetcher = (userId: string) => predictionsApi.getForHousehold(userId).then(res => res.data);
-const orderFetcher = (url: string) => fetch(url).then(r => r.json());
+
+
 
 export default function PredictionsPage() {
   const [showDetails, setShowDetails] = useState<Record<string, boolean>>({});
@@ -70,17 +30,8 @@ export default function PredictionsPage() {
     setShowDetails(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
-  const { data: predictionsData, mutate: mutatePredictions, isLoading: predictionsLoading } = useSWR(
-    "demo_user_001",
-    predFetcher,
-    { revalidateOnFocus: false, dedupingInterval: 60000 }
-  );
-
-  const { data: ordersData } = useSWR(
-    "http://localhost:8000/api/orders/demo_user_001?limit=30",
-    orderFetcher,
-    { revalidateOnFocus: false, dedupingInterval: 60000 }
-  );
+  const { predictionsData, mutatePredictions, isLoading: predictionsLoading } = usePredictions("demo_user_001");
+  const { ordersData } = useOrders("demo_user_001");
 
   useEffect(() => {
     const handleRefresh = () => mutatePredictions();
@@ -91,37 +42,12 @@ export default function PredictionsPage() {
   const loading = predictionsLoading;
 
   // All items, sorted low stock first
-  const items: PredictionItem[] = predictionsData?.predictions && predictionsData.predictions.length > 0
-    ? predictionsData.predictions
-        .map((p: APIPrediction) => {
-          const rawDays = p.days_remaining !== null ? p.days_remaining : 10;
-          const daysLeft = Math.round(rawDays);
-          const fillPct = p.stock_fill_percent !== undefined ? Math.round(p.stock_fill_percent) : 100;
-          return {
-            id: p.item_id,
-            name: p.item_name,
-            category: p.category || "General",
-            days: daysLeft,
-            rawDays: rawDays,
-            conf: Math.round((p.confidence_score || 0.5) * 100),
-            avg: `${p.avg_daily_consumption.toFixed(2)} /day`,
-            cycle: `${p.consumption_cycle_days || 7} days`,
-            depletes: p.estimated_depletion_date
-              ? new Date(p.estimated_depletion_date).toLocaleDateString([], { day: "numeric", month: "short", year: "numeric" })
-              : "Unknown",
-            lastBuy: p.last_purchase_date
-              ? new Date(p.last_purchase_date).toLocaleDateString([], { day: "numeric", month: "short" })
-              : "Unknown",
-            fillPct,
-          };
-        })
-        .sort((a: PredictionItem, b: PredictionItem) => a.fillPct - b.fillPct)
-    : FALLBACK_ITEMS;
+  const items: PredictionItem[] = transformPredictionsData(predictionsData?.predictions);
 
   // Order history: group by item name from fetched orders
-  const recentOrders: OrderHistoryEntry[] = ordersData?.orders
+  const recentOrders: APIOrder[] = ordersData?.orders
     ? [...ordersData.orders].sort(
-        (a: OrderHistoryEntry, b: OrderHistoryEntry) =>
+        (a: APIOrder, b: APIOrder) =>
           new Date(b.placed_at).getTime() - new Date(a.placed_at).getTime()
       ).slice(0, 20)
     : [];

@@ -30,7 +30,7 @@ async def sync_household_orders(user_id: str, db: AsyncSession = Depends(get_db)
     return {"message": f"Synced {synced} new orders", "household_id": str(household.id)}
 
 
-@router.post("/{user_id}/rebuild-models")
+@router.post("/{user_id}/rebuild-models", include_in_schema=False)
 async def rebuild_household_models(
     user_id: str,
     background_tasks: BackgroundTasks,

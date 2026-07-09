@@ -4,7 +4,7 @@ This is the single source of truth for item IDs, names, categories, prices, and 
 
 Used by:
   - backend/seed/generate_orders.py  (seed data generation)
-  - backend/mcp/mock_server.py       (mock Swiggy API catalog)
+  - backend/mcp/mock_server.py       (mock API catalog)
 
 Why a shared catalog?
   Previously, seed/ and mcp/ had separate, inconsistent item lists with different

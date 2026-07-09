@@ -1,13 +1,14 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { predictionsApi, APIPrediction } from '../../lib/api';
-import { CheckCircle2, AlertTriangle, XCircle, Search, Calendar, ShoppingCart, Loader2, ChefHat } from 'lucide-react';
+import { useState, useEffect } from "react";
+import { predictionsApi, APIPrediction } from "../../lib/api";
+import { COLOR_PALETTE } from "../../lib/theme";
+import { CheckCircle2, AlertTriangle, XCircle, Search, Calendar, ShoppingCart, Loader2, ChefHat, Activity } from "lucide-react";
 
 type Ingredient = {
   name: string;
   needed: string;
-  status: 'have' | 'low' | 'missing';
+  status: "have" | "low" | "missing";
   estimated?: string;
   price?: number;
 };
@@ -62,10 +63,10 @@ function findRecipe(query: string): RecipeResult | null {
   return null;
 }
 
-const SUGGESTIONS = ["Sunday Biryani for 6", "Dal Makhani", "Aloo Paratha"];
+const SUGGESTIONS = ["Sunday Biryani", "Dal Makhani", "Aloo Paratha"];
 
 export default function RecipesPage() {
-  const [query, setQuery]     = useState('');
+  const [query, setQuery]     = useState("");
   const [result, setResult]   = useState<RecipeResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [ordered, setOrdered] = useState(false);
@@ -113,11 +114,11 @@ export default function RecipesPage() {
           );
 
           if (predMatch) {
-            let status: 'have' | 'low' | 'missing' = 'have';
-            if (predMatch.status === 'depleted' || predMatch.status === 'critical') {
-              status = 'missing';
-            } else if (predMatch.status === 'low') {
-              status = 'low';
+            let status: "have" | "low" | "missing" = "have";
+            if (predMatch.status === "depleted" || predMatch.status === "critical") {
+              status = "missing";
+            } else if (predMatch.status === "low") {
+              status = "low";
             }
 
             let estimated = ing.estimated;
@@ -166,207 +167,246 @@ export default function RecipesPage() {
   const handleTogglePinRecipe = () => {
     setIsPinnedToSunday(!isPinnedToSunday);
     if (!isPinnedToSunday) {
-      triggerToast(`Pinned ${result?.dish} to Sunday Meal Plan! Check notifications Saturday.`);
+      triggerToast(`Pinned ${result?.dish} to Sunday Meal Plan!`);
     } else {
       triggerToast(`Removed ${result?.dish} from Sunday Meal Plan.`);
     }
   };
 
-  const missing    = result?.ingredients.filter(i => i.status === 'missing') ?? [];
-  const low        = result?.ingredients.filter(i => i.status === 'low')     ?? [];
+  const missing    = result?.ingredients.filter(i => i.status === "missing") ?? [];
+  const low        = result?.ingredients.filter(i => i.status === "low")     ?? [];
   const cartItems  = [...missing, ...low];
   const cartTotal  = cartItems.reduce((sum, i) => sum + (i.price ?? 0), 0);
 
   return (
     <div className="flex flex-col gap-10 relative">
-      <div className="absolute top-[-50px] right-[-100px] w-[250px] h-[250px] bg-accent/6 blur-[100px] pointer-events-none -z-10" />
 
-      {/* ── Header ──────────────────────────────────────────── */}
-      <div className="flex flex-col gap-2.5">
+      {/* ── App Header ──────────────────────────────────────── */}
+      <div className="flex flex-col gap-2.5 border-b border-border/40 pb-8">
         <div className="text-accent text-[11px] font-bold tracking-widest uppercase font-display flex items-center gap-1.5">
           <ChefHat className="h-4 w-4" />
           <span>Meal Planner</span>
         </div>
-        <h1 className="text-4xl font-extrabold tracking-tight leading-tight font-display text-foreground">
-          Recipe <span className="text-accent">Cooking Checker</span>
+        <h1 className="text-4xl font-bold tracking-tight leading-none font-display text-foreground">
+          Recipe <span className="title-accent">Pantry Checker</span>
         </h1>
-        <p className="text-sm text-muted max-w-lg leading-relaxed font-medium">
-          Choose what you want to cook. We check your pantry levels and add the missing items to your cart.
+        <p className="text-sm text-muted max-w-lg leading-relaxed font-medium mt-1">
+          Check ingredients against pantry levels, see what is missing, and auto-refill instantly.
         </p>
       </div>
 
-      {/* ── Search — this IS the product ────────────────────── */}
-      <div className="glass-card p-6 flex flex-col gap-4 rounded-2xl border border-border/80">
-        <div className="text-xs font-bold text-foreground font-display">
-          What are you planning to cook?
-        </div>
-        <div className="flex gap-3 relative">
-          <input
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSearch(query)}
-            placeholder="e.g. Sunday Biryani for 6, Dal Makhani, Aloo Paratha..."
-            className="flex-1 bg-background border border-border/60 px-4 h-12 text-sm rounded-xl
-                       placeholder:text-muted focus:outline-none focus:border-accent/80 focus:ring-1 focus:ring-accent/45 transition-all font-medium"
-          />
-          <button
-            onClick={() => handleSearch(query)}
-            className="h-12 px-6 bg-accent text-white font-bold text-xs uppercase tracking-widest rounded-xl
-                       hover:bg-accent/90 transition-colors cursor-pointer flex items-center justify-center gap-1.5 font-display"
-          >
-            <Search className="h-4 w-4" />
-            Check Pantry
-          </button>
-        </div>
-        <div className="flex items-center gap-2.5 flex-wrap text-xs font-medium">
-          <span className="text-muted mr-1.5">Try suggestions:</span>
-          {SUGGESTIONS.map((s) => (
-            <button
-              key={s}
-              onClick={() => handleSearch(s)}
-              className="text-accent border border-accent/20 h-11 px-4.5 rounded-full hover:bg-accent-dim transition-all cursor-pointer hover:border-accent/40 font-semibold"
-            >
-              {s}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* ── Loading ─────────────────────────────────────────── */}
-      {loading && (
-        <div className="glass-card p-8 flex items-center gap-4 rounded-2xl border border-border/80 bg-surface">
-          <Loader2 className="h-5 w-5 text-accent animate-spin" />
-          <span className="text-sm text-muted font-medium">Checking your kitchen stock...</span>
-        </div>
-      )}
-
-      {/* ── No match ────────────────────────────────────────── */}
-      {!loading && query && !result && (
-        <div className="glass-card p-8 text-sm text-muted rounded-2xl border border-border/80 bg-surface font-medium">
-          Recipe not in demo database. Try searching for: <span className="font-bold text-accent">Biryani</span>, <span className="font-bold text-accent">Dal Makhani</span>, or <span className="font-bold text-accent">Aloo Paratha</span>.
-        </div>
-      )}
-
-      {/* ── Results ─────────────────────────────────────────── */}
-      {!loading && result && (
-        <div className="flex flex-col gap-6">
-
-          {/* Recipe header */}
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-xs text-muted font-bold font-display uppercase tracking-wider">Kitchen checklist for</div>
-              <div className="text-2xl font-black text-foreground mt-1 font-display">{result.dish}</div>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="pill pill-muted font-semibold font-display">{result.servings} servings</span>
+      {/* ── 2-Column App Grid ────────────────────────────────── */}
+      <div className="grid grid-cols-12 gap-8 items-start">
+        
+        {/* Main Cooking Checklist Area (Left, col-span-8) */}
+        <div className="col-span-12 lg:col-span-8 flex flex-col gap-6">
+          
+          {/* Search Card */}
+          <div className="glass-card p-6 flex flex-col gap-4">
+            <span className="font-extrabold text-xs text-foreground font-display uppercase tracking-wider">What are you cooking?</span>
+            <div className="flex gap-2.5">
+              <input
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleSearch(query)}
+                placeholder="Search recipe: e.g. Sunday Biryani, Dal Makhani..."
+                className="flex-1 bg-white border border-border/60 px-4 h-11 text-xs rounded-md focus:outline-none focus:border-accent transition-colors font-medium"
+              />
               <button
-                onClick={handleTogglePinRecipe}
-                className={`h-11 px-4.5 rounded-full text-xs font-bold border transition-all cursor-pointer active:scale-[0.98] flex items-center justify-center gap-1.5 ${
-                  isPinnedToSunday
-                    ? "bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950/40 dark:text-amber-200"
-                    : "bg-white/80 dark:bg-neutral-800 text-muted hover:text-foreground border-border hover:border-muted-foreground"
-                }`}
+                onClick={() => handleSearch(query)}
+                className="h-11 px-5 btn-premium-blue text-white font-extrabold text-xs tracking-wider uppercase rounded-md transition-all flex items-center justify-center gap-1.5 font-display cursor-pointer"
               >
-                <Calendar className="h-4 w-4" />
-                {isPinnedToSunday ? "Pinned to Sunday" : "Pin to Sunday Meal"}
+                <Search className="h-4 w-4" />
+                Check
               </button>
             </div>
-          </div>
 
-          {/* Ingredients table */}
-          <div className="glass-card overflow-hidden rounded-2xl border border-border/80">
-            <div className="px-6 py-4 border-b border-border/60 text-xs font-bold text-muted uppercase tracking-wider font-display bg-white/40 dark:bg-neutral-900/20">
-              Ingredients needed ({result.ingredients.length} total items)
-            </div>
-            <div className="divide-y divide-border/60">
-              {result.ingredients.map((ing) => (
-                <div
-                  key={ing.name}
-                  className="px-6 py-4.5 flex items-center justify-between gap-4"
-                >
-                  <div className="flex items-center gap-4 min-w-0">
-                    <span className="shrink-0">
-                      {ing.status === 'have' && <CheckCircle2 className="h-5 w-5 text-ok" />}
-                      {ing.status === 'low' && <AlertTriangle className="h-5 w-5 text-warning" />}
-                      {ing.status === 'missing' && <XCircle className="h-5 w-5 text-danger" />}
-                    </span>
-                    <div className="flex flex-col min-w-0">
-                      <span className="font-extrabold text-sm text-foreground font-display">{ing.name}</span>
-                      {ing.estimated && (
-                        <span className="text-xs text-muted/95 mt-1 font-medium">{ing.estimated}</span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-4 shrink-0">
-                    <span className="text-xs font-bold text-muted/85 font-display">{ing.needed} needed</span>
-                    <span className={`pill ${
-                      ing.status === 'have' ? 'pill-ok' :
-                      ing.status === 'low' ? 'pill-warning' :
-                      'pill-danger'
-                    } font-semibold font-display`}>
-                      {ing.status === 'have' ? 'Stocked' : ing.status === 'low' ? 'Running Low' : 'Need to buy'}
-                    </span>
-                  </div>
-                </div>
-              ))}
+            <div className="flex items-center gap-2 flex-wrap text-xs font-medium border-t border-border/30 pt-3 mt-1">
+              <span className="text-muted/70 text-[10px] uppercase font-bold tracking-wider mr-1.5">Suggestions:</span>
+              {SUGGESTIONS.map((s, idx) => {
+                const colors = [
+                  COLOR_PALETTE.orange,
+                  COLOR_PALETTE.green,
+                  COLOR_PALETTE.blue,
+                  COLOR_PALETTE.gray
+                ];
+                const c = colors[idx % colors.length];
+                return (
+                  <button
+                    key={s}
+                    onClick={() => handleSearch(s)}
+                    className="h-8 px-3.5 rounded-md transition-colors cursor-pointer text-xs font-bold font-display border"
+                    style={{ 
+                      color: c.text, 
+                      borderColor: c.border, 
+                      backgroundColor: c.bg
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = c.hover}
+                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = c.bg}
+                  >
+                    {s}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
-          {/* Missing items cart formatted as a dashed print receipt card */}
-          {cartItems.length > 0 && !ordered && (
-            <div className="glass-card overflow-hidden border-2 border-dashed border-accent/40 rounded-2xl shadow-sm bg-white/60 dark:bg-neutral-900/10">
-              <div className="px-6 py-4.5 border-b border-dashed border-border/60 flex items-center justify-between bg-accent-dim/20">
-                <div className="text-xs font-bold text-accent uppercase tracking-wider font-display">
-                  Missing Items to Order
-                </div>
-                <span className="pill pill-accent font-semibold font-display">{cartItems.length} items to order</span>
-              </div>
-              <div className="divide-y divide-dashed divide-border/60 px-6 py-1">
-                {cartItems.map((item) => (
-                  <div key={item.name} className="py-3 flex items-center justify-between text-xs font-bold font-display">
-                    <span className="text-foreground">{item.name}</span>
-                    <span className="text-muted">₹{item.price}</span>
-                  </div>
-                ))}
-              </div>
-              <div className="px-6 py-4.5 border-t border-dashed border-border/60 flex items-center justify-between bg-neutral-100/30 dark:bg-neutral-900/20">
-                <span className="text-sm font-extrabold text-foreground font-display">Estimated Total: ₹{cartTotal}</span>
-                <button
-                  onClick={handleOrderMissing}
-                  className="h-11 px-6 bg-accent text-white font-bold text-xs uppercase tracking-widest rounded-full active:scale-[0.98]
-                             hover:bg-accent/90 transition-all cursor-pointer flex items-center justify-center gap-1.5 font-display shadow-sm"
-                >
-                  <ShoppingCart className="h-4 w-4" />
-                  Add to Cart & Order →
-                </button>
-              </div>
+          {/* Loading details state */}
+          {loading && (
+            <div className="glass-card p-6 flex items-center justify-center gap-3.5">
+              <Loader2 className="h-5 w-5 text-accent animate-spin" />
+              <span className="text-xs text-muted font-bold uppercase tracking-wider font-display">Checking pantry stock...</span>
             </div>
           )}
 
-          {/* Order confirmation */}
+          {/* No match error state */}
+          {!loading && query && !result && (
+            <div className="glass-card p-6 text-xs text-muted font-bold uppercase tracking-wider text-center">
+              Recipe not found. Try: <span className="text-accent underline cursor-pointer" onClick={() => handleSearch("Biryani")}>Biryani</span> or <span className="text-accent underline cursor-pointer" onClick={() => handleSearch("Dal Makhani")}>Dal Makhani</span>
+            </div>
+          )}
+
+          {/* Ingredients table details */}
+          {!loading && result && (
+            <div className="flex flex-col gap-5">
+              
+              {/* Recipe Info Block */}
+              <div className="flex items-center justify-between">
+                <div className="flex flex-col">
+                  <span className="text-[9px] text-muted font-bold uppercase tracking-wider font-display">Hydrated Checklist for</span>
+                  <span className="text-xl font-black text-foreground font-display mt-0.5">{result.dish}</span>
+                </div>
+                <div className="flex items-center gap-2.5">
+                  <span className="pill pill-muted font-semibold font-display">{result.servings} servings</span>
+                  <button
+                    onClick={handleTogglePinRecipe}
+                    className={`h-9 px-4 rounded-md text-xs font-bold border transition-all active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer ${
+                      isPinnedToSunday
+                        ? "bg-amber-100 text-amber-800 border-amber-300"
+                        : "bg-white text-muted border-border/80 hover:text-foreground"
+                    }`}
+                  >
+                    <Calendar className="h-4 w-4" />
+                    {isPinnedToSunday ? "Pinned to Plan" : "Pin to Sunday"}
+                  </button>
+                </div>
+              </div>
+
+              {/* Ingredients Table */}
+              <div className="glass-card overflow-hidden">
+                <div className="px-5 py-3.5 border-b border-border/60 text-[10px] font-bold text-muted uppercase tracking-wider font-display bg-white/40">
+                  Ingredients Checklist ({result.ingredients.length} items)
+                </div>
+                <div className="divide-y divide-border/60">
+                  {result.ingredients.map((ing) => (
+                    <div
+                      key={ing.name}
+                      className="px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                    >
+                      <div className="flex items-center gap-3.5 min-w-0">
+                        <span className="shrink-0">
+                          {ing.status === "have" && <CheckCircle2 className="h-4.5 w-4.5 text-ok" />}
+                          {ing.status === "low" && <AlertTriangle className="h-4.5 w-4.5 text-warning" />}
+                          {ing.status === "missing" && <XCircle className="h-4.5 w-4.5 text-danger" />}
+                        </span>
+                        <div className="flex flex-col min-w-0">
+                          <span className="font-extrabold text-xs text-foreground font-display">{ing.name}</span>
+                          {ing.estimated && (
+                            <span className="text-[10px] text-muted mt-0.5 font-medium">{ing.estimated}</span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4 shrink-0">
+                        <span className="text-[10px] font-bold text-muted/80 font-display">{ing.needed} needed</span>
+                        <span className={`pill ${
+                          ing.status === "have" ? "pill-ok" :
+                          ing.status === "low" ? "pill-warning" :
+                          "pill-danger"
+                        } font-semibold font-display`}>
+                          {ing.status === "have" ? "Stocked" : ing.status === "low" ? "Running Low" : "Need to buy"}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Sidebar Order Checkout / Summary (Right, col-span-4) */}
+        <div className="col-span-12 lg:col-span-4 flex flex-col gap-4">
+          
+          {/* Order confirmation block */}
           {ordered && (
-            <div className="glass-card p-6 border border-ok rounded-2xl flex items-center gap-4 bg-surface shadow-sm">
-              <CheckCircle2 className="h-6 w-6 text-ok shrink-0" />
-              <div className="flex flex-col gap-1">
-                <span className="font-extrabold text-ok text-sm font-display">Order Placed successfully! — ₹{cartTotal}</span>
-                <span className="text-xs text-muted font-medium">
-                  {cartItems.length} items · Arriving in ~15 minutes · Order ID: #INS_MOCK_DEMO
+            <div className="glass-card p-6 border border-ok flex items-start gap-3 shadow-sm animate-in fade-in duration-200">
+              <CheckCircle2 className="h-5 w-5 text-ok shrink-0 mt-0.5" />
+              <div className="flex flex-col">
+                <span className="font-extrabold text-ok text-xs font-display">Order Confirmed!</span>
+                <span className="text-[10px] text-muted font-medium mt-1 leading-relaxed">
+                  Arriving in ~15 mins.<br />Order ID: #INS_MOCK_DEMO
                 </span>
               </div>
             </div>
           )}
 
+          {/* Missing items checkout summary */}
+          {result && cartItems.length > 0 && !ordered && (
+            <div className="glass-card overflow-hidden border border-dashed border-accent/40 shadow-sm">
+              <div className="px-6 py-4 border-b border-border/60 bg-neutral-50/30 flex justify-between items-center">
+                <div className="text-[10px] font-bold text-accent uppercase tracking-wider font-display">
+                  Missing Restock items
+                </div>
+                <span className="pill pill-accent font-semibold font-display">{cartItems.length} items</span>
+              </div>
+              
+              <div className="divide-y divide-dashed divide-border/60 px-5 py-1">
+                {cartItems.map((item) => (
+                  <div key={item.name} className="py-2.5 flex items-center justify-between text-[11px] font-bold font-display">
+                    <span className="text-foreground truncate max-w-[70%]">{item.name}</span>
+                    <span className="text-muted shrink-0">₹{item.price}</span>
+                  </div>
+                ))}
+              </div>
+              
+              <div className="px-6 py-4 flex flex-col gap-2 hover:bg-neutral-50/50 transition-colors">
+                <div className="flex justify-between items-baseline">
+                  <span className="text-xs text-muted uppercase font-bold tracking-wider font-display">Total</span>
+                  <span className="text-sm font-extrabold text-foreground font-display">₹{cartTotal}</span>
+                </div>
+                <button
+                  onClick={handleOrderMissing}
+                  className="h-10 w-full btn-premium-blue text-white font-extrabold text-xs uppercase tracking-wider rounded-md transition-all cursor-pointer flex items-center justify-center gap-1.5 font-display"
+                >
+                  <ShoppingCart className="h-4 w-4" />
+                  Order Missing Items
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Initial state placeholder when no recipe loaded */}
+          {!result && (
+            <div className="glass-card p-6 text-center">
+              <Activity className="h-5 w-5 text-muted mx-auto mb-2 opacity-50" />
+              <span className="text-[10px] text-muted font-bold uppercase tracking-wider font-display">No recipe loaded</span>
+              <p className="text-[10px] text-muted/70 font-medium leading-relaxed mt-1">
+                Search or select a suggestion to display cooking checklists and auto-refill carts.
+              </p>
+            </div>
+          )}
+
         </div>
-      )}
+
+      </div>
 
       {/* ── Toast Notification ─────────────────────────────── */}
       {toastMessage && (
-        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 bg-neutral-900/95 dark:bg-neutral-100/95 backdrop-blur-md text-white dark:text-neutral-900 px-5 py-3 rounded-full shadow-[0_12px_40px_rgba(0,0,0,0.25)] flex items-center gap-2 border border-neutral-800 dark:border-neutral-200 animate-in fade-in slide-in-from-bottom-4 duration-300">
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 bg-neutral-900/95 text-white px-5 py-3 rounded-md shadow-[0_12px_40px_rgba(0,0,0,0.25)] flex items-center gap-2 border border-neutral-800 animate-in fade-in slide-in-from-bottom-4 duration-300">
           <span className="text-xs font-bold tracking-wide font-display">{toastMessage}</span>
         </div>
       )}
-
     </div>
   );
 }

@@ -2,37 +2,25 @@
 
 /* ─── Design Tokens ──────────────────────────────────────────────────── */
 :root {
-  --background: #fcfbfa; /* Warm eggshell white */
-  --surface:    rgba(255, 255, 255, 0.75); /* Frosted glass */
-  --foreground: #2d2823; /* Soft warm dark charcoal */
-  --muted:      #7c7267; /* Clay-gray */
-  --accent:     #ff5a00; /* Swiggy Orange */
-  --accent-dim: rgba(255, 90, 0, 0.08);
-  --danger:     #e11d48;
-  --warning:    #d97706;
-  --ok:         #10b981;
-  --grid-line:  rgba(255, 90, 0, 0.04);
-  --border:     rgba(0, 0, 0, 0.06); /* Frosted border */
-  --text-glow:  0 0 6px rgba(252, 251, 250, 0.95), 0 1px 2px rgba(252, 251, 250, 0.9);
-  --text-glow-muted: 0 0 4px rgba(252, 251, 250, 0.9), 0 1px 1px rgba(252, 251, 250, 0.85);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0f0e0d; /* Soft dark cocoa-charcoal */
-    --surface:    rgba(22, 20, 18, 0.72);
-    --foreground: #f4f2f0;
-    --muted:      #9c9287;
-    --accent:     #ff5a00;
-    --accent-dim: rgba(255, 90, 0, 0.12);
-    --danger:     #f43f5e;
-    --warning:    #f59e0b;
-    --ok:         #34d399;
-    --grid-line:  rgba(255, 90, 0, 0.02);
-    --border:     rgba(255, 255, 255, 0.06);
-    --text-glow:  0 0 6px rgba(15, 14, 13, 0.95), 0 1px 2px rgba(15, 14, 13, 0.9);
-    --text-glow-muted: 0 0 4px rgba(15, 14, 13, 0.9), 0 1px 1px rgba(15, 14, 13, 0.85);
-  }
+  --background: #FAFAF9; /* Warm stone-50 background */
+  --surface:    #FFFFFF; /* White Cards */
+  --foreground: #292524; /* Stone-800 Header Text */
+  --muted:      #79716B; /* Stone-500 Body Text */
+  --border:     #E7E5E4; /* Stone-200 Bento border */
+  --accent:     #005EEE; /* Round.ai Vibrant Blue Accent */
+  --accent-dim: rgba(0, 94, 238, 0.06);
+  --danger:     #D97757; /* Terracotta orange highlight */
+  --danger-dim: rgba(217, 119, 87, 0.08);
+  --warning:    #CA8A04; /* Warm yellow */
+  --warning-dim: rgba(202, 138, 4, 0.08);
+  --ok:         #16A34A; /* Emerald success */
+  --ok-dim:     rgba(22, 163, 74, 0.08);
+  --grid-line:  rgba(28, 25, 23, 0.015);
+  --card-shadow: rgba(0, 0, 0, 0.02) 0px 4px 6px -1px, rgba(0, 0, 0, 0.01) 0px 2px 4px -1px;
+  --card-radius: 12px;
+  --btn-radius: 8px;
+  --font-display: var(--font-newsreader), serif;
+  --font-display-sans: var(--font-manrope), sans-serif;
 }
 
 @theme inline {
@@ -49,8 +37,33 @@
   --color-grid:       var(--grid-line);
   --color-border:     var(--border);
   --font-sans:        var(--font-sans);
-  --font-display:     var(--font-display);
+  --font-display:     var(--font-display-sans);
   --font-mono:        var(--font-geist-mono);
+
+  --radius-3xl:       var(--card-radius);
+  --radius-2xl:       var(--card-radius);
+  --radius-xl:        var(--btn-radius);
+  --radius-lg:        var(--btn-radius);
+  --radius-md:        var(--btn-radius);
+  --radius-sm:        var(--btn-radius);
+}
+
+/* Force Light Mode Only in Tailwind v4 */
+@variant dark (.never-dark);
+
+/* Title Accent Styling (Colored, No Italic, Inherit Font Family & Weight) */
+.title-accent {
+  color: var(--accent);
+  font-style: normal;
+  font-family: inherit;
+  display: inline-block;
+  transition: all 0.2s ease-in-out;
+}
+
+/* Force large page headings to render in Newsreader Bold */
+h1, .font-title {
+  font-family: var(--font-display), serif !important;
+  font-weight: 700 !important;
 }
 
 /* ─── Base ───────────────────────────────────────────────────────────── */
@@ -60,14 +73,17 @@ body {
   background-color: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), sans-serif;
-  background-image: radial-gradient(circle, var(--grid-line) 1px, transparent 1px);
-  background-size: 24px 24px;
+  /* Premium noise texture combined with dot grid */
+  background-image: 
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 250 250' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.02'/%3E%3C/svg%3E"),
+    radial-gradient(circle, var(--grid-line) 1px, transparent 1px);
+  background-size: auto, 32px 32px;
   -webkit-font-smoothing: antialiased;
 }
 
 /* ─── Utility Classes ────────────────────────────────────────────────── */
 .font-display {
-  font-family: var(--font-display), sans-serif;
+  font-family: var(--font-display-sans), sans-serif;
 }
 
 .font-data {
@@ -79,28 +95,25 @@ body {
 .card {
   background: var(--surface);
   border: 1px solid var(--border);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  box-shadow: var(--card-shadow);
+  border-radius: var(--card-radius);
 }
 
 .glass-card {
-  background: var(--surface);
+  background: rgba(255, 255, 255, 0.85);
   border: 1px solid var(--border);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.015);
+  box-shadow: var(--card-shadow);
+  border-radius: var(--card-radius);
 }
 
-.orange-glow-gradient {
-  background: linear-gradient(135deg, #ff5a00 0%, #ff8a00 100%);
-  box-shadow: 0 4px 14px rgba(255, 90, 0, 0.25);
-}
 
 .glow-blob {
   position: absolute;
   border-radius: 50%;
   filter: blur(100px);
-  opacity: 0.12;
+  opacity: var(--glow-opacity, 0.12);
   pointer-events: none;
   z-index: -10;
 }
@@ -135,6 +148,42 @@ body {
 .pill-ok      { background: rgba(16,185,129,0.1);   color: var(--ok);      }
 .pill-muted   { background: var(--grid-line);        color: var(--muted);   }
 .pill-accent  { background: var(--accent-dim);       color: var(--accent);  }
+
+/* Premium Button Styles */
+.btn-premium-dark {
+  background: linear-gradient(to bottom, #322F2D, #1C1917) !important;
+  border: 1px solid #322F2D !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+.btn-premium-dark:hover {
+  background: linear-gradient(to bottom, #423E3B, #221E1C) !important;
+  border-color: #423E3B !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
+}
+.btn-premium-dark:active {
+  transform: scale(0.97) !important;
+}
+
+.btn-premium-blue {
+  background: linear-gradient(to bottom, #0F6CFF, #005EEE) !important;
+  border: 1px solid #0F6CFF !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.15) !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+.btn-premium-blue:hover {
+  background: linear-gradient(to bottom, #2B7FFF, #0052CC) !important;
+  border-color: #2B7FFF !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+}
+.btn-premium-blue:active {
+  transform: scale(0.97) !important;
+}
+
 
 /* Confidence track / stats */
 .conf-track {
@@ -179,14 +228,6 @@ body {
 }
 
 .sparkline { display: block; overflow: visible; }
-
-.jar-text-glow {
-  text-shadow: none;
-}
-
-.jar-text-glow-muted {
-  text-shadow: none;
-}
 
 /* ─── Premium Micro-animations & Transitions ─────────────────────────── */
 
@@ -245,6 +286,6 @@ body {
 
 .card-transition:hover {
   transform: translateY(-3px);
-  box-shadow: 0 12px 36px rgba(255, 90, 0, 0.08);
-  border-color: rgba(255, 90, 0, 0.2);
+  box-shadow: 0 12px 36px var(--accent-dim);
+  border-color: var(--accent);
 }

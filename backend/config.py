@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     Precedence: environment variables > .env file > defaults below.
     """
     DATABASE_URL: str
-    MCP_BASE_URL: str = 'http://localhost:8001'   # Mock Swiggy MCP server
+    MCP_BASE_URL: str = 'http://localhost:8001'   # Mock MCP server
     TWILIO_ACCOUNT_SID: str = ''                   # Required for WhatsApp (Task 3.1+)
     TWILIO_AUTH_TOKEN: str = ''
     TWILIO_WHATSAPP_FROM: str = 'whatsapp:+14155238886'  # Twilio sandbox number

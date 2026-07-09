@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { Tag, TrendingUp, TrendingDown } from 'lucide-react';
-import { pricesApi } from '../../lib/api';
+import { useEffect, useState } from "react";
+import { Tag, TrendingUp, TrendingDown } from "lucide-react";
+import { pricesApi } from "../../lib/api";
 
 type PricePoint = { day: string; price: number };
 
@@ -12,7 +12,7 @@ type CommodityData = {
   unit: string;
   current: number;
   avg30d: number;
-  signal: 'SPIKE' | 'DIP' | 'STABLE' | 'WATCH';
+  signal: "SPIKE" | "DIP" | "STABLE" | "WATCH";
   history: PricePoint[];
   suggestion?: string | null;
 };
@@ -83,19 +83,19 @@ const FALLBACK_COMMODITIES: CommodityData[] = [
 ];
 
 const SIGNAL_STYLES = {
-  SPIKE:  { pill: "pill-danger",  label: "Price Spiked (Expensive)", color: "#ff5a00" },
-  DIP:    { pill: "pill-ok",      label: "Price Dropped (Good Deal)",  color: "#16a34a" },
-  WATCH:  { pill: "pill-accent",  label: "Price Rising",               color: "#ff5a00" },
-  STABLE: { pill: "pill-muted",   label: "Stable Price",               color: "#6b6560" },
+  SPIKE:  { pill: "pill-danger",  label: "Price Spiked (Expensive)", color: "var(--danger)" },
+  DIP:    { pill: "pill-ok",      label: "Price Dropped (Good Deal)",  color: "var(--ok)" },
+  WATCH:  { pill: "pill-accent",  label: "Price Rising",               color: "var(--accent)" },
+  STABLE: { pill: "pill-muted",   label: "Stable Price",               color: "var(--muted)" },
 };
 
-function Sparkline({ data, signal }: { data: PricePoint[]; signal: CommodityData['signal'] }) {
+function Sparkline({ data, signal }: { data: PricePoint[]; signal: CommodityData["signal"] }) {
   if (!data || data.length === 0) return null;
   const prices = data.map((d) => d.price);
   const min = Math.min(...prices);
   const max = Math.max(...prices);
   const range = max - min || 1;
-  const W = 200, H = 48, pad = 4;
+  const W = 160, H = 40, pad = 4;
 
   const points = prices
     .map((p, i) => {
@@ -103,7 +103,7 @@ function Sparkline({ data, signal }: { data: PricePoint[]; signal: CommodityData
       const y = pad + ((max - p) / range) * (H - pad * 2);
       return `${x},${y}`;
     })
-    .join(' ');
+    .join(" ");
 
   const color = SIGNAL_STYLES[signal].color;
 
@@ -111,7 +111,7 @@ function Sparkline({ data, signal }: { data: PricePoint[]; signal: CommodityData
     <svg viewBox={`0 0 ${W} ${H}`} width={W} height={H} className="sparkline">
       <defs>
         <linearGradient id={`grad-${signal}`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity="0.25" />
+          <stop offset="0%" stopColor={color} stopOpacity="0.15" />
           <stop offset="100%" stopColor={color} stopOpacity="0.0" />
         </linearGradient>
       </defs>
@@ -119,24 +119,22 @@ function Sparkline({ data, signal }: { data: PricePoint[]; signal: CommodityData
         points={`${pad},${H - pad} ${points} ${W - pad},${H - pad}`}
         fill={`url(#grad-${signal})`}
       />
-      <polyline points={points} fill="none" stroke={color} strokeWidth="1.5" />
+      <polyline points={points} fill="none" stroke={color} strokeWidth="1.25" />
       {(() => {
-        const last = points.split(' ').pop()!.split(',');
+        const last = points.split(" ").pop()!.split(",");
         const cx = last[0];
         const cy = last[1];
         return (
           <g>
-            {/* Pulsing indicator ring */}
             <circle
               cx={cx}
               cy={cy}
-              r="6"
+              r="5"
               fill={color}
               className="animate-ping"
-              style={{ transformOrigin: `${cx}px ${cy}px`, opacity: 0.4 }}
+              style={{ transformOrigin: `${cx}px ${cy}px`, opacity: 0.3 }}
             />
-            {/* Solid core dot */}
-            <circle cx={cx} cy={cy} r="3" fill={color} />
+            <circle cx={cx} cy={cy} r="2.5" fill={color} />
           </g>
         );
       })()}
@@ -172,113 +170,138 @@ export default function PriceAlertsPage() {
   return (
     <div className="flex flex-col gap-10">
 
-      {/* ── Header ──────────────────────────────────────────── */}
-      <div className="flex flex-col gap-2.5">
-        <div className="text-accent text-[11px] font-bold tracking-wider uppercase flex items-center gap-1.5">
+      {/* ── App Header ──────────────────────────────────────── */}
+      <div className="flex flex-col gap-2.5 border-b border-border/40 pb-8">
+        <div className="text-accent text-[11px] font-bold tracking-wider uppercase font-display flex items-center gap-1.5">
           <Tag className="h-4 w-4" />
           <span>Price Alerts</span>
         </div>
-        <h1 className="text-4xl font-light tracking-tight leading-tight">
-          Grocery Deals & <span className="font-extrabold text-accent">Price Alerts</span>
+        <h1 className="text-4xl font-bold tracking-tight leading-none font-display text-foreground">
+          Grocery Deals & <span className="title-accent">Price Signals</span>
         </h1>
-        <p className="text-sm text-muted max-w-lg leading-relaxed">
-          Prices change every day. We track these changes and let you know when things are cheap to stock up, or expensive.
+        <p className="text-sm text-muted max-w-lg leading-relaxed font-medium mt-1">
+          Smart commodity alerts tracking daily market fluctuations to help you optimize household spending.
         </p>
       </div>
 
-      {/* ── Alert Banner (Spike + DIP) ───────────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {commodities.filter((c) => c.signal === 'SPIKE' || c.signal === 'DIP').map((c) => {
-          const s = SIGNAL_STYLES[c.signal];
-          return (
-            <div
-              key={c.id}
-              onClick={() => setSelected(c.id)}
-              className={`card p-6 cursor-pointer flex flex-col gap-4 hover:border-accent transition-all bg-surface border border-border rounded-md
-                         ${selected === c.id ? 'border-accent shadow-sm' : ''}`}
-            >
-              <div className="flex items-center justify-between">
-                <span className={`pill ${s.pill} font-semibold flex items-center gap-1`}>
-                  {c.signal === 'SPIKE' ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-                  <span>{s.label}</span>
-                </span>
-                <span className="text-xs text-muted font-medium">{c.name}</span>
-              </div>
-              <div className="flex items-end justify-between gap-4">
-                <div>
-                  <div className="text-3xl font-black text-foreground" style={{ color: s.color }}>₹{c.current}</div>
-                  <div className="text-xs text-muted font-medium">{c.unit}</div>
-                </div>
-                <Sparkline data={c.history} signal={c.signal} />
-              </div>
-              <div className="text-xs text-muted font-medium">
-                {pctChange(c.current, c.avg30d)} compared to your 30-day average (₹{c.avg30d})
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* ── All Commodities ─────────────────────────────────── */}
-      <div className="card overflow-hidden bg-surface rounded-md">
-        <div className="px-6 py-4 border-b border-border text-xs font-bold text-muted uppercase tracking-wider">
-          Price History (Last 10 Days)
-        </div>
-        <div className="divide-y divide-border">
-          {commodities.map((c) => {
-            const s = SIGNAL_STYLES[c.signal];
-            const pct = pctChange(c.current, c.avg30d);
-            return (
-              <div
-                key={c.id}
-                onClick={() => setSelected(c.id)}
-                className={`group px-6 py-4 flex items-center gap-6 cursor-pointer hover:bg-neutral-50/50 dark:hover:bg-neutral-900/10 transition-colors
-                           ${selected === c.id ? 'bg-neutral-50/40 dark:bg-neutral-900/10' : ''}`}
-              >
-                <Sparkline data={c.history} signal={c.signal} />
-                <div className="flex-1 min-w-0">
-                  <div className="font-bold text-sm text-foreground truncate">{c.name}</div>
-                  <div className="text-xs text-muted mt-1 font-medium">
-                    ₹{c.current} {c.unit} · 30-day average ₹{c.avg30d}
+      {/* ── 2-Column App Grid ────────────────────────────────── */}
+      <div className="grid grid-cols-12 gap-8 items-start">
+        
+        {/* Main Price Feed Charts (Left, col-span-8) */}
+        <div className="col-span-12 lg:col-span-8 flex flex-col gap-6">
+          
+          {/* Highlight Cards (Spikes & Dips) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {commodities.filter((c) => c.signal === "SPIKE" || c.signal === "DIP").map((c) => {
+              const s = SIGNAL_STYLES[c.signal];
+              return (
+                <div
+                  key={c.id}
+                  onClick={() => setSelected(c.id)}
+                  className={`glass-card p-6 cursor-pointer flex flex-col gap-4 transition-all
+                             ${selected === c.id ? "border-accent shadow-sm" : ""}`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className={`pill ${s.pill} font-semibold flex items-center gap-1 shrink-0`}>
+                      {c.signal === "SPIKE" ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                      <span>{s.label.split(" (")[0]}</span>
+                    </span>
+                    <span className="text-xs font-extrabold text-foreground/80 font-display truncate pl-2">{c.name}</span>
+                  </div>
+                  <div className="flex items-end justify-between gap-4 mt-1">
+                    <div>
+                      <div className="text-2xl font-black text-foreground font-display" style={{ color: s.color }}>₹{c.current}</div>
+                      <div className="text-[10px] text-muted font-bold uppercase tracking-wider font-display mt-0.5">{c.unit}</div>
+                    </div>
+                    <Sparkline data={c.history} signal={c.signal} />
+                  </div>
+                  <div className="text-[10px] text-muted font-medium border-t border-border/30 pt-2 mt-1">
+                    <span className="font-bold" style={{ color: s.color }}>{pctChange(c.current, c.avg30d)}</span> vs. 30-day avg (₹{c.avg30d})
                   </div>
                 </div>
-                <div className="flex items-center gap-3 shrink-0">
-                  <span className={`text-sm font-bold`} style={{ color: s.color }}>
-                    {pct}
-                  </span>
-                  <span className={`pill ${s.pill} font-semibold flex items-center gap-1`}>
-                    {c.signal === 'SPIKE' || c.signal === 'WATCH' ? <TrendingUp className="h-3 w-3" /> :
-                     c.signal === 'DIP' ? <TrendingDown className="h-3 w-3" /> : null}
-                    <span>{s.label.split(" (")[0]}</span>
-                  </span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
+              );
+            })}
+          </div>
 
-      {/* ── Detail Panel for selected commodity ─────────────── */}
-      {active && active.suggestion && (
-        <div className="card p-6 flex flex-col gap-4 border-accent rounded-md bg-surface shadow-sm">
-          <div className="text-xs font-bold text-accent uppercase tracking-wider">
-            Refill Suggestion · {active.name}
+          {/* All commodities checklist grid */}
+          <div className="glass-card overflow-hidden">
+            <div className="px-6 py-4 border-b border-border/60 text-[10px] font-bold text-muted uppercase tracking-wider font-display">  10-Day Market Price Trends
+            </div>
+            <div className="divide-y divide-border/60">
+              {commodities.map((c) => {
+                const s = SIGNAL_STYLES[c.signal];
+                const pct = pctChange(c.current, c.avg30d);
+                return (
+                  <div
+                    key={c.id}
+                    onClick={() => setSelected(c.id)}
+                    className={`group px-6 py-4 flex items-center gap-6 cursor-pointer hover:bg-neutral-50/50 transition-colors
+                               ${selected === c.id ? "bg-neutral-50/40" : ""}`}
+                  >
+                    <div className="shrink-0 w-[140px] md:w-[160px]">
+                      <Sparkline data={c.history} signal={c.signal} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-extrabold text-xs text-foreground font-display truncate">{c.name}</div>
+                      <div className="text-[10px] text-muted mt-0.5 font-medium">
+                        ₹{c.current} {c.unit} · 30-day avg: ₹{c.avg30d}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 shrink-0">
+                      <span className="text-xs font-extrabold font-display text-right w-10" style={{ color: s.color }}>
+                        {pct}
+                      </span>
+                      <span className={`pill ${s.pill} font-semibold flex items-center gap-1 shrink-0`}>
+                        {c.signal === "SPIKE" || c.signal === "WATCH" ? <TrendingUp className="h-3 w-3" /> :
+                         c.signal === "DIP" ? <TrendingDown className="h-3 w-3" /> : null}
+                        <span>{s.label.split(" (")[0]}</span>
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
-          <p className="text-sm leading-relaxed text-foreground">{active.suggestion}</p>
-          <div className="grid grid-cols-3 gap-4 pt-4 border-t border-border">
-            {[
-              { label: "Today's Price",  value: `₹${active.current}` },
-              { label: "Normal Price",    value: `₹${active.avg30d}`  },
-              { label: "Price Change",         value: pctChange(active.current, active.avg30d) },
-            ].map((s) => (
-              <div key={s.label} className="flex flex-col gap-1.5">
-                <span className="text-[10px] font-bold text-muted uppercase tracking-wider">{s.label}</span>
-                <span className="text-base font-extrabold text-foreground">{s.value}</span>
-              </div>
-            ))}
-          </div>
+
         </div>
-      )}
+
+        {/* Sidebar Alerts Suggestions (Right, col-span-4) */}
+        <div className="col-span-12 lg:col-span-4 flex flex-col gap-4">
+          
+          {/* Detail Suggestion panel */}
+          {active && active.suggestion ? (
+            <div className="glass-card p-6 flex flex-col gap-4 animate-in fade-in duration-200">
+              <span className="font-extrabold text-xs text-accent font-display uppercase tracking-wider">Refill Insight</span>
+              <div className="flex flex-col">
+                <span className="font-extrabold text-xs text-foreground font-display">{active.name}</span>
+                <p className="text-xs leading-relaxed text-muted font-medium mt-2">{active.suggestion}</p>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3 pt-3 border-t border-border/40 text-center">
+                {[
+                  { label: "Today",  value: `₹${active.current}` },
+                  { label: "Normal",    value: `₹${active.avg30d}`  },
+                  { label: "Change",         value: pctChange(active.current, active.avg30d), color: SIGNAL_STYLES[active.signal].color },
+                ].map((s) => (
+                  <div key={s.label} className="flex flex-col gap-0.5">
+                    <span className="text-[8px] font-bold text-muted uppercase tracking-wider">{s.label}</span>
+                    <span className="text-xs font-extrabold text-foreground font-display" style={{ color: s.color }}>{s.value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="glass-card p-6 text-center">
+              <span className="text-[10px] text-muted font-bold uppercase tracking-wider font-display">No details loaded</span>
+              <p className="text-[10px] text-muted/70 font-medium leading-relaxed mt-1">
+                Select any commodity card or row to view price trend details and smart buying recommendations.
+              </p>
+            </div>
+          )}
+
+        </div>
+
+      </div>
 
     </div>
   );

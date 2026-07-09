@@ -1,8 +1,9 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { Users, History, Layers, ShieldCheck, Map, Calendar, Sparkles } from 'lucide-react';
-import { householdApi, predictionsApi, APIPrediction } from '../../lib/api';
+import { useEffect, useState } from "react";
+import { Users, History, Layers, ShieldCheck, Map, Calendar } from "lucide-react";
+import { householdApi, predictionsApi, APIPrediction } from "../../lib/api";
+import { COLOR_PALETTE } from "../../lib/theme";
 
 interface ProfileData {
   type: string;
@@ -44,15 +45,11 @@ const FALLBACK_CONSUMPTION: ConsumptionItem[] = [
 const ANOMALIES = [
   {
     type:  "Family Travel",
-    color: "text-amber-600",
-    bg:    "bg-amber-500/10",
     date:  "March 15 – 24, 2026",
     desc:  "9-day travel gap detected. Refill alerts were automatically paused.",
   },
   {
     type:  "Special Event / Guests",
-    color: "text-blue-600",
-    bg:    "bg-blue-500/10",
     date:  "February 8, 2026",
     desc:  "3x surge in dairy consumption. Spike was excluded from normal averages.",
   },
@@ -143,120 +140,153 @@ export default function HouseholdPage() {
   return (
     <div className="flex flex-col gap-10">
 
-      {/* ── Header ──────────────────────────────────────────── */}
-      <div className="flex flex-col gap-2.5">
-        <div className="text-accent text-[11px] font-bold tracking-wider uppercase">
-          Kitchen Profile {loading && "(LOADING...)"}
+      {/* ── App Header ──────────────────────────────────────── */}
+      <div className="flex flex-col gap-2.5 border-b border-border/40 pb-8">
+        <div className="text-accent text-[11px] font-bold tracking-wider uppercase font-display flex items-center gap-1.5">
+          <Users className="h-4 w-4" />
+          <span>Kitchen Profile {loading && "(LOADING...)"}</span>
         </div>
-        <h1 className="text-4xl font-light tracking-tight leading-tight">
-          My Kitchen <span className="font-extrabold text-accent">Habits</span>
+        <h1 className="text-4xl font-bold tracking-tight leading-none font-display text-foreground">
+          My Kitchen <span className="title-accent">Habits</span>
         </h1>
-        <p className="text-sm text-muted max-w-lg leading-relaxed">
-          {"See your family's eating habits, tracking accuracy, and past schedule changes calculated from PreFill orders."}
+        <p className="text-sm text-muted max-w-lg leading-relaxed font-medium mt-1">
+          {"Analysis of your family's size, buying intervals, and eating anomalies."}
         </p>
       </div>
 
-      {/* ── Composition Banner ──────────────────────────────── */}
-      <div className="glass-card p-8 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
-        <div className="flex items-start gap-4">
-          <div className="p-4 bg-accent-dim rounded-2xl text-accent shrink-0 mt-1">
-            <Users className="h-6 w-6" />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <div className="text-[10px] text-accent font-bold uppercase tracking-widest font-display">
-              Estimated Family Size
-            </div>
-            <div className="text-2xl font-black text-foreground font-display">{profile.type}</div>
-            <div className="text-xs text-muted font-semibold leading-relaxed">
-              Automatically checked from your milk, eggs, flour, and oil purchase cycles.
-            </div>
-          </div>
-        </div>
-        <div className="flex flex-col items-start sm:items-end gap-2 shrink-0 pl-14 sm:pl-0">
-          <div className="text-3xl font-black text-accent font-display">{profile.confidence}%</div>
-          <div className="text-[10px] font-bold uppercase tracking-wider text-muted font-display">Accuracy</div>
-          <div className="conf-track w-32">
-            <div className="conf-fill" style={{ width: `${profile.confidence}%` }} />
-          </div>
-        </div>
-      </div>
-
-      {/* ── Two-column: System Metrics + Consumption ────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-
-        {/* System Metrics */}
-        <div className="glass-card p-6 flex flex-col gap-6 rounded-2xl">
-          <div className="text-xs font-bold text-foreground uppercase tracking-wider border-b border-border/60 pb-3.5 font-display">
-            Tracking Summary
-          </div>
-          <div className="grid grid-cols-2 gap-6">
-            {[
-              { value: profile.ordersAnalyzed,      label: "Orders Checked", icon: <History className="h-4 w-4 text-accent/80" /> },
-              { value: profile.itemsModeled,         label: "Items Tracked", icon: <Layers className="h-4 w-4 text-accent/80" /> },
-              { value: profile.monthsTracked + " mo", label: "Months Active", icon: <Calendar className="h-4 w-4 text-accent/80" /> },
-              { value: profile.stockoutsPrevented,   label: "Saved from running out", icon: <ShieldCheck className="h-4 w-4 text-accent/80" /> },
-            ].map((s) => (
-              <div key={s.label} className="stat-block flex flex-col gap-1.5">
-                <div className="flex items-center gap-1.5">
-                  {s.icon}
-                  <div className="text-2xl font-black text-foreground font-display leading-none">{s.value}</div>
-                </div>
-                <div className="text-[10px] font-bold uppercase tracking-wider text-muted font-display">{s.label}</div>
+      {/* ── 2-Column App Grid ────────────────────────────────── */}
+      <div className="grid grid-cols-12 gap-8 items-start">
+        
+        {/* Profile Details & Anomalies (Left, col-span-8) */}
+        <div className="col-span-12 lg:col-span-8 flex flex-col gap-6">
+          
+          {/* Estimated Family Size Banner */}
+          <div className="glass-card p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+            <div className="flex items-start gap-4">
+              <div className="p-3 bg-accent/8 rounded-lg text-accent shrink-0 mt-0.5">
+                <Users className="h-5 w-5" />
               </div>
-            ))}
+              <div className="flex flex-col">
+                <div className="text-[9px] text-accent font-bold uppercase tracking-wider font-display">
+                  Family Size Estimate
+                </div>
+                <div className="text-xl font-black text-foreground font-display mt-0.5">{profile.type}</div>
+                <div className="text-[11px] text-muted font-medium leading-relaxed mt-1">
+                  Estimated based on purchase frequency and average consumption rates of staples.
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex flex-col items-start sm:items-end gap-1.5 shrink-0 pl-12 sm:pl-0">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-muted font-display">Confidence</span>
+              <span className="text-2xl font-black text-accent font-display leading-none">{profile.confidence}%</span>
+              <div className="conf-track w-28 h-1 bg-neutral-200/50 rounded-md">
+                <div className="conf-fill h-full bg-accent rounded-md" style={{ width: `${profile.confidence}%` }} />
+              </div>
+            </div>
           </div>
-          <div className="border-t border-border/60 pt-4 text-xs text-muted flex justify-between font-medium">
-            <span>Tracking active since {profile.trackedSince}</span>
-            <span className="text-ok font-semibold">Accuracy {profile.accuracy}</span>
+
+          {/* Schedule Changes / Anomalies */}
+          <div className="glass-card overflow-hidden">
+            <div className="px-6 py-4 border-b border-border/60 text-xs font-bold text-foreground uppercase tracking-wider font-display bg-white/40">
+              Detected Anomalies & Pauses
+            </div>
+            <div className="divide-y divide-border/60">
+              {ANOMALIES.map((a) => {
+                const c = 
+                  a.type === "Family Travel"
+                    ? COLOR_PALETTE.orange
+                    : COLOR_PALETTE.blue;
+                return (
+                  <div key={a.type} className="px-6 py-4.5 flex flex-col sm:flex-row sm:items-start gap-4">
+                    <div 
+                      className="pill shrink-0 self-start font-semibold font-display flex items-center justify-center gap-1.5 h-8 px-3 rounded-md border"
+                      style={{ backgroundColor: c.bg, borderColor: c.border, color: c.text }}
+                    >
+                      {a.type === "Family Travel" ? <Map className="h-3.5 w-3.5" /> : <Users className="h-3.5 w-3.5" />}
+                      <span>{a.type}</span>
+                    </div>
+                    <div className="flex flex-col gap-0.5 justify-center">
+                      <div className="text-[10px] text-muted font-bold tracking-wider font-display uppercase">{a.date}</div>
+                      <div className="text-xs text-foreground/80 leading-relaxed font-medium mt-0.5">{a.desc}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="px-6 py-4 bg-neutral-50/20 border-t border-border/60 text-[10px] text-muted font-bold uppercase tracking-wider leading-relaxed">
+              * One-time event spikes are automatically ignored to keep standard predictions accurate.
+            </div>
           </div>
+
         </div>
 
-        {/* Key Consumption Rates */}
-        <div className="glass-card p-6 flex flex-col gap-6 rounded-2xl">
-          <div className="text-xs font-bold text-foreground uppercase tracking-wider border-b border-border/60 pb-3.5 font-display">
-            Grocery Buying History
+        {/* System Summary Metrics & History (Right, col-span-4) */}
+        <div className="col-span-12 lg:col-span-4 flex flex-col gap-6">
+          
+          {/* System Metrics */}
+          <div className="glass-card p-6 flex flex-col gap-4">
+            <span className="font-extrabold text-xs text-foreground font-display uppercase tracking-wider">Metrics Overview</span>
+            <div className="flex flex-col gap-4">
+              {[
+                { value: profile.ordersAnalyzed,      label: "Orders Checked", icon: History },
+                { value: profile.itemsModeled,         label: "Items Tracked", icon: Layers },
+                { value: profile.monthsTracked + " mo", label: "Months Active", icon: Calendar },
+                { value: profile.stockoutsPrevented,   label: "Stockouts Prevented", icon: ShieldCheck },
+              ].map((s) => {
+                const Icon = s.icon;
+                const c = 
+                  s.label.includes("Checked") ? COLOR_PALETTE.blue :
+                  s.label.includes("Prevented") ? COLOR_PALETTE.green :
+                  s.label.includes("Active") ? COLOR_PALETTE.orange :
+                  COLOR_PALETTE.gray;
+                return (
+                  <div key={s.label} className="flex items-center gap-3.5 border-b border-border/40 pb-3 last:border-0 last:pb-0">
+                    <div 
+                      className="p-2 rounded-lg border shrink-0"
+                      style={{ backgroundColor: c.bg, borderColor: c.border, color: c.text }}
+                    >
+                      <Icon className="h-4 w-4" />
+                    </div>
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-[9px] text-muted font-bold tracking-wider uppercase font-display leading-none">{s.label}</span>
+                      <div className="flex items-baseline gap-1.5 mt-0.5">
+                        <span className="text-xl font-black font-display leading-none text-foreground">{s.value}</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="border-t border-border/40 pt-3.5 text-[9px] text-muted/80 font-bold uppercase tracking-wider flex justify-between font-display">
+              <span>Active Since {profile.trackedSince}</span>
+              <span className="text-ok">Accuracy {profile.accuracy}</span>
+            </div>
           </div>
-          <div className="flex flex-col gap-5">
-            {consumption.map((item) => (
-              <div key={item.id} className="flex flex-col gap-2">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-bold text-foreground">{item.label}</span>
-                  <div className="flex items-center gap-3">
-                    <span className="text-muted font-medium">{item.rate}</span>
-                    <span className="text-accent font-bold">{certaintyLabel(item.conf)}</span>
+
+          {/* Key Buying History Rates */}
+          <div className="glass-card p-6 flex flex-col gap-4">
+            <span className="font-extrabold text-xs text-foreground font-display uppercase tracking-wider">Daily Consumption Rates</span>
+            <div className="flex flex-col gap-4.5">
+              {consumption.map((item) => (
+                <div key={item.id} className="flex flex-col gap-1.5">
+                  <div className="flex items-baseline justify-between text-xs">
+                    <span className="font-extrabold text-foreground font-display text-[11px]">{item.label}</span>
+                    <span className="text-[10px] text-muted font-semibold">{item.rate}</span>
+                  </div>
+                  <div className="conf-track h-1 bg-neutral-200/50 rounded-md flex items-center justify-between">
+                    <div className="conf-fill h-full bg-accent rounded-md" style={{ width: `${item.conf}%` }} />
+                  </div>
+                  <div className="flex justify-end">
+                    <span className="text-[8px] text-accent/80 font-bold tracking-wider uppercase font-display">{certaintyLabel(item.conf)}</span>
                   </div>
                 </div>
-                <div className="conf-track">
-                  <div className="conf-fill" style={{ width: `${item.conf}%` }} />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* ── Anomaly Log ─────────────────────────────────────── */}
-      <div className="glass-card overflow-hidden rounded-2xl border border-border/80">
-        <div className="px-6 py-4 border-b border-border/60 text-xs font-bold text-foreground uppercase tracking-wider font-display">
-          Schedule Changes
-        </div>
-        <div className="divide-y divide-border/60">
-          {ANOMALIES.map((a) => (
-            <div key={a.type} className="px-6 py-5 flex flex-col sm:flex-row sm:items-start gap-4">
-              <div className={`pill ${a.bg} ${a.color} shrink-0 self-start font-semibold font-display flex items-center justify-center gap-1.5 h-11 px-4.5 rounded-full`}>
-                {a.type === "Family Travel" ? <Map className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />}
-                <span>{a.type}</span>
-              </div>
-              <div className="flex flex-col gap-1 min-h-[44px] justify-center">
-                <div className="text-xs text-muted font-semibold">{a.date}</div>
-                <div className="text-xs text-foreground/80 leading-relaxed font-medium">{a.desc}</div>
-              </div>
+              ))}
             </div>
-          ))}
+          </div>
+
         </div>
-        <div className="px-6 py-4 bg-neutral-50/20 dark:bg-neutral-900/10 border-t border-border/60 text-[11px] text-muted font-medium leading-relaxed">
-          We ignore one-time changes (like holidays or party guest spikes) to keep your normal alerts correct.
-        </div>
+
       </div>
 
     </div>

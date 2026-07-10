@@ -31,3 +31,4 @@
 - [2026-07-04T10:05:14] feat: add commodity price spike visual indicators
 - [2026-07-04T15:30:41] perf: cache active household scenario calculations
 - [2026-07-10T09:15:28] refactor: streamline phone mockup subtab switcher
+- [2026-07-10T14:25:03] style: update mobile mockup shadow elevation

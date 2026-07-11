@@ -18,3 +18,4 @@
 - [2026-07-03T15:00:22] fix: adjust floating cart drawer z-index hierarchy
 - [2026-07-03T17:45:39] refactor: clean up unused Lucide icon imports
 - [2026-07-03T20:10:04] test: verify price signal trend thresholds
+- [2026-07-11T11:00:18] style: align recipe checker ingredient status pills

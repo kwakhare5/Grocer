@@ -33,3 +33,4 @@
 - [2026-07-10T09:15:28] refactor: streamline phone mockup subtab switcher
 - [2026-07-10T14:25:03] style: update mobile mockup shadow elevation
 - [2026-07-12T11:40:19] docs: update quick commerce API endpoint spec
+- [2026-07-12T16:20:55] test: verify pantry health index calculations

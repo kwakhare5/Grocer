@@ -3,6 +3,7 @@ import { Inter, Manrope, Newsreader } from 'next/font/google';
 import ChatDrawer from '../components/ChatDrawer';
 import Header from '../components/Header';
 import './globals.css';
+import { Analytics } from '@vercel/analytics/react';
 
 const inter = Inter({
   variable: '--font-sans',
@@ -56,6 +57,7 @@ export default function RootLayout({
 
         {/* ── Chat Sandbox Drawer ─────────────────────────── */}
         <ChatDrawer />
+        <Analytics />
       </body>
     </html>
   );

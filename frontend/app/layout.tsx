@@ -1,30 +1,26 @@
 import type { Metadata } from 'next';
-import { Inter, Manrope, Newsreader } from 'next/font/google';
-import ChatDrawer from '../components/ChatDrawer';
+import { Outfit, Newsreader } from 'next/font/google';
 import Header from '../components/Header';
+import { Toaster } from 'sonner';
 import './globals.css';
 import { Analytics } from '@vercel/analytics/react';
 
-const inter = Inter({
-  variable: '--font-sans',
+const outfit = Outfit({
+  variable: '--font-outfit',
   subsets: ['latin'],
-});
-
-const manrope = Manrope({
-  variable: '--font-manrope',
-  subsets: ['latin'],
-  weight: ['400', '700', '800'],
+  weight: ['400', '500', '600', '700', '800'],
 });
 
 const newsreader = Newsreader({
   variable: '--font-newsreader',
   subsets: ['latin'],
-  weight: ['400', '700'],
+  style: ['normal'],
+  weight: ['400', '600', '700'],
 });
 
 export const metadata: Metadata = {
-  title: 'PreFill Pantry Assistant',
-  description: 'Your helper that knows what you need before you run out.',
+  title: 'PreFill — Autonomous Household Restocking Engine',
+  description: 'Predictive quick commerce inventory engine. Retain household LTV with zero-friction automated restocking.',
 };
 
 export default function RootLayout({
@@ -35,28 +31,28 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${inter.variable} ${manrope.variable} ${newsreader.variable} h-full antialiased`}
+      className={`${outfit.variable} ${newsreader.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col selection:bg-accent selection:text-white relative overflow-x-hidden">
+      <body className="min-h-full flex flex-col selection:bg-slate-900 selection:text-white relative overflow-x-hidden bg-[#FAFAFA] text-slate-900 font-sans">
         
-        {/* ── Top Nav ──────────────────────────────────────── */}
+        {/* ── Top Navigation Header ────────────────────────── */}
         <Header />
 
         {/* ── Page Content ─────────────────────────────────── */}
-        <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 md:px-8 py-10 md:py-12 relative z-10">
+        <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 md:px-8 py-6 md:py-8 relative z-10">
           {children}
         </main>
 
         {/* ── System Footer ────────────────────────────────── */}
-        <footer className="border-t border-border mt-auto relative z-10 bg-surface/40 backdrop-blur-sm">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8 py-5 flex items-center justify-between text-xs text-muted font-medium">
-            <span>PreFill Pantry Assistant</span>
-            <span>Automatically keeping your pantry stocked</span>
+        <footer className="border-t border-slate-200 mt-auto relative z-10 bg-white">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8 py-4 flex items-center justify-between text-xs text-slate-500 font-medium font-display">
+            <span>PreFill Quick Commerce Engine</span>
+            <span>Subtle SaaS CRM System · LangGraph State Machine</span>
           </div>
         </footer>
 
-        {/* ── Chat Sandbox Drawer ─────────────────────────── */}
-        <ChatDrawer />
+        {/* ── Toast Notifications & Analytics ──────────────── */}
+        <Toaster position="top-right" richColors />
         <Analytics />
       </body>
     </html>

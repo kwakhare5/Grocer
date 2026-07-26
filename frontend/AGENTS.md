@@ -1,139 +1,121 @@
-# AGENTS.md — Global AI Rules (Karan Wakhare)
+# AGENTS.md — Global Rules for Karan Wakhare
 # Applies to EVERY project, EVERY session. Read this first.
+# Live Config Root: C:\Users\kwakh\.gemini\config\
+# Skills Directory: C:\Users\kwakh\.gemini\config\skills\
 
 ---
 
-## CORE BEHAVIOR
+## 1. CORE BEHAVIOR
 
 - **Caveman:** Zero fluff. Short fragments. Drop pleasantries.
 - **Ponytail:** YAGNI. Min code. Existing deps first. No speculative features.
 - **Surgical:** Touch only what the request requires.
 - **Think first:** State assumptions. Ask if unclear. Never pick silently.
+- **Marketing/Copy:** When writing marketing copy or tweets, strictly follow `C:\Users\kwakh\.gemini\config\resources\voice-profile.md`.
 
 ---
 
-## CODING LOOP (every task, no exceptions)
+## 2. SESSION RITUAL
 
-0. **AUDIT** — multi-file or unfamiliar changes only:
-   `list_dir` on target directory, then `grep_search` for existing patterns.
-   Skip for: questions, analysis, planning, tiny single-file fixes.
+**SESSION START (When opening a project)**
+1. Read `CLAUDE.md` → stack, commands, local rules.
+2. Read `CONTEXT.md` → domain terms and business rules.
+3. Read `CLAUDE.md` Section 7: SESSION RESUME → what's open.
+4. Read `ARCHITECTURE.md` ONLY when doing `/zoom` or structural changes.
 
-1. **State assumptions + success criterion.** One sentence: what does DONE look like?
-   Be concrete. _"Done when: user can submit form and see confirmation toast."_
-
-2. **Prefactor first:** Before adding a feature, ask — is there a small refactor
-   that makes this feature trivial? Do that first.
-   _"Make the change easy, then make the easy change." — Kent Beck_
-
-3. **Write the code.** Vertical slice: schema → API → UI → test.
-   One thin path through all layers. No horizontal sprawl.
-
-4. **Run the linter:** `npm run lint` / `tsc --noEmit` / `pytest` — zero errors.
-   Done when command exits 0. Fail → fix yourself, loop. Never ask user.
-
-5. **VERIFY** — re-read every changed file. Check all 5:
-   - Swallowed errors (catch blocks that silently ignore)
-   - Stub returns (hardcoded values instead of real logic)
-   - Relaxed tests (test that always passes regardless of behavior)
-   - Comment-as-fix (commented out failing code instead of fixing it)
-   - Fake renames (renamed file, imports not updated)
-   On FAIL: append one line to `MISTAKES TO AVOID` in `CLAUDE.md` before fixing.
-
-6. **POST-TASK DOC CHECK** — silent, only act on YES:
-   - Schema/DB changed? → update `ARCHITECTURE.md`
-   - New domain term in code? → update `CONTEXT.md`
-   - Stack or project rules changed? → update `CLAUDE.md`
-   - New skill added, renamed, or deleted? → update `AGENTS.md` commands table
-   - New @command or /slash command added? → update `AGENTS.md` commands table
-   - Project status changed (shipped, blocked, nuked)? → update `active_project_context.md`
-   - Significant session (new system, major feature)? → append to `wiki/log.md` + update `wiki/hot.md`
-   If YES to any → do it before ending. If NO to all → say nothing.
-
-7. Stop at 100% pass.
+**SESSION END (User says done / bye)**
+1. Summarize what changed in 3-5 bullets.
+2. State what's immediately next.
+3. Update Section 7: SESSION RESUME in `CLAUDE.md`.
 
 ---
 
-## SKILLS
+## 3. CODING LOOP (Every Task, No Exceptions)
 
-Load skills only when the task matches the skill's trigger. Do not pre-announce skills loaded.
-
----
-
-## CONFLICT RESOLUTION
-
-- **Loop Precedence:** If a specialized skill like `tdd` or `diagnosing-bugs` is active, follow its loop INSTEAD of steps 3-5 above.
-- **Scope of Laziness:** Ponytail (YAGNI/min code) applies to feature scope. `codebase-design` applies to architecture scope.
-- **Communication vs. Documentation:** Caveman (zero fluff) applies to chat only. Write documentation and `CONTEXT.md` updates with full articulation.
-
----
-
-## COMMANDS
-_User triggers these explicitly. AI does not suggest them unprompted._
-
-| Command | When to use | Skill Loaded |
-|---------|------------|--------------|
-| `@ASK-MATT` | Don't know which command/skill to use? Ask the router. | `ask-matt` |
-| `@GRILL` | Stress-test a code project plan and build a domain model. | `grill-with-docs` |
-| `@GRILL-ME` | Interview me about a non-code plan or design. | `grill-me` |
-| `@TO-ISSUES` | Break an agreed-upon plan/spec into tracer-bullet tickets (supports local files, GitHub, Linear). | `to-tickets` |
-| `@TO-SPEC` | Turn our conversation into a spec and publish it. | `to-spec` |
-| `@TDD` | Red-Green-Refactor to build a feature or fix a bug. | `tdd` |
-| `@DIAGNOSE` | Something broken — rigorous bug diagnosis loop. | `diagnosing-bugs` |
-| `@ARCHITECTURE-REVIEW` | Scan codebase for deepening opportunities (refactoring). | `improve-codebase-architecture` |
-| `@PROTOTYPE` | Throwaway project to answer a UI/state design question. | `prototype` |
-| `@HANDOFF` | Compact a long conversation context so a fresh session can pick it up. | `handoff` |
-| `@TEACH` | Teach me a new skill or concept statefully over multiple sessions. | `teach` |
-| `@TRIAGE` | Move issues through a state machine of triage roles. | `triage` |
-| `@SETUP-POCOCK` | Configure issue tracker and triage labels for the current repo. | `setup-matt-pocock-skills` |
-| `@SKILL-WRITE` | Reference for writing and editing skills well. | `writing-great-skills` |
-| `@SHIP` | Deploy checklist → Vercel → README → tweet | N/A |
-| `@ZOOM` | Map codebase before sweeping changes | N/A |
-| `@AUDIT` | Scan for dead code, over-engineering | N/A |
-| `@WAYFINDER` | Map a huge foggy project as investigation tickets, one decision at a time. | `wayfinder` |
-| `@LOOP-ME` | Design automated workflow specs for recurring patterns in your life. | `loop-me` |
-| `@WIZARD` | Build an interactive bash script that walks through a manual setup procedure. | `wizard` |
-| `@RESEARCH` | Send a background agent to read docs/APIs and file a cited summary. | `research` |
-| `@TWEET` | Generate 3 ready-to-post tweets in your voice from current context. | `tweet` |
-| `/save` | Save current conversation as a wiki note to vault | `obsidian-vault` |
-| `/autoresearch [topic]` | Research loop: search → fetch → synthesize → file in vault | `obsidian-vault` |
-| `/canvas` | Create a visual Obsidian canvas from notes | `json-canvas` |
+0. **AUDIT:** `list_dir` on target directory, then `grep_search` for existing patterns. Skip for tiny single-file fixes.
+1. **ASSUME:** State assumptions + success criterion. One sentence.
+2. **PREFACTOR:** Make the change easy, then make the easy change.
+3. **CODE:** Vertical slice (schema → API → UI). No horizontal sprawl.
+4. **LINT:** `npm run lint` / `fastapi dev` — zero errors. Fix yourself.
+5. **VERIFY:** Re-read every changed file. Check for swallowed errors, stub returns, relaxed tests, comment-as-fix, fake renames. On fail → update `CLAUDE.md` MISTAKES TO AVOID.
+6. **DOCS:** Schema changed? → update `ARCHITECTURE.md`. New domain term? → update `CONTEXT.md`.
+7. **STOP:** Stop at 100% pass.
 
 ---
 
-## MODEL ROUTING
+## 4. SKILL TIERS — How Skills Work
+
+### Tier 1 — Passive (AI auto-loads, you NEVER type anything)
+The AI reads these automatically the moment it detects the relevant context.
+You do NOT invoke these. They are invisible rules, not commands.
+
+| Skill | Auto-loads when... |
+| :--- | :--- |
+| `react-best-practices` | Writing React components |
+| `nextjs-best-practices` | Working in Next.js app/pages |
+| `tailwind-v4-shadcn` | Writing Tailwind classes or shadcn setup |
+| `drizzle-orm-expert` | Writing Drizzle schema or queries |
+| `prisma-expert` | Writing Prisma schema or queries |
+| `sqlalchemy-expert` | Writing Python DB queries |
+| `supabase` | Working with Supabase auth/DB/storage |
+| `stripe-integration` | Writing Stripe payment code |
+| `auth-implementation-patterns` | Building any auth flow |
+| `postgres-best-practices` | Writing SQL or DB schema |
+| `fastapi-best-practices` | Writing Python/FastAPI routes |
+| `zustand-store-ts` | Writing Zustand state management |
+| `vercel-composition-patterns` | Composing complex React components |
+| `software-architecture` | Making architectural or module decisions |
+| `performance-optimizer` | Asked to optimize speed or reduce cost |
+| `frontend-design` | Designing a new page or UI from scratch |
+| `apple-design` | Building gesture-driven or premium UI |
+| `ponytail` | User says "simplest", "lazy", "yagni" |
+| `codebase-design` | Designing module interfaces or APIs |
+| `domain-modeling` | Pinning down domain terms or ADRs |
+
+### Tier 2 — Commands (You explicitly invoke with `/`)
+Big, deliberate actions you consciously trigger. AI does NOT auto-load these.
+
+---
+
+## 5. COMMAND REFERENCE
+
+*Note: The actual skill execution files live in `C:\Users\kwakh\.gemini\config\skills\`*
+
+| Command | Skill | When to use |
+| :--- | :--- | :--- |
+| `/office-hours` | `office-hours` | Adversarial YC feedback before a major pivot |
+| `/grill` | `grill-with-docs` | Before ANY non-trivial feature — every time |
+| `/to-spec` | `to-spec` | Write a feature spec |
+| `/to-issues` | `to-tickets` | Break an agreed plan into GitHub issues |
+| `/zoom` | list_dir + audit | Before sweeping structural changes |
+| `/wayfinder` | `wayfinder` | Map a huge foggy project |
+| `/tdd` | `tdd` | Building complex logic test-first |
+| `/implement` | `implement` | Execute spec/tickets slice-by-slice |
+| `/diagnose` | `diagnosing-bugs` | Something is broken, throwing, or slow |
+| `/review` | `code-review` | Review code changes against spec |
+| `/design-review` | `design-review` | Review UI/UX design decisions (GStack) |
+| `/qa` | `qa` | Run automated Playwright browser tests |
+| `/careful` | `careful` | Lock down folders from AI modification |
+| `/cleanup` | `codebase-cleanup` | Purge dead code, unreferenced exports, bloat |
+| `/impeccable audit` | `impeccable` | Full UI quality check (typography, layout) |
+| `/emil-design-eng` | `emil-design-eng` | Apple-tier interaction and motion consulting |
+| `/prototype` | `prototype` | Throwaway UI exploration |
+| `/ship` | `ship` | Fast PR creation and deployments |
+| `/retro` | `retro` | Structured project retrospective |
+| `/investigate` | `investigate` | Deep investigation/research on a topic |
+| `/canary` | `canary` | Deploy and monitor for errors |
+| `/scrapling-official` | `scrapling-official` | Heavy web scraping and data extraction |
+| `/tweet-crafter` | `tweet-crafter` | Draft, refine, or brainstorm X/Twitter posts |
+| `/handoff` | `handoff` | Compress session context when > 20 messages |
+| `/pick-ui-library` | `pick-ui-library` | Decide which UI component library to use |
+| `/ponytail-audit` | `ponytail-audit` | Audit whole codebase for over-engineering |
+
+---
+
+## 6. MODEL ROUTING
 
 | Task | Model |
-|------|-------|
-| Quick fix, simple component | Gemini Flash |
+| :--- | :--- |
+| Quick question, simple fix | Gemini Flash |
 | Standard feature, debug, refactor | Claude Sonnet |
-| Architecture, hard bugs, multi-file | Claude Sonnet Thinking / Opus |
-
----
-
-## LOCAL CONTEXT SYSTEM
-
-Context: `CLAUDE.md` (tech stack) and Obsidian RAG (architecture and state)
-
-**SESSION START** — only if task involves this project's codebase:
-1. Read `CLAUDE.md` → tech stack context.
-2. Read `CONTEXT.md` → domain terms and ubiquitous language.
-3. Read `00_System/active_project_context.md` via Obsidian MCP.
-
-**SAVE WHEN:** code written, decision made, bug fixed, feature dropped, schema changed.
-**HOW TO SAVE:** Append atomic facts to `wiki/log.md` at `D:\workflow-main\02_Obsidian_Brain\wiki\log.md` using Obsidian MCP or filesystem write.
-
-**SESSION END** (done/bye/thanks):
-1. Append a State Handoff note to `D:\workflow-main\02_Obsidian_Brain\wiki\log.md`.
-
----
-
-## BOOTSTRAP NEW PROJECT
-
-```powershell
-$t="C:\Users\kwakh\.gemini\config\templates"; $d="D:\YourProject"
-@("AGENTS.md","CLAUDE.md","ARCHITECTURE.md","CONTEXT.md",".editorconfig",".prettierrc.json") | %{ Copy-Item "$t\$_" "$d\$_" }
-```
-
-# AI fills CLAUDE.md and CONTEXT.md — tell it: "bootstrap this project, ask me what you need"
-# AI registers project in active_project_context.md automatically
-# Keep CLAUDE.md under 200 lines. Schema/decisions go in ARCHITECTURE.md only.
+| Architecture, hard bugs, multi-file | Claude Sonnet Thinking |

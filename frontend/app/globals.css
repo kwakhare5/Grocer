@@ -23,7 +23,7 @@
   --info-bg:    rgba(59, 130, 246, 0.08);
 
   --font-sans: var(--font-outfit), sans-serif;
-  --font-serif: var(--font-newsreader), serif;
+  --font-serif: var(--font-cambo), serif;
 }
 
 @theme inline {
@@ -35,7 +35,7 @@
 
   --font-sans:        var(--font-outfit), sans-serif;
   --font-display:     var(--font-outfit), sans-serif;
-  --font-serif:       var(--font-newsreader), serif;
+  --font-serif:       var(--font-cambo), serif;
 
   --radius-2xl:       16px;
   --radius-xl:        12px;
@@ -53,7 +53,7 @@ body {
 }
 
 .font-serif-accent {
-  font-family: var(--font-newsreader), serif;
+  font-family: var(--font-cambo), serif;
   font-style: normal;
 }
 

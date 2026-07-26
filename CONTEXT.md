@@ -28,7 +28,7 @@
 2. **Single Unified Mobile View:** All PreFill capabilities render inside a single, seamless scrollable tab.
 3. **iPhone 16 Pro Hardware Dimensions:** Mockup container locked to 71.5mm × 149.6mm physical ratio (`w-[305px] aspect-[71.5/149.6]`).
 4. **Zero AI Slop:** No casual emojis in UI buttons, headings, or chat options. Use clean Lucide icons.
-5. **Clean Typography:** Display/UI headings in `Outfit`, editorial title accents in `Newsreader` (normal weight, no italics).
+5. **Clean Typography:** Display/UI headings in `Outfit`, editorial title accents in `Cambo` (normal weight, no italics).
 6. **AsyncSession always:** Sync SQLAlchemy blocks the FastAPI event loop.
 7. **Passing Tests:** Run `pytest backend/tests/ -v` (16/16 pass) & `npm run build` (0 warnings/errors) after every edit.
 

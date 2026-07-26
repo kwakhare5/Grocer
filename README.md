@@ -66,7 +66,7 @@ PreFill watches how your household consumes groceries over time, learning your p
 |---|---|---|
 | **Language** | Python / TypeScript | Python for ML models & backends; TypeScript for responsive dashboards |
 | **Framework** | FastAPI & Next.js 16 | Asynchronous API handlers (`AsyncSession` SQLAlchemy); Next.js App Router |
-| **Styling & Design** | Tailwind CSS v4 & Emil Kowalski Principles | Apple/Linear typography system (`Outfit` + `Newsreader`), 160ms micro-interactions, clean Lucide icons |
+| **Styling & Design** | Tailwind CSS v4 & Emil Kowalski Principles | Apple/Linear typography system (`Outfit` + `Cambo`), 160ms micro-interactions, clean Lucide icons |
 | **ML / Agents** | Facebook Prophet & LangGraph | Time-series consumption forecasting & stateful multi-turn restock agent with PostgreSQL checkpointer |
 | **Database** | PostgreSQL | Relational storage for inventory logs, household profiles, and agent checkpoints |
 | **Testing** | Pytest & Next Build | Automated test suite (16/16 passing tests) & zero-error TypeScript builds |

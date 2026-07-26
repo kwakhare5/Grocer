@@ -169,7 +169,7 @@ CREATE TABLE consumption_models (
 - **Mockup Device Frame:** iPhone 16 Pro physical hardware specifications (`71.5mm × 149.6mm`, `w-[305px] aspect-[71.5/149.6]`).
 - **Typography:**
   - `Outfit` (Google Fonts): UI headings, body text, buttons, tags, chips.
-  - `Newsreader` (Google Fonts): Editorial title serif accent (regular weight, no italics).
+  - `Cambo` (Google Fonts): Editorial title serif accent (regular weight, no italics).
 - **Design System:** Pure Emil Kowalski design engineering (`#FAFAFA` neutral background, `#0F172A` headings, `active:scale-[0.97]` touch scaling with `160ms ease-out`).
 - **Zero AI Slop:** No informal emojis in buttons or headings. Clean Lucide icons throughout.
 

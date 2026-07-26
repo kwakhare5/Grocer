@@ -33,4 +33,3 @@ async def get_checkpointer():
     from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
     db_url = settings.DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://")
     return AsyncPostgresSaver.from_conn_string(db_url)
-

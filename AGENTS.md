@@ -1,144 +1,121 @@
 # AGENTS.md — Global Rules for Karan Wakhare
 # Applies to EVERY project, EVERY session. Read this first.
-# Live:   C:\Users\kwakh\.gemini\config\AGENTS.md
+# Live Config Root: C:\Users\kwakh\.gemini\config\
+# Skills Directory: C:\Users\kwakh\.gemini\config\skills\
 
 ---
 
-## CORE BEHAVIOR
+## 1. CORE BEHAVIOR
 
 - **Caveman:** Zero fluff. Short fragments. Drop pleasantries.
 - **Ponytail:** YAGNI. Min code. Existing deps first. No speculative features.
 - **Surgical:** Touch only what the request requires.
 - **Think first:** State assumptions. Ask if unclear. Never pick silently.
-- **Marketing/Copy:** When writing ANY social media posts, launch announcements, or marketing copy, ALWAYS read and strictly follow `C:\Users\kwakh\.gemini\config\resources\voice-profile.md` for tone, audience, and constraints.
+- **Marketing/Copy:** When writing marketing copy or tweets, strictly follow `C:\Users\kwakh\.gemini\config\resources\voice-profile.md`.
 
 ---
 
-## CODING LOOP (every task, no exceptions)
+## 2. SESSION RITUAL
 
-0. **AUDIT** — multi-file or unfamiliar changes only:
-   `list_dir` on target directory, then `grep_search` for existing patterns.
-   Skip for: questions, analysis, tiny single-file fixes.
-
-1. **State assumptions + success criterion.** One sentence.
-   _"Done when: user can submit the form and see a confirmation toast."_
-
-2. **Prefactor first.** Is there a small refactor that makes this trivial? Do it first.
-   _"Make the change easy, then make the easy change." — Kent Beck_
-
-3. **Write the code.** Vertical slice: schema → API → UI.
-   One thin path through all layers. No horizontal sprawl.
-
-4. **Run the linter.** `npm run lint` / `tsc --noEmit` / `pytest` — zero errors.
-   Fail → fix yourself, loop. Never ask user to run it.
-
-5. **VERIFY** — re-read every changed file. Check all 5:
-   - Swallowed errors (catch blocks that silently ignore)
-   - Stub returns (hardcoded values instead of real logic)
-   - Relaxed tests (test that always passes regardless of behavior)
-   - Comment-as-fix (commented out failing code instead of fixing it)
-   - Fake renames (renamed file, imports not updated)
-   On FAIL → append one line to `MISTAKES TO AVOID` in `CLAUDE.md` before fixing.
-
-6. **POST-TASK DOC CHECK** — silent, only act on YES:
-   - Schema/DB changed? → update `ARCHITECTURE.md`
-   - New domain term in code? → update `CONTEXT.md`
-   - Stack or project rules changed? → update `CLAUDE.md`
-
-7. Stop at 100% pass.
-
----
-
-## SKILLS
-
-Load skills only when task matches the trigger. Do not pre-announce.
-
-**Default pair (always active):**
-- `ponytail` — YAGNI enforcer. Stop over-engineering.
-- `software-architecture` — architecture questions and module design.
-
-**UI pair:**
-- `frontend-design` — building new UI from scratch (aesthetic direction)
-- `impeccable` — iterating/auditing existing UI (`/impeccable audit`, `polish`, `bolder`, `quieter`, `animate`, `colorize`, `typeset`, `layout`, `delight`)
-
-**Engineering:**
-- `grill-with-docs` — alignment + docs before building. Triggered by @GRILL.
-- `diagnosing-bugs` — rigorous bug loop. Triggered by @DIAGNOSE.
-- `tdd` — test-first for complex logic. Triggered by @TDD.
-- `handoff` — context compression. Triggered by @HANDOFF.
-- `code-review` — review changes. Triggered by @REVIEW.
-- `improve-codebase-architecture` — refactor scan. Triggered by @ARCHITECTURE-REVIEW.
-- `domain-modeling` — domain terms + ADRs. Triggered by @GRILL or @TO-PRD.
-- `prototype` — throwaway exploration. Triggered by @PROTOTYPE.
-- `wayfinder` — map foggy projects. Triggered by @WAYFINDER.
-- `research` — read docs/APIs, file summary. Triggered by @RESEARCH.
-- `to-spec` — write feature spec. Triggered by @TO-SPEC.
-- `to-tickets` — break plan into GitHub issues. Triggered by @TO-ISSUES.
-- `resolving-merge-conflicts` — fix git merge conflicts.
-- `tweet-crafter` — draft and refine social copy in your voice. Triggered by @TWEET.
-- `codebase-cleanup` — purge dead code, unreferenced exports, and bloat. Triggered by @CLEANUP or @PRUNE.
-- `batch-grill-me` — batch multiple architecture questions into one session. Triggered by @BATCH-GRILL.
-- `implement` — execute a spec or tickets with TDD + code-review. Triggered by @IMPLEMENT.
-- `triage` — move GitHub issues through the triage pipeline. Triggered by @TRIAGE.
-
-**Ship skills (use when launching):**
-- `launch` — launch strategy and checklist
-- `copywriting` — landing page and marketing copy
-- `seo-audit` — SEO health check
-- `analytics` — tracking setup
-- `pricing` — pricing decisions
-- `cro` — conversion optimization
-- `emails` — email sequences
-- `ab-testing` — plan and design A/B experiments
-
----
-
-## MODEL ROUTING
-
-| Task | Model |
-|------|-------|
-| Quick question, simple fix | Gemini Flash |
-| Standard feature, debug, refactor | Claude Sonnet |
-| Architecture, hard bugs, multi-file | Claude Sonnet Thinking |
-
----
-
-## SESSION RITUAL
-
-**SESSION START** — when opening a project:
+**SESSION START (When opening a project)**
 1. Read `CLAUDE.md` → stack, commands, local rules.
 2. Read `CONTEXT.md` → domain terms and business rules.
-3. Read `CLAUDE.md` → Section 7: SESSION RESUME → what's open.
-4. Read `ARCHITECTURE.md` ONLY when doing @ZOOM or major structural changes.
+3. Read `CLAUDE.md` Section 7: SESSION RESUME → what's open.
+4. Read `ARCHITECTURE.md` ONLY when doing `/zoom` or structural changes.
 
-**SESSION END** (user says done / bye / thanks):
+**SESSION END (User says done / bye)**
 1. Summarize what changed in 3-5 bullets.
 2. State what's immediately next.
 3. Update Section 7: SESSION RESUME in `CLAUDE.md`.
-4. If schema changed → remind user to commit updated ARCHITECTURE.md.
 
 ---
 
-## COMMANDS
+## 3. CODING LOOP (Every Task, No Exceptions)
+
+0. **AUDIT:** `list_dir` on target directory, then `grep_search` for existing patterns. Skip for tiny single-file fixes.
+1. **ASSUME:** State assumptions + success criterion. One sentence.
+2. **PREFACTOR:** Make the change easy, then make the easy change.
+3. **CODE:** Vertical slice (schema → API → UI). No horizontal sprawl.
+4. **LINT:** `npm run lint` / `fastapi dev` — zero errors. Fix yourself.
+5. **VERIFY:** Re-read every changed file. Check for swallowed errors, stub returns, relaxed tests, comment-as-fix, fake renames. On fail → update `CLAUDE.md` MISTAKES TO AVOID.
+6. **DOCS:** Schema changed? → update `ARCHITECTURE.md`. New domain term? → update `CONTEXT.md`.
+7. **STOP:** Stop at 100% pass.
+
+---
+
+## 4. SKILL TIERS — How Skills Work
+
+### Tier 1 — Passive (AI auto-loads, you NEVER type anything)
+The AI reads these automatically the moment it detects the relevant context.
+You do NOT invoke these. They are invisible rules, not commands.
+
+| Skill | Auto-loads when... |
+| :--- | :--- |
+| `react-best-practices` | Writing React components |
+| `nextjs-best-practices` | Working in Next.js app/pages |
+| `tailwind-v4-shadcn` | Writing Tailwind classes or shadcn setup |
+| `drizzle-orm-expert` | Writing Drizzle schema or queries |
+| `prisma-expert` | Writing Prisma schema or queries |
+| `sqlalchemy-expert` | Writing Python DB queries |
+| `supabase` | Working with Supabase auth/DB/storage |
+| `stripe-integration` | Writing Stripe payment code |
+| `auth-implementation-patterns` | Building any auth flow |
+| `postgres-best-practices` | Writing SQL or DB schema |
+| `fastapi-best-practices` | Writing Python/FastAPI routes |
+| `zustand-store-ts` | Writing Zustand state management |
+| `vercel-composition-patterns` | Composing complex React components |
+| `software-architecture` | Making architectural or module decisions |
+| `performance-optimizer` | Asked to optimize speed or reduce cost |
+| `frontend-design` | Designing a new page or UI from scratch |
+| `apple-design` | Building gesture-driven or premium UI |
+| `ponytail` | User says "simplest", "lazy", "yagni" |
+| `codebase-design` | Designing module interfaces or APIs |
+| `domain-modeling` | Pinning down domain terms or ADRs |
+
+### Tier 2 — Commands (You explicitly invoke with `/`)
+Big, deliberate actions you consciously trigger. AI does NOT auto-load these.
+
+---
+
+## 5. COMMAND REFERENCE
+
+*Note: The actual skill execution files live in `C:\Users\kwakh\.gemini\config\skills\`*
 
 | Command | Skill | When to use |
-|---------|-------|------------|
-| `@GRILL` | `grill-with-docs` | Before ANY non-trivial feature — every time |
-| `@DIAGNOSE` | `diagnosing-bugs` | Something is broken |
-| `@TDD` | `tdd` | Building complex logic test-first |
-| `@ZOOM` | list_dir + audit | Before sweeping changes — understand structure first |
-| `@HANDOFF` | `handoff` | Session >20 messages or switching projects |
-| `@REVIEW` | `code-review` | Review changes before merging |
-| `@ARCHITECTURE-REVIEW` | `improve-codebase-architecture` | Codebase getting messy |
-| `@TO-SPEC` | `to-spec` | Write a feature spec |
-| `@TO-ISSUES` | `to-tickets` | Break an agreed plan into GitHub issues |
-| `@IMPLEMENT` | `implement` | Execute spec/tickets — runs TDD at seams, closes with code-review |
-| `@TRIAGE` | `triage` | Move GitHub issues through triage pipeline |
-| `@PROTOTYPE` | `prototype` | Explore a UI/state design question |
-| `@WAYFINDER` | `wayfinder` | Map a huge foggy project |
-| `@RESEARCH` | `research` | Read docs/APIs before building |
-| `@TWEET` | `tweet-crafter` | Draft, refine, or brainstorm X/Twitter posts |
-| `@CLEANUP` | `codebase-cleanup` | Purge dead code, unreferenced exports, duplicate logic, and unused dependencies |
-| `@BATCH-GRILL` | `batch-grill-me` | Batch multiple architecture questions into one interview session |
-| `/impeccable audit` | `impeccable` | UI quality check, polish, animation |
-| `@ASK-MATT` | `ask-matt` | Don't know which command to use |
+| :--- | :--- | :--- |
+| `/office-hours` | `office-hours` | Adversarial YC feedback before a major pivot |
+| `/grill` | `grill-with-docs` | Before ANY non-trivial feature — every time |
+| `/to-spec` | `to-spec` | Write a feature spec |
+| `/to-issues` | `to-tickets` | Break an agreed plan into GitHub issues |
+| `/zoom` | list_dir + audit | Before sweeping structural changes |
+| `/wayfinder` | `wayfinder` | Map a huge foggy project |
+| `/tdd` | `tdd` | Building complex logic test-first |
+| `/implement` | `implement` | Execute spec/tickets slice-by-slice |
+| `/diagnose` | `diagnosing-bugs` | Something is broken, throwing, or slow |
+| `/review` | `code-review` | Review code changes against spec |
+| `/design-review` | `design-review` | Review UI/UX design decisions (GStack) |
+| `/qa` | `qa` | Run automated Playwright browser tests |
+| `/careful` | `careful` | Lock down folders from AI modification |
+| `/cleanup` | `codebase-cleanup` | Purge dead code, unreferenced exports, bloat |
+| `/impeccable audit` | `impeccable` | Full UI quality check (typography, layout) |
+| `/emil-design-eng` | `emil-design-eng` | Apple-tier interaction and motion consulting |
+| `/prototype` | `prototype` | Throwaway UI exploration |
+| `/ship` | `ship` | Fast PR creation and deployments |
+| `/retro` | `retro` | Structured project retrospective |
+| `/investigate` | `investigate` | Deep investigation/research on a topic |
+| `/canary` | `canary` | Deploy and monitor for errors |
+| `/scrapling-official` | `scrapling-official` | Heavy web scraping and data extraction |
+| `/tweet-crafter` | `tweet-crafter` | Draft, refine, or brainstorm X/Twitter posts |
+| `/handoff` | `handoff` | Compress session context when > 20 messages |
+| `/pick-ui-library` | `pick-ui-library` | Decide which UI component library to use |
+| `/ponytail-audit` | `ponytail-audit` | Audit whole codebase for over-engineering |
+
+---
+
+## 6. MODEL ROUTING
+
+| Task | Model |
+| :--- | :--- |
+| Quick question, simple fix | Gemini Flash |
+| Standard feature, debug, refactor | Claude Sonnet |
+| Architecture, hard bugs, multi-file | Claude Sonnet Thinking |

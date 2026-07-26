@@ -7,14 +7,12 @@
 
   # PreFill
 
-  ### *The household AI that knows your kitchen better than you do.*
+  ### *The brand-agnostic Quick Commerce SDK that automates kitchen inventory before items run out.*
 
   <br/>
 
   ![Version](https://img.shields.io/badge/version-1.0.0-blue?style=for-the-badge)
   ![License](https://img.shields.io/badge/license-MIT-green?style=for-the-badge)
-  ![Last Commit](https://img.shields.io/github/last-commit/kwakhare5/PreFill?style=for-the-badge&color=orange)
-  ![Stars](https://img.shields.io/github/stars/kwakhare5/PreFill?style=for-the-badge&color=yellow)
   ![Language](https://img.shields.io/badge/Language-Python%20%2F%20TypeScript-yellow?style=for-the-badge&logo=python&logoColor=white)
 
   <br/>
@@ -22,8 +20,9 @@
   <a href="#-about-the-project">About</a> &nbsp;·&nbsp;
   <a href="#-features">Features</a> &nbsp;·&nbsp;
   <a href="#-tech-stack">Tech Stack</a> &nbsp;·&nbsp;
+  <a href="#-architecture">Architecture</a> &nbsp;·&nbsp;
+  <a href="#-performance-optimizations">Performance</a> &nbsp;·&nbsp;
   <a href="#-quickstart">Quickstart</a> &nbsp;·&nbsp;
-  <a href="#-contributing">Contributing</a> &nbsp;·&nbsp;
   <a href="#-author">Author</a>
 
 </div>
@@ -32,28 +31,30 @@
 
 ## 📌 About the Project
 
-**PreFill** is a **full-stack AI application** built with **FastAPI, Next.js, Facebook Prophet, TimescaleDB, pgvector, Twilio, and LangGraph**.
+**PreFill** is a **brand-agnostic feature extension & SDK module** designed for quick commerce platforms. Built with **FastAPI, Next.js, Facebook Prophet, PostgreSQL, and LangGraph**, PreFill turns reactive quick commerce apps into proactive, automated replenishment engines.
 
-PreFill watches how your household consumes groceries over time, learning your patterns (such as milk, atta, oil, and egg consumption rate changes) using Prophet forecasting models. It proactively notifies you over WhatsApp 2 days before items deplete, letting you restock via a stateful LangGraph agent in one tap. It also features price tracking and recipe-to-cart pantry intelligence.
+PreFill watches how your household consumes groceries over time, learning your patterns (such as milk, atta, oil, bread, and egg consumption velocity) using Prophet forecasting models. It proactively notifies you over WhatsApp 2 days before items deplete, letting you restock via a stateful LangGraph agent in one tap. It also features price tracking and recipe-to-cart pantry intelligence.
 
 > **Why this project?**
-> A sticky, household-specific intelligence profile that builds a moat across quick commerce platforms (like Swiggy Instamart, Zepto, and Blinkit).
+> Quick commerce platforms compete on 10-minute delivery, identical stock, and price parity. PreFill builds a household-specific intelligence profile that acts as a structural lock-in moat across any quick commerce provider.
 
 <br/>
 
 ---
 
-## ✨ Features
+## 🚀 Features
 
 | Status | Feature | Description |
 |:---:|---|---|
 | ✅ | **Time-Series Consumption Modeling** | Uses Facebook Prophet to build per-item consumption baselines, calculating average daily usage, cycle days, and depletion countdowns. |
-| ✅ | **Predictive Restock WhatsApp Bot** | Triggers stateful LangGraph dialogues via Twilio WhatsApp API, allowing users to build carts and checkout in one tap. |
+| ✅ | **Brand-Agnostic SDK Architecture** | Zero platform binding. Built as an embeddable tab extension compatible with any quick commerce provider. |
+| ✅ | **Single Unified Mobile Tab** | Integrates Smart Pantry Depletion, Recipe Ingredient Checker, and Market Price Signals into a single scrollable feed inside the PreFill host tab. |
+| ✅ | **iPhone 16 Pro Hardware Mockup** | Rendered in exact 71.5mm × 149.6mm physical hardware proportion (`w-[305px] aspect-[71.5/149.6]`) with Dynamic Island and ultra-thin titanium bezel. |
+| ✅ | **Predictive WhatsApp Restock Agent** | Triggers stateful LangGraph dialogues via WhatsApp API, allowing users to build carts and checkout in one tap. |
 | ✅ | **Pantry-Aware Recipe Planner** | Extracts ingredients from user recipe queries, checks estimated remaining pantry quantities, and bundles only missing items into the cart. |
-| ✅ | **Commodity Price Intelligence** | Tracks tomatoes, onions, oil, atta, and milk in a TimescaleDB hypertable, alerting users on spikes/dips and offering substitutions. |
+| ✅ | **Commodity Price Intelligence** | Tracks tomatoes, onions, oil, atta, and milk in PostgreSQL time-series logs, alerting users on spikes/dips and offering substitutions. |
 | ✅ | **Lifestyle Anomaly Filtering** | Automatically filters out outlier events like travel gaps (predictions paused) and guest spikes so forecasting stays highly accurate. |
 | ✅ | **Interactive Demo Scenario Switcher** | Collapsible control panel lets reviewers hot-swap between Standard Staples, Weekend Party, and Vacation Mode scenarios — regenerates seed data and rebuilds Prophet models on the fly. |
-| ✅ | **WhatsApp Chat Sandbox Drawer** | Floating in-browser chat widget simulates the full multi-turn restock conversation (stock check → cart build → CONFIRM order) without needing a real phone. |
 
 <br/>
 
@@ -61,106 +62,54 @@ PreFill watches how your household consumes groceries over time, learning your p
 
 ## 🛠️ Tech Stack
 
-<div align="center">
-
-### Core
-![fastapi](https://skillicons.dev/icons?i=fastapi)
-![nextjs](https://skillicons.dev/icons?i=nextjs)
-![postgres](https://skillicons.dev/icons?i=postgres)
-
-### Infrastructure
-![docker](https://skillicons.dev/icons?i=docker)
-![github](https://skillicons.dev/icons?i=github)
-![redis](https://skillicons.dev/icons?i=redis)
-
-</div>
-
-<br/>
-
 | Layer | Technology | Purpose |
 |---|---|---|
 | **Language** | Python / TypeScript | Python for ML models & backends; TypeScript for responsive dashboards |
-| **Framework** | FastAPI & Next.js 15 | Robust backend API and stateful agents; React server component page layouts |
-| **Styling** | Tailwind CSS v4 | Utility-first premium design system with dark mode and micro-animations |
-| **ML / Agents** | Facebook Prophet & LangGraph | Time-series consumption forecasting & stateful multi-turn restock agent |
-| **LLM** | Groq API / NVIDIA NIM | Recipe ingredient extraction and natural language message generation |
-| **Caching** | Redis | In-memory caching layer for instant (<5ms) dashboard loads |
-| **Deployment** | Vercel & Docker | Containerized PostgreSQL/TimescaleDB/Redis and server deployments |
+| **Framework** | FastAPI & Next.js 16 | Asynchronous API handlers (`AsyncSession` SQLAlchemy); Next.js App Router |
+| **Styling & Design** | Tailwind CSS v4 & Emil Kowalski Principles | Apple/Linear typography system (`Outfit` + `Newsreader`), 160ms micro-interactions, clean Lucide icons |
+| **ML / Agents** | Facebook Prophet & LangGraph | Time-series consumption forecasting & stateful multi-turn restock agent with PostgreSQL checkpointer |
+| **Database** | PostgreSQL | Relational storage for inventory logs, household profiles, and agent checkpoints |
+| **Testing** | Pytest & Next Build | Automated test suite (16/16 passing tests) & zero-error TypeScript builds |
 
 <br/>
 
 ---
 
-## 🏗️ Architecture
+## 🏗️ Architecture & File Map
 
 ```mermaid
 flowchart LR
-    A[Next.js Dashboard] <--> B[FastAPI Backend]
-    B <--> C[TimescaleDB PostgreSQL]
-    C <--> D[Prophet Forecaster]
-    C <--> E[LangGraph Agent]
-    E <--> F[Twilio WhatsApp]
+    A[Host Quick Commerce App] --> B[PreFill SDK Tab]
+    B <--> C[FastAPI Backend Engine]
+    C <--> D[PostgreSQL DB]
+    C <--> E[Prophet Forecaster]
+    C <--> F[LangGraph WhatsApp Agent]
 ```
 
-<br/>
-
----
-
-## 📁 Project Structure
+### Repo Directory Structure
 
 ```
 PreFill/
+├── backend/                        # FastAPI Python Backend
+│   ├── main.py                     # FastAPI application setup
+│   ├── agents/                     # LangGraph agents (restock_agent.py, price_agent.py, recipe_agent.py)
+│   ├── api/routes/                 # REST API endpoints (orders.py, predictions.py, prices.py, recipes.py, restock.py)
+│   ├── database/                   # Connection pool & AsyncSession models (models.py, connection.py)
+│   ├── ml/                         # Machine Learning models (consumption_model.py, anomaly_detector.py, confidence_scorer.py)
+│   ├── notifications/              # WhatsApp runner & scheduler (whatsapp.py, scheduler.py)
+│   ├── mcp/                        # Quick Commerce MCP client & mock server (client.py, mock_server.py)
+│   ├── seed/                       # Seed data generators & scenario switcher (catalog.py, generate_orders.py, scenarios.py)
+│   └── tests/                      # 16 automated pytest unit & integration test files
 │
-├── docker-compose.yml              # Orchestrates PostgreSQL + TimescaleDB + Redis containers
-├── pyrightconfig.json              # Configures local Python virtual environment for development tools
-├── requirements.txt                # Python backend dependencies (FastAPI, Prophet, LangGraph, etc.)
-├── AUDIT.md                        # Production readiness audit — 100/100 score
-├── CONTEXT.md                      # Domain glossary and architecture vocabulary
+├── frontend/                       # Next.js 16 Responsive Showcase App
+│   ├── app/                        # App router (page.tsx, layout.tsx, globals.css)
+│   ├── components/                 # PhoneMockup.tsx, Header.tsx, ExecutivePanel.tsx, ui/iphone.tsx
+│   └── lib/                        # API client wrappers & TypeScript definitions
 │
-├── backend/                        # FastAPI Web Server, ML Models, and Database Modules
-│   ├── main.py                     # Entry point: lifespan, middleware (CORS, GZip), router registration
-│   ├── config.py                   # Pydantic Settings — DATABASE_URL, Twilio, Groq, NVIDIA keys
-│   ├── active_scenario.json        # Persists active demo scenario across restarts
-│   ├── database/                   # Async engine, SQLAlchemy ORM models, Alembic migrations
-│   ├── ml/                         # Prophet forecasting, anomaly detection, household profiling, confidence scorer
-│   ├── agents/                     # LangGraph agents (Restock, Recipe, Price)
-│   ├── services/
-│   │   └── sync_service.py         # fetch_and_sync_orders() — MCP → DB with batch dedup
-│   ├── api/routes/
-│   │   ├── household.py            # Profile, sync, rebuild-models, scenario switcher
-│   │   ├── predictions.py          # Consumption model predictions with urgency status
-│   │   ├── restock.py              # Depletion check, alert history (≤45% stock, ≤7 days)
-│   │   ├── recipes.py              # Recipe list, parse, and pin endpoints
-│   │   ├── prices.py               # Commodity price feed and spike/dip alerts
-│   │   └── orders.py               # Raw order history from seed JSON
-│   ├── notifications/
-│   │   ├── whatsapp.py             # Webhook handler (Twilio + JSON sandbox) + LangGraph runner
-│   │   └── scheduler.py            # APScheduler: 07:00 prices, 08:00 depletions, 02:00 Sun rebuild
-│   ├── mcp/
-│   │   ├── client.py               # SwiggyMCPClient wrapper
-│   │   └── mock_server.py          # Localhost mock MCP server (port 8001)
-│   ├── seed/
-│   │   ├── catalog.py              # 13-item CATALOG + format_restock_alert_message()
-│   │   ├── generate_orders.py      # Standard order history generator
-│   │   ├── scenarios.py            # Deterministic scenario generator (standard/party/vacation)
-│   │   ├── seed_prices.py          # Backfills 30-day price history into TimescaleDB
-│   │   └── generated_orders.json   # Active seed data (auto-regenerated on scenario switch)
-│   └── tests/                      # 16 tests — async SQLite in-memory, no Docker required
-│
-├── frontend/                       # Next.js 15 Dashboard
-│   ├── app/
-│   │   ├── page.tsx                # Dashboard — Virtual Pantry Shelf + Depletion Timeline + Scenario Panel
-│   │   ├── predictions/page.tsx    # Full prediction list with SWR caching
-│   │   ├── recipes/page.tsx        # Recipe planner — parse and pin
-│   │   ├── price-alerts/page.tsx   # Price intelligence — sparkline charts and signals
-│   │   └── household/page.tsx      # Household profile
-│   ├── components/
-│   │   ├── ChatDrawer.tsx          # WhatsApp Sandbox Simulator — floating chat with suggestion chips
-│   │   └── Header.tsx              # Navigation header
-│   └── lib/api.ts                  # Axios client + TypeScript interfaces for all API responses
-│
-├── docs/                           # Specs, ADRs, Builders Club application
-└── README.md
+├── CLAUDE.md                       # Project rules & session resume tracking
+├── CONTEXT.md                      # Domain glossary & business rules
+├── ARCHITECTURE.md                 # Full technical blueprint
+└── README.md                       # Master project overview
 ```
 
 <br/>
@@ -169,71 +118,61 @@ PreFill/
 
 ## ⚡ Performance Optimizations
 
-To keep the application highly responsive, low-latency, and production-ready, several systematic optimizations are implemented:
+To keep the application highly responsive, low-latency, and production-ready:
 
-* **Asynchronous Thread Offloading**: Heavy time-series model fitting (Facebook Prophet) and external API calls (Twilio) are offloaded to background threads using `asyncio.to_thread`. This ensures FastAPI's event loop is never blocked, scaling throughput from ~10 to **1,000+ concurrent users**.
-* **GZip Payload Compression**: Backed by FastAPI's `GZipMiddleware` to compress API payloads, significantly saving network bandwidth and speeding up client load times.
+* **Asynchronous Thread Offloading**: Heavy time-series model fitting (Facebook Prophet) and external API calls (Twilio) are offloaded to background threads using `asyncio.to_thread`. This ensures FastAPI's event loop is never blocked.
+* **GZip Payload Compression**: Backed by FastAPI's `GZipMiddleware` to compress API payloads, saving network bandwidth and speeding up client load times.
 * **Smart Client Caching (SWR)**: Utilizes Next.js `swr` for data fetching. Implements cache-first loading, deduplication of concurrent requests, and silent revalidation to deliver instantaneous tab transitions (<10ms).
-* **Redis Caching Layer**: Dashboard endpoints (`/predictions`, `/prices`) are heavily cached in Redis, dropping database-heavy load times from **~200-600ms down to < 5ms**. Features automatic graceful degradation to the DB if Redis fails.
-* **HTTPX Connection Pooling**: The Swiggy MCP client utilizes a single, lifespan-managed `httpx.AsyncClient` pool, completely eliminating TCP/TLS handshaking overhead and permanently shaving **50-100ms** off every single MCP request.
-* **Fuzzy Matching & AI Resilience**: Agent logic uses `rapidfuzz` (Levenshtein distance) to mathematically map LLM hallucinations or typos to actual database `item_id`s. Combined with automatic Groq-to-NVIDIA failovers, this reduces AI downtime by **~99%**.
+* **HTTPX Connection Pooling**: The quick commerce MCP client utilizes a single, lifespan-managed `httpx.AsyncClient` pool, completely eliminating TCP/TLS handshaking overhead.
+* **Fuzzy Matching & AI Resilience**: Agent logic uses `rapidfuzz` (Levenshtein distance) to mathematically map LLM hallucinations or typos to actual catalog `item_id`s.
 * **Prophet Anomaly Detection**: Uses Interquartile Range (IQR) math to detect and strip out "panic buying" and "party spikes" before training the ML model, lowering false-positive restock alerts from **~25% to < 5%**.
 
 <br/>
 
 ---
 
-## 🚀 Quickstart
+## 💻 Quickstart
 
 ### Prerequisites
+- **Python 3.11+**
+- **Node.js 18+**
 
-- **Docker** — Required to run the containerized TimescaleDB and Redis databases
-- **Python 3.12 & Node.js 18+** — Needed for running backend APIs and compiling the Next.js React frontend
-
-<br/>
-
-### Step 1 — Clone
-
+### 1. Clone & Set Up Virtual Environment
 ```bash
 git clone https://github.com/kwakhare5/PreFill.git
 cd PreFill
+
+# Python virtual environment
+python -m venv venv
+.\venv\Scripts\activate
+
+# Install backend dependencies
+pip install -r requirements.txt
 ```
 
-### Step 2 — Seed Precision Data
-
-Generate order histories and backfill prices in PostgreSQL/TimescaleDB:
-
+### 2. Run Test Suite & Start Backend Server
 ```bash
-python -m backend.seed.generate_orders
-python -m backend.seed.seed_prices
+# Run pytest test suite (16 tests must pass)
+pytest backend/tests/ -v
+
+# Start FastAPI backend
+uvicorn backend.main:app --reload
 ```
 
-### Step 3 — Start Servers
-
-Launch the mock Instamart MCP catalog server, the primary backend server, and the Next.js dashboard:
-
+### 3. Start Frontend Development Server
 ```bash
-# Terminal 1
-python -m uvicorn backend.mcp.mock_server:app --port 8001
+cd frontend
 
-# Terminal 2
-python -m uvicorn backend.main:app --port 8000
+# Install frontend dependencies
+npm install
 
-# Terminal 3
-cd frontend && npm run dev
+# Check production build
+npm run build
+
+# Start Next.js dev server
+npm run dev
 ```
-
-<br/>
-
----
-
-## 🤝 Contributing
-
-1. **Fork** the repository
-2. **Create** your feature branch (`git checkout -b feature/your-feature`)
-3. **Commit** using [Conventional Commits](https://www.conventionalcommits.org/) (`git commit -m "feat: add your feature"`)
-4. **Push** (`git push origin feature/your-feature`)
-5. **Open a Pull Request**
+Open **[http://localhost:3000](http://localhost:3000)** in your browser.
 
 <br/>
 
@@ -242,14 +181,6 @@ cd frontend && npm run dev
 ## 🛡️ Privacy & Trust Statement
 
 > All data ingestion, model fitting, and profiling remain completely within the user-authorized account scope. Travel patterns, guest spikes, and dietary fluctuations are flagged locally to secure baseline forecasting and are never sold or utilized for third-party marketing purposes.
-
-<br/>
-
----
-
-## 📄 License
-
-Distributed under the **MIT License**. See `LICENSE` for the full text.
 
 <br/>
 
@@ -269,14 +200,6 @@ Distributed under the **MIT License**. See `LICENSE` for the full text.
 [![Gmail](https://img.shields.io/badge/Gmail-kwakhare5%40gmail.com-D14836?style=for-the-badge&logo=gmail&logoColor=white)](mailto:kwakhare5@gmail.com)
 [![GitHub](https://img.shields.io/badge/GitHub-kwakhare5-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/kwakhare5)
 
-<br/>
-
-![GitHub Streak](https://streak-stats.demolab.com/?user=kwakhare5&theme=tokyonight&hide_border=true)
-
-<br/>
-
-![Profile Views](https://komarev.com/ghpvc/?username=kwakhare5&label=Profile+Views&color=0e75b6&style=for-the-badge)
-
 </div>
 
 <br/>
@@ -286,13 +209,5 @@ Distributed under the **MIT License**. See `LICENSE` for the full text.
 <div align="center">
 
   Made with ❤️ by [Karan Wakhare](https://github.com/kwakhare5)
-
-  <br/>
-
-  *"The best way to predict the future is to build it."*
-
-  <br/>
-
-  ![Wave](https://raw.githubusercontent.com/mayhemantt/mayhemantt/Update/svg/Bottom.svg)
 
 </div>

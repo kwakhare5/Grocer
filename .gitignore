@@ -15,3 +15,5 @@ api_keys_backup.md
 # Build artifacts / local env
 tsconfig.tsbuildinfo
 .env.local
+*.db
+*.sqlite

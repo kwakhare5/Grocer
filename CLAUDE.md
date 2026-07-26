@@ -67,26 +67,6 @@ npm run build                        # must pass before commit
 
 ---
 
-## 5. PROJECT PATTERNS
-
-### File structure
-```
-/backend
-  /api/routes     — all DB queries and API handlers
-  /agents         — LangGraph agent definitions
-  /ml             — ML models (Prophet-based)
-  /notifications  — WhatsApp, APScheduler
-  /seed           — catalog.py (source of truth for mock data)
-  /tests          — pytest test suite (16 tests)
-/mock_server.py   — must stay in sync with seed/catalog.py
-```
-
-### Agent node pattern
-Each LangGraph agent has exactly N graph nodes. State flows linearly:
-input → node1 → node2 → ... → output, checkpointed to PostgreSQL at each step.
-
----
-
 ## 6. MISTAKES TO AVOID
 
 <!-- AI appends here after every VERIFY failure -->
@@ -98,16 +78,21 @@ input → node1 → node2 → ... → output, checkpointed to PostgreSQL at each
 
 _AI fills this at the END of every session. Read this at the START of the next session._
 
-**Last session date:** [YYYY-MM-DD]
+**Last session date:** 2026-07-26
 
 **What we built / changed:**
-- [bullet]
+- Updated design system and all documentation files (`README.md`, `ARCHITECTURE.md`, `CONTEXT.md`) to reflect **`Outfit`** (Clean UI Sans) + **`Cambo`** (Editorial Serif Accent).
+- Purged all stale references to `Newsreader`.
+- Verified 0 build errors (`npm run build`) and 100% pytest pass (16/16).
 
 **Immediate next task:**
-[Describe exactly]
+- Step 3: Zero-Cost Deployment ($0 Budget) setup on Vercel + Render / Koyeb when requested.
 
 **Open blockers:**
-[Anything unresolved]
+- None. `http://localhost:3000` is running cleanly on HTTP 200 OK.
 
 **Files most recently changed:**
-- [file path]
+- `d:\PreFill\README.md`
+- `d:\PreFill\ARCHITECTURE.md`
+- `d:\PreFill\CONTEXT.md`
+- `d:\PreFill\CLAUDE.md`

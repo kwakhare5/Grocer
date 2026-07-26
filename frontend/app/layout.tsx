@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Outfit, Newsreader } from 'next/font/google';
+import { Outfit, Cambo } from 'next/font/google';
 import Header from '../components/Header';
 import { Toaster } from 'sonner';
 import './globals.css';
@@ -11,11 +11,10 @@ const outfit = Outfit({
   weight: ['400', '500', '600', '700', '800'],
 });
 
-const newsreader = Newsreader({
-  variable: '--font-newsreader',
+const cambo = Cambo({
+  variable: '--font-cambo',
   subsets: ['latin'],
-  style: ['normal'],
-  weight: ['400', '600', '700'],
+  weight: ['400'],
 });
 
 export const metadata: Metadata = {
@@ -31,7 +30,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${outfit.variable} ${newsreader.variable} h-full antialiased`}
+      className={`${outfit.variable} ${cambo.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col selection:bg-slate-900 selection:text-white relative overflow-x-hidden bg-[#FAFAFA] text-slate-900 font-sans">
         

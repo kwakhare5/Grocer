@@ -831,58 +831,58 @@ export default function PhoneMockup({ activeScenario }: PhoneMockupProps) {
                   {/* Drag Handle Indicator */}
                   <div className="w-8 h-1 bg-slate-400/50 rounded-full mx-auto my-1.5 shrink-0" />
 
-                  {/* WhatsApp Header */}
-                  <div className="bg-[#075E54] text-white px-2.5 py-2 flex items-center justify-between shadow-2xs shrink-0">
-                    <div className="flex items-center gap-2">
-                      <div className="h-6 w-6 rounded-full bg-emerald-700 flex items-center justify-center text-[10px] font-bold border border-emerald-400/40">
-                        <svg className="h-3.5 w-3.5 fill-current text-white" viewBox="0 0 24 24">
+                  {/* WhatsApp Modal Header (Pure White with WhatsApp #25D366 Brand Touch) */}
+                  <div className="bg-white border-b border-[#E5E7EB] px-3 py-2.5 flex items-center justify-between shadow-2xs shrink-0">
+                    <div className="flex items-center gap-2.5">
+                      <div className="h-7 w-7 rounded-lg bg-[#25D366] text-white flex items-center justify-center shrink-0 shadow-2xs">
+                        <svg className="h-4 w-4 fill-current" viewBox="0 0 24 24">
                           <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.572-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c-.001 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" />
                         </svg>
                       </div>
                       <div className="flex flex-col">
-                        <span className="text-[11.5px] font-bold font-display leading-none">WhatsApp Pantry Bot</span>
-                        <span className="text-[8.5px] text-emerald-200 font-sans leading-none mt-0.5">online · (+91 99999 99999)</span>
+                        <span className="text-[12px] font-bold font-display text-[#252525] leading-none">WhatsApp Pantry Bot</span>
+                        <span className="text-[8.5px] font-semibold text-[#128C7E] font-sans leading-none mt-0.5">online · (+91 99999 99999)</span>
                       </div>
                     </div>
                     <button
                       onClick={() => setIsWhatsAppOpen(false)}
-                      className="p-1 text-emerald-200 hover:text-white cursor-pointer active:scale-95 transition-transform"
+                      className="p-1 text-[#64717E] hover:text-[#252525] cursor-pointer active:scale-95 transition-transform"
                     >
                       <X className="h-4 w-4" />
                     </button>
                   </div>
 
-                  {/* Chat Messages */}
-                  <div ref={chatContainerRef} className="flex-1 p-2.5 overflow-y-auto space-y-2 text-[10px] bg-[radial-gradient(#075e54_1px,transparent_1px)] [background-size:16px_16px] bg-opacity-5">
+                  {/* Authentic WhatsApp Light Wallpaper Background (#E5DDD5 with Doodle Motif) */}
+                  <div ref={chatContainerRef} className="flex-1 p-3 overflow-y-auto space-y-2.5 text-[10px] bg-[#E5DDD5] bg-[radial-gradient(#075e54_1px,transparent_1px)] [background-size:16px_16px] bg-opacity-[0.05]">
                     {messages.map((m, idx) => (
                       <div
                         key={idx}
                         className={clsx(
-                          "flex flex-col max-w-[85%] rounded-xl px-2.5 py-1.5 shadow-2xs relative leading-snug text-[10px] font-sans",
-                          m.sender === "user" ? "ml-auto bg-[#DCF8C6] text-[#252525] border border-[#BBE3A5] rounded-tr-none" : "mr-auto bg-white text-[#252525] border border-[#E5E7EB] rounded-tl-none"
+                          "flex flex-col max-w-[85%] rounded-xl p-2.5 shadow-2xs relative leading-snug text-[10px] font-sans",
+                          m.sender === "user" ? "ml-auto bg-[#DCF8C6] text-[#075E54] border border-[#BBE3A5] rounded-tr-xs font-semibold" : "mr-auto bg-white text-[#252525] border border-[#E5E7EB] rounded-tl-xs"
                         )}
                       >
                         <div className="whitespace-pre-wrap">{m.text}</div>
-                        <div className="flex items-center justify-end gap-1 mt-0.5 text-[8.5px] text-[#64717E] self-end">
+                        <div className="flex items-center justify-end gap-1 mt-1 text-[8.5px] text-[#64717E] self-end font-medium">
                           <span>{m.timestamp}</span>
-                          {m.sender === "user" && <CheckCheck className="h-3 w-3 text-sky-600" />}
+                          {m.sender === "user" && <CheckCheck className="h-3 w-3 text-[#34B7F1]" />}
                         </div>
                       </div>
                     ))}
                     {loading && (
-                      <div className="mr-auto bg-white rounded-lg px-2.5 py-1 text-[9px] text-[#64717E] font-medium border border-[#E5E7EB]">
+                      <div className="mr-auto bg-white rounded-xl p-2 text-[9px] text-[#64717E] font-semibold border border-[#E5E7EB] shadow-2xs">
                         typing...
                       </div>
                     )}
                   </div>
 
-                  {/* Quick Action Chips */}
-                  <div className="px-2.5 py-1.5 bg-[#F0F0F0] border-t border-[#E5E7EB] flex gap-1.5 overflow-x-auto no-scrollbar shrink-0">
+                  {/* Quick Action Chips (Matching Phone Mockup Sub-tab Buttons) */}
+                  <div className="px-3 py-2 bg-[#F0F0F0] border-t border-[#E5E7EB] flex gap-2 overflow-x-auto no-scrollbar shrink-0">
                     {["YES (Confirm ₹118)", "+ Add Bread (₹40)", "Skip This Week"].map((chip) => (
                       <button
                         key={chip}
                         onClick={() => handleSendMessage(chip)}
-                        className="btn-droxy-pill-secondary font-bold text-[8.5px] uppercase px-2 py-0.5 shrink-0 cursor-pointer hover:bg-[#EFF6FF] active:scale-95 transition-transform"
+                        className="bg-white hover:bg-[#E8FADF] text-[#252525] hover:text-[#075E54] border border-[#E5E7EB] hover:border-[#25D366] rounded-lg px-2.5 py-1 text-[9px] font-extrabold shrink-0 cursor-pointer shadow-2xs active:scale-95 transition-all"
                       >
                         {chip}
                       </button>
@@ -890,21 +890,21 @@ export default function PhoneMockup({ activeScenario }: PhoneMockupProps) {
                   </div>
 
                   {/* Input Area */}
-                  <div className="p-2 bg-[#F0F0F0] border-t border-[#E5E7EB] flex gap-2 items-center shrink-0">
+                  <div className="p-2.5 bg-[#F0F0F0] border-t border-[#E5E7EB] flex gap-2 items-center shrink-0">
                     <input
                       type="text"
                       value={input}
                       onChange={e => setInput(e.target.value)}
                       onKeyDown={e => e.key === "Enter" && handleSendMessage()}
                       placeholder="Type message..."
-                      className="flex-1 bg-white border border-[#E5E7EB] text-[#252525] rounded-full px-3 py-1 text-[10px] focus:outline-none font-sans"
+                      className="flex-1 bg-white border border-[#E5E7EB] text-[#252525] rounded-xl px-3 py-1.5 text-[10px] font-medium focus:outline-none focus:border-[#25D366] font-sans"
                     />
                     <button
                       onClick={() => handleSendMessage()}
                       disabled={loading}
-                      className="h-6 w-6 rounded-full bg-[#075E54] text-white flex items-center justify-center cursor-pointer shrink-0 disabled:opacity-50 active:scale-95 transition-transform"
+                      className="h-7 w-7 rounded-xl bg-[#25D366] hover:bg-[#20ba5a] text-white flex items-center justify-center cursor-pointer shrink-0 disabled:opacity-50 active:scale-95 transition-transform shadow-2xs"
                     >
-                      <Send className="h-3 w-3 fill-current" />
+                      <Send className="h-3.5 w-3.5 fill-current" />
                     </button>
                   </div>
                 </motion.div>

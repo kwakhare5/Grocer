@@ -1,11 +1,10 @@
 "use client";
 
 import { useState, useEffect, useRef, useMemo } from "react";
-import { 
-  ShoppingBag, 
-  MessageSquare, 
-  CheckCheck, 
-  Send, 
+import {
+  MessageSquare,
+  CheckCheck,
+  Send,
   ShoppingCart,
   Zap,
   ChefHat,
@@ -27,9 +26,7 @@ import {
   Sparkles,
   Signal,
   Wifi,
-  Clock,
   ChevronRight,
-  Flame,
   Home,
   User,
   Zap as Flash,
@@ -78,10 +75,11 @@ const PRICE_SIGNALS = [
   { name: "Onions 1kg", current: 42, avg: 38, signal: "WATCH", desc: "+10% gradual rise", sparkline: [38, 39, 40, 41, 42] },
 ];
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export default function PhoneMockup({ activeScenario }: PhoneMockupProps) {
   // Host App Bottom Navigation Tabs: "home" | "quick" | "prefill" | "account"
   const [hostTab, setHostTab] = useState<"home" | "quick" | "prefill" | "account">("prefill");
-  
+
   const [itemQuantities, setItemQuantities] = useState<Record<string, number>>({});
   const [selectedRecipe, setSelectedRecipe] = useState<"biryani" | "dal">("biryani");
   const [orderedRecipe, setOrderedRecipe] = useState(false);
@@ -92,7 +90,7 @@ export default function PhoneMockup({ activeScenario }: PhoneMockupProps) {
   const [messages, setMessages] = useState([
     {
       sender: "bot",
-      text: "Good morning, Karan.\n\nYour milk & tomatoes will run out in 24 hrs. Tap 'YES' to reorder instantly.",
+      text: "Good morning, Karan!\n\nYour household staples will run out in 24 hrs:\n• Fresh Milk 1L — ₹66\n• Tomatoes 500g — ₹32\n\nSubtotal: ₹98\nDelivery Fee: ₹15 | Handling: ₹5\nTotal Cart: ₹118 (10-Min Delivery)\n\nReply 'YES' to confirm auto-restock, or tap a chip below to modify items.",
       timestamp: "08:00 AM"
     }
   ]);
@@ -122,12 +120,13 @@ export default function PhoneMockup({ activeScenario }: PhoneMockupProps) {
   }, [predictionsData]);
 
   useEffect(() => {
-    const handleScenarioSwitched = (e: any) => {
-      const scenario = e.detail?.scenario || "refreshed";
+    const handleScenarioSwitched = (e: Event) => {
+      const customEv = e as CustomEvent<{ scenario?: string }>;
+      const scenario = customEv.detail?.scenario || "refreshed";
       setMessages([
         {
           sender: "bot",
-          text: `🔄 Scenario updated to ${scenario.toUpperCase()}. Pantry state recalculated. What would you like to reorder?`,
+          text: `Scenario updated to ${scenario.toUpperCase()}. Pantry state recalculated. What would you like to reorder?`,
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         }
       ]);
@@ -189,7 +188,7 @@ export default function PhoneMockup({ activeScenario }: PhoneMockupProps) {
       if (data.response_message?.includes("Order placed")) {
         window.dispatchEvent(new CustomEvent("order-placed"));
       }
-    } catch (err) {
+    } catch {
       setMessages(prev => [
         ...prev,
         {
@@ -207,26 +206,26 @@ export default function PhoneMockup({ activeScenario }: PhoneMockupProps) {
   const recipeMissing = currentRecipe.ingredients.filter(i => i.status !== "have");
   const recipeTotal = recipeMissing.reduce((acc, i) => acc + (i.price || 0), 0);
 
-  const filteredStaples = depleting.filter(item => 
+  const filteredStaples = depleting.filter(item =>
     item.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
     <div className="flex flex-col items-center gap-2 w-[305px] aspect-[71.5/149.6] shrink-0 mx-auto select-none">
-      
+
       {/* Magic UI iPhone Mockup Frame */}
       <Iphone className="drop-shadow-2xl w-full h-full">
         <div className="w-full h-full bg-slate-50 flex flex-col relative pt-10 pb-4 overflow-hidden select-none">
-          
+
           {/* Authentic Real iOS Top Status Bar */}
           <div className="absolute top-0 left-0 right-0 h-10 px-6 flex items-center justify-between z-40 bg-white/90 backdrop-blur-md text-slate-900 font-sans border-b border-slate-100">
             <span className="text-[12px] font-bold tracking-tight">9:41</span>
-            
+
             <div className="flex items-center gap-2">
               <Signal className="h-3 w-3 fill-slate-900 stroke-none" />
               <Wifi className="h-3.5 w-3.5" />
               <div className="flex items-center gap-1">
-                <span className="text-[9px] font-bold font-mono">92%</span>
+                <span className="text-[9px] font-bold font-sans">92%</span>
                 <div className="w-5 h-2.5 rounded-sm border border-slate-900 p-0.5 flex items-center">
                   <div className="h-full w-[85%] bg-emerald-500 rounded-2xs" />
                 </div>
@@ -261,14 +260,14 @@ export default function PhoneMockup({ activeScenario }: PhoneMockupProps) {
 
           {/* MAIN SCREEN CONTENT AREA */}
           <div className="flex-1 overflow-y-auto no-scrollbar relative flex flex-col">
-            
+
             {/* TAB: PREFILL SMART PANTRY MODULE (Unified View) */}
             {hostTab === "prefill" && (
               <div className="p-3 flex flex-col gap-3.5 pb-16">
-                
+
                 {/* 1. Smart Restock Overview Banner */}
-                <div className="bg-slate-900 text-white rounded-xl p-3 flex flex-col gap-1 shadow-2xs">
-                  <div className="flex items-center justify-between text-[9px] font-bold font-mono">
+                <div className="bg-slate-900 text-white rounded-xl p-3 flex flex-col gap-2 shadow-2xs">
+                  <div className="flex items-center justify-between text-[9px] font-bold font-sans">
                     <span className="bg-emerald-600 text-white px-2 py-0.5 rounded font-bold">
                       SMART PANTRY ACTIVE
                     </span>
@@ -276,6 +275,18 @@ export default function PhoneMockup({ activeScenario }: PhoneMockupProps) {
                   </div>
                   <span className="text-xs font-bold font-display leading-tight">PreFill Pantry Module</span>
                   <span className="text-[9.5px] text-slate-400 font-medium">Tracking household consumption & depletion rates</span>
+                  
+                  {/* Docked WhatsApp Assistant Button */}
+                  <button
+                    onClick={() => setIsWhatsAppOpen(!isWhatsAppOpen)}
+                    className="mt-1 w-full bg-[#25D366] hover:bg-[#20ba5a] text-white px-3 py-1.5 rounded-lg text-[10px] font-bold font-display cursor-pointer flex items-center justify-between active:scale-[0.97] transition-all"
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <MessageSquare className="h-3.5 w-3.5 fill-current" />
+                      Open WhatsApp Restock Chat
+                    </span>
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </button>
                 </div>
 
                 {/* 2. Stockout Warning Banner */}
@@ -290,7 +301,7 @@ export default function PhoneMockup({ activeScenario }: PhoneMockupProps) {
                 {/* 3. Pantry Items Depletion List */}
                 <div className="flex flex-col gap-2">
                   <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500 font-display">Pantry Stock Depletion</span>
-                  
+
                   {filteredStaples.map((item) => {
                     const qty = itemQuantities[item.name] || 0;
                     const isDanger = item.fillPct < 25;
@@ -305,10 +316,10 @@ export default function PhoneMockup({ activeScenario }: PhoneMockupProps) {
                           </div>
                           <div className="flex flex-col min-w-0">
                             <span className="font-bold text-[11px] text-slate-900 font-display truncate">{item.name}</span>
-                            
+
                             <div className="flex items-center gap-2 mt-1">
                               <div className="w-16 h-1.5 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
-                                <div 
+                                <div
                                   className={clsx("h-full rounded-full transition-all duration-500", isDanger ? "bg-red-500" : isWarning ? "bg-amber-500" : "bg-emerald-500")}
                                   style={{ width: `${item.fillPct}%` }}
                                 />
@@ -326,7 +337,7 @@ export default function PhoneMockup({ activeScenario }: PhoneMockupProps) {
                             <button onClick={(e) => updateQuantity(item.name, -1, e)} className="p-0.5 cursor-pointer hover:text-slate-300 active:scale-95 transition-transform">
                               <Minus className="h-3 w-3" />
                             </button>
-                            <span className="text-[10px] font-bold font-mono px-0.5">{qty}</span>
+                            <span className="text-[10px] font-bold font-sans px-0.5">{qty}</span>
                             <button onClick={(e) => updateQuantity(item.name, 1, e)} className="p-0.5 cursor-pointer hover:text-slate-300 active:scale-95 transition-transform">
                               <Plus className="h-3 w-3" />
                             </button>
@@ -387,8 +398,9 @@ export default function PhoneMockup({ activeScenario }: PhoneMockupProps) {
                   </div>
 
                   {orderedRecipe ? (
-                    <div className="bg-emerald-50 border border-emerald-200 p-2 rounded-xl text-center text-[10px] font-bold text-emerald-700 font-display">
-                      ✓ Ingredients Arriving in 10 mins!
+                    <div className="bg-emerald-50 border border-emerald-200 p-2 rounded-xl text-center text-[10px] font-bold text-emerald-700 font-display flex items-center justify-center gap-1">
+                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                      <span>Ingredients Arriving in 10 mins!</span>
                     </div>
                   ) : (
                     recipeMissing.length > 0 && (
@@ -473,14 +485,7 @@ export default function PhoneMockup({ activeScenario }: PhoneMockupProps) {
             </div>
           )}
 
-          {/* Right Bottom Floating WhatsApp Action Button (FAB) */}
-          <button
-            onClick={() => setIsWhatsAppOpen(!isWhatsAppOpen)}
-            className="absolute bottom-12 right-3 z-40 bg-[#25D366] hover:bg-[#20ba5a] text-white p-2.5 rounded-full shadow-lg border border-emerald-400 cursor-pointer active:scale-[0.93] transition-transform flex items-center justify-center"
-            title="Open WhatsApp Chat Assistant"
-          >
-            <MessageSquare className="h-4 w-4 fill-current" />
-          </button>
+          {/* WhatsApp Chat Drawer Overlay */}
 
           {/* WhatsApp Chat Floating Drawer Overlay */}
           {isWhatsAppOpen && (
@@ -493,7 +498,7 @@ export default function PhoneMockup({ activeScenario }: PhoneMockupProps) {
                   </div>
                   <div className="flex flex-col">
                     <span className="text-[10.5px] font-bold font-display leading-none">WhatsApp Pantry Bot</span>
-                    <span className="text-[7.5px] text-emerald-200 font-mono leading-none mt-0.5">online · (+91 99999 99999)</span>
+                    <span className="text-[7.5px] text-emerald-200 font-sans leading-none mt-0.5">online · (+91 99999 99999)</span>
                   </div>
                 </div>
                 <button
@@ -531,13 +536,13 @@ export default function PhoneMockup({ activeScenario }: PhoneMockupProps) {
 
               {/* Quick Action Chips */}
               <div className="px-2 py-1 bg-[#F0F0F0] border-t border-slate-300 flex gap-1 overflow-x-auto no-scrollbar shrink-0">
-                {["YES", "NO", "check"].map((chip) => (
+                {["YES (Confirm ₹118)", "+ Add Bread (₹40)", "Skip This Week"].map((chip) => (
                   <button
                     key={chip}
                     onClick={() => handleSendMessage(chip)}
                     className="font-bold text-[7.5px] uppercase px-2 py-0.5 rounded bg-white text-[#075E54] border border-[#075E54]/30 shrink-0 cursor-pointer hover:bg-emerald-50 active:scale-95 transition-transform"
                   >
-                    {chip === "check" ? "Check" : chip}
+                    {chip}
                   </button>
                 ))}
               </div>

@@ -20,8 +20,6 @@ import {
   Wheat,
   Egg,
   Apple,
-  Signal,
-  Wifi,
   ChevronRight,
   Home,
   User,
@@ -108,7 +106,16 @@ export default function PhoneMockup({ activeScenario }: PhoneMockupProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [isWhatsAppOpen, setIsWhatsAppOpen] = useState(false);
   const [restockedState, setRestockedState] = useState(false);
-  const [selectedIngredients, setSelectedIngredients] = useState<Record<string, boolean>>({});
+  const [selectedIngredients, setSelectedIngredients] = useState<Record<string, boolean>>(() => {
+    const recipe = RECIPE_DB.biryani;
+    const initial: Record<string, boolean> = {};
+    recipe.ingredients.forEach(ing => {
+      if (ing.status !== "have") {
+        initial[ing.name] = true;
+      }
+    });
+    return initial;
+  });
 
   const contentContainerRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -120,14 +127,15 @@ export default function PhoneMockup({ activeScenario }: PhoneMockupProps) {
     }
   }, [hostTab]);
 
-  // Auto-clear search query when sub-tab changes
-  useEffect(() => {
+  const handleSelectSubTab = (tabKey: "pantry" | "recipes" | "signals") => {
+    setPrefillSubTab(tabKey);
     setSearchQuery("");
-  }, [prefillSubTab]);
+  };
 
-  // Reset selected ingredients when dish changes
-  useEffect(() => {
-    const recipe = RECIPE_DB[selectedRecipe as keyof typeof RECIPE_DB];
+  const handleSelectRecipe = (rKey: "biryani" | "dal" | "paneer" | "oats") => {
+    setSelectedRecipe(rKey);
+    setOrderedRecipe(false);
+    const recipe = RECIPE_DB[rKey];
     const initial: Record<string, boolean> = {};
     recipe.ingredients.forEach(ing => {
       if (ing.status !== "have") {
@@ -135,7 +143,7 @@ export default function PhoneMockup({ activeScenario }: PhoneMockupProps) {
       }
     });
     setSelectedIngredients(initial);
-  }, [selectedRecipe]);
+  };
 
   const toggleIngredientSelection = (name: string) => {
     setSelectedIngredients(prev => ({ ...prev, [name]: !prev[name] }));
@@ -384,16 +392,16 @@ export default function PhoneMockup({ activeScenario }: PhoneMockupProps) {
                 return (
                   <button
                     key={tabKey}
-                    onClick={() => setPrefillSubTab(tabKey)}
+                    onClick={() => handleSelectSubTab(tabKey)}
                     className={clsx(
-                      "h-7.5 w-full rounded-lg text-[10px] font-bold font-display cursor-pointer transition-all active:scale-95 flex items-center justify-center gap-1.5 relative border",
+                      "h-8 w-full rounded-lg text-[10px] font-bold font-display cursor-pointer transition-all duration-200 active:scale-95 flex items-center justify-center gap-1.5 relative border",
                       isActive
                         ? "bg-[#252525] text-white border-[#252525] shadow-2xs"
                         : "bg-white text-[#64717E] border-[#E5E7EB] hover:border-slate-300 hover:text-[#252525]"
                     )}
                   >
-                    <IconComponent className="h-3 w-3" />
-                    <span>{label}</span>
+                    <IconComponent className="h-3.5 w-3.5" />
+                    <span className="tracking-tight">{label}</span>
                   </button>
                 );
               })}
@@ -444,13 +452,13 @@ export default function PhoneMockup({ activeScenario }: PhoneMockupProps) {
                                 <span className="text-[9px] font-semibold text-[#64717E] truncate leading-tight mt-0.5">{item.avg} · {item.days}d left</span>
 
                                 <div className="flex items-center gap-1.5 mt-1">
-                                  <div className="w-14 h-1.5 bg-[#F3F4F6] rounded-full overflow-hidden border border-[#E5E7EB]">
+                                  <div className="w-16 h-1.5 bg-[#F3F4F6] rounded-full overflow-hidden border border-[#E5E7EB]">
                                     <div
                                       className={clsx("h-full rounded-full transition-all duration-500", isDanger ? "bg-[#BE123C]" : isWarning ? "bg-[#C2410C]" : "bg-[#15803D]")}
                                       style={{ width: `${item.fillPct}%` }}
                                     />
                                   </div>
-                                  <span className={clsx("text-[8.5px] px-1.5 py-0.2 font-extrabold rounded-md border leading-none", isDanger ? "bg-[#FFF1F2] text-[#BE123C] border-[#FECDD3]" : isWarning ? "bg-[#FFFBEB] text-[#C2410C] border-[#FDE68A]" : "bg-[#F0FDF4] text-[#15803D] border-[#DCFCE7]")}>
+                                  <span className={clsx("text-[9px] px-2 py-0.5 font-extrabold rounded-full border leading-none tracking-tight", isDanger ? "bg-rose-100/80 text-rose-800 border-rose-300/80" : isWarning ? "bg-amber-100/80 text-amber-800 border-amber-300/80" : "bg-emerald-100/80 text-emerald-800 border-emerald-300/80")}>
                                     {item.fillPct}%
                                   </span>
                                 </div>
@@ -511,9 +519,9 @@ export default function PhoneMockup({ activeScenario }: PhoneMockupProps) {
                       {(["biryani", "dal", "paneer", "oats"] as const).map((rKey) => (
                         <button
                           key={rKey}
-                          onClick={() => { setSelectedRecipe(rKey); setOrderedRecipe(false); }}
+                          onClick={() => handleSelectRecipe(rKey)}
                           className={clsx(
-                            "h-7.5 w-full px-1 text-[10px] font-bold font-display cursor-pointer transition-all active:scale-95 capitalize rounded-lg flex items-center justify-center border",
+                            "h-8 w-full px-1 text-[10px] font-bold font-display cursor-pointer transition-all active:scale-95 capitalize rounded-lg flex items-center justify-center border",
                             selectedRecipe === rKey
                               ? "bg-[#252525] text-white border-[#252525] shadow-2xs"
                               : "bg-white text-[#64717E] border-[#E5E7EB] hover:border-slate-300 hover:text-[#252525]"
@@ -557,11 +565,11 @@ export default function PhoneMockup({ activeScenario }: PhoneMockupProps) {
                               </div>
                               <span
                                 className={clsx(
-                                  "text-[8.5px] px-1.5 py-0.5 font-bold rounded-md border",
+                                  "text-[8.5px] px-2 py-0.5 font-extrabold rounded-full border leading-none",
                                   ing.status === "have"
-                                    ? "bg-[#F0FDF4] text-[#15803D] border-[#DCFCE7]"
+                                    ? "bg-emerald-100/80 text-emerald-800 border-emerald-300/80"
                                     : isSelected
-                                    ? "bg-[#F3F4F6] text-[#252525] border-[#E5E7EB]"
+                                    ? "bg-slate-100 text-[#252525] border-[#E5E7EB]"
                                     : "bg-[#F6F7F8] text-[#64717E] border-[#E5E7EB]"
                                 )}
                               >
@@ -582,13 +590,13 @@ export default function PhoneMockup({ activeScenario }: PhoneMockupProps) {
                       recipeMissing.length > 0 && (
                         <button
                           onClick={handleAddRecipeMissingToCart}
-                          className="bg-[#15803D] hover:bg-emerald-700 text-white px-3 py-1.5 h-9 w-full rounded-xl flex items-center justify-between cursor-pointer active:scale-[0.96] transition-all shadow-2xs"
+                          className="bg-[#15803D] hover:bg-emerald-700 text-white px-3.5 py-1.5 h-10.5 w-full rounded-full flex items-center justify-between cursor-pointer active:scale-[0.98] transition-all shadow-md"
                         >
                           <div className="flex items-center gap-1.5">
-                            <span className="text-[10px] font-extrabold font-display">Add {recipeMissing.length} Missing Ingredients</span>
+                            <span className="text-[10.5px] font-extrabold font-display tracking-tight">Add {recipeMissing.length} Missing Ingredients</span>
                           </div>
-                          <span className="bg-white/20 text-white px-2 py-0.5 rounded-md text-[9px] font-extrabold font-display flex items-center gap-0.5">
-                            Total ₹{recipeTotal} <ChevronRight className="h-2.5 w-2.5" />
+                          <span className="bg-black/25 hover:bg-black/35 text-white px-3 py-1 rounded-full text-[9.5px] font-extrabold font-display flex items-center gap-1 backdrop-blur-xs border border-white/10">
+                            Total ₹{recipeTotal} <ChevronRight className="h-3 w-3 inline" />
                           </span>
                         </button>
                       )
@@ -612,7 +620,7 @@ export default function PhoneMockup({ activeScenario }: PhoneMockupProps) {
                           <div key={p.name} className="rounded-xl border border-[#E5E7EB] bg-white p-2.5 flex flex-col gap-1.5 shadow-2xs hover:border-slate-300 active:scale-[0.99] transition-all">
                             <div className="flex items-center justify-between">
                               <span className="font-bold text-[11.5px] text-[#252525] font-display">{p.name}</span>
-                              <span className={clsx("text-[8.5px] px-1.5 py-0.5 font-extrabold rounded-md border", isSpike ? "bg-[#FFF1F2] text-[#BE123C] border-[#FECDD3]" : isDip ? "bg-[#F0FDF4] text-[#15803D] border-[#DCFCE7]" : "bg-[#FFFBEB] text-[#C2410C] border-[#FDE68A]")}>
+                              <span className={clsx("text-[8.5px] px-2 py-0.5 font-extrabold rounded-full border leading-none", isSpike ? "bg-rose-100/80 text-rose-800 border-rose-300/80" : isDip ? "bg-emerald-100/80 text-emerald-800 border-emerald-300/80" : "bg-amber-100/80 text-amber-800 border-amber-300/80")}>
                                 {p.signal}
                               </span>
                             </div>
@@ -638,17 +646,17 @@ export default function PhoneMockup({ activeScenario }: PhoneMockupProps) {
               <div className="p-2.5 flex flex-col gap-2 pb-20">
                 <div className="bg-white border border-[#E5E7EB] text-[#252525] rounded-xl p-2.5 flex flex-col gap-1 shadow-2xs hover:border-slate-300 transition-all">
                   <div className="flex items-center justify-between text-[8px] font-bold">
-                    <span className="bg-[#15803D] text-white px-1.5 py-0.5 rounded-full uppercase">10-MIN EXPRESS</span>
-                    <span className="text-[#15803D]">NEARBY STORE</span>
+                    <span className="bg-[#15803D] text-white px-2 py-0.5 rounded-full uppercase leading-none font-extrabold">10-MIN EXPRESS</span>
+                    <span className="text-[#15803D] font-extrabold">NEARBY STORE</span>
                   </div>
                   <span className="text-[12px] font-bold font-display text-[#252525]">Quick Commerce Store</span>
                   <span className="text-[9px] text-[#64717E] font-medium">10,000+ daily fresh groceries delivered to your door.</span>
                   <button
                     onClick={() => setHostTab("prefill")}
-                    className="mt-1 bg-[#15803D] hover:bg-emerald-600 text-white px-2.5 py-1 rounded-md text-[9px] font-extrabold font-display cursor-pointer flex items-center justify-between active:scale-[0.96] transition-all shadow-2xs"
+                    className="mt-1 bg-[#15803D] hover:bg-emerald-600 text-white px-3 h-8 rounded-full text-[9px] font-extrabold font-display cursor-pointer flex items-center justify-between active:scale-95 transition-all shadow-2xs"
                   >
                     <span>Open PreFill AI Restock Module</span>
-                    <ChevronRight className="h-2.5 w-2.5" />
+                    <ChevronRight className="h-3 w-3" />
                   </button>
                 </div>
 
@@ -658,29 +666,29 @@ export default function PhoneMockup({ activeScenario }: PhoneMockupProps) {
                     <div className="p-1.5 rounded-lg bg-emerald-50 text-[#15803D] w-fit border border-emerald-200">
                       <ShoppingCart className="h-3.5 w-3.5" />
                     </div>
-                    <span className="text-[10.5px] font-bold text-[#252525]">Dairy & Milk</span>
-                    <span className="text-[8.5px] text-[#64717E]">12 Instant Items</span>
+                    <span className="text-[11.5px] font-bold text-[#252525] font-display">Dairy & Milk</span>
+                    <span className="text-[9px] font-semibold text-[#64717E] font-sans">12 Instant Items</span>
                   </div>
                   <div className="rounded-xl border border-[#E5E7EB] bg-white p-2.5 flex flex-col gap-1 cursor-pointer hover:border-slate-300 active:scale-95 transition-all shadow-2xs">
                     <div className="p-1.5 rounded-lg bg-rose-50 text-rose-600 w-fit border border-rose-200">
                       <Apple className="h-3.5 w-3.5" />
                     </div>
-                    <span className="text-[10.5px] font-bold text-[#252525]">Fresh Veggies</span>
-                    <span className="text-[8.5px] text-[#64717E]">Farm Direct</span>
+                    <span className="text-[11.5px] font-bold text-[#252525] font-display">Fresh Veggies</span>
+                    <span className="text-[9px] font-semibold text-[#64717E] font-sans">Farm Direct</span>
                   </div>
                   <div className="rounded-xl border border-[#E5E7EB] bg-white p-2.5 flex flex-col gap-1 cursor-pointer hover:border-slate-300 active:scale-95 transition-all shadow-2xs">
                     <div className="p-1.5 rounded-lg bg-amber-50 text-amber-700 w-fit border border-amber-200">
                       <Wheat className="h-3.5 w-3.5" />
                     </div>
-                    <span className="text-[10.5px] font-bold text-[#252525]">Atta & Grains</span>
-                    <span className="text-[8.5px] text-[#64717E]">Pantry Essentials</span>
+                    <span className="text-[11.5px] font-bold text-[#252525] font-display">Atta & Grains</span>
+                    <span className="text-[9px] font-semibold text-[#64717E] font-sans">Pantry Essentials</span>
                   </div>
                   <div className="rounded-xl border border-[#E5E7EB] bg-white p-2.5 flex flex-col gap-1 cursor-pointer hover:border-slate-300 active:scale-95 transition-all shadow-2xs">
                     <div className="p-1.5 rounded-lg bg-purple-50 text-purple-700 w-fit border border-purple-200">
                       <Zap className="h-3.5 w-3.5" />
                     </div>
-                    <span className="text-[10.5px] font-bold text-[#252525]">Snacks & Drinks</span>
-                    <span className="text-[8.5px] text-[#64717E]">Express Delivery</span>
+                    <span className="text-[11.5px] font-bold text-[#252525] font-display">Snacks & Drinks</span>
+                    <span className="text-[9px] font-semibold text-[#64717E] font-sans">Express Delivery</span>
                   </div>
                 </div>
               </div>
@@ -693,38 +701,38 @@ export default function PhoneMockup({ activeScenario }: PhoneMockupProps) {
 
                 <div className="rounded-xl border border-[#E5E7EB] bg-white p-2.5 flex flex-col gap-1.5 shadow-2xs hover:border-slate-300 active:scale-[0.99] transition-all">
                   <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold text-[#252525] font-display">Weekly Basics Basket</span>
-                    <span className="text-[10px] font-extrabold text-[#15803D]">₹420</span>
+                    <span className="text-[11.5px] font-bold text-[#252525] font-display">Weekly Basics Basket</span>
+                    <span className="text-[10px] font-extrabold text-[#15803D] font-display">₹420</span>
                   </div>
-                  <span className="text-[8.5px] text-[#64717E]">Fresh Milk 1L, Atta 5kg, Eggs 12pcs, Tomatoes 500g</span>
+                  <span className="text-[9px] font-semibold text-[#64717E] font-sans">Fresh Milk 1L, Atta 5kg, Eggs 12pcs, Tomatoes 500g</span>
                   <button
                     onClick={() => {
                       toast.success("1-Tap Bundle Added to Cart!");
                       updateQuantity("Fresh Milk 1L", 1);
                       updateQuantity("Wheat Bread 400g", 1);
                     }}
-                    className="bg-[#15803D] hover:bg-emerald-700 text-white text-[9px] font-extrabold px-3 py-1 h-6.5 rounded-md flex items-center justify-between cursor-pointer active:scale-[0.96] transition-all shadow-2xs mt-0.5"
+                    className="bg-[#15803D] hover:bg-emerald-700 text-white text-[9px] font-extrabold font-display px-3 h-8 rounded-full flex items-center justify-between cursor-pointer active:scale-95 transition-all shadow-2xs mt-0.5"
                   >
                     <span>Add Bundle to Cart</span>
-                    <ChevronRight className="h-2.5 w-2.5" />
+                    <ChevronRight className="h-3 w-3" />
                   </button>
                 </div>
 
                 <div className="rounded-xl border border-[#E5E7EB] bg-white p-2.5 flex flex-col gap-1.5 shadow-2xs hover:border-slate-300 active:scale-[0.99] transition-all">
                   <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold text-[#252525] font-display">Breakfast Essentials</span>
-                    <span className="text-[10px] font-extrabold text-[#15803D]">₹280</span>
+                    <span className="text-[11.5px] font-bold text-[#252525] font-display">Breakfast Essentials</span>
+                    <span className="text-[10px] font-extrabold text-[#15803D] font-display">₹280</span>
                   </div>
-                  <span className="text-[8.5px] text-[#64717E]">Wheat Bread 400g, Butter 200g, Rolled Oats 500g</span>
+                  <span className="text-[9px] font-semibold text-[#64717E] font-sans">Wheat Bread 400g, Butter 200g, Rolled Oats 500g</span>
                   <button
                     onClick={() => {
                       toast.success("Breakfast Bundle Added to Cart!");
                       updateQuantity("Wheat Bread 400g", 1);
                     }}
-                    className="bg-[#15803D] hover:bg-emerald-700 text-white text-[9px] font-extrabold px-3 py-1 h-6.5 rounded-md flex items-center justify-between cursor-pointer active:scale-[0.96] transition-all shadow-2xs mt-0.5"
+                    className="bg-[#15803D] hover:bg-emerald-700 text-white text-[9px] font-extrabold font-display px-3 h-8 rounded-full flex items-center justify-between cursor-pointer active:scale-95 transition-all shadow-2xs mt-0.5"
                   >
                     <span>Add Bundle to Cart</span>
-                    <ChevronRight className="h-2.5 w-2.5" />
+                    <ChevronRight className="h-3 w-3" />
                   </button>
                 </div>
               </div>
@@ -738,34 +746,34 @@ export default function PhoneMockup({ activeScenario }: PhoneMockupProps) {
                     K
                   </div>
                   <div className="flex flex-col min-w-0">
-                    <span className="text-[11px] font-bold text-[#252525] font-display truncate">Karan Wakhare</span>
-                    <span className="text-[8.5px] text-[#64717E] truncate">Green Park, New Delhi · Premium Household</span>
+                    <span className="text-[11.5px] font-bold text-[#252525] font-display truncate">Karan Wakhare</span>
+                    <span className="text-[9px] font-semibold text-[#64717E] font-sans truncate">Green Park, New Delhi · Premium Household</span>
                   </div>
                 </div>
 
                 <div className="bg-white border border-[#E5E7EB] rounded-xl p-2.5 flex flex-col gap-1.5 shadow-2xs hover:border-slate-300 transition-all">
-                  <div className="flex items-center justify-between text-[8.5px] font-bold">
+                  <div className="flex items-center justify-between text-[8.5px] font-bold font-display">
                     <span className="text-[#15803D] uppercase">PANTRY HEALTH INDEX</span>
                     <span className="text-[#15803D]">84% STOCKED</span>
                   </div>
                   <div className="w-full h-1.5 bg-[#F3F4F6] rounded-full overflow-hidden border border-[#E5E7EB]">
                     <div className="h-full bg-[#15803D] w-[84%] rounded-full" />
                   </div>
-                  <span className="text-[8.5px] text-[#64717E] mt-0.5">Prophet ML model active. Next automated order window: Tomorrow 8:00 AM</span>
+                  <span className="text-[9px] font-semibold text-[#64717E] font-sans mt-0.5">Prophet ML model active. Next automated order window: Tomorrow 8:00 AM</span>
                 </div>
 
                 <div className="rounded-xl border border-[#E5E7EB] bg-white p-2.5 flex flex-col divide-y divide-[#E5E7EB]/60 shadow-2xs hover:border-slate-300 transition-all">
-                  <div className="py-2 px-1.5 flex items-center justify-between text-[9.5px] font-bold text-[#252525]">
+                  <div className="py-2 px-1.5 flex items-center justify-between text-[9.5px] font-bold font-display text-[#252525]">
                     <span>WhatsApp Restock Subscriptions</span>
-                    <span className="bg-[#F0FDF4] text-[#15803D] border border-[#DCFCE7] text-[8px] px-1.5 py-0.5 rounded-md font-extrabold">Active</span>
+                    <span className="bg-emerald-100/80 text-emerald-800 border border-emerald-300/80 text-[8.5px] px-2 py-0.5 rounded-full font-extrabold font-display leading-none">Active</span>
                   </div>
-                  <div className="py-2 px-1.5 flex items-center justify-between text-[9.5px] font-bold text-[#252525]">
+                  <div className="py-2 px-1.5 flex items-center justify-between text-[9.5px] font-bold font-display text-[#252525]">
                     <span>Notification Preferences</span>
-                    <span className="text-[#64717E] text-[8.5px]">Enabled</span>
+                    <span className="text-[#64717E] text-[9px] font-semibold font-sans">Enabled</span>
                   </div>
-                  <div className="py-2 px-1.5 flex items-center justify-between text-[9.5px] font-bold text-[#252525]">
+                  <div className="py-2 px-1.5 flex items-center justify-between text-[9.5px] font-bold font-display text-[#252525]">
                     <span>Payment Methods</span>
-                    <span className="text-[#64717E] text-[8.5px]">UPI / Apple Pay</span>
+                    <span className="text-[#64717E] text-[9px] font-semibold font-sans">UPI / Apple Pay</span>
                   </div>
                 </div>
               </div>
@@ -780,7 +788,7 @@ export default function PhoneMockup({ activeScenario }: PhoneMockupProps) {
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 20, opacity: 0 }}
               onClick={() => setIsWhatsAppOpen(true)}
-              className="absolute bottom-[68px] left-3 right-15 bg-[#15803D] text-white rounded-xl p-2 flex items-center justify-between shadow-lg z-30 cursor-pointer active:scale-[0.98] transition-transform"
+              className="absolute bottom-[68px] left-3 right-3 bg-[#15803D] text-white rounded-full p-2 px-3.5 flex items-center justify-between shadow-lg z-30 cursor-pointer active:scale-[0.98] transition-transform"
             >
               <div className="flex items-center gap-1.5 text-[9.5px] font-extrabold font-display truncate">
                 <ShoppingCart className="h-3.5 w-3.5 text-white fill-current shrink-0" />
@@ -788,7 +796,7 @@ export default function PhoneMockup({ activeScenario }: PhoneMockupProps) {
               </div>
               <button
                 onClick={(e) => { e.stopPropagation(); setIsWhatsAppOpen(true); }}
-                className="text-[9px] font-extrabold font-display bg-white text-[#15803D] hover:bg-emerald-50 px-2.5 py-1 rounded-md cursor-pointer active:scale-95 transition-transform shadow-2xs shrink-0"
+                className="text-[9px] font-extrabold font-display bg-white text-[#15803D] hover:bg-emerald-50 px-3 py-1 h-7 rounded-full cursor-pointer active:scale-95 transition-transform shadow-2xs shrink-0 flex items-center gap-0.5"
               >
                 Checkout ➔
               </button>
@@ -820,36 +828,45 @@ export default function PhoneMockup({ activeScenario }: PhoneMockupProps) {
                   className="absolute inset-0 bg-black/40 backdrop-blur-xs cursor-pointer"
                 />
 
-                {/* iOS Bottom Sheet Container */}
+                {/* Authentic 100% Realistic WhatsApp Business iOS Bottom Sheet Container */}
                 <motion.div
                   initial={{ y: "100%" }}
                   animate={{ y: 0 }}
                   exit={{ y: "100%" }}
-                  transition={{ type: "spring", damping: 25, stiffness: 300 }}
-                  className="relative w-full h-[85%] bg-[#E5DDD5] rounded-t-2xl flex flex-col shadow-2xl overflow-hidden border-t border-[#E5E7EB]"
+                  transition={{ type: "spring", damping: 26, stiffness: 320 }}
+                  className="relative w-full h-[88%] bg-[#E5DDD5] rounded-t-3xl flex flex-col shadow-2xl overflow-hidden border-t border-[#075E54]"
                 >
-                  {/* Drag Handle Indicator */}
-                  <div className="w-8 h-1 bg-slate-400/50 rounded-full mx-auto my-1.5 shrink-0" />
+                  {/* Authentic WhatsApp Business Header (Dark Teal #075E54) */}
+                  <div className="bg-[#075E54] text-white px-3 pt-2 pb-2.5 flex flex-col shrink-0 border-b border-[#054c44] shadow-2xs">
+                    {/* Integrated Sheet Drag Handle */}
+                    <div className="w-8 h-1 bg-white/30 rounded-full mx-auto mb-2 shrink-0" />
 
-                  {/* WhatsApp Modal Header (Pure White with WhatsApp #25D366 Brand Touch) */}
-                  <div className="bg-white border-b border-[#E5E7EB] px-3 py-2.5 flex items-center justify-between shadow-2xs shrink-0">
-                    <div className="flex items-center gap-2.5">
-                      <div className="h-7 w-7 rounded-lg bg-[#25D366] text-white flex items-center justify-center shrink-0 shadow-2xs">
-                        <svg className="h-4 w-4 fill-current" viewBox="0 0 24 24">
-                          <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.572-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c-.001 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" />
-                        </svg>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        {/* Profile Avatar with WhatsApp Brand Icon */}
+                        <div className="h-8 w-8 rounded-full bg-[#128C7E] flex items-center justify-center text-white border border-white/20 shadow-2xs shrink-0">
+                          <svg className="h-4.5 w-4.5 fill-current" viewBox="0 0 24 24">
+                            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.572-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c-.001 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" />
+                          </svg>
+                        </div>
+                        <div className="flex flex-col">
+                          <div className="flex items-center gap-1">
+                            <span className="text-[12.5px] font-bold font-sans text-white leading-tight">PreFill Assistant</span>
+                            {/* Official WhatsApp Business Verified Badge */}
+                            <svg className="h-3.5 w-3.5 fill-[#25D366] text-[#075E54]" viewBox="0 0 24 24">
+                              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+                            </svg>
+                          </div>
+                          <span className="text-[8.5px] font-medium text-emerald-100 font-sans leading-tight mt-0.5">Official Business Account · online</span>
+                        </div>
                       </div>
-                      <div className="flex flex-col">
-                        <span className="text-[12px] font-bold font-display text-[#252525] leading-none">WhatsApp Pantry Bot</span>
-                        <span className="text-[8.5px] font-semibold text-[#128C7E] font-sans leading-none mt-0.5">online · (+91 99999 99999)</span>
-                      </div>
+                      <button
+                        onClick={() => setIsWhatsAppOpen(false)}
+                        className="p-1 text-emerald-200 hover:text-white cursor-pointer active:scale-95 transition-transform"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
                     </div>
-                    <button
-                      onClick={() => setIsWhatsAppOpen(false)}
-                      className="p-1 text-[#64717E] hover:text-[#252525] cursor-pointer active:scale-95 transition-transform"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
                   </div>
 
                   {/* Authentic WhatsApp Light Wallpaper Background (#E5DDD5 with Doodle Motif) */}
@@ -876,13 +893,13 @@ export default function PhoneMockup({ activeScenario }: PhoneMockupProps) {
                     )}
                   </div>
 
-                  {/* Quick Action Chips (Matching Phone Mockup Sub-tab Buttons) */}
+                  {/* Quick Action Chips */}
                   <div className="px-3 py-2 bg-[#F0F0F0] border-t border-[#E5E7EB] flex gap-2 overflow-x-auto no-scrollbar shrink-0">
                     {["YES (Confirm ₹118)", "+ Add Bread (₹40)", "Skip This Week"].map((chip) => (
                       <button
                         key={chip}
                         onClick={() => handleSendMessage(chip)}
-                        className="bg-white hover:bg-[#E8FADF] text-[#252525] hover:text-[#075E54] border border-[#E5E7EB] hover:border-[#25D366] rounded-lg px-2.5 py-1 text-[9px] font-extrabold shrink-0 cursor-pointer shadow-2xs active:scale-95 transition-all"
+                        className="bg-white hover:bg-[#DCF8C6] text-[#075E54] border border-[#E5E7EB] hover:border-[#BBE3A5] rounded-full px-3 py-1 h-7 text-[9px] font-extrabold shrink-0 cursor-pointer shadow-2xs active:scale-95 transition-all flex items-center"
                       >
                         {chip}
                       </button>
@@ -897,12 +914,12 @@ export default function PhoneMockup({ activeScenario }: PhoneMockupProps) {
                       onChange={e => setInput(e.target.value)}
                       onKeyDown={e => e.key === "Enter" && handleSendMessage()}
                       placeholder="Type message..."
-                      className="flex-1 bg-white border border-[#E5E7EB] text-[#252525] rounded-xl px-3 py-1.5 text-[10px] font-medium focus:outline-none focus:border-[#25D366] font-sans"
+                      className="flex-1 bg-white border border-[#E5E7EB] text-[#252525] rounded-xl px-3 py-1.5 text-[10px] font-medium focus:outline-none focus:border-[#075E54] font-sans"
                     />
                     <button
                       onClick={() => handleSendMessage()}
                       disabled={loading}
-                      className="h-7 w-7 rounded-xl bg-[#25D366] hover:bg-[#20ba5a] text-white flex items-center justify-center cursor-pointer shrink-0 disabled:opacity-50 active:scale-95 transition-transform shadow-2xs"
+                      className="h-7 w-7 rounded-full bg-[#075E54] hover:bg-[#054c44] text-white flex items-center justify-center cursor-pointer shrink-0 disabled:opacity-50 active:scale-95 transition-transform shadow-2xs"
                     >
                       <Send className="h-3.5 w-3.5 fill-current" />
                     </button>

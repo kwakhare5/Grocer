@@ -83,9 +83,10 @@ _AI fills this at the END of every session. Read this at the START of the next s
 **Last session date:** 2026-07-28
 
 **What we built / changed:**
-- Updated iPhone chassis SVG frame colors to PreFill Dark Charcoal Titanium (`#252525`) in `iphone.tsx`:
-  - **Brand Aligned Chassis Color**: Outer Grade-5 Titanium frame filled with PreFill brand ink color `#252525` (`stroke-[#383838]`) and screen bezel trim `#1A1A1A` matching the landing page brand identity.
-  - **Card Height & Spacing Uniformity**: Standardized all cards across all tabs (`Pantry`, `Recipes`, `Signals`, `Home`, `Quick`, `Account`) to exact `p-2.5` (10px) padding and `h-8 w-8 rounded-lg` category icon containers for 100% universal height.
+- Replaced status bar icons with exact official Apple SF Symbols SVG vector paths in `PhoneMockup.tsx`:
+  - **Cellular Signal**: Official Apple SF Symbol 4-bar cellular signal path (`viewBox="0 0 17 12"`).
+  - **Wi-Fi**: Official Apple SF Symbol 3-arc Wi-Fi path (`viewBox="0 0 100 100"`).
+  - **Battery**: Official Apple SF Symbol battery capsule with 1.2px stroke, inner level bar, and terminal nub (`viewBox="0 0 27 13"`).
 - Verified 0 build errors (`npm run build`) and 100% pytest pass (16/16).
 
 **Immediate next task:**
@@ -95,7 +96,7 @@ _AI fills this at the END of every session. Read this at the START of the next s
 - None.
 
 **Files most recently changed:**
-- `d:\PreFill\frontend\components\ui\iphone.tsx`
 - `d:\PreFill\frontend\components\PhoneMockup.tsx`
+- `d:\PreFill\frontend\components\ui\iphone.tsx`
 - `d:\PreFill\CLAUDE.md`
 

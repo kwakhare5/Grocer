@@ -77,11 +77,11 @@ _Migrations: Alembic. Source of truth: `backend/database/models.py`_
 | LangGraph Restock Agent | 🟢 Live | `agents/restock_agent.py` |
 | ML: ConsumptionModel | 🟢 Live | Prophet-based depletion prediction |
 | Pytest suite | 🟢 Live | 16/16 tests passing |
-| Next.js single-page showcase | 🟢 Live | `#demo`, `#how-it-works`, `#roi`, `#pitch` |
+| Interactive iPhone Prototype | 🟢 Live | `PhoneMockup.tsx` — hands-on demo of PreFill Pantry tab + WhatsApp 1-tap ordering |
+| Single-Page Narrative Showcase | 🟢 Live | `page.tsx` — Macro project story, Kirana leakage problem, architecture & ROI analytics |
+| Strict 2-Font System | 🟢 Live | 100% `Outfit` (UI/body) + `Cambo` (serif accent) |
+| Zero CTA Slop | 🟢 Live | Pure product showcase — all pitch buttons purged |
 | Brand-agnostic UI | 🟢 Live | 0 brand occurrences across frontend |
-| Single PreFill Tab | 🟢 Live | Pantry, Recipe Checker, & Price Signals in 1 feed |
-| Floating WhatsApp FAB | 🟢 Live | Slide-up chat drawer overlay |
-| iPhone 16 Pro Mockup | 🟢 Live | `71.5mm × 149.6mm` physical specs ratio |
 
 ---
 

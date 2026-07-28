@@ -308,19 +308,30 @@ export default function PhoneMockup({ activeScenario }: PhoneMockupProps) {
       <Iphone className="drop-shadow-2xl w-full h-full">
         <div className="w-full h-full bg-[#F6F7F8] flex flex-col relative pt-9 pb-0 overflow-hidden select-none">
 
-          {/* Authentic Real iOS Top Status Bar */}
-          <div className="absolute top-0 left-0 right-0 h-9 px-5 pt-1 flex items-center justify-between z-40 bg-[#F6F7F8]/90 backdrop-blur-md text-[#252525] font-sans border-b border-[#E5E7EB]">
-            <span className="text-[11.5px] font-bold tracking-tight">9:41</span>
+          {/* Authentic Real iOS 18 Top Status Bar */}
+          <div className="absolute top-0 left-0 right-0 h-9 px-4.5 pt-1.5 flex items-center justify-between z-40 bg-[#F6F7F8]/90 backdrop-blur-md text-[#252525] font-sans border-b border-[#E5E7EB]">
+            <span className="text-[11.5px] font-semibold tracking-tighter text-[#252525] font-sans ml-0.5">9:41</span>
 
-            <div className="flex items-center gap-1.5">
-              <Signal className="h-3 w-3 fill-[#252525] stroke-none" />
-              <Wifi className="h-3.5 w-3.5 text-[#252525]" />
-              <div className="flex items-center gap-1">
-                <span className="text-[9px] font-bold font-sans text-[#252525]">92%</span>
-                <div className="w-4.5 h-2.5 rounded-2xs border border-[#252525] p-0.5 flex items-center">
-                  <div className="h-full w-[85%] bg-[#15803D] rounded-2xs" />
-                </div>
-              </div>
+            <div className="flex items-center gap-1.5 mr-0.5">
+              {/* Authentic 4-Bar iOS Cellular Signal SVG */}
+              <svg className="h-2.5 w-3.5 fill-[#252525]" viewBox="0 0 18 12">
+                <rect x="0" y="8" width="2.5" height="4" rx="0.5" />
+                <rect x="4" y="5.5" width="2.5" height="6.5" rx="0.5" />
+                <rect x="8" y="3" width="2.5" height="9" rx="0.5" />
+                <rect x="12" y="0.5" width="2.5" height="11.5" rx="0.5" />
+              </svg>
+
+              {/* Authentic 3-Wave iOS Wi-Fi SVG */}
+              <svg className="h-3 w-3.5 fill-[#252525]" viewBox="0 0 20 15">
+                <path d="M10 13a2 2 0 100 4 2 2 0 000-4zm-4.95-3.05a7 7 0 019.9 0l-1.41 1.41a5 5 0 00-7.07 0l-1.42-1.41zM2.22 7.11a11 11 0 0115.56 0l-1.42 1.42a9 9 0 00-12.72 0L2.22 7.11z" />
+              </svg>
+
+              {/* Authentic iOS Battery Capsule SVG */}
+              <svg className="h-3 w-[22px] text-[#252525]" viewBox="0 0 25 12" fill="none">
+                <rect x="0.5" y="0.5" width="20" height="11" rx="3.5" stroke="currentColor" strokeWidth="1" />
+                <rect x="2" y="2" width="14" height="8" rx="2" fill="currentColor" />
+                <path d="M22.5 4.5v3" stroke="currentColor" strokeWidth="1" strokeLinecap="round" />
+              </svg>
             </div>
           </div>
 

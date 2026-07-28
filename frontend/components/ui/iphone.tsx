@@ -34,7 +34,7 @@ export function Iphone({
 
   return (
     <div
-      className={`relative inline-block w-full align-middle leading-none ${className}`}
+      className={`relative inline-block w-full align-middle leading-none overflow-hidden rounded-[42px] ${className}`}
       style={{
         aspectRatio: `${PHONE_WIDTH}/${PHONE_HEIGHT}`,
         ...style,
@@ -50,7 +50,7 @@ export function Iphone({
             top: `${TOP_PCT}%`,
             width: `${WIDTH_PCT}%`,
             height: `${HEIGHT_PCT}%`,
-            borderRadius: `38px`,
+            borderRadius: `32px`,
           }}
         >
           {children}
@@ -66,14 +66,14 @@ export function Iphone({
         style={{ transform: "translateZ(0)" }}
       >
         <g mask={hasMedia ? "url(#screenPunch)" : undefined}>
-          {/* Outer Grade-5 Titanium Frame */}
+          {/* Outer Grade-5 Titanium Frame (PreFill Brand #252525) */}
           <rect
             x="0.2"
             y="0.2"
             width={PHONE_WIDTH - 0.4}
             height={PHONE_HEIGHT - 0.4}
             rx="9.5"
-            className="fill-[#0F172A] stroke-[#334155] stroke-[0.4]"
+            className="fill-[#252525] stroke-[#383838] stroke-[0.4]"
           />
           {/* Ultra-thin 1.2mm Screen Bezel Trim */}
           <rect
@@ -82,7 +82,7 @@ export function Iphone({
             width={PHONE_WIDTH - 2.0}
             height={PHONE_HEIGHT - 2.0}
             rx="8.8"
-            className="fill-[#1E293B]"
+            className="fill-[#1A1A1A]"
           />
         </g>
 
@@ -93,7 +93,7 @@ export function Iphone({
           width={SCREEN_WIDTH}
           height={SCREEN_HEIGHT}
           rx={SCREEN_RADIUS}
-          className="fill-none stroke-[#0F172A] stroke-[0.2]"
+          className="fill-none stroke-[#252525] stroke-[0.2]"
           mask={hasMedia ? "url(#screenPunch)" : undefined}
         />
 

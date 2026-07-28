@@ -44,7 +44,7 @@ export function Iphone({
       {/* iPhone 16 Pro 6.3" Screen Content Container */}
       {children && (
         <div
-          className="absolute z-10 overflow-hidden text-left bg-slate-50"
+          className="absolute z-10 overflow-hidden text-left bg-[#F6F7F8]"
           style={{
             left: `${LEFT_PCT}%`,
             top: `${TOP_PCT}%`,

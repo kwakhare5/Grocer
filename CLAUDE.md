@@ -1,68 +1,76 @@
-# CLAUDE.md — Local Rules & Project Instructions
-# Read at the START of EVERY session.
+# CLAUDE.md — Project Context
+# Hard cap: 200 lines. Global rules are in C:\Users\kwakh\.gemini\config\AGENTS.md
+# Domain terms → CONTEXT.md (read every session)
+# Heavy architecture → ARCHITECTURE.md (load on-demand)
 
 ---
 
-## 1. STACK & ARCHITECTURE
+## 1. PROJECT IDENTITY
 
-- **Frontend:** Next.js 15 (App Router), React 19, Tailwind CSS v4 (`@import "tailwindcss";`), Lucide SVG icons, Framer Motion.
-- **Backend:** Python 3.12+, FastAPI, SQLAlchemy (async via `asyncpg`/`aiosqlite`), Pydantic v2.
-- **ML / AI:** Prophet (`ml/consumption_model.py` per-item consumption modeling), LangGraph (`agents/restock_agent.py` 5-node state graph with PostgreSQL checkpointer).
-- **Design Tokens:** Canvas (`#F6F7F8`), Text (`#252525`), Secondary (`#64717E`), Cards (`bg-white border-stone-200 shadow-sm rounded-2xl`), Buttons (`btn-droxy-pill-primary`, `btn-droxy-pill-secondary`).
-- **Strict 2-Font System:** Body/UI: `Outfit` (`var(--font-outfit)`). Titles: `Cambo` (`var(--font-cambo)`). No default browser fonts.
+**Name:** PreFill
+**Goal:** AI-powered smart inventory management system with LangGraph agents for restocking, pricing, and recipe suggestions
+**Status:** In Progress
+**Stack type:** Python FastAPI backend + LangGraph agents + Next.js frontend (or standalone backend)
 
 ---
 
-## 2. COMMANDS
+## 2. TECH STACK
+
+- **Backend:** FastAPI (Python), SQLAlchemy (AsyncSession only), PostgreSQL
+- **Agents:** LangGraph with PostgreSQL checkpointer for state persistence
+- **ML:** Prophet for time-series consumption forecasting
+- **Scheduler:** APScheduler for notifications
+- **Notifications:** WhatsApp via `backend/notifications/whatsapp.py`
+- **Testing:** pytest
+
+---
+
+## 3. DEV COMMANDS
 
 ```bash
-# Frontend (run inside ./frontend)
-npm run dev        # Dev server at http://localhost:3000
-npm run lint       # Run ESLint (must be 0 errors, 0 warnings)
-npm run build      # Production build check
+# Backend
+uvicorn backend.main:app --reload    # start FastAPI dev server
+pytest backend/tests/ -v             # run tests — ALL 16 must pass before commit
 
-# Backend (run inside root with virtualenv active)
-.\venv\Scripts\python.exe -m pytest backend/tests/ -v   # Run full test suite (16 tests)
-fastapi dev backend/main.py                              # FastAPI dev server at http://localhost:8000
+# If frontend exists
+npm run dev                          # start frontend dev server
+npm run build                        # must pass before commit
 ```
 
 ---
 
-## 3. CODING RULES (Strict Enforce)
+## 4. LOCAL RULES
 
-1. **Brand Agnostic (Rule #1):** 100% brand-agnostic. Never hardcode brand names in UI or copy.
-2. **Zero AI Slop:** No casual emojis in UI buttons, headings, or chat options. Use clean Lucide SVG icons.
-3. **iPhone 16 Pro Ratio:** Phone mockup container locked to `w-[305px] aspect-[71.5/149.6]`.
-4. **Passing Tests:** Run pytest (16/16) and frontend build after every edit before declaring complete.
+1. **Database — AsyncSession always:**
+   - Always `AsyncSession` for SQLAlchemy. Sync SQLAlchemy blocks the FastAPI event loop.
+   - All DB queries in `backend/api/routes/` — never direct DB calls from inside agents.
+
+2. **Agents — LangGraph, check first:**
+   - Restock: `backend/agents/restock_agent.py` (5 graph nodes)
+   - Price: `backend/agents/price_agent.py`
+   - Recipe: `backend/agents/recipe_agent.py`
+   - LangGraph state MUST be saved with PostgreSQL checkpointer — required for persistence across restarts
+   - Check `backend/agents/` before writing any new agent logic
+
+3. **MCP / Catalog — keep in sync:**
+   - Mock MCP server responses MUST stay synchronized with `backend/seed/catalog.py`
+   - If you update `catalog.py`, update `mock_server.py` too. Both or neither.
+
+4. **ML Pipeline:**
+   - `ConsumptionModel` uses Prophet — not scikit-learn linear regression
+   - ML models live in `backend/ml/` — check before writing new prediction logic
+   - Anomaly-excluded items (`is_anomaly_excluded=True`) MUST be filtered from ML training data
+
+5. **Before marking any task done:**
+   - `pytest backend/tests/ -v` → all 16 tests pass
+   - Verify mock MCP is in sync with `catalog.py`
 
 ---
 
-## 4. DOMAIN TERMS (From CONTEXT.md)
+## 6. MISTAKES TO AVOID
 
-- **Item:** A product in user's inventory (not product, SKU).
-- **Restock:** AI-generated recommendation to purchase more of an Item.
-- **Consumption:** Daily velocity of item usage via Prophet model.
-- **Anomaly:** Irregular purchase spike excluded from ML training.
-- **Depletion Date:** Predicted date when item stock hits 0.
-
----
-
-## 5. MISTAKES TO AVOID
-
-- Do NOT use emojis in CTA buttons, badges, or section headers.
-- Do NOT hardcode third-party quick commerce brand names in UI text.
-- Do NOT use standard browser fonts — enforce `Outfit` and `Cambo`.
-- Do NOT introduce unhandled exceptions or stub returns in API endpoints.
-
----
-
-## 6. VERIFICATION LOOP
-
-```bash
-npm run lint
-npm run build
-.\venv\Scripts\python.exe -m pytest backend/tests/ -v
-```
+<!-- AI appends here after every VERIFY failure -->
+<!-- Format: [YYYY-MM-DD] What went wrong → What to do instead -->
 
 ---
 
@@ -70,31 +78,20 @@ npm run build
 
 _AI fills this at the END of every session. Read this at the START of the next session._
 
-**Last session date:** 2026-07-28 (Synced)
+**Last session date:** 2026-07-28
 
 **What we built / changed:**
-- **PreFill Project Domain Copywriting Rewrite ([PreFillFeatureSidebar.tsx](file:///d:/PreFill/frontend/components/PreFillFeatureSidebar.tsx), [PreFillPracticalUse.tsx](file:///d:/PreFill/frontend/components/PreFillPracticalUse.tsx), [PreFillBentoGrid.tsx](file:///d:/PreFill/frontend/components/PreFillBentoGrid.tsx), [page.tsx](file:///d:/PreFill/frontend/app/page.tsx))**:
-  - Aligned 100% of website copy with `CONTEXT.md` project domain rules:
-    - **Ultra Short & Crisp Hero Copy**:
-      - Badge: `Predictive Household Inventory Engine`
-      - H1: `Predict stockouts. Automate restocks.`
-      - Subtitle: `PreFill models daily consumption velocity to trigger 1-tap WhatsApp grocery orders 24h before items run out.`
-      - CTAs: `Try Prototype` & `View ROI`.
-    - **Technical Feature Showcases**: Prophet ML Depletion Modeling, LangGraph Restock Agent, Recipe Gap Analyzer, Commodity Price Signals, and Anomaly Exclusion Engine.
-    - Enforced 100% brand-agnostic copy (Business Rule 1).
-- **GitHub Heatmap & Commit Sync**:
-  - Pushed all commits cleanly to `origin/main` for today's date (`2026-07-28`).
-- Verified 0 build errors (`npm run build`), 0 lint warnings (`npm run lint`), and 100% pytest pass (16/16).
+- Performed design system audit of [globals.css](file:///d:/PreFill/frontend/app/globals.css).
+- Fixed font token bug: updated `--font-serif` from old `var(--font-instrument-serif)` to active `var(--font-cambo)`.
+- Confirmed design tokens (`#F6F7F8` background, `#FFFFFF` surface cards, `#0F172A` headings, `Outfit` + `Cambo` fonts, pill badges) 100% match the current landing page and mobile mockup UI.
+- Verified 0 build errors (`npm run build`) and 100% pytest pass (16/16).
 
 **Immediate next task:**
 - Step 3: Zero-Cost Deployment ($0 Budget) setup on Vercel + Render / Koyeb when requested.
 
 **Open blockers:**
-- None. Dev server running on `http://localhost:3000`.
+- None.
 
 **Files most recently changed:**
-- `d:\PreFill\frontend\components\PreFillFeatureSidebar.tsx`
-- `d:\PreFill\frontend\components\PreFillPracticalUse.tsx`
-- `d:\PreFill\frontend\components\PreFillBentoGrid.tsx`
-- `d:\PreFill\frontend\app\page.tsx`
+- `d:\PreFill\frontend\app\globals.css`
 - `d:\PreFill\CLAUDE.md`

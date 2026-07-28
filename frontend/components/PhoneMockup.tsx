@@ -215,7 +215,7 @@ export default function PhoneMockup({ activeScenario }: PhoneMockupProps) {
 
       {/* Magic UI iPhone Mockup Frame */}
       <Iphone className="drop-shadow-2xl w-full h-full">
-        <div className="w-full h-full bg-slate-50 flex flex-col relative pt-10 pb-4 overflow-hidden select-none">
+        <div className="w-full h-full bg-[#F6F7F8] flex flex-col relative pt-10 pb-4 overflow-hidden select-none">
 
           {/* Authentic Real iOS Top Status Bar */}
           <div className="absolute top-0 left-0 right-0 h-10 px-6 flex items-center justify-between z-40 bg-white/90 backdrop-blur-md text-slate-900 font-sans border-b border-slate-100">

@@ -72,16 +72,18 @@ _Migrations: Alembic. Source of truth: `backend/database/models.py`_
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| FastAPI backend | 🟢 Live | All routes implemented |
+| FastAPI backend | 🟢 Live | All routes implemented (`orders`, `predictions`, `prices`, `recipes`, `restock`) |
 | SQLAlchemy async models | 🟢 Live | Household, Order, OrderItem, ConsumptionModel |
-| LangGraph Restock Agent | 🟢 Live | `agents/restock_agent.py` |
-| ML: ConsumptionModel | 🟢 Live | Prophet-based depletion prediction |
+| LangGraph Restock Agent | 🟢 Live | `agents/restock_agent.py` 5-node graph with Postgres checkpointer |
+| ML: ConsumptionModel | 🟢 Live | Prophet-based depletion velocity & anomaly exclusion |
 | Pytest suite | 🟢 Live | 16/16 tests passing |
-| Next.js single-page showcase | 🟢 Live | `#demo`, `#how-it-works`, `#roi`, `#pitch` |
-| Brand-agnostic UI | 🟢 Live | 0 brand occurrences across frontend |
-| Single PreFill Tab | 🟢 Live | Pantry, Recipe Checker, & Price Signals in 1 feed |
-| Floating WhatsApp FAB | 🟢 Live | Slide-up chat drawer overlay |
-| iPhone 16 Pro Mockup | 🟢 Live | `71.5mm × 149.6mm` physical specs ratio |
+| Interactive iPhone Prototype | 🟢 Live | `PhoneMockup.tsx` — hands-on demo of PreFill Pantry tab + WhatsApp 1-tap ordering |
+| Single-Page Narrative Showcase | 🟢 Live | `page.tsx` — Ultra-crisp hero (*"Predict stockouts. Automate restocks."*), 13 sections |
+| Interactive Feature Sidebar | 🟢 Live | `PreFillFeatureSidebar.tsx` — 5 core capabilities (Prophet, LangGraph, Recipe, Price, Anomaly) |
+| Practical Use Cases | 🟢 Live | `PreFillPracticalUse.tsx` — Household categories (Dairy, Staples, Cleaners, Organics) |
+| Technical Bento Grid | 🟢 Live | `PreFillBentoGrid.tsx` — 6 bento cards (Prophet ML, Checkpointer, Webhooks, WhatsApp 1-Tap) |
+| Balanced Pastel Color System | 🟢 Live | `globals.css` — 4 pastel color families (Sky Blue, Mint Green, Warm Amber, Rose Red) |
+| 100% Brand Agnostic | 🟢 Live | 0 brand occurrences across frontend copy |
 
 ---
 
@@ -97,5 +99,5 @@ PreFill/
 │   └── tests/ (16 pytest test files)
 └── frontend/
     ├── app/ (page.tsx, layout.tsx, globals.css)
-    └── components/ (Header.tsx, PhoneMockup.tsx, ExecutivePanel.tsx, ui/iphone.tsx)
+    └── components/ (Header.tsx, PhoneMockup.tsx, ExecutivePanel.tsx, PreFillFeatureSidebar.tsx, PreFillPracticalUse.tsx, PreFillBentoGrid.tsx)
 ```

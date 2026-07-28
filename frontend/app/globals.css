@@ -35,7 +35,7 @@
   /* Fonts */
   --font-sans: var(--font-outfit), sans-serif;
   --font-display: var(--font-outfit), sans-serif;
-  --font-serif: var(--font-instrument-serif), serif;
+  --font-serif: var(--font-cambo), serif;
   --font-mono: var(--font-outfit), sans-serif;
   
   /* Tactile Pill Button Shadows */
@@ -53,7 +53,7 @@
 
   --font-sans: var(--font-outfit);
   --font-display: var(--font-outfit);
-  --font-serif: var(--font-instrument-serif);
+  --font-serif: var(--font-cambo);
   --font-mono: var(--font-outfit);
 
   --radius-2xl: 20px;

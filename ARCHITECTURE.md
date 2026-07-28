@@ -66,12 +66,12 @@ Once the system knows your consumption rates, it monitors all your items in the 
 ```mermaid
 flowchart TD
     subgraph Frontend [Next.js 16 Showcase App]
-        A[Header Navigation]
-        B[Interactive Hero Section]
-        C[iPhone 16 Pro Mockup Frame]
-        D[Single Unified PreFill Tab]
-        E[Floating WhatsApp FAB]
-        F[Executive Panel]
+        A[Header Navigation - Sticky Glassmorphism]
+        B[Hero Showcase - Narrative & Value Prop]
+        C[Live Interactive iPhone Prototype - PhoneMockup.tsx]
+        D[PreFill Pantry & WhatsApp Reorder Drawer]
+        E[Executive Analytics & Unit Economics Panel - ExecutivePanel.tsx]
+        F[Kirana Leakage & 3-Step Architecture Story]
     end
 
     subgraph Backend [FastAPI Asynchronous Engine]

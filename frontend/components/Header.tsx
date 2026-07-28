@@ -3,6 +3,15 @@
 import { useState } from "react";
 import { Menu, X } from "lucide-react";
 
+// ponytail: static nav array mapped over to reduce JSX repetition (-25 lines)
+const NAV_LINKS = [
+  { href: "#features", label: "Features" },
+  { href: "#how-it-works", label: "How It Works" },
+  { href: "#comparison", label: "Why PreFill" },
+  { href: "#platform-roi", label: "Platform ROI" },
+  { href: "#faq", label: "Docs" },
+];
+
 export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -20,111 +29,71 @@ export default function Header() {
           </span>
         </a>
 
-        {/* Center Navigation Links (Exact Droxy style) */}
+        {/* Center Navigation Links */}
         <nav className="hidden md:flex items-center gap-7">
-          <a
-            href="#features"
-            className="text-sm font-medium text-stone-600 hover:text-[#252525] transition-colors font-sans"
-          >
-            Features
-          </a>
-          <a
-            href="#how-it-works"
-            className="text-sm font-medium text-stone-600 hover:text-[#252525] transition-colors font-sans"
-          >
-            How It Works
-          </a>
-          <a
-            href="#comparison"
-            className="text-sm font-medium text-stone-600 hover:text-[#252525] transition-colors font-sans"
-          >
-            Why PreFill
-          </a>
-          <a
-            href="#platform-roi"
-            className="text-sm font-medium text-stone-600 hover:text-[#252525] transition-colors font-sans"
-          >
-            Platform ROI
-          </a>
-          <a
-            href="#faq"
-            className="text-sm font-medium text-stone-600 hover:text-[#252525] transition-colors font-sans"
-          >
-            Docs
-          </a>
+          {NAV_LINKS.map((link) => (
+            <a
+              key={link.href}
+              href={link.href}
+              className="text-sm font-medium text-stone-600 hover:text-[#252525] transition-colors font-sans"
+            >
+              {link.label}
+            </a>
+          ))}
         </nav>
 
-        {/* Right CTA Group (Exact Droxy style: Log in + Start Pill) */}
+        {/* Right CTA Group */}
         <div className="hidden md:flex items-center gap-5">
           <a
             href="#demo"
-            className="text-sm font-medium text-stone-700 hover:text-[#252525] transition-colors font-sans"
+            className="text-sm font-semibold text-[#252525] hover:opacity-80 transition-opacity font-sans"
           >
             Log in
           </a>
           <a
             href="#demo"
-            className="btn-droxy-pill-primary text-xs font-semibold cursor-pointer select-none"
+            className="btn-droxy-pill-primary text-xs tracking-tight"
           >
             Start
           </a>
         </div>
 
-        {/* Mobile Menu Toggle */}
-        <div className="flex md:hidden items-center">
-          <button
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="p-1.5 rounded-lg text-stone-700 hover:bg-stone-200/60 active:scale-95 transition-all"
-          >
-            {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-          </button>
-        </div>
+        {/* Mobile Hamburger Toggle */}
+        <button
+          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          className="md:hidden p-2 text-[#252525] hover:bg-stone-200/50 rounded-lg transition-colors cursor-pointer"
+          aria-label="Toggle Navigation Menu"
+        >
+          {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+        </button>
 
       </div>
 
-      {/* Mobile Drawer */}
+      {/* Mobile Slide-down Drawer */}
       {mobileMenuOpen && (
-        <div className="md:hidden border-b border-stone-200 bg-white px-4 py-4 flex flex-col gap-2 shadow-lg">
-          <a
-            href="#features"
-            onClick={() => setMobileMenuOpen(false)}
-            className="px-3 py-2 rounded-lg text-sm font-medium text-stone-700 hover:bg-stone-100"
-          >
-            Features
-          </a>
-          <a
-            href="#how-it-works"
-            onClick={() => setMobileMenuOpen(false)}
-            className="px-3 py-2 rounded-lg text-sm font-medium text-stone-700 hover:bg-stone-100"
-          >
-            How It Works
-          </a>
-          <a
-            href="#comparison"
-            onClick={() => setMobileMenuOpen(false)}
-            className="px-3 py-2 rounded-lg text-sm font-medium text-stone-700 hover:bg-stone-100"
-          >
-            Why PreFill
-          </a>
-          <a
-            href="#platform-roi"
-            onClick={() => setMobileMenuOpen(false)}
-            className="px-3 py-2 rounded-lg text-sm font-medium text-stone-700 hover:bg-stone-100"
-          >
-            Platform ROI
-          </a>
-          <div className="flex items-center justify-between pt-2 border-t border-stone-100">
+        <div className="md:hidden bg-[#F6F7F8] border-b border-stone-200 px-6 py-5 flex flex-col gap-4 shadow-lg animate-in slide-in-from-top-2">
+          {NAV_LINKS.map((link) => (
+            <a
+              key={link.href}
+              href={link.href}
+              onClick={() => setMobileMenuOpen(false)}
+              className="text-sm font-medium text-[#252525] hover:text-stone-600 transition-colors py-1 font-sans"
+            >
+              {link.label}
+            </a>
+          ))}
+          <div className="pt-2 border-t border-stone-200 flex flex-col gap-3">
             <a
               href="#demo"
               onClick={() => setMobileMenuOpen(false)}
-              className="text-sm font-medium text-stone-700"
+              className="text-sm font-semibold text-[#252525] py-1 font-sans"
             >
               Log in
             </a>
             <a
               href="#demo"
               onClick={() => setMobileMenuOpen(false)}
-              className="btn-droxy-pill-primary text-xs"
+              className="btn-droxy-pill-primary text-xs text-center"
             >
               Start
             </a>

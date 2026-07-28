@@ -78,21 +78,20 @@ npm run build                        # must pass before commit
 
 _AI fills this at the END of every session. Read this at the START of the next session._
 
-**Last session date:** 2026-07-26
+**Last session date:** 2026-07-28
 
 **What we built / changed:**
-- Updated design system and all documentation files (`README.md`, `ARCHITECTURE.md`, `CONTEXT.md`) to reflect **`Outfit`** (Clean UI Sans) + **`Cambo`** (Editorial Serif Accent).
-- Purged all stale references to `Newsreader`.
+- Performed design system audit of [globals.css](file:///d:/PreFill/frontend/app/globals.css).
+- Fixed font token bug: updated `--font-serif` from old `var(--font-instrument-serif)` to active `var(--font-cambo)`.
+- Confirmed design tokens (`#F6F7F8` background, `#FFFFFF` surface cards, `#0F172A` headings, `Outfit` + `Cambo` fonts, pill badges) 100% match the current landing page and mobile mockup UI.
 - Verified 0 build errors (`npm run build`) and 100% pytest pass (16/16).
 
 **Immediate next task:**
 - Step 3: Zero-Cost Deployment ($0 Budget) setup on Vercel + Render / Koyeb when requested.
 
 **Open blockers:**
-- None. `http://localhost:3000` is running cleanly on HTTP 200 OK.
+- None.
 
 **Files most recently changed:**
-- `d:\PreFill\README.md`
-- `d:\PreFill\ARCHITECTURE.md`
-- `d:\PreFill\CONTEXT.md`
+- `d:\PreFill\frontend\app\globals.css`
 - `d:\PreFill\CLAUDE.md`

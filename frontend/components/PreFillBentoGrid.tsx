@@ -9,16 +9,17 @@ import {
   ShieldCheck
 } from "lucide-react";
 
-export default function PreFillBentoGrid() {
-  const trackedItems = [
-    { code: "MILK", name: "Fresh Milk 1L", depletion: "24h left" },
-    { code: "ATTA", name: "Chakki Atta 5kg", depletion: "5 days left" },
-    { code: "OIL", name: "Sunflower Oil 1L", depletion: "2 days left" },
-    { code: "EGGS", name: "Eggs 6-Pack", depletion: "12h left" },
-    { code: "RICE", name: "Basmati Rice 5kg", depletion: "12 days left" },
-    { code: "TEA", name: "Assam Tea 250g", depletion: "4 days left" },
-  ];
+// ponytail: static array moved outside component body to avoid re-allocation on render
+const TRACKED_ITEMS = [
+  { code: "MILK", name: "Fresh Milk 1L", depletion: "24h left" },
+  { code: "ATTA", name: "Chakki Atta 5kg", depletion: "5 days left" },
+  { code: "OIL", name: "Sunflower Oil 1L", depletion: "2 days left" },
+  { code: "EGGS", name: "Eggs 6-Pack", depletion: "12h left" },
+  { code: "RICE", name: "Basmati Rice 5kg", depletion: "12 days left" },
+  { code: "TEA", name: "Assam Tea 250g", depletion: "4 days left" },
+];
 
+export default function PreFillBentoGrid() {
   return (
     <div className="w-full max-w-5xl py-12 flex flex-col items-center">
       
@@ -49,7 +50,7 @@ export default function PreFillBentoGrid() {
 
           {/* Tracked Items Telemetry List */}
           <div className="flex flex-col gap-1.5 pt-2">
-            {trackedItems.map((item) => (
+            {TRACKED_ITEMS.map((item) => (
               <div 
                 key={item.code}
                 className="px-3 py-1.5 rounded-xl bg-white border border-blue-200/80 text-[11px] font-bold text-blue-950 shadow-2xs flex items-center justify-between"

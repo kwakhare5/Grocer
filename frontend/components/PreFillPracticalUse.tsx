@@ -3,63 +3,65 @@
 import { useState } from "react";
 import { CheckCircle2, PhoneCall, User, Wrench } from "lucide-react";
 
+// ponytail: static tabs array moved outside component body to avoid re-allocation on render
+const PRACTICAL_TABS = [
+  {
+    name: "Fresh Dairy & Milk",
+    title: "Daily Dairy & Milk Depletion",
+    bullets: [
+      "Never run out of morning milk — Prophet models daily household tea & cereal usage.",
+      "Predicts 20% remaining threshold 24 hours before stockout.",
+      "Delivers 1-tap WhatsApp prompt for instant 10-minute quick commerce restocking."
+    ],
+    user: "Family Household",
+    detail: "Fresh Milk 1L & Curd 500g",
+    status: "Prophet Predicted",
+    time: "Depletion in 18h"
+  },
+  {
+    name: "Pantry Staples & Atta",
+    title: "Grain & Pantry Staples",
+    bullets: [
+      "Tracks consumption cycles for Atta 5kg, Rice 10kg, and Dal staples.",
+      "Automatically adjusts for family size (Solo, Couple, Small/Large Family).",
+      "Filters out party spikes so large weekend meals don't break baseline predictions."
+    ],
+    user: "Large Family (4 Persons)",
+    detail: "Chakki Fresh Atta 5kg & Rice 10kg",
+    status: "Threshold Alert",
+    time: "Reorder Triggered"
+  },
+  {
+    name: "Household Cleaners",
+    title: "Home & Laundry Supplies",
+    bullets: [
+      "Monitors high-friction household replenishment items like detergent and dish soap.",
+      "Eliminates emergency night store trips when laundry detergent runs dry.",
+      "Sends automated WhatsApp reminder when stock drops to 2 days remaining."
+    ],
+    user: "Couple Household",
+    detail: "Liquid Detergent 1L & Dishwash Gel",
+    status: "Smart Alert",
+    time: "Scheduled Reorder"
+  },
+  {
+    name: "Specialty Organics",
+    title: "Organic Oils & Superfoods",
+    bullets: [
+      "Monitors daily commodity price signals for cold-pressed oils, ghee, and organic tea.",
+      "Triggers restock alerts when preferred specialty items hit historic price drops.",
+      "Builds recipe-aware carts so you only buy missing specialty ingredients."
+    ],
+    user: "Solo Household",
+    detail: "Cold-Pressed Sunflower Oil 1L",
+    status: "Price Signal",
+    time: "23% Price Drop Alert"
+  }
+];
+
 export default function PreFillPracticalUse() {
   const [activeTab, setActiveTab] = useState(0);
-
-  const tabs = [
-    {
-      name: "Fresh Dairy & Milk",
-      title: "Daily Dairy & Milk Depletion",
-      bullets: [
-        "Never run out of morning milk — Prophet models daily household tea & cereal usage.",
-        "Predicts 20% remaining threshold 24 hours before stockout.",
-        "Delivers 1-tap WhatsApp prompt for instant 10-minute quick commerce restocking."
-      ],
-      user: "Family Household",
-      detail: "Fresh Milk 1L & Curd 500g",
-      status: "Prophet Predicted",
-      time: "Depletion in 18h"
-    },
-    {
-      name: "Pantry Staples & Atta",
-      title: "Grain & Pantry Staples",
-      bullets: [
-        "Tracks consumption cycles for Atta 5kg, Rice 10kg, and Dal staples.",
-        "Automatically adjusts for family size (Solo, Couple, Small/Large Family).",
-        "Filters out party spikes so large weekend meals don't break baseline predictions."
-      ],
-      user: "Large Family (4 Persons)",
-      detail: "Chakki Fresh Atta 5kg & Rice 10kg",
-      status: "Threshold Alert",
-      time: "Reorder Triggered"
-    },
-    {
-      name: "Household Cleaners",
-      title: "Home & Laundry Supplies",
-      bullets: [
-        "Monitors high-friction household replenishment items like detergent and dish soap.",
-        "Eliminates emergency night store trips when laundry detergent runs dry.",
-        "Sends automated WhatsApp reminder when stock drops to 2 days remaining."
-      ],
-      user: "Couple Household",
-      detail: "Liquid Detergent 1L & Dishwash Gel",
-      status: "Smart Alert",
-      time: "Scheduled Reorder"
-    },
-    {
-      name: "Specialty Organics",
-      title: "Organic Oils & Superfoods",
-      bullets: [
-        "Monitors daily commodity price signals for cold-pressed oils, ghee, and organic tea.",
-        "Triggers restock alerts when preferred specialty items hit historic price drops.",
-        "Builds recipe-aware carts so you only buy missing specialty ingredients."
-      ],
-      user: "Solo Household",
-      detail: "Cold-Pressed Sunflower Oil 1L",
-      status: "Price Signal",
-      time: "23% Price Drop Alert"
-    }
-  ];
+  const currentTab = PRACTICAL_TABS[activeTab] || PRACTICAL_TABS[0];
 
   return (
     <div className="w-full max-w-5xl py-12 flex flex-col items-center">
@@ -78,7 +80,7 @@ export default function PreFillPracticalUse() {
       {/* Horizontal Pill Bar */}
       <div className="w-full flex items-center justify-center overflow-x-auto no-scrollbar py-2 mb-8">
         <div className="bg-stone-200/70 p-1.5 rounded-full flex items-center gap-1.5 shrink-0 border border-stone-300/60">
-          {tabs.map((t, idx) => (
+          {PRACTICAL_TABS.map((t, idx) => (
             <button
               key={t.name}
               onClick={() => setActiveTab(idx)}
@@ -100,11 +102,11 @@ export default function PreFillPracticalUse() {
         {/* Left Bullet Points */}
         <div className="flex-1 flex flex-col items-start gap-6">
           <h3 className="text-2xl sm:text-3xl font-extrabold font-sans tracking-tight title-accent">
-            {tabs[activeTab].title}
+            {currentTab.title}
           </h3>
 
           <div className="flex flex-col gap-4">
-            {tabs[activeTab].bullets.map((b, i) => (
+            {currentTab.bullets.map((b, i) => (
               <div key={i} className="flex items-start gap-3 text-xs sm:text-sm text-stone-700 font-medium leading-relaxed">
                 <CheckCircle2 className="h-4 w-4 text-emerald-700 shrink-0 mt-0.5" />
                 <span>{b}</span>
@@ -126,10 +128,10 @@ export default function PreFillPracticalUse() {
                 <User className="h-4 w-4" />
               </div>
               <div className="flex flex-col">
-                <span className="font-bold text-xs text-[#252525] font-sans">{tabs[activeTab].user}</span>
+                <span className="font-bold text-xs text-[#252525] font-sans">{currentTab.user}</span>
                 <span className="text-[10px] text-stone-500 font-medium flex items-center gap-1">
                   <PhoneCall className="h-3 w-3 text-emerald-600" />
-                  {tabs[activeTab].status} • {tabs[activeTab].time}
+                  {currentTab.status} • {currentTab.time}
                 </span>
               </div>
             </div>
@@ -141,7 +143,7 @@ export default function PreFillPracticalUse() {
           <div className="flex flex-col gap-2 text-xs">
             <div className="flex items-center justify-between">
               <span className="text-stone-400 font-medium text-[11px]">Tracked Item:</span>
-              <span className="font-bold text-[#252525] text-[11px] font-sans">{tabs[activeTab].detail}</span>
+              <span className="font-bold text-[#252525] text-[11px] font-sans">{currentTab.detail}</span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-stone-400 font-medium text-[11px]">Channel:</span>

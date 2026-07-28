@@ -10,56 +10,56 @@ import {
   Sparkles
 } from "lucide-react";
 
+// ponytail: static constants moved outside component body to avoid re-allocation on render
+const SIDEBAR_ITEMS = [
+  { id: "depletion", label: "Prophet Depletion Forecasting", icon: TrendingDown },
+  { id: "restock", label: "LangGraph Restock Agent", icon: MessageSquare },
+  { id: "recipe", label: "Recipe Gap Analyzer", icon: Utensils },
+  { id: "price", label: "Commodity Price Signals", icon: Tag },
+  { id: "anomaly", label: "Anomaly Spike Exclusion", icon: ShieldAlert },
+];
+
+const CONTENT_MAP: Record<string, { title: string; desc: string; msg1: string; msg2: string; msg3: string }> = {
+  depletion: {
+    title: "Prophet ML Depletion Modeling",
+    desc: "Analyzes historical order timestamps and normalized item quantities to calculate per-household daily consumption velocity.",
+    msg1: "Fresh Milk 1L — 20% remaining threshold reached (ETA 24h)",
+    msg2: "Pantry Atta 5kg — Consumption rate 0.45kg/day (Depletion Aug 2)",
+    msg3: "Sunflower Oil 1L — Stable trajectory, restock prompt scheduled"
+  },
+  restock: {
+    title: "Autonomous Restock Workflow",
+    desc: "Triggers proactive 1-tap WhatsApp notifications 24 hours before stockouts, allowing instant household reordering.",
+    msg1: "WhatsApp Alert Sent: Fresh Milk 1L & Eggs 6-pack restock?",
+    msg2: "Customer Reply: 'YES' → 1-tap cart generated",
+    msg3: "Order Dispatched to Quick Commerce API (10-min delivery)"
+  },
+  recipe: {
+    title: "Pantry-Aware Recipe Gap Parsing",
+    desc: "Extracts ingredients from user recipes, checks live pantry inventory levels, and adds only missing items to the cart.",
+    msg1: "Recipe Parsed: Paneer Butter Masala",
+    msg2: "Pantry Audit: Paneer & Spices in stock; Butter 200g missing",
+    msg3: "Cart Built: 1x Butter 200g added to restock list"
+  },
+  price: {
+    title: "Real-time Commodity Price Tracking",
+    desc: "Monitors daily price drops across staples and essentials, alerting households when preferred items hit historic lows.",
+    msg1: "Price Signal: Cold-Pressed Oil price dropped -23%",
+    msg2: "Smart Alert: Recommend 2L bulk purchase to save ₹180",
+    msg3: "Household Action: Added to upcoming weekly restock"
+  },
+  anomaly: {
+    title: "Anomaly Spike Exclusion Engine",
+    desc: "Filters out one-off purchase spikes (like party orders or holiday hosting) to prevent skewing baseline consumption rates.",
+    msg1: "Spike Detected: 5x Soft Drinks ordered on Saturday",
+    msg2: "Anomaly Flagged: Excluded from Prophet baseline model",
+    msg3: "Model Accuracy Preserved: Normal 1x/week rate maintained"
+  }
+};
+
 export default function PreFillFeatureSidebar() {
   const [activeTab, setActiveTab] = useState("depletion");
-
-  const sidebarItems = [
-    { id: "depletion", label: "Prophet Depletion Forecasting", icon: TrendingDown },
-    { id: "restock", label: "LangGraph Restock Agent", icon: MessageSquare },
-    { id: "recipe", label: "Recipe Gap Analyzer", icon: Utensils },
-    { id: "price", label: "Commodity Price Signals", icon: Tag },
-    { id: "anomaly", label: "Anomaly Spike Exclusion", icon: ShieldAlert },
-  ];
-
-  const contentMap: Record<string, { title: string; desc: string; msg1: string; msg2: string; msg3: string }> = {
-    depletion: {
-      title: "Prophet ML Depletion Modeling",
-      desc: "Analyzes historical order timestamps and normalized item quantities to calculate per-household daily consumption velocity.",
-      msg1: "Fresh Milk 1L — 20% remaining threshold reached (ETA 24h)",
-      msg2: "Pantry Atta 5kg — Consumption rate 0.45kg/day (Depletion Aug 2)",
-      msg3: "Sunflower Oil 1L — Stable trajectory, restock prompt scheduled"
-    },
-    restock: {
-      title: "Autonomous Restock Workflow",
-      desc: "Triggers proactive 1-tap WhatsApp notifications 24 hours before stockouts, allowing instant household reordering.",
-      msg1: "WhatsApp Alert Sent: Fresh Milk 1L & Eggs 6-pack restock?",
-      msg2: "Customer Reply: 'YES' → 1-tap cart generated",
-      msg3: "Order Dispatched to Quick Commerce API (10-min delivery)"
-    },
-    recipe: {
-      title: "Pantry-Aware Recipe Gap Parsing",
-      desc: "Extracts ingredients from user recipes, checks live pantry inventory levels, and adds only missing items to the cart.",
-      msg1: "Recipe Parsed: Paneer Butter Masala",
-      msg2: "Pantry Audit: Paneer & Spices in stock; Butter 200g missing",
-      msg3: "Cart Built: 1x Butter 200g added to restock list"
-    },
-    price: {
-      title: "Real-time Commodity Price Tracking",
-      desc: "Monitors daily price drops across staples and essentials, alerting households when preferred items hit historic lows.",
-      msg1: "Price Signal: Cold-Pressed Oil price dropped -23%",
-      msg2: "Smart Alert: Recommend 2L bulk purchase to save ₹180",
-      msg3: "Household Action: Added to upcoming weekly restock"
-    },
-    anomaly: {
-      title: "Anomaly Spike Exclusion Engine",
-      desc: "Filters out one-off purchase spikes (like party orders or holiday hosting) to prevent skewing baseline consumption rates.",
-      msg1: "Spike Detected: 5x Soft Drinks ordered on Saturday",
-      msg2: "Anomaly Flagged: Excluded from Prophet baseline model",
-      msg3: "Model Accuracy Preserved: Normal 1x/week rate maintained"
-    }
-  };
-
-  const activeContent = contentMap[activeTab] || contentMap.depletion;
+  const activeContent = CONTENT_MAP[activeTab] || CONTENT_MAP.depletion;
 
   return (
     <div className="w-full bg-[#FFFFFF] border border-stone-200/90 rounded-3xl p-6 sm:p-10 shadow-[0_4px_24px_rgba(0,0,0,0.03)] bg-ascii-dotted-grid relative overflow-hidden">
@@ -68,7 +68,7 @@ export default function PreFillFeatureSidebar() {
         
         {/* Left Sidebar Menu (4 cols) */}
         <div className="lg:col-span-4 flex flex-col gap-2.5">
-          {sidebarItems.map((item) => {
+          {SIDEBAR_ITEMS.map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
             return (

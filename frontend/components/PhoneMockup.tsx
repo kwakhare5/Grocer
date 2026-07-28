@@ -308,29 +308,27 @@ export default function PhoneMockup({ activeScenario }: PhoneMockupProps) {
       <Iphone className="drop-shadow-2xl w-full h-full">
         <div className="w-full h-full bg-[#F6F7F8] flex flex-col relative pt-9 pb-0 overflow-hidden select-none">
 
-          {/* Authentic Real iOS 18 Top Status Bar */}
+          {/* Authentic Real iOS Top Status Bar */}
           <div className="absolute top-0 left-0 right-0 h-9 px-4.5 pt-1.5 flex items-center justify-between z-40 bg-[#F6F7F8]/90 backdrop-blur-md text-[#252525] font-sans border-b border-[#E5E7EB]">
-            <span className="text-[11.5px] font-semibold tracking-tighter text-[#252525] font-sans ml-0.5">9:41</span>
+            <span className="text-[11.5px] font-semibold tracking-tight text-[#252525] font-sans ml-0.5">9:41</span>
 
             <div className="flex items-center gap-1.5 mr-0.5">
-              {/* Authentic 4-Bar iOS Cellular Signal SVG */}
-              <svg className="h-2.5 w-3.5 fill-[#252525]" viewBox="0 0 18 12">
-                <rect x="0" y="8" width="2.5" height="4" rx="0.5" />
-                <rect x="4" y="5.5" width="2.5" height="6.5" rx="0.5" />
-                <rect x="8" y="3" width="2.5" height="9" rx="0.5" />
-                <rect x="12" y="0.5" width="2.5" height="11.5" rx="0.5" />
+              {/* Cellular Signal (h-3.5 w-3.5, Matching Weight) */}
+              <svg className="h-3.5 w-3.5 text-[#252525]" viewBox="0 0 20 20" fill="currentColor">
+                <rect x="2" y="13" width="2.5" height="4" rx="0.6" />
+                <rect x="6" y="10" width="2.5" height="7" rx="0.6" />
+                <rect x="10" y="7" width="2.5" height="10" rx="0.6" />
+                <rect x="14" y="4" width="2.5" height="13" rx="0.6" />
               </svg>
 
-              {/* Authentic 3-Wave iOS Wi-Fi SVG */}
-              <svg className="h-3 w-3.5 fill-[#252525]" viewBox="0 0 20 15">
-                <path d="M10 13a2 2 0 100 4 2 2 0 000-4zm-4.95-3.05a7 7 0 019.9 0l-1.41 1.41a5 5 0 00-7.07 0l-1.42-1.41zM2.22 7.11a11 11 0 0115.56 0l-1.42 1.42a9 9 0 00-12.72 0L2.22 7.11z" />
+              {/* Exact User Wi-Fi SVG (h-3.5 w-3.5, Matching Weight) */}
+              <svg className="h-3.5 w-3.5 text-[#252525]" viewBox="0 0 24 24" fill="currentColor">
+                <path d="m1 9l2 2c4.97-4.97 13.03-4.97 18 0l2-2C16.93 2.93 7.08 2.93 1 9m8 8l3 3l3-3a4.237 4.237 0 0 0-6 0m-4-4l2 2a7.074 7.074 0 0 1 10 0l2-2C15.14 9.14 8.87 9.14 5 13" />
               </svg>
 
-              {/* Authentic iOS Battery Capsule SVG */}
-              <svg className="h-3 w-[22px] text-[#252525]" viewBox="0 0 25 12" fill="none">
-                <rect x="0.5" y="0.5" width="20" height="11" rx="3.5" stroke="currentColor" strokeWidth="1" />
-                <rect x="2" y="2" width="14" height="8" rx="2" fill="currentColor" />
-                <path d="M22.5 4.5v3" stroke="currentColor" strokeWidth="1" strokeLinecap="round" />
+              {/* Exact Matching Battery SVG (h-3.5 w-3.5, Matching Weight) */}
+              <svg className="h-3.5 w-3.5 text-[#252525]" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M15 6a2.5 2.5 0 0 1 2.5 2.5a1 1 0 0 1 1 1v1a1 1 0 0 1-1 1A2.5 2.5 0 0 1 15 14H3a2.5 2.5 0 0 1-2.5-2.5v-3A2.5 2.5 0 0 1 3 6zM3 7.2a1.3 1.3 0 0 0-1.3 1.3v3a1.3 1.3 0 0 0 1.3 1.3h12a1.3 1.3 0 0 0 1.3-1.3v-3a1.3 1.3 0 0 0-1.3-1.3zm1.2 1.3h2.2v3H4.2zm3.5 0h2.2v3H7.7zm3.5 0h2.2v3h-2.2z" />
               </svg>
             </div>
           </div>

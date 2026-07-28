@@ -92,7 +92,7 @@ function SinglePageShowcaseContent() {
 
       <main className="flex-1 w-full flex flex-col items-center pt-15">
         
-        {/* ── 2. HERO SECTION ────────────────────────────────────────── */}
+        {/* ── 2. HERO SECTION (Clean White/Off-White Stage) ────────── */}
         <section id="demo" className="max-w-5xl w-full pt-12 sm:pt-20 pb-16 px-4 sm:px-6 flex flex-col items-center text-center bg-ascii-mesh-masked relative">
           
           {/* PreFill Tagline Badge */}
@@ -141,7 +141,7 @@ function SinglePageShowcaseContent() {
             </a>
           </motion.div>
 
-          {/* Centered Hardware Product Showcase Stage (#demo-stage - Pastel Blue Backdrop) */}
+          {/* Centered Hardware Product Showcase Stage (#demo-stage - Sensible Clean Stage) */}
           <motion.div 
             id="demo-stage"
             initial={{ opacity: 0, y: 24 }}
@@ -149,7 +149,7 @@ function SinglePageShowcaseContent() {
             transition={{ duration: 0.7, delay: 0.35 }}
             className="w-full max-w-4xl mt-12 z-10"
           >
-            <div className="card-pastel-blue w-full flex flex-col lg:flex-row items-center justify-between gap-8 text-left shadow-sm">
+            <div className="hardware-stage-droxy w-full flex flex-col lg:flex-row items-center justify-between gap-8 text-left shadow-sm">
               
               {/* Left Column: Interactive iPhone Mockup */}
               <div className="w-full max-w-[340px] flex justify-center shrink-0">
@@ -159,24 +159,24 @@ function SinglePageShowcaseContent() {
               {/* Right Column: Stage Controls & Info */}
               <div className="flex-1 flex flex-col gap-4">
                 <div className="flex items-center gap-2">
-                  <span className="bg-blue-100 text-blue-900 font-bold text-[11px] px-2.5 py-0.5 rounded-full border border-blue-200">
+                  <span className="bg-[#252525] text-white font-bold text-[11px] px-2.5 py-0.5 rounded-full">
                     LIVE PROTOTYPE
                   </span>
-                  <span className="text-xs text-blue-600 font-mono">Interactive Screen</span>
+                  <span className="text-xs text-stone-500 font-mono">Interactive Screen</span>
                 </div>
-                <h3 className="text-2xl font-bold text-[#252525] font-sans tracking-tight title-accent">
+                <h3 className="text-2xl font-bold text-[#252525] font-sans tracking-tight">
                   Proactive WhatsApp Restocking
                 </h3>
-                <p className="text-xs sm:text-sm text-stone-700 font-medium leading-relaxed">
+                <p className="text-xs sm:text-sm text-stone-600 font-medium leading-relaxed">
                   Interact with the phone prototype on the left to test 1-tap WhatsApp orders, inventory stock sliders, recipe gap analysis, and price drop alerts.
                 </p>
                 <div className="flex flex-col gap-2.5 mt-1">
-                  <div className="p-3 rounded-xl bg-white border border-blue-200/80 flex items-center gap-3 shadow-2xs">
+                  <div className="p-3 rounded-xl bg-white border border-stone-200 flex items-center gap-3 shadow-2xs">
                     <MessageSquare className="h-4 w-4 text-emerald-600 shrink-0" />
                     <span className="text-xs font-semibold text-stone-800">1-Tap WhatsApp Checkout with Zero App Browsing</span>
                   </div>
-                  <div className="p-3 rounded-xl bg-white border border-blue-200/80 flex items-center gap-3 shadow-2xs">
-                    <Cpu className="h-4 w-4 text-blue-600 shrink-0" />
+                  <div className="p-3 rounded-xl bg-white border border-stone-200 flex items-center gap-3 shadow-2xs">
+                    <Cpu className="h-4 w-4 text-sky-600 shrink-0" />
                     <span className="text-xs font-semibold text-stone-800">20% Remaining Inventory Stockout Trigger</span>
                   </div>
                 </div>
@@ -204,8 +204,8 @@ function SinglePageShowcaseContent() {
             </div>
 
             {/* Video Banner Link */}
-            <div className="mt-2 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-50 border border-blue-200 text-xs font-semibold text-blue-900 hover:bg-blue-100/70 transition-colors cursor-pointer">
-              <PlayCircle className="h-4 w-4 text-blue-600" />
+            <div className="mt-2 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-stone-100 border border-stone-200 text-xs font-semibold text-stone-700 hover:bg-stone-200/70 transition-colors cursor-pointer">
+              <PlayCircle className="h-4 w-4 text-red-500" />
               <span>Learn PreFill in 4 minutes here</span>
             </div>
 
@@ -294,7 +294,7 @@ function SinglePageShowcaseContent() {
 
         </section>
 
-        {/* ── 7. HUMAN-LIKE INTERACTIONS SECTION ─────────────────────── */}
+        {/* ── 7. HUMAN-LIKE INTERACTIONS SECTION (Sensible Clean Cards with Subtle Badges) ─ */}
         <section className="w-full py-20 bg-white border-y border-stone-200 flex justify-center px-4">
           <div className="max-w-4xl w-full flex flex-col items-center text-center gap-6">
             <span className="badge-droxy-pill">
@@ -305,23 +305,26 @@ function SinglePageShowcaseContent() {
               PreFill conversations feel human
             </h2>
 
-            {/* 3 Cards in Balanced Pastel Families */}
+            {/* 3 Clean Cards with Subtle Pastel Status Badges */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 text-left mt-4 w-full">
-              <div className="card-pastel-blue p-5 flex flex-col gap-2">
-                <span className="font-extrabold text-sm title-accent">Brand Tone Matching</span>
-                <p className="text-xs text-stone-700 font-medium leading-relaxed">
+              <div className="round-card-droxy p-5 flex flex-col gap-2.5">
+                <span className="badge-blue self-start">Brand Tone</span>
+                <span className="font-bold text-sm text-[#252525]">Brand Tone Matching</span>
+                <p className="text-xs text-stone-600 font-medium leading-relaxed">
                   Customize the agent&apos;s tone and style to match your quick commerce platform brand identity.
                 </p>
               </div>
-              <div className="card-pastel-amber p-5 flex flex-col gap-2">
-                <span className="font-extrabold text-sm title-accent">Empathetic Reorders</span>
-                <p className="text-xs text-stone-700 font-medium leading-relaxed">
+              <div className="round-card-droxy p-5 flex flex-col gap-2.5">
+                <span className="badge-yellow self-start">Context Aware</span>
+                <span className="font-bold text-sm text-[#252525]">Empathetic Reorders</span>
+                <p className="text-xs text-stone-600 font-medium leading-relaxed">
                   Tailor responses to be helpful and timely before families run out of morning milk or eggs.
                 </p>
               </div>
-              <div className="card-pastel-green p-5 flex flex-col gap-2">
-                <span className="font-extrabold text-sm title-accent">Advanced LangGraph NLP</span>
-                <p className="text-xs text-stone-700 font-medium leading-relaxed">
+              <div className="round-card-droxy p-5 flex flex-col gap-2.5">
+                <span className="badge-green self-start">LangGraph AI</span>
+                <span className="font-bold text-sm text-[#252525]">Advanced LangGraph NLP</span>
+                <p className="text-xs text-stone-600 font-medium leading-relaxed">
                   Uses state-of-the-art natural language processing to understand custom item quantities and natural text replies.
                 </p>
               </div>
@@ -352,12 +355,12 @@ function SinglePageShowcaseContent() {
                 key={step.num}
                 onClick={() => setActiveSetupStep(idx)}
                 className={`round-card-droxy p-5 cursor-pointer transition-all ${
-                  activeSetupStep === idx ? "border-amber-400 bg-amber-50/30 shadow-sm" : ""
+                  activeSetupStep === idx ? "border-stone-400 bg-white shadow-sm" : ""
                 }`}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <span className="font-mono text-xs font-bold px-2 py-1 rounded bg-amber-100 text-amber-900">
+                    <span className="font-mono text-xs font-bold px-2 py-1 rounded bg-stone-100 text-stone-700">
                       {step.num}
                     </span>
                     <h3 className="font-bold text-sm sm:text-base text-[#252525] font-sans">
@@ -368,7 +371,7 @@ function SinglePageShowcaseContent() {
                 </div>
                 
                 {activeSetupStep === idx && (
-                  <p className="mt-3 text-xs sm:text-sm text-stone-600 font-medium leading-relaxed pl-10 border-l-2 border-amber-400">
+                  <p className="mt-3 text-xs sm:text-sm text-stone-600 font-medium leading-relaxed pl-10 border-l-2 border-stone-800">
                     {step.desc}
                   </p>
                 )}
@@ -378,18 +381,18 @@ function SinglePageShowcaseContent() {
 
         </section>
 
-        {/* ── 9. SAFEGUARDS & MODEL MANAGEMENT ────────────────────── */}
+        {/* ── 9. SAFEGUARDS & MODEL MANAGEMENT (Sensible Banner) ────── */}
         <section className="w-full py-20 bg-white border-y border-stone-200 flex justify-center px-4">
           <div className="max-w-4xl w-full flex flex-col items-center text-center gap-6">
-            <div className="card-pastel-red w-full flex flex-col items-center gap-4">
-              <span className="badge-red">
-                <ShieldCheck className="h-3.5 w-3.5" />
-                <span>Error-free performance with smart safeguards</span>
+            <div className="round-card-droxy p-8 sm:p-12 w-full flex flex-col items-center gap-4 bg-ascii-dotted-grid">
+              <span className="badge-droxy-pill">
+                <ShieldCheck className="h-3.5 w-3.5 text-stone-700" />
+                <span>Smart Safeguards Engine</span>
               </span>
-              <h2 className="text-3xl sm:text-4xl font-bold tracking-tight title-accent font-sans">
+              <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-[#252525] font-sans">
                 Robust safeguards and consumption model management
               </h2>
-              <p className="text-xs sm:text-sm text-stone-700 max-w-2xl font-medium leading-relaxed">
+              <p className="text-xs sm:text-sm text-stone-600 max-w-2xl font-medium leading-relaxed">
                 Ground your restock agent with your platform catalog & delivery rules, ensuring messages are accurate, non-hallucinatory, and within strict safety boundaries.
               </p>
               <a href="#demo" className="btn-droxy-pill-primary text-xs mt-2">
@@ -423,7 +426,7 @@ function SinglePageShowcaseContent() {
           </div>
         </section>
 
-        {/* ── 12. TESTIMONIALS SECTION ──────────────────────────────── */}
+        {/* ── 12. TESTIMONIALS SECTION (Sensible Clean Cards) ────────── */}
         <section className="w-full py-20 bg-white border-y border-stone-200 flex justify-center px-4 sm:px-6">
           <div className="max-w-5xl w-full flex flex-col items-center">
             
@@ -436,29 +439,26 @@ function SinglePageShowcaseContent() {
               </h2>
             </div>
 
-            {/* Testimonial Cards in Balanced Pastel Families */}
+            {/* Testimonial Cards in Clean White with Subtle Rating Accent */}
             <div className="w-full grid grid-cols-1 md:grid-cols-3 gap-6">
               {[
                 {
-                  style: "card-pastel-blue",
                   name: "Rahul Sharma",
                   handle: "@rahul_qc",
                   text: "PreFill completely eliminated Kirana leakage for our quick commerce app. Reordering via WhatsApp is an absolute gamechanger."
                 },
                 {
-                  style: "card-pastel-green",
                   name: "Priya Nair",
                   handle: "@priyanair_d2c",
                   text: "Our 90-day retention floor jumped from 24% to 82% within 3 weeks of setting up PreFill restock agents."
                 },
                 {
-                  style: "card-pastel-amber",
                   name: "Vikram Mehta",
                   handle: "@vikramm_tech",
                   text: "Can't believe how accurate the 20% depletion alert is. The morning milk WhatsApp alert arrives right when we need it."
                 }
               ].map((t, idx) => (
-                <div key={idx} className={`${t.style} p-6 flex flex-col justify-between gap-4`}>
+                <div key={idx} className="round-card-droxy p-6 flex flex-col justify-between gap-4">
                   <div className="flex items-center gap-1 text-amber-500">
                     {[...Array(5)].map((_, i) => (
                       <Star key={i} className="h-4 w-4 fill-amber-400 text-amber-400" />
@@ -496,7 +496,7 @@ function SinglePageShowcaseContent() {
               <div 
                 key={idx}
                 onClick={() => setOpenFaq(openFaq === idx ? null : idx)}
-                className="round-card-droxy p-5 cursor-pointer transition-all hover:border-blue-300"
+                className="round-card-droxy p-5 cursor-pointer transition-all hover:border-stone-400"
               >
                 <div className="flex items-center justify-between">
                   <h3 className="font-bold text-sm sm:text-base text-[#252525] font-sans">

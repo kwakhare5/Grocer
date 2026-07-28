@@ -103,7 +103,7 @@ function SinglePageShowcaseContent() {
             className="mb-5 badge-droxy-pill cursor-pointer z-10"
           >
             <Brain className="h-3.5 w-3.5 text-stone-700" />
-            <span>Your AI-powered restock employee</span>
+            <span>Predictive Household Inventory Engine</span>
           </motion.div>
 
           {/* Main Display Headline */}
@@ -113,7 +113,7 @@ function SinglePageShowcaseContent() {
             transition={{ duration: 0.5, delay: 0.1 }}
             className="text-4xl sm:text-6xl md:text-7xl font-extrabold tracking-tight-display text-[#252525] max-w-4xl font-sans z-10"
           >
-            Build and deploy reliable AI restock agents
+            Predict stockouts. Automate restocks.
           </motion.h1>
 
           {/* Subtitle */}
@@ -121,9 +121,9 @@ function SinglePageShowcaseContent() {
             initial={{ opacity: 0, y: 14 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.2 }}
-            className="mt-5 text-base sm:text-lg text-stone-600 max-w-2xl leading-relaxed font-medium z-10"
+            className="mt-5 text-base sm:text-lg text-stone-600 max-w-xl leading-relaxed font-medium z-10"
           >
-            The all-in-one platform for customer-facing AI restocking agents across any channel. Launch and monitor your first agent in minutes.
+            PreFill models daily consumption velocity to trigger 1-tap WhatsApp grocery orders 24h before items run out.
           </motion.p>
 
           {/* Dual Pill Buttons */}
@@ -134,10 +134,10 @@ function SinglePageShowcaseContent() {
             className="mt-8 flex flex-col sm:flex-row items-center gap-3.5 z-10"
           >
             <a href="#demo-stage" className="btn-droxy-pill-primary text-sm font-semibold">
-              Start now
+              Try Prototype
             </a>
             <a href="#platform-roi" className="btn-droxy-pill-secondary text-sm font-semibold">
-              Simple Pricing
+              View ROI
             </a>
           </motion.div>
 

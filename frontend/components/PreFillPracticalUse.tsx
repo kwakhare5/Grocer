@@ -8,56 +8,56 @@ export default function PreFillPracticalUse() {
 
   const tabs = [
     {
-      name: "Quick Commerce",
-      title: "Quick Commerce Platforms",
+      name: "Fresh Dairy & Milk",
+      title: "Daily Dairy & Milk Depletion",
       bullets: [
-        "Never miss a recurring grocery order, even during peak dinner preparation hours.",
-        "Reduce household stockouts by instantly predicting depletion 24h before reaching 20% remaining threshold.",
-        "Increase customer 90-day retention floor to 82% by providing 1-tap WhatsApp restocking."
+        "Never run out of morning milk — Prophet models daily household tea & cereal usage.",
+        "Predicts 20% remaining threshold 24 hours before stockout.",
+        "Delivers 1-tap WhatsApp prompt for instant 10-minute quick commerce restocking."
       ],
-      user: "Lauren Chaney",
-      detail: "Fresh Milk 1L & Eggs 6-pack restock",
-      status: "Picked-up by PreFill",
-      time: "2:31"
+      user: "Family Household",
+      detail: "Fresh Milk 1L & Curd 500g",
+      status: "Prophet Predicted",
+      time: "Depletion in 18h"
     },
     {
-      name: "D2C Brands",
-      title: "D2C Organic Grocery Brands",
+      name: "Pantry Staples & Atta",
+      title: "Grain & Pantry Staples",
       bullets: [
-        "Automate recurring subscriptions for organic coffee beans, specialty oils, and dry fruits.",
-        "Increase repeat purchase rate by 3.5x without pushing intrusive discount codes.",
-        "Instant 1-tap WhatsApp reorder confirmation with zero friction."
+        "Tracks consumption cycles for Atta 5kg, Rice 10kg, and Dal staples.",
+        "Automatically adjusts for family size (Solo, Couple, Small/Large Family).",
+        "Filters out party spikes so large weekend meals don't break baseline predictions."
       ],
-      user: "Courtney Henry",
-      detail: "Cold-pressed Sunflower Oil 1L reorder",
-      status: "Confirmed by PreFill",
-      time: "1:45"
+      user: "Large Family (4 Persons)",
+      detail: "Chakki Fresh Atta 5kg & Rice 10kg",
+      status: "Threshold Alert",
+      time: "Reorder Triggered"
     },
     {
-      name: "Kirana Stores",
-      title: "Hyperlocal Kirana Networks",
+      name: "Household Cleaners",
+      title: "Home & Laundry Supplies",
       bullets: [
-        "Allow local neighborhood stores to send automated restock reminders to local families.",
-        "Eliminate phone call order taking with structured 1-tap WhatsApp carts.",
-        "Recapture +₹1,450 monthly spend lost to offline Kirana store leakages."
+        "Monitors high-friction household replenishment items like detergent and dish soap.",
+        "Eliminates emergency night store trips when laundry detergent runs dry.",
+        "Sends automated WhatsApp reminder when stock drops to 2 days remaining."
       ],
-      user: "Arjun Sharma",
-      detail: "Atta 5kg & Rice 10kg monthly restock",
-      status: "Dispatched to Household",
-      time: "3:12"
+      user: "Couple Household",
+      detail: "Liquid Detergent 1L & Dishwash Gel",
+      status: "Smart Alert",
+      time: "Scheduled Reorder"
     },
     {
-      name: "Family Households",
-      title: "Smart Family Pantry Management",
+      name: "Specialty Organics",
+      title: "Organic Oils & Superfoods",
       bullets: [
-        "Zero manual inventory tracking — automated depletion modeling based on order history.",
-        "Receive morning WhatsApp alerts before running out of morning tea milk or breakfast eggs.",
-        "One reply ('YES') places the 10-minute restock order effortlessly."
+        "Monitors daily commodity price signals for cold-pressed oils, ghee, and organic tea.",
+        "Triggers restock alerts when preferred specialty items hit historic price drops.",
+        "Builds recipe-aware carts so you only buy missing specialty ingredients."
       ],
-      user: "Ananya Patel",
-      detail: "Tea Leaves 250g & Butter 200g",
-      status: "Delivered in 10 mins",
-      time: "0:52"
+      user: "Solo Household",
+      detail: "Cold-Pressed Sunflower Oil 1L",
+      status: "Price Signal",
+      time: "23% Price Drop Alert"
     }
   ];
 
@@ -68,10 +68,10 @@ export default function PreFillPracticalUse() {
       <div className="text-center max-w-xl mx-auto flex flex-col items-center gap-2 mb-10">
         <span className="badge-droxy-pill">
           <Wrench className="h-3.5 w-3.5 text-stone-700" />
-          <span>Practical use</span>
+          <span>Practical use cases</span>
         </span>
         <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight-display text-[#252525] mt-1 font-sans">
-          How does PreFill work in practice?
+          How PreFill Manages Household Inventory
         </h2>
       </div>
 
@@ -82,7 +82,7 @@ export default function PreFillPracticalUse() {
             <button
               key={t.name}
               onClick={() => setActiveTab(idx)}
-              className={`px-4 py-2 rounded-full text-xs font-bold transition-all cursor-pointer select-none ${
+              className={`px-4 py-2 rounded-full text-xs font-bold transition-all cursor-pointer select-none font-sans ${
                 activeTab === idx
                   ? "bg-white text-[#252525] shadow-xs border border-stone-200"
                   : "text-stone-600 hover:text-[#252525] hover:bg-stone-200/50"
@@ -113,7 +113,7 @@ export default function PreFillPracticalUse() {
           </div>
 
           <a href="#demo-stage" className="btn-droxy-pill-primary text-xs mt-2">
-            Get started today
+            Try Interactive Prototype
           </a>
         </div>
 
@@ -126,22 +126,22 @@ export default function PreFillPracticalUse() {
                 <User className="h-4 w-4" />
               </div>
               <div className="flex flex-col">
-                <span className="font-bold text-xs text-[#252525]">{tabs[activeTab].user}</span>
+                <span className="font-bold text-xs text-[#252525] font-sans">{tabs[activeTab].user}</span>
                 <span className="text-[10px] text-stone-500 font-medium flex items-center gap-1">
                   <PhoneCall className="h-3 w-3 text-emerald-600" />
                   {tabs[activeTab].status} • {tabs[activeTab].time}
                 </span>
               </div>
             </div>
-            <span className="text-[9px] font-semibold text-stone-500 bg-stone-100 px-2 py-0.5 rounded border border-stone-200">
-              Details
+            <span className="text-[9px] font-semibold text-stone-500 bg-stone-100 px-2 py-0.5 rounded border border-stone-200 font-mono">
+              Telemetry
             </span>
           </div>
 
           <div className="flex flex-col gap-2 text-xs">
             <div className="flex items-center justify-between">
-              <span className="text-stone-400 font-medium text-[11px]">Reason:</span>
-              <span className="font-bold text-[#252525] text-[11px]">{tabs[activeTab].detail}</span>
+              <span className="text-stone-400 font-medium text-[11px]">Tracked Item:</span>
+              <span className="font-bold text-[#252525] text-[11px] font-sans">{tabs[activeTab].detail}</span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-stone-400 font-medium text-[11px]">Channel:</span>
@@ -153,8 +153,8 @@ export default function PreFillPracticalUse() {
             </div>
           </div>
 
-          <div className="p-2.5 rounded-xl bg-emerald-50/80 border border-emerald-200/80 text-[10px] text-emerald-800 font-semibold text-center">
-            Waiting for connection within 2 mins
+          <div className="p-2.5 rounded-xl bg-emerald-50/80 border border-emerald-200/80 text-[10px] text-emerald-800 font-semibold text-center font-sans">
+            Prophet Depletion Confidence: 94.2%
           </div>
 
         </div>

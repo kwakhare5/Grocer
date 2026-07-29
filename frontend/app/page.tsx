@@ -8,10 +8,10 @@ import PreFillFeatureSidebar from "../components/PreFillFeatureSidebar";
 import PreFillPracticalUse from "../components/PreFillPracticalUse";
 import PreFillBentoGrid from "../components/PreFillBentoGrid";
 import { motion } from "framer-motion";
-import { 
-  MessageSquare, 
-  Cpu, 
-  ChevronDown, 
+import {
+  MessageSquare,
+  Cpu,
+  ChevronDown,
   Brain,
   Rocket,
   Code,
@@ -85,17 +85,17 @@ function SinglePageShowcaseContent() {
 
   return (
     <div className="min-h-screen bg-[#F6F7F8] text-[#252525] font-sans flex flex-col selection:bg-[#252525] selection:text-white relative overflow-x-hidden">
-      
+
       {/* ── 1. STICKY HEADER ───────────────────────────────────────── */}
       <Header />
 
       <main className="flex-1 w-full flex flex-col items-center pt-15">
-        
-        {/* ── 2. HERO SECTION (Scaled Headline for 40%+ Phone Mockup Visibility) ────────── */}
+
+        {/* ── 2. HERO SECTION ─────────────────────────────────────────────── */}
         <section id="demo" className="max-w-6xl w-full pt-4 sm:pt-8 pb-10 px-5 sm:px-8 lg:px-12 flex flex-col items-center text-center bg-ascii-mesh-masked relative">
-          
+
           {/* PreFill Tagline Badge */}
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4 }}
@@ -107,8 +107,8 @@ function SinglePageShowcaseContent() {
             <span>Predictive Household Inventory Engine</span>
           </motion.div>
 
-          {/* Main Display Headline (Scaled down slightly so iPhone is >40% visible above fold) */}
-          <motion.h1 
+          {/* Main Display Headline */}
+          <motion.h1
             initial={{ opacity: 0, y: 14 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.1 }}
@@ -118,7 +118,7 @@ function SinglePageShowcaseContent() {
           </motion.h1>
 
           {/* Subtitle */}
-          <motion.p 
+          <motion.p
             initial={{ opacity: 0, y: 14 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.2 }}
@@ -128,7 +128,7 @@ function SinglePageShowcaseContent() {
           </motion.p>
 
           {/* Dual Pill Buttons */}
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: 14 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.25 }}
@@ -142,24 +142,24 @@ function SinglePageShowcaseContent() {
             </a>
           </motion.div>
 
-          {/* Centered Hardware Product Showcase Stage (#demo-stage - Compact Hero Panel & Clock SVG) */}
-          <motion.div 
+          {/* Centered Hardware Product Showcase Stage */}
+          <motion.div
             id="demo-stage"
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.35 }}
-            className="w-full max-w-5xl mt-6 sm:mt-8 z-10 px-0"
+            className="w-full max-w-6xl mt-6 sm:mt-8 z-10 px-0 flex justify-center"
           >
-            <div className="w-full flex flex-col lg:flex-row items-center justify-between gap-8 lg:gap-12 text-left">
-              
+            <div className="w-full flex flex-col lg:flex-row items-center justify-center gap-6 sm:gap-10 lg:gap-32 text-left">
+
               {/* Left Column: Interactive iPhone Mockup */}
               <div className="w-full max-w-[285px] sm:max-w-[300px] flex justify-center shrink-0">
                 <PhoneMockup activeScenario={activeScenario} />
               </div>
 
-              {/* Right Column: Compact Interactive Micro-Rail Panel (max-w-md) */}
+              {/* Right Column: Compact Interactive Micro-Rail Panel */}
               <div className="w-full max-w-md flex-1 flex flex-col gap-3.5">
-                
+
                 {/* Quiet Header */}
                 <div className="flex items-center justify-between border-b border-stone-200/80 pb-2.5">
                   <div className="flex items-center gap-2">
@@ -221,25 +221,25 @@ function SinglePageShowcaseContent() {
                     const Icon = sc.icon;
                     const isActive = activeScenario === sc.id;
                     return (
-                      <div 
+                      <div
                         key={sc.id}
                         onClick={() => setActiveScenario(sc.id)}
                         className={`p-3 sm:p-3.5 rounded-2xl border transition-all cursor-pointer flex items-start gap-3 select-none ${
-                          isActive 
-                            ? "bg-white border-[#252525] shadow-sm -translate-y-0.5 ring-1 ring-[#252525]/10" 
+                          isActive
+                            ? "bg-white border-[#252525] shadow-sm -translate-y-0.5 ring-1 ring-[#252525]/10"
                             : "bg-stone-50/60 border-stone-200/80 hover:border-stone-400 hover:bg-white"
                         }`}
                       >
                         <span className={`p-2 rounded-xl shrink-0 border ${sc.badgeColor} mt-0.5`}>
                           <Icon className="h-4 w-4" />
                         </span>
-                        
+
                         <div className="flex flex-col gap-0.5 flex-1">
                           <div className="flex items-center justify-between gap-2">
                             <span className="font-extrabold text-xs text-[#252525] font-sans">
                               {sc.title}
                             </span>
-                            
+
                             <div className="flex items-center gap-1.5">
                               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border border-stone-200 bg-stone-100/70 text-stone-700 font-mono hidden sm:inline-block">
                                 {sc.tag}
@@ -258,7 +258,7 @@ function SinglePageShowcaseContent() {
                   })}
                 </div>
 
-                {/* Bottom Clean Trust Ribbon with Lucide Clock SVG Icon */}
+                {/* Bottom Clean Trust Ribbon */}
                 <div className="pt-2 border-t border-stone-200/80 flex items-center justify-between text-[11px] font-semibold text-stone-500 font-sans">
                   <div className="flex items-center gap-1.5">
                     <Clock className="h-3.5 w-3.5 text-stone-500 shrink-0" />
@@ -274,7 +274,12 @@ function SinglePageShowcaseContent() {
 
         </section>
 
-        {/* ── 4. INTERACTIVE SIDEBAR FEATURE SHOWCASE ──── */}
+        {/* ── 3. 6-CARD VISUAL BENTO GRID ARCHITECTURE (#bento) ──────────── */}
+        <section id="bento" className="w-full bg-[#FAFBFB] border-y border-stone-200 flex justify-center px-5 sm:px-8 lg:px-12">
+          <PreFillBentoGrid />
+        </section>
+
+        {/* ── 4. INTERACTIVE SIDEBAR FEATURE SHOWCASE (#features) ─────────── */}
         <section id="features" className="max-w-6xl w-full py-14 sm:py-20 px-5 sm:px-8 lg:px-12 flex flex-col items-center">
           <div className="text-center max-w-xl mx-auto flex flex-col items-center gap-2 mb-8 sm:mb-10">
             <span className="badge-droxy-pill">
@@ -287,7 +292,7 @@ function SinglePageShowcaseContent() {
               Automate grocery reordering before stock runs out
             </h2>
           </div>
-          
+
           <PreFillFeatureSidebar />
         </section>
 
@@ -296,9 +301,9 @@ function SinglePageShowcaseContent() {
           <PreFillPracticalUse />
         </section>
 
-        {/* ── 6. COMPARISON TABLE (#comparison) ──── */}
+        {/* ── 6. PERFORMANCE COMPARISON (#comparison) ──── */}
         <section id="comparison" className="max-w-6xl w-full py-14 sm:py-20 px-5 sm:px-8 lg:px-12 flex flex-col items-center">
-          
+
           <div className="text-center max-w-xl mx-auto flex flex-col items-center gap-2 mb-8 sm:mb-10">
             <span className="badge-droxy-pill">
               <span className="p-1 rounded-full bg-rose-50 text-rose-700 shrink-0">
@@ -363,9 +368,31 @@ function SinglePageShowcaseContent() {
 
         </section>
 
+        {/* ── 7. PLATFORM ROI & EXECUTIVE PANEL (#platform-roi) ─────── */}
+        <section id="platform-roi" className="max-w-6xl w-full py-14 sm:py-20 px-5 sm:px-8 lg:px-12 flex flex-col items-center">
+          <div className="text-center max-w-xl mx-auto flex flex-col items-center gap-2 mb-8 sm:mb-10">
+            <span className="badge-droxy-pill">
+              <span className="p-1 rounded-full bg-emerald-50 text-emerald-700 shrink-0 font-extrabold text-[10px]">
+                ₹
+              </span>
+              <span>Executive ROI Dashboard</span>
+            </span>
+            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight-display text-[#252525] font-sans">
+              Real-time Analytics & Unit Economics
+            </h2>
+          </div>
+
+          <div className="w-full">
+            <ExecutivePanel
+              activeScenario={activeScenario}
+              onScenarioChange={(s) => setActiveScenario(s)}
+            />
+          </div>
+        </section>
+
         {/* ── 8. SETUP GUIDE (5-STEP ACCORDION) (#how-it-works) ──────── */}
         <section id="how-it-works" className="max-w-6xl w-full py-14 sm:py-20 px-5 sm:px-8 lg:px-12 flex flex-col items-center">
-          
+
           <div className="text-center max-w-xl mx-auto flex flex-col items-center gap-2 mb-8 sm:mb-10">
             <span className="badge-droxy-pill">
               <span className="p-1 rounded-full bg-blue-50 text-blue-700 shrink-0">
@@ -380,7 +407,7 @@ function SinglePageShowcaseContent() {
 
           <div className="w-full flex flex-col gap-3 max-w-3xl">
             {setupSteps.map((step, idx) => (
-              <div 
+              <div
                 key={step.num}
                 onClick={() => setActiveSetupStep(idx)}
                 className={`round-card-droxy p-5 sm:p-6 cursor-pointer transition-all ${
@@ -404,7 +431,7 @@ function SinglePageShowcaseContent() {
                   </div>
                   <ChevronDown className={`h-4 w-4 text-stone-500 transition-transform ${activeSetupStep === idx ? "rotate-180" : ""}`} />
                 </div>
-                
+
                 {activeSetupStep === idx && (
                   <p className="mt-3 text-xs sm:text-sm text-stone-600 font-medium leading-relaxed pl-10 border-l-2 border-stone-800">
                     {step.desc}
@@ -439,36 +466,9 @@ function SinglePageShowcaseContent() {
           </div>
         </section>
 
-        {/* ── 10. SCREENSHOT 3: 6-CARD VISUAL BENTO GRID ──────────────── */}
-        <section className="w-full bg-[#FAFBFB] border-y border-stone-200 flex justify-center px-5 sm:px-8 lg:px-12">
-          <PreFillBentoGrid />
-        </section>
-
-        {/* ── 11. PLATFORM ROI & EXECUTIVE PANEL (#platform-roi) ─────── */}
-        <section id="platform-roi" className="max-w-6xl w-full py-14 sm:py-20 px-5 sm:px-8 lg:px-12 flex flex-col items-center">
-          <div className="text-center max-w-xl mx-auto flex flex-col items-center gap-2 mb-8 sm:mb-10">
-            <span className="badge-droxy-pill">
-              <span className="p-1 rounded-full bg-emerald-50 text-emerald-700 shrink-0 font-extrabold text-[10px]">
-                ₹
-              </span>
-              <span>Executive ROI Dashboard</span>
-            </span>
-            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight-display text-[#252525] font-sans">
-              Real-time Analytics & Unit Economics
-            </h2>
-          </div>
-
-          <div className="w-full">
-            <ExecutivePanel 
-              activeScenario={activeScenario} 
-              onScenarioChange={(s) => setActiveScenario(s)} 
-            />
-          </div>
-        </section>
-
-        {/* ── 13. FAQ ACCORDION (#faq) ───────────────────────────────── */}
+        {/* ── 10. FAQ ACCORDION (#faq) ───────────────────────────────── */}
         <section id="faq" className="max-w-5xl w-full py-14 sm:py-20 px-5 sm:px-8 lg:px-12 flex flex-col items-center">
-          
+
           <div className="text-center max-w-xl mx-auto flex flex-col items-center gap-2 mb-8 sm:mb-10">
             <span className="badge-droxy-pill">
               <span className="p-1 rounded-full bg-blue-50 text-blue-700 shrink-0">
@@ -483,7 +483,7 @@ function SinglePageShowcaseContent() {
 
           <div className="w-full flex flex-col gap-3">
             {faqItems.map((faq, idx) => (
-              <div 
+              <div
                 key={idx}
                 onClick={() => setOpenFaq(openFaq === idx ? null : idx)}
                 className="round-card-droxy p-5 sm:p-6 cursor-pointer transition-all hover:border-stone-400"
@@ -496,7 +496,7 @@ function SinglePageShowcaseContent() {
                     <ChevronDown className="h-4 w-4" />
                   </span>
                 </div>
-                
+
                 {openFaq === idx && (
                   <p className="mt-3 text-xs sm:text-sm text-stone-600 font-medium leading-relaxed border-t border-stone-100 pt-3">
                     {faq.a}
@@ -508,10 +508,10 @@ function SinglePageShowcaseContent() {
 
         </section>
 
-        {/* ── 14. FINAL CTA BANNER & FOOTER ─────────────────────────── */}
+        {/* ── 11. FINAL CTA BANNER & FOOTER ─────────────────────────── */}
         <section className="w-full py-14 sm:py-16 px-5 sm:px-8 lg:px-12 flex justify-center bg-[#252525] text-white">
           <div className="max-w-5xl w-full flex flex-col items-center text-center gap-5 py-4">
-            
+
             <h2 className="text-3xl sm:text-5xl font-extrabold text-white max-w-2xl font-sans tracking-tight">
               Ready to test PreFill restocking?
             </h2>
@@ -535,9 +535,9 @@ function SinglePageShowcaseContent() {
       </main>
 
       {/* PreFill Clean Footer */}
-      <footer className="w-full border-t border-stone-200 bg-white py-8 px-3 sm:px-6 text-xs text-stone-600">
+      <footer className="w-full border-t border-stone-200 bg-white py-8 px-5 sm:px-8 lg:px-12 text-xs text-stone-600">
         <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6">
-          
+
           <div className="flex flex-col gap-2.5">
             <div className="flex items-center gap-2.5 font-bold text-[#252525] font-sans text-base">
               <div className="h-6 w-6 rounded-lg bg-[#252525] text-white flex items-center justify-center text-xs font-extrabold">

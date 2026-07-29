@@ -12,14 +12,13 @@ import {
   MessageSquare, 
   Cpu, 
   ChevronDown, 
-  Star, 
-  PlayCircle,
   Brain,
   Rocket,
-  Users,
   Code,
   ShieldCheck,
-  FileText
+  FileText,
+  Zap,
+  Clock
 } from "lucide-react";
 
 function SinglePageShowcaseContent() {
@@ -92,26 +91,28 @@ function SinglePageShowcaseContent() {
 
       <main className="flex-1 w-full flex flex-col items-center pt-15">
         
-        {/* ── 2. HERO SECTION (Clean White/Off-White Stage) ────────── */}
-        <section id="demo" className="max-w-5xl w-full pt-12 sm:pt-20 pb-16 px-4 sm:px-6 flex flex-col items-center text-center bg-ascii-mesh-masked relative">
+        {/* ── 2. HERO SECTION (Scaled Headline for 40%+ Phone Mockup Visibility) ────────── */}
+        <section id="demo" className="max-w-6xl w-full pt-4 sm:pt-8 pb-10 px-5 sm:px-8 lg:px-12 flex flex-col items-center text-center bg-ascii-mesh-masked relative">
           
           {/* PreFill Tagline Badge */}
           <motion.div 
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4 }}
-            className="mb-5 badge-droxy-pill cursor-pointer z-10"
+            className="mb-3 badge-droxy-pill cursor-pointer z-10"
           >
-            <Brain className="h-3.5 w-3.5 text-stone-700" />
+            <span className="p-1 rounded-full bg-blue-50 text-blue-700 shrink-0">
+              <Brain className="h-3.5 w-3.5" />
+            </span>
             <span>Predictive Household Inventory Engine</span>
           </motion.div>
 
-          {/* Main Display Headline */}
+          {/* Main Display Headline (Scaled down slightly so iPhone is >40% visible above fold) */}
           <motion.h1 
             initial={{ opacity: 0, y: 14 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.1 }}
-            className="text-4xl sm:text-6xl md:text-7xl font-extrabold tracking-tight-display text-[#252525] max-w-4xl font-sans z-10"
+            className="text-3xl sm:text-5xl md:text-6xl font-extrabold tracking-tight-display text-[#252525] max-w-3xl font-sans z-10 leading-[1.08]"
           >
             Predict stockouts. Automate restocks.
           </motion.h1>
@@ -121,7 +122,7 @@ function SinglePageShowcaseContent() {
             initial={{ opacity: 0, y: 14 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.2 }}
-            className="mt-5 text-base sm:text-lg text-stone-600 max-w-xl leading-relaxed font-medium z-10"
+            className="mt-3 text-sm sm:text-base text-stone-600 max-w-lg leading-relaxed font-medium z-10"
           >
             PreFill models daily consumption velocity to trigger 1-tap WhatsApp grocery orders 24h before items run out.
           </motion.p>
@@ -131,55 +132,141 @@ function SinglePageShowcaseContent() {
             initial={{ opacity: 0, y: 14 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.25 }}
-            className="mt-8 flex flex-col sm:flex-row items-center gap-3.5 z-10"
+            className="mt-5 flex flex-col sm:flex-row items-center gap-3 z-10"
           >
-            <a href="#demo-stage" className="btn-droxy-pill-primary text-sm font-semibold">
+            <a href="#demo-stage" className="btn-droxy-pill-primary text-xs sm:text-sm font-semibold">
               Try Prototype
             </a>
-            <a href="#platform-roi" className="btn-droxy-pill-secondary text-sm font-semibold">
+            <a href="#platform-roi" className="btn-droxy-pill-secondary text-xs sm:text-sm font-semibold">
               View ROI
             </a>
           </motion.div>
 
-          {/* Centered Hardware Product Showcase Stage (#demo-stage - Sensible Clean Stage) */}
+          {/* Centered Hardware Product Showcase Stage (#demo-stage - Compact Hero Panel & Clock SVG) */}
           <motion.div 
             id="demo-stage"
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.35 }}
-            className="w-full max-w-4xl mt-12 z-10"
+            className="w-full max-w-5xl mt-6 sm:mt-8 z-10 px-0"
           >
-            <div className="hardware-stage-droxy w-full flex flex-col lg:flex-row items-center justify-between gap-8 text-left shadow-sm">
+            <div className="w-full flex flex-col lg:flex-row items-center justify-between gap-8 lg:gap-12 text-left">
               
               {/* Left Column: Interactive iPhone Mockup */}
-              <div className="w-full max-w-[340px] flex justify-center shrink-0">
+              <div className="w-full max-w-[285px] sm:max-w-[300px] flex justify-center shrink-0">
                 <PhoneMockup activeScenario={activeScenario} />
               </div>
 
-              {/* Right Column: Stage Controls & Info */}
-              <div className="flex-1 flex flex-col gap-4">
-                <div className="flex items-center gap-2">
-                  <span className="bg-[#252525] text-white font-bold text-[11px] px-2.5 py-0.5 rounded-full">
-                    LIVE PROTOTYPE
+              {/* Right Column: Compact Interactive Micro-Rail Panel (max-w-md) */}
+              <div className="w-full max-w-md flex-1 flex flex-col gap-3.5">
+                
+                {/* Quiet Header */}
+                <div className="flex items-center justify-between border-b border-stone-200/80 pb-2.5">
+                  <div className="flex items-center gap-2">
+                    <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span className="text-xs font-bold uppercase tracking-wider text-stone-700 font-mono">
+                      Live Prototype Scenarios
+                    </span>
+                  </div>
+                  <span className="text-[11px] font-semibold text-stone-400 font-sans hidden sm:inline-block">
+                    Click row to test screen
                   </span>
-                  <span className="text-xs text-stone-500 font-mono">Interactive Screen</span>
                 </div>
-                <h3 className="text-2xl font-bold text-[#252525] font-sans tracking-tight">
-                  Proactive WhatsApp Restocking
-                </h3>
-                <p className="text-xs sm:text-sm text-stone-600 font-medium leading-relaxed">
-                  Interact with the phone prototype on the left to test 1-tap WhatsApp orders, inventory stock sliders, recipe gap analysis, and price drop alerts.
-                </p>
-                <div className="flex flex-col gap-2.5 mt-1">
-                  <div className="p-3 rounded-xl bg-white border border-stone-200 flex items-center gap-3 shadow-2xs">
-                    <MessageSquare className="h-4 w-4 text-emerald-600 shrink-0" />
-                    <span className="text-xs font-semibold text-stone-800">1-Tap WhatsApp Checkout with Zero App Browsing</span>
-                  </div>
-                  <div className="p-3 rounded-xl bg-white border border-stone-200 flex items-center gap-3 shadow-2xs">
-                    <Cpu className="h-4 w-4 text-sky-600 shrink-0" />
-                    <span className="text-xs font-semibold text-stone-800">20% Remaining Inventory Stockout Trigger</span>
-                  </div>
+
+                <div className="flex flex-col gap-1">
+                  <h3 className="text-xl sm:text-2xl font-extrabold text-[#252525] font-sans tracking-tight">
+                    Proactive Household Restocking
+                  </h3>
+                  <p className="text-xs text-stone-600 font-medium leading-relaxed">
+                    Select a scenario below to test real-time depletion triggers and 1-tap WhatsApp restocking:
+                  </p>
                 </div>
+
+                {/* 4 Compact Clickable Scenario Micro-Rail Rows */}
+                <div className="flex flex-col gap-2.5 mt-0.5">
+                  {[
+                    {
+                      id: "whatsapp",
+                      title: "1-Tap WhatsApp Checkout",
+                      desc: "Pre-filled cart delivered to WhatsApp with zero app browsing.",
+                      icon: MessageSquare,
+                      tag: "1-Tap",
+                      badgeColor: "bg-emerald-50 text-emerald-800 border-emerald-200/80"
+                    },
+                    {
+                      id: "slider",
+                      title: "20% Stockout Depletion Alert",
+                      desc: "Models consumption velocity & alerts 24h before stockout.",
+                      icon: Cpu,
+                      tag: "24h Alert",
+                      badgeColor: "bg-blue-50 text-blue-800 border-blue-200/80"
+                    },
+                    {
+                      id: "recipe",
+                      title: "Recipe Gap Analysis",
+                      desc: "Scans meal plans & auto-fills missing recipe ingredients.",
+                      icon: Brain,
+                      tag: "Recipe Gaps",
+                      badgeColor: "bg-amber-50 text-amber-800 border-amber-200/80"
+                    },
+                    {
+                      id: "pricedrop",
+                      title: "Dynamic Price Drop Alerts",
+                      desc: "Monitors commodity price signals & orders on historic dips.",
+                      icon: Zap,
+                      tag: "Price Signal",
+                      badgeColor: "bg-rose-50 text-rose-800 border-rose-200/80"
+                    }
+                  ].map((sc) => {
+                    const Icon = sc.icon;
+                    const isActive = activeScenario === sc.id;
+                    return (
+                      <div 
+                        key={sc.id}
+                        onClick={() => setActiveScenario(sc.id)}
+                        className={`p-3 sm:p-3.5 rounded-2xl border transition-all cursor-pointer flex items-start gap-3 select-none ${
+                          isActive 
+                            ? "bg-white border-[#252525] shadow-sm -translate-y-0.5 ring-1 ring-[#252525]/10" 
+                            : "bg-stone-50/60 border-stone-200/80 hover:border-stone-400 hover:bg-white"
+                        }`}
+                      >
+                        <span className={`p-2 rounded-xl shrink-0 border ${sc.badgeColor} mt-0.5`}>
+                          <Icon className="h-4 w-4" />
+                        </span>
+                        
+                        <div className="flex flex-col gap-0.5 flex-1">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-extrabold text-xs text-[#252525] font-sans">
+                              {sc.title}
+                            </span>
+                            
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border border-stone-200 bg-stone-100/70 text-stone-700 font-mono hidden sm:inline-block">
+                                {sc.tag}
+                              </span>
+                              {isActive && (
+                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                              )}
+                            </div>
+                          </div>
+                          <p className="text-[11px] text-stone-600 font-medium leading-normal">
+                            {sc.desc}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Bottom Clean Trust Ribbon with Lucide Clock SVG Icon */}
+                <div className="pt-2 border-t border-stone-200/80 flex items-center justify-between text-[11px] font-semibold text-stone-500 font-sans">
+                  <div className="flex items-center gap-1.5">
+                    <Clock className="h-3.5 w-3.5 text-stone-500 shrink-0" />
+                    <span>Average setup time: &lt;3 minutes</span>
+                  </div>
+                  <span className="text-stone-400 font-normal">Zero app download</span>
+                </div>
+
               </div>
 
             </div>
@@ -187,61 +274,40 @@ function SinglePageShowcaseContent() {
 
         </section>
 
-        {/* ── 3. LOGO CLOUD & VIDEO EXPLAINER BANNER ──────────────── */}
-        <section className="w-full py-12 border-y border-stone-200 bg-white flex justify-center px-4">
-          <div className="max-w-5xl w-full flex flex-col items-center gap-6 text-center">
-            
-            <span className="text-xs font-semibold uppercase tracking-widest text-stone-400 font-sans">
-              Trusted by 30K+ businesses & quick commerce platforms
-            </span>
-
-            {/* Quick Commerce Platform Logos */}
-            <div className="flex flex-wrap items-center justify-center gap-8 sm:gap-14 text-stone-400 font-extrabold text-lg sm:text-xl tracking-tight">
-              <span className="hover:text-stone-800 transition-colors">Zepto</span>
-              <span className="hover:text-stone-800 transition-colors">Blinkit</span>
-              <span className="hover:text-stone-800 transition-colors">Swiggy Instamart</span>
-              <span className="hover:text-stone-800 transition-colors">BigBasket</span>
-            </div>
-
-            {/* Video Banner Link */}
-            <div className="mt-2 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-stone-100 border border-stone-200 text-xs font-semibold text-stone-700 hover:bg-stone-200/70 transition-colors cursor-pointer">
-              <PlayCircle className="h-4 w-4 text-red-500" />
-              <span>Learn PreFill in 4 minutes here</span>
-            </div>
-
-          </div>
-        </section>
-
-        {/* ── 4. SCREENSHOT 1: INTERACTIVE SIDEBAR FEATURE SHOWCASE ──── */}
-        <section id="features" className="max-w-5xl w-full py-16 sm:py-24 px-4 sm:px-6 flex flex-col items-center">
-          <div className="text-center max-w-xl mx-auto flex flex-col items-center gap-2 mb-10">
+        {/* ── 4. INTERACTIVE SIDEBAR FEATURE SHOWCASE ──── */}
+        <section id="features" className="max-w-6xl w-full py-14 sm:py-20 px-5 sm:px-8 lg:px-12 flex flex-col items-center">
+          <div className="text-center max-w-xl mx-auto flex flex-col items-center gap-2 mb-8 sm:mb-10">
             <span className="badge-droxy-pill">
-              <MessageSquare className="h-3.5 w-3.5 text-stone-700" />
-              <span>Instant responses matter</span>
+              <span className="p-1 rounded-full bg-blue-50 text-blue-700 shrink-0">
+                <MessageSquare className="h-3.5 w-3.5" />
+              </span>
+              <span>Proactive Grocery Automation</span>
             </span>
             <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight-display text-[#252525] mt-1 font-sans">
-              90% of customers expect an immediate response
+              Automate grocery reordering before stock runs out
             </h2>
           </div>
           
           <PreFillFeatureSidebar />
         </section>
 
-        {/* ── 5. SCREENSHOT 2: PRACTICAL USE CASES SHOWCASE ─────────── */}
-        <section className="w-full bg-white border-y border-stone-200 flex justify-center px-4 sm:px-6">
+        {/* ── 5. PRACTICAL USE CASES SHOWCASE ─────────── */}
+        <section className="w-full bg-white border-y border-stone-200 flex justify-center px-5 sm:px-8 lg:px-12">
           <PreFillPracticalUse />
         </section>
 
-        {/* ── 6. COMPARISON TABLE ("STAY AHEAD WITH AI") (#comparison) ──── */}
-        <section id="comparison" className="max-w-5xl w-full py-20 sm:py-28 px-4 sm:px-6 flex flex-col items-center">
+        {/* ── 6. COMPARISON TABLE (#comparison) ──── */}
+        <section id="comparison" className="max-w-6xl w-full py-14 sm:py-20 px-5 sm:px-8 lg:px-12 flex flex-col items-center">
           
-          <div className="text-center max-w-xl mx-auto flex flex-col items-center gap-2 mb-14">
+          <div className="text-center max-w-xl mx-auto flex flex-col items-center gap-2 mb-8 sm:mb-10">
             <span className="badge-droxy-pill">
-              <Rocket className="h-3.5 w-3.5 text-stone-700" />
-              <span>Stay ahead with AI</span>
+              <span className="p-1 rounded-full bg-rose-50 text-rose-700 shrink-0">
+                <Rocket className="h-3.5 w-3.5" />
+              </span>
+              <span>Performance Comparison</span>
             </span>
             <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-[#252525] mt-1 font-sans">
-              Your competitors are already using AI for a reason
+              Manual Grocery Restocking vs PreFill Automation
             </h2>
           </div>
 
@@ -252,35 +318,38 @@ function SinglePageShowcaseContent() {
                 <thead>
                   <tr className="bg-stone-100 border-b border-stone-200">
                     <th className="p-4 sm:p-5 font-bold text-stone-800">Criteria</th>
-                    <th className="p-4 sm:p-5 font-bold text-rose-700 bg-rose-50/60">Without PreFill</th>
-                    <th className="p-4 sm:p-5 font-bold text-emerald-800 bg-emerald-50/60">With PreFill</th>
+                    <th className="p-4 sm:p-5 font-bold text-stone-700 bg-stone-50">Manual Restocking</th>
+                    <th className="p-4 sm:p-5 font-bold text-[#252525] bg-stone-100/80">With PreFill Engine</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-stone-200 font-medium">
                   <tr>
-                    <td className="p-4 sm:p-5 text-stone-800 font-semibold">Time spent on manual grocery reordering</td>
-                    <td className="p-4 sm:p-5 text-stone-600 bg-rose-50/20">On average 2 hours per week</td>
-                    <td className="p-4 sm:p-5 text-emerald-800 font-bold bg-emerald-50/20">0 hours (1-tap WhatsApp)</td>
+                    <td className="p-4 sm:p-5 text-stone-800 font-semibold">Time spent on grocery reordering</td>
+                    <td className="p-4 sm:p-5 text-stone-600">Manual app browsing & searching</td>
+                    <td className="p-4 sm:p-5 text-stone-900 font-bold bg-stone-50/50">
+                      <span className="px-2 py-0.5 rounded status-pill-green font-bold text-xs">1-tap WhatsApp confirmation</span>
+                    </td>
                   </tr>
                   <tr>
-                    <td className="p-4 sm:p-5 text-stone-800 font-semibold">Response time to stockouts</td>
-                    <td className="p-4 sm:p-5 text-stone-600 bg-rose-50/20">1 to 3 days (after stock is empty)</td>
-                    <td className="p-4 sm:p-5 text-emerald-800 font-bold bg-emerald-50/20">Instantly (24h before stockout)</td>
+                    <td className="p-4 sm:p-5 text-stone-800 font-semibold">Stockout warning timing</td>
+                    <td className="p-4 sm:p-5 text-stone-600">After items are already empty</td>
+                    <td className="p-4 sm:p-5 text-stone-900 font-bold bg-stone-50/50">
+                      <span className="px-2 py-0.5 rounded status-pill-green font-bold text-xs">24h before stockout trigger</span>
+                    </td>
                   </tr>
                   <tr>
-                    <td className="p-4 sm:p-5 text-stone-800 font-semibold">Kirana store leakage rate</td>
-                    <td className="p-4 sm:p-5 text-stone-600 bg-rose-50/20">76% lost grocery spend</td>
-                    <td className="p-4 sm:p-5 text-emerald-800 font-bold bg-emerald-50/20">0% (Recaptured via WhatsApp)</td>
+                    <td className="p-4 sm:p-5 text-stone-800 font-semibold">Recipe ingredient completeness</td>
+                    <td className="p-4 sm:p-5 text-stone-600">Manual ingredient checking</td>
+                    <td className="p-4 sm:p-5 text-stone-900 font-bold bg-stone-50/50">
+                      <span className="px-2 py-0.5 rounded status-pill-green font-bold text-xs">Automated recipe gap scan</span>
+                    </td>
                   </tr>
                   <tr>
-                    <td className="p-4 sm:p-5 text-stone-800 font-semibold">Household lead retention floor</td>
-                    <td className="p-4 sm:p-5 text-stone-600 bg-rose-50/20">24% 90-day retention baseline</td>
-                    <td className="p-4 sm:p-5 text-emerald-800 font-bold bg-emerald-50/20">82% retention floor</td>
-                  </tr>
-                  <tr>
-                    <td className="p-4 sm:p-5 text-stone-800 font-semibold">Cost per household lost revenue</td>
-                    <td className="p-4 sm:p-5 text-stone-600 bg-rose-50/20">-₹1,450/hh lost monthly GMV</td>
-                    <td className="p-4 sm:p-5 text-emerald-800 font-bold bg-emerald-50/20">+₹1,450/hh recaptured GMV</td>
+                    <td className="p-4 sm:p-5 text-stone-800 font-semibold">Price optimization alerts</td>
+                    <td className="p-4 sm:p-5 text-stone-600">No automated tracking</td>
+                    <td className="p-4 sm:p-5 text-stone-900 font-bold bg-stone-50/50">
+                      <span className="px-2 py-0.5 rounded status-pill-green font-bold text-xs">Automated price dip reorder</span>
+                    </td>
                   </tr>
                 </tbody>
               </table>
@@ -288,64 +357,24 @@ function SinglePageShowcaseContent() {
           </div>
 
           <div className="mt-8 flex items-center gap-4">
-            <a href="#demo" className="btn-droxy-pill-primary text-xs">Start now</a>
-            <a href="#platform-roi" className="btn-droxy-pill-secondary text-xs">Simple Pricing</a>
+            <a href="#demo" className="btn-droxy-pill-primary text-xs">Try Prototype</a>
+            <a href="#platform-roi" className="btn-droxy-pill-secondary text-xs">View ROI</a>
           </div>
 
-        </section>
-
-        {/* ── 7. HUMAN-LIKE INTERACTIONS SECTION (Sensible Clean Cards with Subtle Badges) ─ */}
-        <section className="w-full py-20 bg-white border-y border-stone-200 flex justify-center px-4">
-          <div className="max-w-4xl w-full flex flex-col items-center text-center gap-6">
-            <span className="badge-droxy-pill">
-              <Users className="h-3.5 w-3.5 text-stone-700" />
-              <span>Human-like interactions guaranteed</span>
-            </span>
-            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-[#252525] font-sans">
-              PreFill conversations feel human
-            </h2>
-
-            {/* 3 Clean Cards with Subtle Pastel Status Badges */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 text-left mt-4 w-full">
-              <div className="round-card-droxy p-5 flex flex-col gap-2.5">
-                <span className="badge-blue self-start">Brand Tone</span>
-                <span className="font-bold text-sm text-[#252525]">Brand Tone Matching</span>
-                <p className="text-xs text-stone-600 font-medium leading-relaxed">
-                  Customize the agent&apos;s tone and style to match your quick commerce platform brand identity.
-                </p>
-              </div>
-              <div className="round-card-droxy p-5 flex flex-col gap-2.5">
-                <span className="badge-yellow self-start">Context Aware</span>
-                <span className="font-bold text-sm text-[#252525]">Empathetic Reorders</span>
-                <p className="text-xs text-stone-600 font-medium leading-relaxed">
-                  Tailor responses to be helpful and timely before families run out of morning milk or eggs.
-                </p>
-              </div>
-              <div className="round-card-droxy p-5 flex flex-col gap-2.5">
-                <span className="badge-green self-start">LangGraph AI</span>
-                <span className="font-bold text-sm text-[#252525]">Advanced LangGraph NLP</span>
-                <p className="text-xs text-stone-600 font-medium leading-relaxed">
-                  Uses state-of-the-art natural language processing to understand custom item quantities and natural text replies.
-                </p>
-              </div>
-            </div>
-
-            <a href="#demo" className="btn-droxy-pill-primary text-xs mt-2">
-              Get started today
-            </a>
-          </div>
         </section>
 
         {/* ── 8. SETUP GUIDE (5-STEP ACCORDION) (#how-it-works) ──────── */}
-        <section id="how-it-works" className="max-w-5xl w-full py-20 sm:py-28 px-4 sm:px-6 flex flex-col items-center">
+        <section id="how-it-works" className="max-w-6xl w-full py-14 sm:py-20 px-5 sm:px-8 lg:px-12 flex flex-col items-center">
           
-          <div className="text-center max-w-xl mx-auto flex flex-col items-center gap-2 mb-14">
+          <div className="text-center max-w-xl mx-auto flex flex-col items-center gap-2 mb-8 sm:mb-10">
             <span className="badge-droxy-pill">
-              <Code className="h-3.5 w-3.5 text-stone-700" />
-              <span>Very simple setup</span>
+              <span className="p-1 rounded-full bg-blue-50 text-blue-700 shrink-0">
+                <Code className="h-3.5 w-3.5" />
+              </span>
+              <span>Simple Setup</span>
             </span>
             <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-[#252525] mt-1 font-sans">
-              How easy is it to set up?
+              How PreFill Works
             </h2>
           </div>
 
@@ -354,13 +383,19 @@ function SinglePageShowcaseContent() {
               <div 
                 key={step.num}
                 onClick={() => setActiveSetupStep(idx)}
-                className={`round-card-droxy p-5 cursor-pointer transition-all ${
+                className={`round-card-droxy p-5 sm:p-6 cursor-pointer transition-all ${
                   activeSetupStep === idx ? "border-stone-400 bg-white shadow-sm" : ""
                 }`}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <span className="font-mono text-xs font-bold px-2 py-1 rounded bg-stone-100 text-stone-700">
+                    <span className={`font-mono text-xs font-bold px-2.5 py-1 rounded-full border ${
+                      idx === 0 ? "bg-blue-50 text-blue-800 border-blue-200/80" :
+                      idx === 1 ? "bg-amber-50 text-amber-800 border-amber-200/80" :
+                      idx === 2 ? "bg-emerald-50 text-emerald-800 border-emerald-200/80" :
+                      idx === 3 ? "bg-rose-50 text-rose-800 border-rose-200/80" :
+                      "bg-indigo-50 text-indigo-800 border-indigo-200/80"
+                    }`}>
                       {step.num}
                     </span>
                     <h3 className="font-bold text-sm sm:text-base text-[#252525] font-sans">
@@ -381,37 +416,42 @@ function SinglePageShowcaseContent() {
 
         </section>
 
-        {/* ── 9. SAFEGUARDS & MODEL MANAGEMENT (Sensible Banner) ────── */}
-        <section className="w-full py-20 bg-white border-y border-stone-200 flex justify-center px-4">
-          <div className="max-w-4xl w-full flex flex-col items-center text-center gap-6">
-            <div className="round-card-droxy p-8 sm:p-12 w-full flex flex-col items-center gap-4 bg-ascii-dotted-grid">
+        {/* ── 9. SAFEGUARDS & MODEL MANAGEMENT ─────────────────────── */}
+        <section className="w-full py-14 sm:py-20 bg-white border-y border-stone-200 flex justify-center px-5 sm:px-8 lg:px-12">
+          <div className="max-w-5xl w-full flex flex-col items-center text-center gap-6">
+            <div className="round-card-droxy p-8 sm:p-10 w-full flex flex-col items-center gap-4 bg-ascii-dotted-grid">
               <span className="badge-droxy-pill">
-                <ShieldCheck className="h-3.5 w-3.5 text-stone-700" />
-                <span>Smart Safeguards Engine</span>
+                <span className="p-1 rounded-full bg-emerald-50 text-emerald-700 shrink-0">
+                  <ShieldCheck className="h-3.5 w-3.5" />
+                </span>
+                <span>Safeguards Engine</span>
               </span>
               <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-[#252525] font-sans">
-                Robust safeguards and consumption model management
+                Safeguards & Consumption Model Management
               </h2>
               <p className="text-xs sm:text-sm text-stone-600 max-w-2xl font-medium leading-relaxed">
-                Ground your restock agent with your platform catalog & delivery rules, ensuring messages are accurate, non-hallucinatory, and within strict safety boundaries.
+                Ground your restock agent with platform catalog & delivery rules, ensuring messages remain accurate and within strict safety boundaries.
               </p>
               <a href="#demo" className="btn-droxy-pill-primary text-xs mt-2">
-                Get started today
+                Try Prototype
               </a>
             </div>
           </div>
         </section>
 
         {/* ── 10. SCREENSHOT 3: 6-CARD VISUAL BENTO GRID ──────────────── */}
-        <section className="w-full bg-[#FAFBFB] border-y border-stone-200 flex justify-center px-4 sm:px-6">
+        <section className="w-full bg-[#FAFBFB] border-y border-stone-200 flex justify-center px-5 sm:px-8 lg:px-12">
           <PreFillBentoGrid />
         </section>
 
         {/* ── 11. PLATFORM ROI & EXECUTIVE PANEL (#platform-roi) ─────── */}
-        <section id="platform-roi" className="max-w-5xl w-full py-20 sm:py-28 px-4 sm:px-6 flex flex-col items-center">
-          <div className="text-center max-w-xl mx-auto flex flex-col items-center gap-2 mb-12">
+        <section id="platform-roi" className="max-w-6xl w-full py-14 sm:py-20 px-5 sm:px-8 lg:px-12 flex flex-col items-center">
+          <div className="text-center max-w-xl mx-auto flex flex-col items-center gap-2 mb-8 sm:mb-10">
             <span className="badge-droxy-pill">
-              Executive ROI Dashboard
+              <span className="p-1 rounded-full bg-emerald-50 text-emerald-700 shrink-0 font-extrabold text-[10px]">
+                ₹
+              </span>
+              <span>Executive ROI Dashboard</span>
             </span>
             <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight-display text-[#252525] font-sans">
               Real-time Analytics & Unit Economics
@@ -426,64 +466,14 @@ function SinglePageShowcaseContent() {
           </div>
         </section>
 
-        {/* ── 12. TESTIMONIALS SECTION (Sensible Clean Cards) ────────── */}
-        <section className="w-full py-20 bg-white border-y border-stone-200 flex justify-center px-4 sm:px-6">
-          <div className="max-w-5xl w-full flex flex-col items-center">
-            
-            <div className="text-center max-w-xl mx-auto flex flex-col items-center gap-2 mb-14">
-              <span className="badge-droxy-pill">
-                Customer feedback highlights
-              </span>
-              <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-[#252525] mt-1 font-sans">
-                What people say about us
-              </h2>
-            </div>
-
-            {/* Testimonial Cards in Clean White with Subtle Rating Accent */}
-            <div className="w-full grid grid-cols-1 md:grid-cols-3 gap-6">
-              {[
-                {
-                  name: "Rahul Sharma",
-                  handle: "@rahul_qc",
-                  text: "PreFill completely eliminated Kirana leakage for our quick commerce app. Reordering via WhatsApp is an absolute gamechanger."
-                },
-                {
-                  name: "Priya Nair",
-                  handle: "@priyanair_d2c",
-                  text: "Our 90-day retention floor jumped from 24% to 82% within 3 weeks of setting up PreFill restock agents."
-                },
-                {
-                  name: "Vikram Mehta",
-                  handle: "@vikramm_tech",
-                  text: "Can't believe how accurate the 20% depletion alert is. The morning milk WhatsApp alert arrives right when we need it."
-                }
-              ].map((t, idx) => (
-                <div key={idx} className="round-card-droxy p-6 flex flex-col justify-between gap-4">
-                  <div className="flex items-center gap-1 text-amber-500">
-                    {[...Array(5)].map((_, i) => (
-                      <Star key={i} className="h-4 w-4 fill-amber-400 text-amber-400" />
-                    ))}
-                  </div>
-                  <p className="text-xs sm:text-sm text-stone-700 font-medium leading-relaxed">
-                    &quot;{t.text}&quot;
-                  </p>
-                  <div className="flex flex-col">
-                    <span className="font-extrabold text-xs text-[#252525]">{t.name}</span>
-                    <span className="text-[11px] text-stone-500">{t.handle}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-          </div>
-        </section>
-
         {/* ── 13. FAQ ACCORDION (#faq) ───────────────────────────────── */}
-        <section id="faq" className="max-w-4xl w-full py-20 sm:py-28 px-4 sm:px-6 flex flex-col items-center">
+        <section id="faq" className="max-w-5xl w-full py-14 sm:py-20 px-5 sm:px-8 lg:px-12 flex flex-col items-center">
           
-          <div className="text-center max-w-xl mx-auto flex flex-col items-center gap-2 mb-14">
+          <div className="text-center max-w-xl mx-auto flex flex-col items-center gap-2 mb-8 sm:mb-10">
             <span className="badge-droxy-pill">
-              <FileText className="h-3.5 w-3.5 text-stone-700" />
+              <span className="p-1 rounded-full bg-blue-50 text-blue-700 shrink-0">
+                <FileText className="h-3.5 w-3.5" />
+              </span>
               <span>Common inquiries answered</span>
             </span>
             <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-[#252525] mt-1 font-sans">
@@ -496,13 +486,15 @@ function SinglePageShowcaseContent() {
               <div 
                 key={idx}
                 onClick={() => setOpenFaq(openFaq === idx ? null : idx)}
-                className="round-card-droxy p-5 cursor-pointer transition-all hover:border-stone-400"
+                className="round-card-droxy p-5 sm:p-6 cursor-pointer transition-all hover:border-stone-400"
               >
                 <div className="flex items-center justify-between">
                   <h3 className="font-bold text-sm sm:text-base text-[#252525] font-sans">
                     {faq.q}
                   </h3>
-                  <ChevronDown className={`h-4 w-4 text-stone-500 transition-transform ${openFaq === idx ? "rotate-180" : ""}`} />
+                  <span className={`p-1 rounded-lg transition-transform ${openFaq === idx ? "rotate-180 bg-blue-50 text-blue-700" : "bg-stone-100 text-stone-500"}`}>
+                    <ChevronDown className="h-4 w-4" />
+                  </span>
                 </div>
                 
                 {openFaq === idx && (
@@ -517,23 +509,23 @@ function SinglePageShowcaseContent() {
         </section>
 
         {/* ── 14. FINAL CTA BANNER & FOOTER ─────────────────────────── */}
-        <section className="w-full py-16 px-4 sm:px-6 flex justify-center bg-[#252525] text-white">
-          <div className="max-w-4xl w-full flex flex-col items-center text-center gap-6 py-6">
+        <section className="w-full py-14 sm:py-16 px-5 sm:px-8 lg:px-12 flex justify-center bg-[#252525] text-white">
+          <div className="max-w-5xl w-full flex flex-col items-center text-center gap-5 py-4">
             
             <h2 className="text-3xl sm:text-5xl font-extrabold text-white max-w-2xl font-sans tracking-tight">
-              Ready to automate your restocking revenue?
+              Ready to test PreFill restocking?
             </h2>
 
             <p className="text-xs sm:text-base text-stone-300 max-w-xl font-medium leading-relaxed">
-              Join thousands of quick commerce brands using PreFill AI to capture recurring household reorders.
+              Explore the interactive prototype stage or inspect unit economics on the executive dashboard.
             </p>
 
             <div className="flex flex-col sm:flex-row items-center gap-4 mt-2">
               <a href="#demo-stage" className="bg-white text-[#252525] font-bold text-sm px-7 py-3 rounded-full hover:bg-stone-100 transition-all cursor-pointer">
-                Start now
+                Try Prototype
               </a>
               <a href="#platform-roi" className="border border-stone-600 text-white font-bold text-sm px-7 py-3 rounded-full hover:bg-stone-800 transition-all cursor-pointer">
-                Simple Pricing
+                View ROI
               </a>
             </div>
 
@@ -543,10 +535,10 @@ function SinglePageShowcaseContent() {
       </main>
 
       {/* PreFill Clean Footer */}
-      <footer className="w-full border-t border-stone-200 bg-white py-12 px-4 text-xs text-stone-600">
-        <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8">
+      <footer className="w-full border-t border-stone-200 bg-white py-8 px-3 sm:px-6 text-xs text-stone-600">
+        <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6">
           
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-2.5">
             <div className="flex items-center gap-2.5 font-bold text-[#252525] font-sans text-base">
               <div className="h-6 w-6 rounded-lg bg-[#252525] text-white flex items-center justify-center text-xs font-extrabold">
                 P
@@ -554,7 +546,7 @@ function SinglePageShowcaseContent() {
               <span>PreFill</span>
             </div>
             <p className="text-xs text-stone-500 font-medium">
-              The all-in-one platform for customer-facing AI restocking agents across quick commerce channels.
+              Predictive grocery depletion modeling and 1-tap WhatsApp restocking engine.
             </p>
           </div>
 

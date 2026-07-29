@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useSyncExternalStore } from "react";
 import {
   Zap,
   Calendar,
@@ -51,7 +51,10 @@ const RETENTION_DATA = [
   { day: "Day 90", standard: 24, prefill: 82 },
 ];
 
+const emptySubscribe = () => () => {};
+
 export default function ExecutivePanel({ activeScenario, onScenarioChange }: ExecutivePanelProps) {
+  const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
   const [switching, setSwitching] = useState(false);
   const [realPredictions, setRealPredictions] = useState<APIPrediction[]>([]);
   const [loadingPredictions, setLoadingPredictions] = useState(true);
@@ -324,41 +327,45 @@ export default function ExecutivePanel({ activeScenario, onScenarioChange }: Exe
 
         {/* Dynamic Chart Display based on Tab */}
         <div className="h-64 w-full pt-2 min-h-[256px]">
-          <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-            {activeChartView === "gmv" ? (
-              <AreaChart data={GMV_RECOVERY_DATA} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="gmvGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10B981" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#10B981" stopOpacity={0.0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="2 2" stroke="#E5E7EB" vertical={false} />
-                <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#6B7280" }} stroke="#E5E7EB" tickLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: "#6B7280" }} stroke="#E5E7EB" tickLine={false} />
-                <Tooltip contentStyle={{ backgroundColor: "#252525", borderRadius: "10px", color: "#FFFFFF", fontSize: "11px", border: "none" }} />
-                <Area type="monotone" dataKey="recovered" stroke="#10B981" strokeWidth={3} fillOpacity={1} fill="url(#gmvGradient)" name="Recovered GMV (₹)" />
-              </AreaChart>
-            ) : activeChartView === "retention" ? (
-              <LineChart data={RETENTION_DATA} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="2 2" stroke="#E5E7EB" vertical={false} />
-                <XAxis dataKey="day" tick={{ fontSize: 11, fill: "#6B7280" }} stroke="#E5E7EB" tickLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: "#6B7280" }} stroke="#E5E7EB" domain={[0, 100]} tickLine={false} />
-                <Tooltip contentStyle={{ backgroundColor: "#252525", borderRadius: "10px", color: "#FFFFFF", fontSize: "11px", border: "none" }} />
-                <Line type="monotone" dataKey="standard" stroke="#9CA3AF" strokeWidth={2} strokeDasharray="4 4" name="Standard Churn (%)" dot={false} />
-                <Line type="monotone" dataKey="prefill" stroke="#252525" strokeWidth={3} name="PreFill Retention (%)" dot={{ r: 4, fill: "#252525" }} />
-              </LineChart>
-            ) : (
-              <BarChart data={depletionChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="2 2" stroke="#E5E7EB" vertical={false} />
-                <XAxis dataKey="day" tick={{ fontSize: 11, fill: "#6B7280" }} stroke="#E5E7EB" tickLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: "#6B7280" }} stroke="#E5E7EB" domain={[0, 105]} tickLine={false} />
-                <Tooltip contentStyle={{ backgroundColor: "#252525", borderRadius: "10px", color: "#FFFFFF", fontSize: "11px", border: "none" }} />
-                <ReferenceLine y={20} stroke="#EF4444" strokeDasharray="3 3" />
-                <Bar dataKey="stock" fill="#252525" radius={[6, 6, 0, 0]} name="Stock Remaining (%)" />
-              </BarChart>
-            )}
-          </ResponsiveContainer>
+          {mounted ? (
+            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+              {activeChartView === "gmv" ? (
+                <AreaChart data={GMV_RECOVERY_DATA} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="gmvGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#10B981" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="#10B981" stopOpacity={0.0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="2 2" stroke="#E5E7EB" vertical={false} />
+                  <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#6B7280" }} stroke="#E5E7EB" tickLine={false} />
+                  <YAxis tick={{ fontSize: 11, fill: "#6B7280" }} stroke="#E5E7EB" tickLine={false} />
+                  <Tooltip contentStyle={{ backgroundColor: "#252525", borderRadius: "10px", color: "#FFFFFF", fontSize: "11px", border: "none" }} />
+                  <Area type="monotone" dataKey="recovered" stroke="#10B981" strokeWidth={3} fillOpacity={1} fill="url(#gmvGradient)" name="Recovered GMV (₹)" />
+                </AreaChart>
+              ) : activeChartView === "retention" ? (
+                <LineChart data={RETENTION_DATA} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="2 2" stroke="#E5E7EB" vertical={false} />
+                  <XAxis dataKey="day" tick={{ fontSize: 11, fill: "#6B7280" }} stroke="#E5E7EB" tickLine={false} />
+                  <YAxis tick={{ fontSize: 11, fill: "#6B7280" }} stroke="#E5E7EB" domain={[0, 100]} tickLine={false} />
+                  <Tooltip contentStyle={{ backgroundColor: "#252525", borderRadius: "10px", color: "#FFFFFF", fontSize: "11px", border: "none" }} />
+                  <Line type="monotone" dataKey="standard" stroke="#9CA3AF" strokeWidth={2} strokeDasharray="4 4" name="Standard Churn (%)" dot={false} />
+                  <Line type="monotone" dataKey="prefill" stroke="#252525" strokeWidth={3} name="PreFill Retention (%)" dot={{ r: 4, fill: "#252525" }} />
+                </LineChart>
+              ) : (
+                <BarChart data={depletionChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="2 2" stroke="#E5E7EB" vertical={false} />
+                  <XAxis dataKey="day" tick={{ fontSize: 11, fill: "#6B7280" }} stroke="#E5E7EB" tickLine={false} />
+                  <YAxis tick={{ fontSize: 11, fill: "#6B7280" }} stroke="#E5E7EB" domain={[0, 105]} tickLine={false} />
+                  <Tooltip contentStyle={{ backgroundColor: "#252525", borderRadius: "10px", color: "#FFFFFF", fontSize: "11px", border: "none" }} />
+                  <ReferenceLine y={20} stroke="#EF4444" strokeDasharray="3 3" />
+                  <Bar dataKey="stock" fill="#252525" radius={[6, 6, 0, 0]} name="Stock Remaining (%)" />
+                </BarChart>
+              )}
+            </ResponsiveContainer>
+          ) : (
+            <div className="w-full h-full bg-stone-100/50 rounded-2xl animate-pulse" />
+          )}
         </div>
 
       </div>

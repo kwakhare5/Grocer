@@ -5,11 +5,12 @@ import { Menu, X } from "lucide-react";
 
 // ponytail: static nav array mapped over to reduce JSX repetition (-25 lines)
 const NAV_LINKS = [
+  { href: "#bento", label: "Architecture" },
   { href: "#features", label: "Features" },
-  { href: "#how-it-works", label: "How It Works" },
   { href: "#comparison", label: "Why PreFill" },
   { href: "#platform-roi", label: "Platform ROI" },
-  { href: "#faq", label: "Docs" },
+  { href: "#how-it-works", label: "How It Works" },
+  { href: "#faq", label: "FAQ" },
 ];
 
 export default function Header() {

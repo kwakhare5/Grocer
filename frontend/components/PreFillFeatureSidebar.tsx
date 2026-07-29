@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { 
   TrendingDown, 
   MessageSquare, 
@@ -8,8 +8,6 @@ import {
   Tag, 
   ShieldAlert,
   Sparkles,
-  Play,
-  Pause,
   Check,
   CheckCircle2
 } from "lucide-react";
@@ -48,38 +46,24 @@ const CONTENT_MAP: Record<string, { title: string; desc: string }> = {
 
 export default function PreFillFeatureSidebar() {
   const [activeTab, setActiveTab] = useState("depletion");
-  const [isPlaying, setIsPlaying] = useState(true);
-  const [isHovered, setIsHovered] = useState(false);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   const activeContent = CONTENT_MAP[activeTab] || CONTENT_MAP.depletion;
 
-  // Auto-play timer: cycle every 4s unless paused or hovered
+  // Continuous background auto-cycle (every 3.5s)
   useEffect(() => {
-    if (!isPlaying || isHovered) {
-      if (timerRef.current) clearInterval(timerRef.current);
-      return;
-    }
-
-    timerRef.current = setInterval(() => {
+    const timer = setInterval(() => {
       setActiveTab((prev) => {
         const currentIndex = SIDEBAR_ITEMS.findIndex((item) => item.id === prev);
         const nextIndex = (currentIndex + 1) % SIDEBAR_ITEMS.length;
         return SIDEBAR_ITEMS[nextIndex].id;
       });
-    }, 4000);
+    }, 3500);
 
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, [isPlaying, isHovered]);
+    return () => clearInterval(timer);
+  }, []);
 
   return (
-    <div 
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-      className="w-full bg-white border border-stone-200/90 rounded-3xl p-6 sm:p-10 shadow-sm relative overflow-hidden"
-    >
+    <div className="w-full bg-white border border-stone-200/90 rounded-3xl p-6 sm:p-10 shadow-sm relative overflow-hidden">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center z-10 relative">
         
         {/* Left Sidebar Menu (4 cols) */}
@@ -88,13 +72,6 @@ export default function PreFillFeatureSidebar() {
             <span className="text-[11px] font-bold text-stone-500 font-mono uppercase tracking-wider">
               Interactive Features
             </span>
-            <button
-              onClick={() => setIsPlaying(!isPlaying)}
-              className="p-1 rounded-md bg-stone-100 hover:bg-stone-200 text-stone-600 transition-colors text-[10px] font-mono flex items-center gap-1 cursor-pointer"
-            >
-              {isPlaying ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
-              <span>{isPlaying ? "Pause" : "Play"}</span>
-            </button>
           </div>
 
           {SIDEBAR_ITEMS.map((item) => {
@@ -103,10 +80,7 @@ export default function PreFillFeatureSidebar() {
             return (
               <button
                 key={item.id}
-                onClick={() => {
-                  setActiveTab(item.id);
-                  setIsPlaying(false);
-                }}
+                onClick={() => setActiveTab(item.id)}
                 className={`w-full px-4 py-3 rounded-2xl text-xs font-semibold flex items-center gap-3 transition-all cursor-pointer select-none relative overflow-hidden ${
                   isActive
                     ? "bg-white text-[#252525] shadow-xs border border-stone-800"
@@ -115,16 +89,6 @@ export default function PreFillFeatureSidebar() {
               >
                 <Icon className={`h-4 w-4 ${isActive ? "text-[#252525]" : "text-stone-400"}`} />
                 <span className="text-left font-sans flex-1 font-extrabold">{item.label}</span>
-
-                {/* Animated Progress Bar under active tab */}
-                {isActive && isPlaying && !isHovered && (
-                  <motion.div
-                    initial={{ width: "0%" }}
-                    animate={{ width: "100%" }}
-                    transition={{ duration: 4, ease: "linear" }}
-                    className="absolute bottom-0 left-0 h-0.5 bg-[#252525]"
-                  />
-                )}
               </button>
             );
           })}

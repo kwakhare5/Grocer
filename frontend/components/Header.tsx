@@ -17,7 +17,7 @@ export default function Header() {
 
   return (
     <header className="w-full bg-[#F6F7F8]/90 backdrop-blur-md border-b border-stone-200/90 fixed top-0 left-0 right-0 z-50 transition-all">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 h-15 flex items-center justify-between">
+      <div className="max-w-7xl mx-auto px-5 sm:px-8 lg:px-12 h-15 flex items-center justify-between">
         
         {/* Brand Logo */}
         <a href="#demo" className="flex items-center gap-2.5 group select-none">

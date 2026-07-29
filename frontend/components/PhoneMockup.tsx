@@ -92,13 +92,18 @@ const PRICE_SIGNALS = [
   { name: "Onions 1kg", current: 42, avg: 38, signal: "WATCH", desc: "+10% gradual rise" },
 ];
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export default function PhoneMockup({ activeScenario }: PhoneMockupProps) {
   // Host App Bottom Navigation Tabs: "home" | "quick" | "prefill" | "account"
   const [hostTab, setHostTab] = useState<"home" | "quick" | "prefill" | "account">("prefill");
 
   // PreFill Feature Sub-Tabs: "pantry" | "recipes" | "signals"
-  const [prefillSubTab, setPrefillSubTab] = useState<"pantry" | "recipes" | "signals">("pantry");
+  const [userSelectedTab, setUserSelectedTab] = useState<"pantry" | "recipes" | "signals" | null>(null);
+
+  // Derive active sub-tab from parent scenario unless user explicitly clicked a tab
+  const prefillSubTab = userSelectedTab ?? (
+    activeScenario === "recipe_smart_cart" ? "recipes" :
+    activeScenario === "price_dip_buy" ? "signals" : "pantry"
+  );
 
   const [itemQuantities, setItemQuantities] = useState<Record<string, number>>({});
   const [selectedRecipe, setSelectedRecipe] = useState<"biryani" | "dal" | "paneer" | "oats">("biryani");
@@ -128,7 +133,7 @@ export default function PhoneMockup({ activeScenario }: PhoneMockupProps) {
   }, [hostTab]);
 
   const handleSelectSubTab = (tabKey: "pantry" | "recipes" | "signals") => {
-    setPrefillSubTab(tabKey);
+    setUserSelectedTab(tabKey);
     setSearchQuery("");
   };
 

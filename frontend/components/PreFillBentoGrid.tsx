@@ -10,6 +10,7 @@ import {
   ArrowRight,
   MessageSquare
 } from "lucide-react";
+import { motion } from "framer-motion";
 
 const TRACKED_ITEMS = [
   { code: "MILK", name: "Fresh Milk 1L", depletion: "24h left", pct: 20, color: "bg-rose-500" },
@@ -25,20 +26,32 @@ export default function PreFillBentoGrid() {
     <div className="w-full max-w-6xl py-14 sm:py-20 flex flex-col items-center">
       
       {/* Header */}
-      <div className="text-center max-w-xl mx-auto flex flex-col items-center gap-2 mb-8 sm:mb-10">
+      <motion.div 
+        initial={{ opacity: 0, y: 15 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.5 }}
+        className="text-center max-w-xl mx-auto flex flex-col items-center gap-2 mb-8 sm:mb-10"
+      >
         <span className="badge-droxy-pill">
           Core Engine Architecture
         </span>
         <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight-display text-[#252525] mt-1 font-sans">
           How PreFill Powers Proactive Restocking
         </h2>
-      </div>
+      </motion.div>
 
       {/* Asymmetric 6-Card Bento Grid */}
       <div className="w-full grid grid-cols-1 md:grid-cols-12 gap-6">
         
         {/* Card 1: Prophet Consumption Velocity (4 cols) */}
-        <div className="md:col-span-4 card-neutral-droxy flex flex-col justify-between gap-5 bg-white relative overflow-hidden">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5, delay: 0.1 }}
+          className="md:col-span-4 card-neutral-droxy flex flex-col justify-between gap-5 bg-white relative overflow-hidden hover:border-stone-400 transition-all"
+        >
           <div className="flex flex-col gap-2">
             <div className="flex items-center gap-2">
               <span className="p-2 rounded-xl bg-blue-50 text-blue-700 border border-blue-200/80">
@@ -68,10 +81,16 @@ export default function PreFillBentoGrid() {
               </div>
             ))}
           </div>
-        </div>
+        </motion.div>
 
         {/* Card 2: LangGraph State Persistence (4 cols) */}
-        <div className="md:col-span-4 card-neutral-droxy flex flex-col justify-between gap-5 bg-white relative overflow-hidden">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5, delay: 0.2 }}
+          className="md:col-span-4 card-neutral-droxy flex flex-col justify-between gap-5 bg-white relative overflow-hidden hover:border-stone-400 transition-all"
+        >
           <div className="flex flex-col gap-2">
             <div className="flex items-center gap-2">
               <span className="p-2 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200/80">
@@ -100,10 +119,16 @@ export default function PreFillBentoGrid() {
               <span className="text-stone-900 font-bold font-mono">1,291 Active</span>
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* Card 3: Universal API Webhooks (4 cols) */}
-        <div className="md:col-span-4 card-neutral-droxy flex flex-col justify-between gap-5 bg-white relative overflow-hidden">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5, delay: 0.3 }}
+          className="md:col-span-4 card-neutral-droxy flex flex-col justify-between gap-5 bg-white relative overflow-hidden hover:border-stone-400 transition-all"
+        >
           <div className="flex flex-col gap-2">
             <div className="flex items-center gap-2">
               <span className="p-2 rounded-xl bg-amber-50 text-amber-700 border border-amber-200/80">
@@ -131,10 +156,16 @@ export default function PreFillBentoGrid() {
               WhatsApp
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* Card 4: 1-Tap WhatsApp Trigger (7 cols) */}
-        <div className="md:col-span-7 card-neutral-droxy flex flex-col justify-between gap-5 bg-white relative overflow-hidden">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5, delay: 0.2 }}
+          className="md:col-span-7 card-neutral-droxy flex flex-col justify-between gap-5 bg-white relative overflow-hidden hover:border-stone-400 transition-all"
+        >
           <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -164,15 +195,21 @@ export default function PreFillBentoGrid() {
             <div className="p-3 rounded-xl bg-white border border-stone-200/90 text-xs text-stone-800 shadow-2xs leading-relaxed">
               👋 Hi Rahul! Your <span className="font-bold text-[#252525]">Fresh Milk 1L</span> is at 20% threshold. Tap below to confirm restock for morning delivery (₹64).
             </div>
-            <div className="inline-flex items-center gap-2 self-start bg-emerald-700 text-white text-xs font-bold px-4 py-2 rounded-full shadow-xs cursor-pointer hover:bg-emerald-800 transition-all">
+            <div className="inline-flex items-center gap-2 self-start bg-emerald-700 text-white text-xs font-bold px-4 py-2 rounded-full shadow-xs cursor-pointer hover:bg-emerald-800 transition-all active:scale-95">
               <CheckCircle2 className="h-3.5 w-3.5" />
               <span>Confirm Restock Order</span>
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* Card 5: Anomaly Spike Exclusion (5 cols) */}
-        <div className="md:col-span-5 card-neutral-droxy flex flex-col justify-between gap-5 bg-white relative overflow-hidden">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5, delay: 0.3 }}
+          className="md:col-span-5 card-neutral-droxy flex flex-col justify-between gap-5 bg-white relative overflow-hidden hover:border-stone-400 transition-all"
+        >
           <div className="flex flex-col gap-2">
             <div className="flex items-center gap-2">
               <span className="p-2 rounded-xl bg-rose-50 text-rose-700 border border-rose-200/80">
@@ -218,7 +255,7 @@ export default function PreFillBentoGrid() {
                 </span>
               </div>
             </div>
-        </div>
+        </motion.div>
 
       </div>
 

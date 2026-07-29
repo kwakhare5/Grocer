@@ -7,7 +7,7 @@ import ExecutivePanel from "../components/ExecutivePanel";
 import PreFillFeatureSidebar from "../components/PreFillFeatureSidebar";
 import PreFillPracticalUse from "../components/PreFillPracticalUse";
 import PreFillBentoGrid from "../components/PreFillBentoGrid";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   MessageSquare,
   Cpu,
@@ -302,7 +302,14 @@ function SinglePageShowcaseContent() {
         </section>
 
         {/* ── 6. PERFORMANCE COMPARISON (#comparison) ──── */}
-        <section id="comparison" className="max-w-6xl w-full py-14 sm:py-20 px-5 sm:px-8 lg:px-12 flex flex-col items-center">
+        <motion.section 
+          id="comparison" 
+          initial={{ opacity: 0, y: 25 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5 }}
+          className="max-w-6xl w-full py-14 sm:py-20 px-5 sm:px-8 lg:px-12 flex flex-col items-center"
+        >
 
           <div className="text-center max-w-xl mx-auto flex flex-col items-center gap-2 mb-8 sm:mb-10">
             <span className="badge-droxy-pill">
@@ -317,7 +324,7 @@ function SinglePageShowcaseContent() {
           </div>
 
           {/* Comparison Table Card */}
-          <div className="w-full round-card-droxy p-0 overflow-hidden shadow-sm">
+          <div className="w-full round-card-droxy p-0 overflow-hidden shadow-sm hover:border-stone-400 transition-all">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs sm:text-sm">
                 <thead>
@@ -366,10 +373,17 @@ function SinglePageShowcaseContent() {
             <a href="#platform-roi" className="btn-droxy-pill-secondary text-xs">View ROI</a>
           </div>
 
-        </section>
+        </motion.section>
 
         {/* ── 7. PLATFORM ROI & EXECUTIVE PANEL (#platform-roi) ─────── */}
-        <section id="platform-roi" className="max-w-6xl w-full py-14 sm:py-20 px-5 sm:px-8 lg:px-12 flex flex-col items-center">
+        <motion.section 
+          id="platform-roi" 
+          initial={{ opacity: 0, y: 25 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5 }}
+          className="max-w-6xl w-full py-14 sm:py-20 px-5 sm:px-8 lg:px-12 flex flex-col items-center"
+        >
           <div className="text-center max-w-xl mx-auto flex flex-col items-center gap-2 mb-8 sm:mb-10">
             <span className="badge-droxy-pill">
               <span className="p-1 rounded-full bg-emerald-50 text-emerald-700 shrink-0 font-extrabold text-[10px]">
@@ -388,10 +402,17 @@ function SinglePageShowcaseContent() {
               onScenarioChange={(s) => setActiveScenario(s)}
             />
           </div>
-        </section>
+        </motion.section>
 
         {/* ── 8. SETUP GUIDE (5-STEP ACCORDION) (#how-it-works) ──────── */}
-        <section id="how-it-works" className="max-w-6xl w-full py-14 sm:py-20 px-5 sm:px-8 lg:px-12 flex flex-col items-center">
+        <motion.section 
+          id="how-it-works" 
+          initial={{ opacity: 0, y: 25 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5 }}
+          className="max-w-6xl w-full py-14 sm:py-20 px-5 sm:px-8 lg:px-12 flex flex-col items-center"
+        >
 
           <div className="text-center max-w-xl mx-auto flex flex-col items-center gap-2 mb-8 sm:mb-10">
             <span className="badge-droxy-pill">
@@ -432,21 +453,35 @@ function SinglePageShowcaseContent() {
                   <ChevronDown className={`h-4 w-4 text-stone-500 transition-transform ${activeSetupStep === idx ? "rotate-180" : ""}`} />
                 </div>
 
-                {activeSetupStep === idx && (
-                  <p className="mt-3 text-xs sm:text-sm text-stone-600 font-medium leading-relaxed pl-10 border-l-2 border-stone-800">
-                    {step.desc}
-                  </p>
-                )}
+                <AnimatePresence>
+                  {activeSetupStep === idx && (
+                    <motion.p 
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      exit={{ opacity: 0, height: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="mt-3 text-xs sm:text-sm text-stone-600 font-medium leading-relaxed pl-10 border-l-2 border-stone-800"
+                    >
+                      {step.desc}
+                    </motion.p>
+                  )}
+                </AnimatePresence>
               </div>
             ))}
           </div>
 
-        </section>
+        </motion.section>
 
         {/* ── 9. SAFEGUARDS & MODEL MANAGEMENT ─────────────────────── */}
-        <section className="w-full py-14 sm:py-20 bg-white border-y border-stone-200 flex justify-center px-5 sm:px-8 lg:px-12">
+        <motion.section 
+          initial={{ opacity: 0, y: 25 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5 }}
+          className="w-full py-14 sm:py-20 bg-white border-y border-stone-200 flex justify-center px-5 sm:px-8 lg:px-12"
+        >
           <div className="max-w-5xl w-full flex flex-col items-center text-center gap-6">
-            <div className="round-card-droxy p-8 sm:p-10 w-full flex flex-col items-center gap-4 bg-ascii-dotted-grid">
+            <div className="round-card-droxy p-8 sm:p-10 w-full flex flex-col items-center gap-4 bg-ascii-dotted-grid hover:border-stone-400 transition-all">
               <span className="badge-droxy-pill">
                 <span className="p-1 rounded-full bg-emerald-50 text-emerald-700 shrink-0">
                   <ShieldCheck className="h-3.5 w-3.5" />
@@ -464,10 +499,17 @@ function SinglePageShowcaseContent() {
               </a>
             </div>
           </div>
-        </section>
+        </motion.section>
 
         {/* ── 10. FAQ ACCORDION (#faq) ───────────────────────────────── */}
-        <section id="faq" className="max-w-5xl w-full py-14 sm:py-20 px-5 sm:px-8 lg:px-12 flex flex-col items-center">
+        <motion.section 
+          id="faq" 
+          initial={{ opacity: 0, y: 25 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5 }}
+          className="max-w-5xl w-full py-14 sm:py-20 px-5 sm:px-8 lg:px-12 flex flex-col items-center"
+        >
 
           <div className="text-center max-w-xl mx-auto flex flex-col items-center gap-2 mb-8 sm:mb-10">
             <span className="badge-droxy-pill">
@@ -497,19 +539,33 @@ function SinglePageShowcaseContent() {
                   </span>
                 </div>
 
-                {openFaq === idx && (
-                  <p className="mt-3 text-xs sm:text-sm text-stone-600 font-medium leading-relaxed border-t border-stone-100 pt-3">
-                    {faq.a}
-                  </p>
-                )}
+                <AnimatePresence>
+                  {openFaq === idx && (
+                    <motion.p 
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      exit={{ opacity: 0, height: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="mt-3 text-xs sm:text-sm text-stone-600 font-medium leading-relaxed border-t border-stone-100 pt-3"
+                    >
+                      {faq.a}
+                    </motion.p>
+                  )}
+                </AnimatePresence>
               </div>
             ))}
           </div>
 
-        </section>
+        </motion.section>
 
         {/* ── 11. FINAL CTA BANNER & FOOTER ─────────────────────────── */}
-        <section className="w-full py-14 sm:py-16 px-5 sm:px-8 lg:px-12 flex justify-center bg-[#252525] text-white">
+        <motion.section 
+          initial={{ opacity: 0, y: 25 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5 }}
+          className="w-full py-14 sm:py-16 px-5 sm:px-8 lg:px-12 flex justify-center bg-[#252525] text-white"
+        >
           <div className="max-w-5xl w-full flex flex-col items-center text-center gap-5 py-4">
 
             <h2 className="text-3xl sm:text-5xl font-extrabold text-white max-w-2xl font-sans tracking-tight">
@@ -530,7 +586,7 @@ function SinglePageShowcaseContent() {
             </div>
 
           </div>
-        </section>
+        </motion.section>
 
       </main>
 

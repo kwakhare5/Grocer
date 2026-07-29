@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { CheckCircle2, PhoneCall, User, Wrench } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 // ponytail: static tabs array moved outside component body to avoid re-allocation on render
 const PRACTICAL_TABS = [
@@ -67,7 +68,13 @@ export default function PreFillPracticalUse() {
     <div className="w-full max-w-6xl py-14 sm:py-20 flex flex-col items-center">
       
       {/* Badge & H2 */}
-      <div className="text-center max-w-xl mx-auto flex flex-col items-center gap-2 mb-8 sm:mb-10">
+      <motion.div 
+        initial={{ opacity: 0, y: 15 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.5 }}
+        className="text-center max-w-xl mx-auto flex flex-col items-center gap-2 mb-8 sm:mb-10"
+      >
         <span className="badge-droxy-pill">
           <Wrench className="h-3.5 w-3.5 text-stone-700" />
           <span>Practical use cases</span>
@@ -75,10 +82,16 @@ export default function PreFillPracticalUse() {
         <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight-display text-[#252525] mt-1 font-sans">
           How PreFill Manages Household Inventory
         </h2>
-      </div>
+      </motion.div>
 
       {/* Horizontal Pill Bar */}
-      <div className="w-full flex items-center justify-center overflow-x-auto no-scrollbar py-1 mb-6 sm:mb-8">
+      <motion.div 
+        initial={{ opacity: 0, y: 15 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.5, delay: 0.1 }}
+        className="w-full flex items-center justify-center overflow-x-auto no-scrollbar py-1 mb-6 sm:mb-8"
+      >
         <div className="bg-stone-200/70 p-1.5 rounded-full flex items-center gap-1.5 shrink-0 border border-stone-300/60">
           {PRACTICAL_TABS.map((t, idx) => (
             <button
@@ -94,25 +107,42 @@ export default function PreFillPracticalUse() {
             </button>
           ))}
         </div>
-      </div>
+      </motion.div>
 
       {/* Card Content (Neutral White Styled) */}
-      <div className="w-full card-neutral-droxy p-6 sm:p-8 flex flex-col lg:flex-row items-center justify-between gap-6 sm:gap-8 bg-ascii-dotted-grid relative overflow-hidden">
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.5, delay: 0.2 }}
+        className="w-full card-neutral-droxy p-6 sm:p-8 flex flex-col lg:flex-row items-center justify-between gap-6 sm:gap-8 bg-ascii-dotted-grid relative overflow-hidden hover:border-stone-400 transition-all"
+      >
         
         {/* Left Bullet Points */}
         <div className="flex-1 flex flex-col items-start gap-6">
-          <h3 className="text-2xl sm:text-3xl font-extrabold font-sans tracking-tight title-accent text-[#252525]">
-            {currentTab.title}
-          </h3>
+          <AnimatePresence mode="wait">
+            <motion.div 
+              key={activeTab}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.25 }}
+              className="flex flex-col gap-4 items-start"
+            >
+              <h3 className="text-2xl sm:text-3xl font-extrabold font-sans tracking-tight title-accent text-[#252525]">
+                {currentTab.title}
+              </h3>
 
-          <div className="flex flex-col gap-4">
-            {currentTab.bullets.map((b, i) => (
-              <div key={i} className="flex items-start gap-3 text-xs sm:text-sm text-stone-700 font-medium leading-relaxed">
-                <CheckCircle2 className="h-4 w-4 text-[#252525] shrink-0 mt-0.5" />
-                <span>{b}</span>
+              <div className="flex flex-col gap-4">
+                {currentTab.bullets.map((b, i) => (
+                  <div key={i} className="flex items-start gap-3 text-xs sm:text-sm text-stone-700 font-medium leading-relaxed">
+                    <CheckCircle2 className="h-4 w-4 text-[#252525] shrink-0 mt-0.5" />
+                    <span>{b}</span>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            </motion.div>
+          </AnimatePresence>
 
           <a href="#demo-stage" className="btn-droxy-pill-primary text-xs mt-2">
             Try Interactive Prototype
@@ -161,7 +191,7 @@ export default function PreFillPracticalUse() {
 
         </div>
 
-      </div>
+      </motion.div>
 
     </div>
   );

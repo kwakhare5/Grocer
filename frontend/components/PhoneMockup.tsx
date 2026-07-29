@@ -310,20 +310,20 @@ export default function PhoneMockup({ activeScenario }: PhoneMockupProps) {
   );
 
   return (
-    <div className="flex flex-col items-center gap-2 w-[305px] h-[638px] aspect-[71.5/149.6] shrink-0 mx-auto select-none overflow-hidden rounded-[42px]">
+    <div className="flex flex-col items-center gap-2 w-[275px] h-[575px] aspect-[71.5/149.6] shrink-0 mx-auto select-none overflow-hidden rounded-[38px]">
 
       {/* Magic UI iPhone Mockup Frame */}
       <Iphone className="drop-shadow-2xl w-full h-full">
-        <div className="w-full h-full bg-[#F6F7F8] flex flex-col relative pt-9 pb-0 overflow-hidden select-none">
+        <div className="w-full h-full bg-[#F6F7F8] flex flex-col relative pt-8 pb-0 overflow-hidden select-none">
 
           {/* Authentic Real iOS Top Status Bar */}
-          <div className="absolute top-0 left-0 right-0 h-9 px-4.5 pt-1 flex items-center justify-between z-40 bg-[#F6F7F8]/90 backdrop-blur-md text-[#252525] font-sans border-b border-[#E5E7EB]">
-            <span className="text-[11.5px] font-extrabold tracking-tight text-[#252525] font-sans ml-1">9:41</span>
+          <div className="absolute top-0 left-0 right-0 h-8 px-3.5 pt-0.5 flex items-center justify-between z-40 bg-[#F6F7F8]/90 backdrop-blur-md text-[#252525] font-sans border-b border-[#E5E7EB]">
+            <span className="text-[10.5px] font-extrabold tracking-tight text-[#252525] font-sans ml-1">9:41</span>
 
-            <div className="flex items-center gap-2 mr-1">
+            <div className="flex items-center gap-1.5 mr-1">
               {/* Cellular Signal Icon */}
-              <div className="h-3.5 w-3.5 flex items-center justify-center shrink-0">
-                <svg className="h-3.5 w-3.5 text-[#252525]" viewBox="0 0 24 24" fill="currentColor">
+              <div className="h-3 w-3 flex items-center justify-center shrink-0">
+                <svg className="h-3 w-3 text-[#252525]" viewBox="0 0 24 24" fill="currentColor">
                   <rect x="3" y="15" width="3" height="5" rx="0.8" />
                   <rect x="8" y="11" width="3" height="9" rx="0.8" />
                   <rect x="13" y="7" width="3" height="13" rx="0.8" />
@@ -332,44 +332,44 @@ export default function PhoneMockup({ activeScenario }: PhoneMockupProps) {
               </div>
 
               {/* Wi-Fi Icon */}
-              <div className="h-3.5 w-3.5 flex items-center justify-center shrink-0">
-                <svg className="h-3.5 w-3.5 text-[#252525]" viewBox="0 0 24 24" fill="currentColor">
+              <div className="h-3 w-3 flex items-center justify-center shrink-0">
+                <svg className="h-3 w-3 text-[#252525]" viewBox="0 0 24 24" fill="currentColor">
                   <path d="m1 9l2 2c4.97-4.97 13.03-4.97 18 0l2-2C16.93 2.93 7.08 2.93 1 9m8 8l3 3l3-3a4.237 4.237 0 0 0-6 0m-4-4l2 2a7.074 7.074 0 0 1 10 0l2-2C15.14 9.14 8.87 9.14 5 13" />
                 </svg>
               </div>
 
               {/* Battery Icon */}
-              <div className="h-3.5 w-3.5 flex items-center justify-center shrink-0">
-                <svg className="h-3.5 w-3.5 text-[#252525]" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M17 7a3 3 0 0 1 3 3a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1a3 3 0 0 1-3 3H3a3 3 0 0 1-3-3v-4a3 3 0 0 1 3-3zm-1 2H3a1 1 0 0 0-1 1v4a1 1 0 0 0 1 1h13a1 1 0 0 0 1-1v-4a1 1 0 0 0-1-1m-11 1.5h3v3H5zm4.5 0h3v3h-3z" />
+              <div className="h-3 w-3 flex items-center justify-center shrink-0">
+                <svg className="h-3 w-3 text-[#252525]" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M17 7a3 3 0 0 1 3 3a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1a3 3 0 0 1-3 3H3a3 3 0 0 1-3-3v-4a3 3 0 0 1 3-3zm-1 2H3a1 1 0 0 0-1 1v4a1 1 0 0 0 1 1h13a1 1 0 0 1 1-1v-4a1 1 0 0 0-1-1m-11 1.5h3v3H5zm4.5 0h3v3h-3z" />
                 </svg>
               </div>
             </div>
           </div>
 
           {/* Clean App Header */}
-          <div className="bg-[#FFFFFF] border-b border-[#E5E7EB] px-2.5 pt-1.5 pb-2 flex flex-col gap-1.5 z-30 shrink-0 shadow-2xs">
+          <div className="bg-[#FFFFFF] border-b border-[#E5E7EB] px-2.5 pt-1.5 pb-1.5 flex flex-col gap-1 z-30 shrink-0 shadow-2xs">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1 text-[11.5px] font-bold text-[#252525] font-display">
+              <div className="flex items-center gap-1 text-[11px] font-bold text-[#252525] font-display">
                 {restockedState ? (
                   <div className="flex items-center gap-1 text-[#15803D] font-bold truncate">
-                    <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-                    <span className="truncate max-w-[170px]">Order #4029 Dispatched · 6 MINS</span>
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                    <span className="truncate max-w-[155px]">Order #4029 Dispatched · 6 MINS</span>
                   </div>
                 ) : (
                   <>
                     <MapPin className="h-3.5 w-3.5 text-[#15803D] shrink-0" />
-                    <span className="truncate max-w-[170px]">Green Park · 10 MINS</span>
+                    <span className="truncate max-w-[155px]">Green Park · 10 MINS</span>
                   </>
                 )}
               </div>
-              <div className="h-5.5 w-5.5 rounded-full bg-[#252525] text-white font-bold text-[10px] flex items-center justify-center font-display shadow-2xs">
+              <div className="h-5.5 w-5.5 rounded-full bg-[#252525] text-white font-bold text-[9.5px] flex items-center justify-center font-display shadow-2xs">
                 K
               </div>
             </div>
 
             {/* App Search Bar */}
-            <div className="bg-[#F3F4F6] rounded-full px-3 py-1 h-7 flex items-center gap-1.5 border border-[#E5E7EB]">
+            <div className="bg-[#F3F4F6] rounded-full px-2.5 py-0.5 h-6.5 flex items-center gap-1.5 border border-[#E5E7EB]">
               <Search className="h-3.5 w-3.5 text-[#64717E] shrink-0" />
               <input
                 type="text"
@@ -383,7 +383,7 @@ export default function PhoneMockup({ activeScenario }: PhoneMockupProps) {
 
           {/* PreFill Feature Segmented Sub-Tabs Bar (Uniform 3-Tab Control) */}
           {hostTab === "prefill" && (
-            <div className="bg-[#F6F7F8] border-b border-[#E5E7EB] px-2.5 py-1.5 grid grid-cols-3 gap-1 z-30 shrink-0">
+            <div className="bg-[#F6F7F8] border-b border-[#E5E7EB] px-2 py-1 grid grid-cols-3 gap-1 z-30 shrink-0">
               {(["pantry", "recipes", "signals"] as const).map((tabKey) => {
                 const isActive = prefillSubTab === tabKey;
                 const IconComponent = tabKey === "pantry" ? ShoppingCart : tabKey === "recipes" ? ChefHat : Tag;
@@ -394,7 +394,7 @@ export default function PhoneMockup({ activeScenario }: PhoneMockupProps) {
                     key={tabKey}
                     onClick={() => handleSelectSubTab(tabKey)}
                     className={clsx(
-                      "h-8 w-full rounded-lg text-[10px] font-bold font-display cursor-pointer transition-all duration-200 active:scale-95 flex items-center justify-center gap-1.5 relative border",
+                      "h-7.5 w-full rounded-lg text-[10px] font-bold font-display cursor-pointer transition-all duration-200 active:scale-95 flex items-center justify-center gap-1 relative border",
                       isActive
                         ? "bg-[#252525] text-white border-[#252525] shadow-2xs"
                         : "bg-white text-[#64717E] border-[#E5E7EB] hover:border-slate-300 hover:text-[#252525]"
@@ -413,23 +413,23 @@ export default function PhoneMockup({ activeScenario }: PhoneMockupProps) {
 
             {/* TAB: PREFILL SMART PANTRY MODULE */}
             {hostTab === "prefill" && (
-              <div className="p-2.5 flex flex-col gap-2 pb-24">
+              <div className="p-2.5 flex flex-col gap-2 pb-20">
 
                 {/* SUB-TAB VIEW 1: PANTRY STOCK DEPLETION */}
                 {prefillSubTab === "pantry" && (
                   <div className="flex flex-col gap-2">
-                    <span className="text-[8.5px] font-bold uppercase tracking-wider text-[#64717E] font-display">Pantry Stock Depletion</span>
+                    <span className="text-[9px] font-bold uppercase tracking-wider text-[#64717E] font-display">Pantry Stock Depletion</span>
                     {filteredStaples.length === 0 ? (
                       <div className="rounded-xl border border-[#E5E7EB] bg-white p-2.5 text-center flex flex-col items-center gap-1.5 shadow-2xs hover:border-slate-300 transition-all">
                         <Search className="h-4 w-4 text-[#64717E]" />
-                        <span className="text-[10.5px] font-bold text-[#252525] font-display">No active depletion for &quot;{searchQuery}&quot;</span>
-                        <span className="text-[9px] text-[#64717E]">Tap below to add this item to your Prophet ML consumption profile.</span>
+                        <span className="text-[11px] font-bold text-[#252525] font-display">No active depletion for &quot;{searchQuery}&quot;</span>
+                        <span className="text-[9.5px] text-[#64717E]">Tap below to add this item to your Prophet ML consumption profile.</span>
                         <button
                           onClick={() => {
                             toast.success(`Added "${searchQuery}" to Consumption Profile`);
                             setSearchQuery("");
                           }}
-                          className="bg-[#15803D] hover:bg-emerald-700 text-white font-extrabold text-[9px] px-3 py-1 h-6.5 rounded-md shadow-2xs active:scale-95 transition-all cursor-pointer mt-0.5"
+                          className="bg-[#15803D] hover:bg-emerald-700 text-white font-extrabold text-[9.5px] px-3 py-1 h-6.5 rounded-md shadow-2xs active:scale-95 transition-all cursor-pointer mt-0.5"
                         >
                           + Add to Consumption Tracker
                         </button>
@@ -443,22 +443,22 @@ export default function PhoneMockup({ activeScenario }: PhoneMockupProps) {
 
                         return (
                           <div key={item.id} className="rounded-xl border border-[#E5E7EB] bg-white p-2.5 flex items-center justify-between gap-2 shadow-2xs hover:border-slate-300 active:scale-[0.99] transition-all">
-                            <div className="flex items-center gap-2.5 min-w-0">
-                              <div className={clsx("h-8 w-8 rounded-lg shrink-0 border flex items-center justify-center", item.category === "dairy" ? "bg-blue-50 text-blue-600 border-blue-100" : item.category === "produce" ? "bg-rose-50 text-rose-600 border-rose-100" : item.category === "poultry" ? "bg-amber-50 text-amber-600 border-amber-100" : "bg-emerald-50 text-emerald-600 border-emerald-100")}>
-                                <IconComponent className="h-4 w-4" />
+                            <div className="flex items-center gap-2 min-w-0">
+                              <div className={clsx("h-7.5 w-7.5 rounded-lg shrink-0 border flex items-center justify-center", item.category === "dairy" ? "bg-blue-50 text-blue-600 border-blue-100" : item.category === "produce" ? "bg-rose-50 text-rose-600 border-rose-100" : item.category === "poultry" ? "bg-amber-50 text-amber-600 border-amber-100" : "bg-emerald-50 text-emerald-600 border-emerald-100")}>
+                                <IconComponent className="h-3.5 w-3.5" />
                               </div>
                               <div className="flex flex-col min-w-0 justify-center">
-                                <span className="font-bold text-[11.5px] text-[#252525] font-display truncate leading-tight">{item.name}</span>
+                                <span className="font-bold text-[11px] text-[#252525] font-display truncate leading-tight">{item.name}</span>
                                 <span className="text-[9px] font-semibold text-[#64717E] truncate leading-tight mt-0.5">{item.avg} · {item.days}d left</span>
 
-                                <div className="flex items-center gap-1.5 mt-1">
-                                  <div className="w-16 h-1.5 bg-[#F3F4F6] rounded-full overflow-hidden border border-[#E5E7EB]">
+                                <div className="flex items-center gap-2 mt-1">
+                                  <div className="w-16 h-1.5 bg-[#F3F4F6] rounded-full overflow-hidden border border-stone-200/60">
                                     <div
                                       className={clsx("h-full rounded-full transition-all duration-500", isDanger ? "bg-[#BE123C]" : isWarning ? "bg-[#C2410C]" : "bg-[#15803D]")}
                                       style={{ width: `${item.fillPct}%` }}
                                     />
                                   </div>
-                                  <span className={clsx("text-[9px] px-2 py-0.5 font-extrabold rounded-full border leading-none tracking-tight", isDanger ? "bg-rose-100/80 text-rose-800 border-rose-300/80" : isWarning ? "bg-amber-100/80 text-amber-800 border-amber-300/80" : "bg-emerald-100/80 text-emerald-800 border-emerald-300/80")}>
+                                  <span className={clsx("text-[9.5px] px-2 py-0.5 font-mono font-bold rounded-full border leading-none tracking-tight inline-flex items-center justify-center", isDanger ? "bg-rose-50 text-rose-700 border-rose-200" : isWarning ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-emerald-50 text-emerald-700 border-emerald-200")}>
                                     {item.fillPct}%
                                   </span>
                                 </div>
@@ -474,7 +474,7 @@ export default function PhoneMockup({ activeScenario }: PhoneMockupProps) {
                                   animate={{ scale: 1, opacity: 1 }}
                                   exit={{ scale: 0.9, opacity: 0 }}
                                   transition={{ duration: 0.12 }}
-                                  className="flex items-center gap-1.5 bg-[#15803D] text-white rounded-lg px-2 h-7 shrink-0 shadow-2xs"
+                                  className="flex items-center gap-1 bg-[#15803D] text-white rounded-lg px-2 h-7 shrink-0 shadow-2xs"
                                 >
                                   <button onClick={(e) => updateQuantity(item.name, -1, e)} className="p-0.5 cursor-pointer hover:text-slate-200 active:scale-95 transition-transform">
                                     <Minus className="h-3 w-3" />
@@ -509,19 +509,19 @@ export default function PhoneMockup({ activeScenario }: PhoneMockupProps) {
                 {prefillSubTab === "recipes" && (
                   <div className="flex flex-col gap-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-[8.5px] font-bold uppercase tracking-wider text-[#64717E] font-display flex items-center gap-1">
+                      <span className="text-[9px] font-bold uppercase tracking-wider text-[#64717E] font-display flex items-center gap-1">
                         <ChefHat className="h-3.5 w-3.5 text-[#252525]" /> Recipe Checker
                       </span>
                     </div>
 
                     {/* Equal-Width 4-Column Dish Selector Grid */}
-                    <div className="grid grid-cols-4 gap-1.5 w-full py-0.5">
+                    <div className="grid grid-cols-4 gap-1 w-full py-0.5">
                       {(["biryani", "dal", "paneer", "oats"] as const).map((rKey) => (
                         <button
                           key={rKey}
                           onClick={() => handleSelectRecipe(rKey)}
                           className={clsx(
-                            "h-8 w-full px-1 text-[10px] font-bold font-display cursor-pointer transition-all active:scale-95 capitalize rounded-lg flex items-center justify-center border",
+                            "h-7.5 w-full px-1 text-[10px] font-bold font-display cursor-pointer transition-all active:scale-95 capitalize rounded-lg flex items-center justify-center border",
                             selectedRecipe === rKey
                               ? "bg-[#252525] text-white border-[#252525] shadow-2xs"
                               : "bg-white text-[#64717E] border-[#E5E7EB] hover:border-slate-300 hover:text-[#252525]"
@@ -532,10 +532,10 @@ export default function PhoneMockup({ activeScenario }: PhoneMockupProps) {
                       ))}
                     </div>
 
-                    <div className="rounded-xl border border-[#E5E7EB] bg-white p-2.5 flex flex-col gap-2 shadow-2xs hover:border-slate-300 transition-all">
+                    <div className="rounded-xl border border-[#E5E7EB] bg-white p-2.5 flex flex-col gap-1.5 shadow-2xs hover:border-slate-300 transition-all">
                       <div className="flex items-center justify-between">
                         <span className="font-bold text-[11px] text-[#252525] font-display">{currentRecipe.dish}</span>
-                        <span className="text-[8.5px] font-semibold text-[#64717E]">{currentRecipe.servings} servings · {currentRecipe.prepTime}</span>
+                        <span className="text-[9px] font-semibold text-[#64717E]">{currentRecipe.servings} servings · {currentRecipe.prepTime}</span>
                       </div>
                       <div className="flex flex-col divide-y divide-[#E5E7EB]/60">
                         {currentRecipe.ingredients.map((ing) => {
@@ -547,7 +547,7 @@ export default function PhoneMockup({ activeScenario }: PhoneMockupProps) {
                               key={ing.name}
                               onClick={() => isMissingOrLow && toggleIngredientSelection(ing.name)}
                               className={clsx(
-                                "py-1.5 px-1 flex items-center justify-between text-[9.5px] transition-colors rounded-md",
+                                "py-1 px-1 flex items-center justify-between text-[9.5px] transition-colors rounded-md",
                                 isMissingOrLow ? "cursor-pointer hover:bg-[#F6F7F8]" : "opacity-80"
                               )}
                             >
@@ -565,11 +565,11 @@ export default function PhoneMockup({ activeScenario }: PhoneMockupProps) {
                               </div>
                               <span
                                 className={clsx(
-                                  "text-[8.5px] px-2 py-0.5 font-extrabold rounded-full border leading-none",
+                                  "text-[9.5px] px-2 py-0.5 font-mono font-bold rounded-full border leading-none inline-flex items-center justify-center",
                                   ing.status === "have"
-                                    ? "bg-emerald-100/80 text-emerald-800 border-emerald-300/80"
+                                    ? "bg-emerald-50 text-emerald-700 border-emerald-200"
                                     : isSelected
-                                    ? "bg-slate-100 text-[#252525] border-[#E5E7EB]"
+                                    ? "bg-stone-50 text-[#252525] border-stone-200"
                                     : "bg-[#F6F7F8] text-[#64717E] border-[#E5E7EB]"
                                 )}
                               >
@@ -582,7 +582,7 @@ export default function PhoneMockup({ activeScenario }: PhoneMockupProps) {
                     </div>
 
                     {orderedRecipe ? (
-                      <div className="bg-[#F0FDF4] border border-[#DCFCE7] p-2.5 rounded-xl text-center text-[10px] font-bold text-[#15803D] font-display flex items-center justify-center gap-1.5 shadow-2xs">
+                      <div className="bg-[#F0FDF4] border border-[#DCFCE7] p-2 rounded-xl text-center text-[10px] font-bold text-[#15803D] font-display flex items-center justify-center gap-1 shadow-2xs">
                         <CheckCircle2 className="h-3.5 w-3.5 text-[#15803D]" />
                         <span>Ingredients Added to Cart!</span>
                       </div>
@@ -590,12 +590,12 @@ export default function PhoneMockup({ activeScenario }: PhoneMockupProps) {
                       recipeMissing.length > 0 && (
                         <button
                           onClick={handleAddRecipeMissingToCart}
-                          className="bg-[#15803D] hover:bg-emerald-700 text-white px-3.5 py-1.5 h-10.5 w-full rounded-full flex items-center justify-between cursor-pointer active:scale-[0.98] transition-all shadow-md"
+                          className="bg-[#15803D] hover:bg-emerald-700 text-white px-3 py-1 h-8.5 w-full rounded-full flex items-center justify-between cursor-pointer active:scale-[0.98] transition-all shadow-md"
                         >
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-[10.5px] font-extrabold font-display tracking-tight">Add {recipeMissing.length} Missing Ingredients</span>
+                          <div className="flex items-center gap-1">
+                            <span className="text-[10px] font-extrabold font-display tracking-tight">Add {recipeMissing.length} Missing Ingredients</span>
                           </div>
-                          <span className="bg-black/25 hover:bg-black/35 text-white px-3 py-1 rounded-full text-[9.5px] font-extrabold font-display flex items-center gap-1 backdrop-blur-xs border border-white/10">
+                          <span className="bg-black/25 hover:bg-black/35 text-white px-2.5 py-0.5 rounded-full text-[9px] font-extrabold font-display flex items-center gap-1 backdrop-blur-xs border border-white/10">
                             Total ₹{recipeTotal} <ChevronRight className="h-3 w-3 inline" />
                           </span>
                         </button>
@@ -607,27 +607,27 @@ export default function PhoneMockup({ activeScenario }: PhoneMockupProps) {
                 {/* SUB-TAB VIEW 3: COMMODITY PRICE SIGNALS */}
                 {prefillSubTab === "signals" && (
                   <div className="flex flex-col gap-2">
-                    <span className="text-[8.5px] font-bold uppercase tracking-wider text-[#64717E] font-display flex items-center gap-1">
+                    <span className="text-[9px] font-bold uppercase tracking-wider text-[#64717E] font-display flex items-center gap-1">
                       <Tag className="h-3.5 w-3.5 text-[#252525]" /> Market Price Signals
                     </span>
 
-                    <div className="flex flex-col gap-2">
+                    <div className="flex flex-col gap-1.5">
                       {PRICE_SIGNALS.map((p) => {
                         const isSpike = p.signal === "SPIKE";
                         const isDip = p.signal === "DIP";
 
                         return (
-                          <div key={p.name} className="rounded-xl border border-[#E5E7EB] bg-white p-2.5 flex flex-col gap-1.5 shadow-2xs hover:border-slate-300 active:scale-[0.99] transition-all">
+                          <div key={p.name} className="rounded-xl border border-[#E5E7EB] bg-white p-2.5 flex flex-col gap-1 shadow-2xs hover:border-slate-300 active:scale-[0.99] transition-all">
                             <div className="flex items-center justify-between">
-                              <span className="font-bold text-[11.5px] text-[#252525] font-display">{p.name}</span>
-                              <span className={clsx("text-[8.5px] px-2 py-0.5 font-extrabold rounded-full border leading-none", isSpike ? "bg-rose-100/80 text-rose-800 border-rose-300/80" : isDip ? "bg-emerald-100/80 text-emerald-800 border-emerald-300/80" : "bg-amber-100/80 text-amber-800 border-amber-300/80")}>
+                              <span className="font-bold text-[11px] text-[#252525] font-display">{p.name}</span>
+                              <span className={clsx("text-[9.5px] px-2 py-0.5 font-mono font-bold rounded-full border leading-none tracking-wide uppercase inline-flex items-center justify-center", isSpike ? "bg-rose-50 text-rose-700 border-rose-200" : isDip ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-amber-50 text-amber-700 border-amber-200")}>
                                 {p.signal}
                               </span>
                             </div>
                             <div className="flex items-center justify-between text-[9.5px] pt-1 border-t border-[#E5E7EB]/60">
                               <span className="font-bold text-[#252525] font-display">Today: ₹{p.current} <span className="text-[#64717E] font-normal">(Avg ₹{p.avg})</span></span>
                               <span className={clsx("font-bold flex items-center gap-0.5 text-[9px]", isSpike ? "text-[#BE123C]" : isDip ? "text-[#15803D]" : "text-[#C2410C]")}>
-                                {isSpike ? <TrendingUp className="h-2.5 w-2.5" /> : <TrendingDown className="h-2.5 w-2.5" />}
+                                {isSpike ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
                                 {p.desc}
                               </span>
                             </div>
@@ -643,51 +643,51 @@ export default function PhoneMockup({ activeScenario }: PhoneMockupProps) {
 
             {/* TAB: HOME MARKETPLACE */}
             {hostTab === "home" && (
-              <div className="p-2.5 flex flex-col gap-2 pb-20">
+              <div className="p-2.5 flex flex-col gap-2 pb-16">
                 <div className="bg-white border border-[#E5E7EB] text-[#252525] rounded-xl p-2.5 flex flex-col gap-1 shadow-2xs hover:border-slate-300 transition-all">
-                  <div className="flex items-center justify-between text-[8px] font-bold">
+                  <div className="flex items-center justify-between text-[8.5px] font-bold">
                     <span className="bg-[#15803D] text-white px-2 py-0.5 rounded-full uppercase leading-none font-extrabold">10-MIN EXPRESS</span>
                     <span className="text-[#15803D] font-extrabold">NEARBY STORE</span>
                   </div>
-                  <span className="text-[12px] font-bold font-display text-[#252525]">Quick Commerce Store</span>
+                  <span className="text-[11.5px] font-bold font-display text-[#252525]">Quick Commerce Store</span>
                   <span className="text-[9px] text-[#64717E] font-medium">10,000+ daily fresh groceries delivered to your door.</span>
                   <button
                     onClick={() => setHostTab("prefill")}
-                    className="mt-1 bg-[#15803D] hover:bg-emerald-600 text-white px-3 h-8 rounded-full text-[9px] font-extrabold font-display cursor-pointer flex items-center justify-between active:scale-95 transition-all shadow-2xs"
+                    className="mt-0.5 bg-[#15803D] hover:bg-emerald-600 text-white px-3 h-7.5 rounded-full text-[9px] font-extrabold font-display cursor-pointer flex items-center justify-between active:scale-95 transition-all shadow-2xs"
                   >
                     <span>Open PreFill AI Restock Module</span>
-                    <ChevronRight className="h-3 w-3" />
+                    <ChevronRight className="h-3.5 w-3.5" />
                   </button>
                 </div>
 
-                <span className="text-[8.5px] font-bold uppercase tracking-wider text-[#64717E] font-display mt-0.5">Top Categories</span>
-                <div className="grid grid-cols-2 gap-2">
+                <span className="text-[9px] font-bold uppercase tracking-wider text-[#64717E] font-display mt-0.5">Top Categories</span>
+                <div className="grid grid-cols-2 gap-1.5">
                   <div className="rounded-xl border border-[#E5E7EB] bg-white p-2.5 flex flex-col gap-1 cursor-pointer hover:border-slate-300 active:scale-95 transition-all shadow-2xs">
-                    <div className="p-1.5 rounded-lg bg-emerald-50 text-[#15803D] w-fit border border-emerald-200">
+                    <div className="p-1 rounded-lg bg-emerald-50 text-[#15803D] w-fit border border-emerald-200">
                       <ShoppingCart className="h-3.5 w-3.5" />
                     </div>
-                    <span className="text-[11.5px] font-bold text-[#252525] font-display">Dairy & Milk</span>
+                    <span className="text-[11px] font-bold text-[#252525] font-display">Dairy & Milk</span>
                     <span className="text-[9px] font-semibold text-[#64717E] font-sans">12 Instant Items</span>
                   </div>
                   <div className="rounded-xl border border-[#E5E7EB] bg-white p-2.5 flex flex-col gap-1 cursor-pointer hover:border-slate-300 active:scale-95 transition-all shadow-2xs">
-                    <div className="p-1.5 rounded-lg bg-rose-50 text-rose-600 w-fit border border-rose-200">
+                    <div className="p-1 rounded-lg bg-rose-50 text-rose-600 w-fit border border-rose-200">
                       <Apple className="h-3.5 w-3.5" />
                     </div>
-                    <span className="text-[11.5px] font-bold text-[#252525] font-display">Fresh Veggies</span>
+                    <span className="text-[11px] font-bold text-[#252525] font-display">Fresh Veggies</span>
                     <span className="text-[9px] font-semibold text-[#64717E] font-sans">Farm Direct</span>
                   </div>
                   <div className="rounded-xl border border-[#E5E7EB] bg-white p-2.5 flex flex-col gap-1 cursor-pointer hover:border-slate-300 active:scale-95 transition-all shadow-2xs">
-                    <div className="p-1.5 rounded-lg bg-amber-50 text-amber-700 w-fit border border-amber-200">
+                    <div className="p-1 rounded-lg bg-amber-50 text-amber-700 w-fit border border-amber-200">
                       <Wheat className="h-3.5 w-3.5" />
                     </div>
-                    <span className="text-[11.5px] font-bold text-[#252525] font-display">Atta & Grains</span>
+                    <span className="text-[11px] font-bold text-[#252525] font-display">Atta & Grains</span>
                     <span className="text-[9px] font-semibold text-[#64717E] font-sans">Pantry Essentials</span>
                   </div>
                   <div className="rounded-xl border border-[#E5E7EB] bg-white p-2.5 flex flex-col gap-1 cursor-pointer hover:border-slate-300 active:scale-95 transition-all shadow-2xs">
-                    <div className="p-1.5 rounded-lg bg-purple-50 text-purple-700 w-fit border border-purple-200">
+                    <div className="p-1 rounded-lg bg-purple-50 text-purple-700 w-fit border border-purple-200">
                       <Zap className="h-3.5 w-3.5" />
                     </div>
-                    <span className="text-[11.5px] font-bold text-[#252525] font-display">Snacks & Drinks</span>
+                    <span className="text-[11px] font-bold text-[#252525] font-display">Snacks & Drinks</span>
                     <span className="text-[9px] font-semibold text-[#64717E] font-sans">Express Delivery</span>
                   </div>
                 </div>
@@ -696,12 +696,12 @@ export default function PhoneMockup({ activeScenario }: PhoneMockupProps) {
 
             {/* TAB: QUICK 1-TAP REORDER */}
             {hostTab === "quick" && (
-              <div className="p-2.5 flex flex-col gap-2 pb-20">
-                <span className="text-[8.5px] font-bold uppercase tracking-wider text-[#64717E] font-display">1-Tap Household Bundles</span>
+              <div className="p-2.5 flex flex-col gap-1.5 pb-16">
+                <span className="text-[9px] font-bold uppercase tracking-wider text-[#64717E] font-display">1-Tap Household Bundles</span>
 
-                <div className="rounded-xl border border-[#E5E7EB] bg-white p-2.5 flex flex-col gap-1.5 shadow-2xs hover:border-slate-300 active:scale-[0.99] transition-all">
+                <div className="rounded-xl border border-[#E5E7EB] bg-white p-2.5 flex flex-col gap-1 shadow-2xs hover:border-slate-300 active:scale-[0.99] transition-all">
                   <div className="flex items-center justify-between">
-                    <span className="text-[11.5px] font-bold text-[#252525] font-display">Weekly Basics Basket</span>
+                    <span className="text-[11px] font-bold text-[#252525] font-display">Weekly Basics Basket</span>
                     <span className="text-[10px] font-extrabold text-[#15803D] font-display">₹420</span>
                   </div>
                   <span className="text-[9px] font-semibold text-[#64717E] font-sans">Fresh Milk 1L, Atta 5kg, Eggs 12pcs, Tomatoes 500g</span>
@@ -711,16 +711,16 @@ export default function PhoneMockup({ activeScenario }: PhoneMockupProps) {
                       updateQuantity("Fresh Milk 1L", 1);
                       updateQuantity("Wheat Bread 400g", 1);
                     }}
-                    className="bg-[#15803D] hover:bg-emerald-700 text-white text-[9px] font-extrabold font-display px-3 h-8 rounded-full flex items-center justify-between cursor-pointer active:scale-95 transition-all shadow-2xs mt-0.5"
+                    className="bg-[#15803D] hover:bg-emerald-700 text-white text-[9px] font-extrabold font-display px-3 h-7.5 rounded-full flex items-center justify-between cursor-pointer active:scale-95 transition-all shadow-2xs mt-0.5"
                   >
                     <span>Add Bundle to Cart</span>
                     <ChevronRight className="h-3 w-3" />
                   </button>
                 </div>
 
-                <div className="rounded-xl border border-[#E5E7EB] bg-white p-2.5 flex flex-col gap-1.5 shadow-2xs hover:border-slate-300 active:scale-[0.99] transition-all">
+                <div className="rounded-xl border border-[#E5E7EB] bg-white p-2.5 flex flex-col gap-1 shadow-2xs hover:border-slate-300 active:scale-[0.99] transition-all">
                   <div className="flex items-center justify-between">
-                    <span className="text-[11.5px] font-bold text-[#252525] font-display">Breakfast Essentials</span>
+                    <span className="text-[11px] font-bold text-[#252525] font-display">Breakfast Essentials</span>
                     <span className="text-[10px] font-extrabold text-[#15803D] font-display">₹280</span>
                   </div>
                   <span className="text-[9px] font-semibold text-[#64717E] font-sans">Wheat Bread 400g, Butter 200g, Rolled Oats 500g</span>
@@ -729,7 +729,7 @@ export default function PhoneMockup({ activeScenario }: PhoneMockupProps) {
                       toast.success("Breakfast Bundle Added to Cart!");
                       updateQuantity("Wheat Bread 400g", 1);
                     }}
-                    className="bg-[#15803D] hover:bg-emerald-700 text-white text-[9px] font-extrabold font-display px-3 h-8 rounded-full flex items-center justify-between cursor-pointer active:scale-95 transition-all shadow-2xs mt-0.5"
+                    className="bg-[#15803D] hover:bg-emerald-700 text-white text-[9px] font-extrabold font-display px-3 h-7.5 rounded-full flex items-center justify-between cursor-pointer active:scale-95 transition-all shadow-2xs mt-0.5"
                   >
                     <span>Add Bundle to Cart</span>
                     <ChevronRight className="h-3 w-3" />
@@ -740,38 +740,38 @@ export default function PhoneMockup({ activeScenario }: PhoneMockupProps) {
 
             {/* TAB: USER ACCOUNT & PANTRY HEALTH */}
             {hostTab === "account" && (
-              <div className="p-2.5 flex flex-col gap-2 pb-20">
-                <div className="rounded-xl border border-[#E5E7EB] bg-white p-2.5 flex items-center gap-2.5 shadow-2xs hover:border-slate-300 transition-all">
-                  <div className="h-8 w-8 rounded-full bg-[#252525] text-white font-bold text-[11px] flex items-center justify-center font-display shrink-0">
+              <div className="p-2.5 flex flex-col gap-1.5 pb-16">
+                <div className="rounded-xl border border-[#E5E7EB] bg-white p-2.5 flex items-center gap-2 shadow-2xs hover:border-slate-300 transition-all">
+                  <div className="h-7.5 w-7.5 rounded-full bg-[#252525] text-white font-bold text-[10px] flex items-center justify-center font-display shrink-0">
                     K
                   </div>
                   <div className="flex flex-col min-w-0">
-                    <span className="text-[11.5px] font-bold text-[#252525] font-display truncate">Karan Wakhare</span>
+                    <span className="text-[11px] font-bold text-[#252525] font-display truncate">Karan Wakhare</span>
                     <span className="text-[9px] font-semibold text-[#64717E] font-sans truncate">Green Park, New Delhi · Premium Household</span>
                   </div>
                 </div>
 
-                <div className="bg-white border border-[#E5E7EB] rounded-xl p-2.5 flex flex-col gap-1.5 shadow-2xs hover:border-slate-300 transition-all">
+                <div className="bg-white border border-[#E5E7EB] rounded-xl p-2.5 flex flex-col gap-1 shadow-2xs hover:border-slate-300 transition-all">
                   <div className="flex items-center justify-between text-[8.5px] font-bold font-display">
                     <span className="text-[#15803D] uppercase">PANTRY HEALTH INDEX</span>
                     <span className="text-[#15803D]">84% STOCKED</span>
                   </div>
-                  <div className="w-full h-1.5 bg-[#F3F4F6] rounded-full overflow-hidden border border-[#E5E7EB]">
+                  <div className="w-full h-1.5 bg-[#F3F4F6] rounded-full overflow-hidden">
                     <div className="h-full bg-[#15803D] w-[84%] rounded-full" />
                   </div>
                   <span className="text-[9px] font-semibold text-[#64717E] font-sans mt-0.5">Prophet ML model active. Next automated order window: Tomorrow 8:00 AM</span>
                 </div>
 
                 <div className="rounded-xl border border-[#E5E7EB] bg-white p-2.5 flex flex-col divide-y divide-[#E5E7EB]/60 shadow-2xs hover:border-slate-300 transition-all">
-                  <div className="py-2 px-1.5 flex items-center justify-between text-[9.5px] font-bold font-display text-[#252525]">
+                  <div className="py-1.5 px-1 flex items-center justify-between text-[9.5px] font-bold font-display text-[#252525]">
                     <span>WhatsApp Restock Subscriptions</span>
-                    <span className="bg-emerald-100/80 text-emerald-800 border border-emerald-300/80 text-[8.5px] px-2 py-0.5 rounded-full font-extrabold font-display leading-none">Active</span>
+                    <span className="bg-emerald-100/80 text-emerald-800 border border-emerald-300/80 text-[8.5px] px-1.5 py-0.2 rounded-full font-extrabold font-display leading-none">Active</span>
                   </div>
-                  <div className="py-2 px-1.5 flex items-center justify-between text-[9.5px] font-bold font-display text-[#252525]">
+                  <div className="py-1.5 px-1 flex items-center justify-between text-[9.5px] font-bold font-display text-[#252525]">
                     <span>Notification Preferences</span>
                     <span className="text-[#64717E] text-[9px] font-semibold font-sans">Enabled</span>
                   </div>
-                  <div className="py-2 px-1.5 flex items-center justify-between text-[9.5px] font-bold font-display text-[#252525]">
+                  <div className="py-1.5 px-1 flex items-center justify-between text-[9.5px] font-bold font-display text-[#252525]">
                     <span>Payment Methods</span>
                     <span className="text-[#64717E] text-[9px] font-semibold font-sans">UPI / Apple Pay</span>
                   </div>

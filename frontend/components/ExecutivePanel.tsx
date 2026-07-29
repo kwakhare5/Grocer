@@ -9,8 +9,9 @@ import {
   Loader2,
   BarChart3,
   TrendingUp,
-  LineChart as LineChartIcon,
-  Sparkles
+  DollarSign,
+  Clock,
+  MessageSquare
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -54,6 +55,7 @@ export default function ExecutivePanel({ activeScenario, onScenarioChange }: Exe
   const [switching, setSwitching] = useState(false);
   const [realPredictions, setRealPredictions] = useState<APIPrediction[]>([]);
   const [loadingPredictions, setLoadingPredictions] = useState(true);
+  const [activeChartView, setActiveChartView] = useState<"gmv" | "retention" | "depletion">("gmv");
 
   // Fetch real backend prediction data
   useEffect(() => {
@@ -77,7 +79,7 @@ export default function ExecutivePanel({ activeScenario, onScenarioChange }: Exe
     {
       id: "standard",
       title: "Standard Staples",
-      desc: "Baseline 7-day depletion slope.",
+      desc: "7-day depletion slope.",
       icon: Calendar,
       badge: "Baseline"
     },
@@ -117,7 +119,6 @@ export default function ExecutivePanel({ activeScenario, onScenarioChange }: Exe
   // Generate real data depletion series from backend predictions or active scenario
   const depletionChartData = useMemo(() => {
     if (realPredictions.length > 0) {
-      // Map top predicted item depletion path
       const topItem = realPredictions[0];
       const stock = topItem.stock_fill_percent ?? 100;
       const days = topItem.days_remaining ?? 7;
@@ -164,16 +165,69 @@ export default function ExecutivePanel({ activeScenario, onScenarioChange }: Exe
   }, [realPredictions, activeScenario]);
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-6">
 
-      {/* ── Routine Switcher (Tactile Buttons) ─────────────── */}
-      <div className="round-card p-4 flex flex-col gap-3">
+      {/* ── 4 Top KPI Summary Cards ───────────────────────────────── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4">
+        
+        {/* KPI 1 */}
+        <div className="p-4 rounded-2xl bg-white border border-stone-200/90 shadow-2xs flex flex-col gap-1.5">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold text-stone-500 font-mono uppercase">Recaptured GMV</span>
+            <span className="p-1.5 rounded-lg bg-emerald-50 text-emerald-700">
+              <DollarSign className="h-3.5 w-3.5" />
+            </span>
+          </div>
+          <div className="text-2xl font-extrabold text-[#252525] font-sans tracking-tight">+₹1,450</div>
+          <div className="text-[10px] font-semibold text-emerald-700 font-mono">↑ 38.4% monthly per household</div>
+        </div>
+
+        {/* KPI 2 */}
+        <div className="p-4 rounded-2xl bg-white border border-stone-200/90 shadow-2xs flex flex-col gap-1.5">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold text-stone-500 font-mono uppercase">90-Day Retention</span>
+            <span className="p-1.5 rounded-lg bg-blue-50 text-blue-700">
+              <TrendingUp className="h-3.5 w-3.5" />
+            </span>
+          </div>
+          <div className="text-2xl font-extrabold text-[#252525] font-sans tracking-tight">82.4%</div>
+          <div className="text-[10px] font-semibold text-blue-700 font-mono">vs 24.0% standard quick commerce</div>
+        </div>
+
+        {/* KPI 3 */}
+        <div className="p-4 rounded-2xl bg-white border border-stone-200/90 shadow-2xs flex flex-col gap-1.5">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold text-stone-500 font-mono uppercase">Restock SLA Latency</span>
+            <span className="p-1.5 rounded-lg bg-amber-50 text-amber-700">
+              <Clock className="h-3.5 w-3.5" />
+            </span>
+          </div>
+          <div className="text-2xl font-extrabold text-[#252525] font-sans tracking-tight">140ms</div>
+          <div className="text-[10px] font-semibold text-amber-700 font-mono">99.9% uptime checkpoint graph</div>
+        </div>
+
+        {/* KPI 4 */}
+        <div className="p-4 rounded-2xl bg-white border border-stone-200/90 shadow-2xs flex flex-col gap-1.5">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold text-stone-500 font-mono uppercase">WhatsApp Conversion</span>
+            <span className="p-1.5 rounded-lg bg-rose-50 text-rose-700">
+              <MessageSquare className="h-3.5 w-3.5" />
+            </span>
+          </div>
+          <div className="text-2xl font-extrabold text-[#252525] font-sans tracking-tight">94.2%</div>
+          <div className="text-[10px] font-semibold text-rose-700 font-mono">1-tap confirmation rate</div>
+        </div>
+
+      </div>
+
+      {/* ── Routine Switcher ─────────────────────────────────────── */}
+      <div className="p-4 rounded-2xl bg-white border border-stone-200/90 shadow-2xs flex flex-col gap-3">
         <div className="flex items-center justify-between">
-          <span className="text-xs font-semibold uppercase tracking-wider text-slate-800 flex items-center gap-1.5 font-sans">
-            <Zap className="h-3.5 w-3.5 text-slate-700" />
+          <span className="text-xs font-bold uppercase tracking-wider text-stone-700 flex items-center gap-1.5 font-mono">
+            <Zap className="h-3.5 w-3.5 text-stone-700" />
             Interactive Routine Switcher
           </span>
-          {(switching || loadingPredictions) && <Loader2 className="h-3.5 w-3.5 animate-spin text-slate-600" />}
+          {(switching || loadingPredictions) && <Loader2 className="h-3.5 w-3.5 animate-spin text-stone-600" />}
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
@@ -186,34 +240,34 @@ export default function ExecutivePanel({ activeScenario, onScenarioChange }: Exe
                 disabled={switching}
                 onClick={() => handleSwitch(s.id)}
                 className={clsx(
-                  "p-3 rounded-xl border text-left flex flex-col justify-between gap-2 transition-all duration-150 active:scale-[0.98] cursor-pointer select-none",
+                  "p-3 rounded-xl border text-left flex flex-col justify-between gap-2 transition-all duration-150 cursor-pointer select-none active:scale-[0.98]",
                   isActive
                     ? "bg-[#252525] text-white border-[#252525] shadow-xs"
-                    : "bg-white text-stone-800 border-stone-200 hover:border-stone-300 hover:bg-stone-50"
+                    : "bg-stone-50/70 text-stone-800 border-stone-200 hover:border-stone-300 hover:bg-white"
                 )}
               >
                 <div className="flex items-center justify-between w-full">
                   <div className={clsx(
                     "p-1.5 rounded-md shrink-0",
-                    isActive ? "bg-stone-800 text-white" : "bg-stone-100 text-stone-600"
+                    isActive ? "bg-stone-800 text-white" : "bg-white text-stone-600 border border-stone-200"
                   )}>
                     <Icon className="h-3.5 w-3.5" />
                   </div>
                   <span className={clsx(
-                    "text-[9px] font-semibold font-sans px-1.5 py-0.5 rounded uppercase border",
+                    "text-[9px] font-bold font-mono px-2 py-0.5 rounded-full uppercase border",
                     isActive
                       ? "bg-stone-800 text-white border-stone-700"
-                      : "bg-stone-100 text-stone-500 border-stone-200"
+                      : "bg-white text-stone-600 border-stone-200"
                   )}>
                     {s.badge}
                   </span>
                 </div>
 
                 <div className="flex flex-col">
-                  <span className="font-semibold text-xs font-sans">
+                  <span className="font-bold text-xs font-sans">
                     {s.title}
                   </span>
-                  <span className={clsx("text-[10px] font-medium leading-tight mt-0.5", isActive ? "text-slate-300" : "text-slate-500")}>
+                  <span className={clsx("text-[10px] font-medium leading-tight mt-0.5", isActive ? "text-stone-300" : "text-stone-500")}>
                     {s.desc}
                   </span>
                 </div>
@@ -223,171 +277,90 @@ export default function ExecutivePanel({ activeScenario, onScenarioChange }: Exe
         </div>
       </div>
 
-      {/* ── CHART 1: Prophet ML Depletion Curve (Round AI Minimalist Style) ──── */}
-      <div className="round-card p-4 flex flex-col gap-2.5">
-        <div className="flex items-center justify-between">
+      {/* ── Main Chart View Switcher & Graph Display ────────────── */}
+      <div className="p-5 rounded-2xl bg-white border border-stone-200/90 shadow-2xs flex flex-col gap-4">
+        
+        {/* Chart View Switcher Tabs */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-stone-200 pb-3">
           <div className="flex items-center gap-2">
-            <LineChartIcon className="h-4 w-4 text-slate-900" />
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-900 font-sans">
-              Prophet ML Household Depletion Curve
+            <span className="p-2 rounded-xl bg-[#252525] text-white">
+              <BarChart3 className="h-4 w-4" />
             </span>
+            <h3 className="text-base font-extrabold text-[#252525] font-sans">
+              Unit Economics & Telemetry Curves
+            </h3>
           </div>
-          <span className="badge-emerald flex items-center gap-1">
-            <Sparkles className="h-3 w-3" />
-            Real ML Model Data
-          </span>
+
+          <div className="flex items-center gap-1.5 bg-stone-100 p-1 rounded-full text-[9.5px] font-mono font-bold border border-stone-200/80">
+            <button
+              onClick={() => setActiveChartView("gmv")}
+              className={clsx(
+                "px-3 py-1 rounded-full transition-all cursor-pointer active:scale-95",
+                activeChartView === "gmv" ? "bg-[#252525] text-white shadow-2xs" : "text-stone-600 hover:text-stone-900"
+              )}
+            >
+              GMV Recovery
+            </button>
+            <button
+              onClick={() => setActiveChartView("retention")}
+              className={clsx(
+                "px-3 py-1 rounded-full transition-all cursor-pointer active:scale-95",
+                activeChartView === "retention" ? "bg-[#252525] text-white shadow-2xs" : "text-stone-600 hover:text-stone-900"
+              )}
+            >
+              Retention Floor
+            </button>
+            <button
+              onClick={() => setActiveChartView("depletion")}
+              className={clsx(
+                "px-3 py-1 rounded-full transition-all cursor-pointer active:scale-95",
+                activeChartView === "depletion" ? "bg-[#252525] text-white shadow-2xs" : "text-stone-600 hover:text-stone-900"
+              )}
+            >
+              Depletion Curve
+            </button>
+          </div>
         </div>
 
-        <p className="text-[11px] text-slate-500 font-medium">
-          Predictive depletion trajectories calculate reorder timing at 20% remaining threshold.
-        </p>
-
-        <div className="h-44 w-full pt-1 min-h-[176px]">
+        {/* Dynamic Chart Display based on Tab */}
+        <div className="h-64 w-full pt-2 min-h-[256px]">
           <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-            <AreaChart data={depletionChartData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
-              <defs>
-                <linearGradient id="roundDepletionGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#09090B" stopOpacity={0.15}/>
-                  <stop offset="95%" stopColor="#09090B" stopOpacity={0.0}/>
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="2 2" stroke="#E4E4E7" vertical={false} />
-              <XAxis dataKey="day" tick={{ fontSize: 10, fill: "#71717A" }} stroke="#E4E4E7" tickLine={false} />
-              <YAxis tick={{ fontSize: 10, fill: "#71717A" }} stroke="#E4E4E7" domain={[0, 105]} tickLine={false} />
-              <Tooltip
-                contentStyle={{ backgroundColor: "#09090B", borderRadius: "8px", color: "#FAFAFA", fontSize: "11px", border: "none", boxShadow: "0 4px 12px rgba(0,0,0,0.15)" }}
-              />
-              <ReferenceLine y={20} label={{ value: '20% Reorder Trigger', fill: '#EF4444', fontSize: 9, position: 'insideTopRight' }} stroke="#EF4444" strokeDasharray="3 3" />
-              <Area
-                type="monotone"
-                dataKey="stock"
-                stroke="#09090B"
-                strokeWidth={2}
-                fillOpacity={1}
-                fill="url(#roundDepletionGrad)"
-                isAnimationActive={true}
-                animationDuration={1000}
-              />
-            </AreaChart>
+            {activeChartView === "gmv" ? (
+              <AreaChart data={GMV_RECOVERY_DATA} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="gmvGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#10B981" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#10B981" stopOpacity={0.0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="2 2" stroke="#E5E7EB" vertical={false} />
+                <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#6B7280" }} stroke="#E5E7EB" tickLine={false} />
+                <YAxis tick={{ fontSize: 11, fill: "#6B7280" }} stroke="#E5E7EB" tickLine={false} />
+                <Tooltip contentStyle={{ backgroundColor: "#252525", borderRadius: "10px", color: "#FFFFFF", fontSize: "11px", border: "none" }} />
+                <Area type="monotone" dataKey="recovered" stroke="#10B981" strokeWidth={3} fillOpacity={1} fill="url(#gmvGradient)" name="Recovered GMV (₹)" />
+              </AreaChart>
+            ) : activeChartView === "retention" ? (
+              <LineChart data={RETENTION_DATA} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="2 2" stroke="#E5E7EB" vertical={false} />
+                <XAxis dataKey="day" tick={{ fontSize: 11, fill: "#6B7280" }} stroke="#E5E7EB" tickLine={false} />
+                <YAxis tick={{ fontSize: 11, fill: "#6B7280" }} stroke="#E5E7EB" domain={[0, 100]} tickLine={false} />
+                <Tooltip contentStyle={{ backgroundColor: "#252525", borderRadius: "10px", color: "#FFFFFF", fontSize: "11px", border: "none" }} />
+                <Line type="monotone" dataKey="standard" stroke="#9CA3AF" strokeWidth={2} strokeDasharray="4 4" name="Standard Churn (%)" dot={false} />
+                <Line type="monotone" dataKey="prefill" stroke="#252525" strokeWidth={3} name="PreFill Retention (%)" dot={{ r: 4, fill: "#252525" }} />
+              </LineChart>
+            ) : (
+              <BarChart data={depletionChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="2 2" stroke="#E5E7EB" vertical={false} />
+                <XAxis dataKey="day" tick={{ fontSize: 11, fill: "#6B7280" }} stroke="#E5E7EB" tickLine={false} />
+                <YAxis tick={{ fontSize: 11, fill: "#6B7280" }} stroke="#E5E7EB" domain={[0, 105]} tickLine={false} />
+                <Tooltip contentStyle={{ backgroundColor: "#252525", borderRadius: "10px", color: "#FFFFFF", fontSize: "11px", border: "none" }} />
+                <ReferenceLine y={20} stroke="#EF4444" strokeDasharray="3 3" />
+                <Bar dataKey="stock" fill="#252525" radius={[6, 6, 0, 0]} name="Stock Remaining (%)" />
+              </BarChart>
+            )}
           </ResponsiveContainer>
         </div>
-      </div>
 
-      {/* ── CHART 2 & 3: Financial & Retention Metrics ─── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-        {/* Chart 2: Kirana GMV Recovery */}
-        <div className="round-card p-4 flex flex-col gap-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5 text-slate-900">
-              <BarChart3 className="h-4 w-4 text-slate-900" />
-              <span className="text-[11px] font-semibold uppercase tracking-wider font-sans">
-                Kirana Leakage Recovery
-              </span>
-            </div>
-            <span className="text-[10px] font-sans font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">+₹1,450/hh</span>
-          </div>
-          <p className="text-[10px] text-slate-500 font-medium">
-            Recaptured monthly spend from local store leakages.
-          </p>
-
-          <div className="h-32 w-full pt-1 min-h-[128px]">
-            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-              <BarChart data={GMV_RECOVERY_DATA} margin={{ top: 10, right: 5, left: -25, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="2 2" stroke="#E4E4E7" vertical={false} />
-                <XAxis dataKey="month" tick={{ fontSize: 9, fill: "#71717A" }} stroke="#E4E4E7" tickLine={false} />
-                <YAxis tick={{ fontSize: 9, fill: "#71717A" }} stroke="#E4E4E7" tickLine={false} />
-                <Tooltip contentStyle={{ backgroundColor: "#09090B", borderRadius: "8px", color: "#FAFAFA", fontSize: "10px", border: "none" }} />
-                <Bar
-                  dataKey="baseline"
-                  stackId="a"
-                  fill="#E4E4E7"
-                  name="Base GMV"
-                  radius={[0, 0, 4, 4]}
-                />
-                <Bar
-                  dataKey="recovered"
-                  stackId="a"
-                  fill="#10B981"
-                  name="Recovered Leakage"
-                  radius={[4, 4, 0, 0]}
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Chart 3: 90-Day Retention Curve */}
-        <div className="round-card p-4 flex flex-col gap-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5 text-slate-900">
-              <TrendingUp className="h-4 w-4 text-slate-900" />
-              <span className="text-[11px] font-semibold uppercase tracking-wider font-sans">
-                90-Day Retention Floor
-              </span>
-            </div>
-            <span className="text-[10px] font-sans font-bold text-slate-900 bg-neutral-100 px-1.5 py-0.5 rounded">82% vs 24%</span>
-          </div>
-          <p className="text-[10px] text-slate-500 font-medium">
-            82% retention floor vs 24% standard quick commerce churn.
-          </p>
-
-          <div className="h-32 w-full pt-1 min-h-[128px]">
-            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-              <LineChart data={RETENTION_DATA} margin={{ top: 10, right: 5, left: -25, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="2 2" stroke="#E4E4E7" vertical={false} />
-                <XAxis dataKey="day" tick={{ fontSize: 9, fill: "#71717A" }} stroke="#E4E4E7" tickLine={false} />
-                <YAxis tick={{ fontSize: 9, fill: "#71717A" }} stroke="#E4E4E7" domain={[0, 100]} tickLine={false} />
-                <Tooltip contentStyle={{ backgroundColor: "#09090B", borderRadius: "8px", color: "#FAFAFA", fontSize: "10px", border: "none" }} />
-                <Line
-                  type="monotone"
-                  dataKey="standard"
-                  stroke="#A1A1AA"
-                  strokeWidth={1.5}
-                  strokeDasharray="3 3"
-                  name="Standard Churn"
-                  dot={false}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="prefill"
-                  stroke="#09090B"
-                  strokeWidth={2}
-                  name="PreFill Retention"
-                  dot={{ r: 3, fill: "#09090B" }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-      </div>
-
-      {/* ── Household Intelligence Summary Card ────────────────────── */}
-      <div className="round-card p-4 flex flex-col gap-3">
-        <div className="flex items-center justify-between">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-900 font-sans">
-            Household Restock Profile
-          </span>
-          <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 font-sans">
-            Active Household Tracking
-          </span>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-          <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200/80 flex flex-col gap-0.5">
-            <span className="text-[10px] text-slate-500 font-medium">Items Tracked</span>
-            <span className="font-bold text-slate-900 font-sans">4 Household Staples</span>
-          </div>
-          <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200/80 flex flex-col gap-0.5">
-            <span className="text-[10px] text-slate-500 font-medium">WhatsApp Channel</span>
-            <span className="font-bold text-slate-900 font-sans">Connected (+91 99999)</span>
-          </div>
-          <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200/80 flex flex-col gap-0.5">
-            <span className="text-[10px] text-slate-500 font-medium">Next Alert Window</span>
-            <span className="font-bold text-emerald-700 font-sans">Tomorrow 8:00 AM</span>
-          </div>
-        </div>
       </div>
 
     </div>

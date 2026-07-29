@@ -51,6 +51,65 @@ const RETENTION_DATA = [
   { day: "Day 90", standard: 24, prefill: 82 },
 ];
 
+interface KPICardProps {
+  label: string;
+  value: string;
+  subtext: string;
+  subtextColor: string;
+  icon: React.ReactNode;
+  iconBg: string;
+}
+
+function KPICard({ label, value, subtext, subtextColor, icon, iconBg }: KPICardProps) {
+  return (
+    <div className="p-4 rounded-2xl bg-white border border-stone-200/90 shadow-2xs flex flex-col gap-1.5 hover:border-stone-400 transition-all">
+      <div className="flex items-center justify-between">
+        <span className="text-[11px] font-bold text-stone-500 font-mono uppercase">{label}</span>
+        <span className={clsx("p-1.5 rounded-lg", iconBg)}>
+          {icon}
+        </span>
+      </div>
+      <div className="text-2xl font-extrabold text-[#252525] font-sans tracking-tight">{value}</div>
+      <div className={clsx("text-[10px] font-semibold font-mono", subtextColor)}>{subtext}</div>
+    </div>
+  );
+}
+
+const KPI_ITEMS: KPICardProps[] = [
+  {
+    label: "Recaptured GMV",
+    value: "+₹1,450",
+    subtext: "↑ 38.4% monthly per household",
+    subtextColor: "text-emerald-700",
+    icon: <DollarSign className="h-3.5 w-3.5" />,
+    iconBg: "bg-emerald-50 text-emerald-700"
+  },
+  {
+    label: "90-Day Retention",
+    value: "82.4%",
+    subtext: "vs 24.0% standard quick commerce",
+    subtextColor: "text-blue-700",
+    icon: <TrendingUp className="h-3.5 w-3.5" />,
+    iconBg: "bg-blue-50 text-blue-700"
+  },
+  {
+    label: "Restock SLA Latency",
+    value: "140ms",
+    subtext: "99.9% uptime checkpoint graph",
+    subtextColor: "text-amber-700",
+    icon: <Clock className="h-3.5 w-3.5" />,
+    iconBg: "bg-amber-50 text-amber-700"
+  },
+  {
+    label: "WhatsApp Conversion",
+    value: "94.2%",
+    subtext: "1-tap confirmation rate",
+    subtextColor: "text-rose-700",
+    icon: <MessageSquare className="h-3.5 w-3.5" />,
+    iconBg: "bg-rose-50 text-rose-700"
+  }
+];
+
 const emptySubscribe = () => () => {};
 
 export default function ExecutivePanel({ activeScenario, onScenarioChange }: ExecutivePanelProps) {
@@ -172,55 +231,9 @@ export default function ExecutivePanel({ activeScenario, onScenarioChange }: Exe
 
       {/* ── 4 Top KPI Summary Cards ───────────────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4">
-        
-        {/* KPI 1 */}
-        <div className="p-4 rounded-2xl bg-white border border-stone-200/90 shadow-2xs flex flex-col gap-1.5">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-stone-500 font-mono uppercase">Recaptured GMV</span>
-            <span className="p-1.5 rounded-lg bg-emerald-50 text-emerald-700">
-              <DollarSign className="h-3.5 w-3.5" />
-            </span>
-          </div>
-          <div className="text-2xl font-extrabold text-[#252525] font-sans tracking-tight">+₹1,450</div>
-          <div className="text-[10px] font-semibold text-emerald-700 font-mono">↑ 38.4% monthly per household</div>
-        </div>
-
-        {/* KPI 2 */}
-        <div className="p-4 rounded-2xl bg-white border border-stone-200/90 shadow-2xs flex flex-col gap-1.5">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-stone-500 font-mono uppercase">90-Day Retention</span>
-            <span className="p-1.5 rounded-lg bg-blue-50 text-blue-700">
-              <TrendingUp className="h-3.5 w-3.5" />
-            </span>
-          </div>
-          <div className="text-2xl font-extrabold text-[#252525] font-sans tracking-tight">82.4%</div>
-          <div className="text-[10px] font-semibold text-blue-700 font-mono">vs 24.0% standard quick commerce</div>
-        </div>
-
-        {/* KPI 3 */}
-        <div className="p-4 rounded-2xl bg-white border border-stone-200/90 shadow-2xs flex flex-col gap-1.5">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-stone-500 font-mono uppercase">Restock SLA Latency</span>
-            <span className="p-1.5 rounded-lg bg-amber-50 text-amber-700">
-              <Clock className="h-3.5 w-3.5" />
-            </span>
-          </div>
-          <div className="text-2xl font-extrabold text-[#252525] font-sans tracking-tight">140ms</div>
-          <div className="text-[10px] font-semibold text-amber-700 font-mono">99.9% uptime checkpoint graph</div>
-        </div>
-
-        {/* KPI 4 */}
-        <div className="p-4 rounded-2xl bg-white border border-stone-200/90 shadow-2xs flex flex-col gap-1.5">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-stone-500 font-mono uppercase">WhatsApp Conversion</span>
-            <span className="p-1.5 rounded-lg bg-rose-50 text-rose-700">
-              <MessageSquare className="h-3.5 w-3.5" />
-            </span>
-          </div>
-          <div className="text-2xl font-extrabold text-[#252525] font-sans tracking-tight">94.2%</div>
-          <div className="text-[10px] font-semibold text-rose-700 font-mono">1-tap confirmation rate</div>
-        </div>
-
+        {KPI_ITEMS.map((kpi) => (
+          <KPICard key={kpi.label} {...kpi} />
+        ))}
       </div>
 
       {/* ── Routine Switcher ─────────────────────────────────────── */}

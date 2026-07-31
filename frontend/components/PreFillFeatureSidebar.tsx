@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { 
   TrendingDown, 
   MessageSquare, 
@@ -47,6 +47,10 @@ const CONTENT_MAP: Record<string, { title: string; desc: string }> = {
 export default function PreFillFeatureSidebar() {
   const [activeTab, setActiveTab] = useState("depletion");
 
+  const handleSelectTab = useCallback((id: string) => {
+    setActiveTab(id);
+  }, []);
+
   const activeContent = CONTENT_MAP[activeTab] || CONTENT_MAP.depletion;
 
   // Continuous background auto-cycle (every 3.5s)
@@ -80,7 +84,7 @@ export default function PreFillFeatureSidebar() {
             return (
               <button
                 key={item.id}
-                onClick={() => setActiveTab(item.id)}
+                onClick={() => handleSelectTab(item.id)}
                 className={`w-full px-4 py-3 rounded-2xl text-xs font-semibold flex items-center gap-3 transition-all cursor-pointer select-none relative overflow-hidden ${
                   isActive
                     ? "bg-white text-[#252525] shadow-xs border border-stone-800"

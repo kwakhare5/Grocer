@@ -110,6 +110,30 @@ const KPI_ITEMS: KPICardProps[] = [
   }
 ];
 
+const SCENARIOS = [
+  {
+    id: "standard",
+    title: "Standard Staples",
+    desc: "7-day depletion slope.",
+    icon: Calendar,
+    badge: "Baseline"
+  },
+  {
+    id: "party",
+    title: "Party Spike Anomaly",
+    desc: "Consumption accelerates 2.5x.",
+    icon: Users,
+    badge: "Spike Anomaly"
+  },
+  {
+    id: "vacation",
+    title: "Vacation Travel Mode",
+    desc: "Zero stock consumption.",
+    icon: Coffee,
+    badge: "Travel Pause"
+  }
+];
+
 const emptySubscribe = () => () => {};
 
 export default function ExecutivePanel({ activeScenario, onScenarioChange }: ExecutivePanelProps) {
@@ -136,30 +160,6 @@ export default function ExecutivePanel({ activeScenario, onScenarioChange }: Exe
     }
     loadData();
   }, [activeScenario]);
-
-  const scenarios = [
-    {
-      id: "standard",
-      title: "Standard Staples",
-      desc: "7-day depletion slope.",
-      icon: Calendar,
-      badge: "Baseline"
-    },
-    {
-      id: "party",
-      title: "Party Spike Anomaly",
-      desc: "Consumption accelerates 2.5x.",
-      icon: Users,
-      badge: "Spike Anomaly"
-    },
-    {
-      id: "vacation",
-      title: "Vacation Travel Mode",
-      desc: "Zero stock consumption.",
-      icon: Coffee,
-      badge: "Travel Pause"
-    }
-  ];
 
   const handleSwitch = async (id: string) => {
     if (switching || activeScenario === id) return;
@@ -247,7 +247,7 @@ export default function ExecutivePanel({ activeScenario, onScenarioChange }: Exe
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-          {scenarios.map((s) => {
+          {SCENARIOS.map((s) => {
             const Icon = s.icon;
             const isActive = activeScenario === s.id;
             return (

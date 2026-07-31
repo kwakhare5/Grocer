@@ -49,7 +49,7 @@ PreFill watches how your household consumes groceries over time, learning your p
 | ✅ | **Time-Series Consumption Modeling** | Uses Facebook Prophet to build per-item consumption baselines, calculating average daily usage, cycle days, and depletion countdowns. |
 | ✅ | **Brand-Agnostic SDK Architecture** | Zero platform binding. Built as an embeddable tab extension compatible with any quick commerce provider. |
 | ✅ | **Single Unified Mobile Tab** | Integrates Smart Pantry Depletion, Recipe Ingredient Checker, and Market Price Signals into a single scrollable feed inside the PreFill host tab. |
-| ✅ | **iPhone 16 Pro Hardware Mockup** | Rendered in exact 71.5mm × 149.6mm physical hardware proportion (`w-[305px] aspect-[71.5/149.6]`) with Dynamic Island and ultra-thin titanium bezel. |
+| ✅ | **iPhone 16 Pro Hardware Mockup** | Rendered in exact 1800 × 3680 physical hardware proportion with status bar and ultra-thin titanium bezel overlay (`/iphone-16-pro-frame.png`). |
 | ✅ | **Predictive WhatsApp Restock Agent** | Triggers stateful LangGraph dialogues via WhatsApp API, allowing users to build carts and checkout in one tap. |
 | ✅ | **Pantry-Aware Recipe Planner** | Extracts ingredients from user recipe queries, checks estimated remaining pantry quantities, and bundles only missing items into the cart. |
 | ✅ | **Commodity Price Intelligence** | Tracks tomatoes, onions, oil, atta, and milk in PostgreSQL time-series logs, alerting users on spikes/dips and offering substitutions. |
@@ -103,7 +103,7 @@ PreFill/
 │
 ├── frontend/                       # Next.js 16 Responsive Showcase App
 │   ├── app/                        # App router (page.tsx, layout.tsx, globals.css)
-│   ├── components/                 # PhoneMockup.tsx, Header.tsx, ExecutivePanel.tsx, ui/iphone.tsx
+│   ├── components/                 # PhoneMockup.tsx, Header.tsx, ExecutivePanel.tsx, PreFillBentoGrid.tsx, PreFillFeatureSidebar.tsx, PreFillPracticalUse.tsx, ui/iphone.tsx
 │   └── lib/                        # API client wrappers & TypeScript definitions
 │
 ├── CLAUDE.md                       # Project rules & session resume tracking

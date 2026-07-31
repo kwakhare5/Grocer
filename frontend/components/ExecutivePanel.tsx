@@ -295,7 +295,7 @@ export default function ExecutivePanel({ activeScenario, onScenarioChange }: Exe
 
       {/* ── Main Chart View Switcher & Graph Display ────────────── */}
       <div className="p-5 rounded-2xl bg-white border border-stone-200/90 shadow-2xs flex flex-col gap-4">
-        
+
         {/* Chart View Switcher Tabs */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-stone-200 pb-3">
           <div className="flex items-center gap-2">

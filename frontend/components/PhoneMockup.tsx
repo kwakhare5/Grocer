@@ -315,45 +315,14 @@ export default function PhoneMockup({ activeScenario }: PhoneMockupProps) {
   );
 
   return (
-    <div className="flex flex-col items-center gap-2 w-[275px] h-[575px] aspect-[71.5/149.6] shrink-0 mx-auto select-none overflow-hidden rounded-[38px]">
+    <div className="flex flex-col items-center gap-2 w-[275px] h-[562px] aspect-[1800/3680] shrink-0 mx-auto select-none overflow-hidden bg-transparent">
 
-      {/* Magic UI iPhone Mockup Frame */}
-      <Iphone className="drop-shadow-2xl w-full h-full">
-        <div className="w-full h-full bg-[#F6F7F8] flex flex-col relative pt-8 pb-0 overflow-hidden select-none">
-
-          {/* Authentic Real iOS Top Status Bar */}
-          <div className="absolute top-0 left-0 right-0 h-8 px-3.5 pt-0.5 flex items-center justify-between z-40 bg-[#F6F7F8]/90 backdrop-blur-md text-[#252525] font-sans border-b border-[#E5E7EB]">
-            <span className="text-[10.5px] font-extrabold tracking-tight text-[#252525] font-sans ml-1">9:41</span>
-
-            <div className="flex items-center gap-1.5 mr-1">
-              {/* Cellular Signal Icon */}
-              <div className="h-3 w-3 flex items-center justify-center shrink-0">
-                <svg className="h-3 w-3 text-[#252525]" viewBox="0 0 24 24" fill="currentColor">
-                  <rect x="3" y="15" width="3" height="5" rx="0.8" />
-                  <rect x="8" y="11" width="3" height="9" rx="0.8" />
-                  <rect x="13" y="7" width="3" height="13" rx="0.8" />
-                  <rect x="18" y="3" width="3" height="17" rx="0.8" />
-                </svg>
-              </div>
-
-              {/* Wi-Fi Icon */}
-              <div className="h-3 w-3 flex items-center justify-center shrink-0">
-                <svg className="h-3 w-3 text-[#252525]" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="m1 9l2 2c4.97-4.97 13.03-4.97 18 0l2-2C16.93 2.93 7.08 2.93 1 9m8 8l3 3l3-3a4.237 4.237 0 0 0-6 0m-4-4l2 2a7.074 7.074 0 0 1 10 0l2-2C15.14 9.14 8.87 9.14 5 13" />
-                </svg>
-              </div>
-
-              {/* Battery Icon */}
-              <div className="h-3 w-3 flex items-center justify-center shrink-0">
-                <svg className="h-3 w-3 text-[#252525]" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M17 7a3 3 0 0 1 3 3a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1a3 3 0 0 1-3 3H3a3 3 0 0 1-3-3v-4a3 3 0 0 1 3-3zm-1 2H3a1 1 0 0 0-1 1v4a1 1 0 0 0 1 1h13a1 1 0 0 1 1-1v-4a1 1 0 0 0-1-1m-11 1.5h3v3H5zm4.5 0h3v3h-3z" />
-                </svg>
-              </div>
-            </div>
-          </div>
+      {/* iPhone 16 Pro Mockup Frame */}
+      <Iphone className="w-full h-full bg-transparent">
+        <div className="w-full h-full bg-[#F6F7F8] flex flex-col relative pt-[30px] pb-0 overflow-hidden select-none">
 
           {/* Clean App Header */}
-          <div className="bg-[#FFFFFF] border-b border-[#E5E7EB] px-2.5 pt-1.5 pb-1.5 flex flex-col gap-1 z-30 shrink-0 shadow-2xs">
+          <div className="bg-[#FFFFFF] border-b border-[#E5E7EB] px-2.5 pt-1.5 pb-1.5 flex flex-col gap-1 z-10 shrink-0 shadow-2xs">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1 text-[11px] font-bold text-[#252525] font-display">
                 {restockedState ? (
@@ -935,7 +904,7 @@ export default function PhoneMockup({ activeScenario }: PhoneMockupProps) {
           </AnimatePresence>
 
           {/* Authentic Host Quick Commerce App Bottom Navigation Bar & Home Indicator */}
-          <div className="bg-[#FFFFFF] border-t border-[#E5E7EB] pt-1.5 pb-2 flex flex-col items-center gap-1 z-40 shrink-0">
+          <div className="bg-[#FFFFFF] border-t border-[#E5E7EB] pt-1.5 pb-2 flex flex-col items-center gap-1.5 z-40 shrink-0">
             <div className="w-full px-2 flex items-center justify-around text-[#64717E]">
               <button
                 onClick={() => setHostTab("home")}
@@ -987,7 +956,7 @@ export default function PhoneMockup({ activeScenario }: PhoneMockupProps) {
             </div>
 
             {/* Authentic Real iOS Home Indicator Bar */}
-            <div className="w-20 h-1 bg-[#252525] rounded-full my-0.5" />
+            <div className="w-20 h-1 bg-[#252525] rounded-full mt-0.5 mb-1" />
           </div>
 
         </div>

@@ -1,10 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { CheckCircle2, PhoneCall, User, Wrench } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
-// ponytail: static tabs array moved outside component body to avoid re-allocation on render
 const PRACTICAL_TABS = [
   {
     name: "Fresh Dairy & Milk",
@@ -62,6 +61,11 @@ const PRACTICAL_TABS = [
 
 export default function PreFillPracticalUse() {
   const [activeTab, setActiveTab] = useState(0);
+
+  const handleSelectTab = useCallback((idx: number) => {
+    setActiveTab(idx);
+  }, []);
+
   const currentTab = PRACTICAL_TABS[activeTab] || PRACTICAL_TABS[0];
 
   return (
@@ -96,7 +100,7 @@ export default function PreFillPracticalUse() {
           {PRACTICAL_TABS.map((t, idx) => (
             <button
               key={t.name}
-              onClick={() => setActiveTab(idx)}
+              onClick={() => handleSelectTab(idx)}
               className={`px-4 py-2 rounded-full text-xs font-bold transition-all cursor-pointer select-none font-sans ${
                 activeTab === idx
                   ? "bg-white text-[#252525] shadow-xs border border-stone-200"

@@ -80,14 +80,14 @@ npm run build                        # production build verification
 
 _AI fills this at the END of every session. Read this at the START of the next session._
 
-**Last session date:** 2026-07-29
+**Last session date:** 2026-07-31
 
 **What we built / changed:**
-- Rearranged landing page sections in [page.tsx](file:///d:/PreFill/frontend/app/page.tsx) to strictly follow the Product-First Architecture story arc: Hero Stage (`#demo`) → 6-Card Bento Grid Architecture (`#bento`) → Interactive Feature Showcase (`#features`) → Practical Household Use Cases → Performance Comparison (`#comparison`) → Executive ROI Dashboard (`#platform-roi`) → Setup Guide / How It Works (`#how-it-works`) → Safeguards Engine → FAQ Accordion (`#faq`) → Final CTA Banner & Clean Footer.
-- Updated sticky header navigation in [Header.tsx](file:///d:/PreFill/frontend/components/Header.tsx) to align link order (`Architecture`, `Features`, `Why PreFill`, `Platform ROI`, `How It Works`, `FAQ`).
-- Expanded section container side padding across all landing page sections to `px-5 sm:px-8 lg:px-12` (20px mobile / 32px tablet / 48px desktop).
-- Verified ESLint (`npm run lint` — 0 warnings / 0 errors) and Next.js production build (`npm run build` — compiled in 4.2s with 0 errors).
-- Created clean git commits and pushed changes to GitHub (`https://github.com/kwakhare5/PreFill.git`).
+- **iPhone 16 Pro Frame Asset Rename**: Renamed asset `Group 1.png` → `iphone-16-pro-frame.png` in `frontend/public/` and updated image references in [ui/iphone.tsx](file:///d:/PreFill/frontend/components/ui/iphone.tsx).
+- **Vercel React Best Practices & Code Cleanup**: Executed full line-by-line code refactoring across all 13 frontend codebase files (`layout.tsx`, `page.tsx`, `globals.css`, `Header.tsx`, `PhoneMockup.tsx`, `ExecutivePanel.tsx`, `PreFillBentoGrid.tsx`, `PreFillFeatureSidebar.tsx`, `PreFillPracticalUse.tsx`, `ui/iphone.tsx`, `lib/api.ts`, `lib/hooks.ts`, `lib/utils.ts`).
+- **Dead CSS Purge**: Purged 75 lines of unreferenced dead CSS rules in [globals.css](file:///d:/PreFill/frontend/app/globals.css) (`.card-pastel-*`, `.hardware-stage-droxy`, `.badge-yellow/red/blue`, `.status-pill-rose/amber`).
+- **Performance Optimizations**: Hoisted static constants (`SCENARIOS`, `SETUP_STEPS`, `FAQ_ITEMS`) outside render loops (`rendering-hoist-jsx`) and wrapped event handlers in `useCallback`.
+- **Verification & Git Push**: `npx tsc --noEmit` passed with 0 errors, `npm run build` compiled in 4.5s with 0 errors. Committed & pushed all changes to GitHub (`573f44a`).
 
 **Immediate next task:**
 - Ready for next user request.
@@ -96,8 +96,16 @@ _AI fills this at the END of every session. Read this at the START of the next s
 - None.
 
 **Files most recently changed:**
+- `d:\PreFill\frontend\app\globals.css`
 - `d:\PreFill\frontend\app\page.tsx`
+- `d:\PreFill\frontend\components\PhoneMockup.tsx`
+- `d:\PreFill\frontend\components\ExecutivePanel.tsx`
+- `d:\PreFill\frontend\components\PreFillBentoGrid.tsx`
+- `d:\PreFill\frontend\components\PreFillFeatureSidebar.tsx`
+- `d:\PreFill\frontend\components\PreFillPracticalUse.tsx`
 - `d:\PreFill\frontend\components\Header.tsx`
+- `d:\PreFill\frontend\components\ui\iphone.tsx`
+- `d:\PreFill\frontend\lib\utils.ts`
 - `d:\PreFill\CLAUDE.md`
 
 

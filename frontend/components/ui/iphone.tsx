@@ -51,7 +51,7 @@ export function Iphone({
       {/* iPhone 16 Pro Authentic Chassis & Hardware Bezel Overlay Image */}
       {/* Includes status bar (9:41, Dynamic Island, Cellular signal, WiFi, Battery) */}
       <img
-        src="/Group 1.png"
+        src="/iphone-16-pro-frame.png"
         alt="iPhone 16 Pro Chassis"
         className="absolute inset-0 size-full pointer-events-none z-20 object-contain select-none"
       />

@@ -1,9 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Menu, X } from "lucide-react";
 
-// ponytail: static nav array mapped over to reduce JSX repetition (-25 lines)
 const NAV_LINKS = [
   { href: "#bento", label: "Architecture" },
   { href: "#features", label: "Features" },
@@ -15,6 +14,14 @@ const NAV_LINKS = [
 
 export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const toggleMobileMenu = useCallback(() => {
+    setMobileMenuOpen((prev) => !prev);
+  }, []);
+
+  const closeMobileMenu = useCallback(() => {
+    setMobileMenuOpen(false);
+  }, []);
 
   return (
     <header className="w-full bg-[#F6F7F8]/90 backdrop-blur-md border-b border-stone-200/90 fixed top-0 left-0 right-0 z-50 transition-all">
@@ -61,7 +68,7 @@ export default function Header() {
 
         {/* Mobile Hamburger Toggle */}
         <button
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          onClick={toggleMobileMenu}
           className="md:hidden p-2 text-[#252525] hover:bg-stone-200/50 rounded-lg transition-colors cursor-pointer"
           aria-label="Toggle Navigation Menu"
         >
@@ -77,7 +84,7 @@ export default function Header() {
             <a
               key={link.href}
               href={link.href}
-              onClick={() => setMobileMenuOpen(false)}
+              onClick={closeMobileMenu}
               className="text-sm font-medium text-[#252525] hover:text-stone-600 transition-colors py-1 font-sans"
             >
               {link.label}
@@ -86,14 +93,14 @@ export default function Header() {
           <div className="pt-2 border-t border-stone-200 flex flex-col gap-3">
             <a
               href="#demo"
-              onClick={() => setMobileMenuOpen(false)}
+              onClick={closeMobileMenu}
               className="text-sm font-semibold text-[#252525] py-1 font-sans"
             >
               Log in
             </a>
             <a
               href="#demo"
-              onClick={() => setMobileMenuOpen(false)}
+              onClick={closeMobileMenu}
               className="btn-droxy-pill-primary text-xs text-center"
             >
               Start

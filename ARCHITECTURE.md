@@ -239,47 +239,36 @@ The PreFill frontend is built as a single-page narrative showcase (`app/page.tsx
 The mockup iPhone is **the core interactive demo of the PreFill platform**. It is constructed as a dual-layer hardware simulation:
 
 1. **Outer Hardware Chassis (`ui/iphone.tsx`)**:
-   - SVG vector overlay rendering Grade-5 titanium frame, 1.2mm screen bezels, and the Dynamic Island pill notch at top center (`z-index: 20`, `pointer-events-none`).
-   - Dimensions locked to physical iPhone 16 Pro specifications: `71.5mm × 149.6mm` physical aspect ratio (`w-[305px] h-[638px] aspect-[71.5/149.6] shrink-0 overflow-hidden`).
+   - PNG overlay (`/iphone-16-pro-frame.png`) rendering Grade-5 titanium frame, hardware bezels, status bar, and Dynamic Island notch (`z-index: 20`, `pointer-events-none`).
+   - Dimensions locked to physical iPhone 16 Pro specifications: `1800 × 3680` pixel aspect ratio (`w-[275px] h-[562px] aspect-[1800/3680] shrink-0 overflow-hidden`).
 
 2. **Inner Screen Canvas (`PhoneMockup.tsx`)**:
-   - Inset `absolute` display container (`left: 3.35%`, `top: 1.6%`, `width: 93.28%`, `height: 96.79%`, `border-radius: 38px`, `overflow-hidden`).
-   - Top clearance: `pt-10` to prevent screen content from overlapping the Dynamic Island notch (`y=4.2`).
-   - Bottom clearance: `pb-28` to ensure scrollable content is never clipped under the floating cart drawer or WhatsApp button.
-   - Container-Isolated Scroll: Chat window scrolling uses `chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight` instead of window-level `scrollIntoView()`, guaranteeing zero landing page scroll jumps.
+   - Inset display container (`left: 5.0%`, `top: 2.3%`, `width: 90.0%`, `height: 95.4%`, `border-radius: 44px`, `overflow-hidden`).
+   - Top clearance: `pt-[30px]` to prevent screen content from overlapping the Dynamic Island status bar.
+   - Bottom clearance: `pb-20` to ensure scrollable content is never clipped under the bottom navigation bar.
+   - Container-Isolated Scroll: WhatsApp drawer scrolling uses `chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight`, guaranteeing zero landing page scroll jumps.
 
 3. **Segmented Feature Sub-Tabs Navigation**:
-   - Positioned directly below the search bar to eliminate vertical clutter on 6.3" screens:
-     - `🛒 Pantry Stock`: Stock depletion progress bars, daily velocity rates (`0.48L/day`), low-stock warnings, interactive `-` / `+` steppers.
+   - Positioned directly below the search bar to eliminate vertical clutter on mobile screens:
+     - `🛒 Pantry`: Stock depletion progress bars, daily velocity rates (`0.48L/day`), low-stock warnings, interactive `-` / `+` steppers.
      - `🍳 Recipes`: 4 recipe options (Chicken Biryani, Dal Makhani, Paneer Tikka, Oats Bowl) with ingredient availability checklist and 1-tap *"Add Missing Ingredients"* to cart.
-     - `🏷️ Price Signals`: Commodity market volatility board showing price spike (`+140%`) and price dip (`-23% Stock Up`) signals.
-     - `✨ All`: Unified vertical overview for quick full-page scanning.
+     - `🏷️ Signals`: Commodity market volatility board showing price spike (`+140%`) and price dip (`-23% Stock Up`) signals.
 
-4. **Floating WhatsApp Restock Trigger & Order Loop**:
-   - Circular `#25D366` green WhatsApp button floating at `bottom-14 right-3 z-40` with an active unread notification dot (`h-3 w-3 bg-red-500`).
-   - Tapping the icon slides open the authentic WhatsApp chat drawer overlay (`bg-[#E5DDD5]` background, `#075E54` header, quick action chips).
+4. **WhatsApp Restock Trigger & Order Loop**:
+   - WhatsApp Bot button in top-right header opens the WhatsApp chat drawer overlay (`#ECE5DD` background, `#075E54` header, quick action chips).
    - Replying `YES` in WhatsApp chat triggers an end-to-end restock loop, automatically resetting depleted pantry items back to 100% stock fill with toast notifications.
 
-5. **Unified Cart Drawer**:
-   - Floating cart drawer at `bottom-14 left-3 right-16 z-30` (`bg-[#252525]` background, `#FFFFFF` text, `#15803D` checkout pill).
-   - Cart counter and total value update dynamically across pantry item steppers and recipe ingredient additions.
-
-### B. Design System Tokens & Aesthetics ("Shade")
+### B. Design System Tokens & Aesthetics
 
 - **Color Palette**:
   - Main Canvas: `#F6F7F8`
   - Primary Accent & Headings: `#252525`
   - Muted Text: `#64717E`
   - Borders: `#E5E7EB`
-  - Surfaces: `round-card-droxy` (`#FFFFFF` rounded cards with `var(--shadow-droxy-card)`)
-- **4 Curated Pastel Card Color Families**:
-  - `card-pastel-blue`: Background `#EFF6FF`, border `#DBEAFE`, text `#1E40AF` (Smart Restock Banner).
-  - `card-pastel-amber`: Background `#FFF7ED`, border `#FFEDD5`, text `#C2410C` (Low Stock Warning).
-  - `card-pastel-green`: Background `#F0FDF4`, border `#DCFCE7`, text `#15803D` (Stocked Items & Price Dips).
-  - `card-pastel-red`: Background `#FFF1F2`, border `#FECDD3`, text `#BE123C` (Stockout Danger & Price Spikes).
+  - Active Surfaces: `.card-neutral-droxy` (`#FFFFFF` rounded cards with `box-shadow`)
 - **Tactile Pill Buttons**:
   - `btn-droxy-pill-primary`: `#252525` background, `#FFFFFF` text, `shadow-droxy-pill`, active scaling `scale-[0.97]`.
-  - `btn-droxy-pill-secondary`: `#FFFFFF` background, `#252525` text, border `#E5E7EB`.
+  - `btn-droxy-pill-secondary`: `#FFFFFF` background, `#252525` text, border `#D1D5DB`.
 - **Typography**:
   - Display & UI Text: `Outfit` (Google Fonts, `var(--font-outfit)`).
   - Editorial Title Accents: `Cambo` (Google Fonts, `var(--font-cambo)`).

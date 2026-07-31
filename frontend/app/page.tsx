@@ -21,67 +21,61 @@ import {
   Clock
 } from "lucide-react";
 
+const SETUP_STEPS = [
+  {
+    num: "01",
+    title: "1. Connect Order Stream Data",
+    desc: "Input past quick commerce order history or connect API streams. PreFill instantly models item depletion rates without manual setup."
+  },
+  {
+    num: "02",
+    title: "2. Set Restock Threshold Goals",
+    desc: "Define custom stockout triggers (e.g. 20% remaining threshold) and filter anomaly spikes like weekend party orders."
+  },
+  {
+    num: "03",
+    title: "3. Deploy to WhatsApp Channel",
+    desc: "Launch your automated WhatsApp restock agent in minutes. Ground it with brand voice and delivery fee rules."
+  },
+  {
+    num: "04",
+    title: "4. Monitor Depletion Trajectories",
+    desc: "Track live household inventory levels and Prophet ML prediction accuracy on the real-time executive dashboard."
+  },
+  {
+    num: "05",
+    title: "5. Adapt & Scale Household LTV",
+    desc: "Continuously improve reorder timing, driving 82% 90-day retention and recapturing local Kirana leakages."
+  }
+];
+
+const FAQ_ITEMS = [
+  {
+    q: "How does PreFill predict when a household will run out of milk or staples?",
+    a: "PreFill uses Prophet ML consumption modeling to analyze past purchase timestamps and order quantities. It calculates daily consumption velocity and predicts stock depletion 24 hours before reaching the critical 20% threshold."
+  },
+  {
+    q: "Will PreFill work with existing quick commerce platforms (Zepto, Blinkit, Instamart)?",
+    a: "Yes! PreFill is built with universal API connectors for quick commerce delivery APIs, WhatsApp Business APIs, and Shopify order webhooks."
+  },
+  {
+    q: "How does the 1-Tap WhatsApp restock process work for customers?",
+    a: "When an item hits the 20% depletion threshold, PreFill sends a WhatsApp message with the item name, price, and delivery fee. The customer simply replies 'YES' or taps the button to confirm 10-minute delivery."
+  },
+  {
+    q: "How does PreFill filter out abnormal spikes like weekend parties or travel?",
+    a: "Our LangGraph decision engine applies anomaly filtering rules. If a purchase spike deviates significantly from 30-day baseline consumption, PreFill adjusts the trajectory without miscalculating daily usage."
+  },
+  {
+    q: "How fast can a quick commerce brand set up PreFill?",
+    a: "PreFill can be integrated in under 2 hours. Simply upload historical order logs or connect your webhooks, and the AI models initialize automatically."
+  }
+];
+
 function SinglePageShowcaseContent() {
   const [activeScenario, setActiveScenario] = useState("standard");
-
-  // PreFill 5-Step Setup Accordion State
   const [activeSetupStep, setActiveSetupStep] = useState(0);
-
-  // PreFill FAQ Accordion State
   const [openFaq, setOpenFaq] = useState<number | null>(0);
-
-  // PreFill 5-Step Setup Guide Content
-  const setupSteps = [
-    {
-      num: "01",
-      title: "1. Connect Order Stream Data",
-      desc: "Input past quick commerce order history or connect API streams. PreFill instantly models item depletion rates without manual setup."
-    },
-    {
-      num: "02",
-      title: "2. Set Restock Threshold Goals",
-      desc: "Define custom stockout triggers (e.g. 20% remaining threshold) and filter anomaly spikes like weekend party orders."
-    },
-    {
-      num: "03",
-      title: "3. Deploy to WhatsApp Channel",
-      desc: "Launch your automated WhatsApp restock agent in minutes. Ground it with brand voice and delivery fee rules."
-    },
-    {
-      num: "04",
-      title: "4. Monitor Depletion Trajectories",
-      desc: "Track live household inventory levels and Prophet ML prediction accuracy on the real-time executive dashboard."
-    },
-    {
-      num: "05",
-      title: "5. Adapt & Scale Household LTV",
-      desc: "Continuously improve reorder timing, driving 82% 90-day retention and recapturing local Kirana leakages."
-    }
-  ];
-
-  // PreFill FAQ Items
-  const faqItems = [
-    {
-      q: "How does PreFill predict when a household will run out of milk or staples?",
-      a: "PreFill uses Prophet ML consumption modeling to analyze past purchase timestamps and order quantities. It calculates daily consumption velocity and predicts stock depletion 24 hours before reaching the critical 20% threshold."
-    },
-    {
-      q: "Will PreFill work with existing quick commerce platforms (Zepto, Blinkit, Instamart)?",
-      a: "Yes! PreFill is built with universal API connectors for quick commerce delivery APIs, WhatsApp Business APIs, and Shopify order webhooks."
-    },
-    {
-      q: "How does the 1-Tap WhatsApp restock process work for customers?",
-      a: "When an item hits the 20% depletion threshold, PreFill sends a WhatsApp message with the item name, price, and delivery fee. The customer simply replies 'YES' or taps the button to confirm 10-minute delivery."
-    },
-    {
-      q: "How does PreFill filter out abnormal spikes like weekend parties or travel?",
-      a: "Our LangGraph decision engine applies anomaly filtering rules. If a purchase spike deviates significantly from 30-day baseline consumption, PreFill adjusts the trajectory without miscalculating daily usage."
-    },
-    {
-      q: "How fast can a quick commerce brand set up PreFill?",
-      a: "PreFill can be integrated in under 2 hours. Simply upload historical order logs or connect your webhooks, and the AI models initialize automatically."
-    }
-  ];
 
   return (
     <div className="min-h-screen bg-[#F6F7F8] text-[#252525] font-sans flex flex-col selection:bg-[#252525] selection:text-white relative overflow-x-hidden">
@@ -427,7 +421,7 @@ function SinglePageShowcaseContent() {
           </div>
 
           <div className="w-full flex flex-col gap-3 max-w-3xl">
-            {setupSteps.map((step, idx) => (
+            {SETUP_STEPS.map((step, idx) => (
               <div
                 key={step.num}
                 onClick={() => setActiveSetupStep(idx)}
@@ -524,7 +518,7 @@ function SinglePageShowcaseContent() {
           </div>
 
           <div className="w-full flex flex-col gap-3">
-            {faqItems.map((faq, idx) => (
+            {FAQ_ITEMS.map((faq, idx) => (
               <div
                 key={idx}
                 onClick={() => setOpenFaq(openFaq === idx ? null : idx)}

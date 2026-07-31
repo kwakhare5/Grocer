@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import {
   CheckCheck,
   Send,
@@ -132,12 +132,12 @@ export default function PhoneMockup({ activeScenario }: PhoneMockupProps) {
     }
   }, [hostTab]);
 
-  const handleSelectSubTab = (tabKey: "pantry" | "recipes" | "signals") => {
+  const handleSelectSubTab = useCallback((tabKey: "pantry" | "recipes" | "signals") => {
     setUserSelectedTab(tabKey);
     setSearchQuery("");
-  };
+  }, []);
 
-  const handleSelectRecipe = (rKey: "biryani" | "dal" | "paneer" | "oats") => {
+  const handleSelectRecipe = useCallback((rKey: "biryani" | "dal" | "paneer" | "oats") => {
     setSelectedRecipe(rKey);
     setOrderedRecipe(false);
     const recipe = RECIPE_DB[rKey];
@@ -148,13 +148,13 @@ export default function PhoneMockup({ activeScenario }: PhoneMockupProps) {
       }
     });
     setSelectedIngredients(initial);
-  };
+  }, []);
 
-  const toggleIngredientSelection = (name: string) => {
+  const toggleIngredientSelection = useCallback((name: string) => {
     setSelectedIngredients(prev => ({ ...prev, [name]: !prev[name] }));
-  };
+  }, []);
 
-  const handleAddRecipeMissingToCart = () => {
+  const handleAddRecipeMissingToCart = useCallback(() => {
     const recipe = RECIPE_DB[selectedRecipe as keyof typeof RECIPE_DB];
     const toAdd = recipe.ingredients.filter(i => i.status !== "have" && selectedIngredients[i.name] !== false);
     if (toAdd.length === 0) {
@@ -166,7 +166,7 @@ export default function PhoneMockup({ activeScenario }: PhoneMockupProps) {
     });
     setOrderedRecipe(true);
     toast.success(`Added ${toAdd.length} ingredients for ${recipe.dish} to Cart!`);
-  };
+  }, [selectedRecipe, selectedIngredients]);
 
   // WhatsApp Chat State
   const [messages, setMessages] = useState([
@@ -233,7 +233,7 @@ export default function PhoneMockup({ activeScenario }: PhoneMockupProps) {
     }
   }, [messages, loading, isWhatsAppOpen]);
 
-  const updateQuantity = (name: string, delta: number, e?: React.MouseEvent) => {
+  const updateQuantity = useCallback((name: string, delta: number, e?: React.MouseEvent) => {
     e?.stopPropagation();
     setItemQuantities((prev) => {
       const current = prev[name] || 0;
@@ -245,11 +245,11 @@ export default function PhoneMockup({ activeScenario }: PhoneMockupProps) {
       }
       return { ...prev, [name]: next };
     });
-  };
+  }, []);
 
   const totalCartItems = Object.values(itemQuantities).reduce((a, b) => a + b, 0);
 
-  const handleSendMessage = async (textToSend?: string) => {
+  const handleSendMessage = useCallback(async (textToSend?: string) => {
     const msgText = textToSend || input;
     if (!msgText.trim() || loading) return;
 
@@ -304,7 +304,7 @@ export default function PhoneMockup({ activeScenario }: PhoneMockupProps) {
       ]);
       setLoading(false);
     }, 800);
-  };
+  }, [input, loading]);
 
   const currentRecipe = RECIPE_DB[selectedRecipe];
   const recipeMissing = currentRecipe.ingredients.filter(i => i.status !== "have");

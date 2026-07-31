@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { 
   Cpu, 
   BarChart2,
@@ -21,6 +21,9 @@ const TRACKED_ITEMS = [
 
 export default function PreFillBentoGrid() {
   const [anomalyMode, setAnomalyMode] = useState<"party" | "filtered">("filtered");
+
+  const handleSelectFiltered = useCallback(() => setAnomalyMode("filtered"), []);
+  const handleSelectParty = useCallback(() => setAnomalyMode("party"), []);
 
   return (
     <div className="w-full max-w-6xl py-14 sm:py-20 flex flex-col items-center">
@@ -228,7 +231,7 @@ export default function PreFillBentoGrid() {
                 <span className="text-[11px] font-bold text-stone-700 font-sans">Filter Mode:</span>
                 <div className="flex items-center gap-1 bg-stone-200/70 p-1 rounded-full text-[9.5px] font-bold font-mono">
                   <button
-                    onClick={() => setAnomalyMode("party")}
+                    onClick={handleSelectParty}
                     className={`px-2.5 py-0.5 rounded-full transition-all cursor-pointer active:scale-95 ${
                       anomalyMode === "party" ? "bg-white text-stone-900 shadow-2xs border border-stone-200" : "text-stone-500 hover:text-stone-800"
                     }`}
@@ -236,7 +239,7 @@ export default function PreFillBentoGrid() {
                     Raw Spike
                   </button>
                   <button
-                    onClick={() => setAnomalyMode("filtered")}
+                    onClick={handleSelectFiltered}
                     className={`px-2.5 py-0.5 rounded-full transition-all cursor-pointer active:scale-95 ${
                       anomalyMode === "filtered" ? "bg-emerald-700 text-white shadow-2xs" : "text-stone-500 hover:text-stone-800"
                     }`}

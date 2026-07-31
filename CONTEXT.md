@@ -43,14 +43,14 @@ The mockup iPhone (`PhoneMockup.tsx` & `ui/iphone.tsx`) is **the hands-on intera
 
 1. **100% Brand Agnostic:** Never hardcode specific quick commerce brand names in UI/copy.
 2. **Single Unified Mobile View:** All PreFill capabilities render inside a single, seamless scrollable tab.
-3. **iPhone 16 Pro Hardware Dimensions:** Mockup container locked to 71.5mm × 149.6mm physical ratio (`w-[305px] h-[638px] aspect-[71.5/149.6] shrink-0 overflow-hidden`).
+3. **iPhone 16 Pro Hardware Dimensions:** Mockup container locked to 1800 × 3680 pixel ratio (`w-[275px] h-[562px] aspect-[1800/3680] shrink-0 overflow-hidden`).
 4. **Zero AI Slop:** No casual emojis in UI buttons, headings, or chat options. Use clean Lucide icons.
 5. **Clean Typography:** Display/UI headings in `Outfit`, editorial title accents in `Cambo` (normal weight, no italics).
 6. **AsyncSession always:** Sync SQLAlchemy blocks the FastAPI event loop.
 7. **Passing Tests:** Run `pytest backend/tests/ -v` (16/16 pass) & `npm run build` (0 warnings/errors) after every edit.
-8. **1:1 Mockup Design System Alignment:** Mock iPhone inner UI MUST use global landing page tokens (`#252525`, `#F6F7F8`, `round-card-droxy`, `card-pastel-*`, `btn-droxy-pill-*`, `badge-*`). Inner chat views MUST use container scrolling (`scrollTop`) rather than window `scrollIntoView()` to prevent landing page scroll jumps.
+8. **1:1 Mockup Design System Alignment:** Mock iPhone inner UI MUST use global landing page tokens (`#252525`, `#F6F7F8`, `.card-neutral-droxy`, `.btn-droxy-pill-*`, `.badge-*`). Inner chat views MUST use container scrolling (`scrollTop`) rather than window `scrollIntoView()` to prevent landing page scroll jumps.
 9. **Interactive Mockup Product Demo Integrity:** Treat the iPhone mockup (`PhoneMockup.tsx`) as the real user-facing application:
-   - Segmented Sub-Tabs Bar (`Pantry Stock`, `Recipes`, `Price Signals`, `All`) for clutter-free feature exploration.
+   - Segmented Sub-Tabs Bar (`🛒 Pantry`, `🍳 Recipes`, `🏷️ Signals`) for clutter-free feature exploration.
    - Circular floating WhatsApp button on the bottom-right corner (`bottom-14 right-3 z-40`) with unread notification dot.
    - Unified cart drawer (`bottom-14 left-3 right-16 z-30`) collecting items across pantry steppers and recipe ingredient fulfillments.
    - WhatsApp order confirmation loop that resets depleted pantry stock back to 100% fill level.
@@ -105,7 +105,7 @@ _Migrations: Alembic. Source of truth: `backend/database/models.py`_
 | Interactive Feature Sidebar | 🟢 Live | `PreFillFeatureSidebar.tsx` — 5 core capabilities (Prophet, LangGraph, Recipe, Price, Anomaly) |
 | Practical Use Cases | 🟢 Live | `PreFillPracticalUse.tsx` — Household categories (Dairy, Staples, Cleaners, Organics) |
 | Technical Bento Grid | 🟢 Live | `PreFillBentoGrid.tsx` — 6 bento cards (Prophet ML, Checkpointer, Webhooks, WhatsApp 1-Tap) |
-| Balanced Pastel Color System | 🟢 Live | `globals.css` — 4 pastel color families (Sky Blue, Mint Green, Warm Amber, Rose Red) |
+| Clean Design System | 🟢 Live | `globals.css` — Purged dead CSS classes, unified `.card-neutral-droxy` tokens |
 | 100% Brand Agnostic | 🟢 Live | 0 brand occurrences across frontend copy |
 
 ---

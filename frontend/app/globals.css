@@ -1,54 +1,58 @@
 @import "tailwindcss";
 
-/* ─── PreFill 1:1 Droxy.ai Light Design System Tokens ────────────────── */
+/* ─── PreFill Design System Tokens ──────────────────────────────────── */
 :root {
-  --background: #F6F7F8;
-  --surface: #FFFFFF;
-  --surface-raised: #FAFBFB;
-  --foreground: #252525;
-  --muted: #64717E;
-  --muted-subtle: #94A3B8;
+  /* Surfaces & Canvas */
+  --background: #FAFAFA;
+  --surface-card: #FFFFFF;
+  --surface-muted: #F3F4F6;
+  --surface-raised: #FFFFFF;
+  
+  /* Typography & Foreground */
+  --foreground: #09090B;
+  --foreground-muted: #6B7280;
+  --foreground-subtle: #9CA3AF;
+  
+  /* Borders */
   --border: #E5E7EB;
   --border-subtle: rgba(229, 231, 235, 0.85);
+
+  /* Primary & Brand Accents */
+  --primary: #09090B;
+  --primary-hover: #18181B;
+  --accent-sky: #0284C7;
+  --accent-blue: #2563EB;
+  --accent-emerald: #16A34A;
   
-  /* Droxy Primary Token */
-  --primary: #252525;
-  --primary-hover: #1A1A1A;
-  
-  /* 4 Curated Pastel Color Families from Screenshot (No Purple) */
-  --pastel-blue-bg: #EFF6FF;
-  --pastel-blue-border: #DBEAFE;
-  --pastel-blue-text: #1E40AF;
-
-  --pastel-green-bg: #F0FDF4;
-  --pastel-green-border: #DCFCE7;
-  --pastel-green-text: #15803D;
-
-  --pastel-amber-bg: #FFF7ED;
-  --pastel-amber-border: #FFEDD5;
-  --pastel-amber-text: #C2410C;
-
-  --pastel-red-bg: #FFF1F2;
-  --pastel-red-border: #FECDD3;
-  --pastel-red-text: #BE123C;
-
   /* Fonts */
   --font-sans: var(--font-outfit), sans-serif;
   --font-display: var(--font-outfit), sans-serif;
   --font-serif: var(--font-cambo), serif;
-  --font-mono: var(--font-outfit), sans-serif;
+
+  /* Emil Kowalski Motion Easing Tokens */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+  --font-mono: var(--font-outfit), monospace;
+
+  /* Border Radiuses */
+  --radius-card-lg: 32px;
+  --radius-card: 24px;
+  --radius-card-sm: 16px;
+  --radius-pill: 9999px;
   
-  /* Tactile Pill Button Shadows */
-  --shadow-droxy-pill: 0px 2px 6px rgba(37, 37, 37, 0.12), inset 0px 1px 0px rgba(255, 255, 255, 0.2);
-  --shadow-droxy-card: 0px 2px 10px rgba(0, 0, 0, 0.03), 0px 1px 2px rgba(0, 0, 0, 0.02);
-  --shadow-droxy-card-hover: 0px 12px 32px rgba(0, 0, 0, 0.08);
+  /* Component Shadows */
+  --shadow-pill-primary: 0px 2px 6px rgba(9, 9, 11, 0.12), inset 0px 1px 0px rgba(255, 255, 255, 0.15);
+  --shadow-card-surface: 0px 2px 10px rgba(0, 0, 0, 0.03), 0px 1px 2px rgba(0, 0, 0, 0.02);
+  --shadow-card-hover: 0px 12px 32px rgba(0, 0, 0, 0.08);
 }
 
 @theme inline {
   --color-background: var(--background);
-  --color-surface: var(--surface);
+  --color-surface-card: var(--surface-card);
+  --color-surface-muted: var(--surface-muted);
   --color-foreground: var(--foreground);
-  --color-muted: var(--muted);
+  --color-foreground-muted: var(--foreground-muted);
   --color-border: var(--border);
 
   --font-sans: var(--font-outfit);
@@ -56,9 +60,9 @@
   --font-serif: var(--font-cambo);
   --font-mono: var(--font-outfit);
 
-  --radius-2xl: 20px;
-  --radius-xl: 14px;
-  --radius-lg: 10px;
+  --radius-2xl: 24px;
+  --radius-xl: 16px;
+  --radius-lg: 12px;
   --radius-full: 9999px;
 }
 
@@ -68,8 +72,8 @@
 
 html {
   scroll-behavior: smooth;
-  background-color: #F6F7F8;
-  color: #252525;
+  background-color: var(--background);
+  color: var(--foreground);
 }
 
 body {
@@ -79,146 +83,98 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Droxy Typography Tracking */
-.tracking-tight-display {
-  letter-spacing: -0.03em;
-  line-height: 1.08;
+/* ── Typography Utilities ────────────────────────────────────────────── */
+.font-serif-accent {
+  font-family: var(--font-cambo), serif;
 }
 
-/* ── ASCII Mesh Dotted Grid Background Pattern ────────────────────────── */
-.bg-ascii-dotted-grid {
-  background-image: 
-    radial-gradient(circle at 1px 1px, rgba(37, 37, 37, 0.12) 1.25px, transparent 0),
-    linear-gradient(to right, rgba(0, 0, 0, 0.025) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(0, 0, 0, 0.025) 1px, transparent 1px);
-  background-size: 32px 32px, 32px 32px, 32px 32px;
-  background-position: 0 0, 0 0, 0 0;
+/* ── PreFill Design System Reusable Component Tokens ─────────────────── */
+
+/* 1. Primary Dark Pill Button */
+.btn-prefill-pill-primary {
+  background-color: #09090B;
+  color: #FFFFFF;
+  font-weight: 600;
+  font-size: 0.875rem;
+  border-radius: 9999px;
+  padding: 0.65rem 1.4rem;
+  box-shadow: var(--shadow-pill-primary);
+  transition: background-color 150ms ease, transform 150ms ease, box-shadow 150ms ease;
+  cursor: pointer;
+}
+.btn-prefill-pill-primary:hover {
+  background-color: #18181B;
+  box-shadow: 0px 4px 14px rgba(9, 9, 11, 0.22);
+}
+.btn-prefill-pill-primary:active {
+  transform: scale(0.97);
 }
 
-/* Masked ASCII Mesh Grid for subtle radial fading */
-.bg-ascii-mesh-masked {
-  position: relative;
+/* 2. Secondary Light Pill Button */
+.btn-prefill-pill-secondary {
+  background-color: #F3F4F6;
+  color: #111827;
+  font-weight: 600;
+  font-size: 0.875rem;
+  border: 1px solid #E5E7EB;
+  border-radius: 9999px;
+  padding: 0.65rem 1.4rem;
+  transition: background-color 150ms ease, border-color 150ms ease, transform 150ms ease;
+  cursor: pointer;
 }
-.bg-ascii-mesh-masked::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background-image: 
-    radial-gradient(circle at 1px 1px, rgba(37, 37, 37, 0.14) 1.5px, transparent 0),
-    linear-gradient(to right, rgba(0, 0, 0, 0.03) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(0, 0, 0, 0.03) 1px, transparent 1px);
-  background-size: 36px 36px, 36px 36px, 36px 36px;
-  mask-image: radial-gradient(ellipse at center, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0) 80%);
-  -webkit-mask-image: radial-gradient(ellipse at center, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0) 80%);
-  pointer-events: none;
-  z-index: 0;
+.btn-prefill-pill-secondary:hover {
+  background-color: #E5E7EB;
+  border-color: #D1D5DB;
+}
+.btn-prefill-pill-secondary:active {
+  transform: scale(0.97);
 }
 
-/* ── Active Card Surfaces & Micro Status Badges ────────────────── */
-
-.card-neutral-droxy {
+/* 3. PreFill Surface Card */
+.card-prefill-surface {
   background-color: #FFFFFF;
   border: 1px solid #E5E7EB;
   border-radius: 24px;
   padding: 1.5rem;
-  box-shadow: 0px 2px 10px rgba(0, 0, 0, 0.03), 0px 1px 2px rgba(0, 0, 0, 0.02);
-  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+  box-shadow: var(--shadow-card-surface);
+  transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
 }
-
-.card-neutral-droxy:hover {
+.card-prefill-surface:hover {
   border-color: #CBD5E1;
-  box-shadow: 0px 8px 24px rgba(0, 0, 0, 0.06);
-  transform: translateY(-2px);
+  box-shadow: var(--shadow-card-hover);
 }
 
-.card-neutral-droxy .title-accent {
-  color: #252525;
-  font-weight: 800;
-}
-
-/* Minimal Functional Status Pills */
-.status-pill-green {
-  background-color: #F0FDF4;
-  color: #15803D;
-  border: 1px solid #DCFCE7;
-}
-
-/* Droxy Pill Badges */
-.badge-droxy-pill {
+/* 4. PreFill Pill Badge */
+.badge-prefill-pill {
   display: inline-flex;
   align-items: center;
   gap: 0.375rem;
   padding: 0.35rem 0.85rem;
   border-radius: 9999px;
-  background-color: #EAECEE;
-  color: #252525;
+  background-color: #F3F4F6;
+  color: #111827;
   font-size: 0.75rem;
   font-weight: 500;
-  border: 1px solid rgba(0, 0, 0, 0.06);
-}
-
-/* Muted Green Badge */
-.badge-green {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  background-color: #ECFDF5;
-  color: #065F46;
-  border: 1px solid #A7F3D0;
-  border-radius: 9999px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  padding: 0.25rem 0.75rem;
-}
-
-/* Droxy Pill Buttons */
-.btn-droxy-pill-primary {
-  background-color: #252525;
-  color: #FFFFFF;
-  font-weight: 600;
-  font-size: 0.875rem;
-  border-radius: 9999px;
-  padding: 0.6rem 1.35rem;
-  box-shadow: var(--shadow-droxy-pill);
-  transition: background-color 140ms ease, transform 140ms ease, box-shadow 140ms ease;
-}
-.btn-droxy-pill-primary:hover {
-  background-color: #0A0A0A;
-  box-shadow: 0px 4px 14px rgba(37, 37, 37, 0.25);
-}
-.btn-droxy-pill-primary:active {
-  transform: scale(0.97);
-}
-
-.btn-droxy-pill-secondary {
-  background-color: #FFFFFF;
-  color: #252525;
-  font-weight: 600;
-  font-size: 0.875rem;
-  border: 1px solid #D1D5DB;
-  border-radius: 9999px;
-  padding: 0.6rem 1.35rem;
-  transition: background-color 140ms ease, border-color 140ms ease, transform 140ms ease;
-}
-.btn-droxy-pill-secondary:hover {
-  background-color: #F3F4F6;
-  border-color: #9CA3AF;
-}
-.btn-droxy-pill-secondary:active {
-  transform: scale(0.97);
-}
-
-/* Droxy Card Surfaces */
-.round-card-droxy {
-  background-color: #FFFFFF;
   border: 1px solid #E5E7EB;
-  border-radius: 20px;
-  box-shadow: var(--shadow-droxy-card);
-  transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
-}
-.round-card-droxy:hover {
-  border-color: #CBD5E1;
-  box-shadow: var(--shadow-droxy-card-hover);
 }
 
-.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Hide Next.js Dev Overlay Indicator Badge Permanently */
+[data-nextjs-toast],
+[data-nextjs-portal],
+nextjs-portal,
+#next-logo,
+#__next-build-watcher,
+div[class*="nextjs-toast"],
+div[class*="next-logo"],
+div[class*="dev-overlay"],
+button[aria-label*="Next.js"] {
+  display: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+

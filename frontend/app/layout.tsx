@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Outfit, Cambo, Instrument_Serif } from 'next/font/google';
+import { Outfit, Cambo } from 'next/font/google';
 import { Toaster } from 'sonner';
 import './globals.css';
 import { Analytics } from '@vercel/analytics/react';
@@ -16,16 +16,14 @@ const cambo = Cambo({
   weight: ['400'],
 });
 
-const instrumentSerif = Instrument_Serif({
-  variable: '--font-instrument-serif',
-  subsets: ['latin'],
-  weight: ['400'],
-  style: ['italic'],
-});
-
 export const metadata: Metadata = {
-  title: 'PreFill — Build and deploy reliable AI restock agents',
-  description: 'The all-in-one platform for customer-facing AI restocking agents across any channel. Launch and monitor your first agent in minutes.',
+  title: 'PreFill — Predictive Household Inventory Engine for Quick Commerce',
+  description: 'PreFill models daily household grocery depletion velocity to trigger automated 1-tap WhatsApp restocking before items run out.',
+  icons: {
+    icon: '/logo.svg',
+    shortcut: '/logo.svg',
+    apple: '/logo.svg',
+  },
 };
 
 export default function RootLayout({
@@ -36,9 +34,9 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${outfit.variable} ${cambo.variable} ${instrumentSerif.variable} h-full antialiased`}
+      className={`${outfit.variable} ${cambo.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col selection:bg-[#252525] selection:text-white relative overflow-x-hidden bg-[#F6F7F8] text-[#252525] font-sans">
+      <body className="min-h-full flex flex-col selection:bg-gray-950 selection:text-white relative overflow-x-hidden bg-[#FAFAFA] text-gray-900 font-sans">
         
         {/* Page Content */}
         {children}

@@ -42,7 +42,7 @@
 
 ## 4. CORE COMMANDS REFERENCE
 Invoke via `/command` or natural language. Skills are SKILL.md folders living in your agent's global skills folder. Discovery per tool (full map: playbook.md §5.1):
-- Cross-tool standard: `~/.agents/skills/` (opencode, Claude Code all read it) — keep skills here
+- Cross-tool standard: `~/.agents/skills/` (opencode, Claude Code, Freebuff all read it) — keep skills here
 - Gemini CLI: `~/.gemini/config/skills/` and `~/.gemini/skills/`
 - Project-local skills: `.agents/skills/`
 Never hardcode one tool's path in rule files — keep this file tool-agnostic.

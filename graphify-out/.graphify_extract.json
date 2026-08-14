@@ -361,8 +361,8 @@
       "_origin": "ast"
     },
     {
-      "id": "architecture_6_landing_page_narrative_showcase_app_page_tsx",
-      "label": "6. LANDING PAGE NARRATIVE SHOWCASE (`app/page.tsx`)",
+      "id": "architecture_6_landing_page_showcase_stream_app_page_tsx",
+      "label": "6. LANDING PAGE SHOWCASE STREAM (`app/page.tsx`)",
       "file_type": "document",
       "source_file": "ARCHITECTURE.md",
       "source_location": "L290",
@@ -373,7 +373,7 @@
       "label": "7. REPO MAP & FILE ORGANIZATION",
       "file_type": "document",
       "source_file": "ARCHITECTURE.md",
-      "source_location": "L311",
+      "source_location": "L303",
       "_origin": "ast"
     },
     {
@@ -381,7 +381,7 @@
       "label": "DOMAIN GLOSSARY",
       "file_type": "document",
       "source_file": "ARCHITECTURE.md",
-      "source_location": "L336",
+      "source_location": "L323",
       "_origin": "ast"
     },
     {
@@ -489,102 +489,6 @@
       "_origin": "ast"
     },
     {
-      "id": "executive_pitch",
-      "label": "EXECUTIVE_PITCH.md",
-      "file_type": "document",
-      "source_file": "EXECUTIVE_PITCH.md",
-      "source_location": "L1",
-      "_origin": "ast"
-    },
-    {
-      "id": "executive_pitch_executive_pitch_md_grocer_predictive_household_inventory_intelligence_for_quick_commerce",
-      "label": "EXECUTIVE_PITCH.md — Grocer: Predictive Household Inventory Intelligence for Quick Commerce",
-      "file_type": "document",
-      "source_file": "EXECUTIVE_PITCH.md",
-      "source_location": "L1",
-      "_origin": "ast"
-    },
-    {
-      "id": "executive_pitch_1_executive_summary",
-      "label": "1. Executive Summary",
-      "file_type": "document",
-      "source_file": "EXECUTIVE_PITCH.md",
-      "source_location": "L7",
-      "_origin": "ast"
-    },
-    {
-      "id": "executive_pitch_2_the_business_moat_ltv_retention",
-      "label": "2. The Business Moat (LTV & Retention)",
-      "file_type": "document",
-      "source_file": "EXECUTIVE_PITCH.md",
-      "source_location": "L27",
-      "_origin": "ast"
-    },
-    {
-      "id": "executive_pitch_a_preventing_kirana_store_leakage",
-      "label": "A. Preventing Kirana Store Leakage",
-      "file_type": "document",
-      "source_file": "EXECUTIVE_PITCH.md",
-      "source_location": "L29",
-      "_origin": "ast"
-    },
-    {
-      "id": "executive_pitch_b_the_6_month_switching_cost_moat",
-      "label": "B. The 6-Month Switching Cost Moat",
-      "file_type": "document",
-      "source_file": "EXECUTIVE_PITCH.md",
-      "source_location": "L32",
-      "_origin": "ast"
-    },
-    {
-      "id": "executive_pitch_3_technical_architecture_innovation",
-      "label": "3. Technical Architecture & Innovation",
-      "file_type": "document",
-      "source_file": "EXECUTIVE_PITCH.md",
-      "source_location": "L42",
-      "_origin": "ast"
-    },
-    {
-      "id": "executive_pitch_1_stateful_conversational_agent_langgraph_postgresql_checkpointer",
-      "label": "1. Stateful Conversational Agent (LangGraph + PostgreSQL Checkpointer)",
-      "file_type": "document",
-      "source_file": "EXECUTIVE_PITCH.md",
-      "source_location": "L44",
-      "_origin": "ast"
-    },
-    {
-      "id": "executive_pitch_2_time_series_consumption_forecasting_facebook_prophet_interquartile_range_anomaly_filtering",
-      "label": "2. Time-Series Consumption Forecasting (Facebook Prophet + Interquartile Range Anomaly Filtering)",
-      "file_type": "document",
-      "source_file": "EXECUTIVE_PITCH.md",
-      "source_location": "L48",
-      "_origin": "ast"
-    },
-    {
-      "id": "executive_pitch_3_asynchronous_high_throughput_fastapi_backend",
-      "label": "3. Asynchronous High-Throughput FastAPI Backend",
-      "file_type": "document",
-      "source_file": "EXECUTIVE_PITCH.md",
-      "source_location": "L52",
-      "_origin": "ast"
-    },
-    {
-      "id": "executive_pitch_4_zero_cost_live_prototype_architecture",
-      "label": "4. Zero-Cost Live Prototype Architecture",
-      "file_type": "document",
-      "source_file": "EXECUTIVE_PITCH.md",
-      "source_location": "L59",
-      "_origin": "ast"
-    },
-    {
-      "id": "executive_pitch_5_contact_collaboration",
-      "label": "5. Contact & Collaboration",
-      "file_type": "document",
-      "source_file": "EXECUTIVE_PITCH.md",
-      "source_location": "L70",
-      "_origin": "ast"
-    },
-    {
       "id": "implementation_plan",
       "label": "implementation_plan.md",
       "file_type": "document",
@@ -593,8 +497,8 @@
       "_origin": "ast"
     },
     {
-      "id": "implementation_plan_implementation_plan_grocer_engineering_prototype_refinement",
-      "label": "Implementation Plan — Grocer Engineering Prototype & Refinement",
+      "id": "implementation_plan_implementation_plan_markdown_alignment_codebase_cleanup",
+      "label": "Implementation Plan — Markdown Alignment & Codebase Cleanup",
       "file_type": "document",
       "source_file": "implementation_plan.md",
       "source_location": "L1",
@@ -605,127 +509,63 @@
       "label": "User Review Required",
       "file_type": "document",
       "source_file": "implementation_plan.md",
-      "source_location": "L9",
+      "source_location": "L7",
       "_origin": "ast"
     },
     {
-      "id": "implementation_plan_complete_action_list",
-      "label": "Complete Action List",
+      "id": "implementation_plan_proposed_changes",
+      "label": "Proposed Changes",
+      "file_type": "document",
+      "source_file": "implementation_plan.md",
+      "source_location": "L17",
+      "_origin": "ast"
+    },
+    {
+      "id": "implementation_plan_documentation_changes_deletions",
+      "label": "Documentation Changes & Deletions",
       "file_type": "document",
       "source_file": "implementation_plan.md",
       "source_location": "L19",
       "_origin": "ast"
     },
     {
-      "id": "implementation_plan_1_component_deletions_3_files",
-      "label": "1. Component Deletions (3 Files)",
+      "id": "implementation_plan_delete_executive_pitch_md_file_d_prefill_executive_pitch_md",
+      "label": "[DELETE] [`EXECUTIVE_PITCH.md`](file:///d:/PreFill/EXECUTIVE_PITCH.md)",
       "file_type": "document",
       "source_file": "implementation_plan.md",
       "source_location": "L21",
       "_origin": "ast"
     },
     {
-      "id": "implementation_plan_delete_grocertestimonialsection_tsx_file_d_prefill_frontend_components_grocer_grocertestimonialsection_tsx",
-      "label": "[DELETE] [`GrocerTestimonialSection.tsx`](file:///d:/PreFill/frontend/components/grocer/GrocerTestimonialSection.tsx)",
-      "file_type": "document",
-      "source_file": "implementation_plan.md",
-      "source_location": "L23",
-      "_origin": "ast"
-    },
-    {
-      "id": "implementation_plan_delete_grocerroicalculator_tsx_file_d_prefill_frontend_components_grocer_grocerroicalculator_tsx",
-      "label": "[DELETE] [`GrocerRoiCalculator.tsx`](file:///d:/PreFill/frontend/components/grocer/GrocerRoiCalculator.tsx)",
+      "id": "implementation_plan_modify_readme_md_file_d_prefill_readme_md",
+      "label": "[MODIFY] [`README.md`](file:///d:/PreFill/README.md)",
       "file_type": "document",
       "source_file": "implementation_plan.md",
       "source_location": "L26",
       "_origin": "ast"
     },
     {
-      "id": "implementation_plan_delete_grocermeasurablevalue_tsx_file_d_prefill_frontend_components_grocer_grocermeasurablevalue_tsx",
-      "label": "[DELETE] [`GrocerMeasurableValue.tsx`](file:///d:/PreFill/frontend/components/grocer/GrocerMeasurableValue.tsx)",
+      "id": "implementation_plan_modify_context_md_file_d_prefill_context_md",
+      "label": "[MODIFY] [`CONTEXT.md`](file:///d:/PreFill/CONTEXT.md)",
       "file_type": "document",
       "source_file": "implementation_plan.md",
       "source_location": "L29",
       "_origin": "ast"
     },
     {
-      "id": "implementation_plan_2_component_refactoring_copy_updates_5_files",
-      "label": "2. Component Refactoring & Copy Updates (5 Files)",
+      "id": "implementation_plan_modify_architecture_md_file_d_prefill_architecture_md",
+      "label": "[MODIFY] [`ARCHITECTURE.md`](file:///d:/PreFill/ARCHITECTURE.md)",
       "file_type": "document",
       "source_file": "implementation_plan.md",
-      "source_location": "L34",
+      "source_location": "L32",
       "_origin": "ast"
     },
     {
-      "id": "implementation_plan_modify_grocervalueprop_tsx_file_d_prefill_frontend_components_grocer_grocervalueprop_tsx",
-      "label": "[MODIFY] [`GrocerValueProp.tsx`](file:///d:/PreFill/frontend/components/grocer/GrocerValueProp.tsx)",
+      "id": "implementation_plan_modify_agents_agents_md_file_d_prefill_agents_agents_md",
+      "label": "[MODIFY] [`.agents/AGENTS.md`](file:///d:/PreFill/.agents/AGENTS.md)",
       "file_type": "document",
       "source_file": "implementation_plan.md",
-      "source_location": "L36",
-      "_origin": "ast"
-    },
-    {
-      "id": "implementation_plan_modify_grocerhero_tsx_file_d_prefill_frontend_components_grocer_grocerhero_tsx",
-      "label": "[MODIFY] [`GrocerHero.tsx`](file:///d:/PreFill/frontend/components/grocer/GrocerHero.tsx)",
-      "file_type": "document",
-      "source_file": "implementation_plan.md",
-      "source_location": "L44",
-      "_origin": "ast"
-    },
-    {
-      "id": "implementation_plan_modify_grocerintegrations_tsx_file_d_prefill_frontend_components_grocer_grocerintegrations_tsx",
-      "label": "[MODIFY] [`GrocerIntegrations.tsx`](file:///d:/PreFill/frontend/components/grocer/GrocerIntegrations.tsx)",
-      "file_type": "document",
-      "source_file": "implementation_plan.md",
-      "source_location": "L47",
-      "_origin": "ast"
-    },
-    {
-      "id": "implementation_plan_modify_grocerfaq_tsx_file_d_prefill_frontend_components_grocer_grocerfaq_tsx",
-      "label": "[MODIFY] [`GrocerFAQ.tsx`](file:///d:/PreFill/frontend/components/grocer/GrocerFAQ.tsx)",
-      "file_type": "document",
-      "source_file": "implementation_plan.md",
-      "source_location": "L54",
-      "_origin": "ast"
-    },
-    {
-      "id": "implementation_plan_modify_grocerfooter_tsx_file_d_prefill_frontend_components_grocer_grocerfooter_tsx",
-      "label": "[MODIFY] [`GrocerFooter.tsx`](file:///d:/PreFill/frontend/components/grocer/GrocerFooter.tsx)",
-      "file_type": "document",
-      "source_file": "implementation_plan.md",
-      "source_location": "L62",
-      "_origin": "ast"
-    },
-    {
-      "id": "implementation_plan_3_page_layout_refactoring_2_files",
-      "label": "3. Page & Layout Refactoring (2 Files)",
-      "file_type": "document",
-      "source_file": "implementation_plan.md",
-      "source_location": "L67",
-      "_origin": "ast"
-    },
-    {
-      "id": "implementation_plan_modify_page_tsx_file_d_prefill_frontend_app_page_tsx",
-      "label": "[MODIFY] [`page.tsx`](file:///d:/PreFill/frontend/app/page.tsx)",
-      "file_type": "document",
-      "source_file": "implementation_plan.md",
-      "source_location": "L69",
-      "_origin": "ast"
-    },
-    {
-      "id": "implementation_plan_modify_layout_tsx_file_d_prefill_frontend_app_layout_tsx",
-      "label": "[MODIFY] [`layout.tsx`](file:///d:/PreFill/frontend/app/layout.tsx)",
-      "file_type": "document",
-      "source_file": "implementation_plan.md",
-      "source_location": "L78",
-      "_origin": "ast"
-    },
-    {
-      "id": "implementation_plan_4_backend_systems_100_retained",
-      "label": "4. Backend Systems (100% Retained)",
-      "file_type": "document",
-      "source_file": "implementation_plan.md",
-      "source_location": "L83",
+      "source_location": "L35",
       "_origin": "ast"
     },
     {
@@ -733,7 +573,7 @@
       "label": "Verification Plan",
       "file_type": "document",
       "source_file": "implementation_plan.md",
-      "source_location": "L95",
+      "source_location": "L40",
       "_origin": "ast"
     },
     {
@@ -741,15 +581,7 @@
       "label": "Automated Build & Test Verification",
       "file_type": "document",
       "source_file": "implementation_plan.md",
-      "source_location": "L97",
-      "_origin": "ast"
-    },
-    {
-      "id": "implementation_plan_manual_visual_interactive_verification",
-      "label": "Manual Visual & Interactive Verification",
-      "file_type": "document",
-      "source_file": "implementation_plan.md",
-      "source_location": "L112",
+      "source_location": "L42",
       "_origin": "ast"
     },
     {
@@ -785,8 +617,8 @@
       "_origin": "ast"
     },
     {
-      "id": "journal_grocer_engineering_prototype_problem_exploration_refactoring_2026_08_14",
-      "label": "[Grocer — Engineering Prototype & Problem Exploration Refactoring] 2026-08-14",
+      "id": "journal_grocer_documentation_alignment_codebase_cleanup_2026_08_14",
+      "label": "[Grocer — Documentation Alignment & Codebase Cleanup] 2026-08-14",
       "file_type": "document",
       "source_file": "JOURNAL.md",
       "source_location": "L18",
@@ -797,7 +629,7 @@
       "label": "[Project — Example Entry] 2026-08-12",
       "file_type": "document",
       "source_file": "JOURNAL.md",
-      "source_location": "L32",
+      "source_location": "L30",
       "_origin": "ast"
     },
     {
@@ -1069,15 +901,15 @@
       "label": "📌 About the Project",
       "file_type": "document",
       "source_file": "README.md",
-      "source_location": "L32",
+      "source_location": "L39",
       "_origin": "ast"
     },
     {
-      "id": "readme_features",
-      "label": "🚀 Features",
+      "id": "readme_key_features",
+      "label": "🚀 Key Features",
       "file_type": "document",
       "source_file": "README.md",
-      "source_location": "L47",
+      "source_location": "L52",
       "_origin": "ast"
     },
     {
@@ -1085,95 +917,167 @@
       "label": "🛠️ Tech Stack",
       "file_type": "document",
       "source_file": "README.md",
-      "source_location": "L65",
+      "source_location": "L67",
       "_origin": "ast"
     },
     {
-      "id": "readme_architecture_file_map",
-      "label": "🏗️ Architecture & File Map",
+      "id": "readme_backend_infrastructure",
+      "label": "Backend Infrastructure",
       "file_type": "document",
       "source_file": "README.md",
-      "source_location": "L80",
+      "source_location": "L69",
       "_origin": "ast"
     },
     {
-      "id": "readme_repo_directory_structure",
-      "label": "Repo Directory Structure",
+      "id": "readme_frontend_infrastructure",
+      "label": "Frontend Infrastructure",
       "file_type": "document",
       "source_file": "README.md",
-      "source_location": "L91",
-      "_origin": "ast"
-    },
-    {
-      "id": "readme_performance_optimizations",
-      "label": "⚡ Performance Optimizations",
-      "file_type": "document",
-      "source_file": "README.md",
-      "source_location": "L121",
-      "_origin": "ast"
-    },
-    {
-      "id": "readme_quickstart",
-      "label": "💻 Quickstart",
-      "file_type": "document",
-      "source_file": "README.md",
-      "source_location": "L136",
+      "source_location": "L77",
       "_origin": "ast"
     },
     {
       "id": "readme_prerequisites",
-      "label": "Prerequisites",
+      "label": "📋 Prerequisites",
       "file_type": "document",
       "source_file": "README.md",
-      "source_location": "L138",
+      "source_location": "L86",
       "_origin": "ast"
     },
     {
-      "id": "readme_1_clone_set_up_virtual_environment",
-      "label": "1. Clone & Set Up Virtual Environment",
+      "id": "readme_getting_started",
+      "label": "💻 Getting Started",
+      "file_type": "document",
+      "source_file": "README.md",
+      "source_location": "L97",
+      "_origin": "ast"
+    },
+    {
+      "id": "readme_1_clone_the_repository",
+      "label": "1. Clone the Repository",
+      "file_type": "document",
+      "source_file": "README.md",
+      "source_location": "L101",
+      "_origin": "ast"
+    },
+    {
+      "id": "readme_2_set_up_python_virtual_environment_install_dependencies",
+      "label": "2. Set Up Python Virtual Environment & Install Dependencies",
+      "file_type": "document",
+      "source_file": "README.md",
+      "source_location": "L108",
+      "_origin": "ast"
+    },
+    {
+      "id": "readme_3_environment_configuration",
+      "label": "3. Environment Configuration",
+      "file_type": "document",
+      "source_file": "README.md",
+      "source_location": "L125",
+      "_origin": "ast"
+    },
+    {
+      "id": "readme_4_run_pytest_backend_test_suite",
+      "label": "4. Run Pytest Backend Test Suite",
       "file_type": "document",
       "source_file": "README.md",
       "source_location": "L142",
       "_origin": "ast"
     },
     {
-      "id": "readme_2_run_test_suite_start_backend_server",
-      "label": "2. Run Test Suite & Start Backend Server",
+      "id": "readme_5_start_backend_server",
+      "label": "5. Start Backend Server",
       "file_type": "document",
       "source_file": "README.md",
-      "source_location": "L155",
+      "source_location": "L152",
       "_origin": "ast"
     },
     {
-      "id": "readme_3_start_frontend_development_server",
-      "label": "3. Start Frontend Development Server",
+      "id": "readme_6_set_up_frontend_development_server",
+      "label": "6. Set Up Frontend Development Server",
       "file_type": "document",
       "source_file": "README.md",
-      "source_location": "L164",
+      "source_location": "L160",
       "_origin": "ast"
     },
     {
-      "id": "readme_privacy_trust_statement",
-      "label": "🛡️ Privacy & Trust Statement",
+      "id": "readme_architecture_data_flow",
+      "label": "🏗️ Architecture & Data Flow",
       "file_type": "document",
       "source_file": "README.md",
-      "source_location": "L183",
+      "source_location": "L181",
       "_origin": "ast"
     },
     {
-      "id": "readme_author",
-      "label": "👨‍💻 Author",
+      "id": "readme_directory_structure",
+      "label": "Directory Structure",
       "file_type": "document",
       "source_file": "README.md",
-      "source_location": "L191",
+      "source_location": "L202",
       "_origin": "ast"
     },
     {
-      "id": "readme_karan_wakhare",
-      "label": "Karan Wakhare",
+      "id": "readme_environment_variables",
+      "label": "⚙️ Environment Variables",
       "file_type": "document",
       "source_file": "README.md",
-      "source_location": "L195",
+      "source_location": "L263",
+      "_origin": "ast"
+    },
+    {
+      "id": "readme_available_scripts",
+      "label": "📜 Available Scripts",
+      "file_type": "document",
+      "source_file": "README.md",
+      "source_location": "L274",
+      "_origin": "ast"
+    },
+    {
+      "id": "readme_testing_guide",
+      "label": "🧪 Testing Guide",
+      "file_type": "document",
+      "source_file": "README.md",
+      "source_location": "L286",
+      "_origin": "ast"
+    },
+    {
+      "id": "readme_deployment_targets",
+      "label": "🛡️ Deployment Targets",
+      "file_type": "document",
+      "source_file": "README.md",
+      "source_location": "L302",
+      "_origin": "ast"
+    },
+    {
+      "id": "readme_troubleshooting",
+      "label": "❓ Troubleshooting",
+      "file_type": "document",
+      "source_file": "README.md",
+      "source_location": "L309",
+      "_origin": "ast"
+    },
+    {
+      "id": "readme_1_pytest_command_not_found",
+      "label": "1. `pytest` command not found",
+      "file_type": "document",
+      "source_file": "README.md",
+      "source_location": "L311",
+      "_origin": "ast"
+    },
+    {
+      "id": "readme_2_cors_errors_between_next_js_and_fastapi",
+      "label": "2. CORS errors between Next.js and FastAPI",
+      "file_type": "document",
+      "source_file": "README.md",
+      "source_location": "L314",
+      "_origin": "ast"
+    },
+    {
+      "id": "readme_author_license",
+      "label": "👨‍💻 Author & License",
+      "file_type": "document",
+      "source_file": "README.md",
+      "source_location": "L319",
       "_origin": "ast"
     },
     {
@@ -1202,43 +1106,35 @@
       "_origin": "ast"
     },
     {
-      "id": "walkthrough_walkthrough_grocer_refactoring_alignment_complete",
-      "label": "Walkthrough — Grocer Refactoring & Alignment Complete",
+      "id": "walkthrough_walkthrough_markdown_alignment_codebase_cleanup_complete",
+      "label": "Walkthrough — Markdown Alignment & Codebase Cleanup Complete",
       "file_type": "document",
       "source_file": "walkthrough.md",
       "source_location": "L1",
       "_origin": "ast"
     },
     {
-      "id": "walkthrough_changes_executed",
-      "label": "🛠️ Changes Executed",
+      "id": "walkthrough_executed_cleanup_alignment",
+      "label": "🛠️ Executed Cleanup & Alignment",
       "file_type": "document",
       "source_file": "walkthrough.md",
       "source_location": "L7",
       "_origin": "ast"
     },
     {
-      "id": "walkthrough_1_vendor_pitch_component_deletions_3_files_purged",
-      "label": "1. Vendor Pitch Component Deletions (3 Files Purged)",
+      "id": "walkthrough_1_deleted_outdated_pitch_documentation",
+      "label": "1. Deleted Outdated Pitch Documentation",
       "file_type": "document",
       "source_file": "walkthrough.md",
       "source_location": "L9",
       "_origin": "ast"
     },
     {
-      "id": "walkthrough_2_ui_component_refactoring_5_files_reframed",
-      "label": "2. UI Component Refactoring (5 Files Reframed)",
+      "id": "walkthrough_2_synchronized_master_markdown_files",
+      "label": "2. Synchronized Master Markdown Files",
       "file_type": "document",
       "source_file": "walkthrough.md",
-      "source_location": "L14",
-      "_origin": "ast"
-    },
-    {
-      "id": "walkthrough_3_page_metadata_stream_2_files_streamlined",
-      "label": "3. Page & Metadata Stream (2 Files Streamlined)",
-      "file_type": "document",
-      "source_file": "walkthrough.md",
-      "source_location": "L21",
+      "source_location": "L12",
       "_origin": "ast"
     },
     {
@@ -1246,7 +1142,7 @@
       "label": "🧪 Verification Results",
       "file_type": "document",
       "source_file": "walkthrough.md",
-      "source_location": "L27",
+      "source_location": "L20",
       "_origin": "ast"
     },
     {
@@ -1254,7 +1150,7 @@
       "label": "1. Pytest Backend Test Suite",
       "file_type": "document",
       "source_file": "walkthrough.md",
-      "source_location": "L29",
+      "source_location": "L22",
       "_origin": "ast"
     },
     {
@@ -1262,7 +1158,7 @@
       "label": "2. Next.js Production Build",
       "file_type": "document",
       "source_file": "walkthrough.md",
-      "source_location": "L35",
+      "source_location": "L28",
       "_origin": "ast"
     },
     {
@@ -1274,147 +1170,99 @@
       "_origin": "ast"
     },
     {
-      "id": "agents_agents_agents_md_project_rules",
-      "label": "AGENTS.md — Project Rules",
+      "id": "agents_agents_agents_md_global_rules_for_karan_wakhare",
+      "label": "AGENTS.md — Global Rules for Karan Wakhare",
       "file_type": "document",
       "source_file": ".agents/AGENTS.md",
       "source_location": "L1",
       "_origin": "ast"
     },
     {
-      "id": "agents_agents_hard_cap_120_lines_fill_sections_1_4_at_project_start",
-      "label": "Hard cap: 120 lines. Fill Sections 1-4 at project start.",
+      "id": "agents_agents_applies_to_every_project_read_first",
+      "label": "Applies to every project. Read first.",
       "file_type": "document",
       "source_file": ".agents/AGENTS.md",
-      "source_location": "L3",
+      "source_location": "L2",
       "_origin": "ast"
     },
     {
-      "id": "agents_agents_ai_fills_sections_5_7_automatically_during_development",
-      "label": "AI fills Sections 5-7 automatically during development.",
+      "id": "agents_agents_1_core_behavior",
+      "label": "1. CORE BEHAVIOR",
       "file_type": "document",
       "source_file": ".agents/AGENTS.md",
-      "source_location": "L5",
+      "source_location": "L4",
       "_origin": "ast"
     },
     {
-      "id": "agents_agents_rules",
-      "label": "RULES:",
-      "file_type": "document",
-      "source_file": ".agents/AGENTS.md",
-      "source_location": "L9",
-      "_origin": "ast"
-    },
-    {
-      "id": "agents_agents_global_ai_rules_auto_loaded_by_your_tool_freebuff_agents_md_opencode_config_opencode_agents_md_gemini_antigravity_gemini_gemini_md",
-      "label": "- Global AI rules → auto-loaded by your tool: Freebuff ~/.AGENTS.md · opencode ~/.config/opencode/AGENTS.md · Gemini/antiGravity ~/.gemini/GEMINI.md",
+      "id": "agents_agents_2_session_ritual",
+      "label": "2. SESSION RITUAL",
       "file_type": "document",
       "source_file": ".agents/AGENTS.md",
       "source_location": "L11",
       "_origin": "ast"
     },
     {
-      "id": "agents_agents_domain_terms_context_md_read_every_session",
-      "label": "- Domain terms → CONTEXT.md (read every session)",
+      "id": "agents_agents_session_start_automatic",
+      "label": "Session Start (automatic)",
       "file_type": "document",
       "source_file": ".agents/AGENTS.md",
-      "source_location": "L13",
+      "source_location": "L12",
       "_origin": "ast"
     },
     {
-      "id": "agents_agents_product_diary_journal_md_1_date_heading_per_calendar_date_merging_session_entries",
-      "label": "- Product diary → JOURNAL.md (1 date heading per calendar date, merging session entries)",
+      "id": "agents_agents_session_end_conditional_on_significant_changes",
+      "label": "Session End (conditional on significant changes)",
       "file_type": "document",
       "source_file": ".agents/AGENTS.md",
-      "source_location": "L15",
+      "source_location": "L18",
       "_origin": "ast"
     },
     {
-      "id": "agents_agents_heavy_architecture_architecture_md_load_on_demand",
-      "label": "- Heavy architecture → ARCHITECTURE.md (load on-demand)",
+      "id": "agents_agents_3_coding_loop_simplified_matt_pocock_workflow",
+      "label": "3. CODING LOOP (SIMPLIFIED MATT POCOCK WORKFLOW)",
       "file_type": "document",
       "source_file": ".agents/AGENTS.md",
-      "source_location": "L17",
+      "source_location": "L24",
       "_origin": "ast"
     },
     {
-      "id": "agents_agents_playbook_agents_playbook_md_gemini_antigravity_gemini_config_playbook_md_full_map_in_playbook_md_5_1",
-      "label": "- Playbook → ~/.agents/playbook.md (Gemini/antiGravity: ~/.gemini/config/playbook.md) — full map in playbook.md §5.1",
+      "id": "agents_agents_task_classification_run_first_silently",
+      "label": "Task Classification (Run FIRST, silently)",
       "file_type": "document",
       "source_file": ".agents/AGENTS.md",
-      "source_location": "L19",
+      "source_location": "L26",
       "_origin": "ast"
     },
     {
-      "id": "agents_agents_session_end_ask_session_logged_to_journal_md_draft_x_post_now_with_build_in_public",
-      "label": "- Session end: Ask \"Session logged to JOURNAL.md. Draft X post now with /build-in-public?\"",
+      "id": "agents_agents_full_loop",
+      "label": "Full Loop",
       "file_type": "document",
       "source_file": ".agents/AGENTS.md",
-      "source_location": "L21",
+      "source_location": "L30",
       "_origin": "ast"
     },
     {
-      "id": "agents_agents_1_project_identity",
-      "label": "1. PROJECT IDENTITY",
+      "id": "agents_agents_invariants_conflicts",
+      "label": "Invariants & Conflicts",
       "file_type": "document",
       "source_file": ".agents/AGENTS.md",
-      "source_location": "L25",
+      "source_location": "L39",
       "_origin": "ast"
     },
     {
-      "id": "agents_agents_2_tech_stack",
-      "label": "2. TECH STACK",
+      "id": "agents_agents_4_core_commands_reference",
+      "label": "4. CORE COMMANDS REFERENCE",
       "file_type": "document",
       "source_file": ".agents/AGENTS.md",
-      "source_location": "L34",
+      "source_location": "L43",
       "_origin": "ast"
     },
     {
-      "id": "agents_agents_3_dev_commands",
-      "label": "3. DEV COMMANDS",
+      "id": "agents_agents_5_task_skill_router_auto_load_on_audit",
+      "label": "5. TASK → SKILL ROUTER (auto-load on AUDIT)",
       "file_type": "document",
       "source_file": ".agents/AGENTS.md",
-      "source_location": "L41",
-      "_origin": "ast"
-    },
-    {
-      "id": "agents_agents_4_engineering_principles",
-      "label": "4. ENGINEERING PRINCIPLES",
-      "file_type": "document",
-      "source_file": ".agents/AGENTS.md",
-      "source_location": "L54",
-      "_origin": "ast"
-    },
-    {
-      "id": "agents_agents_4b_local_rules",
-      "label": "4b. LOCAL RULES",
-      "file_type": "document",
-      "source_file": ".agents/AGENTS.md",
-      "source_location": "L66",
-      "_origin": "ast"
-    },
-    {
-      "id": "agents_agents_5_project_patterns",
-      "label": "5. PROJECT PATTERNS",
-      "file_type": "document",
-      "source_file": ".agents/AGENTS.md",
-      "source_location": "L75",
-      "_origin": "ast"
-    },
-    {
-      "id": "agents_agents_shared_components",
-      "label": "Shared components",
-      "file_type": "document",
-      "source_file": ".agents/AGENTS.md",
-      "source_location": "L77",
-      "_origin": "ast"
-    },
-    {
-      "id": "agents_agents_6_mistakes_to_avoid",
-      "label": "6. MISTAKES TO AVOID",
-      "file_type": "document",
-      "source_file": ".agents/AGENTS.md",
-      "source_location": "L90",
+      "source_location": "L57",
       "_origin": "ast"
     },
     {
@@ -1422,7 +1270,7 @@
       "label": "7. SESSION RESUME",
       "file_type": "document",
       "source_file": ".agents/AGENTS.md",
-      "source_location": "L97",
+      "source_location": "L82",
       "_origin": "ast"
     },
     {
@@ -2393,6 +2241,14 @@
       "file_type": "rationale",
       "source_file": "scratch/deep_test_suite.py",
       "source_location": "L15",
+      "_origin": "ast"
+    },
+    {
+      "id": "scratch_generate_report",
+      "label": "generate_report.py",
+      "file_type": "code",
+      "source_file": "scratch/generate_report.py",
+      "source_location": "L1",
       "_origin": "ast"
     },
     {
@@ -6624,7 +6480,7 @@
     },
     {
       "source": "architecture_architecture_md_product_strategy_user_experience_architecture",
-      "target": "architecture_6_landing_page_narrative_showcase_app_page_tsx",
+      "target": "architecture_6_landing_page_showcase_stream_app_page_tsx",
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "ARCHITECTURE.md",
@@ -6638,7 +6494,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "ARCHITECTURE.md",
-      "source_location": "L311",
+      "source_location": "L303",
       "weight": 1.0,
       "_origin": "ast"
     },
@@ -6648,7 +6504,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "ARCHITECTURE.md",
-      "source_location": "L336",
+      "source_location": "L323",
       "weight": 1.0,
       "_origin": "ast"
     },
@@ -6773,138 +6629,38 @@
       "_origin": "ast"
     },
     {
-      "source": "executive_pitch",
-      "target": "executive_pitch_executive_pitch_md_grocer_predictive_household_inventory_intelligence_for_quick_commerce",
+      "source": "implementation_plan",
+      "target": "implementation_plan_implementation_plan_markdown_alignment_codebase_cleanup",
       "relation": "contains",
       "confidence": "EXTRACTED",
-      "source_file": "EXECUTIVE_PITCH.md",
+      "source_file": "implementation_plan.md",
       "source_location": "L1",
       "weight": 1.0,
       "_origin": "ast"
     },
     {
-      "source": "executive_pitch_executive_pitch_md_grocer_predictive_household_inventory_intelligence_for_quick_commerce",
-      "target": "executive_pitch_1_executive_summary",
+      "source": "implementation_plan_implementation_plan_markdown_alignment_codebase_cleanup",
+      "target": "implementation_plan_user_review_required",
       "relation": "contains",
       "confidence": "EXTRACTED",
-      "source_file": "EXECUTIVE_PITCH.md",
+      "source_file": "implementation_plan.md",
       "source_location": "L7",
       "weight": 1.0,
       "_origin": "ast"
     },
     {
-      "source": "executive_pitch_executive_pitch_md_grocer_predictive_household_inventory_intelligence_for_quick_commerce",
-      "target": "executive_pitch_2_the_business_moat_ltv_retention",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "EXECUTIVE_PITCH.md",
-      "source_location": "L27",
-      "weight": 1.0,
-      "_origin": "ast"
-    },
-    {
-      "source": "executive_pitch_2_the_business_moat_ltv_retention",
-      "target": "executive_pitch_a_preventing_kirana_store_leakage",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "EXECUTIVE_PITCH.md",
-      "source_location": "L29",
-      "weight": 1.0,
-      "_origin": "ast"
-    },
-    {
-      "source": "executive_pitch_2_the_business_moat_ltv_retention",
-      "target": "executive_pitch_b_the_6_month_switching_cost_moat",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "EXECUTIVE_PITCH.md",
-      "source_location": "L32",
-      "weight": 1.0,
-      "_origin": "ast"
-    },
-    {
-      "source": "executive_pitch_executive_pitch_md_grocer_predictive_household_inventory_intelligence_for_quick_commerce",
-      "target": "executive_pitch_3_technical_architecture_innovation",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "EXECUTIVE_PITCH.md",
-      "source_location": "L42",
-      "weight": 1.0,
-      "_origin": "ast"
-    },
-    {
-      "source": "executive_pitch_3_technical_architecture_innovation",
-      "target": "executive_pitch_1_stateful_conversational_agent_langgraph_postgresql_checkpointer",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "EXECUTIVE_PITCH.md",
-      "source_location": "L44",
-      "weight": 1.0,
-      "_origin": "ast"
-    },
-    {
-      "source": "executive_pitch_3_technical_architecture_innovation",
-      "target": "executive_pitch_2_time_series_consumption_forecasting_facebook_prophet_interquartile_range_anomaly_filtering",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "EXECUTIVE_PITCH.md",
-      "source_location": "L48",
-      "weight": 1.0,
-      "_origin": "ast"
-    },
-    {
-      "source": "executive_pitch_3_technical_architecture_innovation",
-      "target": "executive_pitch_3_asynchronous_high_throughput_fastapi_backend",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "EXECUTIVE_PITCH.md",
-      "source_location": "L52",
-      "weight": 1.0,
-      "_origin": "ast"
-    },
-    {
-      "source": "executive_pitch_executive_pitch_md_grocer_predictive_household_inventory_intelligence_for_quick_commerce",
-      "target": "executive_pitch_4_zero_cost_live_prototype_architecture",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "EXECUTIVE_PITCH.md",
-      "source_location": "L59",
-      "weight": 1.0,
-      "_origin": "ast"
-    },
-    {
-      "source": "executive_pitch_executive_pitch_md_grocer_predictive_household_inventory_intelligence_for_quick_commerce",
-      "target": "executive_pitch_5_contact_collaboration",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "EXECUTIVE_PITCH.md",
-      "source_location": "L70",
-      "weight": 1.0,
-      "_origin": "ast"
-    },
-    {
-      "source": "implementation_plan",
-      "target": "implementation_plan_implementation_plan_grocer_engineering_prototype_refinement",
+      "source": "implementation_plan_implementation_plan_markdown_alignment_codebase_cleanup",
+      "target": "implementation_plan_proposed_changes",
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "implementation_plan.md",
-      "source_location": "L1",
+      "source_location": "L17",
       "weight": 1.0,
       "_origin": "ast"
     },
     {
-      "source": "implementation_plan_implementation_plan_grocer_engineering_prototype_refinement",
-      "target": "implementation_plan_user_review_required",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "implementation_plan.md",
-      "source_location": "L9",
-      "weight": 1.0,
-      "_origin": "ast"
-    },
-    {
-      "source": "implementation_plan_implementation_plan_grocer_engineering_prototype_refinement",
-      "target": "implementation_plan_complete_action_list",
+      "source": "implementation_plan_proposed_changes",
+      "target": "implementation_plan_documentation_changes_deletions",
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "implementation_plan.md",
@@ -6913,8 +6669,8 @@
       "_origin": "ast"
     },
     {
-      "source": "implementation_plan_complete_action_list",
-      "target": "implementation_plan_1_component_deletions_3_files",
+      "source": "implementation_plan_documentation_changes_deletions",
+      "target": "implementation_plan_delete_executive_pitch_md_file_d_prefill_executive_pitch_md",
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "implementation_plan.md",
@@ -6923,18 +6679,8 @@
       "_origin": "ast"
     },
     {
-      "source": "implementation_plan_1_component_deletions_3_files",
-      "target": "implementation_plan_delete_grocertestimonialsection_tsx_file_d_prefill_frontend_components_grocer_grocertestimonialsection_tsx",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "implementation_plan.md",
-      "source_location": "L23",
-      "weight": 1.0,
-      "_origin": "ast"
-    },
-    {
-      "source": "implementation_plan_1_component_deletions_3_files",
-      "target": "implementation_plan_delete_grocerroicalculator_tsx_file_d_prefill_frontend_components_grocer_grocerroicalculator_tsx",
+      "source": "implementation_plan_documentation_changes_deletions",
+      "target": "implementation_plan_modify_readme_md_file_d_prefill_readme_md",
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "implementation_plan.md",
@@ -6943,8 +6689,8 @@
       "_origin": "ast"
     },
     {
-      "source": "implementation_plan_1_component_deletions_3_files",
-      "target": "implementation_plan_delete_grocermeasurablevalue_tsx_file_d_prefill_frontend_components_grocer_grocermeasurablevalue_tsx",
+      "source": "implementation_plan_documentation_changes_deletions",
+      "target": "implementation_plan_modify_context_md_file_d_prefill_context_md",
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "implementation_plan.md",
@@ -6953,112 +6699,32 @@
       "_origin": "ast"
     },
     {
-      "source": "implementation_plan_complete_action_list",
-      "target": "implementation_plan_2_component_refactoring_copy_updates_5_files",
+      "source": "implementation_plan_documentation_changes_deletions",
+      "target": "implementation_plan_modify_architecture_md_file_d_prefill_architecture_md",
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "implementation_plan.md",
-      "source_location": "L34",
+      "source_location": "L32",
       "weight": 1.0,
       "_origin": "ast"
     },
     {
-      "source": "implementation_plan_2_component_refactoring_copy_updates_5_files",
-      "target": "implementation_plan_modify_grocervalueprop_tsx_file_d_prefill_frontend_components_grocer_grocervalueprop_tsx",
+      "source": "implementation_plan_documentation_changes_deletions",
+      "target": "implementation_plan_modify_agents_agents_md_file_d_prefill_agents_agents_md",
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "implementation_plan.md",
-      "source_location": "L36",
+      "source_location": "L35",
       "weight": 1.0,
       "_origin": "ast"
     },
     {
-      "source": "implementation_plan_2_component_refactoring_copy_updates_5_files",
-      "target": "implementation_plan_modify_grocerhero_tsx_file_d_prefill_frontend_components_grocer_grocerhero_tsx",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "implementation_plan.md",
-      "source_location": "L44",
-      "weight": 1.0,
-      "_origin": "ast"
-    },
-    {
-      "source": "implementation_plan_2_component_refactoring_copy_updates_5_files",
-      "target": "implementation_plan_modify_grocerintegrations_tsx_file_d_prefill_frontend_components_grocer_grocerintegrations_tsx",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "implementation_plan.md",
-      "source_location": "L47",
-      "weight": 1.0,
-      "_origin": "ast"
-    },
-    {
-      "source": "implementation_plan_2_component_refactoring_copy_updates_5_files",
-      "target": "implementation_plan_modify_grocerfaq_tsx_file_d_prefill_frontend_components_grocer_grocerfaq_tsx",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "implementation_plan.md",
-      "source_location": "L54",
-      "weight": 1.0,
-      "_origin": "ast"
-    },
-    {
-      "source": "implementation_plan_2_component_refactoring_copy_updates_5_files",
-      "target": "implementation_plan_modify_grocerfooter_tsx_file_d_prefill_frontend_components_grocer_grocerfooter_tsx",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "implementation_plan.md",
-      "source_location": "L62",
-      "weight": 1.0,
-      "_origin": "ast"
-    },
-    {
-      "source": "implementation_plan_complete_action_list",
-      "target": "implementation_plan_3_page_layout_refactoring_2_files",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "implementation_plan.md",
-      "source_location": "L67",
-      "weight": 1.0,
-      "_origin": "ast"
-    },
-    {
-      "source": "implementation_plan_3_page_layout_refactoring_2_files",
-      "target": "implementation_plan_modify_page_tsx_file_d_prefill_frontend_app_page_tsx",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "implementation_plan.md",
-      "source_location": "L69",
-      "weight": 1.0,
-      "_origin": "ast"
-    },
-    {
-      "source": "implementation_plan_3_page_layout_refactoring_2_files",
-      "target": "implementation_plan_modify_layout_tsx_file_d_prefill_frontend_app_layout_tsx",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "implementation_plan.md",
-      "source_location": "L78",
-      "weight": 1.0,
-      "_origin": "ast"
-    },
-    {
-      "source": "implementation_plan_complete_action_list",
-      "target": "implementation_plan_4_backend_systems_100_retained",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "implementation_plan.md",
-      "source_location": "L83",
-      "weight": 1.0,
-      "_origin": "ast"
-    },
-    {
-      "source": "implementation_plan_implementation_plan_grocer_engineering_prototype_refinement",
+      "source": "implementation_plan_implementation_plan_markdown_alignment_codebase_cleanup",
       "target": "implementation_plan_verification_plan",
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "implementation_plan.md",
-      "source_location": "L95",
+      "source_location": "L40",
       "weight": 1.0,
       "_origin": "ast"
     },
@@ -7068,17 +6734,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "implementation_plan.md",
-      "source_location": "L97",
-      "weight": 1.0,
-      "_origin": "ast"
-    },
-    {
-      "source": "implementation_plan_verification_plan",
-      "target": "implementation_plan_manual_visual_interactive_verification",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "implementation_plan.md",
-      "source_location": "L112",
+      "source_location": "L42",
       "weight": 1.0,
       "_origin": "ast"
     },
@@ -7114,7 +6770,7 @@
     },
     {
       "source": "journal_log_entries",
-      "target": "journal_grocer_engineering_prototype_problem_exploration_refactoring_2026_08_14",
+      "target": "journal_grocer_documentation_alignment_codebase_cleanup_2026_08_14",
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "JOURNAL.md",
@@ -7128,7 +6784,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "JOURNAL.md",
-      "source_location": "L32",
+      "source_location": "L30",
       "weight": 1.0,
       "_origin": "ast"
     },
@@ -7443,17 +7099,17 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "README.md",
-      "source_location": "L32",
+      "source_location": "L39",
       "weight": 1.0,
       "_origin": "ast"
     },
     {
       "source": "readme",
-      "target": "readme_features",
+      "target": "readme_key_features",
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "README.md",
-      "source_location": "L47",
+      "source_location": "L52",
       "weight": 1.0,
       "_origin": "ast"
     },
@@ -7463,63 +7119,83 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "README.md",
-      "source_location": "L65",
+      "source_location": "L67",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "readme_tech_stack",
+      "target": "readme_backend_infrastructure",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "README.md",
+      "source_location": "L69",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "readme_tech_stack",
+      "target": "readme_frontend_infrastructure",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "README.md",
+      "source_location": "L77",
       "weight": 1.0,
       "_origin": "ast"
     },
     {
       "source": "readme",
-      "target": "readme_architecture_file_map",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "README.md",
-      "source_location": "L80",
-      "weight": 1.0,
-      "_origin": "ast"
-    },
-    {
-      "source": "readme_architecture_file_map",
-      "target": "readme_repo_directory_structure",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "README.md",
-      "source_location": "L91",
-      "weight": 1.0,
-      "_origin": "ast"
-    },
-    {
-      "source": "readme",
-      "target": "readme_performance_optimizations",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "README.md",
-      "source_location": "L121",
-      "weight": 1.0,
-      "_origin": "ast"
-    },
-    {
-      "source": "readme",
-      "target": "readme_quickstart",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "README.md",
-      "source_location": "L136",
-      "weight": 1.0,
-      "_origin": "ast"
-    },
-    {
-      "source": "readme_quickstart",
       "target": "readme_prerequisites",
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "README.md",
-      "source_location": "L138",
+      "source_location": "L86",
       "weight": 1.0,
       "_origin": "ast"
     },
     {
-      "source": "readme_quickstart",
-      "target": "readme_1_clone_set_up_virtual_environment",
+      "source": "readme",
+      "target": "readme_getting_started",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "README.md",
+      "source_location": "L97",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "readme_getting_started",
+      "target": "readme_1_clone_the_repository",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "README.md",
+      "source_location": "L101",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "readme_getting_started",
+      "target": "readme_2_set_up_python_virtual_environment_install_dependencies",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "README.md",
+      "source_location": "L108",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "readme_getting_started",
+      "target": "readme_3_environment_configuration",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "README.md",
+      "source_location": "L125",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "readme_getting_started",
+      "target": "readme_4_run_pytest_backend_test_suite",
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "README.md",
@@ -7528,52 +7204,122 @@
       "_origin": "ast"
     },
     {
-      "source": "readme_quickstart",
-      "target": "readme_2_run_test_suite_start_backend_server",
+      "source": "readme_getting_started",
+      "target": "readme_5_start_backend_server",
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "README.md",
-      "source_location": "L155",
+      "source_location": "L152",
       "weight": 1.0,
       "_origin": "ast"
     },
     {
-      "source": "readme_quickstart",
-      "target": "readme_3_start_frontend_development_server",
+      "source": "readme_getting_started",
+      "target": "readme_6_set_up_frontend_development_server",
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "README.md",
-      "source_location": "L164",
-      "weight": 1.0,
-      "_origin": "ast"
-    },
-    {
-      "source": "readme",
-      "target": "readme_privacy_trust_statement",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "README.md",
-      "source_location": "L183",
+      "source_location": "L160",
       "weight": 1.0,
       "_origin": "ast"
     },
     {
       "source": "readme",
-      "target": "readme_author",
+      "target": "readme_architecture_data_flow",
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "README.md",
-      "source_location": "L191",
+      "source_location": "L181",
       "weight": 1.0,
       "_origin": "ast"
     },
     {
-      "source": "readme_author",
-      "target": "readme_karan_wakhare",
+      "source": "readme_architecture_data_flow",
+      "target": "readme_directory_structure",
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "README.md",
-      "source_location": "L195",
+      "source_location": "L202",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "readme",
+      "target": "readme_environment_variables",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "README.md",
+      "source_location": "L263",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "readme",
+      "target": "readme_available_scripts",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "README.md",
+      "source_location": "L274",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "readme",
+      "target": "readme_testing_guide",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "README.md",
+      "source_location": "L286",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "readme",
+      "target": "readme_deployment_targets",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "README.md",
+      "source_location": "L302",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "readme",
+      "target": "readme_troubleshooting",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "README.md",
+      "source_location": "L309",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "readme_troubleshooting",
+      "target": "readme_1_pytest_command_not_found",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "README.md",
+      "source_location": "L311",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "readme_troubleshooting",
+      "target": "readme_2_cors_errors_between_next_js_and_fastapi",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "README.md",
+      "source_location": "L314",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "readme",
+      "target": "readme_author_license",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "README.md",
+      "source_location": "L319",
       "weight": 1.0,
       "_origin": "ast"
     },
@@ -7655,7 +7401,7 @@
     },
     {
       "source": "walkthrough",
-      "target": "walkthrough_walkthrough_grocer_refactoring_alignment_complete",
+      "target": "walkthrough_walkthrough_markdown_alignment_codebase_cleanup_complete",
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "walkthrough.md",
@@ -7664,8 +7410,8 @@
       "_origin": "ast"
     },
     {
-      "source": "walkthrough_walkthrough_grocer_refactoring_alignment_complete",
-      "target": "walkthrough_changes_executed",
+      "source": "walkthrough_walkthrough_markdown_alignment_codebase_cleanup_complete",
+      "target": "walkthrough_executed_cleanup_alignment",
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "walkthrough.md",
@@ -7674,8 +7420,8 @@
       "_origin": "ast"
     },
     {
-      "source": "walkthrough_changes_executed",
-      "target": "walkthrough_1_vendor_pitch_component_deletions_3_files_purged",
+      "source": "walkthrough_executed_cleanup_alignment",
+      "target": "walkthrough_1_deleted_outdated_pitch_documentation",
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "walkthrough.md",
@@ -7684,32 +7430,22 @@
       "_origin": "ast"
     },
     {
-      "source": "walkthrough_changes_executed",
-      "target": "walkthrough_2_ui_component_refactoring_5_files_reframed",
+      "source": "walkthrough_executed_cleanup_alignment",
+      "target": "walkthrough_2_synchronized_master_markdown_files",
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "walkthrough.md",
-      "source_location": "L14",
+      "source_location": "L12",
       "weight": 1.0,
       "_origin": "ast"
     },
     {
-      "source": "walkthrough_changes_executed",
-      "target": "walkthrough_3_page_metadata_stream_2_files_streamlined",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "walkthrough.md",
-      "source_location": "L21",
-      "weight": 1.0,
-      "_origin": "ast"
-    },
-    {
-      "source": "walkthrough_walkthrough_grocer_refactoring_alignment_complete",
+      "source": "walkthrough_walkthrough_markdown_alignment_codebase_cleanup_complete",
       "target": "walkthrough_verification_results",
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "walkthrough.md",
-      "source_location": "L27",
+      "source_location": "L20",
       "weight": 1.0,
       "_origin": "ast"
     },
@@ -7719,7 +7455,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "walkthrough.md",
-      "source_location": "L29",
+      "source_location": "L22",
       "weight": 1.0,
       "_origin": "ast"
     },
@@ -7729,13 +7465,13 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "walkthrough.md",
-      "source_location": "L35",
+      "source_location": "L28",
       "weight": 1.0,
       "_origin": "ast"
     },
     {
       "source": "agents_agents",
-      "target": "agents_agents_agents_md_project_rules",
+      "target": "agents_agents_agents_md_global_rules_for_karan_wakhare",
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": ".agents/AGENTS.md",
@@ -7745,37 +7481,27 @@
     },
     {
       "source": "agents_agents",
-      "target": "agents_agents_hard_cap_120_lines_fill_sections_1_4_at_project_start",
+      "target": "agents_agents_applies_to_every_project_read_first",
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": ".agents/AGENTS.md",
-      "source_location": "L3",
+      "source_location": "L2",
       "weight": 1.0,
       "_origin": "ast"
     },
     {
-      "source": "agents_agents",
-      "target": "agents_agents_ai_fills_sections_5_7_automatically_during_development",
+      "source": "agents_agents_applies_to_every_project_read_first",
+      "target": "agents_agents_1_core_behavior",
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": ".agents/AGENTS.md",
-      "source_location": "L5",
+      "source_location": "L4",
       "weight": 1.0,
       "_origin": "ast"
     },
     {
-      "source": "agents_agents",
-      "target": "agents_agents_rules",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": ".agents/AGENTS.md",
-      "source_location": "L9",
-      "weight": 1.0,
-      "_origin": "ast"
-    },
-    {
-      "source": "agents_agents",
-      "target": "agents_agents_global_ai_rules_auto_loaded_by_your_tool_freebuff_agents_md_opencode_config_opencode_agents_md_gemini_antigravity_gemini_gemini_md",
+      "source": "agents_agents_applies_to_every_project_read_first",
+      "target": "agents_agents_2_session_ritual",
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": ".agents/AGENTS.md",
@@ -7784,142 +7510,92 @@
       "_origin": "ast"
     },
     {
-      "source": "agents_agents",
-      "target": "agents_agents_domain_terms_context_md_read_every_session",
+      "source": "agents_agents_2_session_ritual",
+      "target": "agents_agents_session_start_automatic",
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": ".agents/AGENTS.md",
-      "source_location": "L13",
+      "source_location": "L12",
       "weight": 1.0,
       "_origin": "ast"
     },
     {
-      "source": "agents_agents",
-      "target": "agents_agents_product_diary_journal_md_1_date_heading_per_calendar_date_merging_session_entries",
+      "source": "agents_agents_2_session_ritual",
+      "target": "agents_agents_session_end_conditional_on_significant_changes",
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": ".agents/AGENTS.md",
-      "source_location": "L15",
+      "source_location": "L18",
       "weight": 1.0,
       "_origin": "ast"
     },
     {
-      "source": "agents_agents",
-      "target": "agents_agents_heavy_architecture_architecture_md_load_on_demand",
+      "source": "agents_agents_applies_to_every_project_read_first",
+      "target": "agents_agents_3_coding_loop_simplified_matt_pocock_workflow",
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": ".agents/AGENTS.md",
-      "source_location": "L17",
+      "source_location": "L24",
       "weight": 1.0,
       "_origin": "ast"
     },
     {
-      "source": "agents_agents",
-      "target": "agents_agents_playbook_agents_playbook_md_gemini_antigravity_gemini_config_playbook_md_full_map_in_playbook_md_5_1",
+      "source": "agents_agents_3_coding_loop_simplified_matt_pocock_workflow",
+      "target": "agents_agents_task_classification_run_first_silently",
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": ".agents/AGENTS.md",
-      "source_location": "L19",
+      "source_location": "L26",
       "weight": 1.0,
       "_origin": "ast"
     },
     {
-      "source": "agents_agents",
-      "target": "agents_agents_session_end_ask_session_logged_to_journal_md_draft_x_post_now_with_build_in_public",
+      "source": "agents_agents_3_coding_loop_simplified_matt_pocock_workflow",
+      "target": "agents_agents_full_loop",
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": ".agents/AGENTS.md",
-      "source_location": "L21",
+      "source_location": "L30",
       "weight": 1.0,
       "_origin": "ast"
     },
     {
-      "source": "agents_agents_session_end_ask_session_logged_to_journal_md_draft_x_post_now_with_build_in_public",
-      "target": "agents_agents_1_project_identity",
+      "source": "agents_agents_3_coding_loop_simplified_matt_pocock_workflow",
+      "target": "agents_agents_invariants_conflicts",
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": ".agents/AGENTS.md",
-      "source_location": "L25",
+      "source_location": "L39",
       "weight": 1.0,
       "_origin": "ast"
     },
     {
-      "source": "agents_agents_session_end_ask_session_logged_to_journal_md_draft_x_post_now_with_build_in_public",
-      "target": "agents_agents_2_tech_stack",
+      "source": "agents_agents_applies_to_every_project_read_first",
+      "target": "agents_agents_4_core_commands_reference",
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": ".agents/AGENTS.md",
-      "source_location": "L34",
+      "source_location": "L43",
       "weight": 1.0,
       "_origin": "ast"
     },
     {
-      "source": "agents_agents_session_end_ask_session_logged_to_journal_md_draft_x_post_now_with_build_in_public",
-      "target": "agents_agents_3_dev_commands",
+      "source": "agents_agents_applies_to_every_project_read_first",
+      "target": "agents_agents_5_task_skill_router_auto_load_on_audit",
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": ".agents/AGENTS.md",
-      "source_location": "L41",
+      "source_location": "L57",
       "weight": 1.0,
       "_origin": "ast"
     },
     {
-      "source": "agents_agents_session_end_ask_session_logged_to_journal_md_draft_x_post_now_with_build_in_public",
-      "target": "agents_agents_4_engineering_principles",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": ".agents/AGENTS.md",
-      "source_location": "L54",
-      "weight": 1.0,
-      "_origin": "ast"
-    },
-    {
-      "source": "agents_agents_session_end_ask_session_logged_to_journal_md_draft_x_post_now_with_build_in_public",
-      "target": "agents_agents_4b_local_rules",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": ".agents/AGENTS.md",
-      "source_location": "L66",
-      "weight": 1.0,
-      "_origin": "ast"
-    },
-    {
-      "source": "agents_agents_session_end_ask_session_logged_to_journal_md_draft_x_post_now_with_build_in_public",
-      "target": "agents_agents_5_project_patterns",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": ".agents/AGENTS.md",
-      "source_location": "L75",
-      "weight": 1.0,
-      "_origin": "ast"
-    },
-    {
-      "source": "agents_agents_5_project_patterns",
-      "target": "agents_agents_shared_components",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": ".agents/AGENTS.md",
-      "source_location": "L77",
-      "weight": 1.0,
-      "_origin": "ast"
-    },
-    {
-      "source": "agents_agents_session_end_ask_session_logged_to_journal_md_draft_x_post_now_with_build_in_public",
-      "target": "agents_agents_6_mistakes_to_avoid",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": ".agents/AGENTS.md",
-      "source_location": "L90",
-      "weight": 1.0,
-      "_origin": "ast"
-    },
-    {
-      "source": "agents_agents_session_end_ask_session_logged_to_journal_md_draft_x_post_now_with_build_in_public",
+      "source": "agents_agents_applies_to_every_project_read_first",
       "target": "agents_agents_7_session_resume",
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": ".agents/AGENTS.md",
-      "source_location": "L97",
+      "source_location": "L82",
       "weight": 1.0,
       "_origin": "ast"
     },
@@ -9316,6 +8992,39 @@
       "confidence": "EXTRACTED",
       "source_file": "scratch/deep_test_suite.py",
       "source_location": "L15",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "scratch_generate_report",
+      "target": "os",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "scratch/generate_report.py",
+      "source_location": "L1",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "scratch_generate_report",
+      "target": "time",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "scratch/generate_report.py",
+      "source_location": "L1",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "scratch_generate_report",
+      "target": "pathlib",
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "scratch/generate_report.py",
+      "source_location": "L2",
       "weight": 1.0,
       "_origin": "ast"
     },
@@ -19427,106 +19136,6 @@
       "source_file": "backend/api/routes/household.py",
       "source_location": "L141",
       "weight": 1.0,
-      "_origin": "ast"
-    },
-    {
-      "source": "backend_agents_recipe_agent_recipestate",
-      "target": "backend_database_models_household",
-      "relation": "uses",
-      "confidence": "INFERRED",
-      "source_file": "backend/agents/recipe_agent.py",
-      "source_location": "L18",
-      "weight": 0.8,
-      "_origin": "ast"
-    },
-    {
-      "source": "backend_agents_recipe_agent_parsedingredient",
-      "target": "backend_database_models_household",
-      "relation": "uses",
-      "confidence": "INFERRED",
-      "source_file": "backend/agents/recipe_agent.py",
-      "source_location": "L18",
-      "weight": 0.8,
-      "_origin": "ast"
-    },
-    {
-      "source": "backend_agents_recipe_agent_recipeingredients",
-      "target": "backend_database_models_household",
-      "relation": "uses",
-      "confidence": "INFERRED",
-      "source_file": "backend/agents/recipe_agent.py",
-      "source_location": "L18",
-      "weight": 0.8,
-      "_origin": "ast"
-    },
-    {
-      "source": "backend_agents_recipe_agent_recipestate",
-      "target": "backend_database_models_consumptionmodel",
-      "relation": "uses",
-      "confidence": "INFERRED",
-      "source_file": "backend/agents/recipe_agent.py",
-      "source_location": "L18",
-      "weight": 0.8,
-      "_origin": "ast"
-    },
-    {
-      "source": "backend_agents_recipe_agent_parsedingredient",
-      "target": "backend_database_models_consumptionmodel",
-      "relation": "uses",
-      "confidence": "INFERRED",
-      "source_file": "backend/agents/recipe_agent.py",
-      "source_location": "L18",
-      "weight": 0.8,
-      "_origin": "ast"
-    },
-    {
-      "source": "backend_agents_recipe_agent_recipeingredients",
-      "target": "backend_database_models_consumptionmodel",
-      "relation": "uses",
-      "confidence": "INFERRED",
-      "source_file": "backend/agents/recipe_agent.py",
-      "source_location": "L18",
-      "weight": 0.8,
-      "_origin": "ast"
-    },
-    {
-      "source": "backend_tests_conftest_mockcheckpointerctx",
-      "target": "backend_mcp_client_grocermcpclient",
-      "relation": "uses",
-      "confidence": "INFERRED",
-      "source_file": "backend/tests/conftest.py",
-      "source_location": "L91",
-      "weight": 0.8,
-      "_origin": "ast"
-    },
-    {
-      "source": "backend_tests_conftest_mockllm",
-      "target": "backend_mcp_client_grocermcpclient",
-      "relation": "uses",
-      "confidence": "INFERRED",
-      "source_file": "backend/tests/conftest.py",
-      "source_location": "L91",
-      "weight": 0.8,
-      "_origin": "ast"
-    },
-    {
-      "source": "backend_tests_conftest_mockcheckpointerctx",
-      "target": "backend_database_models_household",
-      "relation": "uses",
-      "confidence": "INFERRED",
-      "source_file": "backend/tests/conftest.py",
-      "source_location": "L192",
-      "weight": 0.8,
-      "_origin": "ast"
-    },
-    {
-      "source": "backend_tests_conftest_mockllm",
-      "target": "backend_database_models_household",
-      "relation": "uses",
-      "confidence": "INFERRED",
-      "source_file": "backend/tests/conftest.py",
-      "source_location": "L192",
-      "weight": 0.8,
       "_origin": "ast"
     },
     {

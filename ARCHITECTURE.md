@@ -287,24 +287,16 @@ The mockup iPhone is **the core interactive demo of the Grocer platform**. It is
 
 ---
 
-## 6. LANDING PAGE NARRATIVE SHOWCASE (`app/page.tsx`)
+## 6. LANDING PAGE SHOWCASE STREAM (`app/page.tsx`)
 
-The landing page is a 14-section narrative showcase designed to take quick commerce operators and users from problem discovery to interactive proof:
+The landing page is a 6-section technical showcase designed to demonstrate the applied ML & Agent architecture:
 
-1. **Sticky Glassmorphism Header (`Header.tsx`)**: Grocer logo, feature navigation links, demo stage anchor button.
-2. **Hero Showcase Section**: High-impact display headline (*"Predict stockouts. Automate restocks."*), tagline badge, dual pill buttons (*Try Prototype*, *View ROI*).
-3. **Centered Hardware Stage (`#demo-stage`)**: Showcase card housing `PhoneMockup.tsx` on the left and live prototype overview controls on the right.
-4. **Quick Commerce Platform Cloud & Video Banner**: Platform logos (Zepto, Blinkit, Swiggy Instamart, BigBasket) + 4-minute explainer link.
-5. **Interactive Feature Sidebar (`GrocerFeatureSidebar.tsx`)**: 5 core platform capabilities (Prophet ML, LangGraph Agents, Recipe Checker, Price Signals, Anomaly Filtering).
-6. **Practical Use Cases Showcase (`GrocerPracticalUse.tsx`)**: Household category breakdowns (Dairy, Staples, Cleaners, Organics).
-7. **Competitive Matrix Table (`#comparison`)**: Side-by-side comparison table (*Without Grocer vs With Grocer*).
-8. **Human-like Interactions Section**: 3 feature cards highlighting Brand Tone Matching, Empathetic Reorders, and LangGraph NLP.
-9. **5-Step Accordion Setup Guide (`#how-it-works`)**: Interactive step-by-step onboarding walkthrough (Connect Data, Set Triggers, Deploy WhatsApp, Monitor Depletion, Adapt & Scale).
-10. **Smart Safeguards Banner**: Safety boundaries, catalog grounding, and non-hallucinatory agent enforcement.
-11. **Visual 6-Card Bento Grid (`GrocerBentoGrid.tsx`)**: Visual bento grid showcasing technical architecture (Prophet ML, Checkpointer, Webhooks, WhatsApp 1-Tap).
-12. **Executive ROI Analytics Panel (`#platform-roi` / `ExecutivePanel.tsx`)**: Live unit economics dashboard with interactive household scenario switcher (Solo, Couple, Family Small, Family Large).
-13. **Customer Testimonials**: Testimonial feedback cards with 5-star ratings and quick commerce user reviews.
-14. **FAQ Accordion & Final CTA Footer**: Interactive FAQ accordion answering top 5 customer questions + final dark CTA banner and footer.
+1. **Sticky Glassmorphism Header (`GrocerHeader.tsx`)**: Grocer logo, feature navigation links, demo stage anchor button.
+2. **Hero Showcase Section (`GrocerHero.tsx`)**: Kicker badge (*"Engineering Prototype • Pre-Emptive Household Replenishment"*), headline, subtitle, and central iPhone 16 Pro mockup stage (`PhoneMockup.tsx`).
+3. **Core Technical Architecture Bento Grid (`GrocerValueProp.tsx`)**: 4-card technical architecture bento grid (Prophet ML Engine, Anomaly Exclusion Gate, 5-Node LangGraph Execution Agent, Mocked Dark Store Webhook Contract) + interactive `GrocerVelocityCalculator` stockout simulator.
+4. **App UI Interactive iPhone Prototype (`GrocerAppPreview.tsx`)**: Full interactive demo stage container housing `PhoneMockup.tsx`.
+5. **Conceptual Integration Architecture (`GrocerIntegrations.tsx`)**: 4-step backend webhook integration flow (`POST /orders/ingest` → `WhatsApp Cloud API` → `POST /darkstore/checkout` → `TimescaleDB Feed`).
+6. **Technical FAQ Accordion & Footer (`GrocerFAQ.tsx` & `GrocerFooter.tsx`)**: Technical Q&A on Prophet ML, Anomaly Gate, Mock Dark Store boundaries, Historical Backtest protocol + Engineering Prototype CTA & footer links.
 
 ---
 
@@ -321,14 +313,9 @@ Grocer/
 └── frontend/
     ├── app/ (page.tsx, layout.tsx, globals.css)
     └── components/
-        ├── Header.tsx
         ├── PhoneMockup.tsx (Interactive iPhone Mockup Product Demo)
-        ├── ExecutivePanel.tsx (Real-Time Analytics & Unit Economics)
-        ├── GrocerFeatureSidebar.tsx (5 Core Capabilities Sidebar)
-        ├── GrocerPracticalUse.tsx (Household Use Cases Showcase)
-        ├── GrocerBentoGrid.tsx (Visual 6-Card Technical Bento Grid)
-        └── ui/
-            └── iphone.tsx (iPhone 16 Pro 6.3" SVG Hardware Chassis)
+        ├── grocer/ (GrocerHeader.tsx, GrocerHero.tsx, GrocerValueProp.tsx, GrocerVelocityCalculator.tsx, GrocerAppPreview.tsx, GrocerIntegrations.tsx, GrocerFAQ.tsx, GrocerFooter.tsx)
+        └── ui/ (CardSurface.tsx, GrocerLogo.tsx, PillBadge.tsx, PillButton.tsx, iphone.tsx)
 ```
 
 ---

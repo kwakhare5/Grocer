@@ -17,3 +17,5 @@ tsconfig.tsbuildinfo
 .env.local
 *.db
 *.sqlite
+scratch/
+

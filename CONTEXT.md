@@ -9,7 +9,7 @@
 | Term | What it means in THIS app | Never call it |
 |------|--------------------------|---------------|
 | Grocer | Brand-agnostic quick commerce inventory extension & SDK module | App, standalone platform |
-| Landing Page | The narrative showcase (`app/page.tsx`) communicating ROI, retention gains, and setup ease to operators | Marketing site |
+| Landing Page | The engineering prototype showcase (`app/page.tsx`) demonstrating applied ML forecasting & LangGraph agent state machines | Marketing site |
 | Phone Mockup | **The real app user interface demo** (`PhoneMockup.tsx` & `ui/iphone.tsx`) where visitors test live features | Static image, graphic |
 | Item | A product in the user's household inventory (e.g. Milk, Tomatoes, Eggs) | SKU, product, good |
 | Restock Alert | AI recommendation sent via 1-tap WhatsApp 24h before stock runs out | Push notice |
@@ -101,10 +101,10 @@ _Migrations: Alembic. Source of truth: `backend/database/models.py`_
 | ML: ConsumptionModel | 🟢 Live | Prophet-based depletion velocity & anomaly exclusion |
 | Pytest suite | 🟢 Live | 16/16 tests passing |
 | Interactive iPhone Prototype | 🟢 Live | `PhoneMockup.tsx` — hands-on demo of Grocer Pantry tab + WhatsApp 1-tap ordering |
-| Single-Page Narrative Showcase | 🟢 Live | `page.tsx` — Ultra-crisp hero (*"Predict stockouts. Automate restocks."*), 13 sections |
-| Interactive Feature Sidebar | 🟢 Live | `GrocerFeatureSidebar.tsx` — 5 core capabilities (Prophet, LangGraph, Recipe, Price, Anomaly) |
-| Practical Use Cases | 🟢 Live | `GrocerPracticalUse.tsx` — Household categories (Dairy, Staples, Cleaners, Organics) |
-| Technical Bento Grid | 🟢 Live | `GrocerBentoGrid.tsx` — 6 bento cards (Prophet ML, Checkpointer, Webhooks, WhatsApp 1-Tap) |
+| Single-Page Engineering Showcase | 🟢 Live | `page.tsx` — 6-section stream (Hero, Architecture Bento, Depletion Simulator, iPhone Demo, Webhooks, FAQ) |
+| Core Technical Architecture Bento | 🟢 Live | `GrocerValueProp.tsx` — 4 bento cards (Prophet ML, Anomaly Gate, 5-Node LangGraph Agent, Mock SDK Webhook) |
+| Interactive Depletion Simulator | 🟢 Live | `GrocerVelocityCalculator.tsx` — Live interactive stockout slider |
+| Conceptual Integration Webhooks | 🟢 Live | `GrocerIntegrations.tsx` — 4-step backend webhook architecture diagram |
 | Clean Design System | 🟢 Live | `globals.css` — Purged dead CSS classes, unified `.card-neutral-droxy` tokens |
 | 100% Brand Agnostic | 🟢 Live | 0 brand occurrences across frontend copy |
 
@@ -122,5 +122,8 @@ Grocer/
 │   └── tests/ (16 pytest test files)
 └── frontend/
     ├── app/ (page.tsx, layout.tsx, globals.css)
-    └── components/ (Header.tsx, PhoneMockup.tsx, ExecutivePanel.tsx, GrocerFeatureSidebar.tsx, GrocerPracticalUse.tsx, GrocerBentoGrid.tsx)
+    └── components/
+        ├── PhoneMockup.tsx (Interactive iPhone Mockup Product Demo)
+        ├── grocer/ (GrocerHeader.tsx, GrocerHero.tsx, GrocerValueProp.tsx, GrocerVelocityCalculator.tsx, GrocerAppPreview.tsx, GrocerIntegrations.tsx, GrocerFAQ.tsx, GrocerFooter.tsx)
+        └── ui/ (CardSurface.tsx, GrocerLogo.tsx, PillBadge.tsx, PillButton.tsx, iphone.tsx)
 ```

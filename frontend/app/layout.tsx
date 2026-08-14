@@ -17,8 +17,9 @@ const cambo = Cambo({
 });
 
 export const metadata: Metadata = {
-  title: 'PreFill — Predictive Household Inventory Engine for Quick Commerce',
-  description: 'PreFill models daily household grocery depletion velocity to trigger automated 1-tap WhatsApp restocking before items run out.',
+  title: "Grocer — Engineering Prototype & Problem Exploration for Quick Commerce",
+  description:
+    "An end-to-end prototype exploring time-series Prophet ML forecasting and a 5-node LangGraph execution state machine for low-friction 1-tap WhatsApp restocking.",
   icons: {
     icon: '/logo.svg',
     shortcut: '/logo.svg',

@@ -4,30 +4,31 @@
 
 ## 1. PRODUCT VISION & STRATEGIC PURPOSE
 
-### The Problem: Quick-Commerce Loyalty & Kirana Leakage
-Quick-commerce platforms (Zepto, Blinkit, Swiggy Instamart, BigBasket) offer identical 10-minute delivery and prices. As a result:
-- **76% of grocery spend leaks back** to offline Kirana stores when unexpected stockouts happen at home.
-- **90-day retention floor sits at only 24%** because customers have zero switching costs between delivery apps.
+### The Problem: Reactive Commerce & Daily Staple Stockout Gap
+Quick commerce platforms (Zepto, Blinkit, Swiggy Instamart, BigBasket) offer 10-minute delivery, but their replenishment mechanics are fundamentally **reactive**:
+- **MilkBasket** built a standalone company around scheduled recurring morning deliveries of milk and staples — proving the predictable staple demand pattern is real.
+- **Blinkit** features a one-tap reorder button from order history — proving platforms recognize repeat velocity, but current implementations remain passive (waiting for the user to open the app).
+- **The Gap:** No platform has shipped a pre-emptive replenishment engine — predicting depletion 24 hours in advance and delivering low-friction WhatsApp nudges.
 
-### The Solution: PreFill AI House Manager
-PreFill is an AI feature extension embedded into quick-commerce apps. It tracks household daily grocery consumption velocity (e.g. Milk 0.48L/day, Tomatoes 140g/day) and predicts stockouts 24 hours before items run out. 
+### The Prototype: Grocer ML & Agent System
+Grocer is a self-directed engineering prototype and problem exploration. It tracks household grocery consumption velocity (e.g. Milk 0.48L/day, Tomatoes 140g/day) using Prophet ML and predicts stockouts 24 hours before items run out. 
 
-Instead of opening the app to manually browse, users receive a 1-tap WhatsApp restock message. Replying `YES` confirms 10-minute delivery.
+Instead of opening the app to browse, users receive an interactive WhatsApp quick-reply notification (`Confirm` / `Remind` / `Skip`). Replying `Confirm` triggers a 5-node LangGraph execution state machine (`RestockAgent`).
 
 ### Why We Have the Landing Page & Mockup iPhone
 
 1. **Why We Have the Landing Page (`app/page.tsx`)**:
-   - Communicates the high-impact business pitch to quick-commerce operators and users.
-   - Demonstrates how PreFill recaptures Kirana leakage (+$1,450/household GMV) and lifts customer retention from 24% to 82%.
-   - Provides a 14-section narrative journey taking visitors from problem discovery to interactive proof.
+   - Serves as an **Engineering Prototype Showcase & Problem Exploration**.
+   - Demonstrates the full-stack architecture (Prophet ML time-series forecasting, anomaly exclusion, 5-node LangGraph agent graph).
+   - Intellectually honest: Zero fake statistics or vendor pitch claims.
 
 2. **Why We Have the Mockup iPhone (`PhoneMockup.tsx` & `ui/iphone.tsx`)**:
-   - **The Mockup iPhone IS the real user-facing application itself** embedded right inside the landing page hero section.
-   - Instead of reading about features, visitors immediately experience the app:
-     - Testing live pantry stock depletion sliders (`Pantry Stock`).
+   - **The Mockup iPhone is the live interactive prototype demo itself** embedded right inside the landing page hero section.
+   - Visitors test the system live:
+     - Testing pantry stock depletion fill bars and velocity steppers (`Pantry Stock`).
      - Fulfilling missing ingredients for recipes in 1 tap (`Recipe Checker`).
-     - Monitoring real-time commodity price spikes and dips (`Price Signals`).
-     - Triggering automated 1-tap WhatsApp restocking chat overlays.
+     - Monitoring real-time commodity price trends (`Price Signals`).
+     - Simulating automated 1-tap WhatsApp restocking chat overlays.
 
 ---
 
@@ -69,7 +70,7 @@ flowchart TD
 
 ## 3. HOW THE USER SEES AND USES THE APP
 
-### View 1: Pantry Stock Depletion (`prefillSubTab = "pantry"`)
+### View 1: Pantry Stock Depletion (`grocerSubTab = "pantry"`)
 - **What the User Sees:**
   - **Smart Restock Overview Banner:** Pastel Blue card highlighting total household pantry health (*"2 items running low in 24h"*).
   - **Stockout Warning Banner:** Pastel Amber warning highlighting milk & tomatoes running low.
@@ -77,7 +78,7 @@ flowchart TD
 - **How the User Interacts:**
   - Tap `-` / `+` steppers on item cards to manually adjust quantities or add items directly to cart.
 
-### View 2: Recipe Ingredient Checker (`prefillSubTab = "recipes"`)
+### View 2: Recipe Ingredient Checker (`grocerSubTab = "recipes"`)
 - **What the User Sees:**
   - **Dish Selector Pills:** Biryani, Dal Makhani, Paneer Tikka, Oats Bowl.
   - **Ingredient Stock Checklist:** Color-coded status icons showing stocked items (Green Check) vs missing items with prices (Red X, e.g. Paneer ₹90, Cream ₹55).
@@ -85,7 +86,7 @@ flowchart TD
   - Tap dish selector pills to switch recipes.
   - Tap *"Add Missing Ingredients to Cart"* to instantly add all missing recipe ingredients to the global floating cart.
 
-### View 3: Commodity Price Signals (`prefillSubTab = "signals"`)
+### View 3: Commodity Price Signals (`grocerSubTab = "signals"`)
 - **What the User Sees:**
   - **Market Commodity Board:** Compare current price vs 30-day average (`Tomatoes Today ₹48 vs Avg ₹20`, `Sunflower Oil Today ₹98 vs Avg ₹127`).
   - **Signal Badges:** `SPIKE +140%` (Red) or `DIP -23% Stock Up` (Green).
@@ -135,7 +136,7 @@ flowchart TD
         A[Header Navigation - Sticky Glassmorphism]
         B[Hero Showcase - Narrative & Value Prop]
         C[Live Interactive iPhone Prototype - PhoneMockup.tsx]
-        D[PreFill Pantry & WhatsApp Reorder Drawer]
+        D[Grocer Pantry & WhatsApp Reorder Drawer]
         E[Executive Analytics & Unit Economics Panel - ExecutivePanel.tsx]
         F[Kirana Leakage & 3-Step Architecture Story]
     end
@@ -232,11 +233,11 @@ CREATE TABLE consumption_models (
 
 ## 4. FRONTEND ARCHITECTURE & DESIGN SYSTEM ("SHADE")
 
-The PreFill frontend is built as a single-page narrative showcase (`app/page.tsx`) centered around a live, hands-on interactive product demo inside an iPhone hardware mockup (`PhoneMockup.tsx` & `ui/iphone.tsx`).
+The Grocer frontend is built as a single-page narrative showcase (`app/page.tsx`) centered around a live, hands-on interactive product demo inside an iPhone hardware mockup (`PhoneMockup.tsx` & `ui/iphone.tsx`).
 
 ### A. Mockup iPhone Architecture (`PhoneMockup.tsx` & `iphone.tsx`)
 
-The mockup iPhone is **the core interactive demo of the PreFill platform**. It is constructed as a dual-layer hardware simulation:
+The mockup iPhone is **the core interactive demo of the Grocer platform**. It is constructed as a dual-layer hardware simulation:
 
 1. **Outer Hardware Chassis (`ui/iphone.tsx`)**:
    - PNG overlay (`/iphone-16-pro-frame.png`) rendering Grade-5 titanium frame, hardware bezels, status bar, and Dynamic Island notch (`z-index: 20`, `pointer-events-none`).
@@ -290,17 +291,17 @@ The mockup iPhone is **the core interactive demo of the PreFill platform**. It i
 
 The landing page is a 14-section narrative showcase designed to take quick commerce operators and users from problem discovery to interactive proof:
 
-1. **Sticky Glassmorphism Header (`Header.tsx`)**: PreFill logo, feature navigation links, demo stage anchor button.
+1. **Sticky Glassmorphism Header (`Header.tsx`)**: Grocer logo, feature navigation links, demo stage anchor button.
 2. **Hero Showcase Section**: High-impact display headline (*"Predict stockouts. Automate restocks."*), tagline badge, dual pill buttons (*Try Prototype*, *View ROI*).
 3. **Centered Hardware Stage (`#demo-stage`)**: Showcase card housing `PhoneMockup.tsx` on the left and live prototype overview controls on the right.
 4. **Quick Commerce Platform Cloud & Video Banner**: Platform logos (Zepto, Blinkit, Swiggy Instamart, BigBasket) + 4-minute explainer link.
-5. **Interactive Feature Sidebar (`PreFillFeatureSidebar.tsx`)**: 5 core platform capabilities (Prophet ML, LangGraph Agents, Recipe Checker, Price Signals, Anomaly Filtering).
-6. **Practical Use Cases Showcase (`PreFillPracticalUse.tsx`)**: Household category breakdowns (Dairy, Staples, Cleaners, Organics).
-7. **Competitive Matrix Table (`#comparison`)**: Side-by-side comparison table (*Without PreFill vs With PreFill*).
+5. **Interactive Feature Sidebar (`GrocerFeatureSidebar.tsx`)**: 5 core platform capabilities (Prophet ML, LangGraph Agents, Recipe Checker, Price Signals, Anomaly Filtering).
+6. **Practical Use Cases Showcase (`GrocerPracticalUse.tsx`)**: Household category breakdowns (Dairy, Staples, Cleaners, Organics).
+7. **Competitive Matrix Table (`#comparison`)**: Side-by-side comparison table (*Without Grocer vs With Grocer*).
 8. **Human-like Interactions Section**: 3 feature cards highlighting Brand Tone Matching, Empathetic Reorders, and LangGraph NLP.
 9. **5-Step Accordion Setup Guide (`#how-it-works`)**: Interactive step-by-step onboarding walkthrough (Connect Data, Set Triggers, Deploy WhatsApp, Monitor Depletion, Adapt & Scale).
 10. **Smart Safeguards Banner**: Safety boundaries, catalog grounding, and non-hallucinatory agent enforcement.
-11. **Visual 6-Card Bento Grid (`PreFillBentoGrid.tsx`)**: Visual bento grid showcasing technical architecture (Prophet ML, Checkpointer, Webhooks, WhatsApp 1-Tap).
+11. **Visual 6-Card Bento Grid (`GrocerBentoGrid.tsx`)**: Visual bento grid showcasing technical architecture (Prophet ML, Checkpointer, Webhooks, WhatsApp 1-Tap).
 12. **Executive ROI Analytics Panel (`#platform-roi` / `ExecutivePanel.tsx`)**: Live unit economics dashboard with interactive household scenario switcher (Solo, Couple, Family Small, Family Large).
 13. **Customer Testimonials**: Testimonial feedback cards with 5-star ratings and quick commerce user reviews.
 14. **FAQ Accordion & Final CTA Footer**: Interactive FAQ accordion answering top 5 customer questions + final dark CTA banner and footer.
@@ -310,7 +311,7 @@ The landing page is a 14-section narrative showcase designed to take quick comme
 ## 7. REPO MAP & FILE ORGANIZATION
 
 ```
-PreFill/
+Grocer/
 ├── backend/
 │   ├── agents/ (restock_agent.py, price_agent.py, recipe_agent.py)
 │   ├── api/ (routes/ orders.py, predictions.py, prices.py, recipes.py, restock.py)
@@ -323,9 +324,9 @@ PreFill/
         ├── Header.tsx
         ├── PhoneMockup.tsx (Interactive iPhone Mockup Product Demo)
         ├── ExecutivePanel.tsx (Real-Time Analytics & Unit Economics)
-        ├── PreFillFeatureSidebar.tsx (5 Core Capabilities Sidebar)
-        ├── PreFillPracticalUse.tsx (Household Use Cases Showcase)
-        ├── PreFillBentoGrid.tsx (Visual 6-Card Technical Bento Grid)
+        ├── GrocerFeatureSidebar.tsx (5 Core Capabilities Sidebar)
+        ├── GrocerPracticalUse.tsx (Household Use Cases Showcase)
+        ├── GrocerBentoGrid.tsx (Visual 6-Card Technical Bento Grid)
         └── ui/
             └── iphone.tsx (iPhone 16 Pro 6.3" SVG Hardware Chassis)
 ```
@@ -337,6 +338,6 @@ PreFill/
 - **Restock Alert**: A notification sent to a household listing items predicted to deplete soon.
 - **Cart**: The active list of selected items and quantities ready for checkout.
 - **Checkout**: The final step where a user confirms the cart to create and place an order.
-- **PreFill Tab**: Single host bottom tab housing Pantry Stock, Recipe Checker, & Price Signals.
-- **Segmented Sub-Tabs**: Header pills inside PreFill tab (`Pantry Stock`, `Recipes`, `Price Signals`, `All`).
+- **Grocer Tab**: Single host bottom tab housing Pantry Stock, Recipe Checker, & Price Signals.
+- **Segmented Sub-Tabs**: Header pills inside Grocer tab (`Pantry Stock`, `Recipes`, `Price Signals`, `All`).
 

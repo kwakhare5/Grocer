@@ -1,128 +1,78 @@
-# AGENTS.md — Project Rules
+# AGENTS.md — Global Rules for Karan Wakhare
+# Applies to every project. Read first.
 
-# Hard cap: 120 lines. Fill Sections 1-4 at project start.
+## 1. CORE BEHAVIOR
+- **Caveman:** Zero fluff. Short fragments. No pleasantries.
+- **Ponytail:** YAGNI. Minimum code. Prefer existing deps. No speculative features.
+- **Surgical:** Touch only what the request requires.
+- **Think first:** State assumptions. Ask if unclear. Never decide silently.
+- **Graphify First:** If `graphify-out/graph.json` or `GRAPH_REPORT.md` exists in project root, MUST check `graphify-out/graph.json` or query `graphify` BEFORE doing raw file reads or greps.
 
-# AI fills Sections 5-7 automatically during development.
+## 2. SESSION RITUAL
+### Session Start (automatic)
+1. Read project `.agents/AGENTS.md` (stack, commands, local rules, SESSION RESUME).
+2. Read project `CONTEXT.md` (domain terms/ADRs).
+3. Print one-line summary: `📂 [Project] | Stack: [X] | Resuming: [last]`
+4. Ask: "Ready. What are we working on?"
 
-#
+### Session End (conditional on significant changes)
+1. Summarize what changed in 3–5 bullets.
+2. Update Section 7: SESSION RESUME in `.agents/AGENTS.md`.
+3. Prepend or merge a dated entry under ## Log Entries in `JOURNAL.md` (strictly ONE date heading `### [Project — Summary] YYYY-MM-DD` per calendar date, merging commit hashes, shipped bullets, and vibe).
+4. Ask: "Session logged to JOURNAL.md. Draft X post now with /build-in-public?"
 
-# RULES:
+## 3. CODING LOOP (SIMPLIFIED MATT POCOCK WORKFLOW)
 
-# - Global AI rules → auto-loaded by your tool: Freebuff ~/.AGENTS.md · opencode ~/.config/opencode/AGENTS.md · Gemini/antiGravity ~/.gemini/GEMINI.md
+### Task Classification (Run FIRST, silently)
+- **Tiny** (single file, <20 lines, no logic change): Skip loop. Just make the edit.
+- **Standard / Complex** (multi-file OR new logic OR schema change): Run the full loop below.
 
-# - Domain terms → CONTEXT.md (read every session)
+### Full Loop
+0. **AUDIT:** Detect stack/intent → auto-load specialist skill → print `✅ Loaded: [skill-name]`.
+1. **GRILL & PLAN:** Run `/grill-with-docs` (Grill me). Ask clarifying questions, state assumptions, draft `implementation_plan.md`, and get explicit user approval.
+2. **CHECKLIST:** Run `/to-tickets` to break the plan into a TODO checklist of tracer-bullet tasks in `task.md`.
+3. **EXECUTE:** Run `/implement` to code each task. Write clean, surgical, vertical slices (schema → API → UI). Run tests & linters.
+4. **REVIEW:** Run `/code-review` to verify specs and standards.
+5. **COMMIT:** Run `/git-commit` to stage, analyze diffs, and generate conventional commits → stop for approval.
+6. **DIAGNOSE:** If tests/build fails, stop coding → run `/diagnosing-bugs` (build a minimal failing test repro case first).
 
-# - Product diary → JOURNAL.md (1 date heading per calendar date, merging session entries)
+### Invariants & Conflicts
+- **Docs:** Update `CONTEXT.md` for new domain terms. Update `ARCHITECTURE.md` or create ADR for schema/architectural changes.
+- **Conflicts:** If a user request conflicts with a local rule in `.agents/AGENTS.md`, ask: `⚠️ This conflicts with local rule: [rule]. Override it? [yes/no]` before proceeding.
 
-# - Heavy architecture → ARCHITECTURE.md (load on-demand)
+## 4. CORE COMMANDS REFERENCE
+Invoke via `/command` or natural language. Skills are SKILL.md folders living in your agent's global skills folder. Discovery per tool (full map: playbook.md §5.1):
+- Cross-tool standard: `~/.agents/skills/` (opencode, Claude Code, Freebuff all read it) — keep skills here
+- Gemini CLI: `~/.gemini/config/skills/` and `~/.gemini/skills/`
+- Project-local skills: `.agents/skills/`
+Never hardcode one tool's path in rule files — keep this file tool-agnostic.
+- `/grill` (`grill-with-docs`): Run requirements interview and plan.
+- `/to-issues` (`to-tickets`): Generate `task.md` checklist.
+- `/implement` (`implement`): Execute coding tasks.
+- `/diagnose` (`diagnosing-bugs`): Debug and repro failing tests.
+- `/review` (`code-review`): Standard and spec correctness check.
+- `/git-commit` (`git-commit`): Conventional commit helper.
+- `/design-review` (`design-review` / `impeccable`): UI/UX audit.
 
-# - Playbook → ~/.agents/playbook.md (Gemini/antiGravity: ~/.gemini/config/playbook.md) — full map in playbook.md §5.1
+## 5. TASK → SKILL ROUTER (auto-load on AUDIT)
 
-# - Session end: Ask "Session logged to JOURNAL.md. Draft X post now with /build-in-public?"
+On AUDIT (step 0 of the loop), match the task against this table. Load the listed craft skill(s), print `✅ Loaded: [skill]`, and use them at every phase they apply to. Load **max 2-3 craft skills** — the table is a pick list, not a dump. No row matches → proceed without craft load (or suggest `/ask-matt`).
 
----
+Process skills (Matt's: `grilling`, `to-spec`, `to-tickets`, `implement`, `tdd`, `code-review`, `diagnosing-bugs`) are NOT in this table — they run every time as the workflow itself.
 
-## 1. PROJECT IDENTITY
-
-**Name:** [Insert Project Name]
-**Goal:** [Insert one-sentence goal]
-**Status:** In Progress
-**Repo:** [GitHub URL]
-
----
-
-## 2. TECH STACK
-
-- **Frontend:** [e.g. Next.js 15, React 19, Tailwind v4]
-- **Backend:** [e.g. FastAPI / Next.js Server Actions]
-- **Database:** [e.g. PostgreSQL via Supabase + Drizzle ORM]
-- **Auth:** [e.g. Supabase Auth / Clerk]
-- **Payments:** [e.g. Stripe]
-- **UI Library:** [Run /pick-ui-library to decide — e.g. shadcn/ui, Radix, Ark UI]
-- **Language:** [e.g. TypeScript strict + Python strict typing]
-
----
-
-## 3. DEV COMMANDS
-
-```bash
-# Frontend
-npm run dev        # start dev server
-npm run build      # production build
-npm run lint       # ESLint + TypeScript check
-
-# Backend (if using FastAPI)
-fastapi dev main.py # start FastAPI server
-pytest              # run backend tests
-```
-
-_AI runs these automatically when validating changes._
-
----
-
-## 4. ENGINEERING PRINCIPLES
-
-These apply to every decision in this codebase:
-
-- No backward compatibility. Remove obsolete paths instead of adding compatibility layers, fallbacks, or migrations.
-- Simplest implementation that fully meets current requirements. No speculative abstractions, configuration, or indirection.
-- Grow in layers. Start from the smallest version that works end to end. Never trade a working product for unfinished complexity.
-- Keep components modular. Concerns clearly separated.
-- Prefer established, well-maintained libraries when they reduce complexity or improve reliability. Do not reimplement common functionality without a clear reason.
-- Lean on existing project dependencies before writing your own implementation or adding packages. Check documentation and types before assuming a library lacks a capability.
-- Architectural decisions for the long term. No stopgaps that are "meant to be replaced later."
-
-## 4b. LOCAL RULES
-
-_Project-specific constraints that override generic advice. Add 3-5 max._
-
-1. [e.g. All DB queries must go through /lib/db/ — never inline]
-2. [e.g. No custom CSS files — use Tailwind utility classes only]
-3. [e.g. All API endpoints require Pydantic validation]
-4. [e.g. Always use ~/ path aliases in TypeScript — no ../../]
-
----
-
-## 5. PROJECT PATTERNS
-
-_AI fills this as the project grows._
-
-### Shared components
-
-<!-- AI appends here as components are built -->
-
-### File structure
-
-```
-[AI fills this after /zoom]
-```
-
----
-
-## 6. MISTAKES TO AVOID
-
-_AI appends here after every VERIFY failure. Never repeat these._
-
-<!-- Format: [YYYY-MM-DD] What went wrong → What to do instead -->
-
----
-
-## 7. SESSION RESUME
-
-_AI fills at END of every session. Read at START of next session._
-
-**Last session date:** [YYYY-MM-DD]
-
-**What we built / changed:**
-
-- [New session]
-
-**Immediate next task:**
-[What to pick up next]
-
-**Open blockers:**
-[None]
-
-**Files most recently changed:**
-
-- [None]
+| When the task is about… | Load (craft skills) | Applies to |
+|---|---|---|
+| Python code | `python-best-practices`, `python-testing-patterns` (+ `fastapi-best-practices` if FastAPI, `sqlalchemy-expert` if SQLAlchemy) | grill, implement, review |
+| TypeScript / React / Next.js | `typescript-best-practices`, `nodejs-best-practices`, `nextjs-best-practices`, `vercel-react-best-practices` | grill, implement, review |
+| UI design or polish | `impeccable`, `frontend-design`, `web-design-guidelines`, `tailwind-patterns` | grill, implement, review |
+| Animations / motion | `emil-design-eng`, `animation-vocabulary`, `improve-animations` | audit, implement |
+| Scraping / crawling | `scrapling-official`, `defuddle`, `apify-ultimate-scraper` | grill, implement |
+| Tweets / content / marketing | `build-in-public`, `copywriting` (+ `emails`, `cro`, `launch`, `seo-audit` as needed) | grill, implement |
+| Cleanup / refactor / dead code | `codebase-cleanup`, `ponytail`, `ponytail-review`, `production-code-audit` | audit, implement, review |
+| Database / schema / migrations | `database-design`, `database-migrations-sql-migrations`, `postgres-best-practices`, `supabase` | grill, implement |
+| Debugging / failing tests | `diagnosing-bugs`, `tdd` | implement |
+| Writing tests | `tdd`, `python-testing-patterns` or `javascript-testing-patterns` | implement |
+| Docs / README / writing | `doc-coauthoring`, `readme`, `writing-for-agents`, `pdf` / `docx` / `xlsx` | audit, implement |
+| Deploy / infra / CI | `deploy-to-vercel` or `vercel-cli-with-tokens`, `docker-expert`, `terraform-specialist`, `github-actions-templates` | implement, review |
+| Security | `web-security-testing`, `api-security-testing` | review |
+| Performance | `web-perf`, `vercel-optimize` | review |

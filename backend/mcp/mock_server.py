@@ -25,7 +25,7 @@ async def lifespan(app: FastAPI):
         print(f"Seed file not found at {seed_file}. Please run generate_orders.py first.")
     yield
 
-app = FastAPI(title="PreFill Mock Q-Commerce MCP", lifespan=lifespan)
+app = FastAPI(title="Grocer Mock Q-Commerce MCP", lifespan=lifespan)
 
 @app.get("/get_platform_orders")
 async def get_orders(user_id: str = "demo_user_001", limit: int = 100):

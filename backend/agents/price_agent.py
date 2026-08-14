@@ -51,7 +51,7 @@ async def track_and_alert_prices(db: AsyncSession) -> dict:
 
     for item_id, query, spike_thresh, dip_thresh in VOLATILE_COMMODITIES:
         try:
-            # 1. Fetch current price from PreFill mock catalog
+            # 1. Fetch current price from Grocer mock catalog
             res = await mcp_client.search_platform_items(query)
             items = res.get("items", [])
             if not items:

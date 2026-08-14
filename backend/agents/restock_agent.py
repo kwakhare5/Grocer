@@ -7,7 +7,7 @@ Graph nodes:
   2. parse_reply       — Interprets user reply to a stock-check alert (YES/NO/partial)
   3. parse_order_intent — Parses a direct order request (e.g. "2 milk, eggs")
   4. reset_to_order    — Cancels current flow and returns to order prompt
-  5. build_cart        — Searches MCP catalog and builds the PreFill cart
+  5. build_cart        — Searches MCP catalog and builds the Grocer cart
   6. place_order       — Places the order via MCP
 
 State transitions:
@@ -102,7 +102,7 @@ async def generate_alert_message(state: RestockState) -> dict:
 
     try:
         prompt = (
-            f"You are a smart household assistant for PreFill.\n\n"
+            f"You are a smart household assistant for Grocer.\n\n"
             f"Items likely running low:\n{items_text}\n\n"
             f"Write a WhatsApp message under 150 words. You MUST list all items from the list above, showing for each item:\n"
             f"- Its whole name\n"
@@ -508,7 +508,7 @@ async def parse_order_intent(state: RestockState) -> dict:
 async def build_cart(state: RestockState) -> dict:
     """
     For each confirmed item, search the MCP catalog to get the current product
-    listing, then add all items to a single PreFill cart.
+    listing, then add all items to a single Grocer cart.
 
     Why search before carting?
       The consumption model tracks item_ids (INS_001), but the cart needs the
@@ -561,7 +561,7 @@ async def build_cart(state: RestockState) -> dict:
 
         if not cart_items:
             return {
-                "response_message": "Couldn't find those items right now. Please try ordering directly on PreFill.",
+                "response_message": "Couldn't find those items right now. Please try ordering directly on Grocer.",
                 "stage": "done",
                 "error": "no_items_found",
             }
@@ -572,7 +572,7 @@ async def build_cart(state: RestockState) -> dict:
     except Exception as e:
         logger.error(f"Cart build failed: {e}")
         return {
-            "response_message": "⚠️ Couldn't build the cart right now. Please try directly on PreFill.",
+            "response_message": "⚠️ Couldn't build the cart right now. Please try directly on Grocer.",
             "stage": "done",
             "error": str(e),
         }
@@ -616,7 +616,7 @@ async def build_cart(state: RestockState) -> dict:
 # ---------------------------------------------------------------------------
 async def place_order(state: RestockState) -> dict:
     """
-    Final step: call PreFill MCP to place the order.
+    Final step: call Grocer MCP to place the order.
     On success, returns order ID and ETA for the WhatsApp confirmation.
     """
     try:

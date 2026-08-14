@@ -1,5 +1,5 @@
 """
-Canonical product catalog for PreFill.
+Canonical product catalog for Grocer.
 This is the single source of truth for item IDs, names, categories, prices, and units.
 
 Used by:

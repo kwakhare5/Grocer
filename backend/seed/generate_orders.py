@@ -1,6 +1,6 @@
 """
 Seed Data Generator — Task 4.6
-Generates realistic PreFill order history for an Indian household.
+Generates realistic Grocer order history for an Indian household.
 Guarantees exact cycle lengths, last purchase dates, travel gaps, and guest spikes.
 """
 

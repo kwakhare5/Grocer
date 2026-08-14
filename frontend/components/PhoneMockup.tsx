@@ -93,14 +93,14 @@ const PRICE_SIGNALS = [
 ];
 
 export default function PhoneMockup({ activeScenario }: PhoneMockupProps) {
-  // Host App Bottom Navigation Tabs: "home" | "quick" | "prefill" | "account"
-  const [hostTab, setHostTab] = useState<"home" | "quick" | "prefill" | "account">("prefill");
+  // Host App Bottom Navigation Tabs: "home" | "quick" | "grocer" | "account"
+  const [hostTab, setHostTab] = useState<"home" | "quick" | "grocer" | "account">("grocer");
 
-  // PreFill Feature Sub-Tabs: "pantry" | "recipes" | "signals"
+  // Grocer Feature Sub-Tabs: "pantry" | "recipes" | "signals"
   const [userSelectedTab, setUserSelectedTab] = useState<"pantry" | "recipes" | "signals" | null>(null);
 
   // Derive active sub-tab from parent scenario unless user explicitly clicked a tab
-  const prefillSubTab = userSelectedTab ?? (
+  const grocerSubTab = userSelectedTab ?? (
     activeScenario === "recipe_smart_cart" ? "recipes" :
     activeScenario === "price_dip_buy" ? "signals" : "pantry"
   );
@@ -355,11 +355,11 @@ export default function PhoneMockup({ activeScenario }: PhoneMockupProps) {
             </div>
           </div>
 
-          {/* PreFill Feature Segmented Sub-Tabs Bar (Uniform 3-Tab Control) */}
-          {hostTab === "prefill" && (
+          {/* Grocer Feature Segmented Sub-Tabs Bar (Uniform 3-Tab Control) */}
+          {hostTab === "grocer" && (
             <div className="bg-[#F6F7F8] border-b border-[#E5E7EB] px-2 py-1 grid grid-cols-3 gap-1 z-30 shrink-0">
               {(["pantry", "recipes", "signals"] as const).map((tabKey) => {
-                const isActive = prefillSubTab === tabKey;
+                const isActive = grocerSubTab === tabKey;
                 const IconComponent = tabKey === "pantry" ? ShoppingCart : tabKey === "recipes" ? ChefHat : Tag;
                 const label = tabKey === "pantry" ? "Pantry" : tabKey === "recipes" ? "Recipes" : "Signals";
 
@@ -386,11 +386,11 @@ export default function PhoneMockup({ activeScenario }: PhoneMockupProps) {
           <div ref={contentContainerRef} className="flex-1 overflow-y-auto no-scrollbar relative flex flex-col">
 
             {/* TAB: PREFILL SMART PANTRY MODULE */}
-            {hostTab === "prefill" && (
+            {hostTab === "grocer" && (
               <div className="p-2.5 flex flex-col gap-2 pb-20">
 
                 {/* SUB-TAB VIEW 1: PANTRY STOCK DEPLETION */}
-                {prefillSubTab === "pantry" && (
+                {grocerSubTab === "pantry" && (
                   <div className="flex flex-col gap-2">
                     <span className="text-[9px] font-bold uppercase tracking-wider text-[#64717E] font-display">Pantry Stock Depletion</span>
                     {filteredStaples.length === 0 ? (
@@ -480,7 +480,7 @@ export default function PhoneMockup({ activeScenario }: PhoneMockupProps) {
                 )}
 
                 {/* SUB-TAB VIEW 2: RECIPE INGREDIENT CHECKER */}
-                {prefillSubTab === "recipes" && (
+                {grocerSubTab === "recipes" && (
                   <div className="flex flex-col gap-2">
                     <div className="flex items-center justify-between">
                       <span className="text-[9px] font-bold uppercase tracking-wider text-[#64717E] font-display flex items-center gap-1">
@@ -579,7 +579,7 @@ export default function PhoneMockup({ activeScenario }: PhoneMockupProps) {
                 )}
 
                 {/* SUB-TAB VIEW 3: COMMODITY PRICE SIGNALS */}
-                {prefillSubTab === "signals" && (
+                {grocerSubTab === "signals" && (
                   <div className="flex flex-col gap-2">
                     <span className="text-[9px] font-bold uppercase tracking-wider text-[#64717E] font-display flex items-center gap-1">
                       <Tag className="h-3.5 w-3.5 text-[#252525]" /> Market Price Signals
@@ -626,10 +626,10 @@ export default function PhoneMockup({ activeScenario }: PhoneMockupProps) {
                   <span className="text-[11.5px] font-bold font-display text-[#252525]">Quick Commerce Store</span>
                   <span className="text-[9px] text-[#64717E] font-medium">10,000+ daily fresh groceries delivered to your door.</span>
                   <button
-                    onClick={() => setHostTab("prefill")}
+                    onClick={() => setHostTab("grocer")}
                     className="mt-0.5 bg-[#15803D] hover:bg-emerald-600 text-white px-3 h-7.5 rounded-full text-[9px] font-extrabold font-display cursor-pointer flex items-center justify-between active:scale-95 transition-all shadow-2xs"
                   >
-                    <span>Open PreFill AI Restock Module</span>
+                    <span>Open Grocer AI Restock Module</span>
                     <ChevronRight className="h-3.5 w-3.5" />
                   </button>
                 </div>
@@ -756,7 +756,7 @@ export default function PhoneMockup({ activeScenario }: PhoneMockupProps) {
           </div>
 
           {/* Floating Cart Drawer Banner */}
-          {hostTab === "prefill" && totalCartItems > 0 && (
+          {hostTab === "grocer" && totalCartItems > 0 && (
             <motion.div
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
@@ -825,7 +825,7 @@ export default function PhoneMockup({ activeScenario }: PhoneMockupProps) {
                         </div>
                         <div className="flex flex-col">
                           <div className="flex items-center gap-1">
-                            <span className="text-[12.5px] font-bold font-sans text-white leading-tight">PreFill Assistant</span>
+                            <span className="text-[12.5px] font-bold font-sans text-white leading-tight">Grocer Assistant</span>
                             {/* Official WhatsApp Business Verified Badge */}
                             <svg className="h-3.5 w-3.5 fill-[#25D366] text-[#075E54]" viewBox="0 0 24 24">
                               <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
@@ -931,15 +931,15 @@ export default function PhoneMockup({ activeScenario }: PhoneMockupProps) {
               </button>
 
               <button
-                onClick={() => setHostTab("prefill")}
+                onClick={() => setHostTab("grocer")}
                 className={clsx(
                   "flex flex-col items-center gap-0.5 text-[9px] font-bold font-display cursor-pointer transition-colors relative active:scale-95",
-                  hostTab === "prefill" ? "text-[#15803D] font-extrabold" : "text-[#64717E] hover:text-[#252525]"
+                  hostTab === "grocer" ? "text-[#15803D] font-extrabold" : "text-[#64717E] hover:text-[#252525]"
                 )}
               >
                 <Droplet className="h-3.5 w-3.5 text-[#15803D] fill-emerald-100" />
-                <span>PreFill</span>
-                {hostTab === "prefill" && <span className="h-1 w-1 rounded-full bg-[#15803D]" />}
+                <span>Grocer</span>
+                {hostTab === "grocer" && <span className="h-1 w-1 rounded-full bg-[#15803D]" />}
               </button>
 
               <button

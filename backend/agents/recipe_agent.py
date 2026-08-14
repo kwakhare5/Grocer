@@ -1,7 +1,7 @@
 """
 Recipe Suggestion Agent — Task 4.1 & 4.2
 Stateful one-shot agent for parsing recipes, evaluating estimated pantry states,
-detecting missing items, and preparing a PreFill checkout cart.
+detecting missing items, and preparing a Grocer checkout cart.
 """
 
 import logging
@@ -246,7 +246,7 @@ async def identify_missing_node(state: RecipeState) -> RecipeState:
 
 
 async def search_items_node(state: RecipeState) -> RecipeState:
-    """Searches the PreFill catalog for each missing item to find standard products and prices."""
+    """Searches the Grocer catalog for each missing item to find standard products and prices."""
     missing_items = state["missing_items"]
     cart_items = []
     estimated_cost = 0.0
@@ -289,7 +289,7 @@ async def search_items_node(state: RecipeState) -> RecipeState:
 
 
 async def build_cart_node(state: RecipeState) -> RecipeState:
-    """Calls PreFill MCP update cart endpoint to populate the checkout basket."""
+    """Calls Grocer MCP update cart endpoint to populate the checkout basket."""
     cart_items = state["cart_items"]
     if not cart_items:
         state["cart_id"] = None
@@ -309,7 +309,7 @@ async def build_cart_node(state: RecipeState) -> RecipeState:
         else:
             state["cart_id"] = None
     except Exception as e:
-        logger.error(f"Failed to populate PreFill cart: {e}")
+        logger.error(f"Failed to populate Grocer cart: {e}")
         state["cart_id"] = None
 
     return state

@@ -1,6 +1,6 @@
 """
-PreFill MCP Client wrapper — Task 1.4
-Centralizes all HTTP interactions with the PreFill MCP server.
+Grocer MCP Client wrapper — Task 1.4
+Centralizes all HTTP interactions with the Grocer MCP server.
 """
 
 import httpx
@@ -11,7 +11,7 @@ from backend.config import settings
 logger = logging.getLogger(__name__)
 
 
-class PreFillMCPClient:
+class GrocerMCPClient:
     def __init__(self, base_url: str = settings.MCP_BASE_URL):
         self.base_url = base_url
         self.timeout = httpx.Timeout(10.0, connect=5.0)
@@ -76,4 +76,4 @@ class PreFillMCPClient:
         return response.json()
 
 
-mcp_client = PreFillMCPClient()
+mcp_client = GrocerMCPClient()

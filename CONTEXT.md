@@ -8,13 +8,13 @@
 
 | Term | What it means in THIS app | Never call it |
 |------|--------------------------|---------------|
-| PreFill | Brand-agnostic quick commerce inventory extension & SDK module | App, standalone platform |
+| Grocer | Brand-agnostic quick commerce inventory extension & SDK module | App, standalone platform |
 | Landing Page | The narrative showcase (`app/page.tsx`) communicating ROI, retention gains, and setup ease to operators | Marketing site |
 | Phone Mockup | **The real app user interface demo** (`PhoneMockup.tsx` & `ui/iphone.tsx`) where visitors test live features | Static image, graphic |
 | Item | A product in the user's household inventory (e.g. Milk, Tomatoes, Eggs) | SKU, product, good |
 | Restock Alert | AI recommendation sent via 1-tap WhatsApp 24h before stock runs out | Push notice |
 | Consumption Velocity | Daily rate of usage modeled per item (`0.48L/day` for milk) | Rate, depletion |
-| PreFill Tab | Single host bottom tab housing Pantry Stock, Recipe Checker, & Price Signals | Separate screens |
+| Grocer Tab | Single host bottom tab housing Pantry Stock, Recipe Checker, & Price Signals | Separate screens |
 | Sub-Tabs | Header pills (`Pantry Stock`, `Recipes`, `Price Signals`, `All`) inside the Phone Mockup | Page links |
 | Floating WhatsApp | Bottom-right circular `#25D366` green trigger icon launching live restock chat | Support button |
 
@@ -22,11 +22,11 @@
 
 ## Why We Have the Landing Page & Mockup iPhone
 
-### 1. Why We Have the Landing Page
-The landing page (`app/page.tsx`) addresses the fundamental challenge faced by quick-commerce platforms (Zepto, Blinkit, Instamart, BigBasket):
-- **The Problem:** 76% of grocery spend leaks back to local Kirana stores due to unexpected stockouts. 90-day retention floor is only 24%.
-- **The Pitch:** PreFill embeds an AI house manager into quick commerce apps, predicting household depletion dates 24h in advance.
-- **The Proof:** Lifts 90-day retention from 24% to 82% and recaptures ₹1,450/household in lost monthly GMV.
+### 1. Why We Have the Landing Page & Demo
+The landing page (`app/page.tsx`) serves as an **Engineering Prototype Showcase & Technical Exploration**:
+- **The Gap:** Quick commerce apps are reactive (they wait for users to open the app). Existing tools are either standalone scheduled subscriptions (**MilkBasket**) or passive reorder buttons from past order history (**Blinkit**). Nobody has shipped a pre-emptive replenishment engine via low-friction WhatsApp nudges.
+- **The Prototype:** Demonstrates a full-stack working system (Prophet ML time-series depletion modeling + 5-node LangGraph execution state machine + simulated dark store endpoints).
+- **Intellectual Honesty:** Zero fake statistics. Clear boundary between live running demo code and hypothetical enterprise dark store integration.
 
 ### 2. Why We Have the Mockup iPhone
 The mockup iPhone (`PhoneMockup.tsx` & `ui/iphone.tsx`) is **the hands-on interactive product demo**:
@@ -42,7 +42,7 @@ The mockup iPhone (`PhoneMockup.tsx` & `ui/iphone.tsx`) is **the hands-on intera
 ## Business Rules (Never Break)
 
 1. **100% Brand Agnostic:** Never hardcode specific quick commerce brand names in UI/copy.
-2. **Single Unified Mobile View:** All PreFill capabilities render inside a single, seamless scrollable tab.
+2. **Single Unified Mobile View:** All Grocer capabilities render inside a single, seamless scrollable tab.
 3. **iPhone 16 Pro Hardware Dimensions:** Mockup container locked to 1800 × 3680 pixel ratio (`w-[275px] h-[562px] aspect-[1800/3680] shrink-0 overflow-hidden`).
 4. **Zero AI Slop:** No casual emojis in UI buttons, headings, or chat options. Use clean Lucide icons.
 5. **Clean Typography:** Display/UI headings in `Outfit`, editorial title accents in `Cambo` (normal weight, no italics).
@@ -100,11 +100,11 @@ _Migrations: Alembic. Source of truth: `backend/database/models.py`_
 | LangGraph Restock Agent | 🟢 Live | `agents/restock_agent.py` 5-node graph with Postgres checkpointer |
 | ML: ConsumptionModel | 🟢 Live | Prophet-based depletion velocity & anomaly exclusion |
 | Pytest suite | 🟢 Live | 16/16 tests passing |
-| Interactive iPhone Prototype | 🟢 Live | `PhoneMockup.tsx` — hands-on demo of PreFill Pantry tab + WhatsApp 1-tap ordering |
+| Interactive iPhone Prototype | 🟢 Live | `PhoneMockup.tsx` — hands-on demo of Grocer Pantry tab + WhatsApp 1-tap ordering |
 | Single-Page Narrative Showcase | 🟢 Live | `page.tsx` — Ultra-crisp hero (*"Predict stockouts. Automate restocks."*), 13 sections |
-| Interactive Feature Sidebar | 🟢 Live | `PreFillFeatureSidebar.tsx` — 5 core capabilities (Prophet, LangGraph, Recipe, Price, Anomaly) |
-| Practical Use Cases | 🟢 Live | `PreFillPracticalUse.tsx` — Household categories (Dairy, Staples, Cleaners, Organics) |
-| Technical Bento Grid | 🟢 Live | `PreFillBentoGrid.tsx` — 6 bento cards (Prophet ML, Checkpointer, Webhooks, WhatsApp 1-Tap) |
+| Interactive Feature Sidebar | 🟢 Live | `GrocerFeatureSidebar.tsx` — 5 core capabilities (Prophet, LangGraph, Recipe, Price, Anomaly) |
+| Practical Use Cases | 🟢 Live | `GrocerPracticalUse.tsx` — Household categories (Dairy, Staples, Cleaners, Organics) |
+| Technical Bento Grid | 🟢 Live | `GrocerBentoGrid.tsx` — 6 bento cards (Prophet ML, Checkpointer, Webhooks, WhatsApp 1-Tap) |
 | Clean Design System | 🟢 Live | `globals.css` — Purged dead CSS classes, unified `.card-neutral-droxy` tokens |
 | 100% Brand Agnostic | 🟢 Live | 0 brand occurrences across frontend copy |
 
@@ -113,7 +113,7 @@ _Migrations: Alembic. Source of truth: `backend/database/models.py`_
 ## Real File Map
 
 ```
-PreFill/
+Grocer/
 ├── backend/
 │   ├── agents/ (restock_agent.py, price_agent.py, recipe_agent.py)
 │   ├── api/ (routes/ orders.py, predictions.py, prices.py, recipes.py, restock.py)
@@ -122,5 +122,5 @@ PreFill/
 │   └── tests/ (16 pytest test files)
 └── frontend/
     ├── app/ (page.tsx, layout.tsx, globals.css)
-    └── components/ (Header.tsx, PhoneMockup.tsx, ExecutivePanel.tsx, PreFillFeatureSidebar.tsx, PreFillPracticalUse.tsx, PreFillBentoGrid.tsx)
+    └── components/ (Header.tsx, PhoneMockup.tsx, ExecutivePanel.tsx, GrocerFeatureSidebar.tsx, GrocerPracticalUse.tsx, GrocerBentoGrid.tsx)
 ```

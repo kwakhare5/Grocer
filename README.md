@@ -1,13 +1,13 @@
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║          PreFill — README                                        ║
+     ║          Grocer — README                                        ║
      ║          The household AI that knows your kitchen better...     ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 
 <div align="center">
 
-  # PreFill
+  # Grocer
 
-  ### *The brand-agnostic Quick Commerce SDK that automates kitchen inventory before items run out.*
+  ### *An engineering prototype & problem exploration for pre-emptive household replenishment in Quick Commerce.*
 
   <br/>
 
@@ -31,12 +31,14 @@
 
 ## 📌 About the Project
 
-**PreFill** is a **brand-agnostic feature extension & SDK module** designed for quick commerce platforms. Built with **FastAPI, Next.js, Facebook Prophet, PostgreSQL, and LangGraph**, PreFill turns reactive quick commerce apps into proactive, automated replenishment engines.
+**Grocer** is an **engineering prototype & problem exploration** designed to address a fundamental gap in quick commerce: current platforms are **reactive** (waiting for the user to open the app). 
 
-PreFill watches how your household consumes groceries over time, learning your patterns (such as milk, atta, oil, bread, and egg consumption velocity) using Prophet forecasting models. It proactively notifies you over WhatsApp 2 days before items deplete, letting you restock via a stateful LangGraph agent in one tap. It also features price tracking and recipe-to-cart pantry intelligence.
+Built with **FastAPI, Next.js 15, Facebook Prophet ML, PostgreSQL, and LangGraph**, Grocer demonstrates an end-to-end predictive replenishment system.
 
-> **Why this project?**
-> Quick commerce platforms compete on 10-minute delivery, identical stock, and price parity. PreFill builds a household-specific intelligence profile that acts as a structural lock-in moat across any quick commerce provider.
+> **Real-World Problem & Benchmarks:**
+> - **MilkBasket** built an entire business around scheduled recurring morning deliveries of milk and staples — proving predictable staple demand is a massive, real pattern.
+> - **Blinkit** shipped a one-tap reorder button from past order history — proving platforms recognize repeat purchase velocity, though current implementations remain passive.
+> - **The Actual Gap:** No platform has shipped a pre-emptive replenishment engine — forecasting stockouts 24h prior and delivering low-friction WhatsApp nudges.
 
 <br/>
 
@@ -48,7 +50,7 @@ PreFill watches how your household consumes groceries over time, learning your p
 |:---:|---|---|
 | ✅ | **Time-Series Consumption Modeling** | Uses Facebook Prophet to build per-item consumption baselines, calculating average daily usage, cycle days, and depletion countdowns. |
 | ✅ | **Brand-Agnostic SDK Architecture** | Zero platform binding. Built as an embeddable tab extension compatible with any quick commerce provider. |
-| ✅ | **Single Unified Mobile Tab** | Integrates Smart Pantry Depletion, Recipe Ingredient Checker, and Market Price Signals into a single scrollable feed inside the PreFill host tab. |
+| ✅ | **Single Unified Mobile Tab** | Integrates Smart Pantry Depletion, Recipe Ingredient Checker, and Market Price Signals into a single scrollable feed inside the Grocer host tab. |
 | ✅ | **iPhone 16 Pro Hardware Mockup** | Rendered in exact 1800 × 3680 physical hardware proportion with status bar and ultra-thin titanium bezel overlay (`/iphone-16-pro-frame.png`). |
 | ✅ | **Predictive WhatsApp Restock Agent** | Triggers stateful LangGraph dialogues via WhatsApp API, allowing users to build carts and checkout in one tap. |
 | ✅ | **Pantry-Aware Recipe Planner** | Extracts ingredients from user recipe queries, checks estimated remaining pantry quantities, and bundles only missing items into the cart. |
@@ -79,7 +81,7 @@ PreFill watches how your household consumes groceries over time, learning your p
 
 ```mermaid
 flowchart LR
-    A[Host Quick Commerce App] --> B[PreFill SDK Tab]
+    A[Host Quick Commerce App] --> B[Grocer SDK Tab]
     B <--> C[FastAPI Backend Engine]
     C <--> D[PostgreSQL DB]
     C <--> E[Prophet Forecaster]
@@ -89,7 +91,7 @@ flowchart LR
 ### Repo Directory Structure
 
 ```
-PreFill/
+Grocer/
 ├── backend/                        # FastAPI Python Backend
 │   ├── main.py                     # FastAPI application setup
 │   ├── agents/                     # LangGraph agents (restock_agent.py, price_agent.py, recipe_agent.py)
@@ -103,7 +105,7 @@ PreFill/
 │
 ├── frontend/                       # Next.js 16 Responsive Showcase App
 │   ├── app/                        # App router (page.tsx, layout.tsx, globals.css)
-│   ├── components/                 # PhoneMockup.tsx, Header.tsx, ExecutivePanel.tsx, PreFillBentoGrid.tsx, PreFillFeatureSidebar.tsx, PreFillPracticalUse.tsx, ui/iphone.tsx
+│   ├── components/                 # PhoneMockup.tsx, Header.tsx, ExecutivePanel.tsx, GrocerBentoGrid.tsx, GrocerFeatureSidebar.tsx, GrocerPracticalUse.tsx, ui/iphone.tsx
 │   └── lib/                        # API client wrappers & TypeScript definitions
 │
 ├── CLAUDE.md                       # Project rules & session resume tracking
@@ -139,8 +141,8 @@ To keep the application highly responsive, low-latency, and production-ready:
 
 ### 1. Clone & Set Up Virtual Environment
 ```bash
-git clone https://github.com/kwakhare5/PreFill.git
-cd PreFill
+git clone https://github.com/kwakhare5/Grocer.git
+cd Grocer
 
 # Python virtual environment
 python -m venv venv

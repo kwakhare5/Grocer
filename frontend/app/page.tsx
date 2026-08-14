@@ -1,48 +1,40 @@
 "use client";
 
 import React, { Suspense } from "react";
-import { PreFillHeader } from "../components/prefill/PreFillHeader";
-import { PreFillHero } from "../components/prefill/PreFillHero";
-import { PreFillValueProp } from "../components/prefill/PreFillValueProp";
-import { PreFillMeasurableValue } from "../components/prefill/PreFillMeasurableValue";
-import { PreFillAppPreview } from "../components/prefill/PreFillAppPreview";
-import { PreFillTestimonialSection } from "../components/prefill/PreFillTestimonialSection";
-import { PreFillIntegrations } from "../components/prefill/PreFillIntegrations";
-import { PreFillFAQ } from "../components/prefill/PreFillFAQ";
-import { PreFillFooter } from "../components/prefill/PreFillFooter";
+import { GrocerHeader } from "../components/grocer/GrocerHeader";
+import { GrocerHero } from "../components/grocer/GrocerHero";
+import { GrocerValueProp } from "../components/grocer/GrocerValueProp";
+import { GrocerAppPreview } from "../components/grocer/GrocerAppPreview";
+import { GrocerIntegrations } from "../components/grocer/GrocerIntegrations";
+import { GrocerFAQ } from "../components/grocer/GrocerFAQ";
+import { GrocerFooter } from "../components/grocer/GrocerFooter";
 
-function PreFillLandingPage() {
+function GrocerLandingPage() {
   return (
     <div className="min-h-screen bg-white text-gray-900 font-sans flex flex-col selection:bg-gray-900 selection:text-white relative overflow-x-hidden antialiased">
-      {/* 1. Beside 1:1 Top Sticky Header Navbar */}
-      <PreFillHeader />
+      {/* 1. Sticky Header Navbar */}
+      <GrocerHeader />
 
       {/* Main Content Stream */}
       <main className="flex-1 w-full">
-        {/* 2. Hero Section (Cambo Serif Headline, Ambient Stage Container, Floating Pills) */}
-        <PreFillHero />
+        {/* 2. Hero Section */}
+        <GrocerHero />
 
-        {/* 3. Section 2: 2x2 Bento Grid with Micro-UI Widgets & Saturated Emerald Card */}
-        <PreFillValueProp />
+        {/* 3. Core Technical Architecture Bento Grid */}
+        <GrocerValueProp />
 
-        {/* 4. Section 3: 5-Card Bento Grid with Ambient Mesh Gradient Stat Tiles */}
-        <PreFillMeasurableValue />
+        {/* 4. App UI Interactive iPhone Prototype */}
+        <GrocerAppPreview />
 
-        {/* 5. Beside Section 4 1:1 Replica: App UI Preview Box & Client Logos */}
-        <PreFillAppPreview />
+        {/* 5. Conceptual Dark Store Integration Webhooks */}
+        <GrocerIntegrations />
 
-        {/* 6. Beside Section 5 & 8 1:1 Replica: Asymmetric Split Testimonial Cards (3x & 2x) */}
-        <PreFillTestimonialSection />
-
-        {/* 7. Quick-Commerce Integrations */}
-        <PreFillIntegrations />
-
-        {/* 8. FAQ Accordion */}
-        <PreFillFAQ />
+        {/* 6. FAQ Accordion */}
+        <GrocerFAQ />
       </main>
 
-      {/* 9. Beside Section 7 1:1 Giant Split CTA Box & 5-Column Footer */}
-      <PreFillFooter />
+      {/* 7. Footer */}
+      <GrocerFooter />
     </div>
   );
 }
@@ -52,11 +44,12 @@ export default function Home() {
     <Suspense
       fallback={
         <div className="mx-auto max-w-7xl px-4 py-12 text-center text-xs font-semibold uppercase tracking-wider text-gray-400">
-          Loading PreFill...
+          Loading Grocer...
         </div>
       }
     >
-      <PreFillLandingPage />
+      <GrocerLandingPage />
     </Suspense>
   );
 }
+

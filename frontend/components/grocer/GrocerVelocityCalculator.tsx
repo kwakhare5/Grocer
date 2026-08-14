@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { usePantryEngine } from "../../hooks/usePantryEngine";
 import { CardSurface } from "../ui/CardSurface";
 
-export function PreFillVelocityCalculator() {
+export function GrocerVelocityCalculator() {
   const {
     householdMembers,
     setHouseholdMembers,

@@ -47,7 +47,7 @@ def mock_create_async_engine(*args, **kwargs):
 
 sqlalchemy.ext.asyncio.create_async_engine = mock_create_async_engine
 
-# Mock PreFillMCPClient methods to avoid network requests during tests
+# Mock GrocerMCPClient methods to avoid network requests during tests
 from backend.seed.catalog import CATALOG as MOCK_CATALOG
 
 async def mock_search_platform_items(self, query: str) -> dict:
@@ -88,11 +88,11 @@ async def mock_place_platform_order(self, cart_id: str) -> dict:
         "placed_at": "2026-06-15T00:00:00"
     }
 
-from backend.mcp.client import PreFillMCPClient
-PreFillMCPClient.search_platform_items = mock_search_platform_items
-PreFillMCPClient.get_platform_orders = mock_get_platform_orders
-PreFillMCPClient.update_platform_cart = mock_update_platform_cart
-PreFillMCPClient.place_platform_order = mock_place_platform_order
+from backend.mcp.client import GrocerMCPClient
+GrocerMCPClient.search_platform_items = mock_search_platform_items
+GrocerMCPClient.get_platform_orders = mock_get_platform_orders
+GrocerMCPClient.update_platform_cart = mock_update_platform_cart
+GrocerMCPClient.place_platform_order = mock_place_platform_order
 
 # Mock get_checkpointer to prevent it from connecting to PostgreSQL
 from langgraph.checkpoint.memory import MemorySaver

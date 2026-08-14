@@ -48,7 +48,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="PreFill API",
+    title="Grocer API",
     version="1.0.0",
     lifespan=lifespan
 )
@@ -86,7 +86,7 @@ async def health():
 
 @app.get("/")
 async def root():
-    return {"message": "Welcome to PreFill API"}
+    return {"message": "Welcome to Grocer API"}
 
 
 if __name__ == "__main__":

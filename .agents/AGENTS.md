@@ -1,25 +1,45 @@
 # AGENTS.md — Project Rules
 
 # Hard cap: 120 lines. Fill Sections 1-4 at project start.
+
 # AI fills Sections 5-7 automatically during development.
+
+#
+
+# RULES:
+
+# - Global AI rules → auto-loaded by your tool: Freebuff ~/.AGENTS.md · opencode ~/.config/opencode/AGENTS.md · Gemini/antiGravity ~/.gemini/GEMINI.md
+
+# - Domain terms → CONTEXT.md (read every session)
+
+# - Product diary → JOURNAL.md (1 date heading per calendar date, merging session entries)
+
+# - Heavy architecture → ARCHITECTURE.md (load on-demand)
+
+# - Playbook → ~/.agents/playbook.md (Gemini/antiGravity: ~/.gemini/config/playbook.md) — full map in playbook.md §5.1
+
+# - Session end: Ask "Session logged to JOURNAL.md. Draft X post now with /build-in-public?"
 
 ---
 
 ## 1. PROJECT IDENTITY
 
-**Name:** PreFill
-**Goal:** High-conversion business carrier & predictive restock platform.
+**Name:** [Insert Project Name]
+**Goal:** [Insert one-sentence goal]
 **Status:** In Progress
-**Repo:** Local d:\PreFill
+**Repo:** [GitHub URL]
 
 ---
 
 ## 2. TECH STACK
 
-- **Frontend:** Next.js 16 (Turbopack), React 19, Tailwind CSS v4
-- **Backend:** FastAPI (Python), SQLAlchemy (AsyncSession), PostgreSQL
-- **UI System:** PreFill Design System (`Outfit` sans, `Cambo` serif, custom pill buttons & card surfaces)
-- **Language:** TypeScript + Python
+- **Frontend:** [e.g. Next.js 15, React 19, Tailwind v4]
+- **Backend:** [e.g. FastAPI / Next.js Server Actions]
+- **Database:** [e.g. PostgreSQL via Supabase + Drizzle ORM]
+- **Auth:** [e.g. Supabase Auth / Clerk]
+- **Payments:** [e.g. Stripe]
+- **UI Library:** [Run /pick-ui-library to decide — e.g. shadcn/ui, Radix, Ark UI]
+- **Language:** [e.g. TypeScript strict + Python strict typing]
 
 ---
 
@@ -31,37 +51,78 @@ npm run dev        # start dev server
 npm run build      # production build
 npm run lint       # ESLint + TypeScript check
 
-# Backend
-uvicorn backend.main:app --reload
-pytest
+# Backend (if using FastAPI)
+fastapi dev main.py # start FastAPI server
+pytest              # run backend tests
 ```
+
+_AI runs these automatically when validating changes._
 
 ---
 
 ## 4. ENGINEERING PRINCIPLES
 
-- Simplest implementation that fully meets current requirements.
-- Modular, well-scoped components in `frontend/components/prefill/`.
-- Standardized design system tokens in `frontend/app/globals.css`.
+These apply to every decision in this codebase:
+
+- No backward compatibility. Remove obsolete paths instead of adding compatibility layers, fallbacks, or migrations.
+- Simplest implementation that fully meets current requirements. No speculative abstractions, configuration, or indirection.
+- Grow in layers. Start from the smallest version that works end to end. Never trade a working product for unfinished complexity.
+- Keep components modular. Concerns clearly separated.
+- Prefer established, well-maintained libraries when they reduce complexity or improve reliability. Do not reimplement common functionality without a clear reason.
+- Lean on existing project dependencies before writing your own implementation or adding packages. Check documentation and types before assuming a library lacks a capability.
+- Architectural decisions for the long term. No stopgaps that are "meant to be replaced later."
+
+## 4b. LOCAL RULES
+
+_Project-specific constraints that override generic advice. Add 3-5 max._
+
+1. [e.g. All DB queries must go through /lib/db/ — never inline]
+2. [e.g. No custom CSS files — use Tailwind utility classes only]
+3. [e.g. All API endpoints require Pydantic validation]
+4. [e.g. Always use ~/ path aliases in TypeScript — no ../../]
+
+---
+
+## 5. PROJECT PATTERNS
+
+_AI fills this as the project grows._
+
+### Shared components
+
+<!-- AI appends here as components are built -->
+
+### File structure
+
+```
+[AI fills this after /zoom]
+```
+
+---
+
+## 6. MISTAKES TO AVOID
+
+_AI appends here after every VERIFY failure. Never repeat these._
+
+<!-- Format: [YYYY-MM-DD] What went wrong → What to do instead -->
 
 ---
 
 ## 7. SESSION RESUME
 
-**Last session date:** 2026-08-10
+_AI fills at END of every session. Read at START of next session._
+
+**Last session date:** [YYYY-MM-DD]
 
 **What we built / changed:**
-- **Dead Code Purge & Shared Primitive Refactoring**: (1) Purged dead file `frontend/components/ui/iphone.tsx` and removed unused `Iphone` import from `PhoneMockup.tsx`, (2) Refactored all section components (`PreFillMeasurableValue`, `PreFillIntegrations`, `PreFillFAQ`, `PreFillAppPreview`, `PreFillTestimonialSection`) to consume deep `<CardSurface>`, `<PillBadge>`, and `<PillButton>` primitives, and (3) Achieved zero code duplication across UI cards.
-- **Verification**: `npx tsc --noEmit` (0 errors) & `npm run build` compiled in 2.7s with 0 warnings or errors.
+
+- [New session]
 
 **Immediate next task:**
-- Ready for next user feature request or deployment.
+[What to pick up next]
 
 **Open blockers:**
-- None.
+[None]
 
 **Files most recently changed:**
-- `frontend/components/PhoneMockup.tsx`
-- `frontend/components/prefill/PreFillMeasurableValue.tsx`
-- `frontend/components/prefill/PreFillIntegrations.tsx`
-- `frontend/components/prefill/PreFillFAQ.tsx`
+
+- [None]

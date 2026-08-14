@@ -2,7 +2,7 @@
 
 import React from "react";
 
-interface PreFillLogoProps {
+export interface PreFillLogoProps {
   className?: string;
   iconOnly?: boolean;
   size?: "sm" | "md" | "lg";
@@ -33,38 +33,33 @@ export function PreFillLogo({
 
   return (
     <div className={`flex items-center gap-2.5 group cursor-pointer ${className}`}>
-      {/* Official Deep Forest Emerald Badge Container */}
+      {/* Official Fresh Apple Leaf Green (#22C55E) Badge Container */}
       <div
-        className={`${iconSizeClasses[size]} text-white flex items-center justify-center shadow-md transition-transform group-hover:scale-105 relative overflow-hidden border border-emerald-950/80 shrink-0`}
-        style={{ backgroundColor: "#064E3B" }}
+        className={`${iconSizeClasses[size]} text-white flex items-center justify-center shadow-md transition-transform group-hover:scale-105 relative overflow-hidden border border-green-600/50 shrink-0`}
+        style={{ backgroundColor: "#22C55E" }}
       >
-        {/* Official PreFill Deep Forest Emerald Refill Arc SVG */}
+        {/* Official PreFill Bottle SVG Icon with Lowered Liquid Level (y=282) */}
         <svg
           className={`${svgSizes[size]} relative z-10`}
-          viewBox="0 0 128 128"
+          viewBox="0 0 512 512"
           fill="none"
           xmlns="http://www.w3.org/2000/svg"
         >
-          {/* Background Track Circle */}
-          <circle
-            cx="64"
-            cy="64"
-            r="36"
-            fill="none"
-            stroke="#A7F3D0"
-            strokeWidth="8"
-            opacity="0.3"
+          {/* Bottle Outer Line */}
+          <rect
+            x="124"
+            y="116"
+            width="264"
+            height="304"
+            rx="50"
+            stroke="#FFFFFF"
+            strokeWidth="32"
           />
-          {/* Active Refill Arc Ring */}
+          {/* Liquid Fill Level (Slightly below middle at y=282) */}
           <path
-            d="M 64 28 A 36 36 0 1 1 38.5 89.5"
-            fill="none"
-            stroke="#ECFDF5"
-            strokeWidth="8"
-            strokeLinecap="round"
+            d="M128 282 C170 259 205 265 238 279 C274 294 309 297 344 276 C362 266 378 263 384 263 L384 393 Q384 416 361 416 H151 Q128 416 128 393Z"
+            fill="#FFFFFF"
           />
-          {/* Status Indicator Dot */}
-          <circle cx="38.5" cy="89.5" r="7.5" fill="#F59E0B" />
         </svg>
       </div>
 

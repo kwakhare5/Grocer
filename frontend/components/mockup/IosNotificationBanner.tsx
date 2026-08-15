@@ -77,6 +77,19 @@ function Frame({ title, message, time }: { title?: string; message?: string; tim
   );
 }
 
+function NotificationGlassBackground() {
+  return (
+    <div className="absolute inset-0 pointer-events-none" data-name="Glass Background Stack">
+      <StackedBanner bottomOffset="bottom-[-1.67px]" pxPadding="px-[20px]" />
+      <StackedBanner bottomOffset="bottom-[6.33px]" pxPadding="px-[10px]" />
+      <div className="absolute inset-[0_0_14.33px_0]" data-name="Clear Glass">
+        <FillShadow />
+        <GlassEffect />
+      </div>
+    </div>
+  );
+}
+
 export function IosNotificationBanner({
   title = "WhatsApp",
   message = "🥛 Amul Milk 1L is down to 15% (runs out tomorrow). Tap to restock →",
@@ -89,15 +102,12 @@ export function IosNotificationBanner({
       className="relative rounded-[24px] size-full cursor-pointer select-none group antialiased"
       data-name="Notification - Collapsed"
     >
-      <div className="flex flex-row items-center justify-center size-full">
-        <div className="content-stretch flex gap-[10px] items-center justify-center pb-[27px] pt-[12px] px-[14px] relative size-full">
-          <StackedBanner bottomOffset="bottom-[-1.67px]" pxPadding="px-[20px]" />
-          <StackedBanner bottomOffset="bottom-[6.33px]" pxPadding="px-[10px]" />
-          <div className="absolute inset-[0_0_14.33px_0]" data-name="Clear Glass">
-            <FillShadow />
-            <GlassEffect />
-          </div>
+      <div className="flex flex-row items-center justify-center size-full relative">
+        {/* Isolated Glass Background Layer Stack */}
+        <NotificationGlassBackground />
 
+        {/* Isolated Foreground Content & Padding Layer */}
+        <div className="content-stretch flex gap-[10px] items-center justify-center pb-[27px] pt-[12px] px-[14px] relative size-full z-10" data-name="Content Container">
           {/* Official WhatsApp App Icon */}
           <div className="relative shrink-0 w-[32px] h-[32px] rounded-[9px] bg-emerald-600 border border-white/20 flex items-center justify-center z-10 shadow-sm">
             <WhatsAppIcon className="h-4 w-4 text-white shrink-0" />

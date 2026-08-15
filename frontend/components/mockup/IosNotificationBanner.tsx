@@ -43,11 +43,8 @@ function ClearGlassSurface({ className = "h-[64px]" }: { className?: string }) {
 
 function StackedBanner({ bottomOffset, pxPadding }: { bottomOffset: string; pxPadding: string }) {
   return (
-    <div className={`absolute ${bottomOffset} content-stretch flex flex-col h-[10px] items-center justify-end left-0 overflow-clip ${pxPadding} right-0 rounded-[24px]`} data-name="Banner">
-      <div className="h-[64px] relative shrink-0 w-full rounded-[23px] border-t border-white/25" data-name="Clear Glass">
-        <FillShadow />
-        <GlassEffect />
-      </div>
+    <div className={`absolute ${bottomOffset} content-stretch flex flex-col h-[8px] items-center justify-end left-0 overflow-clip ${pxPadding} right-0 rounded-[24px]`} data-name="Banner">
+      <ClearGlassSurface className="h-[64px]" />
     </div>
   );
 }

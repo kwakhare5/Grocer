@@ -4,7 +4,6 @@ import React, { Suspense } from "react";
 import { GrocerHeader } from "../components/grocer/GrocerHeader";
 import { GrocerHero } from "../components/grocer/GrocerHero";
 import { GrocerValueProp } from "../components/grocer/GrocerValueProp";
-import { GrocerAppPreview } from "../components/grocer/GrocerAppPreview";
 import { GrocerIntegrations } from "../components/grocer/GrocerIntegrations";
 import { GrocerFAQ } from "../components/grocer/GrocerFAQ";
 import { GrocerFooter } from "../components/grocer/GrocerFooter";
@@ -17,23 +16,20 @@ function GrocerLandingPage() {
 
       {/* Main Content Stream */}
       <main className="flex-1 w-full">
-        {/* 2. Hero Section */}
+        {/* 2. Hero Section (Side-by-Side with Interactive iPhone 16 Pro Demo) */}
         <GrocerHero />
 
         {/* 3. Core Technical Architecture Bento Grid */}
         <GrocerValueProp />
 
-        {/* 4. App UI Interactive iPhone Prototype */}
-        <GrocerAppPreview />
-
-        {/* 5. Conceptual Dark Store Integration Webhooks */}
+        {/* 4. Conceptual Dark Store Integration Webhooks */}
         <GrocerIntegrations />
 
-        {/* 6. FAQ Accordion */}
+        {/* 5. FAQ Accordion */}
         <GrocerFAQ />
       </main>
 
-      {/* 7. Footer */}
+      {/* 6. Footer */}
       <GrocerFooter />
     </div>
   );

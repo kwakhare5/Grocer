@@ -47,7 +47,7 @@ export function GrocerFAQ() {
             Frequently Asked Questions
           </h2>
           <p className="text-sm text-gray-500 max-w-lg mx-auto font-normal">
-            Technical and operational details behind Grocer's predictive household engine.
+            Technical and operational details behind Grocer&apos;s predictive household engine.
           </p>
         </div>
 

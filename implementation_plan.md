@@ -1,55 +1,77 @@
-# Implementation Plan — Markdown Alignment & Codebase Cleanup
+# Implementation Plan — Light Theme Unification & Hero Cleanup (Finalized via /grill-me)
 
-Synchronize all documentation files (`README.md`, `CONTEXT.md`, `ARCHITECTURE.md`, `.agents/AGENTS.md`) with our authoritative engineering specification [`PRODUCT_SPEC.md`](file:///d:/PreFill/PRODUCT_SPEC.md), delete outdated vendor pitch documents (`EXECUTIVE_PITCH.md`), and perform a complete codebase audit.
+Clean up the Hero section by removing scenario switcher pills and the outer card container so the raw iPhone 16 Pro mockup sits cleanly on the section canvas. Completely purge all dark mode theme variants, dark cards, dark code terminals, and dark footer callouts across the entire site, replacing them with crisp light slate/sky surfaces and enforcing 100% strict component reuse (`PillButton`, `PillBadge`, `CardSurface`).
 
----
+## Finalized Architecture & Design Decisions
 
-## User Review Required
+1. **Clean Hero iPhone Mockup Presentation**:
+   - Remove scenario switcher pills (`1-Tap WhatsApp`, `Pantry Velocity`, `Recipe Cart`) above the phone.
+   - Remove the outer card container and background glow so the raw iPhone 16 Pro mockup (`PhoneMockup`) sits directly and cleanly on the light hero section background (`bg-[#FCFCFD]`).
+   - Interactive sub-tabs stay inside the iPhone screen demo itself.
 
-> [!IMPORTANT]
-> **Key Cleanup & Synchronization Actions:**
-> 1. **Delete Outdated Vendor Pitch Doc:** We are explicitly deleting `EXECUTIVE_PITCH.md`. It contains old vendor sales deck claims ("Target Audience: Engineering Leadership at Blinkit/Zepto", "Kirana Leakage Moat") that contradict our refined `PRODUCT_SPEC.md` ("not a startup pitch, not an SDK for sale").
-> 2. **Align All Markdown Documentation:** Update `README.md`, `CONTEXT.md`, `ARCHITECTURE.md`, and `.agents/AGENTS.md` to ensure zero stale sales pitch text exists anywhere in the repository.
-> 3. **Validation & Verification:** Run backend unit tests (`pytest backend/tests/ -v`) and Next.js production build (`npm run build`) to guarantee 100% clean compilation.
+2. **Complete Dark Mode Theme Purge & Light Theme Alignment**:
+   - **No Dark Mode**: Purge all dark mode styles, dark background blocks, dark code containers, and dark card variants.
+   - **`PillButton`**: Deprecate `dark` and `shimmer` dark variants. Standardize on `primary` (slate/black pill button), `secondary` (clean border pill button), and `ghost`.
+   - **`CardSurface`**: Deprecate `dark` variant. Standardize on `default` (clean white `#FFFFFF` surface with `#E5E7EB` border) and `accent` (`bg-sky-50/60`).
+   - **`GrocerIntegrations`**: Replace dark terminal (`bg-gray-950`) with a light, crisp code panel (`bg-[#F8FAFC]` with `#E2E8F0` border and dark slate code text `#0F172A`).
+   - **`GrocerFooter`**: Replace giant dark CTA card with a clean light accent surface (`bg-slate-50` with `#E2E8F0` border and dark text).
+
+3. **100% Strict Component Reuse**:
+   - Convert all buttons across `GrocerHero`, `GrocerValueProp`, `GrocerVelocityCalculator`, `GrocerIntegrations`, `GrocerFAQ`, and `GrocerFooter` to use `PillButton` and `PillBadge` exclusively.
+   - Convert all cards and containers to use `CardSurface` exclusively.
 
 ---
 
 ## Proposed Changes
 
-### Documentation Changes & Deletions
+### Component 1: Hero Section Clean Up
 
-#### [DELETE] [`EXECUTIVE_PITCH.md`](file:///d:/PreFill/EXECUTIVE_PITCH.md)
-- **Rationale:** Outdated B2B sales pitch deck replaced by the authoritative [`PRODUCT_SPEC.md`](file:///d:/PreFill/PRODUCT_SPEC.md).
+#### [MODIFY] [`GrocerHero.tsx`](file:///d:/PreFill/frontend/components/grocer/GrocerHero.tsx)
+- Remove scenario switcher pill buttons above the phone.
+- Remove outer container card styling around the iPhone frame so `PhoneMockup` renders directly on `bg-[#FCFCFD]`.
 
 ---
 
-#### [MODIFY] [`README.md`](file:///d:/PreFill/README.md)
-- **Changes:** Ensure project description, real-world benchmarks (MilkBasket, Blinkit 1-tap reorder), system architecture diagram, and honest positioning are 100% in sync with `PRODUCT_SPEC.md`.
+### Component 2: Design System Token Clean Up (Dark Mode Purge)
 
-#### [MODIFY] [`CONTEXT.md`](file:///d:/PreFill/CONTEXT.md)
-- **Changes:** Remove all legacy references to "76% Kirana Leakage" and "82% Retention Floor". Update domain glossary and feature descriptions to reflect cited industry benchmarks and mock dark store boundaries.
+#### [MODIFY] [`PillButton.tsx`](file:///d:/PreFill/frontend/components/ui/PillButton.tsx)
+- Purge dark mode variant definitions (`dark`, `shimmer` dark text). Standardize on `primary`, `secondary`, and `ghost`.
 
-#### [MODIFY] [`ARCHITECTURE.md`](file:///d:/PreFill/ARCHITECTURE.md)
-- **Changes:** Update Section 1 & Section 6 to reflect the 4-step ML + LangGraph replenishment pipeline, mocked dark store endpoints, and the low-risk Historical Backtest validation protocol.
+#### [MODIFY] [`CardSurface.tsx`](file:///d:/PreFill/frontend/components/ui/CardSurface.tsx)
+- Purge `dark` variant. Standardize on light variants (`default`, `accent`, `mesh`).
 
-#### [MODIFY] [`.agents/AGENTS.md`](file:///d:/PreFill/.agents/AGENTS.md)
-- **Changes:** Verify Section 1 identity, local rules, and mistakes to avoid (no fake stats, no instant 2h dark store integration claims).
+---
+
+### Component 3: Component-Wide Light Surface Transformation & Component Reuse
+
+#### [MODIFY] [`GrocerIntegrations.tsx`](file:///d:/PreFill/frontend/components/grocer/GrocerIntegrations.tsx)
+- Transform dark terminal box (`bg-gray-950`) into a crisp light code card (`bg-[#F8FAFC]` border `#E2E8F0`).
+- Standardize step cards and cURL copy buttons to use `CardSurface` and `PillButton`.
+
+#### [MODIFY] [`GrocerFooter.tsx`](file:///d:/PreFill/frontend/components/grocer/GrocerFooter.tsx)
+- Transform giant dark CTA box (`bg-gradient-to-br from-gray-900...`) into a clean light surface (`bg-slate-50 border border-slate-200`).
+- Standardize all CTA buttons to use `PillButton`.
+
+#### [MODIFY] [`GrocerValueProp.tsx`](file:///d:/PreFill/frontend/components/grocer/GrocerValueProp.tsx) & [`GrocerVelocityCalculator.tsx`](file:///d:/PreFill/frontend/components/grocer/GrocerVelocityCalculator.tsx)
+- Ensure all bento cards and calculator controls use light surfaces and shared UI components exclusively.
 
 ---
 
 ## Verification Plan
 
-### Automated Build & Test Verification
-1. **Pytest Backend Verification:**
-   ```bash
-   cd d:\PreFill
-   .\venv\Scripts\python.exe -m pytest backend/tests/ -v
-   ```
-   *Pass criteria:* 16/16 unit & integration tests passing.
+### Automated Tests
+- Run Pytest backend test suite:
+  ```powershell
+  .\venv\Scripts\python.exe -m pytest backend/tests/ -v
+  ```
+  *Expected result: 16/16 tests passing.*
 
-2. **Frontend Production Build:**
-   ```bash
-   cd d:\PreFill\frontend
-   npm run build
-   ```
-   *Pass criteria:* Zero TypeScript errors, zero ESLint warnings.
+- Run Next.js production build check:
+  ```powershell
+  cd frontend; npm run build
+  ```
+  *Expected result: Build completes with 0 errors and 0 warnings.*
+
+### Manual Verification
+- Verify Hero section: 2-column side-by-side layout with raw iPhone 16 Pro mockup on the right without scenario pills or surrounding box background.
+- Verify entire landing page: 0 dark mode blocks, 100% unified light theme (#FCFCFD, #FFFFFF, #F8FAFC, bg-sky-50), crisp typography and component reuse.

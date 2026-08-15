@@ -4,7 +4,7 @@ import React from "react";
 
 export interface PillButtonProps {
   children: React.ReactNode;
-  variant?: "primary" | "secondary" | "dark" | "ghost" | "shimmer";
+  variant?: "primary" | "secondary" | "ghost";
   href?: string;
   className?: string;
   onClick?: () => void;
@@ -22,16 +22,14 @@ export function PillButton({
 
   const variantStyles = {
     primary: "bg-gray-950 hover:bg-gray-800 text-white shadow-xs",
-    shimmer: "bg-gray-950 text-white border border-sky-400/40 shadow-md hover:border-sky-300 transition-all",
     secondary: "bg-white hover:bg-gray-50 border border-gray-200/80 text-gray-700 hover:text-gray-950",
-    dark: "bg-emerald-950 hover:bg-emerald-900 text-white border border-emerald-800",
     ghost: "bg-transparent text-gray-600 hover:text-gray-950 hover:bg-gray-100/80",
   };
 
   const content = (
     <>
       {/* 21st.dev Shimmer Button Border Line */}
-      {(variant === "primary" || variant === "shimmer") && (
+      {variant === "primary" && (
         <span className="absolute inset-0 rounded-full p-[1px] bg-gradient-to-r from-transparent via-sky-400/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
       )}
       <span className="relative z-10 flex items-center gap-1.5">{children}</span>

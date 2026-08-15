@@ -4,7 +4,7 @@ import React from "react";
 
 export interface CardSurfaceProps {
   children: React.ReactNode;
-  variant?: "default" | "accent" | "gradient" | "dark" | "mesh";
+  variant?: "default" | "accent" | "gradient" | "mesh";
   meshColor?: "sky" | "amber" | "indigo" | "emerald";
   className?: string;
   onClick?: () => void;
@@ -31,8 +31,6 @@ export function CardSurface({
       "bg-sky-50/50 border border-sky-200/60 shadow-[0_2px_12px_rgba(0,0,0,0.03)] text-gray-950",
     gradient:
       "bg-gradient-to-br from-sky-500 via-blue-600 to-indigo-600 border border-sky-400/80 shadow-md text-white",
-    dark:
-      "bg-gray-950 border border-gray-800 shadow-xl text-white",
     mesh:
       "bg-white border border-gray-200/60 shadow-[0_2px_12px_rgba(0,0,0,0.03)] text-gray-950",
   };

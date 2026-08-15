@@ -10,35 +10,35 @@ export function GrocerFooter() {
   return (
     <footer className="bg-[#FCFCFD] text-gray-900 pt-16 pb-12 border-t border-gray-200/60">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-14">
-        {/* Giant CTA Container (Clean Light/Dark Slate Accent Card) */}
-        <div className="bg-gradient-to-br from-gray-900 via-gray-950 to-slate-900 rounded-3xl p-8 sm:p-12 border border-gray-800 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-8 text-white">
+        {/* Giant CTA Container (Clean Light Slate Accent Card) */}
+        <div className="bg-slate-50/90 rounded-3xl p-8 sm:p-12 border border-slate-200/80 shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex flex-col md:flex-row items-start md:items-center justify-between gap-8 text-gray-950">
           {/* Left Column: Headline & Subtext */}
           <div className="space-y-4 max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-sky-500/10 border border-sky-500/20 text-sky-400 text-xs font-semibold">
-              <Zap className="w-3.5 h-3.5 text-sky-400" />
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-sky-50 border border-sky-200/80 text-sky-900 text-xs font-semibold">
+              <Zap className="w-3.5 h-3.5 text-sky-600" />
               <span>Engineering Prototype & Problem Exploration</span>
             </div>
 
-            <h3 className="font-serif font-normal text-3xl sm:text-4xl lg:text-5xl text-white tracking-tight leading-[1.12]">
+            <h3 className="font-serif font-normal text-3xl sm:text-4xl lg:text-5xl text-gray-950 tracking-tight leading-[1.12]">
               Explore pre-emptive staple replenishment.
             </h3>
 
-            <p className="text-sm sm:text-base text-gray-300 font-normal leading-relaxed">
-              Experience Grocer's Prophet ML depletion model and 5-node LangGraph execution state machine live in action.
+            <p className="text-sm sm:text-base text-gray-600 font-normal leading-relaxed">
+              Experience Grocer&apos;s Prophet ML depletion model and 5-node LangGraph execution state machine live in action.
             </p>
 
             {/* Feature Checkmarks Pills */}
-            <div className="flex flex-wrap items-center gap-4 text-xs text-gray-300 font-medium pt-1">
+            <div className="flex flex-wrap items-center gap-4 text-xs text-gray-700 font-medium pt-1">
               <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-sky-400 shrink-0" />
+                <CheckCircle2 className="w-4 h-4 text-sky-600 shrink-0" />
                 <span>Prophet ML Depletion</span>
               </div>
               <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-sky-400 shrink-0" />
+                <CheckCircle2 className="w-4 h-4 text-sky-600 shrink-0" />
                 <span>1-Tap WhatsApp restock</span>
               </div>
               <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-sky-400 shrink-0" />
+                <CheckCircle2 className="w-4 h-4 text-sky-600 shrink-0" />
                 <span>Recipe & Price Agents</span>
               </div>
             </div>
@@ -46,7 +46,7 @@ export function GrocerFooter() {
 
           {/* Right Column: Action Buttons */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 shrink-0">
-            <PillButton href="#demo" variant="primary" className="!bg-white !text-gray-950 hover:!bg-gray-100 shadow-md text-xs sm:text-sm !border-white">
+            <PillButton href="#demo" variant="primary">
               <span>Test Interactive Demo</span>
               <ArrowUpRight className="w-4 h-4 ml-1" />
             </PillButton>

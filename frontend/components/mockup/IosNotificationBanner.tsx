@@ -48,64 +48,13 @@ function GlassEffect() {
   );
 }
 
-function Banner() {
+function StackedBanner({ bottomOffset, pxPadding }: { bottomOffset: string; pxPadding: string }) {
   return (
-    <div className="absolute bottom-[-1.67px] content-stretch flex flex-col h-[8px] items-center justify-end left-0 overflow-clip px-[20px] right-0 rounded-[24px]" data-name="Banner">
+    <div className={`absolute ${bottomOffset} content-stretch flex flex-col h-[8px] items-center justify-end left-0 overflow-clip ${pxPadding} right-0 rounded-[24px]`} data-name="Banner">
       <div className="h-[64px] relative shrink-0 w-full" data-name="Clear Glass">
         <FillShadow />
         <GlassEffect />
       </div>
-    </div>
-  );
-}
-
-function FillShadow1() {
-  return (
-    <div className="absolute inset-0 rounded-[23px] shadow-[1.25px_0px_0px_-0.75px_#d0d0d0,-1.25px_0px_0px_-0.75px_#d0d0d0,0px_0px_0px_0.5px_#ccc,0px_8px_15px_0px_rgba(0,0,0,0.02)]" data-name="Fill + Shadow">
-      <div aria-hidden className="absolute inset-0 pointer-events-none rounded-[23px]">
-        <div className="absolute bg-[#101010] inset-0 mix-blend-plus-lighter rounded-[23px]" />
-        <div className="absolute bg-[rgba(255,255,255,0.04)] inset-0 mix-blend-luminosity rounded-[23px]" />
-      </div>
-    </div>
-  );
-}
-
-function GlassEffect1() {
-  return (
-    <div className="absolute inset-0 pointer-events-none rounded-[23px]" data-name="Glass Effect">
-      <div aria-hidden className="absolute bg-[rgba(0,0,0,0)] inset-0 rounded-[23px]" />
-      <div className="absolute inset-0 rounded-[inherit] shadow-[inset_0px_40px_10px_-40px_#282828,inset_0px_-40px_10px_-40px_#282828,inset_0px_40px_30px_-40px_#e6e6e6]" />
-    </div>
-  );
-}
-
-function Banner1() {
-  return (
-    <div className="absolute bottom-[6.33px] content-stretch flex flex-col h-[8px] items-center justify-end left-0 overflow-clip px-[10px] right-0 rounded-[24px]" data-name="Banner">
-      <div className="h-[64px] relative shrink-0 w-full" data-name="Clear Glass">
-        <FillShadow1 />
-        <GlassEffect1 />
-      </div>
-    </div>
-  );
-}
-
-function FillShadow2() {
-  return (
-    <div className="absolute inset-0 rounded-[23px] shadow-[1.25px_0px_0px_-0.75px_#d0d0d0,-1.25px_0px_0px_-0.75px_#d0d0d0,0px_0px_0px_0.5px_#ccc,0px_8px_15px_0px_rgba(0,0,0,0.02)]" data-name="Fill + Shadow">
-      <div aria-hidden className="absolute inset-0 pointer-events-none rounded-[23px]">
-        <div className="absolute bg-[#101010] inset-0 mix-blend-plus-lighter rounded-[23px]" />
-        <div className="absolute bg-[rgba(255,255,255,0.04)] inset-0 mix-blend-luminosity rounded-[23px]" />
-      </div>
-    </div>
-  );
-}
-
-function GlassEffect2() {
-  return (
-    <div className="absolute inset-0 pointer-events-none rounded-[23px]" data-name="Glass Effect">
-      <div aria-hidden className="absolute bg-[rgba(0,0,0,0)] inset-0 rounded-[23px]" />
-      <div className="absolute inset-0 rounded-[inherit] shadow-[inset_0px_40px_10px_-40px_#282828,inset_0px_-40px_10px_-40px_#282828,inset_0px_40px_30px_-40px_#e6e6e6]" />
     </div>
   );
 }
@@ -164,11 +113,11 @@ export function IosNotificationBanner({
     >
       <div className="flex flex-row items-center justify-center size-full">
         <div className="content-stretch flex gap-[10px] items-center justify-center pb-[27px] pt-[12px] px-[14px] relative size-full">
-          <Banner />
-          <Banner1 />
+          <StackedBanner bottomOffset="bottom-[-1.67px]" pxPadding="px-[20px]" />
+          <StackedBanner bottomOffset="bottom-[6.33px]" pxPadding="px-[10px]" />
           <div className="absolute inset-[0_0_14.33px_0]" data-name="Clear Glass">
-            <FillShadow2 />
-            <GlassEffect2 />
+            <FillShadow />
+            <GlassEffect />
           </div>
           <CustomIcon className="overflow-clip relative shrink-0 size-[38.333px]" />
           <Frame title={title} message={message} time={time} />

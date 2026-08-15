@@ -15,9 +15,14 @@ During the Session End ritual (called automatically whenever significant changes
 
 ## Log Entries
 
-### [PreFill — Deep Codebase Cleanup & Authentic Light Glassmorphism Notification] 2026-08-15
-- **Commit**: `e6e380b`
+### [Grocer — Saved Exact Figma Notification Layout & WhatsApp Icon] 2026-08-15
+- **Commit**: `9e838be`
 - **Shipped**:
+  - Saved 100% exact Figma notification export layout, glass layers (`FillShadow`, `GlassEffect`), and paddings (`pb-[27px] pt-[12px] px-[14px]`).
+  - Integrated official WhatsApp emerald app icon badge (`w-[32px] h-[32px] rounded-[9px] bg-emerald-600 border border-white/20`).
+  - Adjusted mobile typography to 10.5px/9.5px (`text-[10.5px]` title & message, `text-[9.5px]` timestamp).
+  - Verified 16/16 Pytest tests passing (`1.63s`), ESLint `0 errors`, & Next.js production build (`0 errors / 0 warnings`).
+  - Pushed to GitHub repository (`https://github.com/kwakhare5/PreFill.git`).
   - Converted notification card background from pitch-black `#101010` to authentic Apple iOS **Light Glassmorphism Material** (`bg-white/45 backdrop-blur-2xl backdrop-saturate-[180%] border border-white/60 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.8)]`).
   - Updated notification typography to high-contrast Apple dark text (`text-gray-950` title, `text-gray-600` timestamp, `text-gray-900` message copy).
   - Reorganized components into clean domain folders: `frontend/components/mockup/IosNotificationBanner.tsx` and `frontend/components/ui/IphoneFrame.tsx`.

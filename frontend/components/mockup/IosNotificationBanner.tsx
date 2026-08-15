@@ -129,7 +129,7 @@ export function IosNotificationBanner({
         <NotificationGlassBackground />
 
         {/* Isolated Foreground Content Container */}
-        <div className="content-stretch flex gap-[10px] items-center justify-center pb-[27px] pt-[12px] px-[14px] relative size-full z-10" data-name="Content Container">
+        <div className="content-stretch flex gap-[9px] items-center justify-center pb-[20px] pt-[8px] px-[13px] relative size-full z-10" data-name="Content Container">
           <WhatsAppIconBadge />
           <NotificationTextFrame title={title} message={message} time={time} />
         </div>

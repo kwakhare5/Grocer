@@ -10,10 +10,9 @@ export interface IosNotificationBannerProps {
 
 function FillShadow() {
   return (
-    <div className="absolute inset-0 rounded-[20px] shadow-[1.25px_0px_0px_-0.75px_#d0d0d0,-1.25px_0px_0px_-0.75px_#d0d0d0,0px_0px_0px_0.5px_#ccc,0px_8px_15px_0px_rgba(0,0,0,0.02)]">
+    <div className="absolute inset-0 rounded-[20px] bg-white/45 backdrop-blur-2xl backdrop-saturate-[180%] border border-white/60 shadow-[0_8px_24px_rgba(0,0,0,0.12)]">
       <div aria-hidden className="absolute inset-0 pointer-events-none rounded-[20px]">
-        <div className="absolute bg-[#101010] inset-0 mix-blend-plus-lighter rounded-[20px]" />
-        <div className="absolute bg-[rgba(255,255,255,0.04)] inset-0 mix-blend-luminosity rounded-[20px]" />
+        <div className="absolute bg-[rgba(255,255,255,0.2)] inset-0 rounded-[20px]" />
       </div>
     </div>
   );
@@ -23,7 +22,7 @@ function GlassEffect() {
   return (
     <div className="absolute inset-0 pointer-events-none rounded-[20px]">
       <div aria-hidden className="absolute bg-[rgba(0,0,0,0)] inset-0 rounded-[20px]" />
-      <div className="absolute inset-0 rounded-[inherit] shadow-[inset_0px_40px_10px_-40px_#282828,inset_0px_-40px_10px_-40px_#282828,inset_0px_40px_30px_-40px_#e6e6e6]" />
+      <div className="absolute inset-0 rounded-[inherit] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.8)]" />
     </div>
   );
 }
@@ -85,14 +84,14 @@ export function IosNotificationBanner({
               {/* Title and Description */}
               <div className="flex flex-1 flex-col justify-center min-w-0 gap-0.5">
                 <div className="flex items-baseline justify-between w-full min-w-0">
-                  <p className="font-['SF_Pro_Text',-apple-system,sans-serif] font-semibold text-[10.5px] leading-[15px] text-white tracking-[-0.23px] truncate">
+                  <p className="font-['SF_Pro_Text',-apple-system,sans-serif] font-semibold text-[10.5px] leading-[15px] text-gray-950 tracking-[-0.23px] truncate">
                     {title}
                   </p>
-                  <p className="font-['SF_Pro_Text',-apple-system,sans-serif] font-normal text-[9.5px] leading-[15px] text-white/65 tracking-[-0.23px] ml-2 shrink-0 whitespace-nowrap">
+                  <p className="font-['SF_Pro_Text',-apple-system,sans-serif] font-normal text-[9.5px] leading-[15px] text-gray-600 tracking-[-0.23px] ml-2 shrink-0 whitespace-nowrap">
                     {time}
                   </p>
                 </div>
-                <p className="font-['SF_Pro_Text',-apple-system,sans-serif] font-normal text-[10.5px] leading-[15px] text-white/90 tracking-[-0.23px] line-clamp-2">
+                <p className="font-['SF_Pro_Text',-apple-system,sans-serif] font-normal text-[10.5px] leading-[15px] text-gray-900 tracking-[-0.23px] line-clamp-2">
                   {message}
                 </p>
               </div>

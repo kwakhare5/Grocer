@@ -1,11 +1,31 @@
 import React from "react";
-import { WhatsAppIcon } from "../ui/WhatsAppIcon";
+import imgModeDefault from "./c26d0f4e6f1d97cbbc8bf76776266dd85318da8e.png";
+import imgCustomIconDefault from "./9ee404c0ae57001eef8b631f83a9acce5f986f38.png";
 
 export interface IosNotificationBannerProps {
   title?: string;
   message?: string;
   time?: string;
   onClick?: () => void;
+}
+
+type CustomIconProps = {
+  className?: string;
+  mode?: "Default";
+};
+
+function CustomIcon({ className }: CustomIconProps) {
+  const modeSrc = typeof imgModeDefault === "string" ? imgModeDefault : (imgModeDefault as { src?: string }).src || "";
+  const iconSrc = typeof imgCustomIconDefault === "string" ? imgCustomIconDefault : (imgCustomIconDefault as { src?: string }).src || "";
+
+  return (
+    <div className={className || "overflow-clip relative size-[66px]"}>
+      <img alt="" className="absolute inset-0 max-w-none object-cover pointer-events-none size-full" src={modeSrc} />
+      <div className="-translate-x-1/2 absolute aspect-[256/256] bottom-0 left-1/2 top-0" data-name="Custom-Icon-Default">
+        <img alt="" className="absolute inset-0 max-w-none object-cover pointer-events-none size-full" src={iconSrc} />
+      </div>
+    </div>
+  );
 }
 
 function FillShadow() {
@@ -92,11 +112,11 @@ function GlassEffect2() {
 
 function TitleAndDescription({ title, message }: { title?: string; message?: string }) {
   return (
-    <div className="[word-break:break-word] content-stretch flex flex-1 flex-col justify-center min-w-0 gap-0.5" data-name="Title and Description">
-      <p className="font-['SF_Pro_Text',-apple-system,sans-serif] font-semibold text-[10.5px] leading-[15px] text-white tracking-[-0.23px] truncate">
+    <div className="[word-break:break-word] content-stretch flex flex-[1_0_0] flex-col h-full items-start justify-center min-w-px relative tracking-[-0.23px]" data-name="Title and Description">
+      <p className="font-['SF_Pro_Text',-apple-system,sans-serif] font-semibold text-[10.5px] leading-[15px] text-white relative shrink-0 w-full truncate">
         {title || "WhatsApp"}
       </p>
-      <p className="font-['SF_Pro_Text',-apple-system,sans-serif] font-normal text-[10.5px] leading-[15px] text-white/90 tracking-[-0.23px] line-clamp-2">
+      <p className="font-['SF_Pro_Text',-apple-system,sans-serif] font-normal text-[10.5px] leading-[15px] text-white/90 min-w-full relative shrink-0 w-full line-clamp-2">
         {message || "🥛 Amul Milk 1L is down to 15% (runs out tomorrow). Tap to restock →"}
       </p>
     </div>
@@ -105,24 +125,26 @@ function TitleAndDescription({ title, message }: { title?: string; message?: str
 
 function TimeAndImage({ time }: { time?: string }) {
   return (
-    <div className="mix-blend-plus-lighter relative shrink-0" data-name="Time">
-      <p className="font-['SF_Pro_Text',-apple-system,sans-serif] font-normal text-[9.5px] leading-[15px] text-white/65 tracking-[-0.23px] ml-2 shrink-0 whitespace-nowrap">
-        {time || "now"}
-      </p>
+    <div className="content-stretch flex flex-col gap-[5.5px] items-end relative shrink-0" data-name="Time and Image">
+      <div className="mix-blend-plus-lighter relative shrink-0" data-name="Time">
+        <div className="flex flex-row items-center justify-center size-full">
+          <div className="content-stretch flex items-center justify-center relative size-full">
+            <p className="[word-break:break-word] font-['SF_Pro_Text',-apple-system,sans-serif] font-normal text-[9.5px] leading-[15px] relative shrink-0 text-[#8e8e93] text-right whitespace-nowrap">
+              {time || "now"}
+            </p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
 
 function Frame({ title, message, time }: { title?: string; message?: string; time?: string }) {
   return (
-    <div className="flex flex-1 flex-row items-center self-stretch z-10 min-w-0">
-      <div className="flex flex-1 items-center justify-between min-w-0 relative">
-        <div className="flex flex-1 flex-col justify-center min-w-0 gap-0.5">
-          <div className="flex items-baseline justify-between w-full min-w-0">
-            <TitleAndDescription title={title} message={message} />
-            <TimeAndImage time={time} />
-          </div>
-        </div>
+    <div className="flex flex-[1_0_0] flex-row items-center self-stretch">
+      <div className="content-stretch flex flex-[1_0_0] h-full items-start justify-center min-w-px relative gap-2" data-name="Frame">
+        <TitleAndDescription title={title} message={message} />
+        <TimeAndImage time={time} />
       </div>
     </div>
   );
@@ -137,24 +159,18 @@ export function IosNotificationBanner({
   return (
     <div
       onClick={onClick}
-      className="relative rounded-[24px] w-full cursor-pointer select-none group antialiased"
-      style={{ transform: "translateZ(0)", WebkitFontSmoothing: "antialiased", MozOsxFontSmoothing: "grayscale" }}
+      className="relative rounded-[24px] size-full cursor-pointer select-none group antialiased"
       data-name="Notification - Collapsed"
     >
-      <div className="flex flex-row items-center justify-center w-full">
-        <div className="content-stretch flex gap-2 items-center justify-center pb-[20px] pt-[7px] px-3 relative w-full">
+      <div className="flex flex-row items-center justify-center size-full">
+        <div className="content-stretch flex gap-[10px] items-center justify-center pb-[27px] pt-[12px] px-[14px] relative size-full">
           <Banner />
           <Banner1 />
           <div className="absolute inset-[0_0_14.33px_0]" data-name="Clear Glass">
             <FillShadow2 />
             <GlassEffect2 />
           </div>
-
-          {/* Official WhatsApp App Icon */}
-          <div className="relative shrink-0 w-[32px] h-[32px] rounded-[9px] bg-emerald-600 border border-white/20 flex items-center justify-center z-10 shadow-sm">
-            <WhatsAppIcon className="h-4 w-4 text-white shrink-0" />
-          </div>
-
+          <CustomIcon className="overflow-clip relative shrink-0 size-[38.333px]" />
           <Frame title={title} message={message} time={time} />
         </div>
       </div>

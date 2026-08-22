@@ -22,14 +22,14 @@ During the Session End ritual (called automatically whenever significant changes
   - Integrated official WhatsApp emerald app icon badge (`w-[32px] h-[32px] rounded-[9px] bg-emerald-600 border border-white/20`).
   - Adjusted mobile typography to 10.5px/9.5px (`text-[10.5px]` title & message, `text-[9.5px]` timestamp).
   - Verified 16/16 Pytest tests passing (`1.63s`), ESLint `0 errors`, & Next.js production build (`0 errors / 0 warnings`).
-  - Pushed to GitHub repository (`https://github.com/kwakhare5/PreFill.git`).
+  - Pushed to GitHub repository (`https://github.com/kwakhare5/Grocer.git`).
   - Converted notification card background from pitch-black `#101010` to authentic Apple iOS **Light Glassmorphism Material** (`bg-white/45 backdrop-blur-2xl backdrop-saturate-[180%] border border-white/60 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.8)]`).
   - Updated notification typography to high-contrast Apple dark text (`text-gray-950` title, `text-gray-600` timestamp, `text-gray-900` message copy).
   - Reorganized components into clean domain folders: `frontend/components/mockup/IosNotificationBanner.tsx` and `frontend/components/ui/IphoneFrame.tsx`.
   - Purged unneeded temporary assets: `Generate React HTML CSS Code.zip` (396 KB) and `goldsand-830x6376.png` (229 KB).
   - Purged legacy component files `FigmaNotificationCollapsed.tsx` and `ui/iphone.tsx`.
   - Fixed ESLint unescaped entities in `GrocerFAQ.tsx` and `GrocerFooter.tsx`.
-  - Pushed clean, verified build (`16/16 PASSED`, `0 errors / 0 warnings`) to GitHub repository `https://github.com/kwakhare5/PreFill.git`.
+  - Pushed clean, verified build (`16/16 PASSED`, `0 errors / 0 warnings`) to GitHub repository `https://github.com/kwakhare5/Grocer.git`.
   - Removed top kicker header badges (`"Interactive Prototype • 1-Tap Predictive WhatsApp Restock"` and `"Prophet ML Engine • LangGraph Agent"`) from `GrocerHero.tsx`.
   - Equalized notification title and message copy font sizes to **`10.5px`** in `IosNotificationBanner.tsx`.
   - Set `PhoneMockup` container width to **`295px`** in `PhoneMockup.tsx`.

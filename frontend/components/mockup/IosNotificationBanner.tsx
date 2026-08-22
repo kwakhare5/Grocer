@@ -92,7 +92,7 @@ function NotificationHeader({ title, time }: { title?: string; time?: string }) 
 function NotificationMessage({ message }: { message?: string }) {
   return (
     <p className="font-['SF_Pro_Text',-apple-system,sans-serif] font-normal text-[10.5px] leading-[15px] text-white/90 min-w-full relative shrink-0 w-full whitespace-normal break-words">
-      {message || "🥛 Amul Milk 1L is down to 15% (runs out tomorrow). Tap to restock →"}
+      {message || "🥛 Restock Alert: Amul Milk 1L is at 15%. Tap to confirm restock."}
     </p>
   );
 }
@@ -114,7 +114,7 @@ function NotificationTextFrame({ title, message, time }: { title?: string; messa
 
 export function IosNotificationBanner({
   title = "WhatsApp",
-  message = "🥛 Amul Milk 1L is down to 15% (runs out tomorrow). Tap to restock →",
+  message = "🥛 Restock Alert: Amul Milk 1L is at 15%. Tap to confirm restock.",
   time = "now",
   onClick
 }: IosNotificationBannerProps) {

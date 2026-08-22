@@ -26,7 +26,7 @@ Clean up the Hero section by removing scenario switcher pills and the outer card
 
 ### Component 1: Hero Section Clean Up
 
-#### [MODIFY] [`GrocerHero.tsx`](file:///d:/PreFill/frontend/components/grocer/GrocerHero.tsx)
+#### [MODIFY] [`GrocerHero.tsx`](file:///d:/Grocer/frontend/components/grocer/GrocerHero.tsx)
 - Remove scenario switcher pill buttons above the phone.
 - Remove outer container card styling around the iPhone frame so `PhoneMockup` renders directly on `bg-[#FCFCFD]`.
 
@@ -34,25 +34,25 @@ Clean up the Hero section by removing scenario switcher pills and the outer card
 
 ### Component 2: Design System Token Clean Up (Dark Mode Purge)
 
-#### [MODIFY] [`PillButton.tsx`](file:///d:/PreFill/frontend/components/ui/PillButton.tsx)
+#### [MODIFY] [`PillButton.tsx`](file:///d:/Grocer/frontend/components/ui/PillButton.tsx)
 - Purge dark mode variant definitions (`dark`, `shimmer` dark text). Standardize on `primary`, `secondary`, and `ghost`.
 
-#### [MODIFY] [`CardSurface.tsx`](file:///d:/PreFill/frontend/components/ui/CardSurface.tsx)
+#### [MODIFY] [`CardSurface.tsx`](file:///d:/Grocer/frontend/components/ui/CardSurface.tsx)
 - Purge `dark` variant. Standardize on light variants (`default`, `accent`, `mesh`).
 
 ---
 
 ### Component 3: Component-Wide Light Surface Transformation & Component Reuse
 
-#### [MODIFY] [`GrocerIntegrations.tsx`](file:///d:/PreFill/frontend/components/grocer/GrocerIntegrations.tsx)
+#### [MODIFY] [`GrocerIntegrations.tsx`](file:///d:/Grocer/frontend/components/grocer/GrocerIntegrations.tsx)
 - Transform dark terminal box (`bg-gray-950`) into a crisp light code card (`bg-[#F8FAFC]` border `#E2E8F0`).
 - Standardize step cards and cURL copy buttons to use `CardSurface` and `PillButton`.
 
-#### [MODIFY] [`GrocerFooter.tsx`](file:///d:/PreFill/frontend/components/grocer/GrocerFooter.tsx)
+#### [MODIFY] [`GrocerFooter.tsx`](file:///d:/Grocer/frontend/components/grocer/GrocerFooter.tsx)
 - Transform giant dark CTA box (`bg-gradient-to-br from-gray-900...`) into a clean light surface (`bg-slate-50 border border-slate-200`).
 - Standardize all CTA buttons to use `PillButton`.
 
-#### [MODIFY] [`GrocerValueProp.tsx`](file:///d:/PreFill/frontend/components/grocer/GrocerValueProp.tsx) & [`GrocerVelocityCalculator.tsx`](file:///d:/PreFill/frontend/components/grocer/GrocerVelocityCalculator.tsx)
+#### [MODIFY] [`GrocerValueProp.tsx`](file:///d:/Grocer/frontend/components/grocer/GrocerValueProp.tsx) & [`GrocerVelocityCalculator.tsx`](file:///d:/Grocer/frontend/components/grocer/GrocerVelocityCalculator.tsx)
 - Ensure all bento cards and calculator controls use light surfaces and shared UI components exclusively.
 
 ---

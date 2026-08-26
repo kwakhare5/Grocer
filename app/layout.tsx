@@ -1,0 +1,57 @@
+import type { Metadata } from 'next';
+import { Outfit, Cambo, Inter } from 'next/font/google';
+import { Toaster } from 'sonner';
+import './globals.css';
+import { Analytics } from '@vercel/analytics/react';
+
+const outfit = Outfit({
+  variable: '--font-outfit',
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700', '800'],
+});
+
+const cambo = Cambo({
+  variable: '--font-cambo',
+  subsets: ['latin'],
+  weight: ['400'],
+});
+
+const inter = Inter({
+  variable: '--font-sf',
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+});
+
+export const metadata: Metadata = {
+  title: "Grocer — Engineering Prototype & Problem Exploration for Quick Commerce",
+  description:
+    "An end-to-end prototype exploring time-series Prophet ML forecasting and a 5-node LangGraph execution state machine for low-friction 1-tap WhatsApp restocking.",
+  icons: {
+    icon: '/logo.svg',
+    shortcut: '/logo.svg',
+    apple: '/logo.svg',
+  },
+};
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  return (
+    <html
+      lang="en"
+      className={`${outfit.variable} ${cambo.variable} ${inter.variable} h-full antialiased`}
+    >
+      <body className="min-h-full flex flex-col selection:bg-gray-950 selection:text-white relative overflow-x-hidden bg-[#FAFAFA] text-gray-900 font-sans">
+        
+        {/* Page Content */}
+        {children}
+
+        {/* System Notifications & Analytics */}
+        <Toaster position="top-right" theme="light" richColors />
+        <Analytics />
+      </body>
+    </html>
+  );
+}

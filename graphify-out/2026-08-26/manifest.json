@@ -1,0 +1,296 @@
+{
+  ".prettierrc.json": {
+    "mtime": 1784720757.8465626,
+    "seen": 1787740603.278624,
+    "ast_hash": "018f9484640c6bb8ad9cc51f9130f581",
+    "semantic_hash": "018f9484640c6bb8ad9cc51f9130f581"
+  },
+  "package.json": {
+    "mtime": 1787739881.9206097,
+    "seen": 1787740603.278624,
+    "ast_hash": "b6fce8a30f1635032505ed7d542cc66c",
+    "semantic_hash": ""
+  },
+  ".vscode/settings.json": {
+    "mtime": 1781526976.0,
+    "seen": 1787740603.278624,
+    "ast_hash": "e21598ab261bad9c03d700c295c63245",
+    "semantic_hash": ""
+  },
+  "skills-lock.json": {
+    "mtime": 1786363116.6092706,
+    "seen": 1787740603.278624,
+    "ast_hash": "48f3f76df6032ce50139377278fc02e9",
+    "semantic_hash": ""
+  },
+  ".agents/AGENTS.md": {
+    "mtime": 1787739919.420029,
+    "seen": 1787740603.278624,
+    "ast_hash": "5b9795156577d2043391565ee42c62b3",
+    "semantic_hash": ""
+  },
+  ".agents/rules/graphify.md": {
+    "mtime": 1786690627.0715935,
+    "seen": 1787740603.278624,
+    "ast_hash": "a0e4d192b9e2e17256124dbfc8e24e6a",
+    "semantic_hash": ""
+  },
+  ".agents/workflows/graphify.md": {
+    "mtime": 1786690627.0730777,
+    "seen": 1787740603.278624,
+    "ast_hash": "a831cf3669f1e6ab85d8a80ebe655f99",
+    "semantic_hash": ""
+  },
+  "ARCHITECTURE.md": {
+    "mtime": 1787739902.9686272,
+    "seen": 1787740603.278624,
+    "ast_hash": "3ee9ce15f4d8a290c6f99a96d3762521",
+    "semantic_hash": ""
+  },
+  "CONTEXT.md": {
+    "mtime": 1787739908.8036964,
+    "seen": 1787740603.278624,
+    "ast_hash": "4589e4a6189feb5d4a7838a171bf10a7",
+    "semantic_hash": ""
+  },
+  "JOURNAL.md": {
+    "mtime": 1787739926.1181898,
+    "seen": 1787740603.278624,
+    "ast_hash": "e16e9a50b2e0c208bb54455603c09f92",
+    "semantic_hash": ""
+  },
+  "PRODUCT_SPEC.md": {
+    "mtime": 1786716879.5436883,
+    "seen": 1787740603.278624,
+    "ast_hash": "cffa33a53b7b1119e9c740ac7d79fb40",
+    "semantic_hash": ""
+  },
+  "README.md": {
+    "mtime": 1787739896.354896,
+    "seen": 1787740603.278624,
+    "ast_hash": "39185c44663f27f9f70c343bdc8f8ec6",
+    "semantic_hash": ""
+  },
+  "docs/PROJECT_HISTORY.md": {
+    "mtime": 1786712137.6803997,
+    "seen": 1787740603.278624,
+    "ast_hash": "218c4acd5a05e25448646ee4e49d9e68",
+    "semantic_hash": ""
+  },
+  "implementation_plan.md": {
+    "mtime": 1787417034.247844,
+    "seen": 1787740603.278624,
+    "ast_hash": "43648427d2993640ef3761f68a6ff135",
+    "semantic_hash": ""
+  },
+  "walkthrough.md": {
+    "mtime": 1786719548.0082839,
+    "seen": 1787740603.278624,
+    "ast_hash": "0142b3458719a0f1814ddd00cf2afa1c",
+    "semantic_hash": ""
+  },
+  "app/layout.tsx": {
+    "mtime": 1786772658.3986287,
+    "seen": 1787740603.278624,
+    "ast_hash": "6a912fc9db46e38a8f7122da054379ea",
+    "semantic_hash": ""
+  },
+  "app/page.tsx": {
+    "mtime": 1786719486.1128018,
+    "seen": 1787740603.278624,
+    "ast_hash": "46b6fbd08a8baed0ca2d9631c6e84ad6",
+    "semantic_hash": ""
+  },
+  "components/PhoneMockup.tsx": {
+    "mtime": 1786778748.6610003,
+    "seen": 1787740603.278624,
+    "ast_hash": "160bd19c42d86437edcc876cb47f746b",
+    "semantic_hash": ""
+  },
+  "components/grocer/GrocerFAQ.tsx": {
+    "mtime": 1786778409.917366,
+    "seen": 1787740603.278624,
+    "ast_hash": "1ee05fc64272d8c63634e11d5718a32a",
+    "semantic_hash": ""
+  },
+  "components/grocer/GrocerFooter.tsx": {
+    "mtime": 1786778435.6269686,
+    "seen": 1787740603.278624,
+    "ast_hash": "affb4f5f98ccb5b8c2dc2faa86285873",
+    "semantic_hash": ""
+  },
+  "components/grocer/GrocerHeader.tsx": {
+    "mtime": 1786712183.521714,
+    "seen": 1787740603.278624,
+    "ast_hash": "46e2b64aafc8d95074554c45089ffa5f",
+    "semantic_hash": ""
+  },
+  "components/grocer/GrocerHero.tsx": {
+    "mtime": 1787740586.3835454,
+    "seen": 1787740603.278624,
+    "ast_hash": "f26943a83c367d80027fd7b4625a2189",
+    "semantic_hash": ""
+  },
+  "components/grocer/GrocerIntegrations.tsx": {
+    "mtime": 1787739834.1747253,
+    "seen": 1787740603.278624,
+    "ast_hash": "c4da94601510675a975621db0dd47a20",
+    "semantic_hash": ""
+  },
+  "components/grocer/GrocerValueProp.tsx": {
+    "mtime": 1786720526.58058,
+    "seen": 1787740603.278624,
+    "ast_hash": "8894bfb8e5258cf208bd26fae4b9188b",
+    "semantic_hash": ""
+  },
+  "components/grocer/GrocerVelocityCalculator.tsx": {
+    "mtime": 1786720215.4105916,
+    "seen": 1787740603.278624,
+    "ast_hash": "8bba09558d7821464ebadd3907811e87",
+    "semantic_hash": ""
+  },
+  "components/mockup/IosNotificationBanner.tsx": {
+    "mtime": 1786781733.5898404,
+    "seen": 1787740603.278624,
+    "ast_hash": "802ed422ca20a3625f3fefc936831634",
+    "semantic_hash": ""
+  },
+  "components/ui/CardSurface.tsx": {
+    "mtime": 1786719673.1107993,
+    "seen": 1787740603.278624,
+    "ast_hash": "05d46f656c545d88676c653c9fd13a80",
+    "semantic_hash": ""
+  },
+  "components/ui/GrocerLogo.tsx": {
+    "mtime": 1786712170.4822516,
+    "seen": 1787740603.278624,
+    "ast_hash": "2ee61ba3e8577c994dbadcc17bda6d59",
+    "semantic_hash": ""
+  },
+  "components/ui/IphoneFrame.tsx": {
+    "mtime": 1786778221.4459584,
+    "seen": 1787740603.278624,
+    "ast_hash": "95303e582e5a95e6127af4267c9d56a5",
+    "semantic_hash": ""
+  },
+  "components/ui/PillBadge.tsx": {
+    "mtime": 1786386946.5176933,
+    "seen": 1787740603.278624,
+    "ast_hash": "0caebc327f1952e986b0730973093bc9",
+    "semantic_hash": ""
+  },
+  "components/ui/PillButton.tsx": {
+    "mtime": 1786719718.688252,
+    "seen": 1787740603.278624,
+    "ast_hash": "d9614116f6c984f58f4e58ec58a89b9b",
+    "semantic_hash": ""
+  },
+  "components/ui/WhatsAppIcon.tsx": {
+    "mtime": 1786736298.1194491,
+    "seen": 1787740603.278624,
+    "ast_hash": "91a373f745c0bfaef8922a50579b1cb7",
+    "semantic_hash": ""
+  },
+  "eslint.config.mjs": {
+    "mtime": 1781526976.0,
+    "seen": 1787740603.278624,
+    "ast_hash": "dfa1f5f6a7037bf39dc510f30b180002",
+    "semantic_hash": ""
+  },
+  "hooks/usePantryEngine.ts": {
+    "mtime": 1786386530.5771525,
+    "seen": 1787740603.278624,
+    "ast_hash": "6ad0861aa8a97814b44ffe20fb4d991a",
+    "semantic_hash": ""
+  },
+  "hooks/usePhoneDemoEngine.ts": {
+    "mtime": 1787739813.63926,
+    "seen": 1787740603.278624,
+    "ast_hash": "a08e4c2a0a44ff2de42904bfcdd18b1e",
+    "semantic_hash": ""
+  },
+  "lib/mockData.ts": {
+    "mtime": 1787739798.7748854,
+    "seen": 1787740603.278624,
+    "ast_hash": "58bb86b23c0e61272b78b8c1b08710b0",
+    "semantic_hash": ""
+  },
+  "lib/simulationEngine.ts": {
+    "mtime": 1787739878.5247805,
+    "seen": 1787740603.278624,
+    "ast_hash": "53597bb60695cd77706a84a9d9d8b64b",
+    "semantic_hash": ""
+  },
+  "lib/types.ts": {
+    "mtime": 1786736317.5188425,
+    "seen": 1787740603.278624,
+    "ast_hash": "739f51a92868d86a5ee51ab7f3e8e524",
+    "semantic_hash": ""
+  },
+  "lib/utils.ts": {
+    "mtime": 1785514445.0798335,
+    "seen": 1787740603.278624,
+    "ast_hash": "96e5a94883fe560eba9673ad2289f918",
+    "semantic_hash": ""
+  },
+  "next-env.d.ts": {
+    "mtime": 1787739849.840449,
+    "seen": 1787740603.278624,
+    "ast_hash": "b698cdd97fe8e3bd16dcd74899ad7cef",
+    "semantic_hash": ""
+  },
+  "next.config.ts": {
+    "mtime": 1786384638.1173966,
+    "seen": 1787740603.278624,
+    "ast_hash": "1cf426a4742119cb70565236ed18995a",
+    "semantic_hash": ""
+  },
+  "postcss.config.mjs": {
+    "mtime": 1781526976.0,
+    "seen": 1787740603.278624,
+    "ast_hash": "239f3ebf717465dc636818a1a619398d",
+    "semantic_hash": ""
+  },
+  "tsconfig.json": {
+    "mtime": 1781526976.0,
+    "seen": 1787740603.278624,
+    "ast_hash": "02fc19ad21338c2ab820a70136310db4",
+    "semantic_hash": ""
+  },
+  "task.md": {
+    "mtime": 1787739928.9714155,
+    "seen": 1787740603.278624,
+    "ast_hash": "cbc20afaa5d4e604e3ab6e13083ddd87",
+    "semantic_hash": ""
+  },
+  "public/figma/9ee404c0ae57001eef8b631f83a9acce5f986f38.png": {
+    "mtime": 1786779538.0,
+    "seen": 1787740603.278624,
+    "ast_hash": "db6f26b384ae18a61d10666ee505230b",
+    "semantic_hash": ""
+  },
+  "public/figma/c26d0f4e6f1d97cbbc8bf76776266dd85318da8e.png": {
+    "mtime": 1786779538.0,
+    "seen": 1787740603.278624,
+    "ast_hash": "91ddc929c4a83ef055982fe23aa24560",
+    "semantic_hash": ""
+  },
+  "public/iphone-16-pro-frame.png": {
+    "mtime": 1786775612.0,
+    "seen": 1787740603.278624,
+    "ast_hash": "56293df3a4ada71303b193e7cc25ce29",
+    "semantic_hash": ""
+  },
+  "public/logo.svg": {
+    "mtime": 1786451297.2226365,
+    "seen": 1787740603.278624,
+    "ast_hash": "79b229297c782b8ead03258d30a40523",
+    "semantic_hash": ""
+  },
+  "public/wallpaper.png": {
+    "mtime": 1786775782.0,
+    "seen": 1787740603.278624,
+    "ast_hash": "cdfddfef32d13c7a13d7d4e807355434",
+    "semantic_hash": ""
+  }
+}

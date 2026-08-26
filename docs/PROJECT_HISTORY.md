@@ -1,6 +1,6 @@
-# PreFill — Historical Context & ADRs
+# Grocer — Historical Context & ADRs
 
-This document summarizes the core architectural decisions and product specifications that shaped PreFill (formerly Instamart Intelligence).
+This document summarizes the core architectural decisions and product specifications that shaped Grocer (formerly Instamart Intelligence).
 
 ## Architectural Decision Records (ADRs)
 

@@ -1,29 +1,30 @@
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║          PreFill — README                                        ║
-     ║          The household AI that knows your kitchen better...     ║
+     ║          Grocer — README                                        ║
+     ║          Engineering Prototype & Problem Exploration           ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 
 <div align="center">
 
-  # PreFill
+  # Grocer
 
-  ### *The brand-agnostic Quick Commerce SDK that automates kitchen inventory before items run out.*
+  ### *An engineering prototype & problem exploration for pre-emptive household replenishment in Quick Commerce.*
 
   <br/>
 
   ![Version](https://img.shields.io/badge/version-1.0.0-blue?style=for-the-badge)
   ![License](https://img.shields.io/badge/license-MIT-green?style=for-the-badge)
-  ![Language](https://img.shields.io/badge/Language-Python%20%2F%20TypeScript-yellow?style=for-the-badge&logo=python&logoColor=white)
+  ![Language](https://img.shields.io/badge/Language-TypeScript-blue?style=for-the-badge&logo=typescript&logoColor=white)
+  ![Next.js](https://img.shields.io/badge/Next.js-16.2-black?style=for-the-badge&logo=nextdotjs&logoColor=white)
+  ![React](https://img.shields.io/badge/React-19.2-61DAFB?style=for-the-badge&logo=react&logoColor=black)
+  ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-v4-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)
 
   <br/>
 
   <a href="#-about-the-project">About</a> &nbsp;·&nbsp;
-  <a href="#-features">Features</a> &nbsp;·&nbsp;
-  <a href="#-tech-stack">Tech Stack</a> &nbsp;·&nbsp;
+  <a href="#-key-features">Key Features</a> &nbsp;·&nbsp;
+  <a href="#-getting-started">Getting Started</a> &nbsp;·&nbsp;
   <a href="#-architecture">Architecture</a> &nbsp;·&nbsp;
-  <a href="#-performance-optimizations">Performance</a> &nbsp;·&nbsp;
-  <a href="#-quickstart">Quickstart</a> &nbsp;·&nbsp;
-  <a href="#-author">Author</a>
+  <a href="#-available-scripts">Available Scripts</a>
 
 </div>
 
@@ -31,183 +32,86 @@
 
 ## 📌 About the Project
 
-**PreFill** is a **brand-agnostic feature extension & SDK module** designed for quick commerce platforms. Built with **FastAPI, Next.js, Facebook Prophet, PostgreSQL, and LangGraph**, PreFill turns reactive quick commerce apps into proactive, automated replenishment engines.
+**Grocer** is a self-directed **engineering prototype & problem exploration** designed to address a fundamental gap in quick commerce: current platforms (Zepto, Blinkit, Swiggy Instamart, BigBasket) are fundamentally **reactive** (they wait for the user to open the app).
 
-PreFill watches how your household consumes groceries over time, learning your patterns (such as milk, atta, oil, bread, and egg consumption velocity) using Prophet forecasting models. It proactively notifies you over WhatsApp 2 days before items deplete, letting you restock via a stateful LangGraph agent in one tap. It also features price tracking and recipe-to-cart pantry intelligence.
+Built with **Next.js 16 (Turbopack), React 19, and Tailwind CSS v4**, Grocer demonstrates an end-to-end predictive replenishment system with a pure client-side simulation engine.
 
-> **Why this project?**
-> Quick commerce platforms compete on 10-minute delivery, identical stock, and price parity. PreFill builds a household-specific intelligence profile that acts as a structural lock-in moat across any quick commerce provider.
-
-<br/>
-
----
-
-## 🚀 Features
-
-| Status | Feature | Description |
-|:---:|---|---|
-| ✅ | **Time-Series Consumption Modeling** | Uses Facebook Prophet to build per-item consumption baselines, calculating average daily usage, cycle days, and depletion countdowns. |
-| ✅ | **Brand-Agnostic SDK Architecture** | Zero platform binding. Built as an embeddable tab extension compatible with any quick commerce provider. |
-| ✅ | **Single Unified Mobile Tab** | Integrates Smart Pantry Depletion, Recipe Ingredient Checker, and Market Price Signals into a single scrollable feed inside the PreFill host tab. |
-| ✅ | **iPhone 16 Pro Hardware Mockup** | Rendered in exact 1800 × 3680 physical hardware proportion with status bar and ultra-thin titanium bezel overlay (`/iphone-16-pro-frame.png`). |
-| ✅ | **Predictive WhatsApp Restock Agent** | Triggers stateful LangGraph dialogues via WhatsApp API, allowing users to build carts and checkout in one tap. |
-| ✅ | **Pantry-Aware Recipe Planner** | Extracts ingredients from user recipe queries, checks estimated remaining pantry quantities, and bundles only missing items into the cart. |
-| ✅ | **Commodity Price Intelligence** | Tracks tomatoes, onions, oil, atta, and milk in PostgreSQL time-series logs, alerting users on spikes/dips and offering substitutions. |
-| ✅ | **Lifestyle Anomaly Filtering** | Automatically filters out outlier events like travel gaps (predictions paused) and guest spikes so forecasting stays highly accurate. |
-| ✅ | **Interactive Demo Scenario Switcher** | Collapsible control panel lets reviewers hot-swap between Standard Staples, Weekend Party, and Vacation Mode scenarios — regenerates seed data and rebuilds Prophet models on the fly. |
-
-<br/>
+> **Real-World Problem & Benchmarks:**
+> - **MilkBasket** built an entire business around scheduled recurring morning deliveries of milk and staples — proving predictable staple demand is a massive, real pattern.
+> - **Blinkit** shipped a one-tap reorder button from past order history — proving platforms recognize repeat purchase velocity, though current implementations remain passive.
+> - **The Actual Gap:** No platform has shipped a pre-emptive replenishment engine — forecasting stockouts 24h prior and delivering low-friction WhatsApp nudges.
 
 ---
 
-## 🛠️ Tech Stack
+## 🚀 Key Features
 
-| Layer | Technology | Purpose |
+| Feature | Description | Technical Implementation |
 |---|---|---|
-| **Language** | Python / TypeScript | Python for ML models & backends; TypeScript for responsive dashboards |
-| **Framework** | FastAPI & Next.js 16 | Asynchronous API handlers (`AsyncSession` SQLAlchemy); Next.js App Router |
-| **Styling & Design** | Tailwind CSS v4 & Emil Kowalski Principles | Apple/Linear typography system (`Outfit` + `Cambo`), 160ms micro-interactions, clean Lucide icons |
-| **ML / Agents** | Facebook Prophet & LangGraph | Time-series consumption forecasting & stateful multi-turn restock agent with PostgreSQL checkpointer |
-| **Database** | PostgreSQL | Relational storage for inventory logs, household profiles, and agent checkpoints |
-| **Testing** | Pytest & Next Build | Automated test suite (16/16 passing tests) & zero-error TypeScript builds |
-
-<br/>
+| **Depletion Velocity Simulation** | Calculates daily usage rates per staple (`0.48L/day` for milk) and projects stockout dates. | Pure TS Math (`lib/simulationEngine.ts`) |
+| **Interactive iPhone 16 Pro Demo** | 6.3" physical hardware frame with interactive Lock Screen, WhatsApp Chat, and Pantry Health dashboard. | Framer Motion + Lucide (`components/PhoneMockup.tsx`) |
+| **5-Node State Machine** | Deterministic multi-turn restock state machine (`check_pantry → generate_alert → parse_user_reply → build_cart → execute_order`). | Client State Machine (`lib/simulationEngine.ts`) |
+| **Smart Recipe Ingredient Fulfiller** | Cross-references pantry inventory against recipes (Biryani, Dal, Paneer, Oats) and adds missing items to cart in 1 tap. | Reactive Catalog (`lib/mockData.ts`) |
+| **Dark Store Webhook Simulator** | Interactive API console simulating order ingestion, WhatsApp quick replies, and dark-store checkout dispatches. | Interactive Console (`components/grocer/GrocerIntegrations.tsx`) |
 
 ---
 
-## 🏗️ Architecture & File Map
-
-```mermaid
-flowchart LR
-    A[Host Quick Commerce App] --> B[PreFill SDK Tab]
-    B <--> C[FastAPI Backend Engine]
-    C <--> D[PostgreSQL DB]
-    C <--> E[Prophet Forecaster]
-    C <--> F[LangGraph WhatsApp Agent]
-```
-
-### Repo Directory Structure
-
-```
-PreFill/
-├── backend/                        # FastAPI Python Backend
-│   ├── main.py                     # FastAPI application setup
-│   ├── agents/                     # LangGraph agents (restock_agent.py, price_agent.py, recipe_agent.py)
-│   ├── api/routes/                 # REST API endpoints (orders.py, predictions.py, prices.py, recipes.py, restock.py)
-│   ├── database/                   # Connection pool & AsyncSession models (models.py, connection.py)
-│   ├── ml/                         # Machine Learning models (consumption_model.py, anomaly_detector.py, confidence_scorer.py)
-│   ├── notifications/              # WhatsApp runner & scheduler (whatsapp.py, scheduler.py)
-│   ├── mcp/                        # Quick Commerce MCP client & mock server (client.py, mock_server.py)
-│   ├── seed/                       # Seed data generators & scenario switcher (catalog.py, generate_orders.py, scenarios.py)
-│   └── tests/                      # 16 automated pytest unit & integration test files
-│
-├── frontend/                       # Next.js 16 Responsive Showcase App
-│   ├── app/                        # App router (page.tsx, layout.tsx, globals.css)
-│   ├── components/                 # PhoneMockup.tsx, Header.tsx, ExecutivePanel.tsx, PreFillBentoGrid.tsx, PreFillFeatureSidebar.tsx, PreFillPracticalUse.tsx, ui/iphone.tsx
-│   └── lib/                        # API client wrappers & TypeScript definitions
-│
-├── CLAUDE.md                       # Project rules & session resume tracking
-├── CONTEXT.md                      # Domain glossary & business rules
-├── ARCHITECTURE.md                 # Full technical blueprint
-└── README.md                       # Master project overview
-```
-
-<br/>
-
----
-
-## ⚡ Performance Optimizations
-
-To keep the application highly responsive, low-latency, and production-ready:
-
-* **Asynchronous Thread Offloading**: Heavy time-series model fitting (Facebook Prophet) and external API calls (Twilio) are offloaded to background threads using `asyncio.to_thread`. This ensures FastAPI's event loop is never blocked.
-* **GZip Payload Compression**: Backed by FastAPI's `GZipMiddleware` to compress API payloads, saving network bandwidth and speeding up client load times.
-* **Smart Client Caching (SWR)**: Utilizes Next.js `swr` for data fetching. Implements cache-first loading, deduplication of concurrent requests, and silent revalidation to deliver instantaneous tab transitions (<10ms).
-* **HTTPX Connection Pooling**: The quick commerce MCP client utilizes a single, lifespan-managed `httpx.AsyncClient` pool, completely eliminating TCP/TLS handshaking overhead.
-* **Fuzzy Matching & AI Resilience**: Agent logic uses `rapidfuzz` (Levenshtein distance) to mathematically map LLM hallucinations or typos to actual catalog `item_id`s.
-* **Prophet Anomaly Detection**: Uses Interquartile Range (IQR) math to detect and strip out "panic buying" and "party spikes" before training the ML model, lowering false-positive restock alerts from **~25% to < 5%**.
-
-<br/>
-
----
-
-## 💻 Quickstart
+## 💻 Getting Started
 
 ### Prerequisites
-- **Python 3.11+**
-- **Node.js 18+**
+- **Node.js 18+** or **Node.js 20+**
+- **npm** or **pnpm**
 
-### 1. Clone & Set Up Virtual Environment
+### Quick Start (1 Command)
 ```bash
-git clone https://github.com/kwakhare5/PreFill.git
-cd PreFill
+# 1. Clone the repository
+git clone https://github.com/kwakhare5/Grocer.git
+cd Grocer
 
-# Python virtual environment
-python -m venv venv
-.\venv\Scripts\activate
-
-# Install backend dependencies
-pip install -r requirements.txt
-```
-
-### 2. Run Test Suite & Start Backend Server
-```bash
-# Run pytest test suite (16 tests must pass)
-pytest backend/tests/ -v
-
-# Start FastAPI backend
-uvicorn backend.main:app --reload
-```
-
-### 3. Start Frontend Development Server
-```bash
-cd frontend
-
-# Install frontend dependencies
+# 2. Install dependencies
 npm install
 
-# Check production build
-npm run build
-
-# Start Next.js dev server
+# 3. Start local Next.js development server
 npm run dev
 ```
-Open **[http://localhost:3000](http://localhost:3000)** in your browser.
 
-<br/>
-
----
-
-## 🛡️ Privacy & Trust Statement
-
-> All data ingestion, model fitting, and profiling remain completely within the user-authorized account scope. Travel patterns, guest spikes, and dietary fluctuations are flagged locally to secure baseline forecasting and are never sold or utilized for third-party marketing purposes.
-
-<br/>
+Open [http://localhost:3000](http://localhost:3000) to explore the interactive showcase.
 
 ---
 
-## 👨‍💻 Author
+## 🏗️ Architecture
 
-<div align="center">
-
-### Karan Wakhare
-*Full Stack Engineer*
-
-<br/>
-
-[![LinkedIn](https://img.shields.io/badge/LinkedIn-karanwakhare-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/karanwakhare)
-[![Twitter](https://img.shields.io/badge/Twitter-kwakhare5-1DA1F2?style=for-the-badge&logo=x&logoColor=white)](https://x.com/kwakhare5)
-[![Gmail](https://img.shields.io/badge/Gmail-kwakhare5%40gmail.com-D14836?style=for-the-badge&logo=gmail&logoColor=white)](mailto:kwakhare5@gmail.com)
-[![GitHub](https://img.shields.io/badge/GitHub-kwakhare5-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/kwakhare5)
-
-</div>
-
-<br/>
+```
+Grocer (Next.js 16 + React 19)
+├── app/
+│   ├── layout.tsx             # Root layout & font metadata
+│   ├── page.tsx               # Landing page & problem showcase
+│   └── globals.css            # Tailwind CSS v4 styling tokens
+├── components/
+│   ├── PhoneMockup.tsx        # Interactive iPhone 16 Pro hardware simulator
+│   ├── grocer/                # Hero, Bento Grid, Velocity Calculator, Integrations, FAQ, Footer
+│   ├── mockup/                # iOS Notification banner & Lock screen assets
+│   └── ui/                    # Authentic frame, pill badges, buttons, WhatsApp icon
+├── hooks/
+│   └── usePhoneDemoEngine.ts  # Unified demo state & chat interaction controller
+├── lib/
+│   ├── simulationEngine.ts    # Household depletion formulas & state machine
+│   ├── mockData.ts            # Single-source-of-truth catalog, recipes, price signals
+│   ├── types.ts               # Core TypeScript interfaces
+│   └── utils.ts               # Date & formatting helpers
+```
 
 ---
 
-<div align="center">
+## 📜 Available Scripts
 
-  Made with ❤️ by [Karan Wakhare](https://github.com/kwakhare5)
+| Command | Description |
+|---|---|
+| `npm run dev` | Start Next.js development server on `http://localhost:3000` |
+| `npm run build` | Compile optimized production build via Turbopack |
+| `npm run start` | Start production server |
+| `npm run lint` | Run ESLint verification |
 
-</div>
+---
+
+## 📄 License
+MIT License. Created by [Karan Wakhare](https://github.com/kwakhare5).

@@ -1,4 +1,4 @@
-# CONTEXT.md — Domain Language
+# CONTEXT.md — Domain Language & Rules
 # Read at the START of EVERY session.
 
 ---
@@ -7,22 +7,22 @@
 
 | Term | What it means in THIS app | Never call it |
 |---|---|---|
-| Grocer | Brand-agnostic quick commerce predictive inventory showcase & SDK module | App, standalone platform |
-| Landing Page | The engineering prototype showcase (`app/page.tsx`) demonstrating applied depletion forecasting & agent flows | Marketing site |
-| Phone Mockup | **The real app user interface demo** (`PhoneMockup.tsx`) where visitors test live features | Static image, graphic |
-| Item | A product in the user's household inventory (e.g. Milk, Tomatoes, Eggs) | SKU, product, good |
-| Restock Alert | AI recommendation sent via 1-tap WhatsApp 24h before stock runs out | Push notice |
-| Consumption Velocity | Daily rate of usage modeled per item (`0.48L/day` for milk) | Rate, depletion |
-| Simulation Engine | Pure TypeScript depletion math and 5-node state machine (`lib/simulationEngine.ts`) | Backend, mock server |
+| Grocer | AI-assisted quick-commerce inventory decision & execution system prototype | Standalone supermarket, SaaS |
+| Operations Cockpit | Internal dark store replenishment & decision command center | Admin portal |
+| Customer View | Interactive WhatsApp proactive replenishment simulator (`CustomerReplenishmentView`) | Chatbot |
+| Safe Excess | Excess inventory at a source store that can be transferred without creating risk: `inventory - demand - buffer` | Extra stock |
+| 4 Decision Actions | Deterministic interventions: `TRANSFER`, `REORDER`, `DISCOUNT`, `HOLD` | LLM guesses |
+| WHY Panel | Structured explainability drawer exposing risk probabilities, supplier lead times, safe excess, and alternatives | AI chat response |
+| Level-2 Autonomy | Agent executes approved actions with server-side validation; cannot self-execute newly consequential actions | Full auto-pilot |
+| 5 Dark Store Nodes | Mumbai Fleet: `Bandra West`, `Andheri East`, `Powai Galleria`, `Lower Parel`, `Thane West` | Warehouses |
 
 ---
 
-## Business Rules (Never Break)
+## Invariants & Design Rules (Never Break)
 
-1. **100% Brand Agnostic:** Never hardcode specific quick commerce brand names in UI/copy.
-2. **Single Unified Mobile View:** All Grocer capabilities render inside a single, seamless scrollable tab.
-3. **iPhone 16 Pro Hardware Dimensions:** Mockup container locked to 1800 × 3680 pixel ratio (`w-[275px] h-[562px] aspect-[1800/3680] shrink-0 overflow-hidden`).
-4. **Zero AI Slop:** No casual emojis in UI buttons, headings, or chat options. Use clean Lucide icons.
-5. **Clean Typography:** Display/UI headings in `Outfit`, editorial title accents in `Cambo` (normal weight, no italics).
-6. **Passing Builds:** Run `npm run build` (0 warnings/errors) and `npm run lint` after edits.
-7. **1:1 Mockup Design System Alignment:** Mock iPhone inner UI MUST use global landing page tokens (`#252525`, `#F6F7F8`, `.card-neutral-droxy`, `.btn-droxy-pill-*`, `.badge-*`).
+1. **Two-Sided Shared World:** Customer WhatsApp reorders and Operations replenishment modify the exact same simulation state.
+2. **Deterministic Decision Engine:** Intervention scoring and safe excess math are deterministic, not hallucinated by LLMs.
+3. **Clean Apple Light UI:** `#FAFAFA` background, `#FFFFFF` cards, `#064E3B` forest emerald accent, `12px` card radius, `8px` button geometry.
+4. **Swiss Logistics Typography:** `Geist Sans` (400 body copy), `TWK Lausanne Pan 800` (display titles), `Geist Mono` (tabular numbers/clock), strictly upright `PP Editorial New` (accents).
+5. **Zero AI Slop:** Pure Lucide React SVG icons; strictly zero emojis in buttons.
+6. **Passing Builds:** Always ensure `npm run build` and `npm run lint` exit with 0 errors.

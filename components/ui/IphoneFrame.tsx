@@ -55,6 +55,7 @@ export function IphoneFrame({
       )}
 
       {/* iPhone 16 Pro Authentic Chassis & Hardware Bezel Overlay Image */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src="/iphone-16-pro-frame.png"
         alt="iPhone 16 Pro Chassis"

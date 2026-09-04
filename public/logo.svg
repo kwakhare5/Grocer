@@ -1,5 +1,42 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-<rect width="512" height="512" rx="116" fill="#22C55E"/>
-<rect x="124" y="116" width="264" height="304" rx="50" fill="none" stroke="#FFFFFF" stroke-width="24"/>
-<path d="M128 282 C170 259 205 265 238 279 C274 294 309 297 344 276 C362 266 378 263 384 263 L384 393 Q384 416 361 416 H151 Q128 416 128 393Z" fill="#FFFFFF"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <!-- Official Apple iOS Continuous Squircle Clip (rx=116) -->
+    <clipPath id="appleSquircleClip">
+      <rect width="512" height="512" rx="116" />
+    </clipPath>
+
+    <!-- Subtle Ambient Light Cascade Gradient -->
+    <linearGradient id="ambientCascadeGrad" x1="20%" y1="0%" x2="80%" y2="100%">
+      <stop offset="0%" stop-color="#4ADE80" />
+      <stop offset="35%" stop-color="#30D158" />
+      <stop offset="75%" stop-color="#22C55E" />
+      <stop offset="100%" stop-color="#16A34A" />
+    </linearGradient>
+  </defs>
+
+  <g clip-path="url(#appleSquircleClip)">
+    <!-- Solid Titanium White Canvas (0% Gradient) -->
+    <rect width="512" height="512" fill="#FFFFFF" />
+    <!-- 2px Inset Outer Border -->
+    <rect width="512" height="512" rx="116" ry="116" fill="none" stroke="#E5E7EB" stroke-width="2" />
+
+    <!-- Tactile Floor Grounding Shadow -->
+    <ellipse cx="256" cy="445" rx="126" ry="13" fill="rgba(16,185,129,0.18)" />
+
+    <!-- Perfectly Centered Gradient Mesh Grocery Bag (1.26x Scale, Equal 52px Margins) -->
+    <g transform="translate(256, 233) rotate(-4.5) scale(1.26)">
+      <!-- Handles with Subtle Light Cascade -->
+      <path d="M -50 -45 C -50 -130 50 -130 50 -45" fill="none" stroke="url(#ambientCascadeGrad)" stroke-width="28" stroke-linecap="round" />
+      <!-- Symmetrical Bag Body with Subtle Light Cascade -->
+      <path d="M -95 -45 L 95 -45 C 115 -45 130 -25 125 0 L 105 145 C 100 168 82 180 58 180 L -58 180 C -82 180 -100 168 -105 145 L -125 0 C -130 -25 -115 -45 -95 -45 Z" fill="url(#ambientCascadeGrad)" />
+
+      <!-- Golden Ratio Facial Geometry (88px Span, 31px Smile, 23px Gap) -->
+      <g transform="translate(0, 35)">
+        <ellipse cx="-44" cy="0" rx="11" ry="17" fill="#FFFFFF" />
+        <ellipse cx="44" cy="0" rx="11" ry="17" fill="#FFFFFF" />
+        <!-- Micro-Smile Arc -->
+        <path d="M -15.5 40 Q 0 52 15.5 40" fill="none" stroke="#FFFFFF" stroke-width="5.5" stroke-linecap="round" />
+      </g>
+    </g>
+  </g>
 </svg>

@@ -12,7 +12,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "community": 0,
-      "community_name": "GrocerValueProp.tsx",
+      "community_name": "page.tsx",
       "norm_label": "cardsurfaceprops",
       "id": "components_ui_cardsurface_cardsurfaceprops"
     },
@@ -25,7 +25,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "community": 0,
-      "community_name": "GrocerValueProp.tsx",
+      "community_name": "page.tsx",
       "norm_label": "pillbadgeprops",
       "id": "components_ui_pillbadge_pillbadgeprops"
     },
@@ -38,7 +38,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "community": 0,
-      "community_name": "GrocerValueProp.tsx",
+      "community_name": "page.tsx",
       "norm_label": "pantryitem",
       "id": "hooks_usepantryengine_pantryitem"
     },
@@ -181,7 +181,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "community": 27,
-      "community_name": "page.tsx",
+      "community_name": "GrocerHeader.tsx",
       "norm_label": "grocerlogoprops",
       "id": "components_ui_grocerlogo_grocerlogoprops"
     },
@@ -194,9 +194,57 @@
       "_callable_class": true,
       "_origin": "ast",
       "community": 27,
-      "community_name": "page.tsx",
+      "community_name": "GrocerHeader.tsx",
       "norm_label": "pillbuttonprops",
       "id": "components_ui_pillbutton_pillbuttonprops"
+    },
+    {
+      "label": "GrocerLandingPage()",
+      "file_type": "code",
+      "source_file": "app/page.tsx",
+      "source_location": "L11",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 0,
+      "community_name": "page.tsx",
+      "norm_label": "grocerlandingpage()",
+      "id": "app_page_grocerlandingpage"
+    },
+    {
+      "label": "Home()",
+      "file_type": "code",
+      "source_file": "app/page.tsx",
+      "source_location": "L38",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 0,
+      "community_name": "page.tsx",
+      "norm_label": "home()",
+      "id": "app_page_home"
+    },
+    {
+      "label": "GrocerFAQ()",
+      "file_type": "code",
+      "source_file": "components/grocer/GrocerFAQ.tsx",
+      "source_location": "L6",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 0,
+      "community_name": "page.tsx",
+      "norm_label": "grocerfaq()",
+      "id": "components_grocer_grocerfaq_grocerfaq"
+    },
+    {
+      "label": "GrocerHero()",
+      "file_type": "code",
+      "source_file": "components/grocer/GrocerHero.tsx",
+      "source_location": "L9",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 0,
+      "community_name": "page.tsx",
+      "norm_label": "grocerhero()",
+      "id": "components_grocer_grocerhero_grocerhero"
     },
     {
       "label": "GrocerIntegrations()",
@@ -206,7 +254,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 0,
-      "community_name": "GrocerValueProp.tsx",
+      "community_name": "page.tsx",
       "norm_label": "grocerintegrations()",
       "id": "components_grocer_grocerintegrations_grocerintegrations"
     },
@@ -218,7 +266,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 0,
-      "community_name": "GrocerValueProp.tsx",
+      "community_name": "page.tsx",
       "norm_label": "grocervalueprop()",
       "id": "components_grocer_grocervalueprop_grocervalueprop"
     },
@@ -230,7 +278,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 0,
-      "community_name": "GrocerValueProp.tsx",
+      "community_name": "page.tsx",
       "norm_label": "grocervelocitycalculator()",
       "id": "components_grocer_grocervelocitycalculator_grocervelocitycalculator"
     },
@@ -242,7 +290,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 0,
-      "community_name": "GrocerValueProp.tsx",
+      "community_name": "page.tsx",
       "norm_label": "cardsurface()",
       "id": "components_ui_cardsurface_cardsurface"
     },
@@ -254,7 +302,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 0,
-      "community_name": "GrocerValueProp.tsx",
+      "community_name": "page.tsx",
       "norm_label": "pillbadge()",
       "id": "components_ui_pillbadge_pillbadge"
     },
@@ -266,7 +314,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 0,
-      "community_name": "GrocerValueProp.tsx",
+      "community_name": "page.tsx",
       "norm_label": "usepantryengine()",
       "id": "hooks_usepantryengine_usepantryengine"
     },
@@ -463,42 +511,6 @@
       "id": "lib_simulationengine_processwhatsappsimulationmessage"
     },
     {
-      "label": "GrocerLandingPage()",
-      "file_type": "code",
-      "source_file": "app/page.tsx",
-      "source_location": "L11",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 27,
-      "community_name": "page.tsx",
-      "norm_label": "grocerlandingpage()",
-      "id": "app_page_grocerlandingpage"
-    },
-    {
-      "label": "Home()",
-      "file_type": "code",
-      "source_file": "app/page.tsx",
-      "source_location": "L38",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 27,
-      "community_name": "page.tsx",
-      "norm_label": "home()",
-      "id": "app_page_home"
-    },
-    {
-      "label": "GrocerFAQ()",
-      "file_type": "code",
-      "source_file": "components/grocer/GrocerFAQ.tsx",
-      "source_location": "L6",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 27,
-      "community_name": "page.tsx",
-      "norm_label": "grocerfaq()",
-      "id": "components_grocer_grocerfaq_grocerfaq"
-    },
-    {
       "label": "GrocerFooter()",
       "file_type": "code",
       "source_file": "components/grocer/GrocerFooter.tsx",
@@ -506,7 +518,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 27,
-      "community_name": "page.tsx",
+      "community_name": "GrocerHeader.tsx",
       "norm_label": "grocerfooter()",
       "id": "components_grocer_grocerfooter_grocerfooter"
     },
@@ -514,25 +526,25 @@
       "label": "GrocerHeader()",
       "file_type": "code",
       "source_file": "components/grocer/GrocerHeader.tsx",
-      "source_location": "L9",
+      "source_location": "L10",
       "_callable": true,
       "_origin": "ast",
+      "id": "components_grocer_grocerheader_grocerheader",
       "community": 27,
-      "community_name": "page.tsx",
-      "norm_label": "grocerheader()",
-      "id": "components_grocer_grocerheader_grocerheader"
+      "community_name": "GrocerHeader.tsx",
+      "norm_label": "grocerheader()"
     },
     {
-      "label": "GrocerHero()",
+      "label": "WorkInProgressBanner()",
       "file_type": "code",
-      "source_file": "components/grocer/GrocerHero.tsx",
-      "source_location": "L9",
+      "source_file": "components/grocer/WorkInProgressBanner.tsx",
+      "source_location": "L5",
       "_callable": true,
       "_origin": "ast",
-      "id": "components_grocer_grocerhero_grocerhero",
+      "id": "components_grocer_workinprogressbanner_workinprogressbanner",
       "community": 27,
-      "community_name": "page.tsx",
-      "norm_label": "grocerhero()"
+      "community_name": "GrocerHeader.tsx",
+      "norm_label": "workinprogressbanner()"
     },
     {
       "label": "GrocerLogo()",
@@ -542,7 +554,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 27,
-      "community_name": "page.tsx",
+      "community_name": "GrocerHeader.tsx",
       "norm_label": "grocerlogo()",
       "id": "components_ui_grocerlogo_grocerlogo"
     },
@@ -554,7 +566,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 27,
-      "community_name": "page.tsx",
+      "community_name": "GrocerHeader.tsx",
       "norm_label": "pillbutton()",
       "id": "components_ui_pillbutton_pillbutton"
     },
@@ -583,13 +595,35 @@
       "id": "lib_utils_timeago"
     },
     {
+      "label": "page.tsx",
+      "file_type": "code",
+      "source_file": "app/page.tsx",
+      "source_location": "L1",
+      "_origin": "ast",
+      "community": 0,
+      "community_name": "page.tsx",
+      "norm_label": "page.tsx",
+      "id": "app_page"
+    },
+    {
+      "label": "GrocerFAQ.tsx",
+      "file_type": "code",
+      "source_file": "components/grocer/GrocerFAQ.tsx",
+      "source_location": "L1",
+      "_origin": "ast",
+      "community": 0,
+      "community_name": "page.tsx",
+      "norm_label": "grocerfaq.tsx",
+      "id": "components_grocer_grocerfaq"
+    },
+    {
       "label": "GrocerIntegrations.tsx",
       "file_type": "code",
       "source_file": "components/grocer/GrocerIntegrations.tsx",
       "source_location": "L1",
       "_origin": "ast",
       "community": 0,
-      "community_name": "GrocerValueProp.tsx",
+      "community_name": "page.tsx",
       "norm_label": "grocerintegrations.tsx",
       "id": "components_grocer_grocerintegrations"
     },
@@ -600,7 +634,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "community": 0,
-      "community_name": "GrocerValueProp.tsx",
+      "community_name": "page.tsx",
       "norm_label": "grocervalueprop.tsx",
       "id": "components_grocer_grocervalueprop"
     },
@@ -611,7 +645,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "community": 0,
-      "community_name": "GrocerValueProp.tsx",
+      "community_name": "page.tsx",
       "norm_label": "grocervelocitycalculator.tsx",
       "id": "components_grocer_grocervelocitycalculator"
     },
@@ -622,7 +656,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "community": 0,
-      "community_name": "GrocerValueProp.tsx",
+      "community_name": "page.tsx",
       "norm_label": "cardsurface.tsx",
       "id": "components_ui_cardsurface"
     },
@@ -633,7 +667,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "community": 0,
-      "community_name": "GrocerValueProp.tsx",
+      "community_name": "page.tsx",
       "norm_label": "pillbadge.tsx",
       "id": "components_ui_pillbadge"
     },
@@ -644,7 +678,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "community": 0,
-      "community_name": "GrocerValueProp.tsx",
+      "community_name": "page.tsx",
       "norm_label": "usepantryengine.ts",
       "id": "hooks_usepantryengine"
     },
@@ -654,10 +688,10 @@
       "source_file": "components/grocer/GrocerHero.tsx",
       "source_location": "L1",
       "_origin": "ast",
-      "id": "components_grocer_grocerhero",
       "community": 1,
       "community_name": "IosNotificationBanner.tsx",
-      "norm_label": "grocerhero.tsx"
+      "norm_label": "grocerhero.tsx",
+      "id": "components_grocer_grocerhero"
     },
     {
       "label": "IosNotificationBanner.tsx",
@@ -1892,35 +1926,13 @@
       "id": "prettierrc_usetabs"
     },
     {
-      "label": "page.tsx",
-      "file_type": "code",
-      "source_file": "app/page.tsx",
-      "source_location": "L1",
-      "_origin": "ast",
-      "community": 27,
-      "community_name": "page.tsx",
-      "norm_label": "page.tsx",
-      "id": "app_page"
-    },
-    {
-      "label": "GrocerFAQ.tsx",
-      "file_type": "code",
-      "source_file": "components/grocer/GrocerFAQ.tsx",
-      "source_location": "L1",
-      "_origin": "ast",
-      "community": 27,
-      "community_name": "page.tsx",
-      "norm_label": "grocerfaq.tsx",
-      "id": "components_grocer_grocerfaq"
-    },
-    {
       "label": "GrocerFooter.tsx",
       "file_type": "code",
       "source_file": "components/grocer/GrocerFooter.tsx",
       "source_location": "L1",
       "_origin": "ast",
       "community": 27,
-      "community_name": "page.tsx",
+      "community_name": "GrocerHeader.tsx",
       "norm_label": "grocerfooter.tsx",
       "id": "components_grocer_grocerfooter"
     },
@@ -1930,10 +1942,21 @@
       "source_file": "components/grocer/GrocerHeader.tsx",
       "source_location": "L1",
       "_origin": "ast",
+      "id": "components_grocer_grocerheader",
       "community": 27,
-      "community_name": "page.tsx",
-      "norm_label": "grocerheader.tsx",
-      "id": "components_grocer_grocerheader"
+      "community_name": "GrocerHeader.tsx",
+      "norm_label": "grocerheader.tsx"
+    },
+    {
+      "label": "WorkInProgressBanner.tsx",
+      "file_type": "code",
+      "source_file": "components/grocer/WorkInProgressBanner.tsx",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "components_grocer_workinprogressbanner",
+      "community": 27,
+      "community_name": "GrocerHeader.tsx",
+      "norm_label": "workinprogressbanner.tsx"
     },
     {
       "label": "GrocerLogo.tsx",
@@ -1942,7 +1965,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "community": 27,
-      "community_name": "page.tsx",
+      "community_name": "GrocerHeader.tsx",
       "norm_label": "grocerlogo.tsx",
       "id": "components_ui_grocerlogo"
     },
@@ -1953,7 +1976,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "community": 27,
-      "community_name": "page.tsx",
+      "community_name": "GrocerHeader.tsx",
       "norm_label": "pillbutton.tsx",
       "id": "components_ui_pillbutton"
     },
@@ -3166,9 +3189,9 @@
       "source_location": "L6",
       "weight": 1.0,
       "_origin": "ast",
-      "confidence_score": 1.0,
       "source": "components_grocer_grocerheader",
-      "target": "components_ui_grocerlogo_grocerlogo"
+      "target": "components_ui_grocerlogo_grocerlogo",
+      "confidence_score": 1.0
     },
     {
       "relation": "imports",
@@ -3178,9 +3201,21 @@
       "source_location": "L7",
       "weight": 1.0,
       "_origin": "ast",
-      "confidence_score": 1.0,
       "source": "components_grocer_grocerheader",
-      "target": "components_ui_pillbutton_pillbutton"
+      "target": "components_ui_pillbutton_pillbutton",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "components/grocer/GrocerHeader.tsx",
+      "source_location": "L8",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "components_grocer_grocerheader",
+      "target": "components_grocer_workinprogressbanner_workinprogressbanner",
+      "confidence_score": 1.0
     },
     {
       "relation": "imports",
@@ -3190,9 +3225,9 @@
       "source_location": "L6",
       "weight": 1.0,
       "_origin": "ast",
+      "confidence_score": 1.0,
       "source": "components_grocer_grocerhero",
-      "target": "components_ui_pillbutton_pillbutton",
-      "confidence_score": 1.0
+      "target": "components_ui_pillbutton_pillbutton"
     },
     {
       "relation": "imports",
@@ -3202,9 +3237,9 @@
       "source_location": "L7",
       "weight": 1.0,
       "_origin": "ast",
+      "confidence_score": 1.0,
       "source": "components_grocer_grocerhero",
-      "target": "components_ui_whatsappicon_whatsappicon",
-      "confidence_score": 1.0
+      "target": "components_ui_whatsappicon_whatsappicon"
     },
     {
       "relation": "imports",
@@ -3814,9 +3849,9 @@
       "source_location": "L6",
       "weight": 1.0,
       "_origin": "ast",
-      "confidence_score": 1.0,
       "source": "components_grocer_grocerheader",
-      "target": "components_ui_grocerlogo"
+      "target": "components_ui_grocerlogo",
+      "confidence_score": 1.0
     },
     {
       "relation": "imports_from",
@@ -3826,9 +3861,21 @@
       "source_location": "L7",
       "weight": 1.0,
       "_origin": "ast",
-      "confidence_score": 1.0,
       "source": "components_grocer_grocerheader",
-      "target": "components_ui_pillbutton"
+      "target": "components_ui_pillbutton",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "components/grocer/GrocerHeader.tsx",
+      "source_location": "L8",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "components_grocer_grocerheader",
+      "target": "components_grocer_workinprogressbanner",
+      "confidence_score": 1.0
     },
     {
       "relation": "imports_from",
@@ -3838,9 +3885,9 @@
       "source_location": "L5",
       "weight": 1.0,
       "_origin": "ast",
+      "confidence_score": 1.0,
       "source": "components_grocer_grocerhero",
-      "target": "components_phonemockup",
-      "confidence_score": 1.0
+      "target": "components_phonemockup"
     },
     {
       "relation": "imports_from",
@@ -3850,9 +3897,9 @@
       "source_location": "L6",
       "weight": 1.0,
       "_origin": "ast",
+      "confidence_score": 1.0,
       "source": "components_grocer_grocerhero",
-      "target": "components_ui_pillbutton",
-      "confidence_score": 1.0
+      "target": "components_ui_pillbutton"
     },
     {
       "relation": "imports_from",
@@ -3862,9 +3909,9 @@
       "source_location": "L7",
       "weight": 1.0,
       "_origin": "ast",
+      "confidence_score": 1.0,
       "source": "components_grocer_grocerhero",
-      "target": "components_ui_whatsappicon",
-      "confidence_score": 1.0
+      "target": "components_ui_whatsappicon"
     },
     {
       "relation": "imports_from",
@@ -4362,12 +4409,12 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "components/grocer/GrocerHeader.tsx",
-      "source_location": "L9",
+      "source_location": "L10",
       "weight": 1.0,
       "_origin": "ast",
-      "confidence_score": 1.0,
       "source": "components_grocer_grocerheader",
-      "target": "components_grocer_grocerheader_grocerheader"
+      "target": "components_grocer_grocerheader_grocerheader",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
@@ -4376,9 +4423,9 @@
       "source_location": "L9",
       "weight": 1.0,
       "_origin": "ast",
+      "confidence_score": 1.0,
       "source": "components_grocer_grocerhero",
-      "target": "components_grocer_grocerhero_grocerhero",
-      "confidence_score": 1.0
+      "target": "components_grocer_grocerhero_grocerhero"
     },
     {
       "relation": "contains",
@@ -4412,6 +4459,17 @@
       "confidence_score": 1.0,
       "source": "components_grocer_grocervelocitycalculator",
       "target": "components_grocer_grocervelocitycalculator_grocervelocitycalculator"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/grocer/WorkInProgressBanner.tsx",
+      "source_location": "L5",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "components_grocer_workinprogressbanner",
+      "target": "components_grocer_workinprogressbanner_workinprogressbanner",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
@@ -6164,5 +6222,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "4202e43509e123dd6987732249af84653830ab9c"
+  "built_at_commit": "15a97bcce4060a27e0b1ff35c04d2fe8c382ef87"
 }

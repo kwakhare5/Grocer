@@ -1,5 +1,5 @@
 {
-  "0": "GrocerValueProp.tsx",
+  "0": "page.tsx",
   "1": "IosNotificationBanner.tsx",
   "2": "include",
   "6": "compilerOptions",
@@ -14,7 +14,7 @@
   "22": "GROCER — Engineering Prototype & Problem Exploration",
   "24": "Component 3: Component-Wide Light Surface Transformation & Component Reuse",
   "26": ".prettierrc.json",
-  "27": "page.tsx",
+  "27": "GrocerHeader.tsx",
   "28": "app/layout.tsx",
   "30": "Changes Made",
   "33": "Log Entries",

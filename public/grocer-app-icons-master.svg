@@ -1,0 +1,141 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1800 800" width="1800" height="800" style="background: #090D14; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;">
+  <defs>
+    <!-- ========================================================================= -->
+    <!-- 1. CLIPS & FILTERS                                                        -->
+    <!-- ========================================================================= -->
+    
+    <!-- Apple iOS Continuous Squircle Clip (rx=116 for 512x512) -->
+    <clipPath id="squircleClip">
+      <rect width="512" height="512" rx="116" />
+    </clipPath>
+
+    <!-- Artboard Tile Elevation Drop Shadow -->
+    <filter id="tileElevation" x="-15%" y="-15%" width="130%" height="135%">
+      <feDropShadow dx="0" dy="24" stdDeviation="20" flood-color="#000000" flood-opacity="0.60" />
+      <feDropShadow dx="0" dy="6" stdDeviation="6" flood-color="#000000" flood-opacity="0.30" />
+    </filter>
+
+    <!-- ========================================================================= -->
+    <!-- 2. AMBIENT LIGHT CASCADE GRADIENT                                         -->
+    <!-- ========================================================================= -->
+
+    <linearGradient id="ambientCascadeGrad" x1="20%" y1="0%" x2="80%" y2="100%">
+      <stop offset="0%" stop-color="#4ADE80" />
+      <stop offset="35%" stop-color="#30D158" />
+      <stop offset="75%" stop-color="#22C55E" />
+      <stop offset="100%" stop-color="#16A34A" />
+    </linearGradient>
+
+    <!-- ========================================================================= -->
+    <!-- 3. REUSABLE GROCER BAG COMPONENT                                         -->
+    <!-- ========================================================================= -->
+
+    <g id="grocerBagAssembly">
+      <!-- Handles -->
+      <path d="M -50 -45 C -50 -130 50 -130 50 -45" fill="none" stroke="url(#ambientCascadeGrad)" stroke-width="28" stroke-linecap="round" />
+      <!-- Symmetrical Bag Body -->
+      <path d="M -95 -45 L 95 -45 C 115 -45 130 -25 125 0 L 105 145 C 100 168 82 180 58 180 L -58 180 C -82 180 -100 168 -105 145 L -125 0 C -130 -25 -115 -45 -95 -45 Z" fill="url(#ambientCascadeGrad)" />
+      <!-- Golden Ratio Face (88px Span, 31px Smile, 23px Gap) -->
+      <g transform="translate(0, 35)">
+        <ellipse cx="-44" cy="0" rx="11" ry="17" fill="#FFFFFF" />
+        <ellipse cx="44" cy="0" rx="11" ry="17" fill="#FFFFFF" />
+        <path d="M -15.5 40 Q 0 52 15.5 40" fill="none" stroke="#FFFFFF" stroke-width="5.5" stroke-linecap="round" />
+      </g>
+    </g>
+
+    <!-- ========================================================================= -->
+    <!-- 4. MASTER APP ICON SYMBOLS                                                -->
+    <!-- ========================================================================= -->
+
+    <!-- [SYMBOL 1] 1.26x CALIBRATED HERO (408×315px — 79.7% CANVAS HEIGHT) -->
+    <symbol id="grocer-icon-scale-126" viewBox="0 0 512 512">
+      <g clip-path="url(#squircleClip)">
+        <rect width="512" height="512" fill="#FFFFFF" />
+        <rect width="512" height="512" rx="116" ry="116" fill="none" stroke="#E5E7EB" stroke-width="2" />
+        <ellipse cx="256" cy="445" rx="126" ry="13" fill="rgba(16,185,129,0.18)" />
+        <g transform="translate(256, 233) rotate(-4.5) scale(1.26)">
+          <use href="#grocerBagAssembly" />
+        </g>
+      </g>
+    </symbol>
+
+    <!-- [SYMBOL 2] 1.20x SLIGHTLY MORE AIR (389×300px) -->
+    <symbol id="grocer-icon-scale-120" viewBox="0 0 512 512">
+      <g clip-path="url(#squircleClip)">
+        <rect width="512" height="512" fill="#FFFFFF" />
+        <rect width="512" height="512" rx="116" ry="116" fill="none" stroke="#E5E7EB" stroke-width="2" />
+        <ellipse cx="256" cy="440" rx="120" ry="12" fill="rgba(16,185,129,0.18)" />
+        <g transform="translate(256, 233) rotate(-4.5) scale(1.20)">
+          <use href="#grocerBagAssembly" />
+        </g>
+      </g>
+    </symbol>
+
+    <!-- [SYMBOL 3] 1.32x SLIGHTLY BIGGER (428×330px) -->
+    <symbol id="grocer-icon-scale-132" viewBox="0 0 512 512">
+      <g clip-path="url(#squircleClip)">
+        <rect width="512" height="512" fill="#FFFFFF" />
+        <rect width="512" height="512" rx="116" ry="116" fill="none" stroke="#E5E7EB" stroke-width="2" />
+        <ellipse cx="256" cy="450" rx="132" ry="14" fill="rgba(16,185,129,0.18)" />
+        <g transform="translate(256, 233) rotate(-4.5) scale(1.32)">
+          <use href="#grocerBagAssembly" />
+        </g>
+      </g>
+    </symbol>
+  </defs>
+
+  <!-- ========================================================================= -->
+  <!-- 5. STUDIO SHOWCASE ARTBOARD CANVAS                                        -->
+  <!-- ========================================================================= -->
+
+  <rect width="1800" height="800" fill="#090D14" />
+
+  <!-- HEADER -->
+  <g transform="translate(80, 45)">
+    <rect x="0" y="0" width="46" height="46" rx="14" fill="#30D158" />
+    <path d="M 14 23 C 14 14 32 14 32 23" fill="none" stroke="#09090B" stroke-width="4.5" stroke-linecap="round" />
+    <rect x="11" y="23" width="24" height="16" rx="3" fill="#FFFFFF" stroke="#09090B" stroke-width="2.5" />
+
+    <text x="62" y="32" font-size="26" font-weight="900" fill="#FFFFFF" letter-spacing="-0.5">GROCER</text>
+    <text x="185" y="32" font-size="14" font-weight="700" fill="#30D158" letter-spacing="3">/ 1.26x CALIBRATED SCALE (BALANCED BREATHING ROOM)</text>
+
+    <rect x="1510" y="5" width="210" height="36" rx="18" fill="#064E3B" stroke="#30D158" stroke-width="1.5" />
+    <text x="1615" y="28" font-size="12" font-weight="700" fill="#30D158" text-anchor="middle">1.26x HERO SCALE (79.7%)</text>
+  </g>
+
+  <line x1="80" y1="110" x2="1720" y2="110" stroke="#1E293B" stroke-width="1.5" />
+
+  <!-- 3 SHOWCASE TILES -->
+  <g transform="translate(0, 140)">
+    <!-- Tile 1: 1.26x Hero Scale (RECOMMENDED) -->
+    <g transform="translate(80, 0)" filter="url(#tileElevation)">
+      <use href="#grocer-icon-scale-126" width="480" height="480" />
+      <rect x="90" y="500" width="300" height="34" rx="17" fill="#064E3B" stroke="#30D158" stroke-width="1.5" />
+      <text x="240" y="523" font-size="13" font-weight="800" fill="#30D158" text-anchor="middle">★ 1.26x HERO (408×315px)</text>
+      <text x="240" y="555" font-size="12" font-family="'Geist Mono', monospace" fill="#94A3B8" text-anchor="middle">#grocer-icon-scale-126 (Current Live)</text>
+    </g>
+
+    <!-- Tile 2: 1.20x Scale -->
+    <g transform="translate(640, 0)" filter="url(#tileElevation)">
+      <use href="#grocer-icon-scale-120" width="480" height="480" />
+      <rect x="90" y="500" width="300" height="34" rx="17" fill="#18181B" stroke="#27272A" stroke-width="1.5" />
+      <text x="240" y="523" font-size="13" font-weight="700" fill="#E2E8F0" text-anchor="middle">1.20x Scale (389×300px)</text>
+      <text x="240" y="555" font-size="12" font-family="'Geist Mono', monospace" fill="#64748B" text-anchor="middle">#grocer-icon-scale-120</text>
+    </g>
+
+    <!-- Tile 3: 1.32x Scale -->
+    <g transform="translate(1200, 0)" filter="url(#tileElevation)">
+      <use href="#grocer-icon-scale-132" width="480" height="480" />
+      <rect x="90" y="500" width="300" height="34" rx="17" fill="#18181B" stroke="#27272A" stroke-width="1.5" />
+      <text x="240" y="523" font-size="13" font-weight="700" fill="#E2E8F0" text-anchor="middle">1.32x Scale (428×330px)</text>
+      <text x="240" y="555" font-size="12" font-family="'Geist Mono', monospace" fill="#64748B" text-anchor="middle">#grocer-icon-scale-132</text>
+    </g>
+  </g>
+
+  <!-- FOOTER -->
+  <g transform="translate(80, 720)">
+    <rect x="0" y="0" width="1640" height="50" rx="12" fill="#10141D" stroke="#1E293B" stroke-width="1.5" />
+    <text x="20" y="31" font-size="13" font-weight="700" fill="#30D158">BALANCED 1.26x SPECIFICATION</text>
+    <text x="270" y="31" font-size="12" font-weight="400" fill="#94A3B8">408×315px bag footprint (79.7% canvas height) • 52px equal top/bottom clearance • 88px eye span • 31px micro-smile</text>
+  </g>
+</svg>

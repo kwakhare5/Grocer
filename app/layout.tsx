@@ -1,31 +1,25 @@
 import type { Metadata } from 'next';
-import { Outfit, Cambo, Inter } from 'next/font/google';
+import { Geist, Geist_Mono } from 'next/font/google';
 import { Toaster } from 'sonner';
 import './globals.css';
 import { Analytics } from '@vercel/analytics/react';
 
-const outfit = Outfit({
-  variable: '--font-outfit',
+const geistSans = Geist({
+  variable: '--font-geist-sans',
   subsets: ['latin'],
-  weight: ['400', '500', '600', '700', '800'],
+  display: 'swap',
 });
 
-const cambo = Cambo({
-  variable: '--font-cambo',
+const geistMono = Geist_Mono({
+  variable: '--font-geist-mono',
   subsets: ['latin'],
-  weight: ['400'],
-});
-
-const inter = Inter({
-  variable: '--font-sf',
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
+  display: 'swap',
 });
 
 export const metadata: Metadata = {
-  title: "Grocer — Engineering Prototype & Problem Exploration for Quick Commerce",
+  title: "Grocer — Quick-Commerce Inventory Balancing & Proactive Restocking",
   description:
-    "An end-to-end prototype exploring time-series Prophet ML forecasting and a 5-node LangGraph execution state machine for low-friction 1-tap WhatsApp restocking.",
+    "An end-to-end prototype exploring time-series consumption forecasting, inter-store spatial transfers, and 1-tap WhatsApp pantry restocking.",
   icons: {
     icon: '/logo.svg',
     shortcut: '/logo.svg',
@@ -41,9 +35,9 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${outfit.variable} ${cambo.variable} ${inter.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col selection:bg-gray-950 selection:text-white relative overflow-x-hidden bg-[#FAFAFA] text-gray-900 font-sans">
+      <body className="min-h-full flex flex-col selection:bg-emerald-600 selection:text-white relative overflow-x-hidden bg-[#FAFAFA] text-zinc-900 font-sans">
         
         {/* Page Content */}
         {children}

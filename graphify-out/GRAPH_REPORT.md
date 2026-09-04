@@ -1,16 +1,16 @@
 # Graph Report - Grocer  (2026-09-04)
 
 ## Corpus Check
-- 117 files · ~358,924 words
+- 117 files · ~345,258 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 1469 nodes · 3132 edges · 94 communities (85 shown, 9 thin omitted)
+- 1469 nodes · 3132 edges · 95 communities (86 shown, 9 thin omitted)
 - Extraction: 91% EXTRACTED · 9% INFERRED · 0% AMBIGUOUS · INFERRED: 271 edges (avg confidence: 0.51)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `6470f27c`
+- Built from commit: `654bc798`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -27,6 +27,7 @@
 - test_forecast_api.py
 - README.md
 - dependencies
+- simulation/engine.py
 - test_agent_api.py
 - EventBus
 - test_risk_api.py
@@ -46,9 +47,9 @@
 - compute_confidence
 - Changes Made
 - apiClient.ts
-- SimulationStatus
+- Simulation
 - Log Entries
-- SimulationClock
+- test_simulation.py
 - DemandPoint
 - test_forecasting.py
 - RecommendationCard.tsx
@@ -65,6 +66,7 @@
 - runner.py
 - tools.py
 - 29. Core data model
+- asyncio
 - risks.py
 - 45. Implementation plan
 - GROCER v2 — Complete UI, Colors, Buttons, Layout & Screen Flows Specification
@@ -105,7 +107,6 @@
 - services/__init__.py
 - agent.py
 - GrocerFooter.tsx
-- GrocerHero.tsx
 
 ## God Nodes (most connected - your core abstractions)
 1. `SimulationEngine` - 65 edges
@@ -122,19 +123,19 @@
 ## Surprising Connections (you probably didn't know these)
 - `WhyInspectorPanelProps` --references--> `RecommendationItem`  [EXTRACTED]
   components/operations/WhyInspectorPanel.tsx → lib/types.ts
-- `PhoneMockup()` --calls--> `usePhoneDemoEngine()`  [EXTRACTED]
-  components/PhoneMockup.tsx → hooks/usePhoneDemoEngine.ts
 - `CustomerReplenishmentViewProps` --references--> `DarkStore`  [EXTRACTED]
   components/customer/CustomerReplenishmentView.tsx → lib/types.ts
 - `LiveEventFeedProps` --references--> `SimulationEvent`  [EXTRACTED]
   components/operations/LiveEventFeed.tsx → lib/types.ts
 - `MetricsComparisonPanelProps` --references--> `ScenarioState`  [EXTRACTED]
   components/operations/MetricsComparisonPanel.tsx → lib/types.ts
+- `OperationsDashboardProps` --references--> `RecommendationItem`  [EXTRACTED]
+  components/operations/OperationsDashboard.tsx → lib/types.ts
 
 ## Import Cycles
 - None detected.
 
-## Communities (94 total, 9 thin omitted)
+## Communities (95 total, 9 thin omitted)
 
 ### Community 0 - "GrocerValueProp.tsx"
 Cohesion: 0.43
@@ -157,8 +158,8 @@ Cohesion: 0.05
 Nodes (40): 11. AI engineering philosophy, 13. Inventory model, 16. Decision scoring, 17. Recommendation object, 18. Human-in-the-loop policy, 19.1 Agent autonomy level, 19. LangGraph agent, 1. Vision (+32 more)
 
 ### Community 5 - "core.py"
-Cohesion: 0.40
-Nodes (28): Action, Batch, Customer, Event, Forecast, Inventory, Order, OrderItem (+20 more)
+Cohesion: 0.48
+Nodes (25): Action, Batch, Customer, Event, Forecast, Inventory, Order, OrderItem (+17 more)
 
 ### Community 6 - "compilerOptions"
 Cohesion: 0.07
@@ -184,9 +185,13 @@ Nodes (13): 1. Frontend Development (Next.js 16), 2. Optional FastAPI Backend, �
 Cohesion: 0.04
 Nodes (45): clsx, eslint, eslint-config-next, framer-motion, lucide-react, next, dependencies, clsx (+37 more)
 
+### Community 12 - "simulation/engine.py"
+Cohesion: 0.16
+Nodes (9): datetime, GROCER v2 Simulation Engine. Handles deterministic simulation: time control,…, Manages simulated time for a simulation instance., Advance simulation time by N hours. Returns new current time., Reset clock to start time., SimulationClock, SeedCustomer, SeedProduct (+1 more)
+
 ### Community 13 - "test_agent_api.py"
-Cohesion: 0.05
-Nodes (61): Product, Store, Supplier, approved_hold_rec(), approved_transfer_rec(), client(), client_with_hold(), client_with_pending() (+53 more)
+Cohesion: 0.06
+Nodes (54): Product, Store, Supplier, DecisionOrchestrator, _naive_now(), datetime, GROCER v2 Decision Engine -- DB orchestration layer. Loads risk + inventory +…, Drives the Decision Engine pipeline end-to-end for a single risk. Usage:… (+46 more)
 
 ### Community 14 - "EventBus"
 Cohesion: 0.09
@@ -209,8 +214,8 @@ Cohesion: 0.29
 Nodes (6): 1. PROJECT IDENTITY, 2. TECH STACK, 3. DEV COMMANDS, 4. LOCAL RULES & DESIGN INVARIANTS, 5. SESSION RESUME, AGENTS.md — Grocer Project Rules
 
 ### Community 19 - "SimulationEngine"
-Cohesion: 0.08
-Nodes (24): Any, AsyncSession, datetime, UUID, GROCER v2 Simulation Engine. Handles deterministic simulation: time control,…, Advance simulation time, generate new orders, handle batch expiry. Returns…, Reset simulation: clear generated data, re-seed, restart clock., Seed stores, suppliers, products, and customers. (+16 more)
+Cohesion: 0.12
+Nodes (18): Any, AsyncSession, UUID, Advance simulation time, generate new orders, handle batch expiry. Returns…, Reset simulation: clear generated data, re-seed, restart clock., Seed stores, suppliers, products, and customers., Create initial inventory and batches for all store-product pairs., Generate orders day by day for the historical period. (+10 more)
 
 ### Community 20 - "AgentState"
 Cohesion: 0.13
@@ -241,8 +246,8 @@ Cohesion: 0.18
 Nodes (10): arrowParens, bracketSpacing, endOfLine, jsxSingleQuote, printWidth, semi, singleQuote, tabWidth (+2 more)
 
 ### Community 27 - "types.ts"
-Cohesion: 0.15
-Nodes (22): CustomerReplenishmentView(), CustomerReplenishmentViewProps, IphoneFrame(), IphoneFrameProps, usePhoneDemoEngine(), DEFAULT_CUSTOMER_PERSONA, DEFAULT_PANTRY_STAPLES, ICON_MAP (+14 more)
+Cohesion: 0.12
+Nodes (26): CustomerReplenishmentView(), CustomerReplenishmentViewProps, GrocerHero(), GrocerHeroProps, PhoneMockup(), IphoneFrame(), IphoneFrameProps, WhatsAppIcon() (+18 more)
 
 ### Community 28 - "layout.tsx"
 Cohesion: 0.40
@@ -260,17 +265,17 @@ Nodes (8): 1. Hero Section (`GrocerHero.tsx`), 2. Page Streamlining (`page.tsx`)
 Cohesion: 0.09
 Nodes (20): BackendAgentRun, BackendCustomerDetail, BackendCustomerListItem, BackendCustomerMessageResponse, BackendCustomerMessages, BackendCustomerRemindResponse, BackendCustomerReorderResponse, BackendCustomerSkipResponse (+12 more)
 
-### Community 32 - "SimulationStatus"
-Cohesion: 0.32
-Nodes (11): AdvanceTimeRequest, create_simulation(), CreateSimulationRequest, BaseModel, Simulation API endpoints for GROCER v2., Create and initialize a new simulation., SimulationResponse, Simulation (+3 more)
+### Community 32 - "Simulation"
+Cohesion: 0.39
+Nodes (8): AdvanceTimeRequest, create_simulation(), CreateSimulationRequest, BaseModel, Simulation API endpoints for GROCER v2., Create and initialize a new simulation., SimulationResponse, Simulation
 
 ### Community 33 - "Log Entries"
 Cohesion: 0.15
-Nodes (12): [Grocer — Full Codebase Architecture Refactoring & Guided Demo Tour] 2026-08-14, [Grocer — iPhone Mockup Pure WhatsApp Refinement & Semantic Multi-Color Migration] 2026-09-04, [Grocer — Official App Icon Design & Full UI Architecture Overhaul] 2026-09-02, [Grocer — Phase 0 Audit, Phase 1 Backend Foundation & Phase 2 Simulator Engine] 2026-08-27, [Grocer — Phase 0 Repository Audit & v2 Architecture Alignment] 2026-08-26, [Grocer — Phase 9 Customer / WhatsApp Integration & Phase 10 Hardening & Polish] 2026-08-28, [Grocer — Saved Exact Figma Notification Layout & WhatsApp Icon] 2026-08-15, [Grocer — UI Aesthetics, 3-Column Cockpit, Phase 3/4/5/6 Engines & Phase 7 Live Integration] 2026-08-27 (+4 more)
+Nodes (12): [Grocer — Full Codebase Architecture Refactoring & Guided Demo Tour] 2026-08-14, [Grocer — iPhone Chassis Calibrated to 290px, Button Label Glitch Fixed & WhatsApp Spacing Refined] 2026-09-04, [Grocer — Official App Icon Design & Full UI Architecture Overhaul] 2026-09-02, [Grocer — Phase 0 Audit, Phase 1 Backend Foundation & Phase 2 Simulator Engine] 2026-08-27, [Grocer — Phase 0 Repository Audit & v2 Architecture Alignment] 2026-08-26, [Grocer — Phase 9 Customer / WhatsApp Integration & Phase 10 Hardening & Polish] 2026-08-28, [Grocer — Saved Exact Figma Notification Layout & WhatsApp Icon] 2026-08-15, [Grocer — UI Aesthetics, 3-Column Cockpit, Phase 3/4/5/6 Engines & Phase 7 Live Integration] 2026-08-27 (+4 more)
 
-### Community 34 - "SimulationClock"
-Cohesion: 0.10
-Nodes (28): Manages simulated time for a simulation instance., Reset clock to start time., SimulationClock, AsyncClient, asyncio, AsyncSession, TDD tests for the GROCER v2 simulation engine., Same seed should produce same number of orders. (+20 more)
+### Community 34 - "test_simulation.py"
+Cohesion: 0.14
+Nodes (24): AsyncClient, asyncio, AsyncSession, TDD tests for the GROCER v2 simulation engine., Same seed should produce same number of orders., Inventory quantities should never be negative after orders., Advancing time should create new orders and update simulation., A Simulation record should be created in the DB. (+16 more)
 
 ### Community 35 - "DemandPoint"
 Cohesion: 0.10
@@ -327,6 +332,10 @@ Nodes (21): _assert_approved(), create_reorder(), create_transfer(), _enum_val()
 ### Community 50 - "29. Core data model"
 Cohesion: 0.12
 Nodes (16): 29.10 Risk, 29.11 Recommendation, 29.12 Action, 29.13 Event, 29.14 Simulation, 29.15 Scenario, 29.1 Store, 29.2 Product (+8 more)
+
+### Community 51 - "asyncio"
+Cohesion: 0.20
+Nodes (14): asyncio, AsyncSession, Should persist Simulation and Scenario., Should persist an Event with JSON payload., Should persist a Store with all required fields., Should persist a Supplier., Should persist a Product linked to a Supplier., Should persist a Customer linked to a home Store. (+6 more)
 
 ### Community 52 - "risks.py"
 Cohesion: 0.21
@@ -460,10 +469,6 @@ Nodes (11): execute_recommendation(), get_run_status(), AsyncSession, get, post,
 Cohesion: 0.28
 Nodes (6): GrocerFooter(), GrocerFooterProps, AppGlobalHeader(), AppGlobalHeaderProps, GrocerLogo(), GrocerLogoProps
 
-### Community 100 - "GrocerHero.tsx"
-Cohesion: 0.40
-Nodes (4): GrocerHero(), GrocerHeroProps, PhoneMockup(), WhatsAppIcon()
-
 ## Knowledge Gaps
 - **313 isolated node(s):** `semi`, `singleQuote`, `jsxSingleQuote`, `trailingComma`, `printWidth` (+308 more)
   These have ≤1 connection - possible missing edges or undocumented components.
@@ -472,11 +477,11 @@ Nodes (4): GrocerHero(), GrocerHeroProps, PhoneMockup(), WhatsAppIcon()
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `SimulationEngine` connect `SimulationEngine` to `SimulationStatus`, `test_agent.py`, `SimulationClock`, `test_risk.py`, `test_forecasting.py`, `core.py`, `test_decision_api.py`, `test_forecast_api.py`, `test_forecasting_engine_confidence_in_range`, `test_agent_api.py`, `client`, `test_risk_api.py`?**
+- **Why does `SimulationEngine` connect `SimulationEngine` to `Simulation`, `test_agent.py`, `test_simulation.py`, `test_risk.py`, `test_forecasting.py`, `core.py`, `test_decision_api.py`, `test_forecast_api.py`, `test_forecasting_engine_confidence_in_range`, `simulation/engine.py`, `test_agent_api.py`, `client`, `test_risk_api.py`?**
   _High betweenness centrality (0.058) - this node is a cross-community bridge._
-- **Why does `Product` connect `test_agent_api.py` to `SimulationStatus`, `test_agent.py`, `SimulationClock`, `test_risk.py`, `core.py`, `test_forecast_api.py`, `schemas.py`, `_seed_transfer_scenario`, `SimulationEngine`, `CustomerService`, `products.py`?**
+- **Why does `Product` connect `test_agent_api.py` to `test_agent.py`, `test_simulation.py`, `test_risk.py`, `core.py`, `test_forecast_api.py`, `simulation/engine.py`, `schemas.py`, `_seed_transfer_scenario`, `SimulationEngine`, `asyncio`, `CustomerService`, `products.py`?**
   _High betweenness centrality (0.029) - this node is a cross-community bridge._
-- **Why does `Store` connect `test_agent_api.py` to `SimulationStatus`, `test_agent.py`, `SimulationClock`, `core.py`, `test_forecast_api.py`, `test_risk_api.py`, `schemas.py`, `tools.py`, `_seed_transfer_scenario`, `SimulationEngine`, `CustomerService`?**
+- **Why does `Store` connect `test_agent_api.py` to `test_agent.py`, `test_simulation.py`, `core.py`, `test_forecast_api.py`, `simulation/engine.py`, `test_risk_api.py`, `schemas.py`, `tools.py`, `_seed_transfer_scenario`, `SimulationEngine`, `asyncio`, `CustomerService`?**
   _High betweenness centrality (0.025) - this node is a cross-community bridge._
 - **Are the 18 inferred relationships involving `SimulationEngine` (e.g. with `Batch` and `Customer`) actually correct?**
   _`SimulationEngine` has 18 INFERRED edges - model-reasoned connections that need verification._

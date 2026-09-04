@@ -15,22 +15,21 @@ During the Session End ritual (called automatically whenever significant changes
 
 ## Log Entries
 
-### [Grocer — Compact 275px Chassis, Native WhatsApp UI & Site-Wide Copy Overhaul] 2026-09-04
-- **Commit**: `feat: compact 275px phone chassis, native whatsapp header, and site-wide copy simplification`
+### [Grocer — iPhone Chassis Calibrated to 290px, Button Label Glitch Fixed & WhatsApp Spacing Refined] 2026-09-04
+- **Commit**: `feat(ui): calibrate iphone mockup to 290px chassis width`
 - **Shipped**:
-  - **Compact Phone Chassis (`275px`)**: Reverted iPhone mockup width from oversized 320px/340px back to the precise, compact `w-[275px]` dimension (`aspect-[1800/3680]`) with accurate Dynamic Island clearance (`pt-9`), perfectly framing the screen without overpowering page layouts.
+  - **Phone Chassis Calibrated to 290px**: Scaled phone mockup chassis to `290px` (`w-[290px] h-[593px] aspect-[1800/3680]`) across [`GrocerHero.tsx`](file:///d:/Grocer/components/grocer/GrocerHero.tsx) and [`PhoneMockup.tsx`](file:///d:/Grocer/components/PhoneMockup.tsx), providing a tailored fit between the original 275px and 300px.
+  - **Duplicate Plus Glitch Resolved**: Cleaned up the `+ + Bread` quick reply button in `PhoneMockup.tsx` to a single Lucide `<Plus /> <span>Add Bread (₹50)</span>` label.
+  - **Refined Quick Action Ergonomics**: Enhanced button tap rows to `py-2` for full-width action items and `py-1.5 px-2` for split rows (`Remind Later` | `Not Now`), adding centered Lucide `Clock` icon and hairline dividers (`divide-zinc-150`).
+  - **WhatsApp Bubble Typography & Hierarchy**: Refined body text to `10px`, timestamps to `7.5px`, card internal padding to `p-2.5`, and max-width to `90%` for crisp WhatsApp styling.
+  - **iPhone 17 Pro Hardware Frame Integration**: Connected `/iPhone 17 Pro frame.png` with physical glass cutout mapping (`5.39%` left, `2.53%` top, `89.17%` width, `94.92%` height).
+  - **Canvas Corner Radius Reduction (`IphoneFrame.tsx`)**: Reduced canvas screen and backing plate corner radii from `44px` down to `24px` to match inner bezel curvature without clipping inner card borders or text.
+  - **Status Bar Cleaned**: Removed external status bar image overlay, allowing the hardware Dynamic Island to sit naturally above the WhatsApp header with `pt-10` top clearance.
+  - **Home Indicator Image Integration (`Home Indicator.png`)**: Mounted authentic `Home Indicator.png` (576×20px) positioned with `pb-2 pt-1` clearance above the curved display bottom.
   - **Authentic WhatsApp Navigation Header**: Cleaned up the phone top bar to `Grocer Assistant ✓` and `Online` with crisp 14px Video and Phone call icons (`#007AFF`). Removed cluttered header reset buttons and placed contextual `↺ Restart Demo` buttons inside completed chat cards.
-  - **Native In-Bubble Actions**: Built authentic WhatsApp Business quick reply cells directly attached to message cards with crisp hairlines (`border-t border-zinc-150 divide-y`).
-  - **Faithful iOS WhatsApp Input Dock**: Maintained pixel-accurate bottom dock with 24px circular grey `+`, 26px white input pill with `"Message"`, camera icon, blue microphone, and centered iOS home indicator.
-  - **Site-Wide Human Copy Overhaul (`/no-ai-slop`)**:
-    - **Header & Navigation**: Brand locked to `Grocer`, tabs simplified to `Home`, `Store Operations`, `WhatsApp Demo`; telemetry simplified to `Stockout Risks` / `All Stores Stocked`.
-    - **Hero Section**: Headline updated to *"Stop grocery stockouts before they happen."*, subtitle updated to *"Predict household grocery depletion and balance inventory across dark store networks with automatic WhatsApp reorders."*, 3 feature pillars to *"WhatsApp Orders"*, *"Store Transfers"*, *"Freshness Protection"*.
-    - **How It Works**: Eyebrow `How It Works`, Title `How Grocer Keeps Stores and Kitchens Stocked`. Cards streamlined to *"Household Consumption Tracking"*, *"Smart Demand Filtering"*, *"Automated Order Workflow"*, *"Smart Markdowns"*.
-    - **Estimator & Developer Endpoints**: Eyebrow `Household Consumption Estimator`, Title `Estimate Staple Runout Times`; Integrations updated to `Developer Endpoints` and `API & Webhook Integrations`.
-    - **Operations & Scenarios**: Clean sub-bar tabs `Inventory Table`, `Transfer Decisions`, `Dark Store Map`; scenario names updated to `High Milk Demand Spike`, `Expiring Bakery Stock`, `Transfer Pre-check & Safety` without raw section symbols (`§`) or hardcoded Mumbai assumptions.
-    - **Customer View & Footer**: Header `Customer WhatsApp & Pantry Simulator`, pantry section `Customer Household Pantry`; Footer `Explore Grocer` — *"Ready to see Grocer in action?"* with `Launch Store Operations` & `Test WhatsApp Demo`.
-- **Verification**: `npm run lint` (0 errors, 0 warnings) and `npm run build` (Turbopack, compiled in 6.9s, 0 errors) pass cleanly. Knowledge graph updated with 1,469 nodes and 3,132 edges via `graphify update .`.
-- **Vibe**: 🚀 Compact 275px WhatsApp simulator, zero AI slop, clean human SaaS copy, verified passing build.
+- **Verification**: `npm run lint` (0 errors, 0 warnings) and `npm run build` (Turbopack, compiled in 7.8s, 0 errors) pass cleanly. Knowledge graph updated via `graphify update .`.
+- **Vibe**: 🚀 Balanced 300px iPhone chassis, clean WhatsApp bubble hierarchy, zero button glitches, production build green.
+
 
 ### [Grocer — Official App Icon Design & Full UI Architecture Overhaul] 2026-09-02
   - **Official App Icon Design Finalized & Locked**:

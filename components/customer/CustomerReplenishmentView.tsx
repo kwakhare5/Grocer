@@ -250,15 +250,17 @@ export function CustomerReplenishmentView({
 
         {/* Right Phone Mockup Container (7 cols) */}
         <div className="lg:col-span-7 flex justify-center items-center py-4">
-          <PhoneMockup
-            activeScenario="milk_shortage"
-            initialViewMode="whatsapp"
-            activeCustomer={activeCustomer}
-            onCustomerChange={onCustomerChange}
-            onPlaceOrder={onPlaceOrder}
-            onScheduleReminder={onScheduleReminder}
-            onSkipRestock={onSkipRestock}
-          />
+          <div className="w-[290px] h-[593px] aspect-[1800/3680] shrink-0 relative z-10 mx-auto">
+            <PhoneMockup
+              activeScenario="milk_shortage"
+              initialViewMode="whatsapp"
+              activeCustomer={activeCustomer}
+              onCustomerChange={onCustomerChange}
+              onPlaceOrder={onPlaceOrder}
+              onScheduleReminder={onScheduleReminder}
+              onSkipRestock={onSkipRestock}
+            />
+          </div>
         </div>
 
       </div>

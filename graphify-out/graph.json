@@ -17,17 +17,56 @@
       "norm_label": "pantryitem"
     },
     {
-      "label": "GrocerHeroProps",
+      "label": "SimulationClock",
       "file_type": "code",
-      "source_file": "components/grocer/GrocerHero.tsx",
-      "source_location": "L8",
+      "source_file": "backend/services/simulation/engine.py",
+      "source_location": "L30",
       "_callable": true,
       "_callable_class": true,
       "_origin": "ast",
-      "id": "components_grocer_grocerhero_grocerheroprops",
-      "community": 100,
-      "community_name": "GrocerHero.tsx",
-      "norm_label": "grocerheroprops"
+      "id": "backend_services_simulation_engine_simulationclock",
+      "community": 12,
+      "community_name": "simulation/engine.py",
+      "norm_label": "simulationclock"
+    },
+    {
+      "label": "SeedCustomer",
+      "file_type": "code",
+      "source_file": "backend/services/simulation/seed_data.py",
+      "source_location": "L46",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "id": "backend_services_simulation_seed_data_seedcustomer",
+      "community": 12,
+      "community_name": "simulation/engine.py",
+      "norm_label": "seedcustomer"
+    },
+    {
+      "label": "SeedProduct",
+      "file_type": "code",
+      "source_file": "backend/services/simulation/seed_data.py",
+      "source_location": "L31",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "id": "backend_services_simulation_seed_data_seedproduct",
+      "community": 12,
+      "community_name": "simulation/engine.py",
+      "norm_label": "seedproduct"
+    },
+    {
+      "label": "TestSimulationClock",
+      "file_type": "code",
+      "source_file": "backend/tests/test_simulation.py",
+      "source_location": "L21",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "id": "backend_tests_test_simulation_testsimulationclock",
+      "community": 12,
+      "community_name": "simulation/engine.py",
+      "norm_label": "testsimulationclock"
     },
     {
       "label": "Product",
@@ -67,6 +106,19 @@
       "community": 13,
       "community_name": "test_agent_api.py",
       "norm_label": "supplier"
+    },
+    {
+      "label": "DecisionOrchestrator",
+      "file_type": "code",
+      "source_file": "backend/services/decision/engine.py",
+      "source_location": "L36",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "id": "backend_services_decision_engine_decisionorchestrator",
+      "community": 13,
+      "community_name": "test_agent_api.py",
+      "norm_label": "decisionorchestrator"
     },
     {
       "label": "EventBus",
@@ -236,32 +288,6 @@
       "community": 19,
       "community_name": "SimulationEngine",
       "norm_label": "simulationengine"
-    },
-    {
-      "label": "SeedCustomer",
-      "file_type": "code",
-      "source_file": "backend/services/simulation/seed_data.py",
-      "source_location": "L46",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "id": "backend_services_simulation_seed_data_seedcustomer",
-      "community": 19,
-      "community_name": "SimulationEngine",
-      "norm_label": "seedcustomer"
-    },
-    {
-      "label": "SeedProduct",
-      "file_type": "code",
-      "source_file": "backend/services/simulation/seed_data.py",
-      "source_location": "L31",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "id": "backend_services_simulation_seed_data_seedproduct",
-      "community": 19,
-      "community_name": "SimulationEngine",
-      "norm_label": "seedproduct"
     },
     {
       "label": "ActionScorer",
@@ -535,6 +561,19 @@
       "community": 27,
       "community_name": "types.ts",
       "norm_label": "customerreplenishmentviewprops"
+    },
+    {
+      "label": "GrocerHeroProps",
+      "file_type": "code",
+      "source_file": "components/grocer/GrocerHero.tsx",
+      "source_location": "L8",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "id": "components_grocer_grocerhero_grocerheroprops",
+      "community": 27,
+      "community_name": "types.ts",
+      "norm_label": "grocerheroprops"
     },
     {
       "label": "IphoneFrameProps",
@@ -1027,7 +1066,7 @@
       "_origin": "ast",
       "id": "backend_api_simulations_advancetimerequest",
       "community": 32,
-      "community_name": "SimulationStatus",
+      "community_name": "Simulation",
       "norm_label": "advancetimerequest"
     },
     {
@@ -1040,7 +1079,7 @@
       "_origin": "ast",
       "id": "backend_api_simulations_createsimulationrequest",
       "community": 32,
-      "community_name": "SimulationStatus",
+      "community_name": "Simulation",
       "norm_label": "createsimulationrequest"
     },
     {
@@ -1053,7 +1092,7 @@
       "_origin": "ast",
       "id": "backend_api_simulations_simulationresponse",
       "community": 32,
-      "community_name": "SimulationStatus",
+      "community_name": "Simulation",
       "norm_label": "simulationresponse"
     },
     {
@@ -1066,47 +1105,8 @@
       "_origin": "ast",
       "id": "backend_models_core_simulation",
       "community": 32,
-      "community_name": "SimulationStatus",
+      "community_name": "Simulation",
       "norm_label": "simulation"
-    },
-    {
-      "label": "SimulationStatus",
-      "file_type": "code",
-      "source_file": "backend/models/enums.py",
-      "source_location": "L57",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "id": "backend_models_enums_simulationstatus",
-      "community": 32,
-      "community_name": "SimulationStatus",
-      "norm_label": "simulationstatus"
-    },
-    {
-      "label": "SimulationClock",
-      "file_type": "code",
-      "source_file": "backend/services/simulation/engine.py",
-      "source_location": "L30",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "id": "backend_services_simulation_engine_simulationclock",
-      "community": 34,
-      "community_name": "SimulationClock",
-      "norm_label": "simulationclock"
-    },
-    {
-      "label": "TestSimulationClock",
-      "file_type": "code",
-      "source_file": "backend/tests/test_simulation.py",
-      "source_location": "L21",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "id": "backend_tests_test_simulation_testsimulationclock",
-      "community": 34,
-      "community_name": "SimulationClock",
-      "norm_label": "testsimulationclock"
     },
     {
       "label": "DemandPoint",
@@ -1915,6 +1915,19 @@
       "norm_label": "risktype"
     },
     {
+      "label": "SimulationStatus",
+      "file_type": "code",
+      "source_file": "backend/models/enums.py",
+      "source_location": "L57",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "id": "backend_models_enums_simulationstatus",
+      "community": 5,
+      "community_name": "core.py",
+      "norm_label": "simulationstatus"
+    },
+    {
       "label": "StoreStatus",
       "file_type": "code",
       "source_file": "backend/models/enums.py",
@@ -1939,19 +1952,6 @@
       "community": 5,
       "community_name": "core.py",
       "norm_label": "supplierstatus"
-    },
-    {
-      "label": "DecisionOrchestrator",
-      "file_type": "code",
-      "source_file": "backend/services/decision/engine.py",
-      "source_location": "L36",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "id": "backend_services_decision_engine_decisionorchestrator",
-      "community": 5,
-      "community_name": "core.py",
-      "norm_label": "decisionorchestrator"
     },
     {
       "label": "RiskEvaluateResponse",
@@ -2314,40 +2314,124 @@
       "norm_label": "test_node_validate_succeeds_for_approved_rec()"
     },
     {
-      "label": "GrocerHero()",
+      "label": ".advance()",
       "file_type": "code",
-      "source_file": "components/grocer/GrocerHero.tsx",
-      "source_location": "L13",
+      "source_file": "backend/services/simulation/engine.py",
+      "source_location": "L46",
       "_callable": true,
       "_origin": "ast",
-      "id": "components_grocer_grocerhero_grocerhero",
-      "community": 100,
-      "community_name": "GrocerHero.tsx",
-      "norm_label": "grocerhero()"
+      "id": "backend_services_simulation_engine_simulationclock_advance",
+      "community": 12,
+      "community_name": "simulation/engine.py",
+      "norm_label": ".advance()"
     },
     {
-      "label": "PhoneMockup()",
+      "label": ".__init__()",
       "file_type": "code",
-      "source_file": "components/PhoneMockup.tsx",
-      "source_location": "L25",
+      "source_file": "backend/services/simulation/engine.py",
+      "source_location": "L33",
       "_callable": true,
       "_origin": "ast",
-      "id": "components_phonemockup_phonemockup",
-      "community": 100,
-      "community_name": "GrocerHero.tsx",
-      "norm_label": "phonemockup()"
+      "id": "backend_services_simulation_engine_simulationclock_init",
+      "community": 12,
+      "community_name": "simulation/engine.py",
+      "norm_label": ".__init__()"
     },
     {
-      "label": "WhatsAppIcon()",
+      "label": ".now()",
       "file_type": "code",
-      "source_file": "components/ui/WhatsAppIcon.tsx",
-      "source_location": "L3",
+      "source_file": "backend/services/simulation/engine.py",
+      "source_location": "L39",
       "_callable": true,
       "_origin": "ast",
-      "id": "components_ui_whatsappicon_whatsappicon",
-      "community": 100,
-      "community_name": "GrocerHero.tsx",
-      "norm_label": "whatsappicon()"
+      "id": "backend_services_simulation_engine_simulationclock_now",
+      "community": 12,
+      "community_name": "simulation/engine.py",
+      "norm_label": ".now()"
+    },
+    {
+      "label": ".reset()",
+      "file_type": "code",
+      "source_file": "backend/services/simulation/engine.py",
+      "source_location": "L51",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "backend_services_simulation_engine_simulationclock_reset",
+      "community": 12,
+      "community_name": "simulation/engine.py",
+      "norm_label": ".reset()"
+    },
+    {
+      "label": ".start_time()",
+      "file_type": "code",
+      "source_file": "backend/services/simulation/engine.py",
+      "source_location": "L43",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "backend_services_simulation_engine_simulationclock_start_time",
+      "community": 12,
+      "community_name": "simulation/engine.py",
+      "norm_label": ".start_time()"
+    },
+    {
+      "label": ".test_clock_advance()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_simulation.py",
+      "source_location": "L28",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "backend_tests_test_simulation_testsimulationclock_test_clock_advance",
+      "community": 12,
+      "community_name": "simulation/engine.py",
+      "norm_label": ".test_clock_advance()"
+    },
+    {
+      "label": ".test_clock_advance_multiple()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_simulation.py",
+      "source_location": "L35",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "backend_tests_test_simulation_testsimulationclock_test_clock_advance_multiple",
+      "community": 12,
+      "community_name": "simulation/engine.py",
+      "norm_label": ".test_clock_advance_multiple()"
+    },
+    {
+      "label": ".test_clock_initial_time()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_simulation.py",
+      "source_location": "L22",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "backend_tests_test_simulation_testsimulationclock_test_clock_initial_time",
+      "community": 12,
+      "community_name": "simulation/engine.py",
+      "norm_label": ".test_clock_initial_time()"
+    },
+    {
+      "label": ".test_clock_reset()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_simulation.py",
+      "source_location": "L42",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "backend_tests_test_simulation_testsimulationclock_test_clock_reset",
+      "community": 12,
+      "community_name": "simulation/engine.py",
+      "norm_label": ".test_clock_reset()"
+    },
+    {
+      "label": "_naive_now()",
+      "file_type": "code",
+      "source_file": "backend/services/decision/engine.py",
+      "source_location": "L32",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "backend_services_decision_engine_naive_now",
+      "community": 13,
+      "community_name": "test_agent_api.py",
+      "norm_label": "_naive_now()"
     },
     {
       "label": "approved_hold_rec()",
@@ -2602,30 +2686,6 @@
       "norm_label": "test_create_batch()"
     },
     {
-      "label": "test_create_customer_with_store_fk()",
-      "file_type": "code",
-      "source_file": "backend/tests/test_models.py",
-      "source_location": "L90",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "backend_tests_test_models_test_create_customer_with_store_fk",
-      "community": 13,
-      "community_name": "test_agent_api.py",
-      "norm_label": "test_create_customer_with_store_fk()"
-    },
-    {
-      "label": "test_create_event()",
-      "file_type": "code",
-      "source_file": "backend/tests/test_models.py",
-      "source_location": "L216",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "backend_tests_test_models_test_create_event",
-      "community": 13,
-      "community_name": "test_agent_api.py",
-      "norm_label": "test_create_event()"
-    },
-    {
       "label": "test_create_order_with_items()",
       "file_type": "code",
       "source_file": "backend/tests/test_models.py",
@@ -2636,42 +2696,6 @@
       "community": 13,
       "community_name": "test_agent_api.py",
       "norm_label": "test_create_order_with_items()"
-    },
-    {
-      "label": "test_create_product_with_supplier_fk()",
-      "file_type": "code",
-      "source_file": "backend/tests/test_models.py",
-      "source_location": "L59",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "backend_tests_test_models_test_create_product_with_supplier_fk",
-      "community": 13,
-      "community_name": "test_agent_api.py",
-      "norm_label": "test_create_product_with_supplier_fk()"
-    },
-    {
-      "label": "test_create_store()",
-      "file_type": "code",
-      "source_file": "backend/tests/test_models.py",
-      "source_location": "L21",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "backend_tests_test_models_test_create_store",
-      "community": 13,
-      "community_name": "test_agent_api.py",
-      "norm_label": "test_create_store()"
-    },
-    {
-      "label": "test_create_supplier()",
-      "file_type": "code",
-      "source_file": "backend/tests/test_models.py",
-      "source_location": "L41",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "backend_tests_test_models_test_create_supplier",
-      "community": 13,
-      "community_name": "test_agent_api.py",
-      "norm_label": "test_create_supplier()"
     },
     {
       "label": ".__init__()",
@@ -3068,54 +3092,6 @@
       "community": 17,
       "community_name": "seed_data.py",
       "norm_label": "_id()"
-    },
-    {
-      "label": ".advance()",
-      "file_type": "code",
-      "source_file": "backend/services/simulation/engine.py",
-      "source_location": "L46",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "backend_services_simulation_engine_simulationclock_advance",
-      "community": 19,
-      "community_name": "SimulationEngine",
-      "norm_label": ".advance()"
-    },
-    {
-      "label": ".__init__()",
-      "file_type": "code",
-      "source_file": "backend/services/simulation/engine.py",
-      "source_location": "L33",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "backend_services_simulation_engine_simulationclock_init",
-      "community": 19,
-      "community_name": "SimulationEngine",
-      "norm_label": ".__init__()"
-    },
-    {
-      "label": ".now()",
-      "file_type": "code",
-      "source_file": "backend/services/simulation/engine.py",
-      "source_location": "L39",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "backend_services_simulation_engine_simulationclock_now",
-      "community": 19,
-      "community_name": "SimulationEngine",
-      "norm_label": ".now()"
-    },
-    {
-      "label": ".start_time()",
-      "file_type": "code",
-      "source_file": "backend/services/simulation/engine.py",
-      "source_location": "L43",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "backend_services_simulation_engine_simulationclock_start_time",
-      "community": 19,
-      "community_name": "SimulationEngine",
-      "norm_label": ".start_time()"
     },
     {
       "label": ".advance_time()",
@@ -4222,6 +4198,30 @@
       "norm_label": "customerreplenishmentview()"
     },
     {
+      "label": "GrocerHero()",
+      "file_type": "code",
+      "source_file": "components/grocer/GrocerHero.tsx",
+      "source_location": "L13",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "components_grocer_grocerhero_grocerhero",
+      "community": 27,
+      "community_name": "types.ts",
+      "norm_label": "grocerhero()"
+    },
+    {
+      "label": "PhoneMockup()",
+      "file_type": "code",
+      "source_file": "components/PhoneMockup.tsx",
+      "source_location": "L26",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "components_phonemockup_phonemockup",
+      "community": 27,
+      "community_name": "types.ts",
+      "norm_label": "phonemockup()"
+    },
+    {
       "label": "IphoneFrame()",
       "file_type": "code",
       "source_file": "components/ui/IphoneFrame.tsx",
@@ -4232,6 +4232,18 @@
       "community": 27,
       "community_name": "types.ts",
       "norm_label": "iphoneframe()"
+    },
+    {
+      "label": "WhatsAppIcon()",
+      "file_type": "code",
+      "source_file": "components/ui/WhatsAppIcon.tsx",
+      "source_location": "L3",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "components_ui_whatsappicon_whatsappicon",
+      "community": 27,
+      "community_name": "types.ts",
+      "norm_label": "whatsappicon()"
     },
     {
       "label": "usePhoneDemoEngine()",
@@ -4686,32 +4698,8 @@
       "_origin": "ast",
       "id": "backend_api_simulations_create_simulation",
       "community": 32,
-      "community_name": "SimulationStatus",
+      "community_name": "Simulation",
       "norm_label": "create_simulation()"
-    },
-    {
-      "label": "test_create_simulation_and_scenario()",
-      "file_type": "code",
-      "source_file": "backend/tests/test_models.py",
-      "source_location": "L187",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "backend_tests_test_models_test_create_simulation_and_scenario",
-      "community": 32,
-      "community_name": "SimulationStatus",
-      "norm_label": "test_create_simulation_and_scenario()"
-    },
-    {
-      "label": ".reset()",
-      "file_type": "code",
-      "source_file": "backend/services/simulation/engine.py",
-      "source_location": "L51",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "backend_services_simulation_engine_simulationclock_reset",
-      "community": 34,
-      "community_name": "SimulationClock",
-      "norm_label": ".reset()"
     },
     {
       "label": "test_advance_time()",
@@ -4722,7 +4710,7 @@
       "_origin": "ast",
       "id": "backend_tests_test_simulation_test_advance_time",
       "community": 34,
-      "community_name": "SimulationClock",
+      "community_name": "test_simulation.py",
       "norm_label": "test_advance_time()"
     },
     {
@@ -4734,7 +4722,7 @@
       "_origin": "ast",
       "id": "backend_tests_test_simulation_test_create_simulation_api",
       "community": 34,
-      "community_name": "SimulationClock",
+      "community_name": "test_simulation.py",
       "norm_label": "test_create_simulation_api()"
     },
     {
@@ -4746,7 +4734,7 @@
       "_origin": "ast",
       "id": "backend_tests_test_simulation_test_deterministic_seed",
       "community": 34,
-      "community_name": "SimulationClock",
+      "community_name": "test_simulation.py",
       "norm_label": "test_deterministic_seed()"
     },
     {
@@ -4758,7 +4746,7 @@
       "_origin": "ast",
       "id": "backend_tests_test_simulation_test_get_simulation_api",
       "community": 34,
-      "community_name": "SimulationClock",
+      "community_name": "test_simulation.py",
       "norm_label": "test_get_simulation_api()"
     },
     {
@@ -4770,7 +4758,7 @@
       "_origin": "ast",
       "id": "backend_tests_test_simulation_test_historical_orders_generated",
       "community": 34,
-      "community_name": "SimulationClock",
+      "community_name": "test_simulation.py",
       "norm_label": "test_historical_orders_generated()"
     },
     {
@@ -4782,7 +4770,7 @@
       "_origin": "ast",
       "id": "backend_tests_test_simulation_test_initial_batches_created",
       "community": 34,
-      "community_name": "SimulationClock",
+      "community_name": "test_simulation.py",
       "norm_label": "test_initial_batches_created()"
     },
     {
@@ -4794,7 +4782,7 @@
       "_origin": "ast",
       "id": "backend_tests_test_simulation_test_initial_inventory_created",
       "community": 34,
-      "community_name": "SimulationClock",
+      "community_name": "test_simulation.py",
       "norm_label": "test_initial_inventory_created()"
     },
     {
@@ -4806,7 +4794,7 @@
       "_origin": "ast",
       "id": "backend_tests_test_simulation_test_inventory_non_negative",
       "community": 34,
-      "community_name": "SimulationClock",
+      "community_name": "test_simulation.py",
       "norm_label": "test_inventory_non_negative()"
     },
     {
@@ -4818,7 +4806,7 @@
       "_origin": "ast",
       "id": "backend_tests_test_simulation_test_seed_data_counts",
       "community": 34,
-      "community_name": "SimulationClock",
+      "community_name": "test_simulation.py",
       "norm_label": "test_seed_data_counts()"
     },
     {
@@ -4830,56 +4818,8 @@
       "_origin": "ast",
       "id": "backend_tests_test_simulation_test_simulation_record_created",
       "community": 34,
-      "community_name": "SimulationClock",
+      "community_name": "test_simulation.py",
       "norm_label": "test_simulation_record_created()"
-    },
-    {
-      "label": ".test_clock_advance()",
-      "file_type": "code",
-      "source_file": "backend/tests/test_simulation.py",
-      "source_location": "L28",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "backend_tests_test_simulation_testsimulationclock_test_clock_advance",
-      "community": 34,
-      "community_name": "SimulationClock",
-      "norm_label": ".test_clock_advance()"
-    },
-    {
-      "label": ".test_clock_advance_multiple()",
-      "file_type": "code",
-      "source_file": "backend/tests/test_simulation.py",
-      "source_location": "L35",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "backend_tests_test_simulation_testsimulationclock_test_clock_advance_multiple",
-      "community": 34,
-      "community_name": "SimulationClock",
-      "norm_label": ".test_clock_advance_multiple()"
-    },
-    {
-      "label": ".test_clock_initial_time()",
-      "file_type": "code",
-      "source_file": "backend/tests/test_simulation.py",
-      "source_location": "L22",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "backend_tests_test_simulation_testsimulationclock_test_clock_initial_time",
-      "community": 34,
-      "community_name": "SimulationClock",
-      "norm_label": ".test_clock_initial_time()"
-    },
-    {
-      "label": ".test_clock_reset()",
-      "file_type": "code",
-      "source_file": "backend/tests/test_simulation.py",
-      "source_location": "L42",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "backend_tests_test_simulation_testsimulationclock_test_clock_reset",
-      "community": 34,
-      "community_name": "SimulationClock",
-      "norm_label": ".test_clock_reset()"
     },
     {
       "label": "test_baseline_predict_minimum_series_length()",
@@ -5926,16 +5866,76 @@
       "norm_label": "test_create_transfer_applies_transfer_successfully()"
     },
     {
-      "label": "_naive_now()",
+      "label": "test_create_customer_with_store_fk()",
       "file_type": "code",
-      "source_file": "backend/services/decision/engine.py",
-      "source_location": "L32",
+      "source_file": "backend/tests/test_models.py",
+      "source_location": "L90",
       "_callable": true,
       "_origin": "ast",
-      "id": "backend_services_decision_engine_naive_now",
-      "community": 5,
-      "community_name": "core.py",
-      "norm_label": "_naive_now()"
+      "id": "backend_tests_test_models_test_create_customer_with_store_fk",
+      "community": 51,
+      "community_name": "asyncio",
+      "norm_label": "test_create_customer_with_store_fk()"
+    },
+    {
+      "label": "test_create_event()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_models.py",
+      "source_location": "L216",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "backend_tests_test_models_test_create_event",
+      "community": 51,
+      "community_name": "asyncio",
+      "norm_label": "test_create_event()"
+    },
+    {
+      "label": "test_create_product_with_supplier_fk()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_models.py",
+      "source_location": "L59",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "backend_tests_test_models_test_create_product_with_supplier_fk",
+      "community": 51,
+      "community_name": "asyncio",
+      "norm_label": "test_create_product_with_supplier_fk()"
+    },
+    {
+      "label": "test_create_simulation_and_scenario()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_models.py",
+      "source_location": "L187",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "backend_tests_test_models_test_create_simulation_and_scenario",
+      "community": 51,
+      "community_name": "asyncio",
+      "norm_label": "test_create_simulation_and_scenario()"
+    },
+    {
+      "label": "test_create_store()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_models.py",
+      "source_location": "L21",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "backend_tests_test_models_test_create_store",
+      "community": 51,
+      "community_name": "asyncio",
+      "norm_label": "test_create_store()"
+    },
+    {
+      "label": "test_create_supplier()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_models.py",
+      "source_location": "L41",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "backend_tests_test_models_test_create_supplier",
+      "community": 51,
+      "community_name": "asyncio",
+      "norm_label": "test_create_supplier()"
     },
     {
       "label": "evaluate_risks()",
@@ -7186,28 +7186,6 @@
       "norm_label": "\ud83c\udfac the 2-minute demo guide"
     },
     {
-      "label": "GrocerHero.tsx",
-      "file_type": "code",
-      "source_file": "components/grocer/GrocerHero.tsx",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "components_grocer_grocerhero",
-      "community": 100,
-      "community_name": "GrocerHero.tsx",
-      "norm_label": "grocerhero.tsx"
-    },
-    {
-      "label": "WhatsAppIcon.tsx",
-      "file_type": "code",
-      "source_file": "components/ui/WhatsAppIcon.tsx",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "components_ui_whatsappicon",
-      "community": 100,
-      "community_name": "GrocerHero.tsx",
-      "norm_label": "whatsappicon.tsx"
-    },
-    {
       "label": "package.json",
       "file_type": "code",
       "source_file": "package.json",
@@ -7714,6 +7692,105 @@
       "norm_label": "@vercel/analytics"
     },
     {
+      "label": "simulation/engine.py",
+      "file_type": "code",
+      "source_file": "backend/services/simulation/engine.py",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "backend_services_simulation_engine",
+      "community": 12,
+      "community_name": "simulation/engine.py",
+      "norm_label": "simulation/engine.py"
+    },
+    {
+      "label": "datetime",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "backend_services_simulation_engine_py_datetime",
+      "community": 12,
+      "community_name": "simulation/engine.py",
+      "norm_label": "datetime"
+    },
+    {
+      "label": "simulation/__init__.py",
+      "file_type": "code",
+      "source_file": "backend/services/simulation/__init__.py",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "backend_services_simulation_init",
+      "community": 12,
+      "community_name": "simulation/engine.py",
+      "norm_label": "simulation/__init__.py"
+    },
+    {
+      "label": "GROCER v2 Simulation Engine. Handles deterministic simulation: time control,\u2026",
+      "file_type": "rationale",
+      "source_file": "backend/services/simulation/engine.py",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "backend_services_simulation_engine_rationale_1",
+      "community": 12,
+      "community_name": "simulation/engine.py",
+      "norm_label": "grocer v2 simulation engine. handles deterministic simulation: time control,..."
+    },
+    {
+      "label": "Manages simulated time for a simulation instance.",
+      "file_type": "rationale",
+      "source_file": "backend/services/simulation/engine.py",
+      "source_location": "L31",
+      "_origin": "ast",
+      "id": "backend_services_simulation_engine_rationale_31",
+      "community": 12,
+      "community_name": "simulation/engine.py",
+      "norm_label": "manages simulated time for a simulation instance."
+    },
+    {
+      "label": "Advance simulation time by N hours. Returns new current time.",
+      "file_type": "rationale",
+      "source_file": "backend/services/simulation/engine.py",
+      "source_location": "L47",
+      "_origin": "ast",
+      "id": "backend_services_simulation_engine_rationale_47",
+      "community": 12,
+      "community_name": "simulation/engine.py",
+      "norm_label": "advance simulation time by n hours. returns new current time."
+    },
+    {
+      "label": "Reset clock to start time.",
+      "file_type": "rationale",
+      "source_file": "backend/services/simulation/engine.py",
+      "source_location": "L52",
+      "_origin": "ast",
+      "id": "backend_services_simulation_engine_rationale_52",
+      "community": 12,
+      "community_name": "simulation/engine.py",
+      "norm_label": "reset clock to start time."
+    },
+    {
+      "label": "decision/engine.py",
+      "file_type": "code",
+      "source_file": "backend/services/decision/engine.py",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "backend_services_decision_engine",
+      "community": 13,
+      "community_name": "test_agent_api.py",
+      "norm_label": "decision/engine.py"
+    },
+    {
+      "label": "datetime",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "backend_services_decision_engine_py_datetime",
+      "community": 13,
+      "community_name": "test_agent_api.py",
+      "norm_label": "datetime"
+    },
+    {
       "label": "test_agent_api.py",
       "file_type": "code",
       "source_file": "backend/tests/test_agent_api.py",
@@ -7736,26 +7813,26 @@
       "norm_label": "fixture"
     },
     {
-      "label": "asyncio",
-      "file_type": "code",
-      "source_file": "",
-      "source_location": "",
+      "label": "GROCER v2 Decision Engine -- DB orchestration layer. Loads risk + inventory +\u2026",
+      "file_type": "rationale",
+      "source_file": "backend/services/decision/engine.py",
+      "source_location": "L1",
       "_origin": "ast",
-      "id": "backend_tests_test_models_py_asyncio",
+      "id": "backend_services_decision_engine_rationale_1",
       "community": 13,
       "community_name": "test_agent_api.py",
-      "norm_label": "asyncio"
+      "norm_label": "grocer v2 decision engine -- db orchestration layer. loads risk + inventory +..."
     },
     {
-      "label": "AsyncSession",
-      "file_type": "code",
-      "source_file": "",
-      "source_location": "",
+      "label": "Drives the Decision Engine pipeline end-to-end for a single risk. Usage:\u2026",
+      "file_type": "rationale",
+      "source_file": "backend/services/decision/engine.py",
+      "source_location": "L37",
       "_origin": "ast",
-      "id": "backend_tests_test_models_py_asyncsession",
+      "id": "backend_services_decision_engine_rationale_37",
       "community": 13,
       "community_name": "test_agent_api.py",
-      "norm_label": "asyncsession"
+      "norm_label": "drives the decision engine pipeline end-to-end for a single risk. usage:..."
     },
     {
       "label": "TDD API tests for Phase 6 Agent execution endpoints (spec sections 19-21). Test\u2026",
@@ -8009,61 +8086,6 @@
       "community": 13,
       "community_name": "test_agent_api.py",
       "norm_label": "should persist a batch with expiry tracking."
-    },
-    {
-      "label": "Should persist an Event with JSON payload.",
-      "file_type": "rationale",
-      "source_file": "backend/tests/test_models.py",
-      "source_location": "L217",
-      "_origin": "ast",
-      "id": "backend_tests_test_models_rationale_217",
-      "community": 13,
-      "community_name": "test_agent_api.py",
-      "norm_label": "should persist an event with json payload."
-    },
-    {
-      "label": "Should persist a Store with all required fields.",
-      "file_type": "rationale",
-      "source_file": "backend/tests/test_models.py",
-      "source_location": "L22",
-      "_origin": "ast",
-      "id": "backend_tests_test_models_rationale_22",
-      "community": 13,
-      "community_name": "test_agent_api.py",
-      "norm_label": "should persist a store with all required fields."
-    },
-    {
-      "label": "Should persist a Supplier.",
-      "file_type": "rationale",
-      "source_file": "backend/tests/test_models.py",
-      "source_location": "L42",
-      "_origin": "ast",
-      "id": "backend_tests_test_models_rationale_42",
-      "community": 13,
-      "community_name": "test_agent_api.py",
-      "norm_label": "should persist a supplier."
-    },
-    {
-      "label": "Should persist a Product linked to a Supplier.",
-      "file_type": "rationale",
-      "source_file": "backend/tests/test_models.py",
-      "source_location": "L60",
-      "_origin": "ast",
-      "id": "backend_tests_test_models_rationale_60",
-      "community": 13,
-      "community_name": "test_agent_api.py",
-      "norm_label": "should persist a product linked to a supplier."
-    },
-    {
-      "label": "Should persist a Customer linked to a home Store.",
-      "file_type": "rationale",
-      "source_file": "backend/tests/test_models.py",
-      "source_location": "L91",
-      "_origin": "ast",
-      "id": "backend_tests_test_models_rationale_91",
-      "community": 13,
-      "community_name": "test_agent_api.py",
-      "norm_label": "should persist a customer linked to a home store."
     },
     {
       "label": "bus.py",
@@ -8781,17 +8803,6 @@
       "norm_label": "agents.md \u2014 grocer project rules"
     },
     {
-      "label": "simulation/engine.py",
-      "file_type": "code",
-      "source_file": "backend/services/simulation/engine.py",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "backend_services_simulation_engine",
-      "community": 19,
-      "community_name": "SimulationEngine",
-      "norm_label": "simulation/engine.py"
-    },
-    {
       "label": "Any",
       "file_type": "code",
       "source_file": "",
@@ -8814,17 +8825,6 @@
       "norm_label": "asyncsession"
     },
     {
-      "label": "datetime",
-      "file_type": "code",
-      "source_file": "",
-      "source_location": "",
-      "_origin": "ast",
-      "id": "backend_services_simulation_engine_py_datetime",
-      "community": 19,
-      "community_name": "SimulationEngine",
-      "norm_label": "datetime"
-    },
-    {
       "label": "UUID",
       "file_type": "code",
       "source_file": "",
@@ -8836,28 +8836,6 @@
       "norm_label": "uuid"
     },
     {
-      "label": "simulation/__init__.py",
-      "file_type": "code",
-      "source_file": "backend/services/simulation/__init__.py",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "backend_services_simulation_init",
-      "community": 19,
-      "community_name": "SimulationEngine",
-      "norm_label": "simulation/__init__.py"
-    },
-    {
-      "label": "test_customer_api.py",
-      "file_type": "code",
-      "source_file": "backend/tests/test_customer_api.py",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "backend_tests_test_customer_api",
-      "community": 19,
-      "community_name": "SimulationEngine",
-      "norm_label": "test_customer_api.py"
-    },
-    {
       "label": "fixture",
       "file_type": "code",
       "source_file": "",
@@ -8867,17 +8845,6 @@
       "community": 19,
       "community_name": "SimulationEngine",
       "norm_label": "fixture"
-    },
-    {
-      "label": "GROCER v2 Simulation Engine. Handles deterministic simulation: time control,\u2026",
-      "file_type": "rationale",
-      "source_file": "backend/services/simulation/engine.py",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "backend_services_simulation_engine_rationale_1",
-      "community": 19,
-      "community_name": "SimulationEngine",
-      "norm_label": "grocer v2 simulation engine. handles deterministic simulation: time control,..."
     },
     {
       "label": "Advance simulation time, generate new orders, handle batch expiry. Returns\u2026",
@@ -8979,17 +8946,6 @@
       "norm_label": "mark expired batches and deduct from inventory. returns count of expired..."
     },
     {
-      "label": "Advance simulation time by N hours. Returns new current time.",
-      "file_type": "rationale",
-      "source_file": "backend/services/simulation/engine.py",
-      "source_location": "L47",
-      "_origin": "ast",
-      "id": "backend_services_simulation_engine_rationale_47",
-      "community": 19,
-      "community_name": "SimulationEngine",
-      "norm_label": "advance simulation time by n hours. returns new current time."
-    },
-    {
       "label": "Core simulation engine for GROCER v2. Handles: - Database seeding (stores,\u2026",
       "file_type": "rationale",
       "source_file": "backend/services/simulation/engine.py",
@@ -9010,17 +8966,6 @@
       "community": 19,
       "community_name": "SimulationEngine",
       "norm_label": "seed all base data and generate historical orders. returns the created..."
-    },
-    {
-      "label": "Tests for Phase 9 Customer / WhatsApp replenishment endpoints (Spec \u00a722 &\u2026",
-      "file_type": "rationale",
-      "source_file": "backend/tests/test_customer_api.py",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "backend_tests_test_customer_api_rationale_1",
-      "community": 19,
-      "community_name": "SimulationEngine",
-      "norm_label": "tests for phase 9 customer / whatsapp replenishment endpoints (spec \u00a722 &..."
     },
     {
       "label": "Seed database with simulation base data.",
@@ -10365,6 +10310,17 @@
       "norm_label": "customerreplenishmentview.tsx"
     },
     {
+      "label": "GrocerHero.tsx",
+      "file_type": "code",
+      "source_file": "components/grocer/GrocerHero.tsx",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "components_grocer_grocerhero",
+      "community": 27,
+      "community_name": "types.ts",
+      "norm_label": "grocerhero.tsx"
+    },
+    {
       "label": "PhoneMockup.tsx",
       "file_type": "code",
       "source_file": "components/PhoneMockup.tsx",
@@ -10385,6 +10341,17 @@
       "community": 27,
       "community_name": "types.ts",
       "norm_label": "iphoneframe.tsx"
+    },
+    {
+      "label": "WhatsAppIcon.tsx",
+      "file_type": "code",
+      "source_file": "components/ui/WhatsAppIcon.tsx",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "components_ui_whatsappicon",
+      "community": 27,
+      "community_name": "types.ts",
+      "norm_label": "whatsappicon.tsx"
     },
     {
       "label": "usePhoneDemoEngine.ts",
@@ -11175,7 +11142,7 @@
       "_origin": "ast",
       "id": "backend_api_simulations",
       "community": 32,
-      "community_name": "SimulationStatus",
+      "community_name": "Simulation",
       "norm_label": "simulations.py"
     },
     {
@@ -11186,7 +11153,7 @@
       "_origin": "ast",
       "id": "backend_api_simulations_py_basemodel",
       "community": 32,
-      "community_name": "SimulationStatus",
+      "community_name": "Simulation",
       "norm_label": "basemodel"
     },
     {
@@ -11197,7 +11164,7 @@
       "_origin": "ast",
       "id": "backend_api_simulations_rationale_1",
       "community": 32,
-      "community_name": "SimulationStatus",
+      "community_name": "Simulation",
       "norm_label": "simulation api endpoints for grocer v2."
     },
     {
@@ -11208,19 +11175,8 @@
       "_origin": "ast",
       "id": "backend_api_simulations_rationale_43",
       "community": 32,
-      "community_name": "SimulationStatus",
+      "community_name": "Simulation",
       "norm_label": "create and initialize a new simulation."
-    },
-    {
-      "label": "Should persist Simulation and Scenario.",
-      "file_type": "rationale",
-      "source_file": "backend/tests/test_models.py",
-      "source_location": "L188",
-      "_origin": "ast",
-      "id": "backend_tests_test_models_rationale_188",
-      "community": 32,
-      "community_name": "SimulationStatus",
-      "norm_label": "should persist simulation and scenario."
     },
     {
       "label": "JOURNAL.md",
@@ -11237,7 +11193,7 @@
       "label": "[Grocer \u2014 Full Codebase Architecture Refactoring & Guided Demo Tour] 2026-08-14",
       "file_type": "document",
       "source_file": "JOURNAL.md",
-      "source_location": "L186",
+      "source_location": "L181",
       "_origin": "ast",
       "id": "journal_grocer_full_codebase_architecture_refactoring_guided_demo_tour_2026_08_14",
       "community": 33,
@@ -11245,21 +11201,21 @@
       "norm_label": "[grocer \u2014 full codebase architecture refactoring & guided demo tour] 2026-08-14"
     },
     {
-      "label": "[Grocer \u2014 iPhone Mockup Pure WhatsApp Refinement & Semantic Multi-Color Migration] 2026-09-04",
+      "label": "[Grocer \u2014 iPhone Chassis Calibrated to 290px, Button Label Glitch Fixed & WhatsApp Spacing Refined] 2026-09-04",
       "file_type": "document",
       "source_file": "JOURNAL.md",
       "source_location": "L18",
       "_origin": "ast",
-      "id": "journal_grocer_iphone_mockup_pure_whatsapp_refinement_semantic_multi_color_migration_2026_09_04",
+      "id": "journal_grocer_iphone_chassis_calibrated_to_290px_button_label_glitch_fixed_whatsapp_spacing_refined_2026_09_04",
       "community": 33,
       "community_name": "Log Entries",
-      "norm_label": "[grocer \u2014 iphone mockup pure whatsapp refinement & semantic multi-color migration] 2026-09-04"
+      "norm_label": "[grocer \u2014 iphone chassis calibrated to 290px, button label glitch fixed & whatsapp spacing refined] 2026-09-04"
     },
     {
       "label": "[Grocer \u2014 Official App Icon Design & Full UI Architecture Overhaul] 2026-09-02",
       "file_type": "document",
       "source_file": "JOURNAL.md",
-      "source_location": "L39",
+      "source_location": "L34",
       "_origin": "ast",
       "id": "journal_grocer_official_app_icon_design_full_ui_architecture_overhaul_2026_09_02",
       "community": 33,
@@ -11270,7 +11226,7 @@
       "label": "[Grocer \u2014 Phase 0 Audit, Phase 1 Backend Foundation & Phase 2 Simulator Engine] 2026-08-27",
       "file_type": "document",
       "source_file": "JOURNAL.md",
-      "source_location": "L133",
+      "source_location": "L128",
       "_origin": "ast",
       "id": "journal_grocer_phase_0_audit_phase_1_backend_foundation_phase_2_simulator_engine_2026_08_27",
       "community": 33,
@@ -11281,7 +11237,7 @@
       "label": "[Grocer \u2014 Phase 0 Repository Audit & v2 Architecture Alignment] 2026-08-26",
       "file_type": "document",
       "source_file": "JOURNAL.md",
-      "source_location": "L142",
+      "source_location": "L137",
       "_origin": "ast",
       "id": "journal_grocer_phase_0_repository_audit_v2_architecture_alignment_2026_08_26",
       "community": 33,
@@ -11292,7 +11248,7 @@
       "label": "[Grocer \u2014 Phase 9 Customer / WhatsApp Integration & Phase 10 Hardening & Polish] 2026-08-28",
       "file_type": "document",
       "source_file": "JOURNAL.md",
-      "source_location": "L66",
+      "source_location": "L61",
       "_origin": "ast",
       "id": "journal_grocer_phase_9_customer_whatsapp_integration_phase_10_hardening_polish_2026_08_28",
       "community": 33,
@@ -11303,7 +11259,7 @@
       "label": "[Grocer \u2014 Saved Exact Figma Notification Layout & WhatsApp Icon] 2026-08-15",
       "file_type": "document",
       "source_file": "JOURNAL.md",
-      "source_location": "L152",
+      "source_location": "L147",
       "_origin": "ast",
       "id": "journal_grocer_saved_exact_figma_notification_layout_whatsapp_icon_2026_08_15",
       "community": 33,
@@ -11314,7 +11270,7 @@
       "label": "[Grocer \u2014 UI Aesthetics, 3-Column Cockpit, Phase 3/4/5/6 Engines & Phase 7 Live Integration] 2026-08-27",
       "file_type": "document",
       "source_file": "JOURNAL.md",
-      "source_location": "L102",
+      "source_location": "L97",
       "_origin": "ast",
       "id": "journal_grocer_ui_aesthetics_3_column_cockpit_phase_3_4_5_6_engines_phase_7_live_integration_2026_08_27",
       "community": 33,
@@ -11358,7 +11314,7 @@
       "label": "[Project \u2014 Example Entry] 2026-08-12",
       "file_type": "document",
       "source_file": "JOURNAL.md",
-      "source_location": "L209",
+      "source_location": "L204",
       "_origin": "ast",
       "id": "journal_project_example_entry_2026_08_12",
       "community": 33,
@@ -11373,7 +11329,7 @@
       "_origin": "ast",
       "id": "backend_tests_test_simulation",
       "community": 34,
-      "community_name": "SimulationClock",
+      "community_name": "test_simulation.py",
       "norm_label": "test_simulation.py"
     },
     {
@@ -11384,7 +11340,7 @@
       "_origin": "ast",
       "id": "backend_tests_test_simulation_py_asyncclient",
       "community": 34,
-      "community_name": "SimulationClock",
+      "community_name": "test_simulation.py",
       "norm_label": "asyncclient"
     },
     {
@@ -11395,7 +11351,7 @@
       "_origin": "ast",
       "id": "backend_tests_test_simulation_py_asyncio",
       "community": 34,
-      "community_name": "SimulationClock",
+      "community_name": "test_simulation.py",
       "norm_label": "asyncio"
     },
     {
@@ -11406,30 +11362,8 @@
       "_origin": "ast",
       "id": "backend_tests_test_simulation_py_asyncsession",
       "community": 34,
-      "community_name": "SimulationClock",
+      "community_name": "test_simulation.py",
       "norm_label": "asyncsession"
-    },
-    {
-      "label": "Manages simulated time for a simulation instance.",
-      "file_type": "rationale",
-      "source_file": "backend/services/simulation/engine.py",
-      "source_location": "L31",
-      "_origin": "ast",
-      "id": "backend_services_simulation_engine_rationale_31",
-      "community": 34,
-      "community_name": "SimulationClock",
-      "norm_label": "manages simulated time for a simulation instance."
-    },
-    {
-      "label": "Reset clock to start time.",
-      "file_type": "rationale",
-      "source_file": "backend/services/simulation/engine.py",
-      "source_location": "L52",
-      "_origin": "ast",
-      "id": "backend_services_simulation_engine_rationale_52",
-      "community": 34,
-      "community_name": "SimulationClock",
-      "norm_label": "reset clock to start time."
     },
     {
       "label": "TDD tests for the GROCER v2 simulation engine.",
@@ -11439,7 +11373,7 @@
       "_origin": "ast",
       "id": "backend_tests_test_simulation_rationale_1",
       "community": 34,
-      "community_name": "SimulationClock",
+      "community_name": "test_simulation.py",
       "norm_label": "tdd tests for the grocer v2 simulation engine."
     },
     {
@@ -11450,7 +11384,7 @@
       "_origin": "ast",
       "id": "backend_tests_test_simulation_rationale_106",
       "community": 34,
-      "community_name": "SimulationClock",
+      "community_name": "test_simulation.py",
       "norm_label": "same seed should produce same number of orders."
     },
     {
@@ -11461,7 +11395,7 @@
       "_origin": "ast",
       "id": "backend_tests_test_simulation_rationale_118",
       "community": 34,
-      "community_name": "SimulationClock",
+      "community_name": "test_simulation.py",
       "norm_label": "inventory quantities should never be negative after orders."
     },
     {
@@ -11472,7 +11406,7 @@
       "_origin": "ast",
       "id": "backend_tests_test_simulation_rationale_131",
       "community": 34,
-      "community_name": "SimulationClock",
+      "community_name": "test_simulation.py",
       "norm_label": "advancing time should create new orders and update simulation."
     },
     {
@@ -11483,7 +11417,7 @@
       "_origin": "ast",
       "id": "backend_tests_test_simulation_rationale_150",
       "community": 34,
-      "community_name": "SimulationClock",
+      "community_name": "test_simulation.py",
       "norm_label": "a simulation record should be created in the db."
     },
     {
@@ -11494,7 +11428,7 @@
       "_origin": "ast",
       "id": "backend_tests_test_simulation_rationale_165",
       "community": 34,
-      "community_name": "SimulationClock",
+      "community_name": "test_simulation.py",
       "norm_label": "post /api/simulations/ should create a simulation."
     },
     {
@@ -11505,7 +11439,7 @@
       "_origin": "ast",
       "id": "backend_tests_test_simulation_rationale_179",
       "community": 34,
-      "community_name": "SimulationClock",
+      "community_name": "test_simulation.py",
       "norm_label": "get /api/simulations/{id} should return simulation details."
     },
     {
@@ -11516,7 +11450,7 @@
       "_origin": "ast",
       "id": "backend_tests_test_simulation_rationale_54",
       "community": 34,
-      "community_name": "SimulationClock",
+      "community_name": "test_simulation.py",
       "norm_label": "after initialization, db should have correct entity counts."
     },
     {
@@ -11527,7 +11461,7 @@
       "_origin": "ast",
       "id": "backend_tests_test_simulation_rationale_73",
       "community": 34,
-      "community_name": "SimulationClock",
+      "community_name": "test_simulation.py",
       "norm_label": "every store-product pair should have an inventory record."
     },
     {
@@ -11538,7 +11472,7 @@
       "_origin": "ast",
       "id": "backend_tests_test_simulation_rationale_83",
       "community": 34,
-      "community_name": "SimulationClock",
+      "community_name": "test_simulation.py",
       "norm_label": "every store-product pair should have at least one batch."
     },
     {
@@ -11549,7 +11483,7 @@
       "_origin": "ast",
       "id": "backend_tests_test_simulation_rationale_93",
       "community": 34,
-      "community_name": "SimulationClock",
+      "community_name": "test_simulation.py",
       "norm_label": "historical orders should be generated during initialization."
     },
     {
@@ -13236,26 +13170,15 @@
       "norm_label": "models/__init__.py"
     },
     {
-      "label": "decision/engine.py",
+      "label": "test_customer_api.py",
       "file_type": "code",
-      "source_file": "backend/services/decision/engine.py",
+      "source_file": "backend/tests/test_customer_api.py",
       "source_location": "L1",
       "_origin": "ast",
-      "id": "backend_services_decision_engine",
+      "id": "backend_tests_test_customer_api",
       "community": 5,
       "community_name": "core.py",
-      "norm_label": "decision/engine.py"
-    },
-    {
-      "label": "datetime",
-      "file_type": "code",
-      "source_file": "",
-      "source_location": "",
-      "_origin": "ast",
-      "id": "backend_services_decision_engine_py_datetime",
-      "community": 5,
-      "community_name": "core.py",
-      "norm_label": "datetime"
+      "norm_label": "test_customer_api.py"
     },
     {
       "label": "test_models.py",
@@ -13280,26 +13203,15 @@
       "norm_label": "base"
     },
     {
-      "label": "GROCER v2 Decision Engine -- DB orchestration layer. Loads risk + inventory +\u2026",
+      "label": "Tests for Phase 9 Customer / WhatsApp replenishment endpoints (Spec \u00a722 &\u2026",
       "file_type": "rationale",
-      "source_file": "backend/services/decision/engine.py",
+      "source_file": "backend/tests/test_customer_api.py",
       "source_location": "L1",
       "_origin": "ast",
-      "id": "backend_services_decision_engine_rationale_1",
+      "id": "backend_tests_test_customer_api_rationale_1",
       "community": 5,
       "community_name": "core.py",
-      "norm_label": "grocer v2 decision engine -- db orchestration layer. loads risk + inventory +..."
-    },
-    {
-      "label": "Drives the Decision Engine pipeline end-to-end for a single risk. Usage:\u2026",
-      "file_type": "rationale",
-      "source_file": "backend/services/decision/engine.py",
-      "source_location": "L37",
-      "_origin": "ast",
-      "id": "backend_services_decision_engine_rationale_37",
-      "community": 5,
-      "community_name": "core.py",
-      "norm_label": "drives the decision engine pipeline end-to-end for a single risk. usage:..."
+      "norm_label": "tests for phase 9 customer / whatsapp replenishment endpoints (spec \u00a722 &..."
     },
     {
       "label": "29.10 Risk",
@@ -13476,6 +13388,94 @@
       "community": 50,
       "community_name": "29. Core data model",
       "norm_label": "29. core data model"
+    },
+    {
+      "label": "asyncio",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "backend_tests_test_models_py_asyncio",
+      "community": 51,
+      "community_name": "asyncio",
+      "norm_label": "asyncio"
+    },
+    {
+      "label": "AsyncSession",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "backend_tests_test_models_py_asyncsession",
+      "community": 51,
+      "community_name": "asyncio",
+      "norm_label": "asyncsession"
+    },
+    {
+      "label": "Should persist Simulation and Scenario.",
+      "file_type": "rationale",
+      "source_file": "backend/tests/test_models.py",
+      "source_location": "L188",
+      "_origin": "ast",
+      "id": "backend_tests_test_models_rationale_188",
+      "community": 51,
+      "community_name": "asyncio",
+      "norm_label": "should persist simulation and scenario."
+    },
+    {
+      "label": "Should persist an Event with JSON payload.",
+      "file_type": "rationale",
+      "source_file": "backend/tests/test_models.py",
+      "source_location": "L217",
+      "_origin": "ast",
+      "id": "backend_tests_test_models_rationale_217",
+      "community": 51,
+      "community_name": "asyncio",
+      "norm_label": "should persist an event with json payload."
+    },
+    {
+      "label": "Should persist a Store with all required fields.",
+      "file_type": "rationale",
+      "source_file": "backend/tests/test_models.py",
+      "source_location": "L22",
+      "_origin": "ast",
+      "id": "backend_tests_test_models_rationale_22",
+      "community": 51,
+      "community_name": "asyncio",
+      "norm_label": "should persist a store with all required fields."
+    },
+    {
+      "label": "Should persist a Supplier.",
+      "file_type": "rationale",
+      "source_file": "backend/tests/test_models.py",
+      "source_location": "L42",
+      "_origin": "ast",
+      "id": "backend_tests_test_models_rationale_42",
+      "community": 51,
+      "community_name": "asyncio",
+      "norm_label": "should persist a supplier."
+    },
+    {
+      "label": "Should persist a Product linked to a Supplier.",
+      "file_type": "rationale",
+      "source_file": "backend/tests/test_models.py",
+      "source_location": "L60",
+      "_origin": "ast",
+      "id": "backend_tests_test_models_rationale_60",
+      "community": 51,
+      "community_name": "asyncio",
+      "norm_label": "should persist a product linked to a supplier."
+    },
+    {
+      "label": "Should persist a Customer linked to a home Store.",
+      "file_type": "rationale",
+      "source_file": "backend/tests/test_models.py",
+      "source_location": "L91",
+      "_origin": "ast",
+      "id": "backend_tests_test_models_rationale_91",
+      "community": 51,
+      "community_name": "asyncio",
+      "norm_label": "should persist a customer linked to a home store."
     },
     {
       "label": "risks.py",
@@ -21779,7 +21779,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "components/PhoneMockup.tsx",
-      "source_location": "L44",
+      "source_location": "L45",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_phonemockup_phonemockup",
@@ -30238,7 +30238,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "components/PhoneMockup.tsx",
-      "source_location": "L20",
+      "source_location": "L21",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_phonemockup",
@@ -30250,7 +30250,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "components/PhoneMockup.tsx",
-      "source_location": "L21",
+      "source_location": "L22",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_phonemockup",
@@ -30262,7 +30262,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "components/PhoneMockup.tsx",
-      "source_location": "L22",
+      "source_location": "L23",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_phonemockup",
@@ -30274,7 +30274,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "components/PhoneMockup.tsx",
-      "source_location": "L23",
+      "source_location": "L24",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_phonemockup",
@@ -30286,7 +30286,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "components/PhoneMockup.tsx",
-      "source_location": "L23",
+      "source_location": "L24",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_phonemockup",
@@ -32902,7 +32902,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "components/PhoneMockup.tsx",
-      "source_location": "L20",
+      "source_location": "L21",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_phonemockup",
@@ -32914,7 +32914,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "components/PhoneMockup.tsx",
-      "source_location": "L21",
+      "source_location": "L22",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_phonemockup",
@@ -32926,7 +32926,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "components/PhoneMockup.tsx",
-      "source_location": "L22",
+      "source_location": "L23",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_phonemockup",
@@ -32938,7 +32938,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "components/PhoneMockup.tsx",
-      "source_location": "L23",
+      "source_location": "L24",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_phonemockup",
@@ -40794,7 +40794,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "components/PhoneMockup.tsx",
-      "source_location": "L25",
+      "source_location": "L26",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_phonemockup",
@@ -43093,18 +43093,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "JOURNAL.md",
-      "source_location": "L102",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "journal_log_entries",
-      "target": "journal_grocer_ui_aesthetics_3_column_cockpit_phase_3_4_5_6_engines_phase_7_live_integration_2026_08_27",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "JOURNAL.md",
-      "source_location": "L133",
+      "source_location": "L128",
       "weight": 1.0,
       "_origin": "ast",
       "source": "journal_log_entries",
@@ -43115,7 +43104,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "JOURNAL.md",
-      "source_location": "L142",
+      "source_location": "L137",
       "weight": 1.0,
       "_origin": "ast",
       "source": "journal_log_entries",
@@ -43126,7 +43115,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "JOURNAL.md",
-      "source_location": "L152",
+      "source_location": "L147",
       "weight": 1.0,
       "_origin": "ast",
       "source": "journal_log_entries",
@@ -43141,14 +43130,14 @@
       "weight": 1.0,
       "_origin": "ast",
       "source": "journal_log_entries",
-      "target": "journal_grocer_iphone_mockup_pure_whatsapp_refinement_semantic_multi_color_migration_2026_09_04",
+      "target": "journal_grocer_iphone_chassis_calibrated_to_290px_button_label_glitch_fixed_whatsapp_spacing_refined_2026_09_04",
       "confidence_score": 1.0
     },
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "JOURNAL.md",
-      "source_location": "L186",
+      "source_location": "L181",
       "weight": 1.0,
       "_origin": "ast",
       "source": "journal_log_entries",
@@ -43159,7 +43148,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "JOURNAL.md",
-      "source_location": "L209",
+      "source_location": "L204",
       "weight": 1.0,
       "_origin": "ast",
       "source": "journal_log_entries",
@@ -43170,7 +43159,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "JOURNAL.md",
-      "source_location": "L39",
+      "source_location": "L34",
       "weight": 1.0,
       "_origin": "ast",
       "source": "journal_log_entries",
@@ -43181,11 +43170,22 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "JOURNAL.md",
-      "source_location": "L66",
+      "source_location": "L61",
       "weight": 1.0,
       "_origin": "ast",
       "source": "journal_log_entries",
       "target": "journal_grocer_phase_9_customer_whatsapp_integration_phase_10_hardening_polish_2026_08_28",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "JOURNAL.md",
+      "source_location": "L97",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "journal_log_entries",
+      "target": "journal_grocer_ui_aesthetics_3_column_cockpit_phase_3_4_5_6_engines_phase_7_live_integration_2026_08_27",
       "confidence_score": 1.0
     },
     {
@@ -52918,5 +52918,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "6470f27cda050a693d53335e637d6b331c2c5417"
+  "built_at_commit": "654bc798157eb1c13c6c650ad6614474f7d01c0c"
 }

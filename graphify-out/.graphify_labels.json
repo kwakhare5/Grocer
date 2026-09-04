@@ -11,6 +11,7 @@
   "9": "test_forecast_api.py",
   "10": "README.md",
   "11": "dependencies",
+  "12": "simulation/engine.py",
   "13": "test_agent_api.py",
   "14": "EventBus",
   "15": "test_risk_api.py",
@@ -30,9 +31,9 @@
   "29": "compute_confidence",
   "30": "Changes Made",
   "31": "apiClient.ts",
-  "32": "SimulationStatus",
+  "32": "Simulation",
   "33": "Log Entries",
-  "34": "SimulationClock",
+  "34": "test_simulation.py",
   "35": "DemandPoint",
   "36": "test_forecasting.py",
   "37": "RecommendationCard.tsx",
@@ -49,6 +50,7 @@
   "48": "runner.py",
   "49": "tools.py",
   "50": "29. Core data model",
+  "51": "asyncio",
   "52": "risks.py",
   "53": "45. Implementation plan",
   "54": "GROCER v2 — Complete UI, Colors, Buttons, Layout & Screen Flows Specification",
@@ -91,6 +93,5 @@
   "96": "api/__init__.py",
   "97": "backend/__init__.py",
   "98": "tests/__init__.py",
-  "99": "GrocerFooter.tsx",
-  "100": "GrocerHero.tsx"
+  "99": "GrocerFooter.tsx"
 }

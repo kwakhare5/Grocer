@@ -11,7 +11,7 @@
   "9": "test_forecast_api.py",
   "10": "README.md",
   "11": "dependencies",
-  "12": "asyncio",
+  "12": "simulation/engine.py",
   "13": "test_agent_api.py",
   "14": "EventBus",
   "15": "test_risk_api.py",
@@ -50,7 +50,7 @@
   "48": "runner.py",
   "49": "tools.py",
   "50": "29. Core data model",
-  "51": "simulation/engine.py",
+  "51": "asyncio",
   "52": "risks.py",
   "53": "45. Implementation plan",
   "54": "GROCER v2 — Complete UI, Colors, Buttons, Layout & Screen Flows Specification",
@@ -65,6 +65,7 @@
   "63": "32. API contract",
   "64": "6. Locked scope",
   "65": "eslint.config.mjs",
+  "66": "GrocerHero.tsx",
   "67": "next.config.ts",
   "68": "next-env.d.ts",
   "69": "postcss.config.mjs",
@@ -93,6 +94,5 @@
   "96": "api/__init__.py",
   "97": "backend/__init__.py",
   "98": "tests/__init__.py",
-  "99": "GrocerFooter.tsx",
-  "100": "GrocerHero.tsx"
+  "99": "GrocerFooter.tsx"
 }

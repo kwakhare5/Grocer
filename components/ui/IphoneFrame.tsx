@@ -26,26 +26,26 @@ export function IphoneFrame({
       }}
       {...props}
     >
-      {/* Black Bezel Backing Plate - sits behind children under hardware bezel overlay */}
+      {/* Black Bezel Backing Plate */}
       <div
-        className="absolute z-0 bg-black rounded-[44px]"
+        className="absolute z-0 bg-black rounded-[24px]"
         style={{
-          left: "3.2%",
-          top: "1.5%",
-          width: "93.6%",
-          height: "97.0%",
+          left: "5.39%",
+          top: "2.53%",
+          width: "89.17%",
+          height: "94.92%",
         }}
       />
 
-      {/* App Screen Content Container - extends 3px UNDER chassis bezel overlay on all 4 sides so z-20 chassis overlays edges seamlessly */}
+      {/* App Screen Content Container */}
       {children && (
         <div
-          className="absolute z-10 overflow-hidden text-left bg-black rounded-[44px]"
+          className="absolute z-10 overflow-hidden text-left bg-black rounded-[24px]"
           style={{
-            left: "3.2%",
-            top: "1.5%",
-            width: "93.6%",
-            height: "97.0%",
+            left: "5.39%",
+            top: "2.53%",
+            width: "89.17%",
+            height: "94.92%",
             transform: "translateZ(0)",
             backfaceVisibility: "hidden",
           }}
@@ -54,11 +54,11 @@ export function IphoneFrame({
         </div>
       )}
 
-      {/* iPhone 16 Pro Authentic Chassis & Hardware Bezel Overlay Image */}
+      {/* iPhone 17 Pro Authentic Chassis Overlay Image */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src="/iphone-16-pro-frame.png"
-        alt="iPhone 16 Pro Chassis"
+        src="/iPhone 17 Pro frame.png"
+        alt="iPhone 17 Pro Chassis"
         style={{ imageRendering: "auto" }}
         className="absolute inset-0 w-full h-full pointer-events-none z-20 object-fill select-none"
       />

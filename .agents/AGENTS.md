@@ -35,16 +35,11 @@ npm run lint     # Run ESLint validation
 ---
 
 ## 5. SESSION RESUME
-- **Current State:** Compact iPhone 16 Pro Chassis (275px) & Site-Wide Copy Overhaul Completed.
-  - **Phone Sizing & Chassis:** Reverted phone width strictly to `275px` (`aspect-[1800/3680]`) with accurate Dynamic Island inset (`pt-9`), eliminating all oversized appearance.
-  - **WhatsApp Header & Call Icons:** Streamlined top bar to `Grocer Assistant ✓` and `Online`, with crisp 14px Video & Phone icons in `#007AFF`. Removed messy reset buttons from header; placed contextual `↺ Restart Demo` in chat.
-  - **Native In-Bubble Actions:** Authentic WhatsApp Business quick reply cells attached directly to message cards with crisp hairlines (`border-t border-zinc-150 divide-y`).
-  - **Site-Wide Human Copy Overhaul (`/no-ai-slop`):** Stripped robotic jargon across all pages. Simplified navigation to `Home`, `Store Operations`, `WhatsApp Demo`; calculator to `Household Consumption Estimator`; developer section to `Developer Endpoints`; operations sub-bar to `Inventory Table`, `Transfer Decisions`, `Dark Store Map`; and customer view to `Customer WhatsApp & Pantry Simulator`.
-  - **Code Quality & Build:** `npm run build` (Turbopack) passes cleanly in 6.9s with 0 errors; `npm run lint` passes with 0 errors and 0 warnings. Codebase graph synchronized via `graphify update .`.
-- **Immediate next task:** Production deployment and demo walkthrough.
+- **Current State:** iPhone Chassis Calibrated to 290px, Duplicate Label Glitch Fixed & WhatsApp Spacing Refined.
+  - **Chassis Dimensions:** Calibrated phone chassis to `290px` (`w-[290px] h-[593px] aspect-[1800/3680]`) in both `GrocerHero.tsx` and `PhoneMockup.tsx`.
+  - **Duplicate Plus Glitch:** Fixed `+ + Bread` to single `<Plus /> <span>Add Bread (₹50)</span>` in `PhoneMockup.tsx`.
+  - **Quick Action Ergonomics:** Upgraded quick reply button rows to `py-2` for full-width buttons and `py-1.5 px-2` for split rows (`Remind Later` | `Not Now`) with centered Lucide `Clock` icon and hairline dividers.
+  - **Bubble Typography & Spacing:** Refined body copy to `10px`, timestamps to `7.5px`, card padding to `p-2.5`, and max bubble width to `90%`.
+  - **Code Quality & Build:** `npm run build` passes cleanly in 5.3s with 0 errors; `npm run lint` passes with 0 warnings. Code graph updated.
+- **Immediate next task:** Production deployment or customer walkthrough.
 - **Open blockers:** None.
-
-
-
-
-

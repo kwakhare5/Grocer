@@ -89,9 +89,9 @@ export function GrocerHero({ onLaunchCockpit, onLaunchCustomer }: GrocerHeroProp
             </div>
           </div>
 
-          {/* Right Column: Clean Standalone iPhone 16 Pro Mockup */}
+          {/* Right Column: Clean Standalone iPhone 17 Pro Mockup */}
           <div className="lg:col-span-5 flex flex-col justify-center items-center">
-            <div className="w-[275px] h-[562px] aspect-[1800/3680] shrink-0 relative z-10 mx-auto">
+            <div className="w-[290px] h-[593px] aspect-[1800/3680] shrink-0 relative z-10 mx-auto">
               <PhoneMockup />
             </div>
           </div>

@@ -1,78 +1,91 @@
 "use client";
 
 import React from "react";
-import { ArrowUpRight, ShieldCheck, Cpu } from "lucide-react";
+import { ArrowUpRight, ShieldCheck, Cpu, Zap } from "lucide-react";
 import PhoneMockup from "../PhoneMockup";
-import { PillButton } from "../ui/PillButton";
 import { WhatsAppIcon } from "../ui/WhatsAppIcon";
 
-export function GrocerHero() {
+interface GrocerHeroProps {
+  onLaunchCockpit?: () => void;
+  onLaunchCustomer?: () => void;
+}
+
+export function GrocerHero({ onLaunchCockpit, onLaunchCustomer }: GrocerHeroProps) {
   return (
-    <section id="demo" className="relative pt-8 sm:pt-14 pb-16 md:pb-24 overflow-hidden bg-[#FCFCFD]">
+    <section id="problem" className="relative pt-8 sm:pt-14 pb-14 md:pb-20 overflow-hidden bg-[#FAFAFA]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
         {/* Main 2-Column Hero Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
           
           {/* Left Column: Headline, Subtitle, CTAs & Value Props */}
-          <div className="lg:col-span-7 space-y-6 text-left">
-            {/* Prominent, Balanced Under-Construction Card */}
-            <div className="inline-flex items-start sm:items-center gap-3 bg-amber-500/10 border-2 border-amber-500/25 px-4.5 py-3 sm:px-5 sm:py-3.5 rounded-2xl text-amber-950 shadow-xs max-w-2xl">
-              <span className="text-xl sm:text-2xl shrink-0 mt-0.5 sm:mt-0 select-none">🚧</span>
-              <p className="text-[13.5px] sm:text-[14.5px] font-medium leading-snug sm:leading-relaxed">
-                <strong className="font-bold text-amber-900">Under construction:</strong> This prototype was submitted for review and is still being actively built, so some things may not work. Sorry about that, and thank you for checking it out!
-              </p>
+          <div className="lg:col-span-7 space-y-5 text-left">
+            {/* Status Pill */}
+            <div className="inline-flex items-center gap-2 bg-blue-50 border border-blue-200 px-3 py-1 rounded-full text-blue-900 text-xs font-semibold">
+              <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
+              <span>Grocery Inventory Balancing & Restock</span>
             </div>
 
-            <h1 className="font-serif font-normal text-3xl sm:text-4xl lg:text-[48px] tracking-tight text-gray-950 leading-[1.12]">
-              Predicting staple depletion before households run empty.
+            <h1 className="font-display font-bold text-3xl sm:text-5xl lg:text-[50px] tracking-tight text-zinc-950 leading-[1.12]">
+              Stop grocery stockouts before they happen.
             </h1>
 
-            <p className="text-sm sm:text-base text-gray-500 font-normal leading-relaxed max-w-2xl">
-              Zero manual app searching. Prophet ML calculates per-household consumption velocity and sends a 1-tap WhatsApp restocking prompt 24 hours before stockout.
+            <p className="text-sm sm:text-base text-zinc-600 font-normal leading-relaxed max-w-2xl">
+              Predict household grocery depletion and balance inventory across dark store networks with automatic WhatsApp reorders.
             </p>
 
-            {/* Core Architectural Pillars */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
-              <div className="bg-white p-3.5 rounded-xl border border-gray-200/80 shadow-2xs space-y-1">
-                <div className="flex items-center gap-1.5 text-emerald-700 font-bold text-xs font-display">
-                  <WhatsAppIcon className="w-4 h-4 shrink-0" />
-                  <span>Proactive Nudge</span>
+            {/* Core Pillars (12px Card Radius) */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+              <div className="bg-white p-3.5 rounded-xl border border-zinc-200 shadow-2xs space-y-1">
+                <div className="flex items-center gap-1.5 text-blue-800 font-bold text-xs">
+                  <WhatsAppIcon className="w-3.5 h-3.5 shrink-0" />
+                  <span>WhatsApp Orders</span>
                 </div>
-                <p className="text-[11px] text-gray-500 leading-snug">
-                  1-tap WhatsApp prompt delivered 24h before stock runs dry.
+                <p className="text-[11.5px] text-zinc-500 leading-snug">
+                  Customers reorder in 1 tap before items run out.
                 </p>
               </div>
 
-              <div className="bg-white p-3.5 rounded-xl border border-gray-200/80 shadow-2xs space-y-1">
-                <div className="flex items-center gap-1.5 text-sky-700 font-bold text-xs font-display">
-                  <Cpu className="w-4 h-4 text-sky-600 shrink-0" />
-                  <span>Prophet ML</span>
+              <div className="bg-white p-3.5 rounded-xl border border-zinc-200 shadow-2xs space-y-1">
+                <div className="flex items-center gap-1.5 text-sky-800 font-bold text-xs">
+                  <Cpu className="w-3.5 h-3.5 text-sky-600 shrink-0" />
+                  <span>Store Transfers</span>
                 </div>
-                <p className="text-[11px] text-gray-500 leading-snug">
-                  Tracks velocity & excludes vacation gaps and bulk spikes.
+                <p className="text-[11.5px] text-zinc-500 leading-snug">
+                  Move excess stock between nearby stores before shelves empty.
                 </p>
               </div>
 
-              <div className="bg-white p-3.5 rounded-xl border border-gray-200/80 shadow-2xs space-y-1">
-                <div className="flex items-center gap-1.5 text-purple-700 font-bold text-xs font-display">
-                  <ShieldCheck className="w-4 h-4 text-purple-600 shrink-0" />
-                  <span>LangGraph Agent</span>
+              <div className="bg-white p-3.5 rounded-xl border border-zinc-200 shadow-2xs space-y-1">
+                <div className="flex items-center gap-1.5 text-purple-800 font-bold text-xs">
+                  <ShieldCheck className="w-3.5 h-3.5 text-purple-600 shrink-0" />
+                  <span>Freshness Protection</span>
                 </div>
-                <p className="text-[11px] text-gray-500 leading-snug">
-                  5-node execution state machine dispatches to dark store.
+                <p className="text-[11.5px] text-zinc-500 leading-snug">
+                  Discount and move near-expiry perishables to cut waste.
                 </p>
               </div>
             </div>
 
-            {/* Action CTAs */}
+            {/* Action CTAs (8px Button Radius) */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-2">
-              <PillButton href="#demo" variant="primary">
-                <span>Test Interactive Demo</span>
-                <ArrowUpRight className="w-4 h-4 ml-1.5" />
-              </PillButton>
-              <PillButton href="#features" variant="secondary">
-                View Architecture Spec
-              </PillButton>
+              <button
+                type="button"
+                onClick={onLaunchCockpit}
+                className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-2xs transition-all cursor-pointer active:scale-97"
+              >
+                <Zap className="w-3.5 h-3.5 text-blue-200" />
+                <span>Launch Store Operations</span>
+                <ArrowUpRight className="w-3.5 h-3.5 text-blue-100" />
+              </button>
+
+              <button
+                type="button"
+                onClick={onLaunchCustomer}
+                className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-white hover:bg-zinc-50 border border-zinc-200 hover:border-zinc-300 text-zinc-900 font-semibold text-xs transition-all cursor-pointer active:scale-97"
+              >
+                <WhatsAppIcon className="w-3.5 h-3.5" />
+                <span>Test WhatsApp Demo</span>
+              </button>
             </div>
           </div>
 
@@ -88,3 +101,5 @@ export function GrocerHero() {
     </section>
   );
 }
+
+

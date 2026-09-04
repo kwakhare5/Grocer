@@ -1,9 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Database, MessageSquare, ShoppingCart, TrendingDown, Check, Copy, Terminal, Play, CheckCircle2 } from "lucide-react";
-import { PillBadge } from "../ui/PillBadge";
-import { CardSurface } from "../ui/CardSurface";
+import { Database, MessageSquare, ShoppingCart, Cpu, Check, Copy, Terminal, Play, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 
 export function GrocerIntegrations() {
@@ -17,60 +15,58 @@ export function GrocerIntegrations() {
       step: "01",
       name: "Order Ingest Webhook",
       endpoint: "POST /api/v1/orders/ingest",
-      description: "Passes order timestamps & quantity data to the Prophet ML forecaster.",
+      description: "Logs order timestamps and item quantities to update household consumption estimates.",
       icon: Database,
-      apiEndpoint: "/api/webhook/whatsapp",
-      apiMethod: "POST",
-      apiBody: { phone: "+919999999999", message: "SYNC_ORDER_INGEST" },
       payload: `curl -X POST "http://localhost:8000/api/v1/orders/ingest" \\
   -H "Content-Type: application/json" \\
   -d '{
     "user_id": "demo_user_001",
     "order_id": "ORD-9281",
-    "items": [{"item_id": "milk", "quantity": 1, "unit": "L"}]
+    "items": [{"item_id": "milk_1l", "quantity": 1, "unit": "L"}]
   }'`
     },
     {
       step: "02",
-      name: "WhatsApp Quick Reply",
+      name: "WhatsApp Restock Alert",
       endpoint: "WhatsApp Cloud API Webhook",
-      description: "Triggers 1-tap interactive confirmation alerts 24h prior to stockout.",
+      description: "Sends quick-reply restock reminders to customers 24 hours before staples run out.",
       icon: MessageSquare,
-      apiEndpoint: "/api/webhook/whatsapp",
-      apiMethod: "POST",
-      apiBody: { phone: "+919999999999", message: "YES" },
       payload: `curl -X POST "http://localhost:8000/api/webhook/whatsapp" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "phone": "+919999999999",
+    "phone": "+919820192831",
     "message": "YES"
   }'`
     },
     {
       step: "03",
-      name: "Simulated Dark Store Checkout",
+      name: "Dark Store Order Queue",
       endpoint: "POST /api/restock/order",
-      description: "LangGraph agent dispatches the restock order to mock dark store endpoints.",
+      description: "Routes approved customer orders directly to the nearest store fulfillment queue.",
       icon: ShoppingCart,
-      apiEndpoint: "/api/webhook/whatsapp",
-      apiMethod: "POST",
-      apiBody: { phone: "+919999999999", message: "CHECKOUT_DEMO" },
       payload: `curl -X POST "http://localhost:8000/api/restock/order" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "household_id": "hh_demo_01",
-    "items": ["milk_1l", "tomatoes_500g"]
+    "household_id": "hh_bandra_01",
+    "store_code": "MUM-BW-01",
+    "items": ["amul_milk_1l", "wheat_bread_400g"]
   }'`
     },
     {
       step: "04",
-      name: "Commodity Price Feed",
-      endpoint: "GET /api/prices/alerts",
-      description: "Watches market prices & suggests stock-up alerts when staples dip.",
-      icon: TrendingDown,
-      apiEndpoint: "/api/prices/alerts?user_id=demo_user_001",
-      apiMethod: "GET",
-      payload: `curl -X GET "http://localhost:8000/api/prices/alerts?user_id=demo_user_001"`
+      name: "Store Stock Transfer",
+      endpoint: "POST /api/recommendations/{id}/approve",
+      description: "Authorizes and schedules inventory transfers between nearby stores.",
+      icon: Cpu,
+      payload: `curl -X POST "http://localhost:8000/api/recommendations/rec_04_transfer/approve" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "operator_id": "ops_lead",
+    "action_type": "TRANSFER",
+    "quantity": 20,
+    "source_store": "Store 02",
+    "destination_store": "Store 04"
+  }'`
     },
   ];
 
@@ -79,7 +75,7 @@ export function GrocerIntegrations() {
   const handleCopy = () => {
     navigator.clipboard.writeText(currentStep.payload);
     setCopied(true);
-    toast.success("cURL command copied to clipboard!");
+    toast.success("cURL command copied to clipboard");
     setTimeout(() => setCopied(false), 2000);
   };
 
@@ -88,7 +84,7 @@ export function GrocerIntegrations() {
     setLiveResponse(null);
     const start = performance.now();
 
-    await new Promise((resolve) => setTimeout(resolve, 350));
+    await new Promise((resolve) => setTimeout(resolve, 300));
     const end = performance.now();
     const latency = Math.round(end - start);
 
@@ -101,7 +97,7 @@ export function GrocerIntegrations() {
         order_id: "ORD-9281",
         items_processed: 1,
         prophet_velocity_updated: {
-          milk_1l: { daily_rate: "0.48L/day", confidence: 0.94, days_to_stockout: 1.2 }
+          milk_1l: { daily_rate: "0.48L/day", confidence: 0.94, hours_to_stockout: 28 }
         },
         timestamp: new Date().toISOString()
       };
@@ -109,34 +105,42 @@ export function GrocerIntegrations() {
       sampleData = {
         status: "success",
         channel: "whatsapp_cloud_api",
-        recipient: "+919999999999",
+        recipient: "+919820192831",
         template: "staple_depletion_alert_v2",
-        dispatched_items: ["milk_1l", "bread_400g"],
-        quick_reply_buttons: ["YES", "ADD_BREAD", "REMIND_LATER"],
-        delivery_status: "delivered_read",
+        dispatched_items: ["Fresh Milk 1L", "Whole Wheat Bread 400g"],
+        quick_reply_buttons: ["YES", "REMIND_LATER", "SKIP"],
+        delivery_status: "delivered",
         timestamp: new Date().toISOString()
       };
     } else if (activeStepIndex === 2) {
       sampleData = {
         status: "confirmed",
-        order_id: "ZEP-MOCK-4029",
-        store: "Zepto Dark Store (Green Park)",
+        order_id: "ZEP-ORD-8821",
+        fulfillment_store: "Bandra West Dark Store (MUM-BW-01)",
         cart_total: 116.00,
         items: [
           { sku: "amul_milk_1l", qty: 1, price: 66.00 },
           { sku: "wheat_bread_400g", qty: 1, price: 50.00 }
         ],
         eta_minutes: 10,
-        state_machine_nodes: ["check_pantry", "generate_alert", "parse_user_reply", "build_cart", "execute_order"],
         timestamp: new Date().toISOString()
       };
     } else {
       sampleData = {
-        status: "active_signals",
-        signals: [
-          { item: "Tomatoes 500g", current: 48, avg_30d: 20, type: "SPIKE", change: "+140%" },
-          { item: "Sunflower Oil 1L", current: 98, avg_30d: 127, type: "DIP", change: "-23%", recommendation: "Stock Up 2 Units" }
+        status: "APPROVED_AND_EXECUTED",
+        recommendation_id: "rec_04_transfer",
+        action: "TRANSFER",
+        quantity: 20,
+        source: "St 02 (Bandra West)",
+        destination: "St 04 (Lower Parel)",
+        agent_precheck: "PASSED (Safe excess verified: 35L available)",
+        agent_nodes_executed: [
+          "1. validate_approval",
+          "2. check_inventory_freshness",
+          "3. dispatch_fleet_courier",
+          "4. verify_stock_balance"
         ],
+        stockout_prevented: true,
         timestamp: new Date().toISOString()
       };
     }
@@ -151,128 +155,126 @@ export function GrocerIntegrations() {
   };
 
   return (
-    <section id="integrations" className="py-20 md:py-28 bg-[#FCFCFD] border-t border-gray-200/40">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-14">
-        {/* Dual-Layer Header */}
-        <div className="text-center space-y-3 max-w-2xl mx-auto">
-          <PillBadge variant="kicker" color="sky">
-            Conceptual Webhook Integration
-          </PillBadge>
-          <h2 className="font-serif font-normal text-3xl sm:text-4xl lg:text-[44px] tracking-tight text-gray-950 leading-[1.15]">
-            How Grocer Connects to Quick Commerce Backends
-          </h2>
-          <p className="text-sm text-gray-500 font-normal">
-            Grocer passes order history to Prophet ML and dispatches 1-tap WhatsApp restock alerts with zero mobile app updates.
-          </p>
+    <section id="integrations" className="py-16 md:py-24 bg-[#FAFAFA] border-t border-zinc-200">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
+        
+        {/* Two-Column Header */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-end">
+          <div className="lg:col-span-7 space-y-2">
+            <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-blue-800 bg-blue-50 px-2.5 py-0.5 rounded border border-blue-200 inline-block">
+              Developer Endpoints
+            </span>
+            <h2 className="font-sans font-bold text-2xl sm:text-3xl lg:text-4xl tracking-tight text-zinc-950">
+              API & Webhook Integrations
+            </h2>
+          </div>
+          <div className="lg:col-span-5">
+            <p className="text-xs sm:text-sm text-zinc-600 font-normal leading-relaxed">
+              Connect your store inventory, order processing, and WhatsApp messaging.
+            </p>
+          </div>
         </div>
 
-        {/* Step Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {integrationSteps.map((item, idx) => {
-            const IconComponent = item.icon;
-            const isActive = idx === activeStepIndex;
-
-            return (
-              <CardSurface
-                key={item.name}
-                variant={isActive ? "accent" : "default"}
-                onClick={() => {
-                  setActiveStepIndex(idx);
-                  setLiveResponse(null);
-                }}
-                className={`flex flex-col justify-between h-full space-y-4 cursor-pointer transition-all ${
-                  isActive ? "ring-2 ring-sky-500/80 border-sky-300" : "hover:border-gray-300"
-                }`}
-              >
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center border ${
-                      isActive ? "bg-sky-600 text-white border-sky-500" : "bg-sky-50 text-sky-700 border-sky-100"
-                    }`}>
-                      <IconComponent className="w-4 h-4" />
-                    </div>
-                    <span className="text-[10px] font-bold text-gray-400 font-mono">
-                      STEP {item.step}
+        {/* Interactive 4-Step Terminal Switcher */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          
+          {/* Left Column: 4 Clean Tabs */}
+          <div className="lg:col-span-4 space-y-2.5">
+            {integrationSteps.map((step, idx) => {
+              const Icon = step.icon;
+              const isActive = activeStepIndex === idx;
+              return (
+                <button
+                  key={step.step}
+                  type="button"
+                  onClick={() => {
+                    setActiveStepIndex(idx);
+                    setLiveResponse(null);
+                  }}
+                  className={`w-full text-left p-3.5 rounded-xl border transition-all cursor-pointer ${
+                    isActive
+                      ? "bg-white border-blue-600 shadow-2xs ring-1 ring-blue-500"
+                      : "bg-white border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50"
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[10px] font-bold text-zinc-400 font-mono">
+                      STEP {step.step}
                     </span>
+                    <Icon className={`w-3.5 h-3.5 ${isActive ? "text-blue-600" : "text-zinc-400"}`} />
                   </div>
-                  <h3 className="text-[15px] font-bold text-gray-950 font-display">{item.name}</h3>
-                  <p className="text-xs text-gray-500 font-normal leading-relaxed">{item.description}</p>
-                </div>
-
-                <div className="pt-2 border-t border-gray-100">
-                  <span className="text-[9px] font-bold text-sky-800 bg-sky-50 px-2 py-1 rounded-md border border-sky-100 font-mono block truncate">
-                    {item.endpoint}
+                  <h4 className="text-xs font-bold text-zinc-950 mb-0.5">
+                    {step.name}
+                  </h4>
+                  <span className="text-[9.5px] font-bold text-zinc-700 bg-zinc-50 px-2 py-0.5 rounded border border-zinc-200 font-mono block truncate">
+                    {step.endpoint}
                   </span>
-                </div>
-              </CardSurface>
-            );
-          })}
-        </div>
-
-        {/* Interactive Code & Live API Execution Terminal */}
-        <div className="max-w-4xl mx-auto rounded-2xl bg-white border border-gray-200/90 shadow-[0_2px_12px_rgba(0,0,0,0.03)] overflow-hidden text-left space-y-0">
-          <div className="px-4 py-3 bg-slate-50/80 border-b border-gray-200/80 flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <Terminal className="w-4 h-4 text-sky-700" />
-              <span className="text-xs font-bold text-gray-900 font-mono">
-                {currentStep.name} — {currentStep.endpoint}
-              </span>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handleRunLiveApi}
-                disabled={isRunning}
-                className="text-xs font-bold text-emerald-700 hover:text-emerald-950 bg-emerald-50 hover:bg-emerald-100 px-3 py-1 rounded-lg flex items-center gap-1.5 transition-all cursor-pointer border border-emerald-200 shadow-2xs disabled:opacity-50"
-              >
-                <Play className="w-3.5 h-3.5 fill-current" />
-                <span>{isRunning ? "Running..." : "Run Live API Request"}</span>
-              </button>
-
-              <button
-                onClick={handleCopy}
-                className="text-xs font-bold text-gray-700 hover:text-gray-950 bg-white hover:bg-gray-100 px-3 py-1 rounded-lg flex items-center gap-1.5 transition-all cursor-pointer border border-gray-200 shadow-2xs"
-              >
-                {copied ? (
-                  <>
-                    <Check className="w-3.5 h-3.5 text-emerald-600" />
-                    <span className="text-emerald-700">Copied!</span>
-                  </>
-                ) : (
-                  <>
-                    <Copy className="w-3.5 h-3.5 text-gray-500" />
-                    <span>Copy cURL</span>
-                  </>
-                )}
-              </button>
-            </div>
+                </button>
+              );
+            })}
           </div>
 
-          <div className="p-4 sm:p-6 overflow-x-auto font-mono text-xs text-sky-950 leading-relaxed bg-[#F8FAFC]">
-            <pre><code>{currentStep.payload}</code></pre>
-          </div>
-
-          {/* Live Executed API Response Payload Box */}
-          {liveResponse && (
-            <div className="p-4 border-t border-emerald-200 bg-emerald-50/50 space-y-2 text-left">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-emerald-800 font-mono flex items-center gap-1.5">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                  HTTP {liveResponse.status} OK • Live API Payload Received
-                </span>
-                <span className="text-[10px] font-mono font-bold text-emerald-700 bg-white px-2 py-0.5 rounded border border-emerald-200">
-                  Latency: {liveResponse.latency}ms
+          {/* Right Column: Code Payload & Live Execution Terminal */}
+          <div className="lg:col-span-8 bg-white rounded-xl border border-zinc-200 shadow-2xs overflow-hidden">
+            
+            {/* Terminal Top Bar */}
+            <div className="px-4 py-3 bg-zinc-50 border-b border-zinc-200 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Terminal className="w-3.5 h-3.5 text-zinc-500" />
+                <span className="text-xs font-bold text-zinc-900 font-mono">
+                  {currentStep.endpoint}
                 </span>
               </div>
-              <pre className="p-3 bg-white rounded-lg border border-emerald-200/80 font-mono text-[11px] text-gray-800 overflow-x-auto">
-                <code>{liveResponse.data}</code>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleCopy}
+                  className="flex items-center gap-1 text-[10px] font-bold text-zinc-700 bg-white hover:bg-zinc-100 border border-zinc-200 px-2.5 py-1 rounded transition-all cursor-pointer"
+                >
+                  {copied ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                  <span>{copied ? "Copied" : "Copy cURL"}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleRunLiveApi}
+                  disabled={isRunning}
+                  className="flex items-center gap-1.5 text-[10px] font-bold text-white bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded shadow-2xs transition-all cursor-pointer disabled:opacity-50"
+                >
+                  <Play className={`w-2.5 h-2.5 fill-current ${isRunning ? "animate-spin text-blue-200" : "text-white"}`} />
+                  <span>{isRunning ? "Sending..." : "Test Endpoint"}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Code Payload Editor */}
+            <div className="p-4 sm:p-5 overflow-x-auto font-mono text-xs text-zinc-900 leading-relaxed bg-[#FBFBFC]">
+              <pre className="text-[11.5px] text-zinc-800 leading-normal">
+                <code>{currentStep.payload}</code>
               </pre>
             </div>
-          )}
+
+            {/* Live Response Drawer */}
+            {liveResponse && (
+              <div className="border-t border-zinc-200 bg-blue-50/40 p-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold text-blue-900 font-mono flex items-center gap-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                    Response Received (HTTP {liveResponse.status} OK)
+                  </span>
+                  <span className="text-[10px] font-mono font-bold text-blue-800 bg-white px-2 py-0.5 rounded border border-blue-200">
+                    Latency: {liveResponse.latency}ms
+                  </span>
+                </div>
+                <pre className="p-3 bg-white rounded-lg border border-blue-200/80 font-mono text-[11px] text-zinc-800 overflow-x-auto">
+                  <code>{liveResponse.data}</code>
+                </pre>
+              </div>
+            )}
+          </div>
+
         </div>
+
       </div>
     </section>
   );
 }
-
-

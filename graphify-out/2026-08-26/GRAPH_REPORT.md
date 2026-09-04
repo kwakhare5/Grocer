@@ -1,21 +1,21 @@
 # Graph Report - Grocer  (2026-08-26)
 
 ## Corpus Check
-- 44 files · ~274,504 words
+- 45 files · ~274,578 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 257 nodes · 288 edges · 28 communities (21 shown, 7 thin omitted)
+- 259 nodes · 291 edges · 28 communities (21 shown, 7 thin omitted)
 - Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `4202e435`
+- Built from commit: `15a97bcc`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
 ## Community Hubs (Navigation)
-- GrocerValueProp.tsx
+- page.tsx
 - IosNotificationBanner.tsx
 - include
 - compilerOptions
@@ -30,7 +30,7 @@
 - GROCER — Engineering Prototype & Problem Exploration
 - Component 3: Component-Wide Light Surface Transformation & Component Reuse
 - .prettierrc.json
-- page.tsx
+- GrocerHeader.tsx
 - app/layout.tsx
 - Changes Made
 - Log Entries
@@ -70,9 +70,9 @@
 
 ## Communities (28 total, 7 thin omitted)
 
-### Community 0 - "GrocerValueProp.tsx"
-Cohesion: 0.23
-Nodes (9): GrocerIntegrations(), GrocerValueProp(), GrocerVelocityCalculator(), CardSurface(), CardSurfaceProps, PillBadge(), PillBadgeProps, PantryItem (+1 more)
+### Community 0 - "page.tsx"
+Cohesion: 0.16
+Nodes (11): GrocerFAQ(), GrocerHero(), GrocerIntegrations(), GrocerValueProp(), GrocerVelocityCalculator(), CardSurface(), CardSurfaceProps, PillBadge() (+3 more)
 
 ### Community 1 - "IosNotificationBanner.tsx"
 Cohesion: 0.15
@@ -130,9 +130,9 @@ Nodes (15): Automated Tests, Component 1: Hero Section Clean Up, Component 2: De
 Cohesion: 0.18
 Nodes (10): arrowParens, bracketSpacing, endOfLine, jsxSingleQuote, printWidth, semi, singleQuote, tabWidth (+2 more)
 
-### Community 27 - "page.tsx"
-Cohesion: 0.20
-Nodes (8): GrocerFAQ(), GrocerFooter(), GrocerHeader(), GrocerHero(), GrocerLogo(), GrocerLogoProps, PillButton(), PillButtonProps
+### Community 27 - "GrocerHeader.tsx"
+Cohesion: 0.26
+Nodes (7): GrocerFooter(), GrocerHeader(), WorkInProgressBanner(), GrocerLogo(), GrocerLogoProps, PillButton(), PillButtonProps
 
 ### Community 28 - "app/layout.tsx"
 Cohesion: 0.33
@@ -161,7 +161,7 @@ _Questions this graph is uniquely positioned to answer:_
 - **Why does `dependencies` connect `dependencies` to `package.json`?**
   _High betweenness centrality (0.019) - this node is a cross-community bridge._
 - **Why does `devDependencies` connect `devDependencies` to `package.json`?**
-  _High betweenness centrality (0.018) - this node is a cross-community bridge._
+  _High betweenness centrality (0.017) - this node is a cross-community bridge._
 - **Why does `compilerOptions` connect `compilerOptions` to `include`?**
   _High betweenness centrality (0.010) - this node is a cross-community bridge._
 - **What connects `CardSurfaceProps`, `PillBadgeProps`, `PantryItem` to the rest of the system?**

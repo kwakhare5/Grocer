@@ -1,176 +1,146 @@
-<!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║          Grocer v2.0 — README                                   ║
-     ║          AI Quick-Commerce Decision & Execution System          ║
-     ╚══════════════════════════════════════════════════════════════════╝ -->
+﻿# Grocer — Proactive WhatsApp Grocery Replenishment Assistant & Swiggy Instamart CommercePort
 
-<div align="center">
+[![Next.js](https://img.shields.io/badge/Next.js-16.2.6-black?style=flat&logo=next.js)](https://nextjs.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688?style=flat&logo=fastapi)](https://fastapi.tiangolo.com/)
+[![Swiggy Instamart](https://img.shields.io/badge/Swiggy-CommercePort%20MCP-FC8019?style=flat)](https://mcp.swiggy.com/builders/llms.txt)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-3178C6?style=flat&logo=typescript)](https://typescriptlang.org/)
+[![Tailwind CSS v4](https://img.shields.io/badge/Tailwind-v4.0-38B2AC?style=flat&logo=tailwind-css)](https://tailwindcss.com/)
 
-  # GROCER v2.0
+**Grocer** is an intelligent, proactive consumer grocery replenishment assistant designed for Indian households. Rather than waiting for pantries to run empty, Grocer forecasts household staple consumption (milk, eggs, tomatoes, bread, curd) and initiates contextual, interactive WhatsApp restocking conversations. Once confirmed by the user, orders are routed seamlessly to quick-commerce delivery via **Swiggy Instamart** through an abstracted **CommercePort** adapter.
 
-  ### *AI-Assisted Quick-Commerce Inventory Decision & Execution System*
-
-  <br/>
-
-  ![Version](https://img.shields.io/badge/version-2.2.0-blue?style=for-the-badge)
-  ![Phases](https://img.shields.io/badge/phases-10%2F10%20complete-success?style=for-the-badge)
-  ![Tests](https://img.shields.io/badge/tests-286%2F286%20passing-brightgreen?style=for-the-badge)
-  ![Next.js](https://img.shields.io/badge/Next.js-16.2_(Turbopack)-black?style=for-the-badge&logo=nextdotjs&logoColor=white)
-  ![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?style=for-the-badge&logo=fastapi&logoColor=white)
-  ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-v4-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)
-
-  <br/>
-
-  <a href="#-about-the-system">About</a> &nbsp;·&nbsp;
-  <a href="#-architecture">Architecture</a> &nbsp;·&nbsp;
-  <a href="#-implementation-phases-1010-complete">Phases</a> &nbsp;·&nbsp;
-  <a href="#-the-2-minute-demo-guide">2-Min Demo Guide</a> &nbsp;·&nbsp;
-  <a href="#-key-capabilities">Key Capabilities</a> &nbsp;·&nbsp;
-  <a href="#-getting-started">Getting Started</a>
-
-</div>
+> [!NOTE]
+> **Subsystem Decoupling:**
+> This repository houses the **Consumer WhatsApp Replenishment Assistant & CommercePort**.
+> The dark store fleet operations command center has been split into its own standalone platform at [kwakhare5/Dark-store-operator](https://github.com/kwakhare5/Dark-store-operator).
 
 ---
 
-## 📌 About the System
+## 🌟 Key Highlights
 
-**GROCER v2** is an applied AI engineering prototype that connects two sides of a shared quick-commerce universe:
-
-1. **Customer Experience:** Context-aware WhatsApp assistant that detects household staple depletion (via Prophet ML) and offers 1-tap reorders.
-2. **Operations Cockpit:** A 3-column internal control center that predicts dark store stockout & spoilage risks, evaluates candidate interventions (transfer, reorder, discount, hold), explains root-cause tradeoffs, and safely executes approved actions via a 5-node LangGraph agent.
-
-```text
-OBSERVE ──► PREDICT ──► DETECT ──► EVALUATE ──► RECOMMEND ──► APPROVE ──► AGENT EXECUTION ──► VERIFY ──► MEASURE
+```
+   ┌────────────────────────────────────────────────────────┐
+   │             Household Pantry Depletion Math            │
+   │  - Daily staple run-rates (e.g. 0.48L milk/day)        │
+   │  - 25 Mumbai household profiles (diets & family sizes) │
+   └───────────────────────────┬────────────────────────────┘
+                               │ Anticipatory Trigger
+   ┌───────────────────────────▼────────────────────────────┐
+   │            WhatsApp Interactive Conversational UI      │
+   │  - iPhone 17 Pro native chat viewport                  │
+   │  - Natural restock proposals & 1-tap responses         │
+   │  - Remind later & quantity modifier controls           │
+   └───────────────────────────┬────────────────────────────┘
+                               │ Explicit Human Approval
+   ┌───────────────────────────▼────────────────────────────┐
+   │         CommercePort & Consequential Action Guard      │
+   │  - Mandatory explicit confirmation gate                │
+   │  - Abstracted Swiggy Instamart MCP & Mock Adapters     │
+   │  - Real-time cart synchronization & order dispatch     │
+   └────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 🏗️ Architecture
+## 📱 Features
 
-```text
-                         ┌────────────────────────────────────────┐
-                         │               NEXT.JS 16               │
-                         │   Operations Cockpit | WhatsApp Flow   │
-                         └───────────────────┬────────────────────┘
-                                             │
-                                     REST + WebSockets
-                                             │
-                         ┌───────────────────▼────────────────────┐
-                         │           FASTAPI MODULAR MONOLITH     │
-                         ├────────────────────────────────────────┤
-                         │  • Simulation Engine   • Forecasting   │
-                         │  • Risk Engine         • Decision ML   │
-                         │  • Customer Service    • Metrics (§28) │
-                         └───────────┬────────────────┬───────────┘
-                                     │                │
-                             ┌───────▼────────┐  ┌────▼─────────────────┐
-                             │   PostgreSQL   │  │   LangGraph Agent    │
-                             │   (SQLAlchemy) │  │   (5-Node Pipeline)  │
-                             └────────────────┘  └────────────┬─────────┘
-                                                              │
-                                                     Controlled Tools
-                                                              │
-                                                 ┌────────────▼──────────┐
-                                                 │ Inter-Store Transfers │
-                                                 │ Supplier POs & Price  │
-                                                 └───────────────────────┘
-```
+### 1. Proactive WhatsApp Conversational Restock
+- Renders an interactive, true-to-life **iPhone 17 Pro frame** with WhatsApp chat bubbles.
+- Anticipates staple depletion before breakfast or dinner:
+  > *"Good morning Rohan! Your Amul Taaza Milk has 1 day left (~15% remaining). Would you like to restock 2 packs via Swiggy Instamart for ₹132?"*
+- Supports 1-tap quick actions:
+  - **Restock Now (₹132)**
+  - **Remind Me in 2 Hours**
+  - **Skip for Now**
 
----
+### 2. Interactive Household Pantry Telemetry
+- Real-time pantry level gauges across critical grocery categories:
+  - **Dairy:** Amul Taaza Milk 1L, Fresh Malai Paneer 200g, Epigamia Greek Yogurt
+  - **Produce:** Fresh Hybrid Tomatoes 500g, Farm Fresh Red Onions 1kg, Cavendish Bananas
+  - **Poultry & Bakery:** Fresh Farm Eggs (Pack of 6), The Baker's Dozen Sourdough Bread
+  - **Pantry Staples:** Fortune Sunlite Sunflower Oil 1L, Aashirvaad Shudh Chakki Atta 5kg
+- Live depletion visualizers displaying days remaining, daily consumption rates, and reorder threshold badges.
 
-## 🚦 Implementation Phases (10/10 Complete & Verified)
+### 3. Swiggy Instamart CommercePort Integration
+- Standardized `CommercePort` interface supporting dual operational modes:
+  - **Live Swiggy MCP Server:** Dispatches live API calls to Swiggy Instamart endpoints (`/instamart/cart`, `/instamart/checkout`).
+  - **Simulated CommercePort:** High-fidelity in-memory edge fallback with full SKU catalogs and simulated rider tracking.
+- Features real-time cart inspector, address selector, and simulated live rider tracking (`ORDER_CONFIRMED` $\to$ `PACKING` $\to$ `OUT_FOR_DELIVERY` $\to$ `DELIVERED`).
 
-| Phase | Description | Status | Verification & Deliverables |
-|---|---|:---:|---|
-| **Phase 1** | Repository Audit + Cleanup | ✅ | Purged legacy SaaS marketing code, colocated phone mockup, cleaned unreferenced assets. |
-| **Phase 2** | Backend Source-of-Truth Refactor | ✅ | Authoritative clock & SQLite persistence (`test_phase1_authority.py`). |
-| **Phase 3** | Data / Model Consistency | ✅ | Batch-level inventory & status lifecycle (`test_models.py`). |
-| **Phase 4** | Simulation Engine | ✅ | Deterministic time advancement & benchmark scenarios (`test_phase2_simulator.py`). |
-| **Phase 5** | Forecasting + Risk Engine | ✅ | Holt smoothing & 7-dimensional risk scoring (`test_phase3_forecasting.py`, `test_phase4_risk.py`). |
-| **Phase 6** | Decision Engine | ✅ | Pareto trade-off optimization & 16 reason codes (`test_phase5_decision.py`). |
-| **Phase 7** | Approval + LangGraph Agent | ✅ | 5-node autonomous pipeline with Level-2 approval gate (`test_phase6_agent.py`). |
-| **Phase 8** | Operations UI | ✅ | 3-column control center with live backend sync & fallback. |
-| **Phase 9** | Customer Workflow & CommercePort | ✅ | Swiggy MCP protocol adapter + MockCommerceAdapter (`test_phase8_commerce.py`). |
-| **Phase 10** | Testing & Demo Hardening | ✅ | End-to-end scenario suites & invariants (`test_phase10_demo_hardening.py`, 286/286 passed). |
+### 4. Strict Consequential Action Guard (Spec §28.3 & §39.15)
+- Invariant safety rule: The assistant **cannot execute a checkout without explicit human authorization**.
+- A checkout request without `explicit_confirmation: true` is strictly rejected server-side with an `UnconfirmedCheckoutError` (HTTP 400).
+- Users are presented with a clear checkout verification modal detailing itemized costs, delivery address, and delivery partner fees before confirmation.
+
+### 5. 25 Realistic Mumbai Household Personas
+- Spans distinct neighborhoods, household sizes, and dietary patterns:
+  - **Rohan Mehta** (Bandra West, 3 members, Vegetarian)
+  - **Priya Sharma** (Powai Galleria, 2 members, Non-Vegetarian)
+  - **Dr. Ananya Iyer** (Lower Parel, 4 members, South Indian Traditional)
+  - **Vikram Patel** (Andheri East, 5 members, Jain Vegetarian)
+  - ...and 21 additional simulated households with deterministic consumption patterns.
 
 ---
 
-## 🎬 The 2-Minute Demo Guide
+## 🛠️ Tech Stack
 
-### Scenario 1: Hero Stockout & Inter-Store Transfer (§25)
-1. Click **`⚡ Demo Flow`** in the top navigation (or pick *Hero Scenario* in the benchmark dropdown).
-2. **Observe:** Demand spike at *Powai Galleria (St 04)* creates an impending dairy stockout (2.4h). Nearby *Bandra West (St 02)* has 36 units of safe excess.
-3. **Inspect:** Click the top recommendation card in Column 2. Column 3 reveals root causes, evaluated alternatives, transit distance (6.8 km), and net financial benefit (`+₹1,420`).
-4. **Approve:** Click **`Approve`**. Watch the animated transfer particle cross the SVG topology map in Column 1 and stockout risk resolve to Nominal.
-5. **Measure:** On completion, inspect the **Baseline vs GROCER** comparison chart showing 80% reduction in stockouts.
-
-### Scenario 2: Perishable Spoilage & Dynamic Markdowns (§26)
-1. Select *Perishables Scenario* from the benchmark dropdown.
-2. **Observe:** 42 loaves of Artisan Bread at *Andheri East (St 01)* expire in 8 hours with only 12 expected sales.
-3. **Evaluate:** Decision engine evaluates inter-store transfer vs 30% discount vs hold, ranking the 30% discount highest.
-4. **Approve:** Approve the markdown. Real-time consumption velocity increases, avoiding ₹1,260 in food waste.
-
-### Scenario 3: Agent Pre-Check Failure & Safe Recovery (§27)
-1. Select *Failure Scenario* from the dropdown.
-2. Operator approves a transfer, but source store inventory changes unexpectedly before dispatch.
-3. **Recovery:** LangGraph pre-check node detects stale inventory, aborts execution, recalculates alternatives, and presents a safe revised reorder recommendation.
+- **Frontend:** Next.js 16.2.6 (App Router with Turbopack), React 19, TypeScript 5.
+- **Styling:** Tailwind CSS v4, Framer Motion (fluid spring animations), Lucide React.
+- **Typography:** Swiss Logistics System (`PP Mori` primary sans, `Geist Mono` tabular telemetry, and strictly upright `PP Editorial New` accents).
+- **Backend:** Python 3.11+, FastAPI, Pydantic v2, SQLAlchemy Async, SQLite (WAL mode).
+- **Testing:** Pytest with 100% green customer commerce test coverage.
 
 ---
 
-## 🚀 Key Capabilities
-
-| Domain | Capability | Implementation |
-|---|---|---|
-| **Topology & Fleet Mesh** | Real-time SVG canvas with inter-store distance calculation, active transit particles, and store health meters. | `SpatialTopologyView.tsx` |
-| **Decision Intelligence** | Deterministic candidate ranking across 16 reason codes, safe excess formulas, and supplier lead times. | `backend/services/decision/` |
-| **Autonomous Execution** | 5-node LangGraph pipeline (`validate → pre_check → execute → verify → finalize`) with server-side approval gates. | `backend/agents/execution/` |
-| **Household WhatsApp Flow** | iPhone 16 Pro simulator with 1-tap restock chips, 24h reminders, and skip actions across 25 Mumbai personas. | `components/customer/PhoneMockup.tsx` |
-| **Swiggy CommercePort** | Dual commerce adapter (`MockCommerceAdapter` & official `SwiggyMCPAdapter`) with strict Consequential Action Guard. | `backend/integrations/commerce/` |
-| **Shared Simulation State** | Customer WhatsApp orders immediately deplete dark-store inventory in the operations cockpit with real-time audit logging. | `app/page.tsx` |
-| **Fair Baseline Comparison** | Benchmark comparison comparing GROCER against traditional reorder-point policies across 8 standard metrics. | `lib/metricsEngine.ts` |
-
----
-
-## 💻 Getting Started
+## 🚀 Quickstart
 
 ### Prerequisites
-- **Node.js 18+** / **Node.js 20+**
-- **Python 3.11+** (for optional FastAPI backend)
+- Node.js 20+
+- Python 3.11+
 
-### 1. Frontend Development (Next.js 16)
+### 1. Frontend Setup
 ```bash
-# Clone & install dependencies
-git clone https://github.com/kwakhare5/Grocer.git
-cd Grocer
+# Install dependencies
 npm install
 
-# Start Next.js development server
+# Run development server (Turbopack)
 npm run dev
+
+# Run production build
+npm run build
+
+# Run linting
+npm run lint
 ```
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+Open [http://localhost:3000](http://localhost:3000) to view the application.
 
-### 2. Optional FastAPI Backend
+### 2. Backend Setup
 ```bash
-# Set up Python virtual environment
+cd backend
 python -m venv .venv
-source .venv/bin/activate  # Or `.venv\Scripts\activate` on Windows
-pip install -r backend/requirements.txt
+source .venv/bin/activate  # or .venv\Scripts\activate on Windows
+pip install -r requirements.txt
 
-# Start FastAPI server
+# Run customer commerce test suite
+pytest tests/
+
+# Run FastAPI server
 uvicorn backend.main:app --reload --port 8000
 ```
 
 ---
 
-## 📜 Available Scripts
+## 🔒 Safety & Domain Invariants
 
-| Command | Description |
-|---|---|
-| `npm run dev` | Start Next.js dev server on port 3000 (Turbopack) |
-| `npm run build` | Compile optimized Next.js production build |
-| `npm run lint` | Run ESLint verification |
-| `pytest backend/tests` | Run Python backend & agent test suite |
+1. **Explicit Confirmation Gate:** Autonomous cart creation is permitted, but financial execution strictly requires `explicit_confirmation: true`.
+2. **Decoupled Commerce Boundary:** Customer orders route via `CommercePort` and emit decoupled audit events, ensuring consumer carts never directly mutate internal dark store state.
+3. **Zero AI Slop:** No emoji spam in buttons, clean Lucide SVG icons, crisp monospace metrics, and authentic Indian grocery branding.
+
+---
+
+## 📄 Related Projects
+- [Dark Store Operator](https://github.com/kwakhare5/Dark-store-operator) — Autonomous quick-commerce dark store fleet operations platform.
 
 ---
 
 ## 📄 License
-MIT License. Created by [Karan Wakhare](https://github.com/kwakhare5).
+MIT © 2026 Karan Wakhare

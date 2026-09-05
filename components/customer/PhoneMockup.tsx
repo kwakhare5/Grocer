@@ -18,10 +18,10 @@ import {
   RotateCcw,
   ChevronLeft,
 } from "lucide-react";
-import { IphoneFrame } from "./ui/IphoneFrame";
-import { PhoneMockupProps } from "../lib/types";
-import { usePhoneDemoEngine } from "../hooks/usePhoneDemoEngine";
-import { DEFAULT_CUSTOMER_PERSONA, DEFAULT_PANTRY_STAPLES } from "../lib/mockData";
+import { IphoneFrame } from "../ui/IphoneFrame";
+import { PhoneMockupProps } from "../../lib/types";
+import { usePhoneDemoEngine } from "../../hooks/usePhoneDemoEngine";
+import { DEFAULT_CUSTOMER_PERSONA, DEFAULT_PANTRY_STAPLES } from "../../lib/mockData";
 
 export default function PhoneMockup({
   activeScenario,

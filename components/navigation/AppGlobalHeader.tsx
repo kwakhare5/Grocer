@@ -1,12 +1,12 @@
 "use client";
 
 import React from "react";
-import { Smartphone, LayoutDashboard, Sparkles, BookOpen } from "lucide-react";
+import { Smartphone, LayoutDashboard, Sparkles } from "lucide-react";
 import { GrocerLogo } from "../ui/GrocerLogo";
 
 interface AppGlobalHeaderProps {
-  mode: "landing" | "operations" | "customer";
-  setMode: (mode: "landing" | "operations" | "customer") => void;
+  mode: "operations" | "customer";
+  setMode: (mode: "operations" | "customer") => void;
   criticalRiskCount?: number;
   isLiveApiConnected?: boolean;
   onDemoMode?: () => void;
@@ -26,7 +26,7 @@ export function AppGlobalHeader({
         <div className="flex items-center gap-3">
           <button
             type="button"
-            onClick={() => setMode("landing")}
+            onClick={() => setMode("operations")}
             className="flex items-center gap-2 hover:opacity-90 transition-opacity cursor-pointer text-left"
           >
             <GrocerLogo size="sm" iconOnly />
@@ -51,7 +51,7 @@ export function AppGlobalHeader({
           </div>
         </div>
 
-        {/* Right: Persistent 3-Mode Clean Switcher + Demo */}
+        {/* Right: Dual-Workflow Switcher + Quick Demo */}
         <div className="flex items-center gap-2.5">
           {onDemoMode && (
             <button
@@ -65,19 +65,6 @@ export function AppGlobalHeader({
           )}
 
           <div className="flex items-center bg-zinc-100 p-1 rounded-lg border border-zinc-200">
-            <button
-              type="button"
-              onClick={() => setMode("landing")}
-              className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-md transition-all cursor-pointer ${
-                mode === "landing"
-                  ? "bg-white text-blue-950 shadow-xs border border-zinc-200/80 font-bold"
-                  : "text-zinc-600 hover:text-zinc-900"
-              }`}
-            >
-              <BookOpen className={`w-3.5 h-3.5 ${mode === "landing" ? "text-blue-600" : "text-zinc-500"}`} />
-              <span>Home</span>
-            </button>
-
             <button
               type="button"
               onClick={() => setMode("operations")}
@@ -101,7 +88,7 @@ export function AppGlobalHeader({
               }`}
             >
               <Smartphone className={`w-3.5 h-3.5 ${mode === "customer" ? "text-blue-600" : "text-zinc-500"}`} />
-              <span>WhatsApp Demo</span>
+              <span>Customer Replenishment</span>
             </button>
           </div>
         </div>

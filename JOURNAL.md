@@ -15,8 +15,8 @@ During the Session End ritual (called automatically whenever significant changes
 
 ## Log Entries
 
-### [Grocer — Customer Replenishment & Swiggy MCP Integration (Phases 4–8 Complete)] 2026-09-05
-- **Commit**: `feat(commerce): phase 8 customer replenishment and swiggy mcp commerce port integration`
+### [Grocer — Customer Replenishment, Swiggy MCP Integration & Dual-Workflow Architecture Refactor] 2026-09-05
+- **Commit**: `refactor(ui): purge legacy landing page, colocate phone mockup, and streamline dual-workflow architecture`
 - **Shipped**:
   - **Phase 4 Stockout & Expiry Risk Engine**: Built multi-dimensional risk scoring engine across 7 dimensions (stockout probability, shelf life depletion, supplier lead time volatility, spoilage penalty, dark store capacity pressure). Added survival analysis and stockout urgency indexing.
   - **Phase 5 Multi-Factor Decision & Allocation Engine**: Implemented Level-2 human-in-the-loop approval lifecycle (`PROPOSED -> APPROVED/REJECTED -> EXECUTING -> COMPLETED/FAILED`). Integrated multi-criteria Pareto trade-off scoring (urgency vs. transfer cost vs. supplier MOQ), batch routing, and fallback alternative generator.
@@ -32,8 +32,14 @@ During the Session End ritual (called automatically whenever significant changes
     - *SwiggyMCPAdapter*: Official Swiggy Instamart MCP protocol client (`POST mcp.swiggy.com/im`) mapping Swiggy tool schemas (`get_addresses`, `your_go_to_items`, `search_products`, `update_cart`, `get_cart`, `clear_cart`, `get_payment_options`, `checkout`, `track_order`), canonical error taxonomy, and token security masking.
     - *Strict Consequential Guard (Spec §28.3 & §39.15)*: Enforced programmatic safety invariant requiring explicit confirmation (`explicit_confirmation: true`) before checkout execution, returning `UnconfirmedCheckoutError` (HTTP 400) if unconfirmed.
     - *Frontend CustomerReplenishmentView Integration*: Added live Commerce Adapter badge (`Simulated Instamart` / `Swiggy MCP Live`), interactive Instamart cart with itemized bill breakdown, Go-To staple quick-add, consequential checkout authorization modal, and real-time express delivery tracking (`Ramesh Kamble`, ETA in mins, live GPS status).
-- **Verification**: 281/281 backend pytest tests passing across all phases (100% green). Frontend `npm run lint` passed (0 errors, 0 warnings); `npm run build` passed in 5.7s. Code graph updated (2,094 nodes, 4,778 edges).
-- **Vibe**: 🚀 Complete end-to-end commerce & autonomous replenishment engine verified and production-ready.
+  - **Whole-Codebase Audit, Bloat Purge & Dual-Workflow Architecture Refactoring**:
+    - *Purged Legacy SaaS Marketing Landing Page*: Deleted 6 files (637 lines: `GrocerHero.tsx`, `GrocerValueProp.tsx`, `GrocerIntegrations.tsx`, `GrocerFAQ.tsx`, `GrocerFooter.tsx`, `GrocerVelocityCalculator.tsx`), obsolete hook `hooks/usePantryEngine.ts`, and 6.5+ MB of unreferenced assets (`wallpaper.png`, `figma.zip`, `grocer-app-icons-master.svg`) in strict alignment with Spec §3 and §24.
+    - *Removed Competing Simulation Authority (Spec §27.1)*: Deleted non-authoritative client simulation file `lib/simulationEngine.ts`; colocated pure presentation helper routines directly inside `hooks/usePhoneDemoEngine.ts`.
+    - *Domain Colocation & Streamlined UI*: Relocated `PhoneMockup.tsx` into `components/customer/PhoneMockup.tsx`. Streamlined `CustomerReplenishmentView.tsx` (pruned ~340 lines of static `storyboard` slides and `showcase` badges), standardizing on the high-signal 3-column Workbench + Consequential Action Guard modal.
+    - *Direct Dual-Workflow App Root*: Refactored `AppGlobalHeader.tsx` and `app/page.tsx` to eliminate `"landing"` mode. Application boots directly into `Store Operations Deck` with 1-click toggling to `Customer Replenishment` (Spec §5 Two Workflows).
+    - *Cleaned Backend Vestiges*: Removed 4 empty unused backend directories (`backend/tools/`, `backend/services/inventory/`, `backend/services/metrics/`, `backend/services/recommendation/`).
+- **Verification**: 281/281 backend pytest tests passing across all phases (100% green). Frontend `npm run lint` passed (0 errors, 0 warnings); `npm run build` passed in 6.6s with Turbopack. Code graph updated (2,076 nodes, 4,740 edges).
+- **Vibe**: 🌲 Radical simplification: zero bloat, authentic dual-workflow architecture, 100% test coverage green.
 
 ### [Grocer — Complete WhatsApp Demo Redesign & Operational Clutter Removal] 2026-09-04
 - **Commit**: `feat(demo): complete consumer redesign of whatsapp replenishment view`

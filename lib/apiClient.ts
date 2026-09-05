@@ -214,6 +214,94 @@ export interface BackendCustomerSkipResponse {
 }
 
 // ---------------------------------------------------------------------------
+// Phase 8: CommercePort & Swiggy Instamart Models
+// ---------------------------------------------------------------------------
+
+export interface BackendCommerceAdapterInfo {
+  adapter_type: "mock" | "swiggy_mcp" | string;
+  endpoint: string;
+  mode: string;
+}
+
+export interface BackendDeliveryAddress {
+  id: string;
+  label: string;
+  street: string;
+  city: string;
+  postal_code: string;
+  latitude?: number;
+  longitude?: number;
+  is_serviceable: boolean;
+}
+
+export interface BackendCommerceProductVariant {
+  spin_id: string;
+  name: string;
+  pack_size: string;
+  price: number;
+  mrp: number;
+  in_stock: boolean;
+}
+
+export interface BackendCommerceProductItem {
+  product_id: string;
+  name: string;
+  category: string;
+  variants: BackendCommerceProductVariant[];
+  image_url?: string;
+}
+
+export interface BackendCommerceCartItem {
+  spin_id: string;
+  name: string;
+  pack_size: string;
+  unit_price: number;
+  quantity: number;
+  total_price: number;
+}
+
+export interface BackendCommerceCart {
+  cart_id: string;
+  address_id?: string;
+  items: BackendCommerceCartItem[];
+  item_total: number;
+  delivery_fee: number;
+  packaging_fee: number;
+  discount: number;
+  grand_total: number;
+  is_serviceable: boolean;
+}
+
+export interface BackendCommercePaymentOption {
+  method: "UPI" | "COD";
+  label: string;
+  is_available: boolean;
+  description?: string;
+}
+
+export interface BackendCommerceOrderResult {
+  order_id: string;
+  cart_id: string;
+  status: string;
+  items: BackendCommerceCartItem[];
+  payment_method: string;
+  grand_total: number;
+  delivery_address: BackendDeliveryAddress;
+  placed_at: string;
+  tracking_url?: string;
+}
+
+export interface BackendCommerceTracking {
+  order_id: string;
+  status: "ORDER_CONFIRMED" | "PACKING" | "OUT_FOR_DELIVERY" | "DELIVERED" | string;
+  eta_minutes: number;
+  driver_name?: string;
+  driver_phone?: string;
+  last_updated_at: string;
+}
+
+
+// ---------------------------------------------------------------------------
 // Store Coordinate & Metadata Map (Mumbai Topography)
 // ---------------------------------------------------------------------------
 
@@ -399,6 +487,105 @@ export const grocerApi = {
       method: "POST",
       body: JSON.stringify({ reason }),
     });
+  },
+
+  // -------------------------------------------------------------------------
+  // Phase 8: CommercePort & Swiggy Instamart Methods
+  // -------------------------------------------------------------------------
+
+  /** Fetch active commerce adapter info */
+  async getCommerceAdapterInfo(): Promise<BackendCommerceAdapterInfo | null> {
+    return safeFetch<BackendCommerceAdapterInfo>("/api/customers/adapter-info");
+  },
+
+  /** Fetch saved customer delivery addresses */
+  async getCustomerAddresses(customerId: string): Promise<BackendDeliveryAddress[] | null> {
+    return safeFetch<BackendDeliveryAddress[]>(`/api/customers/${customerId}/addresses`);
+  },
+
+  /** Fetch quick reorder staples for address */
+  async getCustomerGoToItems(
+    customerId: string,
+    addressId?: string
+  ): Promise<BackendCommerceProductItem[] | null> {
+    const query = addressId ? `?address_id=${addressId}` : "";
+    return safeFetch<BackendCommerceProductItem[]>(`/api/customers/${customerId}/go-to-items${query}`);
+  },
+
+  /** Search products available at customer address */
+  async searchCustomerProducts(
+    customerId: string,
+    query: string,
+    addressId?: string
+  ): Promise<BackendCommerceProductItem[] | null> {
+    const params = new URLSearchParams({ query });
+    if (addressId) params.append("address_id", addressId);
+    return safeFetch<BackendCommerceProductItem[]>(`/api/customers/${customerId}/products?${params.toString()}`);
+  },
+
+  /** Fetch active customer cart */
+  async getCustomerCart(
+    customerId: string,
+    cartId?: string
+  ): Promise<BackendCommerceCart | null> {
+    const query = cartId ? `?cart_id=${cartId}` : "";
+    return safeFetch<BackendCommerceCart>(`/api/customers/${customerId}/cart${query}`);
+  },
+
+  /** Update items in customer cart */
+  async updateCustomerCart(
+    customerId: string,
+    items: { spin_id: string; quantity: number }[],
+    addressId?: string,
+    cartId?: string
+  ): Promise<BackendCommerceCart | null> {
+    const query = cartId ? `?cart_id=${cartId}` : "";
+    return safeFetch<BackendCommerceCart>(`/api/customers/${customerId}/cart${query}`, {
+      method: "POST",
+      body: JSON.stringify({ items, address_id: addressId }),
+    });
+  },
+
+  /** Clear customer cart */
+  async clearCustomerCart(customerId: string, cartId?: string): Promise<{ cleared: boolean } | null> {
+    const query = cartId ? `?cart_id=${cartId}` : "";
+    return safeFetch<{ cleared: boolean }>(`/api/customers/${customerId}/cart${query}`, {
+      method: "DELETE",
+    });
+  },
+
+  /** Fetch payment options */
+  async getCustomerPaymentOptions(
+    customerId: string,
+    cartId?: string
+  ): Promise<BackendCommercePaymentOption[] | null> {
+    const query = cartId ? `?cart_id=${cartId}` : "";
+    return safeFetch<BackendCommercePaymentOption[]>(`/api/customers/${customerId}/payment-options${query}`);
+  },
+
+  /** Consequential checkout requiring explicit confirmation */
+  async checkoutCustomer(
+    customerId: string,
+    payload: { payment_method?: string; explicit_confirmation: boolean; address_id?: string },
+    cartId?: string
+  ): Promise<BackendCommerceOrderResult | null> {
+    const query = cartId ? `?cart_id=${cartId}` : "";
+    return safeFetch<BackendCommerceOrderResult>(`/api/customers/${customerId}/checkout${query}`, {
+      method: "POST",
+      body: JSON.stringify({
+        payment_method: payload.payment_method || "UPI",
+        explicit_confirmation: payload.explicit_confirmation,
+        address_id: payload.address_id,
+      }),
+    });
+  },
+
+  /** Track live order delivery status and ETA */
+  async trackCustomerOrder(
+    customerId: string,
+    orderId: string
+  ): Promise<BackendCommerceTracking | null> {
+    return safeFetch<BackendCommerceTracking>(`/api/customers/${customerId}/orders/${orderId}/track`);
   },
 };
 

@@ -324,3 +324,108 @@ class CustomerSkipResponse(BaseModel):
     reason: str
     message: str
 
+
+# ---------------------------------------------------------------------------
+# Phase 8: CommercePort schemas (Spec §5.1, §28, & §38.9)
+# ---------------------------------------------------------------------------
+
+
+class CommerceAdapterInfoResponse(BaseModel):
+    adapter_type: str
+    endpoint: str
+    mode: str
+
+
+class CommerceDeliveryAddressResponse(BaseModel):
+    id: str
+    label: str
+    street: str
+    city: str
+    postal_code: str
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    is_serviceable: bool
+
+
+class CommerceProductVariantResponse(BaseModel):
+    spin_id: str
+    name: str
+    pack_size: str
+    price: float
+    mrp: float
+    in_stock: bool
+
+
+class CommerceProductItemResponse(BaseModel):
+    product_id: str
+    name: str
+    category: str
+    variants: list[CommerceProductVariantResponse]
+    image_url: Optional[str] = None
+
+
+class CommerceCartItemResponse(BaseModel):
+    spin_id: str
+    name: str
+    pack_size: str
+    unit_price: float
+    quantity: int
+    total_price: float
+
+
+class CommerceCartResponse(BaseModel):
+    cart_id: str
+    address_id: Optional[str] = None
+    items: list[CommerceCartItemResponse]
+    item_total: float
+    delivery_fee: float
+    packaging_fee: float
+    discount: float
+    grand_total: float
+    is_serviceable: bool
+
+
+class CartItemUpdatePayload(BaseModel):
+    spin_id: str
+    quantity: int
+
+
+class CommerceCartUpdateRequest(BaseModel):
+    items: list[CartItemUpdatePayload]
+    address_id: Optional[str] = None
+
+
+class CommercePaymentOptionResponse(BaseModel):
+    method: str
+    label: str
+    is_available: bool
+    description: Optional[str] = None
+
+
+class CommerceCheckoutRequest(BaseModel):
+    payment_method: str = "UPI"
+    explicit_confirmation: bool = False
+    address_id: Optional[str] = None
+
+
+class CommerceOrderResultResponse(BaseModel):
+    order_id: str
+    cart_id: str
+    status: str
+    items: list[CommerceCartItemResponse]
+    payment_method: str
+    grand_total: float
+    delivery_address: CommerceDeliveryAddressResponse
+    placed_at: datetime
+    tracking_url: Optional[str] = None
+
+
+class CommerceTrackingResponse(BaseModel):
+    order_id: str
+    status: str
+    eta_minutes: int
+    driver_name: Optional[str] = None
+    driver_phone: Optional[str] = None
+    last_updated_at: datetime
+
+

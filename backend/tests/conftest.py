@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sess
 from backend.database import Base, get_db
 from backend.main import create_app
 
-from sqlalchemy import event
+from sqlalchemy import event, text
 from sqlalchemy.pool import NullPool
 
 # Use a test database URL (SQLite async for fast isolated tests)
@@ -40,10 +40,12 @@ def event_loop():
 async def setup_database():
     """Create all tables before each test, drop after."""
     async with test_engine.begin() as conn:
+        await conn.execute(text("PRAGMA foreign_keys = OFF;"))
         await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
     yield
     async with test_engine.begin() as conn:
+        await conn.execute(text("PRAGMA foreign_keys = OFF;"))
         await conn.run_sync(Base.metadata.drop_all)
 
 

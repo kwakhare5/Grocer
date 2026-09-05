@@ -22,10 +22,163 @@ from backend.services.customer.models import (
     PantryStapleState, CustomerState, WhatsAppInteractionMessage,
     CustomerReorderResult,
 )
+from backend.integrations.commerce.port import CommercePort
+from backend.integrations.commerce.factory import get_commerce_adapter
+from backend.integrations.commerce.models import (
+    DeliveryAddress,
+    CommerceProductItem,
+    CartItemUpdate,
+    CommerceCart,
+    PaymentOption,
+    CommerceOrderResult,
+    DeliveryTrackingStatus,
+)
+from backend.integrations.commerce.exceptions import UnconfirmedCheckoutError
+
 
 
 class CustomerService:
     """Core service for customer household simulation and WhatsApp replenishment."""
+
+    def __init__(self, commerce_adapter: Optional[CommercePort] = None) -> None:
+        self.commerce_adapter: CommercePort = commerce_adapter or get_commerce_adapter()
+
+    def get_commerce_adapter_type(self) -> str:
+        from backend.config import settings
+        return getattr(settings, "COMMERCE_ADAPTER_TYPE", "mock")
+
+    async def get_customer_addresses(self, customer_id: uuid.UUID) -> list[DeliveryAddress]:
+        """Fetch customer delivery destinations via CommercePort."""
+        return await self.commerce_adapter.get_addresses(str(customer_id))
+
+    async def get_customer_go_to_items(
+        self, customer_id: uuid.UUID, address_id: Optional[str] = None
+    ) -> list[CommerceProductItem]:
+        """Fetch fast 1-tap reorder staples available at customer delivery address."""
+        if not address_id:
+            addresses = await self.get_customer_addresses(customer_id)
+            address_id = addresses[0].id if addresses else "addr-default"
+        return await self.commerce_adapter.get_go_to_items(address_id)
+
+    async def search_customer_products(
+        self, customer_id: uuid.UUID, query: str, address_id: Optional[str] = None
+    ) -> list[CommerceProductItem]:
+        """Search products available at customer delivery address via CommercePort."""
+        if not address_id:
+            addresses = await self.get_customer_addresses(customer_id)
+            address_id = addresses[0].id if addresses else "addr-default"
+        return await self.commerce_adapter.search_products(address_id, query)
+
+    async def get_customer_cart(
+        self, customer_id: uuid.UUID, cart_id: Optional[str] = None
+    ) -> CommerceCart:
+        """Fetch active commerce cart with bill breakdown."""
+        cid = cart_id or f"cart-{customer_id}"
+        return await self.commerce_adapter.get_cart(cid)
+
+    async def update_customer_cart(
+        self,
+        customer_id: uuid.UUID,
+        items: list[CartItemUpdate],
+        cart_id: Optional[str] = None,
+        address_id: Optional[str] = None,
+    ) -> CommerceCart:
+        """Update items in customer's commerce cart."""
+        cid = cart_id or f"cart-{customer_id}"
+        return await self.commerce_adapter.update_cart(items=items, cart_id=cid, address_id=address_id)
+
+    async def clear_customer_cart(
+        self, customer_id: uuid.UUID, cart_id: Optional[str] = None
+    ) -> bool:
+        """Flush customer's commerce cart."""
+        cid = cart_id or f"cart-{customer_id}"
+        return await self.commerce_adapter.clear_cart(cid)
+
+    async def get_customer_payment_options(
+        self, customer_id: uuid.UUID, cart_id: Optional[str] = None
+    ) -> list[PaymentOption]:
+        """Fetch payment options (UPI, COD) via CommercePort."""
+        cid = cart_id or f"cart-{customer_id}"
+        return await self.commerce_adapter.get_payment_options(cid)
+
+    async def checkout_customer(
+        self,
+        customer_id: uuid.UUID,
+        cart_id: Optional[str] = None,
+        payment_method: str = "UPI",
+        explicit_confirmation: bool = False,
+        address_id: Optional[str] = None,
+        db: Optional[AsyncSession] = None,
+    ) -> CommerceOrderResult:
+        """Consequential customer checkout. Strictly requires explicit confirmation.
+
+        If db session is provided, synchronizes the order and inventory into the
+        shared database (Spec Invariant §22).
+        """
+        if not explicit_confirmation:
+            raise UnconfirmedCheckoutError(
+                "Checkout rejected: explicit confirmation is strictly required."
+            )
+
+        cid = cart_id or f"cart-{customer_id}"
+        order_res = await self.commerce_adapter.checkout(
+            cart_id=cid,
+            payment_method=payment_method,
+            explicit_confirmation=True,
+            address_id=address_id,
+        )
+
+        if db:
+            await self._sync_commerce_order_to_db(db, customer_id, order_res)
+
+        return order_res
+
+    async def track_customer_order(self, order_id: str) -> DeliveryTrackingStatus:
+        """Get live order delivery status and ETA via CommercePort."""
+        return await self.commerce_adapter.track_order(order_id)
+
+    async def _sync_commerce_order_to_db(
+        self, db: AsyncSession, customer_id: uuid.UUID, order_res: CommerceOrderResult
+    ) -> None:
+        """Internal helper to record commerce order into shared database and deduct stock."""
+        cust = await db.get(Customer, customer_id)
+        if not cust or not cust.home_store_id:
+            return
+
+        order_uuid = uuid.uuid4()
+        now = datetime.now(timezone.utc)
+        order = Order(
+            order_id=order_uuid,
+            customer_id=customer_id,
+            store_id=cust.home_store_id,
+            created_at=now,
+            status=OrderStatus.DELIVERED,
+        )
+        db.add(order)
+
+        for item in order_res.items:
+            first_word = item.name.split()[0] if item.name else ""
+            prod_stmt = select(Product).where(Product.name.ilike(f"%{first_word}%")).limit(1)
+            prod = (await db.execute(prod_stmt)).scalar_one_or_none()
+            if prod:
+                order_item = OrderItem(
+                    id=uuid.uuid4(),
+                    order_id=order_uuid,
+                    product_id=prod.product_id,
+                    quantity=item.quantity,
+                    price=item.unit_price,
+                )
+                db.add(order_item)
+
+                inv_stmt = select(Inventory).where(
+                    Inventory.store_id == cust.home_store_id,
+                    Inventory.product_id == prod.product_id,
+                )
+                inv = (await db.execute(inv_stmt)).scalar_one_or_none()
+                if inv:
+                    inv.quantity = max(0, inv.quantity - item.quantity)
+
+        await db.commit()
 
     async def list_customers(self, db: AsyncSession) -> list[dict[str, Any]]:
         """List all customers with home store linkage and quick pantry status."""

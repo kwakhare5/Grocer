@@ -14,6 +14,7 @@ import {
   Flame,
   RotateCw,
   ShieldAlert,
+  Layers,
 } from "lucide-react";
 import { formatHours, formatINR, formatPercentage } from "../../lib/formatters";
 
@@ -23,6 +24,7 @@ interface RecommendationCardProps {
   onSelect: () => void;
   onApprove: (id: string) => void;
   onReject: (id: string) => void;
+  onViewTrace?: (id: string) => void;
   index?: number;
 }
 
@@ -32,6 +34,7 @@ export function RecommendationCard({
   onSelect,
   onApprove,
   onReject,
+  onViewTrace,
   index = 0,
 }: RecommendationCardProps) {
   const [isWhyExpanded, setIsWhyExpanded] = useState(false);
@@ -244,20 +247,50 @@ export function RecommendationCard({
 
         <div className="flex items-center gap-1.5">
           {isCompleted ? (
-            <span className="flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-lg">
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-              Executed
-            </span>
+            <div className="flex items-center gap-1.5">
+              <span className="flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1.5 rounded-lg">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                Verified
+              </span>
+              {onViewTrace && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onViewTrace(item.id);
+                  }}
+                  className="flex items-center gap-1 text-xs font-mono font-semibold text-zinc-700 bg-zinc-100 hover:bg-zinc-200 border border-zinc-200 px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer"
+                >
+                  <Layers className="w-3.5 h-3.5 text-zinc-500" />
+                  <span>Trace</span>
+                </button>
+              )}
+            </div>
           ) : isExecuting ? (
-            <span className="flex items-center gap-1 text-xs font-bold text-sky-700 bg-sky-50 border border-sky-200 px-3 py-1.5 rounded-lg">
+            <span className="flex items-center gap-1.5 text-xs font-bold text-sky-700 bg-sky-50 border border-sky-200 px-3 py-1.5 rounded-lg">
               <RotateCw className="w-3.5 h-3.5 animate-spin" />
-              Dispatching...
+              <span>LangGraph Executing...</span>
             </span>
           ) : isFailed ? (
-            <span className="flex items-center gap-1 text-xs font-bold text-rose-700 bg-rose-50 border border-rose-200 px-3 py-1.5 rounded-lg">
-              <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
-              Failed
-            </span>
+            <div className="flex items-center gap-1.5">
+              <span className="flex items-center gap-1 text-xs font-bold text-rose-700 bg-rose-50 border border-rose-200 px-2.5 py-1.5 rounded-lg">
+                <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
+                Recovered
+              </span>
+              {onViewTrace && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onViewTrace(item.id);
+                  }}
+                  className="flex items-center gap-1 text-xs font-mono font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer"
+                >
+                  <Layers className="w-3.5 h-3.5" />
+                  <span>Trace</span>
+                </button>
+              )}
+            </div>
           ) : isRejected ? (
             <span className="flex items-center gap-1 text-xs font-bold text-zinc-500 bg-zinc-100 border border-zinc-200 px-3 py-1.5 rounded-lg">
               <XCircle className="w-3.5 h-3.5" />

@@ -1,3 +1,13 @@
+/**
+ * Client-Side Standalone Preview Fallback (NON-AUTHORITATIVE).
+ *
+ * NOTE (GROCER v2 Phase 1 Architecture):
+ * The authoritative source of truth for household depletion, pantry state,
+ * and conversational replenishment is the FastAPI backend service
+ * (`backend/services/customer/`).
+ * This module serves strictly as an offline UI fallback when the backend API is unreachable.
+ */
+
 import { DEFAULT_PANTRY_STAPLES, ICON_MAP } from "./mockData";
 import { StapleItem } from "./types";
 

@@ -21,6 +21,9 @@ from backend.models.core import Risk, Inventory, Batch, Product, Supplier, Forec
 from backend.models.enums import RiskType, RiskSeverity, RiskStatus
 from backend.events.bus import bus
 from backend.services.risk.models import (
+    RiskConfig,
+    BatchInfo,
+    MultiBatchSpoilageInput,
     StockoutInput,
     SpoilageInput,
     StockoutCalculator,
@@ -29,6 +32,7 @@ from backend.services.risk.models import (
     RiskSeverityLevel,
     DiscountTier,
 )
+
 
 
 def _naive_now() -> datetime:
@@ -45,16 +49,21 @@ class RiskEngine:
         await engine.resolve(db, risk_id)
     """
 
-    def __init__(self) -> None:
-        self.stockout_calculator = StockoutCalculator()
-        self.spoilage_calculator = SpoilageCalculator()
+    def __init__(self, config: Optional[RiskConfig] = None) -> None:
+        self.config = config or RiskConfig()
+        self.stockout_calculator = StockoutCalculator(config=self.config)
+        self.spoilage_calculator = SpoilageCalculator(config=self.config)
 
-    async def run(self, db: AsyncSession) -> int:
+    async def run(self, db: AsyncSession, now: Optional[datetime] = None) -> int:
         """Scan all inventory and batches, evaluate risks, persist rows and emit events.
 
-        Returns total number of Risk rows created.
+        Returns total number of active Risk items evaluated.
         """
-        now = _naive_now()
+        if now is None:
+            now = _naive_now()
+        else:
+            now = now.replace(tzinfo=None) if now.tzinfo is not None else now
+
 
         # 1. Load Products & Suppliers
         prod_result = await db.execute(select(Product, Supplier).join(Supplier, Product.supplier_id == Supplier.supplier_id))
@@ -62,13 +71,48 @@ class RiskEngine:
         for row in prod_result.all():
             products_map[row.Product.product_id] = (row.Product, row.Supplier)
 
-        # 2. Load latest Forecast for each (store, product)
+        # 2. Load latest Forecasts indexed by (store_id, product_id, horizon_hours)
         fc_result = await db.execute(select(Forecast).order_by(Forecast.created_at.desc()))
-        forecasts_map: dict[tuple[uuid.UUID, uuid.UUID], Forecast] = {}
+        forecasts_by_scope_horizon: dict[tuple[uuid.UUID, uuid.UUID, int], Forecast] = {}
         for fc in fc_result.scalars().all():
-            key = (fc.store_id, fc.product_id)
-            if key not in forecasts_map:
-                forecasts_map[key] = fc
+            h_key = (fc.store_id, fc.product_id, fc.forecast_window_hours)
+            if h_key not in forecasts_by_scope_horizon:
+                forecasts_by_scope_horizon[h_key] = fc
+
+        def get_demand_and_confidence(store_id: uuid.UUID, product_id: uuid.UUID, category: Optional[str] = None) -> tuple[float, float, float]:
+            """Returns (demand_24h, demand_48h, confidence) with multi-horizon interpolation & cold-start fallback."""
+            fc_24 = forecasts_by_scope_horizon.get((store_id, product_id, 24))
+            fc_48 = forecasts_by_scope_horizon.get((store_id, product_id, 48))
+            fc_12 = forecasts_by_scope_horizon.get((store_id, product_id, 12))
+            fc_6 = forecasts_by_scope_horizon.get((store_id, product_id, 6))
+
+            if fc_24:
+                d24 = fc_24.predicted_demand
+                conf = fc_24.confidence
+                d48 = fc_48.predicted_demand if fc_48 else d24 * 2.0
+                return d24, d48, conf
+            elif fc_12:
+                d24 = fc_12.predicted_demand * 2.0
+                conf = fc_12.confidence
+                d48 = fc_48.predicted_demand if fc_48 else d24 * 2.0
+                return d24, d48, conf
+            elif fc_6:
+                d24 = fc_6.predicted_demand * 4.0
+                conf = fc_6.confidence
+                d48 = fc_48.predicted_demand if fc_48 else d24 * 2.0
+                return d24, d48, conf
+            else:
+                # Cold-start seed priors based on category velocity
+                cat_priors = {
+                    "dairy": 16.0,
+                    "bakery": 14.0,
+                    "produce": 12.0,
+                    "staples": 8.0,
+                    "packaged": 10.0,
+                }
+                d24 = cat_priors.get(category.lower() if category else "", 12.0)
+                d48 = d24 * 2.0
+                return d24, d48, 0.3  # Low confidence prior
 
         # 3. Load all Inventory items
         inv_result = await db.execute(select(Inventory))
@@ -78,28 +122,27 @@ class RiskEngine:
         batch_result = await db.execute(select(Batch).order_by(Batch.expires_at.asc()))
         batches_by_key: dict[tuple[uuid.UUID, uuid.UUID], list[Batch]] = {}
         for b in batch_result.scalars().all():
-            # Check expiry with naive datetime
             exp = b.expires_at.replace(tzinfo=None) if b.expires_at.tzinfo is not None else b.expires_at
             if exp > now and b.quantity > 0:
                 batches_by_key.setdefault((b.store_id, b.product_id), []).append(b)
 
+        # 5. Load existing ACTIVE risks to deduplicate
+        active_risks_res = await db.execute(select(Risk).where(Risk.status == RiskStatus.ACTIVE))
+        existing_active_risks: dict[tuple[uuid.UUID, uuid.UUID, RiskType], Risk] = {}
+        for r in active_risks_res.scalars().all():
+            existing_active_risks[(r.store_id, r.product_id, r.risk_type)] = r
+
         count = 0
 
-        # 5. Evaluate Stockout Risk
+        # 6. Evaluate Stockout Risk
         for inv in inventory_items:
-            key = (inv.store_id, inv.product_id)
             prod_supp = products_map.get(inv.product_id)
             if not prod_supp:
                 continue
             product, supplier = prod_supp
 
-            forecast = forecasts_map.get(key)
-            if forecast:
-                demand_24h = forecast.predicted_demand
-                demand_48h = demand_24h * 2.0
-            else:
-                demand_24h = 10.0
-                demand_48h = 20.0
+            cat_val = product.category.value if hasattr(product.category, "value") else str(product.category)
+            demand_24h, demand_48h, confidence = get_demand_and_confidence(inv.store_id, inv.product_id, cat_val)
 
             stockout_in = StockoutInput(
                 store_id=inv.store_id,
@@ -108,51 +151,58 @@ class RiskEngine:
                 forecast_demand_24h=demand_24h,
                 forecast_demand_48h=demand_48h,
                 lead_time_hours=supplier.lead_time_hours,
+                forecast_confidence=confidence,
             )
             so_res = self.stockout_calculator.evaluate(stockout_in)
 
-            # Record risk if WARNING or CRITICAL (or probability >= 0.25)
+            # Record or update risk if WARNING or CRITICAL (or probability >= 0.25)
             if so_res.severity in (RiskSeverityLevel.WARNING, RiskSeverityLevel.CRITICAL) or so_res.probability >= 0.25:
-                risk_id = uuid.uuid4()
                 hours_to_event = so_res.expected_hours_to_event
                 if hours_to_event == float("inf") or hours_to_event > 720:
                     hours_to_event = 720.0
                 expected_time = now + timedelta(hours=hours_to_event)
-
                 severity_enum = RiskSeverity(so_res.severity.value)
-                risk_row = Risk(
-                    risk_id=risk_id,
-                    store_id=inv.store_id,
-                    product_id=inv.product_id,
-                    risk_type=RiskType.STOCKOUT,
-                    severity=severity_enum,
-                    probability=so_res.probability,
-                    expected_time=expected_time,
-                    status=RiskStatus.ACTIVE,
-                    created_at=now,
-                )
-                db.add(risk_row)
-                await db.flush()
 
-                await bus.publish(
-                    db,
-                    "RISK_DETECTED",
-                    "risk",
-                    risk_id,
-                    {
-                        "risk_id": str(risk_id),
-                        "store_id": str(inv.store_id),
-                        "product_id": str(inv.product_id),
-                        "risk_type": RiskType.STOCKOUT.value,
-                        "severity": severity_enum.value,
-                        "probability": so_res.probability,
-                        "expected_time": expected_time.isoformat(),
-                    },
-                    persist=True,
-                )
+                existing = existing_active_risks.get((inv.store_id, inv.product_id, RiskType.STOCKOUT))
+                if existing:
+                    existing.probability = so_res.probability
+                    existing.severity = severity_enum
+                    existing.expected_time = expected_time
+                else:
+                    risk_id = uuid.uuid4()
+                    risk_row = Risk(
+                        risk_id=risk_id,
+                        store_id=inv.store_id,
+                        product_id=inv.product_id,
+                        risk_type=RiskType.STOCKOUT,
+                        severity=severity_enum,
+                        probability=so_res.probability,
+                        expected_time=expected_time,
+                        status=RiskStatus.ACTIVE,
+                        created_at=now,
+                    )
+                    db.add(risk_row)
+                    existing_active_risks[(inv.store_id, inv.product_id, RiskType.STOCKOUT)] = risk_row
+
+                    await bus.publish(
+                        db,
+                        "RISK_DETECTED",
+                        "risk",
+                        risk_id,
+                        {
+                            "risk_id": str(risk_id),
+                            "store_id": str(inv.store_id),
+                            "product_id": str(inv.product_id),
+                            "risk_type": RiskType.STOCKOUT.value,
+                            "severity": severity_enum.value,
+                            "probability": so_res.probability,
+                            "expected_time": expected_time.isoformat(),
+                        },
+                        persist=True,
+                    )
                 count += 1
 
-        # 6. Evaluate Spoilage Risk
+        # 7. Evaluate Spoilage Risk
         for (store_id, product_id), batches in batches_by_key.items():
             if not batches:
                 continue
@@ -161,68 +211,79 @@ class RiskEngine:
                 continue
             product, _ = prod_supp
 
-            soonest_batch = batches[0]
-            exp = soonest_batch.expires_at.replace(tzinfo=None) if soonest_batch.expires_at.tzinfo is not None else soonest_batch.expires_at
-            hours_to_expiry = max(0.0, (exp - now).total_seconds() / 3600.0)
-
-            forecast = forecasts_map.get((store_id, product_id))
-            demand_24h = forecast.predicted_demand if forecast else 10.0
+            cat_val = product.category.value if hasattr(product.category, "value") else str(product.category)
+            demand_24h, _, confidence = get_demand_and_confidence(store_id, product_id, cat_val)
             hourly_demand = demand_24h / 24.0
-            forecast_demand_before_expiry = hourly_demand * hours_to_expiry
 
-            total_qty = sum(b.quantity for b in batches)
+            batch_infos = [
+                BatchInfo(
+                    batch_id=b.batch_id,
+                    quantity=b.quantity,
+                    hours_to_expiry=max(0.0, ((b.expires_at.replace(tzinfo=None) if b.expires_at.tzinfo else b.expires_at) - now).total_seconds() / 3600.0),
+                )
+                for b in batches
+            ]
 
-            spoilage_in = SpoilageInput(
+            multi_sp_in = MultiBatchSpoilageInput(
                 store_id=store_id,
                 product_id=product_id,
-                at_risk_quantity=soonest_batch.quantity,
-                total_quantity=total_qty,
-                min_hours_to_expiry=hours_to_expiry,
-                forecast_demand_before_expiry=forecast_demand_before_expiry,
+                batches=batch_infos,
+                hourly_demand=hourly_demand,
                 shelf_life_hours=product.shelf_life_hours,
+                forecast_confidence=confidence,
             )
-            sp_res = self.spoilage_calculator.evaluate(spoilage_in)
+            sp_res = self.spoilage_calculator.evaluate_batches(multi_sp_in)
 
             if sp_res.severity in (RiskSeverityLevel.WARNING, RiskSeverityLevel.CRITICAL) or sp_res.probability >= 0.25:
-                risk_id = uuid.uuid4()
-                expected_time = now + timedelta(hours=sp_res.expected_hours_to_event)
+                hours_to_event = sp_res.expected_hours_to_event
+                if hours_to_event == float("inf") or hours_to_event > 720:
+                    hours_to_event = 720.0
+                expected_time = now + timedelta(hours=hours_to_event)
                 severity_enum = RiskSeverity(sp_res.severity.value)
 
-                risk_row = Risk(
-                    risk_id=risk_id,
-                    store_id=store_id,
-                    product_id=product_id,
-                    risk_type=RiskType.SPOILAGE,
-                    severity=severity_enum,
-                    probability=sp_res.probability,
-                    expected_time=expected_time,
-                    status=RiskStatus.ACTIVE,
-                    created_at=now,
-                )
-                db.add(risk_row)
-                await db.flush()
+                existing = existing_active_risks.get((store_id, product_id, RiskType.SPOILAGE))
+                if existing:
+                    existing.probability = sp_res.probability
+                    existing.severity = severity_enum
+                    existing.expected_time = expected_time
+                else:
+                    risk_id = uuid.uuid4()
+                    risk_row = Risk(
+                        risk_id=risk_id,
+                        store_id=store_id,
+                        product_id=product_id,
+                        risk_type=RiskType.SPOILAGE,
+                        severity=severity_enum,
+                        probability=sp_res.probability,
+                        expected_time=expected_time,
+                        status=RiskStatus.ACTIVE,
+                        created_at=now,
+                    )
+                    db.add(risk_row)
+                    existing_active_risks[(store_id, product_id, RiskType.SPOILAGE)] = risk_row
 
-                await bus.publish(
-                    db,
-                    "RISK_DETECTED",
-                    "risk",
-                    risk_id,
-                    {
-                        "risk_id": str(risk_id),
-                        "store_id": str(store_id),
-                        "product_id": str(product_id),
-                        "risk_type": RiskType.SPOILAGE.value,
-                        "severity": severity_enum.value,
-                        "probability": sp_res.probability,
-                        "expected_time": expected_time.isoformat(),
-                        "discount_tier": sp_res.discount_tier.value,
-                        "net_spoilage_quantity": sp_res.net_spoilage_quantity,
-                    },
-                    persist=True,
-                )
+                    await bus.publish(
+                        db,
+                        "RISK_DETECTED",
+                        "risk",
+                        risk_id,
+                        {
+                            "risk_id": str(risk_id),
+                            "store_id": str(store_id),
+                            "product_id": str(product_id),
+                            "risk_type": RiskType.SPOILAGE.value,
+                            "severity": severity_enum.value,
+                            "probability": sp_res.probability,
+                            "expected_time": expected_time.isoformat(),
+                            "discount_tier": sp_res.discount_tier.value,
+                            "net_spoilage_quantity": sp_res.net_spoilage_quantity,
+                        },
+                        persist=True,
+                    )
                 count += 1
 
         return count
+
 
     async def resolve(self, db: AsyncSession, risk_id: uuid.UUID) -> Optional[Risk]:
         """Mark an active risk as RESOLVED and emit RISK_RESOLVED event."""

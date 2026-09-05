@@ -1,4 +1,4 @@
-﻿"""Agent ExecutionRunner -- async entry point for the execution graph.
+"""Agent ExecutionRunner -- async entry point for the execution graph.
 
 Usage:
     runner = ExecutionRunner()
@@ -103,13 +103,20 @@ class ExecutionRunner:
             uuid.UUID(str(new_rec_id_raw)) if new_rec_id_raw else None
         )
 
+        error_msg = (
+            final_state.get("error")
+            or final_state.get("pre_check_error")
+            or final_state.get("execution_error")
+            or final_state.get("verify_error")
+        )
+
         return RunResult(
             run_id=run_id,
             recommendation_id=recommendation_id,
             status=final_state.get("status", "failed"),
             action_type=action_type,
             events=final_state.get("events", []),
-            error=final_state.get("error") or final_state.get("execution_error"),
+            error=error_msg,
             new_recommendation_id=new_rec_id,
             requires_human_review=final_state.get("requires_human_review", False),
             started_at=started,

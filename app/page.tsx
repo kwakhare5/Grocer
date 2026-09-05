@@ -23,6 +23,8 @@ import {
   grocerApi,
   transformStores,
   transformRecommendation,
+  BackendAgentRun,
+  createSyntheticAgentRun,
 } from "../lib/apiClient";
 import {
   runScenarioStep,
@@ -73,6 +75,7 @@ function GrocerApp() {
   );
   const [events, setEvents] = useState<SimulationEvent[]>(INITIAL_EVENTS);
   const [isLiveApiConnected, setIsLiveApiConnected] = useState<boolean>(false);
+  const [activeSimulationId, setActiveSimulationId] = useState<string | null>(null);
   const [simulation, setSimulation] = useState<SimulationState>({
     isRunning: false,
     currentDay: 7,
@@ -86,6 +89,7 @@ function GrocerApp() {
   const [scenario, setScenario] = useState<ScenarioState>(defaultScenarioState());
   const [metricsDismissed, setMetricsDismissed] = useState(false);
   const [activeCustomer, setActiveCustomer] = useState<CustomerPersona>(DEFAULT_CUSTOMER_PERSONA);
+  const [agentRuns, setAgentRuns] = useState<BackendAgentRun[]>([]);
 
   // Derived: show metrics panel when scenario completes (unless user dismissed)
   const showMetrics = scenario.isComplete && !!scenario.activeScenarioId && !metricsDismissed;
@@ -110,12 +114,30 @@ function GrocerApp() {
 
       setIsLiveApiConnected(true);
 
-      const [backendStores, backendProducts, backendRisks, backendRecs] = await Promise.all([
+      const [backendStores, backendProducts, backendRisks, backendRecs, activeSim, runs] = await Promise.all([
         grocerApi.getStores(),
         grocerApi.getProducts(),
         grocerApi.getRisks(),
         grocerApi.getRecommendations(),
+        grocerApi.getActiveSimulation(),
+        grocerApi.getAgentRuns(),
       ]);
+
+      if (runs && runs.length > 0) {
+        setAgentRuns(runs);
+      }
+
+      if (activeSim && activeSim.simulation_id) {
+        setActiveSimulationId(activeSim.simulation_id);
+        if (activeSim.current_time) {
+          const simDate = new Date(activeSim.current_time);
+          setSimulation((prev) => ({
+            ...prev,
+            currentDay: (Math.floor(simDate.getTime() / (1000 * 60 * 60 * 24)) % 30) + 1,
+            currentHour: simDate.getUTCHours(),
+          }));
+        }
+      }
 
       if (backendStores && backendStores.length > 0) {
         const transformedStores = transformStores(backendStores, backendRisks || []);
@@ -142,13 +164,32 @@ function GrocerApp() {
         if (!mounted) return;
         if (isHealthy) {
           setIsLiveApiConnected(true);
-          const [backendStores, backendProducts, backendRisks, backendRecs] = await Promise.all([
+          const [backendStores, backendProducts, backendRisks, backendRecs, activeSim, runs] = await Promise.all([
             grocerApi.getStores(),
             grocerApi.getProducts(),
             grocerApi.getRisks(),
             grocerApi.getRecommendations(),
+            grocerApi.getActiveSimulation(),
+            grocerApi.getAgentRuns(),
           ]);
           if (!mounted) return;
+
+          if (runs && runs.length > 0) {
+            setAgentRuns(runs);
+          }
+
+          if (activeSim && activeSim.simulation_id) {
+            setActiveSimulationId(activeSim.simulation_id);
+            if (activeSim.current_time) {
+              const simDate = new Date(activeSim.current_time);
+              setSimulation((prev) => ({
+                ...prev,
+                currentDay: (Math.floor(simDate.getTime() / (1000 * 60 * 60 * 24)) % 30) + 1,
+                currentHour: simDate.getUTCHours(),
+              }));
+            }
+          }
+
           if (backendStores && backendStores.length > 0) {
             const transformedStores = transformStores(backendStores, backendRisks || []);
             setStores(transformedStores);
@@ -175,6 +216,38 @@ function GrocerApp() {
   // -------------------------------------------------------------------------
 
   const handleAdvanceTime = useCallback(async (hours: number) => {
+    const nowStamp = new Date().toTimeString().substring(0, 8);
+
+    if (isLiveApiConnected && activeSimulationId) {
+      try {
+        const advanced = await grocerApi.advanceSimulation(activeSimulationId, hours);
+        if (advanced && advanced.current_time) {
+          const simDate = new Date(advanced.current_time);
+          setSimulation((prev) => ({
+            ...prev,
+            currentDay: (Math.floor(simDate.getTime() / (1000 * 60 * 60 * 24)) % 30) + 1,
+            currentHour: simDate.getUTCHours(),
+            totalOrdersDelivered: prev.totalOrdersDelivered + (hours * 18),
+          }));
+        }
+        await grocerApi.evaluateRisks();
+        await syncWithBackend();
+
+        const newEvent: SimulationEvent = {
+          id: `ev-${Date.now()}`,
+          timestamp: nowStamp,
+          type: "INVENTORY_UPDATED",
+          description: `Authoritative Backend: +${hours}h simulated across 5 dark stores.`,
+          severity: "info",
+        };
+        setEvents((prev) => [newEvent, ...prev.slice(0, 29)]);
+        toast.success(`Backend advanced +${hours}h`);
+        return;
+      } catch {
+        toast.error("Failed to advance backend simulation");
+      }
+    }
+
     setSimulation((prev) => {
       const nextHour = prev.currentHour + hours;
       const nextDay = prev.currentDay + Math.floor(nextHour / 24);
@@ -186,18 +259,6 @@ function GrocerApp() {
       };
     });
 
-    const nowStamp = new Date().toTimeString().substring(0, 8);
-
-    if (isLiveApiConnected) {
-      try {
-        await grocerApi.evaluateRisks();
-        await syncWithBackend();
-      } catch {
-        // Continue with local notification
-      }
-    }
-
-    // Append new simulation event
     const newEvent: SimulationEvent = {
       id: `ev-${Date.now()}`,
       timestamp: nowStamp,
@@ -207,7 +268,8 @@ function GrocerApp() {
     };
     setEvents((prev) => [newEvent, ...prev.slice(0, 29)]);
     toast.success(`Advanced simulation clock by +${hours}h`);
-  }, [isLiveApiConnected, syncWithBackend]);
+  }, [isLiveApiConnected, activeSimulationId, syncWithBackend]);
+
 
   // Run/Pause loop
   const handleToggleRun = () => {
@@ -345,11 +407,31 @@ function GrocerApp() {
     toast.success("1-Click Demo Started: Hero Stockout & Inter-Store Transfer Scenario");
   }, [handleSelectScenario]);
 
-  // -------------------------------------------------------------------------
-  // Reset (full simulation reset)
-  // -------------------------------------------------------------------------
-
   const handleReset = async () => {
+    if (isLiveApiConnected && activeSimulationId) {
+      try {
+        const res = await grocerApi.resetSimulation(activeSimulationId);
+        if (res && res.simulation_id) {
+          setActiveSimulationId(res.simulation_id);
+          if (res.current_time) {
+            const simDate = new Date(res.current_time);
+            setSimulation((prev) => ({
+              ...prev,
+              isRunning: false,
+              currentDay: 1,
+              currentHour: simDate.getUTCHours(),
+            }));
+          }
+        }
+        await syncWithBackend();
+        setScenario(defaultScenarioState());
+        toast.success("Backend simulation reset to initial seed state");
+        return;
+      } catch {
+        toast.error("Failed to reset backend simulation");
+      }
+    }
+
     setStores(INITIAL_STORES);
     setRecommendations(INITIAL_RECOMMENDATIONS);
     setEvents(INITIAL_EVENTS);
@@ -365,10 +447,6 @@ function GrocerApp() {
     });
     setScenario(defaultScenarioState());
     toast.info("Simulation reset to baseline state");
-
-    if (isLiveApiConnected) {
-      await syncWithBackend();
-    }
   };
 
   // -------------------------------------------------------------------------
@@ -379,52 +457,79 @@ function GrocerApp() {
     const rec = recommendations.find((r) => r.id === recId);
     if (!rec) return;
 
+    // 1. Immediately enter executing state
     setRecommendations((prev) =>
-      prev.map((r) => (r.id === recId ? { ...r, status: "completed" as const } : r))
+      prev.map((r) => (r.id === recId ? { ...r, status: "executing" as const } : r))
     );
 
-    if (rec.actionType === "transfer" && rec.sourceStore) {
-      setStores((prev) =>
-        prev.map((s) => {
-          if (s.code === rec.destinationStore.code) {
-            return {
-              ...s,
-              status: "active",
-              stockoutRiskCount: Math.max(0, s.stockoutRiskCount - 1),
-              inventoryHealth: {
-                ...s.inventoryHealth,
-                dairy: Math.min(100, s.inventoryHealth.dairy + 40),
-              },
-            };
-          }
-          if (s.code === rec.sourceStore?.code) {
-            return {
-              ...s,
-              excessCapacityUnits: Math.max(0, s.excessCapacityUnits - rec.quantity),
-            };
-          }
-          return s;
-        })
-      );
-    } else if (rec.actionType === "discount") {
-      setStores((prev) =>
-        prev.map((s) =>
-          s.code === rec.destinationStore.code
-            ? { ...s, spoilageRiskCount: Math.max(0, s.spoilageRiskCount - 1) }
-            : s
-        )
-      );
-    }
-
     const nowStamp = new Date().toTimeString().substring(0, 8);
+    let runResult: BackendAgentRun | null = null;
 
     if (isLiveApiConnected) {
       try {
         await grocerApi.approveRecommendation(recId);
-        await grocerApi.executeAgent(recId);
+        runResult = await grocerApi.executeAgent(recId);
         await syncWithBackend();
-      } catch {
-        // Fallback
+      } catch (err) {
+        console.error("Backend agent execution failed, generating fallback trace:", err);
+      }
+    }
+
+    // 2. If offline or backend did not return runResult, generate synthetic 5-node trace
+    if (!runResult) {
+      runResult = createSyntheticAgentRun(rec);
+    }
+
+    // Append to live agent runs log
+    setAgentRuns((prev) => [runResult!, ...prev.filter((r) => r.run_id !== runResult!.run_id)]);
+
+    const isCompleted = runResult.status === "completed";
+
+    // 3. Update recommendation final status
+    setRecommendations((prev) =>
+      prev.map((r) =>
+        r.id === recId
+          ? {
+              ...r,
+              status: isCompleted ? ("completed" as const) : ("failed" as const),
+            }
+          : r
+      )
+    );
+
+    // 4. Update local inventory buffers if offline
+    if (!isLiveApiConnected && isCompleted) {
+      if (rec.actionType === "transfer" && rec.sourceStore) {
+        setStores((prev) =>
+          prev.map((s) => {
+            if (s.code === rec.destinationStore.code) {
+              return {
+                ...s,
+                status: "active",
+                stockoutRiskCount: Math.max(0, s.stockoutRiskCount - 1),
+                inventoryHealth: {
+                  ...s.inventoryHealth,
+                  dairy: Math.min(100, s.inventoryHealth.dairy + 40),
+                },
+              };
+            }
+            if (s.code === rec.sourceStore?.code) {
+              return {
+                ...s,
+                excessCapacityUnits: Math.max(0, s.excessCapacityUnits - rec.quantity),
+              };
+            }
+            return s;
+          })
+        );
+      } else if (rec.actionType === "discount") {
+        setStores((prev) =>
+          prev.map((s) =>
+            s.code === rec.destinationStore.code
+              ? { ...s, spoilageRiskCount: Math.max(0, s.spoilageRiskCount - 1) }
+              : s
+          )
+        );
       }
     }
 
@@ -439,14 +544,25 @@ function GrocerApp() {
     const executedEvent: SimulationEvent = {
       id: `ev-${Date.now()}-2`,
       timestamp: nowStamp,
-      type: rec.actionType === "transfer" ? "TRANSFER_COMPLETED" : "INVENTORY_UPDATED",
-      description: `${rec.actionType.toUpperCase()} dispatched: ${rec.quantity} ${rec.unit} updated.`,
+      type: isCompleted
+        ? rec.actionType === "transfer"
+          ? "TRANSFER_COMPLETED"
+          : "INVENTORY_UPDATED"
+        : "INVENTORY_UPDATED",
+      description: isCompleted
+        ? `LangGraph Executed: ${rec.quantity} ${rec.unit} verified across 5 nodes.`
+        : `LangGraph Recovery: ${runResult.error || "Alternative recalculated."}`,
       storeCode: rec.destinationStore.code,
-      severity: "info",
+      severity: isCompleted ? "info" : "warning",
     };
 
     setEvents((prev) => [executedEvent, approvedEvent, ...prev.slice(0, 28)]);
-    toast.success(`Action Approved: ${rec.title}`);
+
+    if (isCompleted) {
+      toast.success(`LangGraph Executed: ${rec.title}`);
+    } else {
+      toast.warning(`Recovery Triggered: Human Review Required`);
+    }
   };
 
   const handleRejectRecommendation = async (recId: string) => {
@@ -633,6 +749,7 @@ function GrocerApp() {
             recommendations={recommendations}
             events={events}
             simulation={simulation}
+            agentRuns={agentRuns}
             onApproveRecommendation={handleApproveRecommendation}
             onRejectRecommendation={handleRejectRecommendation}
             scenario={scenario}
@@ -652,8 +769,8 @@ function GrocerApp() {
         )}
       </main>
 
-      {/* 3. Floating Simulation Control Dock (Only shown during interactive dashboard / demo testing) */}
-      {mode !== "landing" && (
+      {/* 3. Floating Simulation Control Dock (Only shown during store operations) */}
+      {mode === "operations" && (
         <SimulationFloatingIsland
           simulation={simulation}
           onToggleRun={handleToggleRun}
@@ -664,6 +781,7 @@ function GrocerApp() {
           onStepScenario={handleStepScenario}
           onToggleAutoPlay={handleToggleAutoPlay}
           onDemoMode={handleDemoMode}
+          isLiveApiConnected={isLiveApiConnected}
         />
       )}
     </div>

@@ -1,14 +1,14 @@
-# Tracer Bullets: iPhone Mockup Overhaul & Multi-Color Semantic Palette Migration
+# Tracer Bullets: Phase 7 Operations Frontend Integration & Live Agent Run Inspector
 
-- [x] 1. Global Color Tokens: Update `app/globals.css` with Cobalt Blue (`#2563EB`) as primary brand color and define semantic tokens (Red, Orange, Yellow, Green, Slate) <!-- id: 1 -->
-- [x] 2. Phone Demo Hook: Refactor `hooks/usePhoneDemoEngine.ts` to remove lockscreen mode, default to `whatsapp`, and streamline tab navigation between `whatsapp` and `pantry` <!-- id: 2 -->
-- [x] 3. iPhone Mockup Architecture: Rebuild `components/PhoneMockup.tsx` with authentic iOS status bar (09:41, Wi-Fi, battery), native iOS bottom tab bar (WhatsApp / Pantry), and semantic action cards <!-- id: 3 -->
-- [x] 4. Clean Obsolete Notification Banner: Delete `components/mockup/IosNotificationBanner.tsx` and all references <!-- id: 4 -->
-- [x] 5. Customer Replenishment View Multi-Color Polish: Update `components/customer/CustomerReplenishmentView.tsx` with multi-color staple simulator pills (Blue milk, Orange bread, Yellow eggs, Red tomatoes) and Cobalt Blue node badges <!-- id: 5 -->
-- [x] 6. Navigation Header & Landing Hero: Update `components/navigation/AppGlobalHeader.tsx` and `components/grocer/GrocerHero.tsx` to Cobalt Blue CTAs and active tabs <!-- id: 6 -->
-- [x] 7. Operations Deck Multi-Color Rollout: Update `components/operations/OperationsDashboard.tsx`, `components/operations/SkuInventoryTable.tsx`, and `components/operations/RecommendationCard.tsx` with semantic color indicators <!-- id: 7 -->
-- [x] 8. Landing Page Sections Polish: Update `GrocerValueProp.tsx`, `GrocerIntegrations.tsx`, `GrocerVelocityCalculator.tsx`, `GrocerFooter.tsx` with balanced multi-color accents <!-- id: 8 -->
-- [x] 9. Verification & Build: Run `npm run lint`, `npm run build`, and `graphify update .` <!-- id: 9 -->
+- [x] 1. Seam 1: API Client & Telemetry Models (`lib/apiClient.ts`) — Add `getAgentRuns()`, extend `BackendAgentRun` with `verification_details`, `batches_affected`, and client-side fallback trace generator <!-- id: 1 -->
+- [x] 2. Seam 2: 5-Node LangGraph Run Inspector Component (`components/operations/AgentRunInspector.tsx`) — Build Swiss Logistics trace modal with node status, FIFO batch allocations, and invariant assertions <!-- id: 2 -->
+- [x] 3. Seam 3: Recommendation Card & Explainability Panel Wiring (`components/operations/RecommendationCard.tsx` & `WhyInspectorPanel.tsx`) — Real-time executing state, "View Agent Trace" button, and recovery warning banner <!-- id: 3 -->
+- [x] 4. Seam 4: Operations Dashboard Navigation & Attention Counters (`components/operations/OperationsDashboard.tsx`) — Add "Agent Runs" sub-tab, live execution log table, and wire modal state <!-- id: 4 -->
+- [x] 5. Seam 5: App Orchestration & Execution Lifecycle (`app/page.tsx`) — Manage `agentRuns` state, wire `handleApproveRecommendation` to agent execute API + fallback simulation, backend state sync <!-- id: 5 -->
+- [x] 6. Seam 6: Verification & Quality Audit — Pytest backend regression, Next.js ESLint, production Turbopack build, and knowledge graph update <!-- id: 6 -->
+
+
+
 
 
 

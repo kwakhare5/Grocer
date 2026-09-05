@@ -1,16 +1,16 @@
 # Graph Report - Grocer  (2026-09-04)
 
 ## Corpus Check
-- 117 files · ~345,265 words
+- 117 files · ~345,258 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 1469 nodes · 3132 edges · 96 communities (87 shown, 9 thin omitted)
+- 1469 nodes · 3132 edges · 95 communities (86 shown, 9 thin omitted)
 - Extraction: 91% EXTRACTED · 9% INFERRED · 0% AMBIGUOUS · INFERRED: 271 edges (avg confidence: 0.51)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `37212752`
+- Built from commit: `654bc798`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -81,7 +81,6 @@
 - 32. API contract
 - 6. Locked scope
 - eslint.config.mjs
-- GrocerHero.tsx
 - next.config.ts
 - next-env.d.ts
 - postcss.config.mjs
@@ -124,19 +123,19 @@
 ## Surprising Connections (you probably didn't know these)
 - `WhyInspectorPanelProps` --references--> `RecommendationItem`  [EXTRACTED]
   components/operations/WhyInspectorPanel.tsx → lib/types.ts
-- `PhoneMockup()` --calls--> `usePhoneDemoEngine()`  [EXTRACTED]
-  components/PhoneMockup.tsx → hooks/usePhoneDemoEngine.ts
 - `CustomerReplenishmentViewProps` --references--> `DarkStore`  [EXTRACTED]
   components/customer/CustomerReplenishmentView.tsx → lib/types.ts
 - `LiveEventFeedProps` --references--> `SimulationEvent`  [EXTRACTED]
   components/operations/LiveEventFeed.tsx → lib/types.ts
 - `MetricsComparisonPanelProps` --references--> `ScenarioState`  [EXTRACTED]
   components/operations/MetricsComparisonPanel.tsx → lib/types.ts
+- `OperationsDashboardProps` --references--> `RecommendationItem`  [EXTRACTED]
+  components/operations/OperationsDashboard.tsx → lib/types.ts
 
 ## Import Cycles
 - None detected.
 
-## Communities (96 total, 9 thin omitted)
+## Communities (95 total, 9 thin omitted)
 
 ### Community 0 - "GrocerValueProp.tsx"
 Cohesion: 0.43
@@ -247,8 +246,8 @@ Cohesion: 0.18
 Nodes (10): arrowParens, bracketSpacing, endOfLine, jsxSingleQuote, printWidth, semi, singleQuote, tabWidth (+2 more)
 
 ### Community 27 - "types.ts"
-Cohesion: 0.15
-Nodes (22): CustomerReplenishmentView(), CustomerReplenishmentViewProps, IphoneFrame(), IphoneFrameProps, usePhoneDemoEngine(), DEFAULT_CUSTOMER_PERSONA, DEFAULT_PANTRY_STAPLES, ICON_MAP (+14 more)
+Cohesion: 0.12
+Nodes (26): CustomerReplenishmentView(), CustomerReplenishmentViewProps, GrocerHero(), GrocerHeroProps, PhoneMockup(), IphoneFrame(), IphoneFrameProps, WhatsAppIcon() (+18 more)
 
 ### Community 28 - "layout.tsx"
 Cohesion: 0.40
@@ -272,7 +271,7 @@ Nodes (8): AdvanceTimeRequest, create_simulation(), CreateSimulationRequest, Bas
 
 ### Community 33 - "Log Entries"
 Cohesion: 0.15
-Nodes (12): [Grocer — Full Codebase Architecture Refactoring & Guided Demo Tour] 2026-08-14, [Grocer — iPhone Chassis Scaled to 300px, Button Label Glitch Fixed & WhatsApp Bubble Spacing Refined] 2026-09-04, [Grocer — Official App Icon Design & Full UI Architecture Overhaul] 2026-09-02, [Grocer — Phase 0 Audit, Phase 1 Backend Foundation & Phase 2 Simulator Engine] 2026-08-27, [Grocer — Phase 0 Repository Audit & v2 Architecture Alignment] 2026-08-26, [Grocer — Phase 9 Customer / WhatsApp Integration & Phase 10 Hardening & Polish] 2026-08-28, [Grocer — Saved Exact Figma Notification Layout & WhatsApp Icon] 2026-08-15, [Grocer — UI Aesthetics, 3-Column Cockpit, Phase 3/4/5/6 Engines & Phase 7 Live Integration] 2026-08-27 (+4 more)
+Nodes (12): [Grocer — Full Codebase Architecture Refactoring & Guided Demo Tour] 2026-08-14, [Grocer — iPhone Chassis Calibrated to 290px, Button Label Glitch Fixed & WhatsApp Spacing Refined] 2026-09-04, [Grocer — Official App Icon Design & Full UI Architecture Overhaul] 2026-09-02, [Grocer — Phase 0 Audit, Phase 1 Backend Foundation & Phase 2 Simulator Engine] 2026-08-27, [Grocer — Phase 0 Repository Audit & v2 Architecture Alignment] 2026-08-26, [Grocer — Phase 9 Customer / WhatsApp Integration & Phase 10 Hardening & Polish] 2026-08-28, [Grocer — Saved Exact Figma Notification Layout & WhatsApp Icon] 2026-08-15, [Grocer — UI Aesthetics, 3-Column Cockpit, Phase 3/4/5/6 Engines & Phase 7 Live Integration] 2026-08-27 (+4 more)
 
 ### Community 34 - "test_simulation.py"
 Cohesion: 0.14
@@ -389,10 +388,6 @@ Nodes (9): 32.1 Simulation, 32.2 Scenarios, 32.3 Stores, 32.4 Products, 32.5 Rec
 ### Community 64 - "6. Locked scope"
 Cohesion: 0.22
 Nodes (9): 6.1 Stores, 6.2 Products, 6.3 Customers, 6.4 Historical data, 6.5 Main operator actions, 6.6 Transfer limitation, 6.7 Customer interface, 6.8 Platform integrations (+1 more)
-
-### Community 66 - "GrocerHero.tsx"
-Cohesion: 0.40
-Nodes (4): GrocerHero(), GrocerHeroProps, PhoneMockup(), WhatsAppIcon()
 
 ### Community 71 - "10. Technology stack"
 Cohesion: 0.25

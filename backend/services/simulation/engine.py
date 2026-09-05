@@ -25,6 +25,9 @@ from backend.services.simulation.seed_data import (
     STORES, SUPPLIERS, PRODUCTS, CUSTOMERS,
     SeedProduct, SeedCustomer,
 )
+from backend.services.simulation.transfer import process_arriving_transfers, clear_active_transfers
+from backend.services.simulation.supplier import process_supplier_deliveries, clear_active_pos
+
 
 
 class SimulationClock:
@@ -95,7 +98,11 @@ class SimulationEngine:
         # 5. Advance clock to "now" (end of historical period)
         self.clock.advance(self.historical_days * 24)
 
-        # 6. Create Simulation record
+        # 6. Ensure active batches exist at simulation present time
+        await self._expire_batches(db, self.clock.now)
+        await self._restock_inventory(db, self.clock.now)
+
+        # 7. Create Simulation record
         simulation = Simulation(
             simulation_id=uuid.uuid4(),
             seed=self.seed,
@@ -129,6 +136,10 @@ class SimulationEngine:
         # Handle batch expiry
         expired_batches = await self._expire_batches(db, new_time)
 
+        # Process arriving store transfers & supplier PO deliveries
+        delivered_transfers = await process_arriving_transfers(db, new_time)
+        delivered_pos = await process_supplier_deliveries(db, new_time)
+
         # Update simulation record
         sim = await db.get(Simulation, simulation_id)
         if sim:
@@ -148,6 +159,8 @@ class SimulationEngine:
                 'hours': hours,
                 'orders_created': orders_created,
                 'batches_expired': expired_batches,
+                'transfers_delivered': len(delivered_transfers),
+                'pos_delivered': len(delivered_pos),
             },
         )
         db.add(event)
@@ -158,6 +171,8 @@ class SimulationEngine:
             'hours_advanced': hours,
             'orders_created': orders_created,
             'batches_expired': expired_batches,
+            'transfers_delivered': len(delivered_transfers),
+            'pos_delivered': len(delivered_pos),
         }
 
     async def reset(self, db: AsyncSession, simulation_id: uuid.UUID) -> dict[str, Any]:
@@ -175,6 +190,10 @@ class SimulationEngine:
         await db.execute(delete(Simulation))
         await db.commit()
 
+        # Clear in-flight transfers and purchase orders
+        clear_active_transfers()
+        clear_active_pos()
+
         # Re-initialize RNG
         self.rng = random.Random(self.seed)
         self.clock = None
@@ -186,6 +205,7 @@ class SimulationEngine:
             'status': 'reset_complete',
             'current_time': self.clock.now.isoformat() if self.clock else None,
         }
+
 
     # ---- PRIVATE METHODS ----
 
@@ -296,6 +316,11 @@ class SimulationEngine:
         hours_in_period = (end - start).total_seconds() / 3600
         orders_created = 0
 
+        if not self._store_map:
+            store_res = await db.execute(select(Store))
+            stores = store_res.scalars().all()
+            self._store_map = {s.name: s.store_id for s in stores}
+
         for cust_seed in CUSTOMERS:
             # Probability of ordering in this period
             order_prob = hours_in_period / (cust_seed.order_frequency_days * 24)
@@ -344,7 +369,7 @@ class SimulationEngine:
                 )
                 db.add(item)
 
-                # Deduct from inventory
+                # Deduct from inventory using FIFO batch depletion
                 await self._deduct_inventory(db, store_id, prod_seed.product_id, qty)
 
             orders_created += 1
@@ -357,43 +382,75 @@ class SimulationEngine:
     async def _deduct_inventory(
         self, db: AsyncSession, store_id: uuid.UUID, product_id: uuid.UUID, qty: int
     ) -> None:
-        """Deduct quantity from inventory. Floor at 0."""
-        result = await db.execute(
+        """Deduct quantity from active batches (FIFO) and synchronize inventory. Floor at 0."""
+        batch_res = await db.execute(
+            select(Batch)
+            .where(
+                Batch.store_id == store_id,
+                Batch.product_id == product_id,
+                Batch.quantity > 0,
+            )
+            .order_by(Batch.expires_at.asc(), Batch.received_at.asc())
+        )
+        batches = batch_res.scalars().all()
+
+        rem = qty
+        for b in batches:
+            if rem <= 0:
+                break
+            deduct = min(b.quantity, rem)
+            b.quantity -= deduct
+            rem -= deduct
+
+        inv_res = await db.execute(
             select(Inventory).where(
                 Inventory.store_id == store_id,
                 Inventory.product_id == product_id,
             )
         )
-        inv = result.scalar_one_or_none()
+        inv = inv_res.scalar_one_or_none()
         if inv:
-            inv.quantity = max(0, inv.quantity - qty)
+            inv.quantity = sum(b.quantity for b in batches)
 
     async def _restock_inventory(self, db: AsyncSession, restock_time: datetime) -> None:
         """Restock inventory for all stores/products (simulated supplier delivery)."""
+        restock_naive = restock_time.replace(tzinfo=None) if restock_time.tzinfo else restock_time
         for store_seed in STORES:
             for prod_seed in PRODUCTS:
-                result = await db.execute(
-                    select(Inventory).where(
-                        Inventory.store_id == store_seed.store_id,
-                        Inventory.product_id == prod_seed.product_id,
+                # Count unexpired active batches
+                active_sum_res = await db.execute(
+                    select(func.coalesce(func.sum(Batch.quantity), 0)).where(
+                        Batch.store_id == store_seed.store_id,
+                        Batch.product_id == prod_seed.product_id,
+                        Batch.quantity > 0,
+                        Batch.expires_at > restock_naive,
                     )
                 )
-                inv = result.scalar_one_or_none()
-                if inv and inv.quantity < prod_seed.daily_demand_mean * 2:
-                    # Restock to ~3 days of demand
-                    restock_qty = int(prod_seed.daily_demand_mean * self.rng.uniform(2.5, 3.5))
-                    inv.quantity += restock_qty
+                active_qty = active_sum_res.scalar()
 
-                    # Create new batch
+                if active_qty < prod_seed.daily_demand_mean * 2:
+                    restock_qty = int(prod_seed.daily_demand_mean * self.rng.uniform(2.5, 3.5))
+
                     batch = Batch(
                         batch_id=uuid.uuid4(),
                         store_id=store_seed.store_id,
                         product_id=prod_seed.product_id,
                         quantity=restock_qty,
-                        received_at=restock_time,
-                        expires_at=restock_time + timedelta(hours=prod_seed.shelf_life_hours),
+                        received_at=restock_naive,
+                        expires_at=restock_naive + timedelta(hours=prod_seed.shelf_life_hours),
                     )
                     db.add(batch)
+
+                    # Synchronize inventory
+                    inv_res = await db.execute(
+                        select(Inventory).where(
+                            Inventory.store_id == store_seed.store_id,
+                            Inventory.product_id == prod_seed.product_id,
+                        )
+                    )
+                    inv = inv_res.scalar_one_or_none()
+                    if inv:
+                        inv.quantity = active_qty + restock_qty
 
         await db.flush()
 
@@ -407,12 +464,32 @@ class SimulationEngine:
         )
         expired = result.scalars().all()
 
+        affected_pairs: set[tuple[uuid.UUID, uuid.UUID]] = set()
         for batch in expired:
-            # Deduct expired quantity from inventory
-            await self._deduct_inventory(db, batch.store_id, batch.product_id, batch.quantity)
+            affected_pairs.add((batch.store_id, batch.product_id))
             batch.quantity = 0
+
+        for store_id, product_id in affected_pairs:
+            batch_sum_res = await db.execute(
+                select(func.coalesce(func.sum(Batch.quantity), 0)).where(
+                    Batch.store_id == store_id,
+                    Batch.product_id == product_id,
+                    Batch.quantity > 0,
+                )
+            )
+            total_active = batch_sum_res.scalar()
+            inv_res = await db.execute(
+                select(Inventory).where(
+                    Inventory.store_id == store_id,
+                    Inventory.product_id == product_id,
+                )
+            )
+            inv = inv_res.scalar_one_or_none()
+            if inv:
+                inv.quantity = total_active
 
         if expired:
             await db.flush()
 
         return len(expired)
+

@@ -85,7 +85,8 @@ async def test_initial_batches_created(db_session: AsyncSession) -> None:
     await engine.initialize(db_session)
 
     batch_count = (await db_session.execute(select(func.count(Batch.batch_id)))).scalar()
-    assert batch_count >= 125  # At least 1 per store-product
+    assert batch_count >= len(STORES) * len(PRODUCTS)  # At least 1 per store-product
+
 
 
 @pytest.mark.asyncio

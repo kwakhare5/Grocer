@@ -1,4 +1,4 @@
-﻿"""Recommendations REST API -- spec sections 17, 18 (Human-in-the-loop).
+"""Recommendations REST API -- spec sections 17, 18 (Human-in-the-loop).
 
 Endpoints:
     POST /api/recommendations/evaluate/{risk_id} -- trigger Decision Engine
@@ -22,12 +22,24 @@ from backend.models.enums import RecommendationStatus
 from backend.api.schemas import (
     RecommendationResponse,
     RecommendationEvaluateResponse,
+    RecommendationBatchEvaluateResponse,
     RecommendationApproveResponse,
     RecommendationRejectResponse,
 )
 from backend.services.decision.engine import DecisionOrchestrator
 
 router = APIRouter(prefix="/api/recommendations", tags=["recommendations"])
+
+
+@router.post("/evaluate", response_model=RecommendationBatchEvaluateResponse)
+async def batch_evaluate_recommendations(
+    db: AsyncSession = Depends(get_db),
+) -> RecommendationBatchEvaluateResponse:
+    """Run the Decision Engine across all active risks and persist recommendations."""
+    orchestrator = DecisionOrchestrator()
+    count = await orchestrator.evaluate_all(db)
+    await db.commit()
+    return RecommendationBatchEvaluateResponse(recommendations_generated=count)
 
 
 @router.post("/evaluate/{risk_id}", response_model=RecommendationEvaluateResponse)
@@ -55,6 +67,8 @@ async def evaluate_recommendation(
 async def list_recommendations(
     risk_id: Optional[uuid.UUID] = Query(None),
     status: Optional[str] = Query(None),
+    action_type: Optional[str] = Query(None),
+    store_id: Optional[uuid.UUID] = Query(None),
     limit: int = Query(100, ge=1, le=500),
     db: AsyncSession = Depends(get_db),
 ) -> list[RecommendationResponse]:
@@ -63,7 +77,14 @@ async def list_recommendations(
     if risk_id:
         stmt = stmt.where(Recommendation.risk_id == risk_id)
     if status:
-        stmt = stmt.where(Recommendation.status == status)
+        stmt = stmt.where(Recommendation.status == status.lower())
+    if action_type:
+        stmt = stmt.where(Recommendation.action_type == action_type.lower())
+    if store_id:
+        stmt = stmt.where(
+            (Recommendation.source_store_id == store_id)
+            | (Recommendation.destination_store_id == store_id)
+        )
 
     result = await db.execute(stmt)
     recs = result.scalars().all()

@@ -9,6 +9,7 @@ interface RecommendationStreamProps {
   onSelectRec: (id: string) => void;
   onApproveRec: (id: string) => void;
   onRejectRec: (id: string) => void;
+  onViewTrace?: (id: string) => void;
   events: SimulationEvent[];
 }
 
@@ -18,6 +19,7 @@ export function RecommendationStream({
   onSelectRec,
   onApproveRec,
   onRejectRec,
+  onViewTrace,
   events,
 }: RecommendationStreamProps) {
   const [filter, setFilter] = useState<string>("all");
@@ -126,6 +128,7 @@ export function RecommendationStream({
               onSelect={() => onSelectRec(item.id)}
               onApprove={onApproveRec}
               onReject={onRejectRec}
+              onViewTrace={onViewTrace}
               index={idx}
             />
           ))

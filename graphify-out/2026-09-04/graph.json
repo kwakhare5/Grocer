@@ -563,6 +563,19 @@
       "norm_label": "customerreplenishmentviewprops"
     },
     {
+      "label": "GrocerHeroProps",
+      "file_type": "code",
+      "source_file": "components/grocer/GrocerHero.tsx",
+      "source_location": "L8",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "id": "components_grocer_grocerhero_grocerheroprops",
+      "community": 27,
+      "community_name": "types.ts",
+      "norm_label": "grocerheroprops"
+    },
+    {
       "label": "IphoneFrameProps",
       "file_type": "code",
       "source_file": "components/ui/IphoneFrame.tsx",
@@ -2030,19 +2043,6 @@
       "community": 62,
       "community_name": "env.py",
       "norm_label": "settings"
-    },
-    {
-      "label": "GrocerHeroProps",
-      "file_type": "code",
-      "source_file": "components/grocer/GrocerHero.tsx",
-      "source_location": "L8",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "id": "components_grocer_grocerhero_grocerheroprops",
-      "community": 66,
-      "community_name": "GrocerHero.tsx",
-      "norm_label": "grocerheroprops"
     },
     {
       "label": "AgentRunResponse",
@@ -4198,6 +4198,30 @@
       "norm_label": "customerreplenishmentview()"
     },
     {
+      "label": "GrocerHero()",
+      "file_type": "code",
+      "source_file": "components/grocer/GrocerHero.tsx",
+      "source_location": "L13",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "components_grocer_grocerhero_grocerhero",
+      "community": 27,
+      "community_name": "types.ts",
+      "norm_label": "grocerhero()"
+    },
+    {
+      "label": "PhoneMockup()",
+      "file_type": "code",
+      "source_file": "components/PhoneMockup.tsx",
+      "source_location": "L26",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "components_phonemockup_phonemockup",
+      "community": 27,
+      "community_name": "types.ts",
+      "norm_label": "phonemockup()"
+    },
+    {
       "label": "IphoneFrame()",
       "file_type": "code",
       "source_file": "components/ui/IphoneFrame.tsx",
@@ -4208,6 +4232,18 @@
       "community": 27,
       "community_name": "types.ts",
       "norm_label": "iphoneframe()"
+    },
+    {
+      "label": "WhatsAppIcon()",
+      "file_type": "code",
+      "source_file": "components/ui/WhatsAppIcon.tsx",
+      "source_location": "L3",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "components_ui_whatsappicon_whatsappicon",
+      "community": 27,
+      "community_name": "types.ts",
+      "norm_label": "whatsappicon()"
     },
     {
       "label": "usePhoneDemoEngine()",
@@ -6128,42 +6164,6 @@
       "community": 62,
       "community_name": "env.py",
       "norm_label": "run_migrations_online()"
-    },
-    {
-      "label": "GrocerHero()",
-      "file_type": "code",
-      "source_file": "components/grocer/GrocerHero.tsx",
-      "source_location": "L13",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "components_grocer_grocerhero_grocerhero",
-      "community": 66,
-      "community_name": "GrocerHero.tsx",
-      "norm_label": "grocerhero()"
-    },
-    {
-      "label": "PhoneMockup()",
-      "file_type": "code",
-      "source_file": "components/PhoneMockup.tsx",
-      "source_location": "L26",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "components_phonemockup_phonemockup",
-      "community": 66,
-      "community_name": "GrocerHero.tsx",
-      "norm_label": "phonemockup()"
-    },
-    {
-      "label": "WhatsAppIcon()",
-      "file_type": "code",
-      "source_file": "components/ui/WhatsAppIcon.tsx",
-      "source_location": "L3",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "components_ui_whatsappicon_whatsappicon",
-      "community": 66,
-      "community_name": "GrocerHero.tsx",
-      "norm_label": "whatsappicon()"
     },
     {
       "label": "client()",
@@ -10310,6 +10310,17 @@
       "norm_label": "customerreplenishmentview.tsx"
     },
     {
+      "label": "GrocerHero.tsx",
+      "file_type": "code",
+      "source_file": "components/grocer/GrocerHero.tsx",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "components_grocer_grocerhero",
+      "community": 27,
+      "community_name": "types.ts",
+      "norm_label": "grocerhero.tsx"
+    },
+    {
       "label": "PhoneMockup.tsx",
       "file_type": "code",
       "source_file": "components/PhoneMockup.tsx",
@@ -10330,6 +10341,17 @@
       "community": 27,
       "community_name": "types.ts",
       "norm_label": "iphoneframe.tsx"
+    },
+    {
+      "label": "WhatsAppIcon.tsx",
+      "file_type": "code",
+      "source_file": "components/ui/WhatsAppIcon.tsx",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "components_ui_whatsappicon",
+      "community": 27,
+      "community_name": "types.ts",
+      "norm_label": "whatsappicon.tsx"
     },
     {
       "label": "usePhoneDemoEngine.ts",
@@ -11179,15 +11201,15 @@
       "norm_label": "[grocer \u2014 full codebase architecture refactoring & guided demo tour] 2026-08-14"
     },
     {
-      "label": "[Grocer \u2014 iPhone Chassis Scaled to 300px, Button Label Glitch Fixed & WhatsApp Bubble Spacing Refined] 2026-09-04",
+      "label": "[Grocer \u2014 iPhone Chassis Calibrated to 290px, Button Label Glitch Fixed & WhatsApp Spacing Refined] 2026-09-04",
       "file_type": "document",
       "source_file": "JOURNAL.md",
       "source_location": "L18",
       "_origin": "ast",
-      "id": "journal_grocer_iphone_chassis_scaled_to_300px_button_label_glitch_fixed_whatsapp_bubble_spacing_refined_2026_09_04",
+      "id": "journal_grocer_iphone_chassis_calibrated_to_290px_button_label_glitch_fixed_whatsapp_spacing_refined_2026_09_04",
       "community": 33,
       "community_name": "Log Entries",
-      "norm_label": "[grocer \u2014 iphone chassis scaled to 300px, button label glitch fixed & whatsapp bubble spacing refined] 2026-09-04"
+      "norm_label": "[grocer \u2014 iphone chassis calibrated to 290px, button label glitch fixed & whatsapp spacing refined] 2026-09-04"
     },
     {
       "label": "[Grocer \u2014 Official App Icon Design & Full UI Architecture Overhaul] 2026-09-02",
@@ -15093,28 +15115,6 @@
       "community": 65,
       "community_name": "eslint.config.mjs",
       "norm_label": "eslintconfig"
-    },
-    {
-      "label": "GrocerHero.tsx",
-      "file_type": "code",
-      "source_file": "components/grocer/GrocerHero.tsx",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "components_grocer_grocerhero",
-      "community": 66,
-      "community_name": "GrocerHero.tsx",
-      "norm_label": "grocerhero.tsx"
-    },
-    {
-      "label": "WhatsAppIcon.tsx",
-      "file_type": "code",
-      "source_file": "components/ui/WhatsAppIcon.tsx",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "components_ui_whatsappicon",
-      "community": 66,
-      "community_name": "GrocerHero.tsx",
-      "norm_label": "whatsappicon.tsx"
     },
     {
       "label": "next.config.ts",
@@ -43130,7 +43130,7 @@
       "weight": 1.0,
       "_origin": "ast",
       "source": "journal_log_entries",
-      "target": "journal_grocer_iphone_chassis_scaled_to_300px_button_label_glitch_fixed_whatsapp_bubble_spacing_refined_2026_09_04",
+      "target": "journal_grocer_iphone_chassis_calibrated_to_290px_button_label_glitch_fixed_whatsapp_spacing_refined_2026_09_04",
       "confidence_score": 1.0
     },
     {
@@ -52918,5 +52918,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "372127527c14f264c38ea74dee005d7fa45f9639"
+  "built_at_commit": "654bc798157eb1c13c6c650ad6614474f7d01c0c"
 }

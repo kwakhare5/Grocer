@@ -15,20 +15,34 @@ During the Session End ritual (called automatically whenever significant changes
 
 ## Log Entries
 
-### [Grocer — iPhone Chassis Calibrated to 290px, Button Label Glitch Fixed & WhatsApp Spacing Refined] 2026-09-04
-- **Commit**: `feat(ui): calibrate iphone mockup to 290px chassis width`
+### [Grocer — Autonomous Replenishment Engine (Phases 4–6 Complete)] 2026-09-05
+- **Commit**: `feat(agent): phase 6 langgraph execution engine with batch fifo and db invariant verification`
 - **Shipped**:
-  - **Phone Chassis Calibrated to 290px**: Scaled phone mockup chassis to `290px` (`w-[290px] h-[593px] aspect-[1800/3680]`) across [`GrocerHero.tsx`](file:///d:/Grocer/components/grocer/GrocerHero.tsx) and [`PhoneMockup.tsx`](file:///d:/Grocer/components/PhoneMockup.tsx), providing a tailored fit between the original 275px and 300px.
+  - **Phase 4 Stockout & Expiry Risk Engine**: Built multi-dimensional risk scoring engine across 7 dimensions (stockout probability, shelf life depletion, supplier lead time volatility, spoilage penalty, dark store capacity pressure). Added survival analysis and stockout urgency indexing.
+  - **Phase 5 Multi-Factor Decision & Allocation Engine**: Implemented Level-2 human-in-the-loop approval lifecycle (`PROPOSED -> APPROVED/REJECTED -> EXECUTING -> COMPLETED/FAILED`). Integrated multi-criteria Pareto trade-off scoring (urgency vs. transfer cost vs. supplier MOQ), batch routing, and fallback alternative generator.
+  - **Phase 6 LangGraph Execution Agent**: Hardened autonomous execution engine using LangGraph 5-node state machine (`validate -> execute -> verify -> finalize/recover`):
+    - *Batch-Aware FIFO Deduction*: Preserved batch conservation across inter-store transfers, deducting earliest expiring batches first and creating matching recipient slices with original expiry timestamps.
+    - *Shelf-Life Batch Generation*: Automated supplier PO reorder creation with accurate SKU shelf-life calculation.
+    - *Strict Programmatic Verification*: Added database invariant validation checking non-negative quantities, batch balance consistency, and audit event logs.
+    - *Dynamic Failure Recovery*: Engineered recovery node triggering alternative re-calculation via Decision Engine and flagging `requires_human_review`.
+    - *Idempotency & Autonomy Guards*: Enforced strict Level-2 autonomy (rejecting unapproved executions with HTTP 409) and duplicate execution rejection.
+- **Verification**: 75/75 backend pytest tests passing across Phases 1–6 (100% green). Frontend `npm run lint` passed (0 errors, 0 warnings) and `npm run build` passed in 5.2s. Code graph updated (1,885 nodes, 4,158 edges).
+- **Vibe**: ⚡ Full autonomous replenishment pipeline (Forecasting → Risk → Decision → LangGraph Execution) verified and rock solid.
+
+### [Grocer — Complete WhatsApp Demo Redesign & Operational Clutter Removal] 2026-09-04
+- **Commit**: `feat(demo): complete consumer redesign of whatsapp replenishment view`
+- **Shipped**:
+  - **Complete Removal of Operations Clutter**: Eliminated all dark store fulfillment node status cards, inventory health bars, and stockout risk counters from the WhatsApp demo view. Restricted `SimulationFloatingIsland` strictly to `mode === 'operations'`, keeping the consumer demo completely distraction-free.
+  - **3 Prototyped Layout Perspectives**: Integrated a persistent sub-navigation segmented control matching `AppGlobalHeader` styling for `Studio Workbench`, `Guided Storyboard`, and `Hero Showcase`.
+  - **Interactive Household Fridge & Pantry Monitor**: Built dynamic level gauges for kitchen staples (Milk, Bread, Eggs, Tomatoes) with threshold indicators and 1-click morning rush scenario triggers that immediately simulate running out and ping the WhatsApp phone bot.
+  - **Dedicated Simulator Header Bar**: Added active business online status, `Replay / Reset Chat` button, and `Copy Message` button above the calibrated iPhone 17 Pro chassis.
+  - **Live Consumer Order Receipt & Express ETA**: Integrated real-time order confirmation panel displaying 11-minute express rider delivery to the household's actual address, itemized breakdown, and cash/UPI receipt total.
+  - **Guided 4-Step Interactive Storyboard**: Built a staged narrative walkthrough (*Pantry Depletion* → *WhatsApp Ping* → *1-Tap Action* → *Express Dispatch*) with step controls and auto-tour playback.
+  - **Hero Showcase Spotlight**: Implemented Apple-style centered iPhone display with floating contextual frosted cards and quick household switcher.
+  - **Phone Chassis Calibrated to 290px**: Scaled phone mockup chassis to `290px` (`w-[290px] h-[593px] aspect-[1800/3680]`) across `GrocerHero.tsx` and `PhoneMockup.tsx`.
   - **Duplicate Plus Glitch Resolved**: Cleaned up the `+ + Bread` quick reply button in `PhoneMockup.tsx` to a single Lucide `<Plus /> <span>Add Bread (₹50)</span>` label.
-  - **Refined Quick Action Ergonomics**: Enhanced button tap rows to `py-2` for full-width action items and `py-1.5 px-2` for split rows (`Remind Later` | `Not Now`), adding centered Lucide `Clock` icon and hairline dividers (`divide-zinc-150`).
-  - **WhatsApp Bubble Typography & Hierarchy**: Refined body text to `10px`, timestamps to `7.5px`, card internal padding to `p-2.5`, and max-width to `90%` for crisp WhatsApp styling.
-  - **iPhone 17 Pro Hardware Frame Integration**: Connected `/iPhone 17 Pro frame.png` with physical glass cutout mapping (`5.39%` left, `2.53%` top, `89.17%` width, `94.92%` height).
-  - **Canvas Corner Radius Reduction (`IphoneFrame.tsx`)**: Reduced canvas screen and backing plate corner radii from `44px` down to `24px` to match inner bezel curvature without clipping inner card borders or text.
-  - **Status Bar Cleaned**: Removed external status bar image overlay, allowing the hardware Dynamic Island to sit naturally above the WhatsApp header with `pt-10` top clearance.
-  - **Home Indicator Image Integration (`Home Indicator.png`)**: Mounted authentic `Home Indicator.png` (576×20px) positioned with `pb-2 pt-1` clearance above the curved display bottom.
-  - **Authentic WhatsApp Navigation Header**: Cleaned up the phone top bar to `Grocer Assistant ✓` and `Online` with crisp 14px Video and Phone call icons (`#007AFF`). Removed cluttered header reset buttons and placed contextual `↺ Restart Demo` buttons inside completed chat cards.
-- **Verification**: `npm run lint` (0 errors, 0 warnings) and `npm run build` (Turbopack, compiled in 7.8s, 0 errors) pass cleanly. Knowledge graph updated via `graphify update .`.
-- **Vibe**: 🚀 Balanced 300px iPhone chassis, clean WhatsApp bubble hierarchy, zero button glitches, production build green.
+- **Verification**: `npm run lint` (0 errors, 0 warnings) and `npm run build` (Turbopack, compiled in 10.0s, 0 errors) pass cleanly. Knowledge graph updated via `graphify update .`.
+- **Vibe**: 🚀 Zero operational noise, authentic WhatsApp consumer delight, 3 clean layouts, production build green.
 
 
 ### [Grocer — Official App Icon Design & Full UI Architecture Overhaul] 2026-09-02

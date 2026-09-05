@@ -11,18 +11,23 @@ import {
   Scale,
   Info,
   ArrowLeft,
+  Layers,
+  RotateCw,
+  AlertTriangle,
 } from "lucide-react";
 
 interface WhyInspectorPanelProps {
   selectedRecommendation: RecommendationItem | null;
   onApprove: (id: string) => void;
   onReject: (id: string) => void;
+  onViewTrace?: (id: string) => void;
 }
 
 export function WhyInspectorPanel({
   selectedRecommendation: item,
   onApprove,
   onReject,
+  onViewTrace,
 }: WhyInspectorPanelProps) {
   if (!item) {
     return (
@@ -192,9 +197,43 @@ export function WhyInspectorPanel({
       {/* 6. Big Tactile Approval Controls */}
       <div className="pt-2 mt-auto border-t border-zinc-100 flex flex-col gap-2">
         {isCompleted ? (
-          <div className="w-full py-3 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-xl font-bold text-center text-xs flex items-center justify-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-            <span>Action Successfully Executed</span>
+          <div className="flex flex-col gap-2">
+            <div className="w-full py-2.5 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-xl font-bold text-center text-xs flex items-center justify-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+              <span>Action Successfully Executed</span>
+            </div>
+            {onViewTrace && (
+              <button
+                type="button"
+                onClick={() => onViewTrace(item.id)}
+                className="w-full py-2 bg-zinc-900 hover:bg-zinc-800 text-white rounded-lg font-mono font-semibold text-xs flex items-center justify-center gap-2 shadow-2xs transition-all duration-150 active:scale-97 cursor-pointer"
+              >
+                <Layers className="w-4 h-4 text-emerald-400" />
+                <span>Inspect LangGraph 5-Node Trace</span>
+              </button>
+            )}
+          </div>
+        ) : item.status === "executing" ? (
+          <div className="w-full py-3 bg-sky-50 text-sky-800 border border-sky-200 rounded-xl font-bold text-center text-xs flex items-center justify-center gap-2">
+            <RotateCw className="w-4 h-4 text-sky-600 animate-spin" />
+            <span>LangGraph Execution in Progress...</span>
+          </div>
+        ) : item.status === "failed" ? (
+          <div className="flex flex-col gap-2">
+            <div className="w-full py-2.5 bg-rose-50 text-rose-800 border border-rose-200 rounded-xl font-bold text-center text-xs flex items-center justify-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-rose-600" />
+              <span>Execution Invariant Failed (Recovered)</span>
+            </div>
+            {onViewTrace && (
+              <button
+                type="button"
+                onClick={() => onViewTrace(item.id)}
+                className="w-full py-2 bg-rose-900 hover:bg-rose-800 text-white rounded-lg font-mono font-semibold text-xs flex items-center justify-center gap-2 shadow-2xs transition-all duration-150 active:scale-97 cursor-pointer"
+              >
+                <Layers className="w-4 h-4" />
+                <span>Inspect Recovery Trace & Alternative</span>
+              </button>
+            )}
           </div>
         ) : isRejected ? (
           <div className="w-full py-3 bg-zinc-100 text-zinc-600 border border-zinc-200 rounded-xl font-bold text-center text-xs flex items-center justify-center gap-2">

@@ -1,146 +1,262 @@
-﻿# Grocer — Proactive WhatsApp Grocery Replenishment Assistant & Swiggy Instamart CommercePort
+# Grocer — Intent-Preserving WhatsApp Grocery Commerce Agent
 
-[![Next.js](https://img.shields.io/badge/Next.js-16.2.6-black?style=flat&logo=next.js)](https://nextjs.org/)
+[![Next.js](https://img.shields.io/badge/Next.js-16-black?style=flat&logo=next.js)](https://nextjs.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688?style=flat&logo=fastapi)](https://fastapi.tiangolo.com/)
-[![Swiggy Instamart](https://img.shields.io/badge/Swiggy-CommercePort%20MCP-FC8019?style=flat)](https://mcp.swiggy.com/builders/llms.txt)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-3178C6?style=flat&logo=typescript)](https://typescriptlang.org/)
-[![Tailwind CSS v4](https://img.shields.io/badge/Tailwind-v4.0-38B2AC?style=flat&logo=tailwind-css)](https://tailwindcss.com/)
+[![Swiggy Instamart MCP](https://img.shields.io/badge/Swiggy-Instamart%20MCP-FC8019?style=flat)](https://mcp.swiggy.com/builders/llms.txt)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5+-3178C6?style=flat&logo=typescript)](https://www.typescriptlang.org/)
 
-**Grocer** is an intelligent, proactive consumer grocery replenishment assistant designed for Indian households. Rather than waiting for pantries to run empty, Grocer forecasts household staple consumption (milk, eggs, tomatoes, bread, curd) and initiates contextual, interactive WhatsApp restocking conversations. Once confirmed by the user, orders are routed seamlessly to quick-commerce delivery via **Swiggy Instamart** through an abstracted **CommercePort** adapter.
+**Grocer** is the existing WhatsApp grocery replenishment assistant, extended with an **intent-preserving commerce layer**.
 
-> [!NOTE]
-> **Subsystem Decoupling:**
-> This repository houses the **Consumer WhatsApp Replenishment Assistant & CommercePort**.
-> The dark store fleet operations command center has been split into its own standalone platform at [kwakhare5/Dark-store-operator](https://github.com/kwakhare5/Dark-store-operator).
+The idea is simple: a user tells Grocer what outcome they want, the agent builds the basket through Swiggy Instamart, and then keeps checking whether the live commerce state still matches the original intent. When something changes, Grocer recovers automatically when the decision is safe and asks the user when the choice is genuinely ambiguous.
 
----
+> **Grocer does not just build your cart. It tries to keep the cart faithful to what you actually asked for.**
 
-## 🌟 Key Highlights
+## Product boundary
 
+This repository contains the **consumer WhatsApp experience** and its quick-commerce integration.
+
+The former dark-store operations system has been split into a separate repository:
+
+- [Dark Store Operator](https://github.com/kwakhare5/Dark-store-operator)
+
+Do not treat dark-store inventory optimization, warehouse operations, supplier workflows, transfer/reorder decisioning, or an operations cockpit as part of Grocer.
+
+## Core loop
+
+```text
+WhatsApp request
+      ↓
+Intent extraction
+      ↓
+Intent Contract
+      ↓
+Policy / memory
+      ↓
+Build cart
+      ↓
+Verify cart against intent
+      ↓
+If drift → recover / replan / ask
+      ↓
+Verify again
+      ↓
+Explicit checkout confirmation
+      ↓
+Checkout
+      ↓
+Outcome verification
 ```
-   ┌────────────────────────────────────────────────────────┐
-   │             Household Pantry Depletion Math            │
-   │  - Daily staple run-rates (e.g. 0.48L milk/day)        │
-   │  - 25 Mumbai household profiles (diets & family sizes) │
-   └───────────────────────────┬────────────────────────────┘
-                               │ Anticipatory Trigger
-   ┌───────────────────────────▼────────────────────────────┐
-   │            WhatsApp Interactive Conversational UI      │
-   │  - iPhone 17 Pro native chat viewport                  │
-   │  - Natural restock proposals & 1-tap responses         │
-   │  - Remind later & quantity modifier controls           │
-   └───────────────────────────┬────────────────────────────┘
-                               │ Explicit Human Approval
-   ┌───────────────────────────▼────────────────────────────┐
-   │         CommercePort & Consequential Action Guard      │
-   │  - Mandatory explicit confirmation gate                │
-   │  - Abstracted Swiggy Instamart MCP & Mock Adapters     │
-   │  - Real-time cart synchronization & order dispatch     │
-   └────────────────────────────────────────────────────────┘
+
+The product differentiator is the **closed-loop intent → action → verification → recovery cycle**, not a generic shopping chatbot.
+
+## Example
+
+User:
+
+> get my weekly groceries under ₹2,000, vegetarian, use my usual brands.
+
+Grocer turns that request into an `IntentContract` containing items, hard constraints, soft preferences, budget, substitution policy, and authorization scope.
+
+Suppose the preferred milk becomes unavailable.
+
+Grocer should:
+
+1. detect that the current cart no longer satisfies the intent;
+2. check the user's substitution policy;
+3. find valid alternatives;
+4. keep hard constraints intact;
+5. apply the repair automatically when it is clearly safe;
+6. ask the user when multiple materially different choices exist;
+7. verify the repaired cart again.
+
+## Intent Contract
+
+The user goal is modeled explicitly instead of being left only inside an LLM prompt.
+
+```text
+IntentContract
+├── goal
+├── items
+├── hard constraints
+├── soft preferences
+├── budget
+├── quantities / pack sizes
+├── brand preferences
+├── dietary constraints
+├── substitution policy
+├── authorization scope
+├── confidence / ambiguities
+└── version
 ```
 
----
+### Precedence
 
-## 📱 Features
+```text
+current explicit request
+    > session choice
+    > stored soft preference
+    > default
+```
 
-### 1. Proactive WhatsApp Conversational Restock
-- Renders an interactive, true-to-life **iPhone 17 Pro frame** with WhatsApp chat bubbles.
-- Anticipates staple depletion before breakfast or dinner:
-  > *"Good morning Rohan! Your Amul Taaza Milk has 1 day left (~15% remaining). Would you like to restock 2 packs via Swiggy Instamart for ₹132?"*
-- Supports 1-tap quick actions:
-  - **Restock Now (₹132)**
-  - **Remind Me in 2 Hours**
-  - **Skip for Now**
+Memory is for convenience. It never silently overrides the current request.
 
-### 2. Interactive Household Pantry Telemetry
-- Real-time pantry level gauges across critical grocery categories:
-  - **Dairy:** Amul Taaza Milk 1L, Fresh Malai Paneer 200g, Epigamia Greek Yogurt
-  - **Produce:** Fresh Hybrid Tomatoes 500g, Farm Fresh Red Onions 1kg, Cavendish Bananas
-  - **Poultry & Bakery:** Fresh Farm Eggs (Pack of 6), The Baker's Dozen Sourdough Bread
-  - **Pantry Staples:** Fortune Sunlite Sunflower Oil 1L, Aashirvaad Shudh Chakki Atta 5kg
-- Live depletion visualizers displaying days remaining, daily consumption rates, and reorder threshold badges.
+## Autonomy model
 
-### 3. Swiggy Instamart CommercePort Integration
-- Standardized `CommercePort` interface supporting dual operational modes:
-  - **Live Swiggy MCP Server:** Dispatches live API calls to Swiggy Instamart endpoints (`/instamart/cart`, `/instamart/checkout`).
-  - **Simulated CommercePort:** High-fidelity in-memory edge fallback with full SKU catalogs and simulated rider tracking.
-- Features real-time cart inspector, address selector, and simulated live rider tracking (`ORDER_CONFIRMED` $\to$ `PACKING` $\to$ `OUT_FOR_DELIVERY` $\to$ `DELIVERED`).
+| Situation | Grocer behavior |
+|---|---|
+| Safe + deterministic + policy-authorized | Act automatically |
+| Meaningfully ambiguous | Ask the user |
+| Financially consequential | Require explicit confirmation |
 
-### 4. Strict Consequential Action Guard (Spec §28.3 & §39.15)
-- Invariant safety rule: The assistant **cannot execute a checkout without explicit human authorization**.
-- A checkout request without `explicit_confirmation: true` is strictly rejected server-side with an `UnconfirmedCheckoutError` (HTTP 400).
-- Users are presented with a clear checkout verification modal detailing itemized costs, delivery address, and delivery partner fees before confirmation.
+Checkout is always explicitly confirmed and backend-enforced.
 
-### 5. 25 Realistic Mumbai Household Personas
-- Spans distinct neighborhoods, household sizes, and dietary patterns:
-  - **Rohan Mehta** (Bandra West, 3 members, Vegetarian)
-  - **Priya Sharma** (Powai Galleria, 2 members, Non-Vegetarian)
-  - **Dr. Ananya Iyer** (Lower Parel, 4 members, South Indian Traditional)
-  - **Vikram Patel** (Andheri East, 5 members, Jain Vegetarian)
-  - ...and 21 additional simulated households with deterministic consumption patterns.
+## Architecture
 
----
+```text
+WhatsApp
+  ↓
+Conversation Agent
+  ↓
+Intent Parser
+  ↓
+Intent Contract
+  ↓
+Policy / Memory
+  ↓
+Customer Commerce Service
+  ↓
+CommercePort
+  ├── MockCommerceAdapter
+  └── SwiggyMCPAdapter
+  ↓
+Commerce State
+  ↓
+Intent Verifier
+  ├── PASS → approval / continue
+  └── FAIL → Recovery Engine → verify again / ask
+```
 
-## 🛠️ Tech Stack
+### Important engineering rule
 
-- **Frontend:** Next.js 16.2.6 (App Router with Turbopack), React 19, TypeScript 5.
-- **Styling:** Tailwind CSS v4, Framer Motion (fluid spring animations), Lucide React.
-- **Typography:** Swiss Logistics System (`PP Mori` primary sans, `Geist Mono` tabular telemetry, and strictly upright `PP Editorial New` accents).
-- **Backend:** Python 3.11+, FastAPI, Pydantic v2, SQLAlchemy Async, SQLite (WAL mode).
-- **Testing:** Pytest with 100% green customer commerce test coverage.
+**LLM interprets and proposes. Deterministic backend code enforces and verifies.**
 
----
+The LLM can interpret language and propose a substitution. Deterministic services must enforce hard constraints, calculate totals, verify cart state, control retries, and authorize checkout.
 
-## 🚀 Quickstart
+## Failure recovery
+
+Initial failure classes include:
+
+- unavailable product;
+- unavailable preferred brand;
+- changed pack size;
+- budget drift;
+- stale cart;
+- safely retryable transient failure;
+- partial cart success;
+- repairable basket/minimum-order failure.
+
+Recovery is bounded and ends in one of:
+
+```text
+RECOVERED
+NEEDS_USER_DECISION
+BLOCKED
+FAILED
+```
+
+A failed or unknown operation must never be reported as success.
+
+## Deterministic evaluation
+
+Grocer includes an internal failure-simulation/evaluation layer so behavior can be measured without pretending simulated failures are live provider behavior.
+
+Core metrics include:
+
+- intent preservation rate;
+- recovery success rate;
+- hard-constraint satisfaction;
+- human intervention rate;
+- unnecessary clarification rate;
+- unsafe autonomous action rate — target **0**;
+- budget deviation;
+- recovery attempts;
+- commerce/MCP calls per task.
+
+## Swiggy Instamart integration
+
+Commerce operations go through the existing provider-neutral `CommercePort`.
+
+Swiggy-specific MCP calls remain inside `SwiggyMCPAdapter`.
+
+Before changing the integration, read the current Swiggy Builders Club documentation and do not invent tool names, arguments, or retry semantics.
+
+## Safety invariants
+
+1. No checkout without explicit user confirmation.
+2. No provider credentials in frontend code, logs, or committed files.
+3. No hard-constraint enforcement that depends only on LLM behavior.
+4. No blind retry of consequential operations.
+5. No silent hard-constraint violation.
+6. No unsupported autonomous refund/remediation claims.
+7. Current explicit user instructions override stored memory.
+8. Simulated behavior must be labeled as simulated.
+
+## Development
 
 ### Prerequisites
+
 - Node.js 20+
 - Python 3.11+
 
-### 1. Frontend Setup
+### Frontend
+
 ```bash
-# Install dependencies
 npm install
-
-# Run development server (Turbopack)
 npm run dev
-
-# Run production build
-npm run build
-
-# Run linting
 npm run lint
+npm run build
 ```
-Open [http://localhost:3000](http://localhost:3000) to view the application.
 
-### 2. Backend Setup
+### Backend
+
 ```bash
 cd backend
 python -m venv .venv
-source .venv/bin/activate  # or .venv\Scripts\activate on Windows
+source .venv/bin/activate
 pip install -r requirements.txt
-
-# Run customer commerce test suite
 pytest tests/
-
-# Run FastAPI server
 uvicorn backend.main:app --reload --port 8000
 ```
 
----
+## Engineering roadmap
 
-## 🔒 Safety & Domain Invariants
+The implementation sequence is intentionally narrow:
 
-1. **Explicit Confirmation Gate:** Autonomous cart creation is permitted, but financial execution strictly requires `explicit_confirmation: true`.
-2. **Decoupled Commerce Boundary:** Customer orders route via `CommercePort` and emit decoupled audit events, ensuring consumer carts never directly mutate internal dark store state.
-3. **Zero AI Slop:** No emoji spam in buttons, clean Lucide SVG icons, crisp monospace metrics, and authentic Indian grocery branding.
+```text
+0. Consumer boundary cleanup
+1. Intent Contract
+2. Intent extraction
+3. Policy + memory
+4. Intent verification
+5. First recovery scenario
+6. End-to-end agent loop
+7. Failure simulation
+8. Evaluation
+9. Live Swiggy hardening
+10. Demo hardening
+```
 
----
+Start with one extremely polished recovery scenario before expanding the failure surface.
 
-## 📄 Related Projects
-- [Dark Store Operator](https://github.com/kwakhare5/Dark-store-operator) — Autonomous quick-commerce dark store fleet operations platform.
+## Documentation
 
----
+- `GROCER_V2_MASTER_SPEC.md` — authoritative product and engineering specification
+- `CONTEXT.md` — coding-session context and anti-drift rules
+- `ARCHITECTURE.md` — system boundaries and data/control flow
+- `IMPLEMENTATION_PLAN.md` — execution order
+- `.agents/AGENTS.md` — Antigravity/Gemini repository rules
+- `AGENTS.md` — general coding-agent contract
 
-## 📄 License
+## License
+
 MIT © 2026 Karan Wakhare

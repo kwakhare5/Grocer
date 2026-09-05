@@ -11,11 +11,10 @@
 
   <br/>
 
-  ![Version](https://img.shields.io/badge/version-2.0.0-blue?style=for-the-badge)
-  ![License](https://img.shields.io/badge/license-MIT-green?style=for-the-badge)
-  ![Language](https://img.shields.io/badge/Language-TypeScript_5_+_Python_3.12-blue?style=for-the-badge)
+  ![Version](https://img.shields.io/badge/version-2.2.0-blue?style=for-the-badge)
+  ![Phases](https://img.shields.io/badge/phases-10%2F10%20complete-success?style=for-the-badge)
+  ![Tests](https://img.shields.io/badge/tests-286%2F286%20passing-brightgreen?style=for-the-badge)
   ![Next.js](https://img.shields.io/badge/Next.js-16.2_(Turbopack)-black?style=for-the-badge&logo=nextdotjs&logoColor=white)
-  ![React](https://img.shields.io/badge/React-19.2-61DAFB?style=for-the-badge&logo=react&logoColor=black)
   ![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?style=for-the-badge&logo=fastapi&logoColor=white)
   ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-v4-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)
 
@@ -23,10 +22,10 @@
 
   <a href="#-about-the-system">About</a> &nbsp;·&nbsp;
   <a href="#-architecture">Architecture</a> &nbsp;·&nbsp;
+  <a href="#-implementation-phases-1010-complete">Phases</a> &nbsp;·&nbsp;
   <a href="#-the-2-minute-demo-guide">2-Min Demo Guide</a> &nbsp;·&nbsp;
   <a href="#-key-capabilities">Key Capabilities</a> &nbsp;·&nbsp;
-  <a href="#-getting-started">Getting Started</a> &nbsp;·&nbsp;
-  <a href="#-license">License</a>
+  <a href="#-getting-started">Getting Started</a>
 
 </div>
 
@@ -78,6 +77,23 @@ OBSERVE ──► PREDICT ──► DETECT ──► EVALUATE ──► RECOMMEN
 
 ---
 
+## 🚦 Implementation Phases (10/10 Complete & Verified)
+
+| Phase | Description | Status | Verification & Deliverables |
+|---|---|:---:|---|
+| **Phase 1** | Repository Audit + Cleanup | ✅ | Purged legacy SaaS marketing code, colocated phone mockup, cleaned unreferenced assets. |
+| **Phase 2** | Backend Source-of-Truth Refactor | ✅ | Authoritative clock & SQLite persistence (`test_phase1_authority.py`). |
+| **Phase 3** | Data / Model Consistency | ✅ | Batch-level inventory & status lifecycle (`test_models.py`). |
+| **Phase 4** | Simulation Engine | ✅ | Deterministic time advancement & benchmark scenarios (`test_phase2_simulator.py`). |
+| **Phase 5** | Forecasting + Risk Engine | ✅ | Holt smoothing & 7-dimensional risk scoring (`test_phase3_forecasting.py`, `test_phase4_risk.py`). |
+| **Phase 6** | Decision Engine | ✅ | Pareto trade-off optimization & 16 reason codes (`test_phase5_decision.py`). |
+| **Phase 7** | Approval + LangGraph Agent | ✅ | 5-node autonomous pipeline with Level-2 approval gate (`test_phase6_agent.py`). |
+| **Phase 8** | Operations UI | ✅ | 3-column control center with live backend sync & fallback. |
+| **Phase 9** | Customer Workflow & CommercePort | ✅ | Swiggy MCP protocol adapter + MockCommerceAdapter (`test_phase8_commerce.py`). |
+| **Phase 10** | Testing & Demo Hardening | ✅ | End-to-end scenario suites & invariants (`test_phase10_demo_hardening.py`, 286/286 passed). |
+
+---
+
 ## 🎬 The 2-Minute Demo Guide
 
 ### Scenario 1: Hero Stockout & Inter-Store Transfer (§25)
@@ -107,7 +123,8 @@ OBSERVE ──► PREDICT ──► DETECT ──► EVALUATE ──► RECOMMEN
 | **Topology & Fleet Mesh** | Real-time SVG canvas with inter-store distance calculation, active transit particles, and store health meters. | `SpatialTopologyView.tsx` |
 | **Decision Intelligence** | Deterministic candidate ranking across 16 reason codes, safe excess formulas, and supplier lead times. | `backend/services/decision/` |
 | **Autonomous Execution** | 5-node LangGraph pipeline (`validate → pre_check → execute → verify → finalize`) with server-side approval gates. | `backend/agents/execution/` |
-| **Household WhatsApp Flow** | iPhone 16 Pro simulator with 1-tap restock chips, 24h reminders, and skip actions across 25 Mumbai personas. | `PhoneMockup.tsx` |
+| **Household WhatsApp Flow** | iPhone 16 Pro simulator with 1-tap restock chips, 24h reminders, and skip actions across 25 Mumbai personas. | `components/customer/PhoneMockup.tsx` |
+| **Swiggy CommercePort** | Dual commerce adapter (`MockCommerceAdapter` & official `SwiggyMCPAdapter`) with strict Consequential Action Guard. | `backend/integrations/commerce/` |
 | **Shared Simulation State** | Customer WhatsApp orders immediately deplete dark-store inventory in the operations cockpit with real-time audit logging. | `app/page.tsx` |
 | **Fair Baseline Comparison** | Benchmark comparison comparing GROCER against traditional reorder-point policies across 8 standard metrics. | `lib/metricsEngine.ts` |
 

@@ -1,710 +1,1097 @@
 # GROCER v2 — Master Engineering Specification
 
-> **Status:** Architecture and product source of truth  
-> **Version:** 2.0  
-> **Purpose:** Engineering prototype / competition submission / resume work sample  
+> **Status:** Source of truth for product, architecture, implementation, testing, and demo decisions
+> **Version:** 2.1
+> **Updated:** 2026-09-05
 > **Repository:** `kwakhare5/Grocer`
+> **Primary use:** engineering portfolio, Swiggy Builders Club, internship/job work sample
 
 ---
 
 ## 0. How to use this document
 
-This document is the source of truth for GROCER v2.
+This document is the **source of truth for GROCER v2**.
 
-AI coding agents (Antigravity, Gemini, Claude, etc.) must **implement this specification rather than inventing a new product or architecture**.
+Antigravity, Gemini, Claude, and other coding agents must implement this specification rather than inventing a different product or architecture.
 
-If implementation reveals a genuine technical problem or a requirement needs to change:
+If implementation exposes a genuine technical problem:
 
-1. stop at the relevant boundary,
-2. explain the issue,
+1. stop at the affected boundary,
+2. explain the problem and evidence,
 3. propose the smallest viable change,
-4. update this specification only after approval,
-5. then implement.
+4. get approval before changing a locked product decision,
+5. update this specification if the decision changes,
+6. then implement.
 
-Do not silently change the product scope, architecture, safety boundaries, or core decision logic.
+Do not silently change scope, safety boundaries, domain rules, or the source-of-truth architecture.
 
 ### Status labels
 
-- **LOCKED** — agreed product/architecture decision; do not change casually.
-- **IMPLEMENT** — should be built.
-- **SIMULATE** — intentionally simulated; must not be represented as a real integration.
-- **TBD** — implementation detail not yet worth locking; choose the simplest sound option when reached and document it.
+- **LOCKED** — agreed decision; do not change casually.
+- **IMPLEMENT** — required work.
+- **SIMULATE** — intentionally simulated; never present it as a real integration.
+- **TBD** — implementation detail can be selected by the engineer when reached; choose the simplest sound option and document it.
+- **OPTIONAL** — useful only if the core system is complete.
 - **OUT OF SCOPE** — do not build in v2.
 
 ---
 
-# 1. Vision
+# 1. Product definition
 
 GROCER is an **AI-assisted quick-commerce inventory decision and execution system**.
 
-It connects two sides of the same simulated quick-commerce world:
+It contains two distinct workflows under one product:
 
-1. **Customer experience:** a WhatsApp-style proactive replenishment flow that predicts household staple depletion and lets a customer reorder with minimal friction.
-2. **Operations experience:** an internal control center that predicts store-level stockout and spoilage risk, evaluates interventions, recommends the best action, and executes an approved action through a controlled agent.
+1. **Customer replenishment workflow** — predicts when a household is likely to run out of recurring groceries and provides a low-friction reorder experience.
+2. **Dark-store operations workflow** — predicts store-level stockout and spoilage risk, evaluates possible interventions, recommends the best action, obtains human approval, executes the approved action through an agent, verifies the result, and records the outcome.
 
-The central idea is not “use an LLM for groceries.”
+These workflows share backend infrastructure but **must not be merged into one confused workflow**.
 
-The central idea is:
-
-> **Observe → Predict → Detect risk → Evaluate options → Recommend → Human approval → Agent execution → Verify → Measure outcome → Observe again.**
-
-The system must demonstrate that this loop works end-to-end inside a realistic, controllable simulation.
-
----
-
-# 2. Why v2 exists
-
-The original GROCER prototype focused primarily on proactive household replenishment:
+The central product loop is:
 
 ```text
-Order history
-    ↓
-Consumption velocity
-    ↓
-Predicted depletion
-    ↓
-WhatsApp alert
-    ↓
-Customer confirmation
-    ↓
-Simulated order
+OBSERVE
+  ↓
+PREDICT
+  ↓
+DETECT RISK
+  ↓
+GENERATE OPTIONS
+  ↓
+CHECK CONSTRAINTS
+  ↓
+RANK OPTIONS
+  ↓
+RECOMMEND
+  ↓
+HUMAN APPROVAL
+  ↓
+AGENT EXECUTION
+  ↓
+VERIFY
+  ↓
+MEASURE OUTCOME
+  ↓
+OBSERVE AGAIN
 ```
 
-That remains an important part of v2, but it is no longer the whole product.
-
-v2 expands the same underlying idea upstream into dark-store operations:
-
-```text
-Store demand + inventory
-        ↓
-Forecast
-        ↓
-Stockout / spoilage risk
-        ↓
-Transfer / reorder / discount / hold
-        ↓
-Human approval
-        ↓
-Agent execution
-```
-
-This is an evolution of the original project, not a completely different product.
+The project is not an LLM wrapper. The intelligence is deliberately split across forecasting, deterministic domain logic, decisioning, and agent orchestration.
 
 ---
 
-# 3. Target outcome
+# 2. Product goals
 
-GROCER is being built primarily for:
+GROCER should demonstrate:
 
-- Swiggy Builder Club / builder challenges
-- engineering portfolio and resume
-- internship/job conversations
-- potential conversations with engineers at quick-commerce/e-commerce companies
-- public build-in-public demonstration
+- applied forecasting
+- inventory and batch modeling
+- stockout and spoilage risk detection
+- transfer/reorder/discount/hold decisioning
+- explainable recommendations
+- human-in-the-loop AI execution
+- LangGraph orchestration
+- controlled simulation
+- full-stack engineering
+- robust testing and invariants
+- measurable simulated outcomes
+- safe integration boundaries for external commerce systems
 
-It is **not currently a SaaS product** and should not be forced into a SaaS business model.
+The strongest demo should make it obvious that GROCER can answer:
 
-It is an engineering prototype demonstrating applied AI engineering, simulation, decision systems, agent orchestration, full-stack implementation, and measurable outcomes.
-
----
-
-# 4. Problem
-
-Quick-commerce systems have two related inventory problems:
-
-### Problem A — stockouts / availability
-
-A store can be heading toward a stockout while another nearby store has excess inventory.
-
-A supplier reorder may also be too slow to prevent the stockout.
-
-### Problem B — perishable waste
-
-A store can simultaneously hold excess short-shelf-life inventory that is likely to expire before being sold.
-
-The system therefore needs to answer:
-
-> **Should we transfer, reorder, discount, or hold?**
-
-The interesting part is that these are not independent problems. The same inventory can be a shortage at one store and excess at another.
-
-GROCER treats them as one decision problem.
+> **What is likely to go wrong, what can we do about it, why is this the best option, and what happened after we acted?**
 
 ---
 
-# 5. Core product concept
+# 3. What GROCER is NOT
 
-GROCER has two connected intelligence loops.
+GROCER is not currently:
 
-## 5.1 Availability loop
+- a SaaS business
+- a grocery marketplace
+- a generic chatbot
+- an autonomous inventory system with unrestricted mutation rights
+- a deep ML research thesis
+- a warehouse robotics system
+- a production-grade replacement for a WMS/ERP
 
-```text
-Demand
-  ↓
-Forecast
-  ↓
-Stockout risk
-  ↓
-Find feasible interventions
-  ↓
-Transfer / Reorder / Hold
-  ↓
-Human approval
-  ↓
-Agent execution
-```
-
-## 5.2 Waste loop
-
-```text
-Inventory + expiry
-       ↓
-Expected sell-through before expiry
-       ↓
-Spoilage risk
-       ↓
-Transfer / Discount / Hold
-       ↓
-Human approval
-       ↓
-Agent execution
-```
-
-The two loops share the same inventory, simulation, forecasting, decision, and execution infrastructure.
+The project is an engineering prototype and work sample. Architecture should be credible and disciplined without adding enterprise theatre.
 
 ---
 
-# 6. Locked scope
+# 4. Locked product decisions
 
-## 6.1 Stores
+## 4.1 Stores
 
 **LOCKED:** 5 simulated dark stores.
 
-Each store has a location/coordinate so distance between stores can be calculated.
+Stores are inspired by Singapore neighborhoods. Use recognizable neighborhood names such as:
 
-No real store addresses are required.
+- Orchard
+- Tiong Bahru
+- Bugis
+- Tampines
+- Jurong East
 
-## 6.2 Products
+These are **simulation labels**, not representations of actual dark-store locations or operational data.
 
-**LOCKED:** approximately 20–30 products.
+Each store needs only the location information required for distance/ETA simulation and operational display.
 
-Categories should include a mixture of:
+Do not create elaborate maps or real-world address data.
 
-- dairy
-- bakery
-- produce
-- staples
-- packaged goods
+## 4.2 Products
 
-Products must have different demand patterns and shelf-life characteristics.
+**LOCKED:** keep the catalog intentionally minimal: approximately **12–15 products**, not 20–30.
 
-## 6.3 Customers
+Suggested set:
 
-**LOCKED:** approximately 20–30 simulated customers.
+### Perishables
+- Milk
+- Yogurt
+- Bread
+- Eggs
+- Bananas
+- Tomatoes
 
-## 6.4 Historical data
+### Staples
+- Rice
+- Atta
+- Cooking Oil
 
-The simulator should generate enough historical order data to support meaningful forecasting.
+### Packaged / fast-moving
+- Biscuits
+- Coffee
+- Juice
 
-**Target:** approximately 60–90 simulated historical days.
+The exact final count may be adjusted slightly if required by implementation, but do not expand the catalog just to make the demo look larger.
 
-Exact amount is **TBD** based on model performance and runtime.
+Products should differ in demand velocity, variability, perishability, and price.
 
-## 6.5 Main operator actions
+## 4.3 Customers
 
-Exactly four v2 decision actions:
+Use a small simulated household/customer dataset sufficient to demonstrate recurring consumption and replenishment.
 
-1. **TRANSFER**
-2. **REORDER**
-3. **DISCOUNT**
-4. **HOLD**
+Do not build a detailed customer identity/profile system. Customer records are simulation inputs, not a product in themselves.
 
-## 6.6 Transfer limitation
+## 4.4 Historical data
 
-**LOCKED:** v2 supports one source store → one destination store for a transfer recommendation.
+Generate enough historical demand to support forecasting.
 
-The data model may be extensible for multi-source transfers later, but multi-source optimization is out of scope for v2.
+Target: approximately 60–90 simulated historical days.
 
-## 6.7 Customer interface
+The exact amount is **TBD** based on forecast quality and runtime.
 
-**LOCKED:** simulated WhatsApp experience inside the web application.
+## 4.5 Main operations actions
 
-No real WhatsApp API is required.
+**LOCKED:** exactly four operator decisions:
 
-## 6.8 Platform integrations
+1. `TRANSFER`
+2. `REORDER`
+3. `DISCOUNT`
+4. `HOLD`
 
-**LOCKED:** all platform, dark-store, supplier, checkout, payment, and WhatsApp integrations are simulated/mocked.
+## 4.6 Transfer scope
 
-No real company credentials or private data are required or requested.
+**LOCKED:** one source store → one destination store per transfer recommendation.
+
+Multi-source optimization is out of scope for v2.
+
+## 4.7 Human autonomy level
+
+**LOCKED:** Level 2 autonomy / human-in-the-loop.
+
+GROCER may analyze state, generate recommendations, compare alternatives, and prepare an execution plan.
+
+A human must approve consequential inventory mutations before execution.
+
+## 4.8 Simulation modes
+
+**LOCKED:** two simulator modes:
+
+1. **Development/live mode** — manually advance time using controls such as +1 hour, +6 hours, +1 day, pause, and reset.
+2. **Scenario mode** — run controlled realistic scenarios for demonstrations.
+
+Do not build dozens of scenarios. A small number of strong scenarios is preferred.
+
+## 4.9 Demand model
+
+**LOCKED:** controlled stochastic + scenario-driven demand.
+
+Normal demand should contain bounded randomness. Scenarios can introduce controlled events such as:
+
+- demand spike
+- weekend/morning surge
+- supplier delay
+- expiry wave
+- network imbalance
+
+The simulator must remain deterministic/reproducible when a seed is supplied.
+
+## 4.10 Transfer ETA
+
+**LOCKED:** transfer ETA is based on simulated distance plus traffic/scenario effects.
+
+Do not claim real logistics ETA accuracy.
+
+## 4.11 Supplier simulation
+
+**LOCKED:** suppliers are simulated.
+
+Supplier lead time, order creation, shipment, arrival, and failure/delay behavior may be modeled simply.
+
+## 4.12 Markdown simulation
+
+**LOCKED:** markdown affects simulated demand.
+
+Use a simple configurable demand-response/elasticity model. The numbers are simulation assumptions, not real market claims.
+
+## 4.13 Batch-level expiry
+
+**LOCKED:** perishable inventory is batch-aware.
+
+Expiry decisions must operate on batches, not only aggregate SKU totals.
 
 ---
 
-# 7. Non-goals / out of scope
+# 5. Two workflows
 
-Do not build:
+## 5.1 Customer replenishment workflow
 
-- a standalone B2C grocery marketplace
-- a real payment system
-- real quick-commerce checkout integration
-- real Swiggy/Blinkit/Zepto/BigBasket APIs
-- real customer data ingestion
-- production WhatsApp integration
-- warehouse robotics
-- smart pantry hardware
-- barcode scanning
-- manual pantry logging
-- voice-note NLP
-- a generic AI chatbot
-- RAG/vector database purely because the project uses AI
-- autonomous consequential inventory changes without approval
-- Kubernetes/microservice infrastructure for the sake of appearing enterprise-grade
-- Kafka solely for architecture theatre
-- reinforcement learning unless a later validated requirement makes it necessary
-- multi-source transfer optimization in v2
-- a SaaS billing/multi-tenant layer
+Objective:
 
-Optional recipe and commodity-price modules from the original prototype are **not core to v2** and should not distract from the inventory intelligence system.
+> Predict when a household is likely to run out of a recurring grocery and make replenishment frictionless.
 
----
-
-# 8. Product architecture
+Conceptual flow:
 
 ```text
-                         GROCER
-                           │
-             ┌─────────────┴─────────────┐
-             │                           │
-       CUSTOMER SIDE                OPERATIONS SIDE
-       WhatsApp Demo                Control Center
-             │                           │
-             └─────────────┬─────────────┘
-                           │
-                    SHARED BACKEND
-                           │
-        ┌──────────────────┼──────────────────┐
-        ↓                  ↓                  ↓
-   Simulation         Intelligence        Execution
-        │                  │                  │
-        │          ┌───────┼────────┐         │
-        │          ↓       ↓        ↓         │
-        │      Forecast   Risk   Decision      │
-        │                         Engine       │
-        │                           │          │
-        └───────────────────────────┼──────────┘
-                                    ↓
-                              Recommendation
-                                    ↓
-                              Human Approval
-                                    ↓
-                              LangGraph Agent
-                                    ↓
-                                  Tools
-                                    ↓
-                              State mutation
-                                    ↓
-                               Verification
-                                    ↓
-                                  Events
-                                    ↓
-                               New state
+Household order history
+        ↓
+Consumption / depletion estimate
+        ↓
+Predicted stockout/depletion time
+        ↓
+Customer alert
+        ↓
+Confirm / Remind / Skip
+        ↓
+Commerce integration
+        ↓
+Cart
+        ↓
+Explicit customer confirmation
+        ↓
+Checkout
+        ↓
+Tracking
+```
+
+This workflow should remain clearly separated from dark-store internal operations.
+
+### External commerce integration
+
+**LOCKED ARCHITECTURE:** the customer workflow must use an integration adapter so the commerce provider can be swapped.
+
+Swiggy MCP is the preferred real integration when the user's approved access is available and safe to use.
+
+The integration layer must not leak provider-specific tool calls throughout the domain code.
+
+Conceptually:
+
+```text
+Customer Agent
+     ↓
+CommercePort
+     ↓
+Swiggy MCP Adapter
+     ↓
+Instamart tools
+```
+
+### Safety
+
+Real checkout must never happen accidentally during development.
+
+The application must require explicit user confirmation before a consequential checkout action. Production credentials/tokens must never be committed, logged, or exposed to the frontend.
+
+If real production checkout cannot be safely exercised, use a stub/mock adapter for development and demonstrate the adapter boundary.
+
+## 5.2 Operations workflow
+
+Objective:
+
+> Help dark-store operations decide when to transfer, reorder, discount, or hold inventory before stockouts and spoilage happen.
+
+Conceptual flow:
+
+```text
+Inventory + demand
+        ↓
+Forecast
+        ↓
+Risk engine
+        ↓
+Decision engine
+        ↓
+Ranked recommendations
+        ↓
+Human approval
+        ↓
+LangGraph execution
+        ↓
+Verification
+        ↓
+Audit event
+```
+
+The customer workflow does not directly control internal store inventory.
+
+---
+
+# 6. Target architecture
+
+```text
+                              GROCER
+                                 │
+                  ┌──────────────┴──────────────┐
+                  │                             │
+             CUSTOMER                       OPERATIONS
+                  │                             │
+          Replenishment UI                Ops Dashboard
+          / WhatsApp Demo                  / Control UI
+                  │                             │
+                  └──────────────┬──────────────┘
+                                 │
+                           SHARED BACKEND
+                                 │
+        ┌────────────────────────┼────────────────────────┐
+        │                        │                        │
+    Customer Domain         Operations Domain         Simulation
+        │                        │                        │
+        │                 Forecasting                 Scenarios
+        │                 Risk Engine                 Clock
+        │                 Decision Engine             Demand
+        │                        │                    Suppliers
+        │                        │                    Transfers
+        │                        │
+        └──────────────┬─────────┴──────────────┐
+                       │                        │
+                 Integration Layer         Agent Layer
+                       │                        │
+                 Swiggy MCP adapter        LangGraph
+                       │                        │
+                       │                  Controlled tools
+                       │                        │
+                       └──────────────┬─────────┘
+                                      ↓
+                                Domain services
+                                      ↓
+                                  Database
+                                      ↓
+                               Audit / events
+```
+
+### Critical architectural rule
+
+The backend is the **single source of truth** for simulation time, inventory, forecasts, risks, recommendations, approvals, actions, and resulting state.
+
+The frontend must never maintain a competing authoritative inventory/simulation state.
+
+Bad:
+
+```text
+Frontend simulator ──┐
+                     ├── competing truth
+Backend simulator ───┘
+```
+
+Correct:
+
+```text
+Frontend
+   ↓
+API
+   ↓
+Backend domain services
+   ↓
+Database / simulation state
 ```
 
 ---
 
-# 9. Architecture style
+# 7. Architecture style
 
 **LOCKED:** modular monolith.
 
-Do not split the prototype into independent microservices.
+Do not split GROCER into microservices.
 
-The backend is one application with strong internal module boundaries.
+The project is small enough that microservices would add operational complexity without improving the core demonstration.
 
-Recommended shape:
+Recommended backend boundaries:
 
 ```text
-Next.js
-   ↓
-FastAPI
-   ↓
-Domain/service modules
-   ↓
-PostgreSQL
+backend/
+  api/
+  customer/
+  operations/
+  simulation/
+  forecasting/
+  decisions/
+  agents/
+  integrations/
+  audit/
+  database/
+  tests/
 ```
 
-LangGraph operates inside the backend process/application boundary and calls controlled backend tools.
+The exact directory structure may reuse the current repository where practical. Refactor incrementally rather than rewriting working code without reason.
 
 ---
 
-# 10. Technology stack
+# 8. Technology stack
 
 ## Frontend
 
 - Next.js
 - React
 - TypeScript
-- existing project styling stack may be retained where practical
-
-The existing repository already uses Next.js/React/Tailwind. Reuse working infrastructure instead of rewriting it without reason.
+- Tailwind/current working styling stack
+- Recharts or existing charting infrastructure where useful
 
 ## Backend
 
 - Python
 - FastAPI
+- SQLAlchemy
+- Alembic where appropriate
 
 ## Database
 
-- PostgreSQL
+**TBD:** retain the simplest reliable database configuration for local development. PostgreSQL is preferred for the final architecture, but SQLite may remain useful for fast local tests if the repository's test architecture supports it cleanly.
 
-## AI agent
+Do not introduce database complexity merely for appearances.
+
+## Agent
 
 - LangGraph
 - configurable LLM provider/model
 
-## ML
+Model selection is **not locked**. Choose based on reliability, tool use, latency, cost, and implementation results rather than brand preference.
 
-- Python
-- lightweight statistical/time-series tooling
+## Forecasting
+
+- Python statistical/time-series tooling
+- lightweight models first
 - scikit-learn where useful
-- forecasting library chosen after baseline comparison
 
-Prophet may be used, but **Prophet is not a product requirement**. Model choice should follow measured performance and implementation simplicity.
+Prophet is optional. The current repository uses exponential smoothing; retain it if it performs adequately. Do not force Prophet into the project simply because the original concept mentioned it.
 
 ## Realtime
 
-- WebSockets
+**TBD:** use polling or lightweight server-sent updates unless true WebSocket behavior is actually needed. Do not build realtime infrastructure for theatre.
 
 ## Local environment
 
-- Docker Compose preferred for reproducible local development
+- Docker Compose where useful
+- reproducible seed data
+- environment variables for secrets
 
 ---
 
-# 11. AI engineering philosophy
+# 9. Responsibility boundaries
 
-GROCER must not become an “LLM wrapper.”
+This separation is fundamental.
 
-The system has four different responsibilities:
+## Forecasting
 
-```text
-ML
-→ predicts what is likely to happen
+Answers:
 
-Deterministic domain logic
-→ calculates risk and feasible actions
+> What is likely to happen?
 
-Decision engine
-→ ranks possible actions
+Examples:
 
-LLM / agent
-→ orchestrates approved execution and handles communication/recovery
-```
+- expected demand in next 6h
+- expected demand before batch expiry
+- expected stockout time
 
-The LLM must not be the source of truth for inventory quantities, expiry calculations, forecasts, constraints, or database mutations.
+## Risk engine
+
+Answers:
+
+> What is dangerous right now?
+
+Examples:
+
+- high stockout risk
+- high spoilage risk
+- supplier-delay risk
+
+## Decision engine
+
+Answers:
+
+> What feasible action has the best expected outcome?
+
+It must compare transfer, reorder, discount, and hold where applicable.
+
+## LLM / agent
+
+Answers:
+
+> How do I orchestrate tools, approval, execution, communication, and recovery?
+
+The agent must not invent inventory facts or override hard domain constraints.
+
+## Database
+
+Answers:
+
+> What is the current authoritative state?
 
 ---
 
-# 12. ML / forecasting scope
+# 10. Data model
 
-**LOCKED:** moderate ML depth.
+The model should remain minimal but complete enough to support the decision loop.
 
-The goal is enough ML depth to demonstrate competent applied forecasting without turning the project into an ML research thesis.
+## 10.1 Store
 
-## 12.1 Forecasting levels
+Important fields:
 
-### Level 1 — baseline
+- id
+- name
+- neighborhood/location
+- coordinates or distance model input
+- operating status
 
-Use recent demand statistics such as moving averages or similar simple baselines.
+Do not add unnecessary organizational metadata.
 
-### Level 2 — time-series model
+## 10.2 Product
 
-For products with enough data and useful temporal patterns, use a lightweight time-series model such as Prophet or another suitable model.
+Important fields:
 
-### Level 3 — deterministic business calculations
+- id
+- name
+- category
+- unit
+- brand
+- perishable flag
+- shelf life
+- selling price
+- supplier reference
 
-Some predictions do not need ML.
+Brand exists mainly to support future substitution/alternative reasoning. Do not build a full catalog marketplace.
 
-For example:
+## 10.3 Batch
+
+Important fields:
+
+- id
+- product_id
+- store_id
+- quantity
+- received_at
+- expiry_at
+- status
+
+Batches are the source of truth for physical inventory.
+
+## 10.4 Inventory
+
+Do not maintain contradictory independent totals.
+
+For a product/store pair:
 
 ```text
-inventory = 80
-expected demand before expiry = 35
-
-at-risk quantity = 45
+available inventory = sum(active batch quantities)
 ```
 
-This is domain mathematics, not an ML problem.
+If a cached aggregate is introduced for performance, it must be derived/validated against batches and must not become a second independent truth.
 
-## 12.2 Model evaluation
+## 10.5 Customer order / demand record
 
-Forecasting must be evaluated against known simulator ground truth.
+For the operations simulator, keep this minimal:
 
-Track appropriate metrics such as:
+- timestamp
+- store
+- product
+- quantity
+
+No payment, rider, address, or customer-profile complexity is required.
+
+## 10.6 Demand
+
+Keep **actual demand** separate from **forecast demand**.
+
+Actual demand is simulator ground truth.
+
+Forecast demand is a model output.
+
+Never overwrite actual data with predictions.
+
+## 10.7 Forecast
+
+Important fields:
+
+- store/product scope
+- forecast window
+- predicted demand
+- uncertainty/confidence information
+- model/version identifier
+- generated_at
+
+## 10.8 Transfer
+
+Important fields:
+
+- id
+- source_store
+- destination_store
+- product
+- quantity
+- requested_at
+- ETA
+- status
+- transport cost
+- source/destination batch information where required
+
+Statuses:
+
+```text
+PROPOSED
+APPROVED
+IN_TRANSIT
+DELIVERED
+FAILED
+CANCELLED
+```
+
+## 10.9 Reorder
+
+Important fields:
+
+- id
+- store
+- product
+- quantity
+- supplier
+- created_at
+- ETA
+- cost
+- status
+
+Statuses:
+
+```text
+PROPOSED
+APPROVED
+ORDERED
+IN_TRANSIT
+DELIVERED
+FAILED
+CANCELLED
+```
+
+## 10.10 Markdown
+
+Important fields:
+
+- id
+- store
+- product
+- batch
+- discount percentage
+- start_at
+- end_at
+- status
+
+Applying a markdown affects simulated demand according to the configured demand-response model.
+
+## 10.11 Recommendation
+
+Recommendation is a first-class object.
+
+It should answer:
+
+1. What is wrong?
+2. What should we do?
+3. Why?
+4. What is the expected impact?
+5. What alternatives were considered?
+6. Why were alternatives not preferred?
+
+Important fields:
+
+- id
+- risk_id
+- recommended action
+- quantity
+- source store if applicable
+- destination store if applicable
+- score
+- confidence
+- reason codes
+- alternatives
+- expected impact
+- status
+- created_at
+
+## 10.12 Approval
+
+Important fields:
+
+- recommendation/action reference
+- approver
+- decision
+- timestamp
+- optional reason
+
+The backend must enforce approval requirements.
+
+## 10.13 Audit/event log
+
+Record important state transitions, including:
+
+```text
+FORECAST_UPDATED
+RISK_DETECTED
+RECOMMENDATION_CREATED
+RECOMMENDATION_APPROVED
+RECOMMENDATION_REJECTED
+TRANSFER_STARTED
+TRANSFER_COMPLETED
+TRANSFER_FAILED
+REORDER_CREATED
+REORDER_COMPLETED
+MARKDOWN_APPLIED
+BATCH_EXPIRED
+SIMULATION_ADVANCED
+```
+
+Audit data should be append-oriented and useful for debugging and demos.
+
+## 10.14 Simulation state
+
+Important fields:
+
+- simulation id
+- current simulation timestamp
+- random seed
+- mode
+- active scenario
+- status
+
+The frontend must retrieve this state from the backend.
+
+---
+
+# 11. Forecasting system
+
+## 11.1 Goal
+
+Forecast demand well enough to support decision-making inside the simulator.
+
+The project does not need state-of-the-art forecasting.
+
+## 11.2 Baseline first
+
+Always compare against a simple baseline such as:
+
+- moving average
+- exponential smoothing
+
+Do not assume a more complex model is better.
+
+## 11.3 Model selection
+
+Select the model using simulator validation data.
+
+Useful metrics:
 
 - MAE
 - RMSE
-- MAPE where appropriate
+- MAPE when appropriate
 
-Do not present simulator accuracy as real-world company accuracy.
+Model performance should be documented by product/store/scenario where useful.
 
-## 12.3 Confidence
+Do not present simulator metrics as real-world quick-commerce accuracy.
 
-Confidence should combine factors such as:
+## 11.4 Confidence
+
+Confidence should reflect:
 
 - forecast uncertainty
-- amount/quality of historical data
-- consistency of demand
+- historical data volume
+- demand consistency
 - anomaly rate
 
-The old fixed `0.85` threshold is **not automatically retained**.
+The old fixed `0.85` confidence gate is **not locked**.
 
-Thresholds should be configurable and justified as prototype policy choices.
+Thresholds must be configurable and justified as prototype policies.
 
-## 12.4 Anomalies
+## 11.5 Anomalies
 
-The forecasting pipeline should be able to exclude or reduce the influence of unusual events such as:
+The pipeline should reduce the impact of abnormal observations when appropriate.
 
-- bulk/guest purchase spikes
-- travel/gaps
-- simulator-generated abnormal events
+Potential simulated anomalies:
 
-The exact detection algorithm is **TBD**; start simple and test it.
+- unusually large purchase
+- abnormal surge
+- gaps in demand
+- scenario-generated events
+
+Start with the simplest robust method. Do not build a complicated anomaly-detection research system.
 
 ---
 
-# 13. Inventory model
+# 12. Risk engine
 
-Inventory is store-specific and product-specific.
+The risk engine converts state + forecasts into operational risk.
 
-Perishable inventory is batch-aware.
+## 12.1 Stockout risk
 
-Example:
+Inputs may include:
+
+- current available inventory
+- demand rate
+- forecast demand
+- forecast uncertainty
+- supplier lead time
+- transfer ETA
+- safety stock
+
+Conceptually:
 
 ```text
-Store 02
-Milk
-
-Batch A
-20 units
-expires in 8h
-
-Batch B
-45 units
-expires in 3 days
+stockout_time ≈ inventory / expected_demand_rate
 ```
 
-This allows GROCER to distinguish total inventory from inventory that is actually at risk of expiry.
+The actual implementation should account for forecast windows and safety buffers rather than relying on one simplistic ratio.
+
+## 12.2 Spoilage risk
+
+Inputs include:
+
+- batch quantity
+- hours until expiry
+- expected demand before expiry
+- sell-through rate
+- possible markdown effect
+- possible transfer destination demand
+
+Conceptually:
+
+```text
+at_risk_quantity = max(
+    0,
+    batch_quantity - expected_sell_through_before_expiry
+)
+```
+
+## 12.3 Severity
+
+Risk severity should be configurable and based on measurable factors.
+
+Avoid arbitrary thresholds that exist only to create dramatic demos.
 
 ---
 
-# 14. Decision Engine
+# 13. Decision engine
 
-The Decision Engine is the core deterministic decision layer.
+The Decision Engine is the core deterministic intelligence layer.
 
 Pipeline:
 
 ```text
-Current state
-   ↓
-Forecast demand
-   ↓
-Calculate risks
-   ↓
-Generate feasible actions
-   ↓
-Apply hard constraints
-   ↓
-Score feasible actions
-   ↓
-Rank actions
-   ↓
-Generate recommendation + alternatives
+CURRENT STATE
+     ↓
+FORECAST / RISK
+     ↓
+GENERATE CANDIDATE ACTIONS
+     ↓
+APPLY HARD CONSTRAINTS
+     ↓
+CALCULATE EXPECTED OUTCOMES
+     ↓
+SCORE / RANK
+     ↓
+RECOMMEND BEST ACTION + ALTERNATIVES
 ```
 
-## 14.1 Transfer
+## 13.1 Candidate actions
 
-Prefer transfer when:
+For each relevant risk, consider applicable actions from:
 
-- destination stockout risk is high
+- TRANSFER
+- REORDER
+- DISCOUNT
+- HOLD
+
+Not every action is valid for every situation.
+
+## 13.2 Hard constraints
+
+Hard constraints must be checked before scoring.
+
+Examples:
+
+- source cannot transfer more than available quantity
+- source cannot fall below configured safety threshold
+- expired product cannot be transferred
+- destination must have a genuine need
+- transfer must arrive before the critical stockout window when transfer is being proposed as the solution
+- supplier cannot deliver before its simulated minimum lead time
+- quantity cannot be negative
+- action cannot mutate state without required approval
+
+A candidate violating a hard constraint is infeasible, not merely lower-scoring.
+
+## 13.3 Transfer reasoning
+
+Transfer is attractive when:
+
+- destination has meaningful stockout risk
 - source has safe excess
-- transfer can arrive before stockout
-- source remains above safety stock
-- destination actually needs the quantity
-- transfer distance/time is reasonable
+- ETA beats the destination critical window
+- transfer cost is acceptable
+- the transferred quantity is useful
+- applicable expiry/cold-chain constraints are satisfied
 
-## 14.2 Reorder
-
-Prefer reorder when:
-
-- supplier can deliver in time
-- multiple stores need replenishment
-- no suitable source store has enough excess
-- transfer is not feasible/economical
-
-## 14.3 Discount
-
-Prefer discount when:
-
-- product is perishable
-- expiry is approaching
-- inventory exceeds expected sell-through before expiry
-- accelerated sales are preferable to spoilage
-
-Initial prototype discount tiers may be:
-
-```text
->24h remaining   → 0%
-12–24h           → 10%
-6–12h            → 20%
-<6h              → 30%
-```
-
-These are simulator policy defaults, not real pricing claims.
-
-## 14.4 Hold
-
-Hold is a legitimate decision.
-
-Use it when intervention is unnecessary or harmful.
+Quantity should be optimized/configured, not hardcoded as a fixed arbitrary amount.
 
 Example:
 
 ```text
-inventory healthy
+Destination:
+stockout in 3.4h
+
+Source:
+safe excess = 32 units
+transfer ETA = 2.1h
+
+→ transfer candidate is feasible
+```
+
+## 13.4 Reorder reasoning
+
+Reorder is attractive when:
+
+- supplier ETA is timely enough
+- no safe transfer source exists
+- several stores need replenishment
+- transfer is infeasible or too costly
+
+The system must model supplier lead time rather than magically adding inventory.
+
+## 13.5 Discount reasoning
+
+Discount is attractive when:
+
+- inventory is perishable
+- expiry is approaching
+- expected sell-through is insufficient
+- accelerated demand could reduce waste
+
+Discount effects are simulator assumptions.
+
+## 13.6 Hold reasoning
+
+Hold is a valid decision when no intervention creates sufficient benefit.
+
+Example:
+
+```text
+stock healthy
 expiry distant
-supplier reliable
-stockout risk low
+supplier normal
+transfer unnecessary
 
 → HOLD
 ```
 
 ---
 
-# 15. Transfer logic
+# 14. Decision scoring
 
-## 15.1 Safe excess
+Use a transparent hybrid approach.
 
-A source store cannot transfer inventory if doing so creates an unacceptable risk at the source.
+### v2 approach
 
-Conceptually:
+Start with configurable weighted scoring.
+
+Potential components:
 
 ```text
-safe_excess = current_inventory
-              - expected_demand_during_safety_window
-              - safety_buffer
+score =
+    stockout_risk_reduction
+  + spoilage_reduction
+  + availability_improvement
+  - transfer_cost
+  - supplier_delay_penalty
+  - distance_penalty
+  - source_risk
+  - intervention_cost
 ```
 
-The exact safety window and buffer are configurable simulator policies.
+Weights must be centralized configuration, not scattered magic numbers.
 
-## 15.2 Candidate sources
+The exact weights are **TBD** and must be calibrated against scenarios.
 
-The system may evaluate multiple candidate source stores.
+The scoring system must not be tuned simply to make one predetermined action win every demo.
+
+### Future extension
+
+The decision-engine interface should be replaceable so a formal optimization solver can be introduced later if evidence justifies it.
+
+Do not add an optimizer merely for resume buzzwords.
+
+---
+
+# 15. Explainability
+
+Every recommendation must expose structured evidence.
+
+The UI should communicate three levels:
+
+### Why did this happen?
+
+Example:
+
+> Demand increased 38% above the recent baseline and the destination has only 3.4 hours of projected inventory remaining.
+
+### Why this action?
+
+> Tiong Bahru has 32 units of safe excess and can reach Orchard in 2.1 hours.
+
+### Why not the alternatives?
+
+> Supplier reorder ETA is 9 hours, which is later than the predicted stockout window.
+
+The underlying facts must come from deterministic services.
+
+The LLM may turn structured facts into natural language, but it must not invent them.
+
+---
+
+# 16. Recommendation ranking
+
+Generate multiple feasible candidates where useful, then rank them.
+
+The UI should normally show the top few rather than a giant decision table.
 
 Example:
 
 ```text
-Store 02
-20 transferable
-2 km
-
-Store 03
-40 transferable
-7 km
+1. TRANSFER 20 units       score 0.91
+2. REORDER 30 units        score 0.68
+3. HOLD                    score 0.14
 ```
 
-The decision engine compares them using the configured policy.
-
-## 15.3 Hard transfer constraints
-
-Reject a transfer if:
-
-- source inventory is insufficient
-- source would fall below safety stock
-- destination does not need the product
-- transfer cannot arrive before the critical window
-- product is non-transferable under the simulator rules
-- distance/time exceeds configured limits
-- cold-chain requirement cannot be satisfied for applicable perishables
+The recommendation detail should expose the important alternative reasoning without overwhelming the operator.
 
 ---
 
-# 16. Decision scoring
+# 17. Human approval and safety
 
-v2 uses a **hybrid architecture**:
-
-- start with transparent weighted scoring
-- keep the interface replaceable so a real optimization solver can be introduced later
-
-Conceptually:
-
-```text
-score =
-    stockout_risk_reduction * weight
-  + spoilage_reduction * weight
-  + availability_improvement * weight
-  - transfer_cost * weight
-  - supplier_delay * weight
-  - distance_penalty * weight
-  - source_risk * weight
-```
-
-Weights must be configuration, not scattered magic numbers.
-
-The exact numerical weights are **TBD** and must be calibrated against simulator scenarios rather than chosen to force a desired demo result.
-
-The engine must preserve:
-
-- selected action
-- score
-- alternatives
-- structured reason codes
-- relevant input facts
-
-This makes the recommendation explainable and testable.
-
----
-
-# 17. Recommendation object
-
-A recommendation represents what GROCER currently believes should happen.
-
-Conceptual structure:
-
-```text
-recommendation_id
-risk_id
-recommended_action
-quantity
-source_store
- destination_store
-confidence
-score
-reason_codes
-alternatives
-created_at
-status
-```
-
-Example reason codes:
-
-```text
-HIGH_STOCKOUT_RISK
-SOURCE_HAS_SAFE_EXCESS
-SUPPLIER_TOO_SLOW
-LOW_TRANSFER_DISTANCE
-HIGH_SPOILAGE_RISK
-DISCOUNT_CAN_ACCELERATE_SELL_THROUGH
-NO_SAFE_TRANSFER_SOURCE
-```
-
-The UI translates reason codes into readable explanations.
-
-The LLM must not invent these underlying facts.
-
----
-
-# 18. Human-in-the-loop policy
-
-**LOCKED:** consequential inventory mutations require human approval in v2.
+**LOCKED:** human approval is mandatory for consequential inventory mutations.
 
 Approval required for:
 
@@ -714,1768 +1101,1106 @@ Approval required for:
 
 Read-only operations do not require approval:
 
-- inspect inventory
-- inspect batches
-- calculate forecast
-- inspect risks
-- compare alternatives
-- retrieve simulation state
+- inventory inspection
+- batch inspection
+- forecast calculation
+- risk inspection
+- recommendation generation
+- alternative comparison
 
-The backend must enforce approval requirements.
+The backend must enforce this policy.
 
-Do not rely on an LLM system prompt to enforce this.
+Never rely solely on an LLM prompt to prevent unauthorized mutation.
 
 ---
 
-# 19. LangGraph agent
+# 18. LangGraph agent
 
-The agent executes an already-approved action.
+The LangGraph agent is an **execution/orchestration layer**, not the decision engine.
 
-It is not the primary inventory decision-maker.
-
-Recommended graph:
+Recommended flow:
 
 ```text
-Approved recommendation
-        ↓
-1. Validate
-        ↓
-2. Pre-check
-        ↓
-3. Execute
-        ↓
-4. Verify
-        ↓
-Success? ────────────────┐
-  │ yes                  │ no
-  ↓                      ↓
-5. Finalize          6. Recover
-  │                      ↓
-  └──────────────→ Recalculate alternatives
-                         ↓
-                    Human review required
-                         ↓
-                       Audit
+LOAD APPROVED RECOMMENDATION
+            ↓
+VALIDATE APPROVAL + STATE
+            ↓
+EXECUTE CONTROLLED TOOL
+            ↓
+VERIFY RESULT
+            ↓
+FINALIZE
+            ↓
+WRITE AUDIT EVENT
 ```
 
-The exact LangGraph node implementation is **TBD**, but the safety boundary is locked.
+The current repository already has a similar 5-node execution graph. Reuse/refactor it rather than replacing it unnecessarily.
 
-## 19.1 Agent autonomy level
-
-**LOCKED:** Level 2.
+### Agent responsibilities
 
 The agent may:
 
-- inspect state
-- call read tools
-- validate approved actions
-- execute the exact approved action
-- detect failures
-- gather information
-- trigger recalculation
-- prepare a new recommendation
+- load an approved action
+- inspect current state
+- call controlled tools
+- handle expected tool errors
+- retry safe transient operations where appropriate
+- verify execution
+- produce an execution summary
+- write/trigger audit events
 
-The agent may **not** autonomously execute a newly consequential action after the world changes.
+The agent must not:
 
-A newly recommended action requires fresh human approval.
-
----
-
-# 20. Agent tools
-
-Initial controlled tools may include:
-
-```text
-get_recommendation()
-get_inventory()
-get_batch_details()
-get_store_capacity()
-find_nearby_excess()
-validate_transfer()
-create_transfer()
-validate_reorder()
-create_reorder()
-apply_discount()
-get_simulation_state()
-recalculate_options()
-log_event()
-```
-
-Tool access must be permission-aware.
-
-Mutation tools must validate the approval state server-side.
-
-The agent must never receive unrestricted SQL/database access.
+- invent quantities
+- bypass approval
+- violate hard constraints
+- directly manipulate raw database state without domain tools
+- decide inventory policy independently of the Decision Engine
 
 ---
 
-# 21. Failure handling
+# 19. Execution tools
 
-A key design principle:
-
-> **Retry technical failures; recalculate when the world has changed.**
-
-Example technical failure:
-
-```text
-API timeout
-    ↓
-retry safely
-```
-
-Example state failure:
-
-```text
-approved transfer: 20
-source inventory changed: only 12 available
-    ↓
-old recommendation is stale
-    ↓
-stop
-    ↓
-recalculate
-    ↓
-new recommendation
-    ↓
-human approval required
-```
-
-Do not blindly retry stale business decisions.
-
----
-
-# 22. Customer / WhatsApp flow
-
-The existing proactive replenishment concept remains part of v2.
-
-Flow:
-
-```text
-Customer order history
-       ↓
-Consumption forecast
-       ↓
-Predicted depletion
-       ↓
-WhatsApp-style alert
-       ↓
-Confirm / Remind / Skip
-```
-
-Confirm:
-
-```text
-Confirm
- ↓
-Build cart
- ↓
-Check simulated availability
- ↓
-Simulated order
- ↓
-Inventory changes
-```
-
-Remind:
-
-```text
-schedule simulated reminder
-```
-
-Skip:
-
-```text
-record customer decision
-```
-
-The customer simulation and operations simulation must use the same underlying world.
-
----
-
-# 23. Simulator
-
-The simulator is a first-class component, not fake data pasted into the UI.
-
-It provides:
-
-- historical orders
-- current inventory
-- batches/expiry
-- supplier deliveries
-- demand variation
-- store imbalance
-- demand spikes
-- supplier delays
-- spoilage opportunities
-- execution failures
-- ground truth for model evaluation
-
-## 23.1 Modes
-
-### Controlled Simulation
-
-For development and debugging.
-
-Controls:
-
-- advance time
-- trigger demand spike
-- trigger supplier delay
-- create excess inventory
-- create store imbalance
-- force execution failure
-- reset
-
-### Scenario Mode
-
-For demonstrations.
-
-A scenario creates a realistic sequence of events automatically.
-
----
-
-# 24. Simulation time
-
-**LOCKED:** simulation supports both automatic and manual time control.
-
-Controls:
-
-```text
-▶ Run
-⏸ Pause
-+1h
-+6h
-+24h
-Reset
-```
-
-Scenario mode can automatically advance time.
-
-## 24.1 Deterministic seeds
-
-Every simulation can have a seed.
-
-Example:
-
-```text
-Scenario: Store Imbalance
-Seed: 48291
-```
-
-Same seed + same configuration should produce reproducible results.
-
-Developer mode can use different seeds to explore variability.
-
----
-
-# 25. Hero scenario
-
-The primary demo should demonstrate the complete closed loop.
-
-Example:
-
-```text
-NORMAL OPERATIONS
-        ↓
-Demand spike
-        ↓
-Store 04 stockout risk rises
-        ↓
-Store 02 develops safe excess
-        ↓
-GROCER detects risk
-        ↓
-Decision engine evaluates:
-  Transfer
-  Reorder
-  Discount
-  Hold
-        ↓
-Transfer ranked highest
-        ↓
-Operator opens WHY
-        ↓
-Operator approves
-        ↓
-LangGraph validates
-        ↓
-Agent executes
-        ↓
-Transfer verified
-        ↓
-Inventory changes
-        ↓
-Risk falls
-        ↓
-Before vs After metrics
-```
-
-This should be possible to demonstrate in roughly 2–3 minutes.
-
----
-
-# 26. Second major scenario — perishables
-
-Example:
-
-```text
-Store 01
-Bread inventory = 80
-Expiry = 8h
-Expected sales before expiry = 30
-```
-
-GROCER calculates:
-
-```text
-~50 units at risk
-```
-
-It evaluates:
-
-- transfer to another store
-- discount
-- hold
-
-It recommends the lowest-risk feasible intervention.
-
-The result should show:
-
-```text
-inventory rescued / sold
-vs
-simulated spoilage avoided
-```
-
----
-
-# 27. Optional failure scenario
-
-A strong secondary demo should show:
-
-```text
-GROCER recommends transfer
-        ↓
-human approves
-        ↓
-source inventory unexpectedly changes
-        ↓
-agent pre-check fails
-        ↓
-agent does NOT execute stale action
-        ↓
-recalculate alternatives
-        ↓
-new recommendation
-        ↓
-human approval required
-```
-
-This demonstrates that the agent is not simply a happy-path automation script.
-
----
-
-# 28. Baseline vs GROCER
-
-The simulator must support comparison between:
-
-### Baseline
-
-A simple non-GROCER inventory policy.
-
-### GROCER
-
-Forecasting + risk detection + decision engine + approved execution.
-
-Metrics may include:
-
-- stockout events
-- spoiled units
-- emergency reorders
-- service level / availability
-- excess inventory
-- transfer count
-- estimated simulated waste/cost
-- recommendation acceptance rate
-
-All numbers are **simulation results**, not real-world company claims.
-
-The baseline must be reasonably fair; do not tune it to make GROCER look artificially good.
-
----
-
-# 29. Core data model
-
-The initial model contains approximately 15 core entities.
-
-```text
-Company
-Store
-Product
-Customer
-Order
-OrderItem
-Supplier
-Inventory
-Batch
-Forecast
-Risk
-Recommendation
-Action
-Event
-Simulation
-Scenario
-```
-
-`Company` can be minimal because this is not a SaaS product.
-
-## 29.1 Store
-
-```text
-store_id
-name
-latitude
-longitude
-operating_status
-```
-
-## 29.2 Product
-
-```text
-product_id
-name
-category
-unit
-shelf_life
-base_price
-supplier_id
-substitution_group (optional)
-```
-
-## 29.3 Customer
-
-```text
-customer_id
-name/label
-home_store_id
-```
-
-Use synthetic identities only.
-
-## 29.4 Inventory
-
-Logical store/product inventory view.
-
-```text
-store_id
-product_id
-quantity
-```
-
-Actual perishable stock is batch-backed.
-
-## 29.5 Batch
-
-```text
-batch_id
-store_id
-product_id
-quantity
-received_at
-expires_at
-```
-
-## 29.6 Order
-
-```text
-order_id
-customer_id
-store_id
-created_at
-status
-```
-
-## 29.7 OrderItem
-
-```text
-order_id
-product_id
-quantity
-price
-```
-
-## 29.8 Supplier
-
-```text
-supplier_id
-name
-lead_time_hours
-status
-```
-
-## 29.9 Forecast
-
-```text
-forecast_id
-store_id/product_id or customer/product scope
-forecast_window
-predicted_demand
-confidence
-model
-created_at
-```
-
-The exact schema should normalize shared dimensions without unnecessary complexity.
-
-## 29.10 Risk
-
-```text
-risk_id
-store_id
-product_id
-risk_type
-severity
-probability
-expected_time
-status
-created_at
-```
-
-Initial risk types:
-
-```text
-STOCKOUT
-SPOILAGE
-```
-
-## 29.11 Recommendation
-
-```text
-recommendation_id
-risk_id
-action_type
-quantity
-source_store_id
- destination_store_id
-score
-confidence
-reason_codes
-alternatives
-status
-created_at
-```
-
-## 29.12 Action
-
-```text
-action_id
-recommendation_id
-action_type
-approved_by
-approved_at
-executed_at
-status
-failure_reason
-```
-
-Statuses:
-
-```text
-PENDING
-APPROVED
-EXECUTING
-COMPLETED
-FAILED
-CANCELLED
-REJECTED
-```
-
-## 29.13 Event
-
-```text
-event_id
-event_type
-timestamp
-entity_type
-entity_id
-payload
-```
+Tools should represent controlled domain operations.
 
 Examples:
 
 ```text
-ORDER_CREATED
-INVENTORY_CHANGED
-FORECAST_UPDATED
-RISK_DETECTED
-RECOMMENDATION_CREATED
-ACTION_APPROVED
-TRANSFER_STARTED
-TRANSFER_COMPLETED
-TRANSFER_FAILED
+get_inventory
+get_batches
+get_forecast
+get_risks
+create_transfer
+approve_transfer
+execute_transfer
+create_reorder
+execute_reorder
+apply_markdown
+get_simulation_state
+advance_simulation
+verify_transfer
+verify_reorder
 ```
 
-## 29.14 Simulation
+The exact tool list may be simplified if a cleaner service/tool boundary is found.
 
-```text
-simulation_id
-scenario_id
-seed
-current_time
-status
-configuration
-```
-
-## 29.15 Scenario
-
-```text
-scenario_id
-name
-description
-configuration
-```
+Tools must enforce domain validation.
 
 ---
 
-# 30. Event-driven internal flow
+# 20. Verification
 
-**LOCKED:** use an in-process event mechanism rather than a distributed message broker.
+Verification is not optional.
 
-Example:
+For a transfer, verification should confirm at minimum:
 
 ```text
-OrderCreated
-    ↓
-InventoryUpdated
-    ↓
-Forecast/Risk recalculation
-    ↓
-RiskDetected
-    ↓
-RecommendationCreated
+source quantity decreased correctly
+ destination quantity increased correctly
+correct product
+correct quantity
+correct batch handling
+transfer status updated
+inventory invariants preserved
 ```
 
-Important events must be persisted to the event/audit log.
+For reorder:
 
-Do not add Kafka/RabbitMQ merely to simulate enterprise architecture.
+```text
+order exists
+supplier/quantity correct
+ETA respected
+arrival changes inventory correctly
+status updated
+```
+
+For markdown:
+
+```text
+correct batch targeted
+discount active in intended window
+demand model reflects markdown
+```
+
+A successful tool call is not automatically a successful business operation.
 
 ---
 
-# 31. Backend modules
+# 21. Inventory invariants
 
-Recommended internal modules:
+These invariants are core tests and should be enforced wherever practical.
 
-```text
-backend/
-├── api/
-├── models/
-├── database/
-├── services/
-│   ├── simulation/
-│   ├── inventory/
-│   ├── forecasting/
-│   ├── risk/
-│   ├── decision/
-│   ├── recommendation/
-│   ├── customer/
-│   └── metrics/
-├── agents/
-├── tools/
-└── events/
-```
+### Invariant 1
 
-Exact folder layout may change if it remains modular and understandable.
+Inventory cannot become negative.
 
----
+### Invariant 2
 
-# 32. API contract
+Transfer quantity cannot exceed source available inventory.
 
-The API is the boundary between frontend and backend.
+### Invariant 3
 
-The frontend must not access PostgreSQL directly.
+Expired inventory cannot be transferred.
 
-The LLM must not access PostgreSQL directly.
+### Invariant 4
 
-## 32.1 Simulation
+A transfer cannot leave the source below the configured safety requirement.
 
-```text
-POST /simulations
-GET  /simulations/{id}
-POST /simulations/{id}/start
-POST /simulations/{id}/pause
-POST /simulations/{id}/advance
-POST /simulations/{id}/reset
-```
+### Invariant 5
 
-## 32.2 Scenarios
+Supplier arrival cannot occur before its modeled lead time.
 
-```text
-GET  /scenarios
-POST /scenarios/{id}/run
-```
+### Invariant 6
 
-## 32.3 Stores
+Simulation time advances only through the backend simulation service.
 
-```text
-GET /stores
-GET /stores/{id}
-GET /stores/{id}/inventory
-GET /stores/{id}/risks
-GET /stores/{id}/forecasts
-```
+### Invariant 7
 
-## 32.4 Products
+Frontend actions cannot directly mutate authoritative inventory state.
 
-```text
-GET /products
-GET /products/{id}
-```
+### Invariant 8
 
-## 32.5 Recommendations
+Consequential mutations require valid approval.
 
-```text
-GET  /recommendations
-GET  /recommendations/{id}
-POST /recommendations/{id}/approve
-POST /recommendations/{id}/reject
-```
+### Invariant 9
 
-Reject may include an optional reason.
+Actual demand and forecast demand remain distinct.
 
-## 32.6 Actions
+### Invariant 10
 
-```text
-GET /actions
-GET /actions/{id}
-```
-
-## 32.7 Events
-
-```text
-GET /events
-GET /events/{id}
-```
-
-## 32.8 Customer / WhatsApp simulation
-
-```text
-GET  /customers/{id}
-GET  /customers/{id}/messages
-POST /customers/{id}/messages
-POST /customers/{id}/reorder
-POST /customers/{id}/remind
-POST /customers/{id}/skip
-```
-
-Exact request/response schemas are **TBD** and must be documented before implementation of each endpoint.
+Every consequential action has an auditable state transition.
 
 ---
 
-# 33. WebSockets
+# 22. Simulator
 
-Use a simulation event stream such as:
+The simulator is a major part of the project, not disposable fake data.
+
+It must create a believable but controllable operating environment.
+
+## 22.1 Initial state
+
+Seed:
+
+- 5 stores
+- minimal product catalog
+- product/store inventory
+- multiple batches
+- historical demand
+- supplier configuration
+- customer consumption history
+- simulation clock
+
+## 22.2 Time control
+
+Support:
+
+- pause
+- +1h
+- +6h
+- +1d
+- reset
+
+The backend owns the clock.
+
+## 22.3 Demand generation
+
+Normal demand:
 
 ```text
-WS /simulations/{id}/events
+base demand
++ bounded stochastic variation
++ time/weekday pattern where useful
 ```
 
-Events can include:
+Scenario demand may override or modify normal behavior.
+
+## 22.4 Expiry
+
+As simulation time advances, batches approach expiry and eventually expire.
+
+Expiry must affect available inventory correctly.
+
+## 22.5 Supplier flow
 
 ```text
-INVENTORY_CHANGED
-RISK_DETECTED
-RECOMMENDATION_CREATED
-ACTION_STARTED
-ACTION_COMPLETED
-ACTION_FAILED
-SIMULATION_TIME_ADVANCED
+order proposed
+   ↓
+approved
+   ↓
+ordered
+   ↓
+in transit
+   ↓
+ETA reached
+   ↓
+delivered
+   ↓
+inventory updated
 ```
 
-The frontend should update without manual refresh during live simulation.
+## 22.6 Transfer flow
+
+```text
+proposed
+   ↓
+approved
+   ↓
+in transit
+   ↓
+ETA reached
+   ↓
+delivered
+   ↓
+source/destination state reconciled
+```
+
+## 22.7 Markdown flow
+
+Markdown changes the simulated demand response while active.
+
+Keep the model simple and configurable.
 
 ---
 
-# 34. Frontend information architecture
+# 23. Scenario mode
 
-The product has two main modes.
+Use a small number of high-quality scenarios.
+
+Recommended scenarios:
+
+## Scenario A — cross-store stockout
 
 ```text
-CUSTOMER
-   ↕ switch
-OPERATIONS
+Demand spike at Orchard
+        ↓
+stockout risk increases
+        ↓
+Tiong Bahru has safe excess
+        ↓
+transfer is feasible
+        ↓
+GROCER recommends transfer
+        ↓
+human approves
+        ↓
+agent executes
+        ↓
+verification
+        ↓
+stockout risk falls
 ```
 
-## 34.1 Customer mode
-
-The existing iPhone/WhatsApp-style experience should remain polished and visually close to a real mobile interaction.
-
-Core flow:
+## Scenario B — perishable expiry
 
 ```text
-Notification
- ↓
-WhatsApp conversation
- ↓
-Replenishment suggestion
- ↓
-Confirm / Remind / Skip
- ↓
-Cart/order state
+Milk batch approaching expiry
+        ↓
+expected sell-through is insufficient
+        ↓
+GROCER compares markdown / transfer / hold
+        ↓
+best action recommended
+        ↓
+human approves
+        ↓
+execution
+        ↓
+waste risk changes
 ```
 
-## 34.2 Operations mode
-
-This is the main new interface.
-
-It should look like an internal operations/control-center application rather than a consumer shopping app.
-
-Recommended information hierarchy:
+## Scenario C — supplier delay
 
 ```text
-Top bar
-  simulation status / time / scenario / controls
+store needs replenishment
+        ↓
+supplier ETA becomes too slow
+        ↓
+transfer becomes preferable or no action is feasible
+        ↓
+GROCER explains the trade-off
+```
 
+Additional scenarios are optional only after these work reliably.
+
+---
+
+# 24. Frontend / UX
+
+The UI must be a **conventional, readable operational application**.
+
+Do not build a futuristic “command center”, giant cockpit, or spatial map as the primary interface.
+
+The operator should not spend mental effort learning the interface.
+
+## 24.1 Primary navigation
+
+Recommended structure:
+
+```text
 Overview
-  critical risks
-  stockout risk
-  spoilage risk
-  inventory health
-
-Store network
-  5 stores
-  map or spatial representation
-  risk/excess indicators
-
-Active recommendations
-  recommendation cards
-  severity
-  action
-  confidence
-  key facts
-
-Recommendation detail
-  problem
-  recommended action
-  alternatives
-  WHY panel
-  approval controls
-
-Activity timeline
-  events
-  agent execution trace
-
-Metrics
-  baseline vs GROCER
+Inventory
+Perishables
+Transfers
+Reorders
+Recommendations
+Simulation
+Activity / Audit
+Customer Replenishment
 ```
 
-The final visual design should be determined in implementation with the UI agent, but this information hierarchy is locked at the product level.
+Exact labels may be simplified.
 
----
+## 24.2 Overview page
 
-# 35. Recommendation UI
+The overview should answer:
 
-A recommendation should look roughly like:
+> What needs attention right now?
+
+Useful sections:
+
+- stockout risks
+- spoilage risks
+- pending recommendations
+- active transfers/reorders
+- key inventory KPIs
+- recent activity
+
+## 24.3 Inventory page
+
+A conventional filterable inventory table is appropriate here.
+
+Show:
+
+- store
+- product
+- available quantity
+- risk status
+- expiry information for perishables
+
+Batch details can be opened as a secondary detail view.
+
+## 24.4 Recommendation UI
+
+Recommendations should be visually prominent but not overwhelming.
+
+Each should show:
 
 ```text
-┌─────────────────────────────────────────┐
-│ HIGH STOCKOUT RISK                      │
-│ Store 04 · Milk                         │
-│                                         │
-│ Recommended                             │
-│ TRANSFER 20 units                       │
-│ Store 02 → Store 04                     │
-│                                         │
-│ Stockout in ~14h                        │
-│ Supplier ETA ~30h                       │
-│ Source safe excess: 20                  │
-│ Transfer distance: 2.1 km               │
-│                                         │
-│ [ WHY? ]        [ APPROVE ] [ REJECT ]  │
-└─────────────────────────────────────────┘
+Problem
+Recommended action
+Quantity
+Why
+Expected impact
+Alternatives
+Approval controls
 ```
 
-The exact visual design is flexible.
+## 24.5 Detail pages
 
-The information must remain understandable.
+Use tables, filters, cards, detail panels, and activity timelines where appropriate.
+
+## 24.6 Map
+
+A map is optional.
+
+It is not a core requirement and should only be added if it materially improves transfer/network comprehension without increasing cognitive load.
+
+## 24.7 Visual references
+
+Figma and real operational software may be used as references for patterns such as:
+
+- sidebar navigation
+- KPI cards
+- exception lists
+- filterable tables
+- detail drawers
+- activity logs
+
+References must inform usability, not become blind copies.
 
 ---
 
-# 36. WHY panel
+# 25. Backend API principles
 
-Every recommendation should expose structured reasoning.
+APIs should be domain-oriented and predictable.
 
-Example:
+Potential groups:
 
 ```text
-WHY THIS RECOMMENDATION?
-
-Stockout risk             91%
-Predicted stockout        14h
-Supplier ETA              30h
-Nearby safe excess        20 units
-Transfer distance         2.1 km
-
-Recommended: TRANSFER
-
-Reason:
-• destination has high stockout risk
-• supplier is too slow
-• source has safe excess
-• transfer can arrive in time
-
-Alternatives:
-REORDER  — lower score because supplier is slow
-DISCOUNT — does not solve destination shortage
-HOLD     — leaves high stockout risk
+/api/health
+/api/simulation
+/api/inventory
+/api/products
+/api/stores
+/api/forecasts
+/api/risks
+/api/recommendations
+/api/approvals
+/api/transfers
+/api/reorders
+/api/markdowns
+/api/audit
+/api/customer
 ```
 
-The facts must originate from backend decision data.
+Do not create an endpoint for every internal function.
+
+The API should expose business capabilities rather than implementation details.
 
 ---
 
-# 37. Activity / audit UI
+# 26. Current repository refactor strategy
 
-Important events should be visible as a timeline.
+**LOCKED:** do not throw away the existing codebase blindly.
 
-Example:
+The repository already contains useful infrastructure including:
+
+- FastAPI
+- SQLAlchemy
+- forecasting service
+- risk engine
+- decision engine
+- LangGraph agent
+- simulator
+- scenario engine
+- transfer/reorder/markdown services
+- approval flow
+- audit flow
+- frontend dashboard
+- tests
+
+The codebase is currently closer to a working prototype than a blank project, but some areas reflect older assumptions.
+
+Therefore the strategy is:
 
 ```text
-14:21:03  ORDER_CREATED
-14:21:04  INVENTORY_UPDATED
-14:21:05  FORECAST_UPDATED
-14:21:05  RISK_DETECTED
-14:21:06  RECOMMENDATION_CREATED
-14:23:11  HUMAN_APPROVED
-14:23:12  AGENT_STARTED
-14:23:13  TRANSFER_VALIDATED
-14:23:14  TRANSFER_COMPLETED
+AUDIT
+  ↓
+REMOVE DUPLICATION
+  ↓
+FIX SOURCE-OF-TRUTH PROBLEMS
+  ↓
+STRENGTHEN DOMAIN RULES
+  ↓
+TEST INVARIANTS
+  ↓
+INTEGRATE CUSTOMER COMMERCE ADAPTER
+  ↓
+REFINE UI
+  ↓
+DEMO
 ```
 
-This is both a debugging tool and a trust feature.
+Do not perform a rewrite unless a measured technical reason requires it.
 
 ---
 
-# 38. Security boundaries
+# 27. Known repository issues to address
 
-Even though this is a simulated prototype, enforce realistic boundaries.
+These were identified during the repository review and are implementation priorities.
 
-The system must:
+## 27.1 Frontend simulation state duplication
 
-- use synthetic data
-- avoid real credentials
-- keep integrations mocked
-- prevent direct LLM database access
-- validate all mutation requests server-side
-- require human approval for consequential actions
-- validate recommendation freshness before execution
-- log mutations
-- keep secrets out of source control
+The frontend currently contains simulation/business logic that overlaps with backend state.
 
-No real customer/platform access is required.
+**Required:** backend becomes authoritative. Frontend should call simulation APIs and render returned state.
+
+Reduce `frontend/lib/scenarioEngine.ts` to presentation/helper logic or remove it when no longer needed.
+
+## 27.2 Simulation advance bug
+
+The current frontend advance-time flow appears to call risk evaluation rather than the authoritative simulation-advance operation.
+
+**Required:** time controls must call the backend simulation advance endpoint/service.
+
+## 27.3 Reset/stale simulation IDs
+
+Resetting simulation can invalidate client-held simulation identifiers.
+
+**Required:** reset must return the authoritative new state/id and frontend must replace stale state immediately.
+
+## 27.4 Decision engine simplicity
+
+Current decision scoring is too simplistic for the intended v2 demonstration.
+
+**Required:** implement explicit candidate generation, hard constraints, expected impact, configurable scoring, ranked alternatives, and reason codes.
+
+## 27.5 Transfer verification
+
+Current verification appears too weak if it only checks destination inventory increase.
+
+**Required:** validate source decrement, destination increment, product/quantity correctness, batch handling, status, and invariants.
+
+## 27.6 Stale implementation plan
+
+Older implementation plans may conflict with the current architecture.
+
+**Required:** this master spec is the authoritative plan. Update/remove stale documentation that contradicts it.
+
+## 27.7 Swiggy integration boundary
+
+The current architecture needs a clean commerce integration adapter.
+
+**Required:** provider-specific MCP details must remain behind the integration boundary.
 
 ---
 
-# 39. Observability
+# 28. Swiggy MCP integration
 
-The prototype should have structured logs and persistent events.
+Swiggy MCP is relevant primarily to the **customer-side commerce workflow**.
 
-Every meaningful action should answer:
+It does not replace the simulated internal dark-store operations system.
+
+The internal operations data — batch expiry, supplier inventory, inter-store transfer, internal markdown decisions, etc. — remains simulated.
+
+## 28.1 Adapter architecture
 
 ```text
-WHAT happened?
-WHEN?
-TO WHAT entity?
-WHY?
-WHO/WHAT initiated it?
-WHAT was the result?
+Customer replenishment logic
+          ↓
+CommercePort interface
+          ↓
+SwiggyMCPAdapter
+          ↓
+Swiggy Instamart MCP
 ```
 
-At minimum, log:
+The rest of the codebase should not directly call provider-specific MCP tools.
 
-- simulation events
-- forecast runs
-- risk creation/resolution
-- recommendations
-- approvals/rejections
-- agent tool calls
-- execution results
-- failures
+## 28.2 Customer flow
 
-No need for a large external observability stack in v2.
-
----
-
-# 40. Testing strategy
-
-Testing is part of implementation, not a final cleanup step.
-
-## 40.1 Unit tests
-
-Test deterministic business logic:
-
-- stockout calculation
-- spoilage calculation
-- safe excess
-- transfer constraints
-- discount tiers
-- scoring
-- recommendation generation
-
-Example:
+Conceptually:
 
 ```text
-source inventory = 50
-transfer = 20
-
-→ valid
+get addresses
+      ↓
+search products / recurring items
+      ↓
+update cart
+      ↓
+get cart
+      ↓
+show checkout summary
+      ↓
+explicit user confirmation
+      ↓
+checkout
+      ↓
+track order
 ```
 
-```text
-source inventory = 50
-transfer = 60
+The exact provider tool names and parameters must be read from the current official Swiggy Builders Club documentation before implementation. Do not guess MCP schemas.
 
-→ rejected
-```
+## 28.3 Credential safety
 
-## 40.2 Integration tests
-
-Test:
-
-```text
-order
- → inventory change
- → event
- → forecast/risk
- → recommendation
-```
-
-and:
-
-```text
-approval
- → agent
- → tool
- → state mutation
- → verification
- → event
-```
-
-## 40.3 Agent tests
-
-Test:
-
-- approved action executes
-- unapproved mutation is rejected
-- stale recommendation is rejected
-- technical failure can retry safely
-- world-state change causes recalculation
-- failed execution cannot silently become a new autonomous action
-
-## 40.4 API tests
-
-Test request validation, permissions, state transitions, and error handling.
-
-## 40.5 Frontend/E2E tests
-
-At minimum, verify:
-
-- hero scenario starts
-- recommendation appears
-- WHY panel displays correct data
-- approve flow works
-- reject flow works
-- agent progress is visible
-- state updates after execution
-- WhatsApp reorder flow works
-
-## 40.6 Simulation tests
-
-Verify:
-
-- time advancement is consistent
-- inventory never becomes invalid
-- deterministic seeds reproduce scenarios
-- scenario triggers produce expected event sequences
-- failures are reproducible
-
-Do not chase 100% coverage.
-
-Prioritize business-critical paths.
+- OAuth/token secrets stay server-side.
+- Never commit credentials.
+- Never log plaintext access tokens.
+- Never expose provider credentials to the browser.
+- Real checkout requires explicit confirmation.
+- Development should prefer stubs/safe environments until real production calls are intentionally tested.
 
 ---
 
-# 41. Debugging and diagnosis protocol
+# 29. Testing strategy
 
-When something breaks, do not immediately rewrite code.
+Testing is a first-class deliverable.
 
-Use this sequence:
+## 29.1 Unit tests
 
-```text
-1. Reproduce
-2. Capture seed + simulation time
-3. Inspect event timeline
-4. Identify first incorrect state
-5. Trace responsible service/tool
-6. Write a minimal failing test
-7. Fix root cause
-8. Re-run failing test
-9. Re-run relevant regression suite
-10. Re-run hero scenario
-```
+Test independently:
 
-## 41.1 Reproducible bug report
-
-Every meaningful bug should record:
-
-```text
-scenario
-seed
-simulated time
-entity
-expected state
-actual state
-last successful event
-first incorrect event
-```
-
-This is particularly important when using AI coding agents.
-
----
-
-# 42. AI-assisted engineering workflow
-
-Antigravity is the primary workbench.
-
-Gemini and Claude can be used as implementation/review agents, but **the specification remains the source of truth**.
-
-Recommended workflow:
-
-```text
-SPEC
- ↓
-PLAN
- ↓
-IMPLEMENT ONE SMALL SLICE
- ↓
-RUN TESTS
- ↓
-DIAGNOSE
- ↓
-FIX
- ↓
-REVIEW
- ↓
-CHECKPOINT / COMMIT
- ↓
-NEXT SLICE
-```
-
-Do not ask an AI agent to generate the entire application in one shot.
-
----
-
-# 43. Model usage strategy
-
-Model choice should be based on task difficulty, context size, and measured output quality.
-
-Suggested development roles:
-
-| Task | Preferred model role |
-|---|---|
-| Architecture reasoning | Claude Opus-class model |
-| Difficult implementation | Claude Sonnet-class model |
-| Large routine code changes | Gemini Flash-class model |
-| Routine implementation/tests | Gemini Flash-class model |
-| Difficult debugging | Claude Sonnet → Opus if needed |
-| Deep code review | Claude Opus-class model |
-| UI implementation/iteration | Gemini + Claude Sonnet |
-| Final architecture review | Claude Opus-class model |
-
-Model names/versions available in Antigravity may change. Do not couple the application architecture to a specific vendor/model.
-
-The important rule is **role separation, not model worship**.
-
----
-
-# 44. AI agent rules for coding
-
-Every coding agent working on GROCER should follow these rules:
-
-1. Read this file before changing architecture.
-2. Inspect existing code before replacing it.
-3. Reuse working components where appropriate.
-4. Do not introduce a new dependency without justification.
-5. Do not create a microservice when a module is sufficient.
-6. Do not put business logic in React components.
-7. Do not put business truth in prompts.
-8. Do not allow direct LLM → database access.
-9. Do not bypass human approval.
-10. Add/update tests for business logic changes.
-11. Run the smallest relevant test suite after each change.
-12. Run the broader regression suite at milestone boundaries.
-13. Preserve reproducibility with simulation seeds.
-14. Update documentation when behavior changes.
-15. Do not silently modify locked product decisions.
-
----
-
-# 45. Implementation plan
-
-Implementation must happen in vertical slices so every phase produces something testable.
-
-## Phase 0 — Repository audit
-
-**Goal:** understand the current v1 implementation before rewriting.
-
-Tasks:
-
-- inspect current frontend
-- inspect current simulation engine
-- inspect existing mock data/types
-- identify reusable UI components
-- identify code that should be replaced
-- create migration plan
-- establish backend/frontend local development structure
-
-Acceptance:
-
-- current app runs
-- architecture gaps documented
-- v2 target structure agreed
-
----
-
-## Phase 1 — Backend foundation
-
-Build:
-
-- FastAPI application
-- PostgreSQL connection
-- migrations
-- core models
-- health endpoint
-- basic configuration
-- Docker Compose local environment
-
-Acceptance:
-
-```text
-docker compose up
-```
-
-starts the required local services and backend health check succeeds.
-
----
-
-## Phase 2 — Simulator foundation
-
-Build:
-
-- stores
-- products
-- customers
-- suppliers
-- synthetic order generation
-- inventory
-- batches
-- simulated time
-- deterministic seed
-- reset/advance controls
-
-Acceptance:
-
-A new simulation can generate historical data and advance time without corrupting inventory.
-
----
-
-## Phase 3 — Inventory/event system
-
-Build:
-
-- inventory service
-- batch service
-- event system
-- order processing
-- inventory mutation rules
-- audit/event persistence
-
-Acceptance:
-
-An order reliably changes inventory and emits the correct events.
-
----
-
-## Phase 4 — Forecasting
-
-Build:
-
-- baseline model
-- time-series model where justified
-- anomaly handling
+- forecasting
 - confidence calculation
-- forecast evaluation
-
-Acceptance:
-
-Forecasts can be generated from simulator history and evaluated against future ground truth.
-
----
-
-## Phase 5 — Risk engine
-
-Build:
-
+- anomaly handling
 - stockout risk
-- spoilage risk
-- risk severity
-- expected timing
-- risk resolution/recalculation
+- expiry risk
+- transfer candidate generation
+- reorder candidate generation
+- markdown calculation
+- scoring
+- constraint validation
+- quantity calculation
+- reason-code generation
 
-Acceptance:
+## 29.2 Domain invariant tests
 
-Known simulator scenarios create the expected risks.
+Explicitly test all inventory invariants in Section 21.
+
+## 29.3 Integration tests
+
+Test:
+
+```text
+simulation → forecast → risk → recommendation
+recommendation → approval → agent → execution → verification
+simulation advance → inventory/expiry/demand changes
+```
+
+## 29.4 API tests
+
+Test success and failure paths.
+
+Do not only test HTTP 200 responses.
+
+## 29.5 Frontend tests
+
+Prioritize:
+
+- rendering real backend state
+- filters
+- recommendation approval/rejection
+- simulation controls
+- stale-state handling
+- loading/error states
+
+## 29.6 Scenario tests
+
+Every major scenario should have a deterministic seed and expected outcome assertions.
+
+Example:
+
+```text
+scenario: cross-store stockout
+expected:
+- risk becomes HIGH
+- transfer candidate exists
+- source constraint passes
+- transfer outranks reorder
+- approval required
+- execution changes source/destination inventory
+- verification passes
+- audit events exist
+```
+
+## 29.7 Regression suite
+
+Every bug fixed should receive a regression test where practical.
 
 ---
 
-## Phase 6 — Decision engine
+# 30. Debugging and diagnosis protocol
 
-Build:
+When something breaks, agents must not immediately patch symptoms.
 
+Use:
+
+```text
+REPRODUCE
+   ↓
+LOCATE LAYER
+   ↓
+INSPECT STATE
+   ↓
+IDENTIFY ROOT CAUSE
+   ↓
+PATCH SMALLEST CORRECT LAYER
+   ↓
+ADD REGRESSION TEST
+   ↓
+RUN AFFECTED TESTS
+   ↓
+RUN FULL SUITE
+```
+
+For simulation bugs, log/inspect:
+
+- simulation time
+- seed
+- store/product/batch
+- before state
+- action
+- after state
+- event/audit trail
+
+For decision bugs, capture:
+
+- risk inputs
+- candidate actions
+- rejected constraints
+- scores
+- selected recommendation
+
+Do not hide uncertainty with arbitrary fallback behavior.
+
+---
+
+# 31. Code review standards
+
+Every significant implementation change should be reviewed for:
+
+### Correctness
+
+Does it produce the right domain state?
+
+### Invariants
+
+Can it create impossible inventory states?
+
+### Architecture
+
+Does it respect the backend source of truth?
+
+### Agent boundary
+
+Does the LLM remain an orchestrator rather than a hidden business-logic engine?
+
+### Explainability
+
+Can the recommendation be traced to structured facts?
+
+### Testability
+
+Can the behavior be tested deterministically?
+
+### Scope
+
+Did the change add unnecessary complexity?
+
+### Security
+
+Are credentials, tokens, and consequential actions protected?
+
+---
+
+# 32. AI coding-agent workflow
+
+Agents should work in bounded phases.
+
+## Phase A — audit
+
+Read relevant code and tests before modifying them.
+
+Produce:
+
+- current behavior
+- dependencies
+- contradictions
+- risk areas
+- exact proposed changes
+
+## Phase B — foundation
+
+Fix:
+
+- backend source of truth
+- simulation clock
+- data model consistency
+- state transitions
+
+## Phase C — intelligence
+
+Implement/refine:
+
+- forecasting
+- risk engine
 - candidate generation
-- hard constraints
-- transfer logic
-- reorder logic
-- discount logic
-- hold logic
-- configurable scoring
-- alternatives
-- reason codes
-
-Acceptance:
-
-Decision tests demonstrate that the engine selects sensible feasible actions across multiple scenarios.
-
----
-
-## Phase 7 — Recommendation API + operations UI
-
-Build:
-
-- recommendation endpoints
-- store overview
-- risk views
-- recommendation cards
-- WHY panel
-- approve/reject controls
-- activity timeline
-
-Acceptance:
-
-An evaluator can understand a detected problem, the recommended action, the alternatives, and the reason without reading code.
-
----
-
-## Phase 8 — LangGraph execution
-
-Build:
-
-- agent state
-- graph
-- tools
-- approval guard
-- validation
-- execution
-- verification
-- failure recovery
-- audit logging
-
-Acceptance:
-
-Approved actions execute correctly; stale or unapproved actions cannot mutate state.
-
----
-
-## Phase 9 — Customer/WhatsApp integration
-
-Connect the existing customer experience to the new backend/simulation world.
-
-Acceptance:
-
-Customer replenishment changes the same simulated inventory world visible to operations.
-
----
-
-## Phase 10 — Scenarios + failure simulation
-
-Build:
-
-- hero scenario
-- perishables scenario
-- failure scenario
-- scenario controls
-- deterministic replay
-
-Acceptance:
-
-Each scenario can be reproduced with a seed and produces the expected event chain.
-
----
-
-## Phase 11 — Metrics / baseline comparison
-
-Build:
-
-- baseline policy
-- GROCER policy
-- comparison metrics
-- before/after visualization
-
-Acceptance:
-
-The simulator can compare outcomes fairly and repeatably.
-
----
-
-## Phase 12 — Hardening
-
-Run:
-
-- full tests
-- lint
-- type checks
-- API validation
-- frontend E2E
-- failure scenarios
-- performance sanity checks
-- security review
-- architecture review
-
-Acceptance:
-
-No known critical bugs remain in the hero flow.
-
----
-
-## Phase 13 — Demo polish
-
-Only after the system is stable:
-
-- visual polish
-- animations
-- empty/loading/error states
-- responsive behavior
-- demo reset
-- clear scenario labels
-- demo-safe deterministic state
-
-Do not sacrifice correctness for visual polish.
-
----
-
-# 46. Implementation checkpoints
-
-Each major phase ends with a checkpoint.
-
-Recommended commit structure:
-
-```text
-phase-0-repository-audit
-phase-1-backend-foundation
-phase-2-simulator
-phase-3-inventory-events
-phase-4-forecasting
-phase-5-risk-engine
-phase-6-decision-engine
-phase-7-operations-ui
-phase-8-agent
-phase-9-customer-flow
-phase-10-scenarios
-phase-11-metrics
-phase-12-hardening
-phase-13-demo
-```
-
-Exact commit names are flexible.
-
-The principle is that each checkpoint should leave the repository in a runnable state.
-
----
-
-# 47. Review gates
-
-Do not move to the next major phase until the previous phase passes its review gate.
-
-## Architecture review
-
-Check:
-
-- module boundaries
-- dependency direction
-- no accidental microservices
-- no business logic in UI
-- no direct LLM/database access
-
-## Logic review
-
-Check:
-
-- formulas
 - constraints
-- edge cases
-- decision ranking
-- recommendation explanations
+- scoring
+- recommendation explanation
 
-## Agent review
+## Phase D — execution
 
-Check:
+Refine:
 
-- approval enforcement
-- stale recommendation handling
-- tool permissions
-- failure recovery
-- audit trail
+- approvals
+- LangGraph
+- domain tools
+- verification
+- audit
 
-## ML review
+## Phase E — simulation
 
-Check:
+Implement deterministic scenarios and measurable outcomes.
 
-- baseline comparison
-- leakage
-- anomaly behavior
-- evaluation metrics
-- confidence interpretation
+## Phase F — customer integration
 
-## UX review
+Add the commerce adapter and Swiggy MCP integration only after the core architecture is stable.
 
-Check:
+## Phase G — frontend
 
-- evaluator understands problem quickly
-- recommendation is clear
-- WHY explanation is readable
-- approval is obvious
-- system state is visible
-- customer and operator modes are distinguishable
+Refactor UI around backend state and the conventional operational UX.
 
-## Demo review
+## Phase H — hardening
 
-Check:
+Run full tests, fix regressions, review security, and validate the demo path.
 
-- hero scenario deterministic
-- reset works
-- no external dependencies can break demo
-- failure scenario works
-- metrics are generated from the simulator
+Agents should avoid mixing all phases in one giant change.
 
 ---
 
-# 48. Definition of Done
+# 33. Definition of done
 
-GROCER v2 is ready for public demonstration when:
+GROCER v2 is considered technically ready when:
 
-- [ ] simulator runs reliably
-- [ ] 5 stores exist
-- [ ] approximately 20–30 products exist
-- [ ] approximately 20–30 customers exist
-- [ ] historical demand can be generated
-- [ ] forecasts are evaluated
-- [ ] stockout risk works
-- [ ] spoilage risk works
-- [ ] transfer recommendation works
-- [ ] reorder recommendation works
-- [ ] discount recommendation works
-- [ ] hold recommendation works
-- [ ] hard constraints work
-- [ ] recommendation explanations work
-- [ ] human approval is enforced
-- [ ] LangGraph executes approved actions
-- [ ] stale actions are blocked
-- [ ] failure recovery produces a new recommendation
-- [ ] event/audit timeline works
-- [ ] WebSocket updates work
-- [ ] customer WhatsApp flow works
-- [ ] customer actions affect shared simulation state
-- [ ] baseline comparison works
-- [ ] hero scenario works deterministically
-- [ ] perishables scenario works
-- [ ] tests cover critical logic
-- [ ] application can be reset/replayed
-- [ ] no real integrations or credentials are required
-- [ ] demo can be explained in approximately 2–3 minutes
+- backend is authoritative for simulation state
+- five-store simulation is stable
+- minimal product catalog is stable
+- batch expiry works
+- actual vs forecast demand is separated
+- forecasting has a baseline comparison
+- stockout risk works
+- spoilage risk works
+- transfer/reorder/discount/hold candidates work
+- hard constraints are enforced
+- recommendations contain explanations and alternatives
+- human approval is enforced server-side
+- LangGraph executes approved actions
+- execution is verified against actual state
+- audit events are recorded
+- scenario mode works deterministically
+- frontend has no competing inventory truth
+- core API/integration tests pass
+- invariant tests pass
+- customer replenishment flow works with a safe commerce adapter
+- Swiggy MCP integration is isolated and safe if enabled
+- no credentials are committed or leaked
+- demo can be reset and reproduced reliably
 
 ---
 
-# 49. What success looks like to an evaluator
+# 34. Demo narrative
 
-An evaluator should be able to understand this sequence without a long explanation:
+The demo should not be a tour of every feature.
+
+It should tell one clear operational story.
+
+## Primary demo
 
 ```text
-GROCER sees what is happening
-        ↓
-GROCER predicts what is likely to happen
-        ↓
-GROCER identifies the operational risk
-        ↓
-GROCER evaluates possible interventions
-        ↓
-GROCER recommends one and explains why
-        ↓
-Human approves
-        ↓
-Agent safely executes
-        ↓
-System verifies the result
-        ↓
-Inventory/risk state changes
-        ↓
-We can measure whether it helped
+NORMAL STATE
+     ↓
+DEMAND SPIKE
+     ↓
+FORECAST CHANGES
+     ↓
+STOCKOUT RISK DETECTED
+     ↓
+GROCER GENERATES OPTIONS
+     ↓
+TRANSFER vs REORDER
+     ↓
+BEST OPTION EXPLAINED
+     ↓
+HUMAN APPROVES
+     ↓
+LANGGRAPH EXECUTES
+     ↓
+VERIFICATION
+     ↓
+INVENTORY RECONCILES
+     ↓
+RISK DISAPPEARS
 ```
 
-That is the product story.
-
-The technology supports that story; the story should not be buried under technology.
-
----
-
-# 50. Engineering principles
-
-## Principle 1 — Don't fake intelligence
-
-If a calculation can be deterministic, make it deterministic.
-
-## Principle 2 — Don't fake integrations
-
-Clearly label all simulated integrations.
-
-## Principle 3 — Don't fake results
-
-Simulation metrics must come from actual simulation runs.
-
-## Principle 4 — Don't over-engineer
-
-A modular monolith is enough.
-
-## Principle 5 — Keep humans in the loop
-
-Consequential actions require approval.
-
-## Principle 6 — Make decisions explainable
-
-Store structured reasons and inputs.
-
-## Principle 7 — Make failures first-class
-
-A system that handles changed state is more credible than a perfect happy path.
-
-## Principle 8 — Build vertical slices
-
-Always maintain a runnable system.
-
-## Principle 9 — Measure before claiming
-
-Do not make real-world performance claims without real-world evidence.
-
-## Principle 10 — AI is a component, not the architecture
-
-Use the best model available for the task, but keep the system's truth in code and data.
-
----
-
-# 51. Known TBDs
-
-These are intentionally not locked yet:
-
-- exact forecasting library after baseline evaluation
-- exact forecasting window per product category
-- exact anomaly detection algorithm
-- exact confidence formula
-- exact scoring weights
-- exact safety-buffer policy
-- exact supplier policy parameters
-- exact discount optimization formula beyond initial tiers
-- exact database migration tooling
-- exact WebSocket event serialization
-- exact frontend visual styling
-- exact deployment provider
-- exact LLM model/version used in final demo
-
-These should be resolved during implementation based on evidence, not guessed upfront.
-
----
-
-# 52. Final architecture summary
+## Secondary demo
 
 ```text
-                         ┌─────────────────────────┐
-                         │       NEXT.JS UI        │
-                         │                         │
-                         │  Customer | Operations  │
-                         └────────────┬────────────┘
-                                      │
-                             REST + WebSocket
-                                      │
-                         ┌────────────▼────────────┐
-                         │       FASTAPI           │
-                         │     Modular Backend     │
-                         ├─────────────────────────┤
-                         │ Simulation               │
-                         │ Inventory                │
-                         │ Forecasting              │
-                         │ Risk                     │
-                         │ Decision                 │
-                         │ Recommendation           │
-                         │ Customer                 │
-                         │ Metrics                  │
-                         │ Events                   │
-                         └───────┬─────────┬───────┘
-                                 │         │
-                         ┌───────▼───┐ ┌──▼────────────┐
-                         │PostgreSQL │ │  LangGraph    │
-                         │           │ │  Agent        │
-                         └───────────┘ └──────┬────────┘
-                                              │
-                                         Controlled Tools
-                                              │
-                                   ┌──────────▼──────────┐
-                                   │ Simulated Operations │
-                                   │ transfer / reorder  │
-                                   │ discount / state    │
-                                   └─────────────────────┘
+PERISHABLE BATCH
+     ↓
+EXPIRY APPROACHES
+     ↓
+EXPECTED SELL-THROUGH IS LOW
+     ↓
+TRANSFER / DISCOUNT / HOLD COMPARED
+     ↓
+BEST OPTION EXPLAINED
+     ↓
+HUMAN APPROVES
+     ↓
+EXECUTION
+     ↓
+SPOILAGE RISK CHANGES
 ```
 
-And the intelligence loop remains:
+The demo should show the before/after state and measurable impact where possible.
+
+---
+
+# 35. Metrics for the demo
+
+Track simulation-level outcomes such as:
+
+- stockout events prevented
+- stockout-risk hours avoided
+- spoilage/waste quantity
+- estimated waste reduction
+- transfer count
+- reorder count
+- markdown count
+- intervention cost
+- service/availability proxy
+- forecast MAE/RMSE
+- recommendation acceptance rate in the demo workflow
+
+These are **simulated metrics**.
+
+Never imply they represent actual Swiggy/Blinkit/quick-commerce operational performance.
+
+---
+
+# 36. Scope control
+
+When deciding whether to add a feature, ask:
+
+1. Does it strengthen the core observe → predict → decide → approve → execute → verify loop?
+2. Does it improve technical credibility?
+3. Can it be tested reliably?
+4. Does it materially improve the demo?
+5. Does it justify its complexity?
+
+If not, do not add it to v2.
+
+Avoid:
+
+- unnecessary microservices
+- unnecessary infrastructure
+- unnecessary AI models
+- generic chatbot features
+- decorative dashboards
+- giant datasets
+- complex optimization without need
+- speculative integrations
+
+---
+
+# 37. Final architecture summary
+
+The final mental model for GROCER is:
 
 ```text
-OBSERVE
-   ↓
-PREDICT
-   ↓
-DETECT
-   ↓
-DECIDE
-   ↓
-EXPLAIN
-   ↓
-HUMAN APPROVAL
-   ↓
-AGENT EXECUTION
-   ↓
+                    GROCER
+                       │
+          ┌────────────┴────────────┐
+          │                         │
+     CUSTOMER                    OPERATIONS
+          │                         │
+     Replenishment            Inventory network
+          │                         │
+     Commerce MCP             Forecasting
+          │                         │
+          │                     Risk engine
+          │                         │
+          │                  Decision engine
+          │                         │
+          │                  Recommendation
+          │                         │
+          │                   Human approval
+          │                         │
+          │                    LangGraph
+          │                         │
+          │                     Execute
+          │                         │
+          │                     Verify
+          │                         │
+          └────────────┬────────────┘
+                       │
+                  Shared backend
+                       │
+                  Simulation + DB
+                       │
+                    Audit log
+```
+
+And the core operations intelligence is:
+
+```text
+DATA
+ ↓
+FORECAST
+ ↓
+RISK
+ ↓
+CANDIDATES
+ ↓
+CONSTRAINTS
+ ↓
+OUTCOME / COST
+ ↓
+RANK
+ ↓
+RECOMMEND
+ ↓
+HUMAN
+ ↓
+AGENT
+ ↓
+EXECUTE
+ ↓
 VERIFY
-   ↓
-MEASURE
-   ↓
-OBSERVE AGAIN
+ ↓
+AUDIT
 ```
+
+This is the architecture GROCER v2 should be built around.
 
 ---
 
-# 53. Immediate next action
+# 38. Immediate implementation order
 
-Do **not** ask an AI coding agent to build the whole system yet.
+The next implementation sequence is:
 
-Start with **Phase 0 — Repository Audit**.
+### 1. Repository audit + cleanup
 
-The agent should first inspect the existing `kwakhare5/Grocer` repository, compare the current v1 implementation with this specification, identify reusable code, identify obsolete code, and produce a concrete migration plan.
+Map current code against this spec and identify stale/duplicate code.
 
-Only after that review should implementation begin.
+### 2. Backend source-of-truth refactor
 
-**This file is the source of truth for that process.**
+Make simulation time and inventory authoritative in the backend.
+
+### 3. Data/model consistency
+
+Ensure batches are the inventory source of truth and all state transitions are coherent.
+
+### 4. Simulation engine
+
+Make time advancement, demand, expiry, suppliers, transfers, and scenarios deterministic and testable.
+
+### 5. Forecasting + risk
+
+Stabilize baseline forecasting and risk calculations.
+
+### 6. Decision engine
+
+Implement candidate generation, hard constraints, scoring, ranking, alternatives, and reason codes.
+
+### 7. Approval + execution
+
+Harden LangGraph tools, approval enforcement, execution, verification, and audit.
+
+### 8. Operations UI
+
+Refactor dashboard/pages around backend state and readable operational workflows.
+
+### 9. Customer workflow
+
+Implement the customer replenishment flow behind a commerce adapter; integrate Swiggy MCP safely where appropriate.
+
+### 10. Testing + demo hardening
+
+Run full regression/invariant/scenario suites and polish the two core demo narratives.
+
+---
+
+# 39. Non-negotiable principles
+
+1. **Backend is the source of truth.**
+2. **Batches are the source of truth for physical inventory.**
+3. **Forecasting predicts; it does not decide.**
+4. **Deterministic domain logic enforces constraints.**
+5. **Decision engine ranks feasible actions.**
+6. **LLM/agent orchestrates; it does not invent inventory truth.**
+7. **Consequential actions require human approval.**
+8. **Every consequential action is verified.**
+9. **Important actions are auditable.**
+10. **Customer and operations workflows remain distinct.**
+11. **Simulation must be controllable and reproducible.**
+12. **The UI must optimize for operator comprehension, not visual theatrics.**
+13. **Complexity must earn its place.**
+14. **Tests must protect domain invariants.**
+15. **Real integrations must be isolated behind adapters and must never compromise safety.**
+
+---
+
+## End of GROCER v2 Master Engineering Specification

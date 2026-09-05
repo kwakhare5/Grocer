@@ -15,6 +15,7 @@ interface SimulationFloatingIslandProps {
   onStepScenario: () => void;
   onToggleAutoPlay: () => void;
   onDemoMode?: () => void;
+  isLiveApiConnected?: boolean;
 }
 
 export function SimulationFloatingIsland({
@@ -27,6 +28,7 @@ export function SimulationFloatingIsland({
   onStepScenario,
   onToggleAutoPlay,
   onDemoMode,
+  isLiveApiConnected = false,
 }: SimulationFloatingIslandProps) {
   const [scenarioOpen, setScenarioOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -57,12 +59,24 @@ export function SimulationFloatingIsland({
       <div className="bg-white/95 text-zinc-900 backdrop-blur-md rounded-xl p-1.5 px-3 border border-zinc-200 shadow-xl flex items-center gap-3 text-xs">
         
         {/* Simulation Clock Display */}
-        <div className="flex items-center gap-1.5 font-mono text-xs text-zinc-600 pr-2 border-r border-zinc-200">
+        <div className="flex items-center gap-2 font-mono text-xs text-zinc-600 pr-2 border-r border-zinc-200">
           <Clock className="w-3.5 h-3.5 text-blue-600" />
           <span className="font-semibold text-zinc-950">{formattedDay}</span>
           <span className="text-zinc-300">·</span>
           <span>{formattedHour}</span>
+          <span
+            className={`inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full font-sans font-medium ${
+              isLiveApiConnected
+                ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                : "bg-zinc-100 text-zinc-500 border border-zinc-200"
+            }`}
+            title={isLiveApiConnected ? "Authoritative FastAPI Backend Connected (Port 8000)" : "Local Client Simulator Standalone"}
+          >
+            <span className={`w-1.5 h-1.5 rounded-full ${isLiveApiConnected ? "bg-emerald-500 animate-pulse" : "bg-zinc-400"}`} />
+            {isLiveApiConnected ? "Backend Authoritative" : "Standalone"}
+          </span>
         </div>
+
 
         {/* Play/Pause Button */}
         <button

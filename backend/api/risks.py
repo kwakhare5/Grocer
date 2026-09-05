@@ -35,7 +35,7 @@ async def list_risks(
     risk_type: Optional[str] = Query(None),
     severity: Optional[str] = Query(None),
     status: Optional[str] = Query(None),
-    limit: int = Query(100, ge=1, le=500),
+    limit: int = Query(500, ge=1, le=1000),
     db: AsyncSession = Depends(get_db),
 ) -> list[RiskResponse]:
     """List all detected risks with optional filtering."""

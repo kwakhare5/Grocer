@@ -34,12 +34,22 @@ npm run lint     # Run ESLint validation
 
 ---
 
-## 5. SESSION RESUME
-- **Current State:** iPhone Chassis Calibrated to 290px, Duplicate Label Glitch Fixed & WhatsApp Spacing Refined.
-  - **Chassis Dimensions:** Calibrated phone chassis to `290px` (`w-[290px] h-[593px] aspect-[1800/3680]`) in both `GrocerHero.tsx` and `PhoneMockup.tsx`.
-  - **Duplicate Plus Glitch:** Fixed `+ + Bread` to single `<Plus /> <span>Add Bread (₹50)</span>` in `PhoneMockup.tsx`.
-  - **Quick Action Ergonomics:** Upgraded quick reply button rows to `py-2` for full-width buttons and `py-1.5 px-2` for split rows (`Remind Later` | `Not Now`) with centered Lucide `Clock` icon and hairline dividers.
-  - **Bubble Typography & Spacing:** Refined body copy to `10px`, timestamps to `7.5px`, card padding to `p-2.5`, and max bubble width to `90%`.
-  - **Code Quality & Build:** `npm run build` passes cleanly in 5.3s with 0 errors; `npm run lint` passes with 0 warnings. Code graph updated.
-- **Immediate next task:** Production deployment or customer walkthrough.
+## 5. EXTERNAL DOCS — SWIGGY BUILDERS CLUB
+This project integrates Swiggy MCP servers. Before writing Swiggy code, fetch the authoritative docs:
+- Index: https://mcp.swiggy.com/builders/llms.txt
+- Full text: https://mcp.swiggy.com/builders/llms-full.txt
+- Per-page: append `.md` to any https://mcp.swiggy.com/builders/docs/... URL
+
+Use `/docs/reference/{food,instamart,dineout}` for tool schemas and `/docs/operate/errors` for the canonical error taxonomy. Do not invent tool names or parameters.
+
+---
+
+## 6. SESSION RESUME
+- **Current State:** Phase 6 LangGraph Execution Agent Complete & 100% Verified.
+  - **Pipeline Hardened:** Full end-to-end autonomous chain implemented (Phase 1 Authority → Phase 2 Simulator → Phase 3 Forecasting → Phase 4 Risk → Phase 5 Decision → Phase 6 LangGraph Execution).
+  - **Batch-Aware Mutations:** FIFO deduction across inter-store transfers with matching destination batch creation and shelf-life aware supplier PO batches.
+  - **State Machine & Invariants:** 5-node LangGraph execution flow (`validate -> execute -> verify -> finalize/recover`) with strict DB invariant assertions and Level-2 human-in-the-loop authorization enforcement.
+  - **Failure Recovery:** Programmatic rollback and alternative generation triggering `recalculate_options` upon stale inventory or network simulation errors.
+  - **Code Quality & Build:** 75/75 backend pytest tests passing across Phases 1–6. Frontend `npm run lint` passes (0 errors, 0 warnings); `npm run build` passes in 5.2s. Code graph updated (1,885 nodes, 4,158 edges).
+- **Immediate next task:** Phase 7 — Operations Frontend Integration (Interactive execution controls, live agent run inspector, and decision stream UI).
 - **Open blockers:** None.

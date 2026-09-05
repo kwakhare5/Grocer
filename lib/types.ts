@@ -47,6 +47,7 @@ export interface CustomerOrderPayload {
   items: CustomerOrderItem[];
   totalINR: number;
   paymentMethod: "UPI" | "COD";
+  address?: string;
 }
 
 export interface PhoneMockupProps {

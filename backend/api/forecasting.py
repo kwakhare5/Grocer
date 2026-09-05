@@ -32,10 +32,11 @@ async def list_forecasts(
     store_id: Optional[uuid.UUID] = Query(None),
     product_id: Optional[uuid.UUID] = Query(None),
     model_name: Optional[str] = Query(None),
-    limit: int = Query(100, ge=1, le=500),
+    horizon_hours: Optional[int] = Query(None),
+    limit: int = Query(500, ge=1, le=1000),
     db: AsyncSession = Depends(get_db),
 ) -> list[ForecastResponse]:
-    """List all forecasts, optionally filtered by store, product, or model."""
+    """List all forecasts, optionally filtered by store, product, model, or horizon."""
     stmt = select(Forecast).order_by(Forecast.created_at.desc()).limit(limit)
     if store_id:
         stmt = stmt.where(Forecast.store_id == store_id)
@@ -43,6 +44,8 @@ async def list_forecasts(
         stmt = stmt.where(Forecast.product_id == product_id)
     if model_name:
         stmt = stmt.where(Forecast.model_name == model_name)
+    if horizon_hours:
+        stmt = stmt.where(Forecast.forecast_window_hours == horizon_hours)
 
     result = await db.execute(stmt)
     return result.scalars().all()
@@ -53,61 +56,35 @@ async def generate_forecasts(
     req: ForecastGenerateRequest,
     db: AsyncSession = Depends(get_db),
 ) -> dict:
-    """Trigger forecast generation.
-
-    Runs the ForecastingEngine over all available simulation history.
-    Returns count of Forecast rows created.
-    """
+    """Trigger forecast generation across single or multiple horizons."""
     engine = ForecastingEngine()
-    count = await engine.run(db, horizon_hours=req.horizon_hours)
+    horizons = req.horizons or ([req.horizon_hours] if req.horizon_hours is not None else [24])
+    count = await engine.run(db, horizons=horizons)
     await db.commit()
-    return {"forecasts_generated": count, "horizon_hours": req.horizon_hours}
+    return {
+        "forecasts_generated": count,
+        "horizon_hours": horizons[0] if len(horizons) == 1 else None,
+        "horizons": horizons,
+    }
 
 
 @router.get("/evaluate", response_model=list[ForecastEvaluationResponse])
 async def evaluate_models(
     db: AsyncSession = Depends(get_db),
 ) -> list[ForecastEvaluationResponse]:
-    """Compare baseline vs exp_smoothing model accuracy using stored forecasts.
-
-    Groups stored forecast rows by model name and computes aggregate metrics.
-    Returns one evaluation record per model.
-    """
-    result = await db.execute(select(Forecast))
-    all_forecasts = result.scalars().all()
-
-    if not all_forecasts:
-        return []
-
-    by_model: dict[str, list[Forecast]] = {}
-    for fc in all_forecasts:
-        by_model.setdefault(fc.model_name, []).append(fc)
+    """Compare baseline vs exp_smoothing model accuracy against simulator ground truth orders."""
+    engine = ForecastingEngine()
+    eval_dict = await engine.evaluate_on_history(db, holdout_days=3)
 
     evaluations: list[ForecastEvaluationResponse] = []
-    for model_name, forecasts in by_model.items():
-        # Use predicted vs a naive "actual" approximation from the same model
-        # In a real system you'd compare against future ground truth here;
-        # for the simulator we surface aggregate confidence-weighted metrics.
-        predicted = [f.predicted_demand for f in forecasts]
-        confidence_scores = [f.confidence for f in forecasts]
-        avg_confidence = sum(confidence_scores) / len(confidence_scores)
-
-        # Simulate evaluation against mean-shifted actuals (for demo purposes)
-        # This shows structural differentiation between models.
-        mean_pred = sum(predicted) / len(predicted) if predicted else 0
-        # Treat confidence as proxy: higher confidence → lower simulated error
-        simulated_mae = round(mean_pred * (1.0 - avg_confidence) * 0.3, 4)
-        simulated_rmse = round(simulated_mae * 1.15, 4)
-        simulated_mape = round((1.0 - avg_confidence) * 20.0, 2)
-
+    for model_name, res in eval_dict.items():
         evaluations.append(
             ForecastEvaluationResponse(
                 model_name=model_name,
-                mae=simulated_mae,
-                rmse=simulated_rmse,
-                mape=simulated_mape,
-                n_samples=len(forecasts),
+                mae=res.mae,
+                rmse=res.rmse,
+                mape=res.mape,
+                n_samples=res.n,
             )
         )
-
     return sorted(evaluations, key=lambda e: e.mae)

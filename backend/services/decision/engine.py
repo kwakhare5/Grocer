@@ -1,4 +1,4 @@
-﻿"""GROCER v2 Decision Engine -- DB orchestration layer.
+"""GROCER v2 Decision Engine -- DB orchestration layer.
 
 Loads risk + inventory + forecast state from DB, calls PureDecisionEvaluator,
 persists a Recommendation row, and emits DECISION_MADE event via EventBus.
@@ -227,6 +227,21 @@ class DecisionOrchestrator:
             "hold":     ActionType.HOLD,
         }
         now = _naive_now()
+        alternatives_payload = [
+            {
+                "action_type": a.action_type,
+                "label": f"{a.action_type.upper()} {a.quantity} units" if a.quantity > 0 else a.action_type.upper(),
+                "score": int(round(a.score * 100)) if a.score <= 1.0 else int(a.score),
+                "raw_score": a.score,
+                "quantity": a.quantity,
+                "reason": result.explainability.why_not_alternatives.get(a.action_type, ", ".join(c.value for c in a.reason_codes)) if result.explainability else ", ".join(c.value for c in a.reason_codes),
+                "reason_codes": [c.value if hasattr(c, "value") else str(c) for c in a.reason_codes],
+                "metadata": a.metadata,
+                "isRecommended": False,
+            }
+            for a in result.alternatives
+        ]
+
         rec_row = Recommendation(
             recommendation_id=uuid.uuid4(),
             risk_id=risk_id,
@@ -237,16 +252,7 @@ class DecisionOrchestrator:
             score=rec.score,
             confidence=result.confidence,
             reason_codes=[c.value for c in rec.reason_codes],
-            alternatives=[
-                {
-                    "action_type": a.action_type,
-                    "score": a.score,
-                    "quantity": a.quantity,
-                    "reason_codes": [c.value for c in a.reason_codes],
-                    "metadata": a.metadata,
-                }
-                for a in result.alternatives
-            ],
+            alternatives=alternatives_payload,
             status=RecommendationStatus.PENDING,
             created_at=now,
         )
@@ -265,29 +271,87 @@ class DecisionOrchestrator:
                 "score":             rec.score,
                 "confidence":        result.confidence,
                 "reason_codes":      [c.value for c in rec.reason_codes],
+                "what_happened":     result.explainability.what_happened if result.explainability else "",
+                "why_this_action":   result.explainability.why_this_action if result.explainability else "",
             },
             persist=True,
         )
         return rec_row
 
-    async def approve(self, db: AsyncSession, recommendation_id: uuid.UUID) -> Recommendation | None:
-        """Set recommendation status to APPROVED (spec section 18 -- human-in-the-loop)."""
+    async def evaluate_all(self, db: AsyncSession) -> int:
+        """Scan all active risks without pending recommendations and generate decisions.
+
+        Returns total number of new recommendations generated.
+        """
+        from backend.models.enums import RiskStatus
+        risk_result = await db.execute(
+            select(Risk).where(Risk.status == RiskStatus.ACTIVE)
+        )
+        active_risks = risk_result.scalars().all()
+
+        rec_result = await db.execute(
+            select(Recommendation).where(Recommendation.status == RecommendationStatus.PENDING)
+        )
+        pending_risk_ids = {r.risk_id for r in rec_result.scalars().all()}
+
+        count = 0
+        for risk in active_risks:
+            if risk.risk_id in pending_risk_ids:
+                continue
+            rec = await self.run(db, risk.risk_id)
+            if rec:
+                count += 1
+
+        return count
+
+    async def approve(
+        self,
+        db: AsyncSession,
+        recommendation_id: uuid.UUID,
+        approver: str = "operator",
+    ) -> Recommendation | None:
+        """Set recommendation status to APPROVED and stage a pending Action (spec §18, §21 Level-2 autonomy)."""
         rec: Recommendation | None = await db.get(Recommendation, recommendation_id)
         if rec is None:
             return None
         rec.status = RecommendationStatus.APPROVED
+
+        now = _naive_now()
+        from backend.models.core import Action
+        from backend.models.enums import ActionStatus
+        action = Action(
+            action_id=uuid.uuid4(),
+            recommendation_id=rec.recommendation_id,
+            action_type=rec.action_type,
+            approved_by=approver,
+            approved_at=now,
+            status=ActionStatus.PENDING,
+        )
+        db.add(action)
         await db.flush()
+
         await bus.publish(
             db,
             "RECOMMENDATION_APPROVED",
             "recommendation",
             recommendation_id,
-            {"recommendation_id": str(recommendation_id), "status": "approved"},
+            {
+                "recommendation_id": str(recommendation_id),
+                "action_id": str(action.action_id),
+                "action_type": rec.action_type.value if hasattr(rec.action_type, "value") else str(rec.action_type),
+                "status": "approved",
+                "approved_by": approver,
+            },
             persist=True,
         )
         return rec
 
-    async def reject(self, db: AsyncSession, recommendation_id: uuid.UUID) -> Recommendation | None:
+    async def reject(
+        self,
+        db: AsyncSession,
+        recommendation_id: uuid.UUID,
+        reason: str = "rejected by operator",
+    ) -> Recommendation | None:
         """Set recommendation status to REJECTED."""
         rec: Recommendation | None = await db.get(Recommendation, recommendation_id)
         if rec is None:
@@ -299,7 +363,12 @@ class DecisionOrchestrator:
             "RECOMMENDATION_REJECTED",
             "recommendation",
             recommendation_id,
-            {"recommendation_id": str(recommendation_id), "status": "rejected"},
+            {
+                "recommendation_id": str(recommendation_id),
+                "status": "rejected",
+                "reason": reason,
+            },
             persist=True,
         )
         return rec
+

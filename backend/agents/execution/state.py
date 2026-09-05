@@ -1,4 +1,4 @@
-﻿"""Agent execution state -- TypedDict for LangGraph (spec section 19).
+"""Agent execution state -- TypedDict for LangGraph (spec section 19).
 
 AgentState flows through every node and is the single source of truth
 for the execution graph. All nodes read from and write to this dict.
@@ -44,6 +44,7 @@ class AgentState(TypedDict, total=False):
         requires_human_review: True (always)
     """
     recommendation_id: uuid.UUID
+    action_id: Optional[uuid.UUID]
     db: Any                              # AsyncSession; not typed to avoid import
 
     recommendation: Optional[dict]       # snapshot of the Recommendation row
@@ -58,6 +59,7 @@ class AgentState(TypedDict, total=False):
 
     verified: bool
     verify_error: Optional[str]
+    verification_details: Optional[dict]
 
     status: str                          # "completed" | "requires_human_review" | "failed"
     events: list[dict]

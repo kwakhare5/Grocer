@@ -143,6 +143,7 @@ export function usePhoneDemoEngine(
         items,
         totalINR,
         paymentMethod,
+        address: activeCustomer.address,
       };
 
       onPlaceOrder?.(payload);

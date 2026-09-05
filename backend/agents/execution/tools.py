@@ -11,13 +11,13 @@ Permission model:
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.models.core import Recommendation, Inventory, Risk, Store
+from backend.models.core import Recommendation, Inventory, Risk, Store, Batch, Product, Action
 from backend.models.enums import RecommendationStatus, ActionType, ActionStatus
 from backend.services.decision.models import SafeExcessCalculator, DEFAULT_WEIGHTS
 from backend.events.bus import bus
@@ -102,13 +102,46 @@ async def validate_transfer(
     src_qty = src_inv["quantity"]
     transfer_qty = rec.quantity
 
-    # Check basic feasibility: source must still have enough
-    feasible = src_qty >= transfer_qty
-    reason = "ok" if feasible else f"insufficient_source_inventory: have {src_qty}, need {transfer_qty}"
+    # Check basic feasibility: source must have enough total units
+    if src_qty < transfer_qty:
+        return {
+            "feasible": False,
+            "reason": f"insufficient_source_inventory: have {src_qty}, need {transfer_qty}",
+            "source_quantity": src_qty,
+            "transfer_quantity": transfer_qty,
+        }
+
+    # Check batch expiry constraints if batches exist
+    now = _naive_now()
+    batch_res = await db.execute(
+        select(Batch).where(
+            Batch.store_id == rec.source_store_id,
+            Batch.product_id == product_id,
+            Batch.quantity > 0,
+        )
+    )
+    all_batches = batch_res.scalars().all()
+    if all_batches:
+        active_unexpired = [b for b in all_batches if b.expires_at > now]
+        active_batch_qty = sum(b.quantity for b in active_unexpired)
+        if not active_unexpired or active_batch_qty == 0:
+            return {
+                "feasible": False,
+                "reason": "expired_batch: source inventory has expired and cannot be transferred",
+                "source_quantity": src_qty,
+                "transfer_quantity": transfer_qty,
+            }
+        if active_batch_qty < transfer_qty:
+            return {
+                "feasible": False,
+                "reason": f"insufficient_source_inventory: have {active_batch_qty} non-expired units, need {transfer_qty}",
+                "source_quantity": src_qty,
+                "transfer_quantity": transfer_qty,
+            }
 
     return {
-        "feasible": feasible,
-        "reason": reason,
+        "feasible": True,
+        "reason": "ok",
         "source_quantity": src_qty,
         "transfer_quantity": transfer_qty,
     }
@@ -132,10 +165,15 @@ async def validate_reorder(
 
 def _assert_approved(rec: Recommendation) -> None:
     """Raise PermissionError if the recommendation is not in APPROVED status."""
-    if _enum_val(rec.status) != "approved":
+    status_str = _enum_val(rec.status).lower()
+    if status_str == "executed":
+        raise PermissionError(
+            f"Cannot execute recommendation {rec.recommendation_id}: already executed (idempotency guard)."
+        )
+    if status_str != "approved":
         raise PermissionError(
             f"Cannot execute recommendation {rec.recommendation_id}: "
-            f"status is '{_enum_val(rec.status)}', expected 'approved'. "
+            f"status is '{status_str}', expected 'approved'. "
             "Human approval is required before agent execution (spec section 18 LOCKED)."
         )
 
@@ -146,12 +184,15 @@ async def create_transfer(
 ) -> dict:
     """MUTATION: Apply a stock transfer from source to destination store.
 
-    Validates approval, checks current source quantity, adjusts Inventory rows,
-    creates an Action record, emits TRANSFER_EXECUTED event.
+    Validates approval, checks current source quantity and batch expiry, adjusts
+    Batch and Inventory rows via FIFO deduction, emits TRANSFER_EXECUTED event.
     """
     rec = await db.get(Recommendation, recommendation_id)
     if rec is None:
         return {"success": False, "error": "recommendation_not_found"}
+
+    if _enum_val(rec.status).lower() == "executed":
+        return {"success": False, "error": "already executed"}
 
     _assert_approved(rec)
 
@@ -159,12 +200,22 @@ async def create_transfer(
         return {"success": False, "error": "no_source_store_id in recommendation"}
 
     # Load risk to get product_id
-    risk = await db.get(__import__("backend.models.core", fromlist=["Risk"]).Risk, rec.risk_id)
+    risk = await db.get(Risk, rec.risk_id)
     if risk is None:
         return {"success": False, "error": "linked_risk_not_found"}
     product_id = risk.product_id
 
     transfer_qty = rec.quantity
+    now = _naive_now()
+
+    # Transition linked Action to EXECUTING if present
+    act_res = await db.execute(
+        select(Action).where(Action.recommendation_id == recommendation_id)
+    )
+    action = act_res.scalars().first()
+    if action:
+        action.status = ActionStatus.EXECUTING
+        await db.flush()
 
     # Load source and destination inventory
     src_result = await db.execute(
@@ -193,12 +244,61 @@ async def create_transfer(
             "stale": True,
         }
 
-    # Apply transfer
+    # FIFO Batch deduction and validation
+    batch_res = await db.execute(
+        select(Batch)
+        .where(
+            Batch.store_id == rec.source_store_id,
+            Batch.product_id == product_id,
+            Batch.quantity > 0,
+        )
+        .order_by(Batch.expires_at.asc(), Batch.received_at.asc())
+    )
+    all_source_batches = batch_res.scalars().all()
+
+    if all_source_batches:
+        unexpired_batches = [b for b in all_source_batches if b.expires_at > now]
+        available_batch_qty = sum(b.quantity for b in unexpired_batches)
+
+        if not unexpired_batches or available_batch_qty == 0:
+            return {
+                "success": False,
+                "error": "expired_batch: source inventory has expired and cannot be transferred",
+                "stale": True,
+            }
+
+        if available_batch_qty < transfer_qty:
+            return {
+                "success": False,
+                "error": f"insufficient_source_inventory: have {available_batch_qty} non-expired units, needed {transfer_qty}",
+                "stale": True,
+            }
+
+        # Deduct from source batches using FIFO and create matching destination batches
+        rem = transfer_qty
+        for b in unexpired_batches:
+            if rem <= 0:
+                break
+            take = min(b.quantity, rem)
+            b.quantity -= take
+            rem -= take
+
+            # Add destination batch with identical shelf life expiry
+            dest_batch = Batch(
+                batch_id=uuid.uuid4(),
+                store_id=rec.destination_store_id,
+                product_id=product_id,
+                quantity=take,
+                received_at=now,
+                expires_at=b.expires_at,
+            )
+            db.add(dest_batch)
+
+    # Apply aggregate inventory changes
     src_inv.quantity -= transfer_qty
     if dest_inv is not None:
         dest_inv.quantity += transfer_qty
     else:
-        # Create destination inventory row
         new_inv = Inventory(
             store_id=rec.destination_store_id,
             product_id=product_id,
@@ -237,24 +337,48 @@ async def create_reorder(
     db: AsyncSession,
     recommendation_id: uuid.UUID,
 ) -> dict:
-    """MUTATION: Place a reorder (simulated: increase destination inventory by reorder qty).
-
-    In a real system this would call a supplier API.
-    In the simulator it directly adds units to represent a future delivery.
-    """
+    """MUTATION: Place a reorder (simulated: increase destination inventory and create delivery batch)."""
     rec = await db.get(Recommendation, recommendation_id)
     if rec is None:
         return {"success": False, "error": "recommendation_not_found"}
 
+    if _enum_val(rec.status).lower() == "executed":
+        return {"success": False, "error": "already executed"}
+
     _assert_approved(rec)
 
-    risk = await db.get(__import__("backend.models.core", fromlist=["Risk"]).Risk, rec.risk_id)
+    risk = await db.get(Risk, rec.risk_id)
     if risk is None:
         return {"success": False, "error": "linked_risk_not_found"}
     product_id = risk.product_id
     store_id = rec.destination_store_id or risk.store_id
 
     reorder_qty = rec.quantity
+    now = _naive_now()
+
+    # Transition linked Action to EXECUTING if present
+    act_res = await db.execute(
+        select(Action).where(Action.recommendation_id == recommendation_id)
+    )
+    action = act_res.scalars().first()
+    if action:
+        action.status = ActionStatus.EXECUTING
+        await db.flush()
+
+    # Load product to determine shelf life
+    product = await db.get(Product, product_id)
+    shelf_life = product.shelf_life_hours if product and product.shelf_life_hours else 72
+
+    # Create newly delivered batch
+    new_batch = Batch(
+        batch_id=uuid.uuid4(),
+        store_id=store_id,
+        product_id=product_id,
+        quantity=reorder_qty,
+        received_at=now,
+        expires_at=now + timedelta(hours=shelf_life),
+    )
+    db.add(new_batch)
 
     inv_result = await db.execute(
         select(Inventory).where(
@@ -301,11 +425,23 @@ async def apply_discount(
     if rec is None:
         return {"success": False, "error": "recommendation_not_found"}
 
+    if _enum_val(rec.status).lower() == "executed":
+        return {"success": False, "error": "already executed"}
+
     _assert_approved(rec)
 
     risk = await db.get(Risk, rec.risk_id)
     if risk is None:
         return {"success": False, "error": "linked_risk_not_found"}
+
+    # Transition linked Action to EXECUTING if present
+    act_res = await db.execute(
+        select(Action).where(Action.recommendation_id == recommendation_id)
+    )
+    action = act_res.scalars().first()
+    if action:
+        action.status = ActionStatus.EXECUTING
+        await db.flush()
 
     discount_pct = 0.20
 

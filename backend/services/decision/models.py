@@ -12,7 +12,7 @@ from __future__ import annotations
 import enum
 import uuid
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Any
 
 
 # ---------------------------------------------------------------------------
@@ -127,6 +127,16 @@ class HoldInput:
 # ---------------------------------------------------------------------------
 
 @dataclass
+class ExplainabilityFacts:
+    """Structured 5-part explainability container per spec §15, §17."""
+    what_happened: str
+    why_this_action: str
+    why_not_alternatives: dict[str, str]
+    expected_impact: dict[str, Any]
+    reason_codes: list[str]
+
+
+@dataclass
 class CandidateAction:
     """A feasible action with its score and reason codes."""
     action_type: str
@@ -144,6 +154,8 @@ class DecisionResult:
     recommended: CandidateAction
     alternatives: list[CandidateAction]
     confidence: float
+    explainability: Optional[ExplainabilityFacts] = None
+
 
 
 # ---------------------------------------------------------------------------
@@ -389,8 +401,99 @@ class PureDecisionEvaluator:
         else:
             confidence = 1.0
 
+        # Build 5-part structured explainability per spec §15, §17
+        if hold.stockout_probability >= 0.3:
+            what_happened = (
+                f"Projected demand depletes inventory in {hold.hours_to_stockout:.1f}h "
+                f"(stockout probability {hold.stockout_probability:.0%})"
+            )
+        elif hold.spoilage_probability >= 0.25:
+            what_happened = (
+                f"Perishable inventory has batches expiring in {hold.hours_to_expiry:.1f}h "
+                f"(spoilage probability {hold.spoilage_probability:.0%})"
+            )
+        else:
+            what_happened = "Inventory levels and batch lifecycles are healthy within safety thresholds"
+
+        if recommended.action_type == "transfer":
+            dist = recommended.metadata.get("distance_km", 0.0)
+            excess = recommended.metadata.get("source_excess", 0)
+            why_this_action = (
+                f"Transfer of {recommended.quantity} units from source store ({dist:.1f}km away). "
+                f"Source has {excess} units safe excess and transfer arrives before projected stockout."
+            )
+        elif recommended.action_type == "reorder":
+            lt = recommended.metadata.get("supplier_lead_time_hours", 24)
+            why_this_action = (
+                f"Wholesale reorder of {recommended.quantity} units initiates replenishment. "
+                f"Supplier lead time is {lt}h with reliable fulfillment."
+            )
+        elif recommended.action_type == "discount":
+            pct = recommended.metadata.get("discount_pct", 0.2)
+            why_this_action = (
+                f"Dynamic markdown of {pct:.0%} on {recommended.quantity} units accelerates sell-through "
+                f"before expiry in {recommended.metadata.get('hours_to_expiry', 0):.1f}h."
+            )
+        else:
+            why_this_action = "Holding status quo avoids unnecessary transport friction and procurement cost."
+
+        why_not_alternatives: dict[str, str] = {}
+        for alt in alternatives:
+            if alt.action_type == "reorder":
+                lt = alt.metadata.get("supplier_lead_time_hours", 24)
+                hts = alt.metadata.get("hours_to_stockout", 0)
+                if lt > hts:
+                    why_not_alternatives["reorder"] = (
+                        f"Supplier lead time ({lt}h) exceeds remaining stock window ({hts:.1f}h); "
+                        "reorder would arrive too late to prevent stockout."
+                    )
+                else:
+                    why_not_alternatives["reorder"] = (
+                        f"Wholesale reorder lead time ({lt}h) is slower than intranet transfer."
+                    )
+            elif alt.action_type == "transfer":
+                why_not_alternatives["transfer"] = (
+                    "No alternative source store has sufficient safe excess or acceptable distance."
+                )
+            elif alt.action_type == "discount":
+                why_not_alternatives["discount"] = (
+                    "Stockout is the dominant risk; discounting would accelerate depletion."
+                )
+            elif alt.action_type == "hold":
+                if hold.stockout_probability > 0.3:
+                    why_not_alternatives["hold"] = (
+                        f"Unaddressed stockout risk is {hold.stockout_probability:.0%}; inaction guarantees stockout."
+                    )
+                elif hold.spoilage_probability > 0.25:
+                    why_not_alternatives["hold"] = (
+                        f"Unaddressed spoilage risk is {hold.spoilage_probability:.0%}; inaction causes physical waste."
+                    )
+                else:
+                    why_not_alternatives["hold"] = "Action yields a higher availability score than holding."
+
+        expected_impact = {
+            "stockout_risk_reduction": round(hold.stockout_probability if recommended.action_type in ("transfer", "reorder") else 0.0, 4),
+            "spoilage_reduction": round(hold.spoilage_probability if recommended.action_type == "discount" else 0.0, 4),
+            "availability_improvement": round(0.95 if recommended.action_type in ("transfer", "reorder") else 0.80, 4),
+            "estimated_action_cost": round(
+                recommended.metadata.get("distance_km", 5.0) * 15.0 if recommended.action_type == "transfer"
+                else (recommended.quantity * 25.0 if recommended.action_type == "reorder" else 0.0),
+                2,
+            ),
+        }
+
+        explainability = ExplainabilityFacts(
+            what_happened=what_happened,
+            why_this_action=why_this_action,
+            why_not_alternatives=why_not_alternatives,
+            expected_impact=expected_impact,
+            reason_codes=[r.value if hasattr(r, "value") else str(r) for r in recommended.reason_codes],
+        )
+
         return DecisionResult(
             recommended=recommended,
             alternatives=alternatives,
             confidence=confidence,
+            explainability=explainability,
         )
+

@@ -1,4 +1,4 @@
-﻿"""Agent Execution REST API -- spec sections 19-21.
+"""Agent Execution REST API -- spec sections 19-21.
 
 Endpoints:
     POST /api/agent/execute/{recommendation_id}
@@ -83,6 +83,19 @@ async def execute_recommendation(
         started_at=result.started_at,
         finished_at=result.finished_at,
     )
+
+
+@router.get("/runs", response_model=list[AgentRunStatusResponse])
+async def list_runs() -> list[AgentRunStatusResponse]:
+    """Return all recent agent runs in reverse chronological order."""
+    return [
+        AgentRunStatusResponse(
+            run_id=str(r.run_id),
+            status=r.status,
+            recommendation_id=str(r.recommendation_id),
+        )
+        for r in reversed(list(_run_cache.values()))
+    ]
 
 
 @router.get("/runs/{run_id}", response_model=AgentRunStatusResponse)

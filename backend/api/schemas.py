@@ -103,9 +103,11 @@ class ForecastResponse(BaseSchema):
 
 
 class ForecastGenerateRequest(BaseModel):
-    horizon_hours: int = 24
+    horizon_hours: Optional[int] = 24
+    horizons: Optional[list[int]] = None
     store_id: Optional[uuid.UUID] = None
     product_id: Optional[uuid.UUID] = None
+
 
 
 class ForecastEvaluationResponse(BaseModel):
@@ -185,6 +187,10 @@ class RecommendationResponse(BaseSchema):
     alternatives: Any
     status: str
     created_at: datetime
+
+
+class RecommendationBatchEvaluateResponse(BaseModel):
+    recommendations_generated: int
 
 
 class RecommendationEvaluateResponse(BaseModel):

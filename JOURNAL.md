@@ -45,8 +45,11 @@ During the Session End ritual (called automatically whenever significant changes
     - *Customer Replenishment to Store Operations Synchronization*: Tested end-to-end customer replenishment order with explicit confirmation deducting inventory in dark store and streaming order audit events; verified unconfirmed checkout rejection.
     - *Spec Section 21 Invariants Locked*: Tested Conservation of Mass ($S_1 + D_1 = S_0 + D_0$), non-negative stock invariant, and FIFO batch preservation.
     - *100% Phase Completion Milestone*: All 10 phases of GROCER v2 Master Specification are 100% built, tested, and verified.
-- **Verification**: 286/286 backend pytest tests passing across all 10 phases (100% green). Frontend `npm run lint` passed (0 errors, 0 warnings); `npm run build` passed in 6.8s with Turbopack. Code graph updated.
-- **Vibe**: 🏆 100% of Master Spec complete & verified across all 10 phases. Zero bloat, bulletproof invariants, 286 tests green.
+  - **Architectural Subsystem Decoupling & Split**:
+    - *Standalone `Dark-store-operator` Repository (`kwakhare5/Dark-store-operator`)*: Cloned, initialized, and populated the dark store operations deck (11 components in `components/operations/`), spatial Mumbai fleet mesh (5 hubs), simulation clock, Holt forecasting, 7-D risk engine, Pareto decision engine, and LangGraph 5-node autonomous execution pipeline. Verified 286/286 pytest tests passing (100% green), Turbopack build in 5.6s, dedicated `README.md`, `AGENTS.md`, and pushed to GitHub `origin main`.
+    - *Dedicated `Grocer` WhatsApp Assistant Repository (`kwakhare5/Grocer`)*: Streamlined into a pure consumer grocery replenishment application. Purged `components/operations/` (11 files) and dark-store test clutter. Refactored `AppGlobalHeader.tsx` and `app/page.tsx` to mount `CustomerReplenishmentView` directly with household persona switcher, Swiggy Instamart CommercePort, and strict Consequential Action Guard (`explicit_confirmation: true`).
+- **Verification**: `Dark-store-operator` passing 286/286 tests, `npm run build` passing in 5.6s. `Grocer` passing 46/46 customer commerce tests, `npm run lint` 0 errors, `npm run build` passing in 3.8s with Turbopack.
+- **Vibe**: 🚀 Clean architectural split! Two standalone, production-grade repositories decoupled and 100% green.
 
 ### [Grocer — Complete WhatsApp Demo Redesign & Operational Clutter Removal] 2026-09-04
 - **Commit**: `feat(demo): complete consumer redesign of whatsapp replenishment view`

@@ -2,21 +2,14 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import PhoneMockup from "../PhoneMockup";
+import PhoneMockup from "./PhoneMockup";
 import { WhatsAppIcon } from "../ui/WhatsAppIcon";
 import {
-  Sliders,
-  BookOpen,
-  Sparkles,
   Users,
   CheckCircle2,
   RotateCcw,
   Copy,
   Check,
-  ArrowRight,
-  ArrowLeft,
-  Play,
-  Pause,
   MapPin,
   Truck,
   Zap,
@@ -48,8 +41,6 @@ import {
   BackendCommerceProductItem,
 } from "../../lib/apiClient";
 import { toast } from "sonner";
-
-type DemoLayoutMode = "workbench" | "storyboard" | "showcase";
 
 interface CustomerReplenishmentViewProps {
   activeCustomer?: CustomerPersona;
@@ -197,14 +188,9 @@ export function CustomerReplenishmentView({
   onSkipRestock,
   isLiveApiConnected = false,
 }: CustomerReplenishmentViewProps) {
-  const [layoutMode, setLayoutMode] = useState<DemoLayoutMode>("workbench");
   const [resetKey, setResetKey] = useState(0);
   const [lastOrder, setLastOrder] = useState<CustomerOrderPayload | null>(null);
   const [copied, setCopied] = useState(false);
-
-  // Storyboard mode step tracking (0 to 3)
-  const [storyStep, setStoryStep] = useState(0);
-  const [isAutoPlaying, setIsAutoPlaying] = useState(false);
 
   // Phase 8: CommercePort & Swiggy Instamart State
   const [adapterInfo, setAdapterInfo] = useState<BackendCommerceAdapterInfo>(DEFAULT_FALLBACK_ADAPTER);
@@ -500,18 +486,6 @@ export function CustomerReplenishmentView({
     toast.success(`Simulated depletion for ${itemName.split(" ")[0]}`);
   };
 
-  // Auto-play for storyboard mode
-  useEffect(() => {
-    if (!isAutoPlaying || layoutMode !== "storyboard") return;
-    const interval = setInterval(() => {
-      setStoryStep((prev) => (prev + 1) % 4);
-    }, 4500);
-    return () => clearInterval(interval);
-  }, [isAutoPlaying, layoutMode]);
-
-  const firstName = activeCustomer.name.split(" ")[0];
-  const primaryItemName = activeCustomer.primaryDepletionItem || "Amul Taaza Milk 1L";
-
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -556,52 +530,10 @@ export function CustomerReplenishmentView({
           </p>
         </div>
 
-        {/* Segmented Layout Mode Switcher */}
-        <div className="flex items-center bg-zinc-100 p-1 rounded-lg border border-zinc-200 shrink-0 self-start md:self-auto">
-          <button
-            type="button"
-            onClick={() => setLayoutMode("workbench")}
-            className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-md transition-all cursor-pointer ${
-              layoutMode === "workbench"
-                ? "bg-white text-zinc-950 shadow-xs border border-zinc-200/80 font-bold"
-                : "text-zinc-600 hover:text-zinc-900"
-            }`}
-          >
-            <Sliders className="w-3.5 h-3.5" />
-            <span>Studio Workbench</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setLayoutMode("storyboard")}
-            className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-md transition-all cursor-pointer ${
-              layoutMode === "storyboard"
-                ? "bg-white text-zinc-950 shadow-xs border border-zinc-200/80 font-bold"
-                : "text-zinc-600 hover:text-zinc-900"
-            }`}
-          >
-            <BookOpen className="w-3.5 h-3.5" />
-            <span>Guided Storyboard</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setLayoutMode("showcase")}
-            className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-md transition-all cursor-pointer ${
-              layoutMode === "showcase"
-                ? "bg-white text-zinc-950 shadow-xs border border-zinc-200/80 font-bold"
-                : "text-zinc-600 hover:text-zinc-900"
-            }`}
-          >
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>Hero Showcase</span>
-          </button>
-        </div>
       </div>
 
-      {/* ========================================================================= */}
-      {/* MODE 1: STUDIO WORKBENCH (3-Column Layout) */}
-      {/* ========================================================================= */}
-      {layoutMode === "workbench" && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      {/* 3-Column Interactive Workbench: Household & Pantry Depletion (4 cols) | WhatsApp Simulator (4 cols) | Instamart Cart & Checkout (4 cols) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           
           {/* Column A: Household & Pantry Depletion Controls (4 cols) */}
           <div className="lg:col-span-4 space-y-4">
@@ -1097,296 +1029,7 @@ export function CustomerReplenishmentView({
             </div>
 
           </div>
-
         </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* MODE 2: GUIDED STORYBOARD (Staged 4-Step Interactive Tour) */}
-      {/* ========================================================================= */}
-      {layoutMode === "storyboard" && (
-        <div className="space-y-6">
-          {/* Step Progress Bar */}
-          <div className="grid grid-cols-4 gap-2">
-            {[
-              { num: "01", title: "Pantry Depletion", desc: "Milk drops < 15%" },
-              { num: "02", title: "WhatsApp Ping", desc: "Timely morning alert" },
-              { num: "03", title: "1-Tap Action", desc: "Add bread & confirm" },
-              { num: "04", title: "Express Dispatch", desc: "Doorstep in 11 mins" },
-            ].map((step, idx) => {
-              const isActive = storyStep === idx;
-              const isPast = storyStep > idx;
-              return (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => setStoryStep(idx)}
-                  className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
-                    isActive
-                      ? "bg-emerald-50/80 border-emerald-500 ring-1 ring-emerald-500 text-emerald-950 shadow-2xs"
-                      : isPast
-                      ? "bg-zinc-50 border-zinc-200 text-zinc-900"
-                      : "bg-white border-zinc-200 text-zinc-500"
-                  }`}
-                >
-                  <div className="flex items-center justify-between text-xs font-mono font-bold mb-1">
-                    <span>{step.num}</span>
-                    {isPast && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />}
-                  </div>
-                  <div className="text-xs font-bold leading-tight truncate">{step.title}</div>
-                  <div className="text-[10px] text-zinc-500 truncate mt-0.5">{step.desc}</div>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Storyboard Split Content */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center bg-white p-6 sm:p-8 rounded-2xl border border-zinc-200 shadow-2xs">
-            
-            {/* Left Story Narrative (6 cols) */}
-            <div className="lg:col-span-6 space-y-5">
-              <div className="space-y-2">
-                <span className="text-xs font-mono font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200 inline-block">
-                  Phase {storyStep + 1} of 4
-                </span>
-                
-                {storyStep === 0 && (
-                  <div className="space-y-3">
-                    <h2 className="text-2xl font-bold tracking-tight text-zinc-950 font-sans">
-                      Predictive Depletion Detection in the Household
-                    </h2>
-                    <p className="text-sm text-zinc-600 leading-relaxed">
-                      {firstName}&apos;s household of {activeCustomer.householdSize} consumes milk every {activeCustomer.orderFrequencyDays} days. Grocer calculates consumption velocity based on past replenishment history. At 7:55 AM, the pantry level drops below the 15% safety threshold.
-                    </p>
-                    <div className="p-3.5 bg-zinc-50 rounded-xl border border-zinc-200 space-y-1.5 text-xs text-zinc-700">
-                      <div className="font-semibold text-zinc-900">Why this matters:</div>
-                      <p className="text-zinc-600 text-[11.5px]">
-                        Traditional grocery apps wait for the customer to open the fridge, discover they are out of milk, get frustrated, and open a competing quick-commerce app. Grocer anticipates the need beforehand.
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {storyStep === 1 && (
-                  <div className="space-y-3">
-                    <h2 className="text-2xl font-bold tracking-tight text-zinc-950 font-sans">
-                      Proactive WhatsApp Notification Ping
-                    </h2>
-                    <p className="text-sm text-zinc-600 leading-relaxed">
-                      Instead of a noisy generic push notification that gets swiped away, Grocer sends a personalized WhatsApp message directly from the verified business account at 8:00 AM.
-                    </p>
-                    <div className="p-3.5 bg-emerald-50/70 rounded-xl border border-emerald-200 space-y-1 text-xs text-emerald-950">
-                      <div className="font-bold">Message preview:</div>
-                      <p className="font-mono text-[11px] text-emerald-900">
-                        &quot;Hi {firstName}, your {primaryItemName} is almost finished. Tap below to order now.&quot;
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {storyStep === 2 && (
-                  <div className="space-y-3">
-                    <h2 className="text-2xl font-bold tracking-tight text-zinc-950 font-sans">
-                      Frictionless 1-Tap Quick Action Buttons
-                    </h2>
-                    <p className="text-sm text-zinc-600 leading-relaxed">
-                      WhatsApp interactive quick-reply buttons allow {firstName} to take instant action directly within the chat screen.
-                    </p>
-                    <div className="grid grid-cols-2 gap-2 text-xs">
-                      <div className="p-2.5 bg-zinc-50 rounded-lg border border-zinc-200">
-                        <span className="font-bold block text-zinc-900">1-Tap Reorder</span>
-                        <span className="text-[10.5px] text-zinc-500">Confirms {primaryItemName} in 1 tap</span>
-                      </div>
-                      <div className="p-2.5 bg-zinc-50 rounded-lg border border-zinc-200">
-                        <span className="font-bold block text-zinc-900">Smart Complementary</span>
-                        <span className="text-[10.5px] text-zinc-500">+ Add Bread (₹50) in 1 tap</span>
-                      </div>
-                      <div className="p-2.5 bg-zinc-50 rounded-lg border border-zinc-200">
-                        <span className="font-bold block text-zinc-900">Remind Later</span>
-                        <span className="text-[10.5px] text-zinc-500">Snooze alert by 2 hours</span>
-                      </div>
-                      <div className="p-2.5 bg-zinc-50 rounded-lg border border-zinc-200">
-                        <span className="font-bold block text-zinc-900">Not Now</span>
-                        <span className="text-[10.5px] text-zinc-500">Polite skip without spam</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {storyStep === 3 && (
-                  <div className="space-y-3">
-                    <h2 className="text-2xl font-bold tracking-tight text-zinc-950 font-sans">
-                      Instant 11-Minute Doorstep Fulfillment
-                    </h2>
-                    <p className="text-sm text-zinc-600 leading-relaxed">
-                      The moment {firstName} taps confirm, the order is routed directly to the fulfillment rider and arrives at {activeCustomer.address} within 11 minutes.
-                    </p>
-                    <div className="p-3.5 bg-zinc-50 rounded-xl border border-zinc-200 space-y-2 text-xs">
-                      <div className="flex items-center justify-between font-bold text-zinc-950">
-                        <span className="flex items-center gap-1.5">
-                          <Truck className="w-4 h-4 text-emerald-600" />
-                          <span>Express Dispatch</span>
-                        </span>
-                        <span className="font-mono text-emerald-700">11 Mins ETA</span>
-                      </div>
-                      <p className="text-[11px] text-zinc-500">
-                        Household pantry replenished automatically before breakfast without opening a shopping cart once.
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Tour Controls */}
-              <div className="flex items-center gap-3 pt-2">
-                <button
-                  type="button"
-                  disabled={storyStep === 0}
-                  onClick={() => setStoryStep((prev) => Math.max(0, prev - 1))}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-zinc-200 text-zinc-700 hover:bg-zinc-50 text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
-                >
-                  <ArrowLeft className="w-3.5 h-3.5" />
-                  <span>Previous</span>
-                </button>
-
-                <button
-                  type="button"
-                  disabled={storyStep === 3}
-                  onClick={() => setStoryStep((prev) => Math.min(3, prev + 1))}
-                  className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer shadow-2xs"
-                >
-                  <span>Next Step</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setIsAutoPlaying(!isAutoPlaying)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-colors cursor-pointer ml-auto ${
-                    isAutoPlaying
-                      ? "bg-amber-50 border-amber-300 text-amber-900"
-                      : "bg-zinc-50 border-zinc-200 text-zinc-700 hover:bg-zinc-100"
-                  }`}
-                >
-                  {isAutoPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
-                  <span>{isAutoPlaying ? "Pause Auto-Tour" : "Auto-Tour"}</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Right Phone Mockup (6 cols) */}
-            <div className="lg:col-span-6 flex justify-center items-center">
-              <div className="w-[290px] h-[593px] aspect-[1800/3680] shrink-0 relative z-10">
-                <PhoneMockup
-                  key={`story-${storyStep}-${activeCustomer.id}`}
-                  activeScenario="milk_shortage"
-                  initialViewMode="whatsapp"
-                  activeCustomer={activeCustomer}
-                  onCustomerChange={onCustomerChange}
-                  onPlaceOrder={handleOrderConfirmed}
-                  onScheduleReminder={onScheduleReminder}
-                  onSkipRestock={onSkipRestock}
-                />
-              </div>
-            </div>
-
-          </div>
-        </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* MODE 3: HERO SHOWCASE (Apple-Style Clean Spotlight) */}
-      {/* ========================================================================= */}
-      {layoutMode === "showcase" && (
-        <div className="py-6 flex flex-col items-center justify-center space-y-8">
-          
-          {/* Centered Device Presentation with Floating Badges */}
-          <div className="relative flex flex-col items-center">
-            
-            {/* Floating Context Card 1: Top Left */}
-            <div className="hidden lg:block absolute -left-64 top-16 w-56 p-3.5 rounded-xl bg-white/95 backdrop-blur-md border border-zinc-200 shadow-sm space-y-1 text-left">
-              <div className="flex items-center gap-1.5 text-xs font-bold text-zinc-900">
-                <Sparkles className="w-3.5 h-3.5 text-blue-600" />
-                <span>Pantry-Aware Intelligence</span>
-              </div>
-              <p className="text-[11px] text-zinc-500 leading-snug">
-                Predicts kitchen depletion based on family size ({activeCustomer.householdSize} people) and past order velocity.
-              </p>
-            </div>
-
-            {/* Floating Context Card 2: Bottom Left */}
-            <div className="hidden lg:block absolute -left-64 bottom-24 w-56 p-3.5 rounded-xl bg-white/95 backdrop-blur-md border border-zinc-200 shadow-sm space-y-1 text-left">
-              <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-900">
-                <WhatsAppIcon className="w-3.5 h-3.5" />
-                <span>1-Tap WhatsApp Reorder</span>
-              </div>
-              <p className="text-[11px] text-zinc-500 leading-snug">
-                Zero friction. Native interactive buttons right inside WhatsApp with no checkout screens.
-              </p>
-            </div>
-
-            {/* Floating Context Card 3: Top Right */}
-            <div className="hidden lg:block absolute -right-64 top-16 w-56 p-3.5 rounded-xl bg-white/95 backdrop-blur-md border border-zinc-200 shadow-sm space-y-1 text-left">
-              <div className="flex items-center gap-1.5 text-xs font-bold text-zinc-900">
-                <Truck className="w-3.5 h-3.5 text-emerald-600" />
-                <span>11-Minute Doorstep Delivery</span>
-              </div>
-              <p className="text-[11px] text-zinc-500 leading-snug">
-                Fulfills directly to {activeCustomer.address} before morning breakfast.
-              </p>
-            </div>
-
-            {/* Floating Context Card 4: Bottom Right */}
-            <div className="hidden lg:block absolute -right-64 bottom-24 w-56 p-3.5 rounded-xl bg-white/95 backdrop-blur-md border border-zinc-200 shadow-sm space-y-1 text-left">
-              <div className="flex items-center gap-1.5 text-xs font-bold text-zinc-900">
-                <ShoppingBag className="w-3.5 h-3.5 text-amber-600" />
-                <span>Smart Cross-Sell</span>
-              </div>
-              <p className="text-[11px] text-zinc-500 leading-snug">
-                Suggested complementary staple (+ Add Bread for ₹50) increases average basket size naturally.
-              </p>
-            </div>
-
-            {/* Phone Mockup Canvas */}
-            <div className="w-[290px] h-[593px] aspect-[1800/3680] shrink-0 relative z-10 mx-auto">
-              <PhoneMockup
-                key={`showcase-${activeCustomer.id}-${resetKey}`}
-                activeScenario="milk_shortage"
-                initialViewMode="whatsapp"
-                activeCustomer={activeCustomer}
-                onCustomerChange={onCustomerChange}
-                onPlaceOrder={handleOrderConfirmed}
-                onScheduleReminder={onScheduleReminder}
-                onSkipRestock={onSkipRestock}
-              />
-            </div>
-          </div>
-
-          {/* Quick Household Switcher Bar */}
-          <div className="flex flex-wrap items-center justify-center gap-2 max-w-xl">
-            <span className="text-xs text-zinc-500 font-medium">Switch household:</span>
-            {SIMULATED_CUSTOMERS.slice(0, 4).map((cust) => (
-              <button
-                key={cust.id}
-                type="button"
-                onClick={() => {
-                  onCustomerChange?.(cust);
-                  setResetKey((prev) => prev + 1);
-                  setLastOrder(null);
-                }}
-                className={`px-3 py-1 rounded-full text-xs font-semibold border transition-all cursor-pointer ${
-                  cust.id === activeCustomer.id
-                    ? "bg-zinc-900 text-white border-zinc-900 shadow-2xs"
-                    : "bg-white hover:bg-zinc-50 text-zinc-700 border-zinc-200"
-                }`}
-              >
-                {cust.name}
-              </button>
-            ))}
-          </div>
-
-        </div>
-      )}
 
       {/* Consequential Checkout Authorization Modal (Spec §28.3 & §39.15) */}
       <AnimatePresence>

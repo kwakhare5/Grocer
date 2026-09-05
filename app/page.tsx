@@ -37,13 +37,7 @@ import {
   computeGrocerMetrics,
   computeBaselineMetrics,
 } from "../lib/metricsEngine";
-import { GrocerHero } from "../components/grocer/GrocerHero";
-import { GrocerValueProp } from "../components/grocer/GrocerValueProp";
-import { GrocerIntegrations } from "../components/grocer/GrocerIntegrations";
-import { GrocerFAQ } from "../components/grocer/GrocerFAQ";
-import { GrocerFooter } from "../components/grocer/GrocerFooter";
 import { toast } from "sonner";
-
 import { SimulationFloatingIsland } from "../components/operations/SimulationFloatingIsland";
 
 // ---------------------------------------------------------------------------
@@ -68,7 +62,7 @@ function defaultScenarioState(): ScenarioState {
 // ---------------------------------------------------------------------------
 
 function GrocerApp() {
-  const [mode, setMode] = useState<"landing" | "operations" | "customer">("landing");
+  const [mode, setMode] = useState<"operations" | "customer">("operations");
   const [stores, setStores] = useState<DarkStore[]>(INITIAL_STORES);
   const [recommendations, setRecommendations] = useState<RecommendationItem[]>(
     INITIAL_RECOMMENDATIONS
@@ -727,23 +721,9 @@ function GrocerApp() {
         onDemoMode={handleDemoMode}
       />
 
-      {/* 2. Main View Content */}
+      {/* 2. Main Dual-Workflow View Content */}
       <main className="flex-1 flex flex-col w-full pb-16">
-        {mode === "landing" ? (
-          <div className="flex flex-col">
-            <GrocerHero
-              onLaunchCockpit={() => setMode("operations")}
-              onLaunchCustomer={() => setMode("customer")}
-            />
-            <GrocerValueProp />
-            <GrocerIntegrations />
-            <GrocerFAQ />
-            <GrocerFooter
-              onLaunchCockpit={() => setMode("operations")}
-              onLaunchCustomer={() => setMode("customer")}
-            />
-          </div>
-        ) : mode === "operations" ? (
+        {mode === "operations" ? (
           <OperationsDashboard
             stores={stores}
             recommendations={recommendations}

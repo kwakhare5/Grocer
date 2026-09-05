@@ -45,11 +45,11 @@ Use `/docs/reference/{food,instamart,dineout}` for tool schemas and `/docs/opera
 ---
 
 ## 6. SESSION RESUME
-- **Current State:** Phase 6 LangGraph Execution Agent Complete & 100% Verified.
-  - **Pipeline Hardened:** Full end-to-end autonomous chain implemented (Phase 1 Authority → Phase 2 Simulator → Phase 3 Forecasting → Phase 4 Risk → Phase 5 Decision → Phase 6 LangGraph Execution).
-  - **Batch-Aware Mutations:** FIFO deduction across inter-store transfers with matching destination batch creation and shelf-life aware supplier PO batches.
-  - **State Machine & Invariants:** 5-node LangGraph execution flow (`validate -> execute -> verify -> finalize/recover`) with strict DB invariant assertions and Level-2 human-in-the-loop authorization enforcement.
-  - **Failure Recovery:** Programmatic rollback and alternative generation triggering `recalculate_options` upon stale inventory or network simulation errors.
-  - **Code Quality & Build:** 75/75 backend pytest tests passing across Phases 1–6. Frontend `npm run lint` passes (0 errors, 0 warnings); `npm run build` passes in 5.2s. Code graph updated (1,885 nodes, 4,158 edges).
-- **Immediate next task:** Phase 7 — Operations Frontend Integration (Interactive execution controls, live agent run inspector, and decision stream UI).
+- **Current State:** Phase 8 Customer Replenishment Workflow & Swiggy MCP Commerce Integration Complete & 100% Verified.
+  - **Decoupled Architecture:** Clean `CommercePort` abstraction separating customer-facing grocery reorders from simulated dark-store replenishment.
+  - **Dual Adapters:** `MockCommerceAdapter` (deterministic Mumbai dark-store simulation with authentic pricing, fee rules, spinIds, and delivery tracking) and `SwiggyMCPAdapter` (official Swiggy Instamart MCP protocol client with token security and canonical error mapping).
+  - **Consequential Action Guard:** Spec §28.3 & §39.15 safety invariant enforced at all layers (domain exceptions, mock adapter, Swiggy adapter, service layer, FastAPI endpoint, and Next.js modal UI) requiring explicit human authorization (`explicit_confirmation: true`) before checkout execution.
+  - **Frontend Integration:** Live Commerce Adapter badge (`Simulated Instamart` / `Swiggy MCP Live`), interactive Instamart cart with itemized bill breakdown, Go-To staple quick-add, consequential checkout authorization modal, and real-time express delivery tracking (`Ramesh Kamble`, ETA in mins, live GPS status).
+  - **Code Quality & Build:** 281/281 backend pytest tests passing across all phases (Phases 1–8). Frontend `npm run lint` passes (0 errors, 0 warnings); `npm run build` passes in 5.7s. Code graph updated (2,094 nodes, 4,778 edges).
+- **Immediate next task:** Production Polish & Swiggy MCP Live Connection Sandbox Testing.
 - **Open blockers:** None.

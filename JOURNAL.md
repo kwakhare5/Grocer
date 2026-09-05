@@ -15,8 +15,8 @@ During the Session End ritual (called automatically whenever significant changes
 
 ## Log Entries
 
-### [Grocer — Autonomous Replenishment Engine (Phases 4–6 Complete)] 2026-09-05
-- **Commit**: `feat(agent): phase 6 langgraph execution engine with batch fifo and db invariant verification`
+### [Grocer — Customer Replenishment & Swiggy MCP Integration (Phases 4–8 Complete)] 2026-09-05
+- **Commit**: `feat(commerce): phase 8 customer replenishment and swiggy mcp commerce port integration`
 - **Shipped**:
   - **Phase 4 Stockout & Expiry Risk Engine**: Built multi-dimensional risk scoring engine across 7 dimensions (stockout probability, shelf life depletion, supplier lead time volatility, spoilage penalty, dark store capacity pressure). Added survival analysis and stockout urgency indexing.
   - **Phase 5 Multi-Factor Decision & Allocation Engine**: Implemented Level-2 human-in-the-loop approval lifecycle (`PROPOSED -> APPROVED/REJECTED -> EXECUTING -> COMPLETED/FAILED`). Integrated multi-criteria Pareto trade-off scoring (urgency vs. transfer cost vs. supplier MOQ), batch routing, and fallback alternative generator.
@@ -26,8 +26,14 @@ During the Session End ritual (called automatically whenever significant changes
     - *Strict Programmatic Verification*: Added database invariant validation checking non-negative quantities, batch balance consistency, and audit event logs.
     - *Dynamic Failure Recovery*: Engineered recovery node triggering alternative re-calculation via Decision Engine and flagging `requires_human_review`.
     - *Idempotency & Autonomy Guards*: Enforced strict Level-2 autonomy (rejecting unapproved executions with HTTP 409) and duplicate execution rejection.
-- **Verification**: 75/75 backend pytest tests passing across Phases 1–6 (100% green). Frontend `npm run lint` passed (0 errors, 0 warnings) and `npm run build` passed in 5.2s. Code graph updated (1,885 nodes, 4,158 edges).
-- **Vibe**: ⚡ Full autonomous replenishment pipeline (Forecasting → Risk → Decision → LangGraph Execution) verified and rock solid.
+  - **Phase 8 Customer Replenishment & Swiggy MCP Commerce Integration**:
+    - *Decoupled CommercePort Architecture*: Abstracted external quick-commerce logistics via `CommercePort` (`backend/integrations/commerce/port.py`), cleanly decoupling household consumer replenishment from internal dark store mutations.
+    - *High-Fidelity MockCommerceAdapter*: Deterministic Mumbai fleet simulation (Andheri East & Bandra West) providing authentic `spinId` variants, real-time bill calculations (subtotal, delivery, packaging fee), and progressive multi-stage delivery tracking.
+    - *SwiggyMCPAdapter*: Official Swiggy Instamart MCP protocol client (`POST mcp.swiggy.com/im`) mapping Swiggy tool schemas (`get_addresses`, `your_go_to_items`, `search_products`, `update_cart`, `get_cart`, `clear_cart`, `get_payment_options`, `checkout`, `track_order`), canonical error taxonomy, and token security masking.
+    - *Strict Consequential Guard (Spec §28.3 & §39.15)*: Enforced programmatic safety invariant requiring explicit confirmation (`explicit_confirmation: true`) before checkout execution, returning `UnconfirmedCheckoutError` (HTTP 400) if unconfirmed.
+    - *Frontend CustomerReplenishmentView Integration*: Added live Commerce Adapter badge (`Simulated Instamart` / `Swiggy MCP Live`), interactive Instamart cart with itemized bill breakdown, Go-To staple quick-add, consequential checkout authorization modal, and real-time express delivery tracking (`Ramesh Kamble`, ETA in mins, live GPS status).
+- **Verification**: 281/281 backend pytest tests passing across all phases (100% green). Frontend `npm run lint` passed (0 errors, 0 warnings); `npm run build` passed in 5.7s. Code graph updated (2,094 nodes, 4,778 edges).
+- **Vibe**: 🚀 Complete end-to-end commerce & autonomous replenishment engine verified and production-ready.
 
 ### [Grocer — Complete WhatsApp Demo Redesign & Operational Clutter Removal] 2026-09-04
 - **Commit**: `feat(demo): complete consumer redesign of whatsapp replenishment view`

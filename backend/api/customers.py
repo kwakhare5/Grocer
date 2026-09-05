@@ -31,10 +31,40 @@ from backend.api.schemas import (
     CustomerRemindResponse,
     CustomerSkipRequest,
     CustomerSkipResponse,
+    CommerceAdapterInfoResponse,
+    CommerceDeliveryAddressResponse,
+    CommerceProductItemResponse,
+    CommerceCartResponse,
+    CommerceCartUpdateRequest,
+    CommercePaymentOptionResponse,
+    CommerceCheckoutRequest,
+    CommerceOrderResultResponse,
+    CommerceTrackingResponse,
+)
+from backend.integrations.commerce.models import CartItemUpdate
+from backend.integrations.commerce.exceptions import (
+    UnconfirmedCheckoutError,
+    CommerceError,
+    ItemOutOfStockError,
+    AddressNotServiceableError,
+    MinOrderNotMetError,
 )
 
 router = APIRouter(prefix="/api/customers", tags=["customers"])
 service = CustomerService()
+
+
+@router.get("/adapter-info", response_model=CommerceAdapterInfoResponse)
+async def get_adapter_info():
+    """Get active CommercePort provider status and endpoint details."""
+    adapter_type = service.get_commerce_adapter_type()
+    mode = "Live Instamart MCP" if adapter_type == "swiggy_mcp" else "Deterministic Fleet Simulation"
+    endpoint = "https://mcp.swiggy.com/im" if adapter_type == "swiggy_mcp" else "in-memory://grocer/mumbai"
+    return {
+        "adapter_type": adapter_type,
+        "endpoint": endpoint,
+        "mode": mode,
+    }
 
 
 @router.get("", response_model=list[CustomerListItemResponse])
@@ -135,3 +165,189 @@ async def skip_customer(
         return await service.skip(db, customer_id, reason)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+
+# ---------------------------------------------------------------------------
+# Phase 8: CommercePort Endpoints (Spec §5.1, §28, & §38.9)
+# ---------------------------------------------------------------------------
+
+
+@router.get("/{customer_id}/addresses", response_model=list[CommerceDeliveryAddressResponse])
+async def get_customer_addresses(customer_id: uuid.UUID):
+    """Fetch saved delivery destinations for customer via active CommercePort."""
+    try:
+        addresses = await service.get_customer_addresses(customer_id)
+        return [
+            {
+                "id": a.id,
+                "label": a.label,
+                "street": a.street,
+                "city": a.city,
+                "postal_code": a.postal_code,
+                "latitude": a.latitude,
+                "longitude": a.longitude,
+                "is_serviceable": a.is_serviceable,
+            }
+            for a in addresses
+        ]
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+
+@router.get("/{customer_id}/go-to-items", response_model=list[CommerceProductItemResponse])
+async def get_customer_go_to_items(customer_id: uuid.UUID, address_id: Optional[str] = None):
+    """Fetch frequently ordered staple items via active CommercePort."""
+    try:
+        items = await service.get_customer_go_to_items(customer_id, address_id)
+        return [
+            {
+                "product_id": it.product_id,
+                "name": it.name,
+                "category": it.category,
+                "variants": [v.model_dump() for v in it.variants],
+                "image_url": it.image_url,
+            }
+            for it in items
+        ]
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+
+@router.get("/{customer_id}/products", response_model=list[CommerceProductItemResponse])
+async def search_customer_products(
+    customer_id: uuid.UUID, query: str = "", address_id: Optional[str] = None
+):
+    """Search products available at customer address via active CommercePort."""
+    try:
+        items = await service.search_customer_products(customer_id, query, address_id)
+        return [
+            {
+                "product_id": it.product_id,
+                "name": it.name,
+                "category": it.category,
+                "variants": [v.model_dump() for v in it.variants],
+                "image_url": it.image_url,
+            }
+            for it in items
+        ]
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+
+@router.get("/{customer_id}/cart", response_model=CommerceCartResponse)
+async def get_customer_cart(customer_id: uuid.UUID, cart_id: Optional[str] = None):
+    """Fetch active customer cart and bill breakdown via active CommercePort."""
+    try:
+        cart = await service.get_customer_cart(customer_id, cart_id)
+        return {
+            "cart_id": cart.cart_id,
+            "address_id": cart.address_id,
+            "items": [it.model_dump() for it in cart.items],
+            "item_total": cart.item_total,
+            "delivery_fee": cart.delivery_fee,
+            "packaging_fee": cart.packaging_fee,
+            "discount": cart.discount,
+            "grand_total": cart.grand_total,
+            "is_serviceable": cart.is_serviceable,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+
+@router.post("/{customer_id}/cart", response_model=CommerceCartResponse)
+async def update_customer_cart(
+    customer_id: uuid.UUID, payload: CommerceCartUpdateRequest, cart_id: Optional[str] = None
+):
+    """Update variant quantities in customer cart via active CommercePort."""
+    try:
+        items_update = [
+            CartItemUpdate(spin_id=it.spin_id, quantity=it.quantity)
+            for it in payload.items
+        ]
+        cart = await service.update_customer_cart(
+            customer_id, items_update, cart_id=cart_id, address_id=payload.address_id
+        )
+        return {
+            "cart_id": cart.cart_id,
+            "address_id": cart.address_id,
+            "items": [it.model_dump() for it in cart.items],
+            "item_total": cart.item_total,
+            "delivery_fee": cart.delivery_fee,
+            "packaging_fee": cart.packaging_fee,
+            "discount": cart.discount,
+            "grand_total": cart.grand_total,
+            "is_serviceable": cart.is_serviceable,
+        }
+    except (ItemOutOfStockError, AddressNotServiceableError) as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+
+@router.delete("/{customer_id}/cart")
+async def clear_customer_cart(customer_id: uuid.UUID, cart_id: Optional[str] = None):
+    """Clear customer cart via active CommercePort."""
+    success = await service.clear_customer_cart(customer_id, cart_id)
+    return {"cleared": success}
+
+
+@router.get("/{customer_id}/payment-options", response_model=list[CommercePaymentOptionResponse])
+async def get_customer_payment_options(customer_id: uuid.UUID, cart_id: Optional[str] = None):
+    """Fetch live payment options via active CommercePort."""
+    options = await service.get_customer_payment_options(customer_id, cart_id)
+    return [opt.model_dump() for opt in options]
+
+
+@router.post("/{customer_id}/checkout", response_model=CommerceOrderResultResponse)
+async def checkout_customer(
+    customer_id: uuid.UUID,
+    payload: CommerceCheckoutRequest,
+    cart_id: Optional[str] = None,
+    db: AsyncSession = Depends(get_db),
+):
+    """Place and confirm customer order via active CommercePort.
+
+    CRITICAL INVARIANT (Spec §28.3 & §39.15): Must reject unconfirmed requests with 400.
+    """
+    if not payload.explicit_confirmation:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Checkout requires explicit confirmation.",
+        )
+
+    try:
+        order_res = await service.checkout_customer(
+            customer_id=customer_id,
+            cart_id=cart_id,
+            payment_method=payload.payment_method,
+            explicit_confirmation=True,
+            address_id=payload.address_id,
+            db=db,
+        )
+        return {
+            "order_id": order_res.order_id,
+            "cart_id": order_res.cart_id,
+            "status": order_res.status,
+            "items": [it.model_dump() for it in order_res.items],
+            "payment_method": order_res.payment_method,
+            "grand_total": order_res.grand_total,
+            "delivery_address": order_res.delivery_address.model_dump(),
+            "placed_at": order_res.placed_at,
+            "tracking_url": order_res.tracking_url,
+        }
+    except UnconfirmedCheckoutError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except (MinOrderNotMetError, ItemOutOfStockError, AddressNotServiceableError) as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+
+@router.get("/{customer_id}/orders/{order_id}/track", response_model=CommerceTrackingResponse)
+async def track_customer_order(customer_id: uuid.UUID, order_id: str):
+    """Fetch live delivery status and ETA via active CommercePort."""
+    try:
+        tracking = await service.track_customer_order(order_id)
+        return tracking.model_dump()
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))

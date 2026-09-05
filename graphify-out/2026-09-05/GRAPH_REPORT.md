@@ -1,11 +1,11 @@
 # Graph Report - Grocer  (2026-09-05)
 
 ## Corpus Check
-- 127 files · ~363,487 words
+- 128 files · ~366,541 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 1885 nodes · 4158 edges · 129 communities (108 shown, 21 thin omitted)
+- 1891 nodes · 4176 edges · 134 communities (112 shown, 22 thin omitted)
 - Extraction: 93% EXTRACTED · 7% INFERRED · 0% AMBIGUOUS · INFERRED: 293 edges (avg confidence: 0.51)
 - Token cost: 0 input · 0 output
 
@@ -16,11 +16,11 @@
 
 ## Community Hubs (Navigation)
 - GrocerValueProp.tsx
-- Inventory
+- test_phase6_agent.py
 - test_decision.py
 - test_risk.py
-- transfer.py
 - test_phase2_simulator.py
+- process_supplier_deliveries
 - compilerOptions
 - test_decision_api.py
 - ARCHITECTURE.md — Grocer v2 System Architecture & Design Specification
@@ -28,23 +28,23 @@
 - README.md
 - dependencies
 - test_phase5_decision.py
-- core.py
+- Inventory
 - EventBus
 - test_risk_api.py
 - stores.py
 - seed_data.py
 - AGENTS.md — Grocer Project Rules
-- .initialize
+- SimulationEngine
 - test_agent.py
 - Read at the START of EVERY session.
 - CustomerService
-- create_app
+- asyncio
 - Component 3: Component-Wide Light Surface Transformation & Component Reuse
 - forecasting/engine.py
 - .prettierrc.json
 - types.ts
 - layout.tsx
-- ForecastingEngine
+- asyncio
 - Changes Made
 - apiClient.ts
 - test_phase4_risk.py
@@ -52,7 +52,7 @@
 - asyncio
 - DemandPoint
 - test_forecasting.py
-- RecommendationItem
+- RecommendationCard.tsx
 - scenarioEngine.ts
 - recommendations.py
 - page.tsx
@@ -64,16 +64,16 @@
 - workflows/graphify.md
 - simulations.py
 - agent.py
-- asyncio
+- decision/models.py
 - 4. Locked product decisions
 - asyncio
 - risks.py
 - 10. Data model
 - GROCER v2 — Complete UI, Colors, Buttons, Layout & Screen Flows Specification
 - forecasting.py
-- SimulationEngine
+- ForecastingEngine
 - schemas.py
-- client
+- create_app
 - 15. Recommended Antigravity task sequence
 - IP as Logo
 - IP as Logo
@@ -88,19 +88,19 @@
 - task.md
 - 8. Technology stack
 - asyncio
-- MetricsComparisonPanel.tsx
+- SafeExcessCalculator
 - test_health_endpoint_reports_db_status
-- fixture
+- approved_hold_rec
 - IMPLEMENTATION_PLAN.md
 - .run
 - 2. Component Disposition (REUSE / REFACTOR / DELETE / MISSING / RISK)
 - client
-- get_store_distance_matrix
+- MultiBatchSpoilageInput
 - 38. Immediate implementation order
 - 21. Inventory invariants
 - 8. Phase 5 — Decision engine
 - detect_anomalies
-- seeded_db
+- .run
 - 31. Code review standards
 - health_check
 - GROCER_V2_MASTER_SPEC.md
@@ -141,6 +141,11 @@
 - test_execute_marks_recommendation_executed
 - test_get_run_status_unknown_returns_404
 - test_get_run_status_after_execution
+- datetime
+- service.py
+- SkuInventoryTable.tsx
+- RiskConfig
+- .approve
 
 ## God Nodes (most connected - your core abstractions)
 1. `SimulationEngine` - 99 edges
@@ -155,45 +160,45 @@
 10. `RiskEngine` - 41 edges
 
 ## Surprising Connections (you probably didn't know these)
+- `RecommendationCardProps` --references--> `RecommendationItem`  [EXTRACTED]
+  components/operations/RecommendationCard.tsx → lib/types.ts
+- `SkuInventoryTableProps` --references--> `DarkStore`  [EXTRACTED]
+  components/operations/SkuInventoryTable.tsx → lib/types.ts
+- `WhyInspectorPanelProps` --references--> `RecommendationItem`  [EXTRACTED]
+  components/operations/WhyInspectorPanel.tsx → lib/types.ts
 - `GrocerApp()` --calls--> `getScenario()`  [EXTRACTED]
   app/page.tsx → lib/scenarioEngine.ts
 - `GrocerApp()` --calls--> `runScenarioStep()`  [EXTRACTED]
   app/page.tsx → lib/scenarioEngine.ts
-- `CustomerReplenishmentViewProps` --references--> `DarkStore`  [EXTRACTED]
-  components/customer/CustomerReplenishmentView.tsx → lib/types.ts
-- `LiveEventFeedProps` --references--> `SimulationEvent`  [EXTRACTED]
-  components/operations/LiveEventFeed.tsx → lib/types.ts
-- `MetricsComparisonPanelProps` --references--> `ScenarioState`  [EXTRACTED]
-  components/operations/MetricsComparisonPanel.tsx → lib/types.ts
 
 ## Import Cycles
 - None detected.
 
-## Communities (129 total, 21 thin omitted)
+## Communities (134 total, 22 thin omitted)
 
 ### Community 0 - "GrocerValueProp.tsx"
 Cohesion: 0.43
 Nodes (4): GrocerValueProp(), GrocerVelocityCalculator(), PantryItem, usePantryEngine()
 
-### Community 1 - "Inventory"
-Cohesion: 0.12
-Nodes (48): node_verify(), Verify that the execution side-effects are reflected in the DB. Enforces…, ExecutionRunner, Async runner that drives the LangGraph execution graph for a single…, create_transfer(), MUTATION: Apply a stock transfer from source to destination store. Validates…, Inventory, Recommendation (+40 more)
+### Community 1 - "test_phase6_agent.py"
+Cohesion: 0.13
+Nodes (42): ExecutionRunner, Async runner that drives the LangGraph execution graph for a single…, Recommendation, Risk, Approving a recommendation sets status to APPROVED and stages a pending Action., Rejecting a recommendation sets status to REJECTED., test_decision_lifecycle_approve_and_stage_action(), test_decision_lifecycle_reject() (+34 more)
 
 ### Community 2 - "test_decision.py"
-Cohesion: 0.08
-Nodes (44): ActionScorer, Compute how many units a source store can safely transfer away., Return number of units safely transferable (>=0)., Applies hard reject rules before scoring any transfer., Scores each candidate action using spec section 16 weighted formula., All scoring weights in one place -- no magic numbers scattered., SafeExcessCalculator, ScoringWeights (+36 more)
+Cohesion: 0.19
+Nodes (25): PureDecisionEvaluator, Evaluates all candidate actions and returns the ranked recommendation., _discount(), _hold(), _product(), UUID, TDD tests for the Decision Engine pure models (spec sections 14-17, Phase 5).…, All reason codes from spec section 17 must be present. (+17 more)
 
 ### Community 3 - "test_risk.py"
 Cohesion: 0.17
 Nodes (18): All information needed to evaluate spoilage risk for one (store, product)., Evaluates spoilage risk for expiring batches. Supports both single-batch legacy…, SpoilageCalculator, SpoilageInput, TDD tests for the Risk Engine (spec §5, §13, §29.10, Phase 4). Test seams in…, Product expiring in 3 days with low inventory → no spoilage risk., Large stock, expiry in 4h, demand won't cover it → critical spoilage., Probability always in [0.0, 1.0]. (+10 more)
 
-### Community 4 - "transfer.py"
-Cohesion: 0.12
-Nodes (23): calculate_transfer_eta_minutes(), clear_active_transfers(), dispatch_transfer(), get_active_transfers(), InTransitTransfer, process_arriving_transfers(), AsyncSession, datetime (+15 more)
+### Community 4 - "test_phase2_simulator.py"
+Cohesion: 0.07
+Nodes (45): calculate_haversine_distance(), calculate_transfer_eta_minutes(), clear_active_transfers(), dispatch_transfer(), get_active_transfers(), get_store_distance_matrix(), InTransitTransfer, process_arriving_transfers() (+37 more)
 
-### Community 5 - "test_phase2_simulator.py"
+### Community 5 - "process_supplier_deliveries"
 Cohesion: 0.18
-Nodes (20): apply_supplier_delay(), clear_active_pos(), create_purchase_order(), get_active_pos(), process_supplier_deliveries(), PurchaseOrder, AsyncSession, datetime (+12 more)
+Nodes (15): apply_supplier_delay(), clear_active_pos(), create_purchase_order(), process_supplier_deliveries(), AsyncSession, datetime, UUID, Apply an unexpected shipment delay to an existing purchase order. (+7 more)
 
 ### Community 6 - "compilerOptions"
 Cohesion: 0.07
@@ -220,12 +225,12 @@ Cohesion: 0.04
 Nodes (45): clsx, eslint, eslint-config-next, framer-motion, lucide-react, next, dependencies, clsx (+37 more)
 
 ### Community 12 - "test_phase5_decision.py"
-Cohesion: 0.08
-Nodes (49): DecisionOrchestrator, _naive_now(), AsyncSession, datetime, UUID, GROCER v2 Decision Engine -- DB orchestration layer. Loads risk + inventory +…, Scan all active risks without pending recommendations and generate decisions.…, Set recommendation status to APPROVED and stage a pending Action (spec §18, §21… (+41 more)
+Cohesion: 0.13
+Nodes (29): HoldInput, Context for a hold decision., All information needed to evaluate a reorder candidate., ReorderInput, _product(), asyncio, UUID, TDD tests for Phase 5: Decision Engine. Verifies: - Seam 1: Structured… (+21 more)
 
-### Community 13 - "core.py"
-Cohesion: 0.19
-Nodes (48): Action, Batch, Customer, Event, Forecast, Order, OrderItem, Product (+40 more)
+### Community 13 - "Inventory"
+Cohesion: 0.21
+Nodes (48): Action, Batch, Customer, Event, Forecast, Inventory, Order, OrderItem (+40 more)
 
 ### Community 14 - "EventBus"
 Cohesion: 0.09
@@ -237,7 +242,7 @@ Nodes (31): client(), asyncio, fixture, TDD API tests for Phase 4 Risk endpoints
 
 ### Community 16 - "stores.py"
 Cohesion: 0.17
-Nodes (21): BatchResponse, StoreInventoryResponse, get_store(), get_store_forecasts(), get_store_inventory(), get_store_risks(), _hours_remaining(), list_stores() (+13 more)
+Nodes (22): StoreDetailResponse, StoreInventoryResponse, StoreResponse, get_store(), get_store_forecasts(), get_store_inventory(), get_store_risks(), _hours_remaining() (+14 more)
 
 ### Community 17 - "seed_data.py"
 Cohesion: 0.25
@@ -247,33 +252,33 @@ Nodes (8): _id(), UUID, Deterministic seed data catalog for the GROCER v2 simula
 Cohesion: 0.25
 Nodes (7): 1. PROJECT IDENTITY, 2. TECH STACK, 3. DEV COMMANDS, 4. LOCAL RULES & DESIGN INVARIANTS, 5. EXTERNAL DOCS — SWIGGY BUILDERS CLUB, 6. SESSION RESUME, AGENTS.md — Grocer Project Rules
 
-### Community 19 - ".initialize"
-Cohesion: 0.11
-Nodes (15): Any, AsyncSession, datetime, UUID, Advance simulation time, generate new orders, handle batch expiry. Returns…, Reset simulation: clear generated data, re-seed, restart clock., Create initial inventory and batches for all store-product pairs., Generate orders day by day for the historical period. (+7 more)
+### Community 19 - "SimulationEngine"
+Cohesion: 0.13
+Nodes (18): Any, AsyncSession, UUID, Advance simulation time, generate new orders, handle batch expiry. Returns…, Reset simulation: clear generated data, re-seed, restart clock., Seed stores, suppliers, products, and customers., Create initial inventory and batches for all store-product pairs., Generate orders day by day for the historical period. (+10 more)
 
 ### Community 20 - "test_agent.py"
 Cohesion: 0.05
-Nodes (87): build_execution_graph(), LangGraph StateGraph wiring for the GROCER v2 execution agent (spec section…, Fail fast if validate produced an error., Divert to recover if world state has changed., Divert to recover on execution error., Divert to recover if verification failed., Build and return the compiled LangGraph execution graph., _route_after_execute() (+79 more)
+Nodes (92): build_execution_graph(), LangGraph StateGraph wiring for the GROCER v2 execution agent (spec section…, Fail fast if validate produced an error., Divert to recover if world state has changed., Divert to recover on execution error., Divert to recover if verification failed., Build and return the compiled LangGraph execution graph., _route_after_execute() (+84 more)
 
 ### Community 21 - "Read at the START of EVERY session."
 Cohesion: 0.40
 Nodes (4): CONTEXT.md — Domain Language & Rules, Core Entities & Product Purpose, Invariants & Design Rules (Never Break), Read at the START of EVERY session.
 
 ### Community 22 - "CustomerService"
-Cohesion: 0.15
-Nodes (19): CustomerReorderResult, CustomerState, PantryStapleState, Customer domain models for Phase 9 Customer / WhatsApp simulation. Defines data…, WhatsAppInteractionMessage, CustomerService, Any, AsyncSession (+11 more)
+Cohesion: 0.19
+Nodes (14): CustomerReorderResult, CustomerService, Any, AsyncSession, UUID, Generate conversational WhatsApp context and proactive alert for customer., Process conversational reply in the WhatsApp simulator., Execute 1-tap WhatsApp customer replenishment. - Deducts stock from customer's… (+6 more)
 
-### Community 23 - "create_app"
-Cohesion: 0.11
-Nodes (29): get_db(), AsyncSession, create_app(), lifespan(), set_sqlite_pragma(), asyncio, Tests for Phase 9 Customer / WhatsApp replenishment endpoints (Spec §22 &…, POST /api/customers/{id}/reorder should deduct inventory and create order. (+21 more)
+### Community 23 - "asyncio"
+Cohesion: 0.12
+Nodes (17): asyncio, POST /api/customers/{id}/reorder should deduct inventory and create order., POST /api/customers/{id}/remind should schedule reminder., POST /api/customers/{id}/skip should record skip., GET /api/customers should list all seeded customers., GET /api/customers/{id} should return customer profile and pantry staples., GET /api/customers/{id} should return 404 for unknown customer., GET /api/customers/{id}/messages should return proactive alert. (+9 more)
 
 ### Community 24 - "Component 3: Component-Wide Light Surface Transformation & Component Reuse"
 Cohesion: 0.13
 Nodes (15): Automated Tests, Component 1: Hero Section Clean Up, Component 2: Design System Token Clean Up (Dark Mode Purge), Component 3: Component-Wide Light Surface Transformation & Component Reuse, Finalized Architecture & Design Decisions, Implementation Plan — Light Theme Unification & Hero Cleanup (Finalized via /grill-me), Manual Verification, [MODIFY] [`CardSurface.tsx`](file:///d:/Grocer/frontend/components/ui/CardSurface.tsx) (+7 more)
 
 ### Community 25 - "forecasting/engine.py"
-Cohesion: 0.29
-Nodes (9): GROCER v2 Forecasting Engine. Orchestrates forecast generation over simulator…, compute_confidence(), evaluate_forecast(), ModelEvaluationResult, GROCER v2 Forecasting — Pure mathematical models. Implements spec §12: Level 1…, Return a composite confidence score in [0.0, 1.0]. Four factors combined…, Compute MAE, RMSE, and MAPE from parallel actual/predicted sequences., Evaluation of a forecast model against known ground truth. (+1 more)
+Cohesion: 0.20
+Nodes (16): GROCER v2 Forecasting Engine. Orchestrates forecast generation over simulator…, Perform empirical rolling-origin backtesting across historical orders. Splits…, baseline_predict(), clean_demand_series(), _compute_dow_multiplier(), evaluate_forecast(), exponential_smoothing_predict(), ModelEvaluationResult (+8 more)
 
 ### Community 26 - ".prettierrc.json"
 Cohesion: 0.18
@@ -287,9 +292,9 @@ Nodes (31): CustomerReplenishmentView(), CustomerReplenishmentViewProps, DemoLay
 Cohesion: 0.40
 Nodes (3): geistMono, geistSans, metadata
 
-### Community 29 - "ForecastingEngine"
-Cohesion: 0.09
-Nodes (28): ForecastingEngine, Generates Forecast rows from historical Order data in the simulation DB. Usage:…, asyncio, ForecastingEngine runs on seeded simulation data and writes Forecast rows., All generated Forecast rows have confidence in [0.0, 1.0]., ForecastingEngine emits FORECAST_UPDATED events for each forecast generated., test_forecasting_engine_confidence_in_range(), test_forecasting_engine_emits_event() (+20 more)
+### Community 29 - "asyncio"
+Cohesion: 0.11
+Nodes (19): asyncio, POST /api/forecasts/generate accepts multiple horizons., GET /api/forecasts/evaluate returns empirical backtest metrics., All generated forecasts must have non-negative demand and confidence in [0, 1]., Forecasting generation MUST NOT mutate orders, items, batches, or inventory…, Running forecasting over identical database state yields identical forecast…, Aggregation must pad missing days with 0.0 quantity and continuous day indices., When history has fewer than 7 days, fallback to seed product prior rather than… (+11 more)
 
 ### Community 30 - "Changes Made"
 Cohesion: 0.22
@@ -297,83 +302,83 @@ Nodes (8): 1. Hero Section (`GrocerHero.tsx`), 2. Page Streamlining (`page.tsx`)
 
 ### Community 31 - "apiClient.ts"
 Cohesion: 0.11
-Nodes (17): BackendAgentRun, BackendCustomerDetail, BackendCustomerListItem, BackendCustomerMessageResponse, BackendCustomerMessages, BackendCustomerRemindResponse, BackendCustomerReorderResponse, BackendCustomerSkipResponse (+9 more)
+Nodes (17): BackendAgentRunEvent, BackendCustomerDetail, BackendCustomerListItem, BackendCustomerMessageResponse, BackendCustomerMessages, BackendCustomerRemindResponse, BackendCustomerReorderResponse, BackendCustomerSkipResponse (+9 more)
 
 ### Community 32 - "test_phase4_risk.py"
-Cohesion: 0.13
-Nodes (26): GROCER v2 Risk Engine. Orchestrates risk detection across inventory, forecasts,…, BatchInfo, discount_tier_for_hours(), DiscountTier, MultiBatchSpoilageInput, str, GROCER v2 Risk Engine — Pure deterministic risk models. Implements spec §5…, Computed risk assessment for one (store, product, risk_type) combination. (+18 more)
+Cohesion: 0.26
+Nodes (12): GROCER v2 Risk Engine. Orchestrates risk detection across inventory, forecasts,…, discount_tier_for_hours(), DiscountTier, str, GROCER v2 Risk Engine — Pure deterministic risk models. Implements spec §5…, Computed risk assessment for one (store, product, risk_type) combination., Map hours-to-expiry to the correct discount tier per spec §14.3., RiskResult (+4 more)
 
 ### Community 33 - "Log Entries"
-Cohesion: 0.15
-Nodes (12): [Grocer — Complete WhatsApp Demo Redesign & Operational Clutter Removal] 2026-09-04, [Grocer — Full Codebase Architecture Refactoring & Guided Demo Tour] 2026-08-14, [Grocer — Official App Icon Design & Full UI Architecture Overhaul] 2026-09-02, [Grocer — Phase 0 Audit, Phase 1 Backend Foundation & Phase 2 Simulator Engine] 2026-08-27, [Grocer — Phase 0 Repository Audit & v2 Architecture Alignment] 2026-08-26, [Grocer — Phase 9 Customer / WhatsApp Integration & Phase 10 Hardening & Polish] 2026-08-28, [Grocer — Saved Exact Figma Notification Layout & WhatsApp Icon] 2026-08-15, [Grocer — UI Aesthetics, 3-Column Cockpit, Phase 3/4/5/6 Engines & Phase 7 Live Integration] 2026-08-27 (+4 more)
+Cohesion: 0.14
+Nodes (13): [Grocer — Autonomous Replenishment Engine (Phases 4–6 Complete)] 2026-09-05, [Grocer — Complete WhatsApp Demo Redesign & Operational Clutter Removal] 2026-09-04, [Grocer — Full Codebase Architecture Refactoring & Guided Demo Tour] 2026-08-14, [Grocer — Official App Icon Design & Full UI Architecture Overhaul] 2026-09-02, [Grocer — Phase 0 Audit, Phase 1 Backend Foundation & Phase 2 Simulator Engine] 2026-08-27, [Grocer — Phase 0 Repository Audit & v2 Architecture Alignment] 2026-08-26, [Grocer — Phase 9 Customer / WhatsApp Integration & Phase 10 Hardening & Polish] 2026-08-28, [Grocer — Saved Exact Figma Notification Layout & WhatsApp Icon] 2026-08-15 (+5 more)
 
 ### Community 34 - "asyncio"
 Cohesion: 0.12
 Nodes (23): AsyncClient, asyncio, AsyncSession, Same seed should produce same number of orders., Inventory quantities should never be negative after orders., Advancing time should create new orders and update simulation., A Simulation record should be created in the DB., POST /api/simulations/ should create a simulation. (+15 more)
 
 ### Community 35 - "DemandPoint"
-Cohesion: 0.11
-Nodes (26): baseline_predict(), clean_demand_series(), _compute_dow_multiplier(), DemandPoint, exponential_smoothing_predict(), Return a cleaned copy of *series* with anomalous quantities replaced by the…, Predict total demand over *horizon_hours* using a moving average baseline.…, Return the seasonal multiplier for a given day-of-week. Multiplier =… (+18 more)
+Cohesion: 0.09
+Nodes (26): compute_confidence(), DemandPoint, Return a composite confidence score in [0.0, 1.0]. Four factors combined…, A single daily demand observation., Baseline works with as few as 3 data points., compute_confidence always returns a value in [0.0, 1.0]., Higher coefficient of variation yields lower confidence., More anomalies in history → lower confidence. (+18 more)
 
 ### Community 36 - "test_forecasting.py"
 Cohesion: 0.09
-Nodes (21): TDD tests for the forecasting engine (spec §12). Test seams, in order of the…, compute_confidence always returns a value in [0.0, 1.0]., Higher coefficient of variation yields lower confidence., More anomalies in history → lower confidence., Fewer data points → lower confidence., Perfect forecasts yield MAE=0, RMSE=0, MAPE=0., MAE is correctly computed from a worked example., RMSE is correctly computed from a worked example. (+13 more)
+Nodes (22): asyncio, TDD tests for the forecasting engine (spec §12). Test seams, in order of the…, A 48h horizon prediction is approximately double a 24h prediction., Perfect forecasts yield MAE=0, RMSE=0, MAPE=0., MAE is correctly computed from a worked example., RMSE is correctly computed from a worked example., MAPE is correctly computed from a worked example., evaluate_forecast returns a ModelEvaluationResult dataclass. (+14 more)
 
-### Community 37 - "RecommendationItem"
-Cohesion: 0.17
-Nodes (15): LiveEventFeed(), LiveEventFeedProps, RecommendationCard(), RecommendationCardProps, RecommendationStream(), RecommendationStreamProps, WhyInspectorPanel(), WhyInspectorPanelProps (+7 more)
+### Community 37 - "RecommendationCard.tsx"
+Cohesion: 0.27
+Nodes (7): RecommendationCard(), RecommendationCardProps, WhyInspectorPanel(), WhyInspectorPanelProps, formatHours(), formatINR(), formatPercentage()
 
 ### Community 38 - "scenarioEngine.ts"
-Cohesion: 0.27
-Nodes (9): BaselineStepResult, buildFailureScenario(), buildHeroScenario(), buildPerishablesScenario(), getScenario(), mulberry32(), runScenarioStep(), ScenarioDefinition (+1 more)
+Cohesion: 0.15
+Nodes (16): MetricsComparisonPanel(), MetricsComparisonPanelProps, SimulationFloatingIsland(), SimulationFloatingIslandProps, computeDeltas(), BaselineStepResult, buildFailureScenario(), buildHeroScenario() (+8 more)
 
 ### Community 39 - "recommendations.py"
 Cohesion: 0.17
 Nodes (23): approve_recommendation(), batch_evaluate_recommendations(), evaluate_recommendation(), get_recommendation(), list_recommendations(), AsyncSession, get, post (+15 more)
 
 ### Community 40 - "page.tsx"
-Cohesion: 0.13
-Nodes (19): defaultScenarioState(), GrocerApp(), GrocerFAQ(), GrocerFooter(), GrocerFooterProps, GrocerIntegrations(), AppGlobalHeader(), AppGlobalHeaderProps (+11 more)
+Cohesion: 0.12
+Nodes (21): defaultScenarioState(), GrocerApp(), GrocerFAQ(), GrocerFooter(), GrocerFooterProps, GrocerIntegrations(), AppGlobalHeader(), AppGlobalHeaderProps (+13 more)
 
 ### Community 41 - "Grocer — Historical Context & ADRs"
 Cohesion: 0.50
 Nodes (3): Architectural Decision Records (ADRs), Core Feature Specifications, Grocer — Historical Context & ADRs
 
 ### Community 42 - "._fit_and_predict"
-Cohesion: 0.27
-Nodes (6): AsyncSession, UUID, Query all delivered orders and aggregate demand by (store, product, day) with…, Fit both models, optionally compare on holdout, return (prediction, model_name,…, Perform empirical rolling-origin backtesting across historical orders. Splits…, Generate forecasts for every (store, product) pair across specified horizons.…
+Cohesion: 0.32
+Nodes (5): AsyncSession, UUID, Query all delivered orders and aggregate demand by (store, product, day) with…, Fit both models, optionally compare on holdout, return (prediction, model_name,…, Generate forecasts for every (store, product) pair across specified horizons.…
 
 ### Community 43 - "OperationsDashboard.tsx"
-Cohesion: 0.20
-Nodes (12): OperationsDashboard(), CATALOG_ITEMS, SkuCatalogItem, SkuInventoryTable(), SkuInventoryTableProps, SkuRowItem, SpatialTopologyView(), SpatialTopologyViewProps (+4 more)
+Cohesion: 0.18
+Nodes (18): AgentRunInspector(), AgentRunInspectorProps, LiveEventFeed(), LiveEventFeedProps, OperationsDashboardProps, RecommendationStream(), RecommendationStreamProps, SpatialTopologyView() (+10 more)
 
 ### Community 44 - "customers.py"
 Cohesion: 0.11
 Nodes (33): get_customer(), get_customer_messages(), list_customers(), AsyncSession, get, post, UUID, FastAPI Customer Endpoints for Phase 9 (Spec §22 & §32.8). Provides: - GET… (+25 more)
 
 ### Community 47 - "simulations.py"
-Cohesion: 0.14
-Nodes (29): advance_simulation(), AdvanceTimeRequest, ApplyScenarioRequest, create_simulation(), CreateSimulationRequest, get_active_simulation(), _get_or_restore_engine(), get_simulation() (+21 more)
+Cohesion: 0.13
+Nodes (31): advance_simulation(), AdvanceTimeRequest, ApplyScenarioRequest, create_simulation(), CreateSimulationRequest, get_active_simulation(), _get_or_restore_engine(), get_simulation() (+23 more)
 
 ### Community 48 - "agent.py"
 Cohesion: 0.10
 Nodes (22): Execution agent subpackage -- LangGraph 5-node execution graph., _naive_now(), AsyncSession, datetime, UUID, Agent ExecutionRunner -- async entry point for the execution graph. Usage:…, Typed result returned by ExecutionRunner.run()., Run the execution graph for the given recommendation. Returns a RunResult… (+14 more)
 
-### Community 49 - "asyncio"
-Cohesion: 0.15
-Nodes (13): asyncio, Advancing through high order volume never drives inventory or batch quantities…, Expired batches must have quantity=0 or be excluded from inventory derivation., Identical seeds produce identical simulation clocks and entity counts., GET /api/simulations/{id}/network returns store nodes and distance matrix., GET /api/simulations/{id}/in-transit returns active transfers and purchase…, POST /api/simulations/{id}/scenario applies operational scenario., test_api_apply_scenario() (+5 more)
+### Community 49 - "decision/models.py"
+Cohesion: 0.13
+Nodes (17): Decision Engine service package., ActionScorer, CandidateAction, DecisionResult, DiscountInput, ExplainabilityFacts, str, GROCER v2 Decision Engine -- Pure deterministic models. Implements spec section… (+9 more)
 
 ### Community 50 - "4. Locked product decisions"
 Cohesion: 0.12
 Nodes (17): 4.10 Transfer ETA, 4.11 Supplier simulation, 4.12 Markdown simulation, 4.13 Batch-level expiry, 4.1 Stores, 4.2 Products, 4.3 Customers, 4.4 Historical data (+9 more)
 
 ### Community 51 - "asyncio"
-Cohesion: 0.23
-Nodes (12): asyncio, AsyncSession, Should persist an Event with JSON payload., Should persist a Store with all required fields., Should persist a Supplier., Should persist a Product linked to a Supplier., Should persist a Customer linked to a home Store., test_create_customer_with_store_fk() (+4 more)
+Cohesion: 0.20
+Nodes (14): asyncio, AsyncSession, Should persist Simulation and Scenario., Should persist an Event with JSON payload., Should persist a Store with all required fields., Should persist a Supplier., Should persist a Product linked to a Supplier., Should persist a Customer linked to a home Store. (+6 more)
 
 ### Community 52 - "risks.py"
 Cohesion: 0.21
-Nodes (15): evaluate_risks(), get_risk(), list_risks(), AsyncSession, get, post, UUID, Risk REST API — spec §32. Endpoints: GET /api/risks — list risks with optional… (+7 more)
+Nodes (16): evaluate_risks(), get_risk(), list_risks(), AsyncSession, get, post, UUID, Risk REST API — spec §32. Endpoints: GET /api/risks — list risks with optional… (+8 more)
 
 ### Community 53 - "10. Data model"
 Cohesion: 0.13
@@ -387,17 +392,17 @@ Nodes (13): 1. Visual Foundation & Tone, 2.1 Surfaces & Structure, 2.2 Operator 
 Cohesion: 0.21
 Nodes (13): evaluate_models(), generate_forecasts(), list_forecasts(), AsyncSession, get, post, UUID, Forecast REST API — spec §32. Endpoints: GET /api/forecasts — list forecasts… (+5 more)
 
-### Community 56 - "SimulationEngine"
-Cohesion: 0.08
-Nodes (40): Detects inventory stockout and batch spoilage risks. Usage: engine =…, RiskEngine, Core simulation engine for GROCER v2. Handles: - Database seeding (stores,…, SimulationEngine, Full seeded DB: sim + forecast + risks evaluated., seeded_db(), test_recalculate_options_creates_new_recommendation(), Seed simulator, run forecasting, run risk evaluation, return db. (+32 more)
+### Community 56 - "ForecastingEngine"
+Cohesion: 0.09
+Nodes (33): ForecastingEngine, Generates Forecast rows from historical Order data in the simulation DB. Usage:…, Detects inventory stockout and batch spoilage risks. Usage: engine =…, RiskEngine, Full seeded DB: sim + forecast + risks evaluated., seeded_db(), test_recalculate_options_creates_new_recommendation(), Seed simulator, run forecasting, run risk evaluation, return db. (+25 more)
 
 ### Community 57 - "schemas.py"
-Cohesion: 0.18
-Nodes (18): get_product(), list_products(), AsyncSession, get, UUID, Products REST API — spec §32.4. Endpoints: GET /api/products — list all catalog…, List all 25 catalog products., Get a single product by ID. (+10 more)
+Cohesion: 0.20
+Nodes (16): get_product(), list_products(), AsyncSession, get, UUID, Products REST API — spec §32.4. Endpoints: GET /api/products — list all catalog…, List all 25 catalog products., Get a single product by ID. (+8 more)
 
-### Community 58 - "client"
-Cohesion: 0.18
-Nodes (11): client(), db_session(), event_loop(), AsyncClient, AsyncSession, fixture, Create a single event loop for the entire test session., Create all tables before each test, drop after. (+3 more)
+### Community 58 - "create_app"
+Cohesion: 0.10
+Nodes (26): get_db(), AsyncSession, create_app(), lifespan(), client(), db_session(), event_loop(), AsyncClient (+18 more)
 
 ### Community 59 - "15. Recommended Antigravity task sequence"
 Cohesion: 0.13
@@ -424,8 +429,8 @@ Cohesion: 0.14
 Nodes (14): 5. Phase 2 — Operational simulator, Acceptance criteria, Batches, Demand, Goal, Historical demand, Invariants, Locked simulation (+6 more)
 
 ### Community 66 - "StockoutCalculator"
-Cohesion: 0.09
-Nodes (29): Evaluates stockout risk from current inventory vs forecast demand. Algorithm:…, Configurable thresholds and weights for the Risk Engine., All information needed to evaluate stockout risk for one (store, product)., RiskConfig, StockoutCalculator, StockoutInput, Low forecast confidence widens the required safety buffer, increasing risk., Custom RiskConfig thresholds alter the severity cutoffs. (+21 more)
+Cohesion: 0.10
+Nodes (27): Evaluates stockout risk from current inventory vs forecast demand. Algorithm:…, All information needed to evaluate stockout risk for one (store, product)., StockoutCalculator, StockoutInput, Low forecast confidence widens the required safety buffer, increasing risk., Custom RiskConfig thresholds alter the severity cutoffs., Stock covering well over lead time + safety buffer produces LOW risk., Zero inventory with active demand produces CRITICAL stockout immediately. (+19 more)
 
 ### Community 71 - "8. Technology stack"
 Cohesion: 0.25
@@ -435,17 +440,17 @@ Nodes (8): 8. Technology stack, Agent, Backend, Database, Forecasting, Frontend,
 Cohesion: 0.15
 Nodes (13): asyncio, Derivation invariant: sum of active batch quantities matches inventory for all…, POST /api/simulations/{id}/reset cleans and creates a new simulation ID., GET /api/simulations/active creates and initializes a default simulation if…, Subsequent calls to /api/simulations/active return the same simulation., POST /api/simulations/{id}/advance updates current_time in DB and returns state., Simulation operations succeed even when in-memory _engines dict is wiped., test_active_simulation_creates_default_when_empty() (+5 more)
 
-### Community 73 - "MetricsComparisonPanel.tsx"
-Cohesion: 0.26
-Nodes (9): MetricsComparisonPanel(), MetricsComparisonPanelProps, OperationsDashboardProps, SimulationFloatingIsland(), SimulationFloatingIslandProps, computeDeltas(), SCENARIOS, ScenarioState (+1 more)
+### Community 73 - "SafeExcessCalculator"
+Cohesion: 0.09
+Nodes (18): Compute how many units a source store can safely transfer away., Return number of units safely transferable (>=0)., Applies hard reject rules before scoring any transfer., All scoring weights in one place -- no magic numbers scattered., SafeExcessCalculator, ScoringWeights, TransferValidator, Good transfer: source has excess, short distance, dest needs it now. (+10 more)
 
 ### Community 74 - "test_health_endpoint_reports_db_status"
 Cohesion: 0.38
 Nodes (6): AsyncClient, asyncio, Health endpoint should report database connectivity., Health endpoint should return 200 with status healthy., test_health_endpoint_reports_db_status(), test_health_endpoint_returns_200()
 
-### Community 75 - "fixture"
+### Community 75 - "approved_hold_rec"
 Cohesion: 0.22
-Nodes (9): client(), client_with_hold(), client_with_pending(), client_with_transfer(), fixture, HTTP client wired to seeded DB., HTTP client wired to DB that has an approved transfer rec., HTTP client wired to DB that has an approved hold rec. (+1 more)
+Nodes (9): approved_hold_rec(), client_with_pending(), client_with_transfer(), pending_rec(), fixture, APPROVED HOLD recommendation (no-op execution)., PENDING (unapproved) recommendation., HTTP client wired to DB that has an approved transfer rec. (+1 more)
 
 ### Community 76 - "IMPLEMENTATION_PLAN.md"
 Cohesion: 0.17
@@ -463,9 +468,9 @@ Nodes (10): 1. Executive Summary, 2. Component Disposition (REUSE / REFACTOR / D
 Cohesion: 0.40
 Nodes (5): client(), fixture, Seed simulator data and return the db session., HTTP client wired to the seeded test DB via dependency override., seeded_db()
 
-### Community 80 - "get_store_distance_matrix"
-Cohesion: 0.25
-Nodes (8): calculate_haversine_distance(), get_store_distance_matrix(), Calculate the great-circle distance between two geographic points in kilometers., Generate the 5x5 inter-store distance matrix (in km) for the dark store network., Bandra to Andheri distance should be ~7.4 km., Matrix should cover all 5 dark stores with zero diagonal and positive symmetric…, test_calculate_haversine_distance(), test_store_network_distance_matrix()
+### Community 80 - "MultiBatchSpoilageInput"
+Cohesion: 0.17
+Nodes (14): BatchInfo, MultiBatchSpoilageInput, Evaluate single-batch spoilage input., Evaluate multiple batches under FIFO cumulative depletion., Represents one physical batch for multi-batch spoilage analysis., Information needed to evaluate multi-batch spoilage risk for one (store,…, When projected demand absorbs inventory before expiry, net spoilage is 0 and…, Near-expiry batch (<6h) with low sell-through triggers CRITICAL risk and 30%… (+6 more)
 
 ### Community 81 - "38. Immediate implementation order"
 Cohesion: 0.18
@@ -483,9 +488,9 @@ Nodes (11): 8. Phase 5 — Decision engine, Acceptance criteria, Candidate actio
 Cohesion: 0.20
 Nodes (10): detect_anomalies(), _percentile(), Return list of indices in *series* whose quantity is a statistical outlier.…, Compute a percentile from a pre-sorted list using linear interpolation., Z-score > 3 on a 6x spike is flagged as anomaly., No anomalies detected when demand is perfectly uniform., Empty series yields empty anomaly list without error., test_detect_anomalies_empty_series_returns_empty() (+2 more)
 
-### Community 85 - "seeded_db"
-Cohesion: 0.67
-Nodes (3): fixture, Seed database with simulation base data., seeded_db()
+### Community 85 - ".run"
+Cohesion: 0.32
+Nodes (5): AsyncSession, UUID, Scan all active risks without pending recommendations and generate decisions.…, Set recommendation status to REJECTED., Evaluate decision for a risk and persist the top recommendation. Returns the…
 
 ### Community 86 - "31. Code review standards"
 Cohesion: 0.22
@@ -591,20 +596,36 @@ Nodes (4): 28.1 Adapter architecture, 28.2 Customer flow, 28.3 Credential safety
 Cohesion: 0.67
 Nodes (3): 34. Demo narrative, Primary demo, Secondary demo
 
+### Community 129 - "datetime"
+Cohesion: 0.25
+Nodes (3): datetime, Advance simulation time by N hours. Returns new current time., Reset clock to start time.
+
+### Community 130 - "service.py"
+Cohesion: 0.43
+Nodes (5): CustomerState, PantryStapleState, Customer domain models for Phase 9 Customer / WhatsApp simulation. Defines data…, WhatsAppInteractionMessage, Customer service for Phase 9 Customer / WhatsApp replenishment simulation.…
+
+### Community 131 - "SkuInventoryTable.tsx"
+Cohesion: 0.29
+Nodes (6): CATALOG_ITEMS, SkuCatalogItem, SkuInventoryTable(), SkuInventoryTableProps, SkuRowItem, INITIAL_STORES
+
+### Community 133 - ".approve"
+Cohesion: 0.50
+Nodes (3): _naive_now(), datetime, Set recommendation status to APPROVED and stage a pending Action (spec §18, §21…
+
 ## Knowledge Gaps
-- **443 isolated node(s):** `semi`, `singleQuote`, `jsxSingleQuote`, `trailingComma`, `printWidth` (+438 more)
+- **444 isolated node(s):** `semi`, `singleQuote`, `jsxSingleQuote`, `trailingComma`, `printWidth` (+439 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **21 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **22 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `SimulationEngine` connect `SimulationEngine` to `Inventory`, `test_risk.py`, `transfer.py`, `test_phase2_simulator.py`, `test_decision_api.py`, `test_forecast_api.py`, `test_phase5_decision.py`, `core.py`, `test_risk_api.py`, `seed_data.py`, `.initialize`, `test_agent.py`, `create_app`, `forecasting/engine.py`, `ForecastingEngine`, `test_phase4_risk.py`, `asyncio`, `test_forecasting.py`, `simulations.py`, `asyncio`, `client`, `seeded_db`, `apply_scenario`?**
-  _High betweenness centrality (0.069) - this node is a cross-community bridge._
-- **Why does `ForecastingEngine` connect `ForecastingEngine` to `test_phase4_risk.py`, `test_risk.py`, `test_forecasting.py`, `test_decision_api.py`, `._fit_and_predict`, `test_phase5_decision.py`, `core.py`, `test_risk_api.py`, `test_agent.py`, `forecasting.py`, `SimulationEngine`, `forecasting/engine.py`?**
+- **Why does `SimulationEngine` connect `SimulationEngine` to `test_phase6_agent.py`, `test_risk.py`, `test_phase2_simulator.py`, `process_supplier_deliveries`, `test_decision_api.py`, `test_forecast_api.py`, `test_phase5_decision.py`, `Inventory`, `test_risk_api.py`, `seed_data.py`, `test_agent.py`, `forecasting/engine.py`, `asyncio`, `test_phase4_risk.py`, `asyncio`, `test_forecasting.py`, `simulations.py`, `ForecastingEngine`, `client`, `apply_scenario`?**
+  _High betweenness centrality (0.068) - this node is a cross-community bridge._
+- **Why does `ForecastingEngine` connect `ForecastingEngine` to `test_phase4_risk.py`, `test_risk.py`, `test_forecasting.py`, `test_decision_api.py`, `._fit_and_predict`, `test_phase5_decision.py`, `Inventory`, `test_risk_api.py`, `test_agent.py`, `forecasting.py`, `forecasting/engine.py`, `asyncio`?**
   _High betweenness centrality (0.027) - this node is a cross-community bridge._
-- **Why does `Inventory` connect `Inventory` to `test_phase4_risk.py`, `test_risk.py`, `transfer.py`, `test_phase2_simulator.py`, `test_phase5_decision.py`, `core.py`, `test_risk_api.py`, `stores.py`, `.initialize`, `test_agent.py`, `CustomerService`, `create_app`, `SimulationEngine`, `forecasting/engine.py`?**
-  _High betweenness centrality (0.021) - this node is a cross-community bridge._
+- **Why does `Inventory` connect `Inventory` to `test_phase4_risk.py`, `test_phase6_agent.py`, `service.py`, `test_risk.py`, `test_phase2_simulator.py`, `test_phase5_decision.py`, `test_risk_api.py`, `stores.py`, `SimulationEngine`, `test_agent.py`, `CustomerService`, `ForecastingEngine`, `forecasting/engine.py`, `create_app`?**
+  _High betweenness centrality (0.020) - this node is a cross-community bridge._
 - **Are the 18 inferred relationships involving `SimulationEngine` (e.g. with `Batch` and `Customer`) actually correct?**
   _`SimulationEngine` has 18 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 20 inferred relationships involving `Inventory` (e.g. with `ActionStatus` and `ActionType`) actually correct?**

@@ -1,89 +1,339 @@
-# ARCHITECTURE.md — Grocer v2 System Architecture & Design Specification
+# ARCHITECTURE.md — GROCER v2
 
-> Source of Truth: [GROCER_V2_MASTER_SPEC.md](file:///d:/Grocer/GROCER_V2_MASTER_SPEC.md)
+> **Source of truth:** `GROCER_V2_MASTER_SPEC.md`
+> **Status:** LOCKED consumer-commerce architecture
+> **Updated:** 2026-09-06
 
----
+## 1. System identity
 
-## 1. PRODUCT VISION & SCOPE
+GROCER is the **existing WhatsApp consumer grocery replenishment assistant**, extended with an intent-preservation layer.
 
-GROCER is an **AI-assisted quick-commerce inventory decision and execution system**. It connects two sides of a shared simulated universe:
+It is not a dark-store operations platform, a generic marketplace assistant, or a second standalone agent infrastructure product.
 
-1. **Customer Side (Proactive Replenishment):** Context-aware WhatsApp assistant predicting household staple depletion (Prophet ML) and enabling low-friction 1-tap reorders before morning rush.
-2. **Operations Side (Dark Store Command Center):** 5-store Mumbai network control deck predicting store-level stockout & spoilage risks, evaluating 4 candidate interventions (`TRANSFER`, `REORDER`, `DISCOUNT`, `HOLD`), explaining root-cause tradeoffs with a structured WHY panel, and executing approved actions via a Level-2 LangGraph agent.
+The separate dark-store operations system lives in:
 
-```text
-OBSERVE ──► PREDICT ──► DETECT ──► EVALUATE ──► RECOMMEND ──► APPROVE ──► AGENT EXECUTE ──► VERIFY ──► MEASURE
-```
+`https://github.com/kwakhare5/Dark-store-operator`
 
----
-
-## 2. MODULAR MONOLITH ARCHITECTURE
+## 2. Core architecture
 
 ```text
-                         ┌────────────────────────────────────────┐
-                         │               NEXT.JS 16               │
-                         │   Operations Cockpit | WhatsApp Flow   │
-                         └───────────────────┬────────────────────┘
-                                             │
-                                     REST + WebSockets
-                                             │
-                         ┌───────────────────▼────────────────────┐
-                         │           FASTAPI MODULAR MONOLITH     │
-                         ├────────────────────────────────────────┤
-                         │ • Simulation Engine (Time/Scenarios)   │
-                         │ • Inventory & Batch Expiry Service     │
-                         │ • Forecasting & Anomaly Gate Engine    │
-                         │ • Risk & Stockout/Spoilage Detection   │
-                         │ • Deterministic Decision Engine        │
-                         │ • Recommendation & Alternatives Rerank │
-                         │ • LangGraph Execution Agent (Level 2)  │
-                         │ • CommercePort & Swiggy MCP Adapter    │
-                         └───────────────┬────────────────┬───────┘
-                                         │                │
-                                 Controlled Tools   Swiggy MCP Tools
-                                         │                │
-                    ┌────────────────────▼────┐    ┌──────▼─────────────────┐
-                    │ SIMULATED DARK STORES   │    │ SWIGGY INSTAMART MCP   │
-                    │ Bandra · Andheri · etc. │    │ POST mcp.swiggy.com/im │
-                    └─────────────────────────┘    └────────────────────────┘
+                         WHATSAPP
+                            │
+                            ▼
+                 CONVERSATION / AGENT LAYER
+                            │
+                            ▼
+                      INTENT PARSER
+                            │
+                            ▼
+                    INTENT CONTRACT
+                            │
+             ┌──────────────┴──────────────┐
+             │                             │
+             ▼                             ▼
+       POLICY / MEMORY              CLARIFICATION
+             │                             │
+             └──────────────┬──────────────┘
+                            ▼
+                  CUSTOMER COMMERCE SERVICE
+                            │
+                            ▼
+                      COMMERCE PORT
+                       /          \
+                      /            \
+             MOCK ADAPTER      SWIGGY MCP ADAPTER
+                      \            /
+                       \          /
+                        ▼        ▼
+                         COMMERCE STATE
+                              │
+                              ▼
+                       INTENT VERIFIER
+                              │
+                 ┌────────────┴────────────┐
+                 │                         │
+                PASS                      FAIL
+                 │                         │
+                 ▼                         ▼
+          APPROVAL / CONTINUE       RECOVERY ENGINE
+                 │                         │
+                 │                   REPLAN / SUBSTITUTE /
+                 │                   REPAIR / CLARIFY
+                 │                         │
+                 └──────────────┬──────────┘
+                                ▼
+                           VERIFY AGAIN
+                                │
+                                ▼
+                    EXPLICIT CHECKOUT APPROVAL
+                                │
+                                ▼
+                             CHECKOUT
+                                │
+                                ▼
+                         OUTCOME VERIFICATION
 ```
 
----
+## 3. Architecture principles
 
-## 3. CORE FRONTEND VIEWS & CAPABILITIES
+### 3.1 Intent is the source of truth for the user's goal
 
-### A. Navigation & View Controller (`app/page.tsx`)
-- **Landing Mode (`"landing"`):** Product showcase with 64px `GrocerHeader`, Hero, Value Prop bento grid, Developer Webhook Terminal, and FAQ.
-- **Operations Mode (`"operations"`):** 56px `CockpitHeader`, multi-tab operations center (`OperationsDashboard`), and bottom-docked `SimulationFloatingIsland`.
-- **Customer Mode (`"customer"`):** Interactive iPhone 17 Pro household replenishment simulator (`CustomerReplenishmentView`) with live Swiggy MCP Commerce Drawer and real-time delivery tracking.
+The live cart can change. The `IntentContract` captures what the user actually asked for.
 
-### B. Operations Deck Tabs
-1. **Stock Replenishment Matrix (`SkuInventoryTable.tsx`):** High-density replenishment matrix across 5 fleet nodes with real-time stock status meters, demand velocity, supplier lead time, restock deltas, and 1-click PO triggers.
-2. **Decision Stream (`RecommendationStream.tsx` & `WhyInspectorPanel.tsx`):** Live recommendation cards with structured WHY reasoning (Stockout ETA, Supplier Lead Time, Safe Excess, and Alternatives trade-offs).
-3. **Mumbai Dark Store Map (`SpatialTopologyView.tsx`):** Spatial SVG fleet network with active transfer courier particles and inter-store balance indicators.
+### 3.2 Backend is authoritative
 
-### C. Floating Simulation Island (`SimulationFloatingIsland.tsx`)
-- Universal simulation clock (`Day 07 · 12:00 UTC`).
-- Controls: `Run`, `Pause`, `+1h`, `+6h`, `+24h`, `Reset`.
-- Benchmark Scenarios (§25 Hero Scenario, §26 Perishables Spoilage, §27 Stale Pre-Check Failure).
+The backend owns session state, intent, policies, commerce operations, verification, recovery state, and checkout authorization.
 
-### D. Customer Replenishment & Swiggy MCP Commerce (`CustomerReplenishmentView.tsx`)
-- **Decoupled CommercePort:** Connects customer grocery replenishments via `MockCommerceAdapter` (deterministic Mumbai dark stores) or `SwiggyMCPAdapter` (`POST mcp.swiggy.com/im`).
-- **Live Commerce Cart:** Interactive SKU list with spinId tags, quantity steppers, Go-To staple quick-add, and transparent fee breakdown (subtotal, delivery, packaging, grand total).
-- **Consequential Checkout Guard (Spec §28.3):** Enforces explicit human confirmation modal (`explicit_confirmation: true`) before order dispatch.
-- **Express Tracking:** Real-time rider tracking (`Ramesh Kamble`, ETA in mins, live GPS status).
+The frontend is a presentation/conversation surface and must not become a competing authority.
 
----
+### 3.3 Deterministic enforcement beats LLM confidence
 
-## 4. SAFETY INVARIANTS & AUTONOMY BOUNDARIES
-- **Level-2 Autonomy:** Autonomous agents cannot self-approve or self-execute newly consequential replenishment transfers; operator sign-off is required.
-- **Consequential Action Barrier (Spec §28.3 & §39.15):** Autonomous agents must not execute financial checkouts without human authorization. Unconfirmed checkouts return `UnconfirmedCheckoutError` (HTTP 400).
-- **Batch Conservation Invariant:** Inter-store transfers must deduct strictly FIFO from source batches and generate exact equivalent batches at recipient stores.
+```text
+LLM
+  → interprets language
+  → proposes actions
+  → communicates
 
----
+Deterministic services
+  → enforce hard constraints
+  → verify cart state
+  → calculate totals
+  → enforce authorization
+  → classify failures
+  → control retries
+  → verify outcomes
+```
 
-## 5. DESIGN & TYPOGRAPHY TOKENS
-- **Design System:** Clean Apple Light (`--background: #FAFAFA`, `--surface-card: #FFFFFF`, `--primary: #064E3B`, `--border: #E4E4E7`).
-- **Geometry:** 12px card radii, 8px button geometry, 6px badge radius.
-- **Typography:** `Geist Sans` body copy (crisp 400 regular weight), `TWK Lausanne Pan 800` display headings, `Geist Mono` tabular telemetry, and strictly upright `PP Editorial New` accents.
-- **Zero AI Slop:** Lucide React SVG vectors only; zero emojis in buttons.
+### 3.4 Provider isolation
+
+All Swiggy-specific MCP tool calls remain inside `SwiggyMCPAdapter`.
+
+Higher layers depend on `CommercePort` rather than raw provider APIs.
+
+## 4. Major modules
+
+### Conversation / WhatsApp layer
+
+Responsibilities:
+
+- receive the user's natural-language request;
+- show proactive replenishment messages;
+- present recovery/clarification decisions;
+- show cart and approval state;
+- communicate final outcome.
+
+It must not enforce hard commerce rules by itself.
+
+### Intent layer
+
+Responsibilities:
+
+- parse goal;
+- normalize requested items;
+- distinguish hard constraints from soft preferences;
+- capture budget, quantity, pack size, brand, dietary and substitution requirements;
+- identify ambiguity;
+- maintain intent versioning.
+
+### Policy / memory layer
+
+Responsibilities:
+
+- store durable soft preferences;
+- apply precedence rules;
+- produce permitted substitution/recovery policies.
+
+Precedence:
+
+```text
+current explicit request
+    > current session choice
+    > stored soft preference
+    > default
+```
+
+### Customer Commerce Service
+
+Coordinates the consumer workflow without exposing provider details upward.
+
+It delegates commerce operations through `CommercePort`.
+
+### CommercePort
+
+Abstract boundary for:
+
+- addresses;
+- product discovery;
+- cart reads/writes;
+- payment/checkout state where supported;
+- order details/tracking where supported.
+
+Implementations currently include:
+
+- `MockCommerceAdapter`;
+- `SwiggyMCPAdapter`.
+
+### Intent Verifier
+
+Compares current commerce state against the intent contract after meaningful mutations and before checkout.
+
+Outputs should distinguish:
+
+- hard violations;
+- soft preference deviations;
+- unresolved items;
+- budget drift;
+- stale state;
+- possible recovery paths.
+
+### Recovery Engine
+
+Consumes verifier failures and attempts a bounded path back to a valid intent state.
+
+Initial recovery classes:
+
+- unavailable product;
+- unavailable preferred brand;
+- changed pack size;
+- budget drift;
+- stale cart;
+- safely retryable transient failure;
+- partial success;
+- basket-validity/minimum-order failure where policy permits repair.
+
+### Evaluation / failure simulation
+
+Lives at the commerce boundary and domain-test layer.
+
+It is an internal reliability capability, not a separate product.
+
+## 5. State model
+
+Minimum useful conceptual state:
+
+```text
+ConversationSession
+IntentContract
+CommerceSnapshot
+ActionAttempt
+RecoveryAttempt
+ApprovalState
+OutcomeEvent
+```
+
+Persist only what is required to reason about the current task, debug failures, evaluate reliability, and preserve useful preferences.
+
+Do not introduce a heavyweight event-sourcing platform without a demonstrated need.
+
+## 6. Safety model
+
+### Checkout
+
+```text
+cart valid
+   ↓
+intent verified
+   ↓
+explicit user confirmation
+   ↓
+backend authorization check
+   ↓
+checkout
+   ↓
+verify result
+```
+
+No agent prompt can bypass the backend checkout guard.
+
+### Recovery
+
+Automatic recovery is allowed only when:
+
+- the action is inside the user's policy/authorization;
+- hard constraints remain satisfied;
+- the outcome can be verified;
+- retry semantics are safe.
+
+Otherwise the agent asks the user or terminates safely.
+
+## 7. Failure handling
+
+The system must distinguish:
+
+```text
+BUSINESS FAILURE
+STALE STATE
+TRANSIENT FAILURE
+PROVIDER REJECTION
+AUTH FAILURE
+PARTIAL SUCCESS
+UNKNOWN OUTCOME
+USER AMBIGUITY
+```
+
+The adapter/domain layer normalizes raw provider behavior into stable internal semantics.
+
+Consequential operations are never blindly retried.
+
+## 8. Frontend architecture
+
+The current WhatsApp/iPhone customer experience remains the primary interface.
+
+The Intent feature should make that experience more intelligent rather than replacing it with an unrelated UI.
+
+Use concise message states such as:
+
+```text
+NORMAL
+RECOVERING
+NEEDS_DECISION
+AWAITING_APPROVAL
+SUCCESS
+FAILED
+```
+
+Do not rebuild the removed dark-store cockpit inside GROCER.
+
+## 9. Repository boundary
+
+### Keep and extend
+
+- `components/customer/`
+- WhatsApp demo/interaction components where they support the customer experience
+- `CustomerService`
+- `backend/integrations/commerce/`
+- `CommercePort`
+- `MockCommerceAdapter`
+- `SwiggyMCPAdapter`
+- commerce exceptions/models
+- checkout authorization guard
+
+### Clean or isolate
+
+- dark-store-only routes;
+- stale operations services/models;
+- frontend mutations of fake operational inventory caused by customer checkout;
+- documentation that claims both systems belong to GROCER.
+
+Cleanup must be incremental and evidence-driven.
+
+## 10. Technology posture
+
+Use the existing Next.js + React + TypeScript frontend and Python + FastAPI backend.
+
+Use the existing agent framework where useful. Do not introduce microservices or a new orchestration stack merely because the product is being extended.
+
+## 11. Architectural non-goals
+
+Do not optimize for:
+
+- enterprise-scale distributed infrastructure;
+- speculative multi-provider commerce;
+- generic autonomous purchasing;
+- real-world dark-store simulation;
+- UI theatre;
+- a giant ML planner.
+
+The architecture exists to make one thing reliable:
+
+> **preserve the user's intent while commerce state changes.**

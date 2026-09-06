@@ -228,54 +228,45 @@ If the answer is no, it does not belong in GROCER v2 unless the master spec is d
 
 ## 15. SESSION RESUME
 
-**Last completed:** Phase 6 — Agent Orchestration (2026-09-06)
+**Last completed:** Flagship Golden Flow & Cleanroom Intent Refactor (2026-09-06)
 
-**Status:** ✅ Phase 6 complete. End-to-end conversational shopping loop (`GrocerOrchestrator`) connecting WhatsApp turn → IntentParser → PolicyEngine → CommercePort → IntentVerifier → RecoveryEngine → Explicit Confirmation → Checkout. Build green. 122/122 tests passing (100% green).
+**Status:** ✅ Complete. End-to-end verified proof of the flagship shopping task:
+`"get my weekly groceries under ₹2,000, vegetarian, use my usual brands."`
+Full loop: Parse → IntentContract → PolicyEngine → CommercePort Cart Build → Deterministic OOS Fault Injection → Drift Detection (`ITEM_UNAVAILABLE`) → LoopingRecoveryEngine Auto-Recovery (2x Amul 500ml, Delta ₹0) → Re-verification → AWAITING_CONFIRMATION → Explicit Human Confirmation Gate → Consequential Checkout → ORDERED.
+Build 100% green: 132/132 backend tests passing, `npm run lint` 0 errors, `npm run build` 100% clean.
 
 **What was done:**
-- Created `backend/intent/session.py`:
-  - `ConversationState` enum: `READY`, `BUILDING`, `RECOVERING`, `NEEDS_DECISION`, `AWAITING_CONFIRMATION`, `ORDERED`, `FAILED`.
-  - Models: `OrchestratorSession`, `PendingClarification`, `BasketSummary`, `BasketItem`, `ClarificationOption`.
-  - `OrchestratorSessionStore`: Thread-safe in-memory session manager with `default_session_store` singleton.
-- Created `backend/intent/orchestrator.py`:
-  - `GrocerOrchestrator`: Coordinates the full conversational commerce loop deterministically (LLM interprets/proposes; deterministic code verifies/enforces per Spec §12.3).
-  - Methods: `handle_turn()` (parse, preferences, resolve products, build cart, verify, recover), `handle_choice()` (resolve clarification candidate), `handle_confirm()` (explicit checkout double-gated by server-side state & pre-checkout verification).
-  - Multi-item resolution, brand preference weighting, and pack-size preference resolution.
-- Created `backend/api/intent_chat.py`:
-  - `POST /api/intent/chat`: Main conversational turn endpoint.
-  - `POST /api/intent/sessions/{id}/choice`: Select candidate option during `NEEDS_DECISION`.
-  - `POST /api/intent/sessions/{id}/confirm`: Consequential checkout gate (`explicit_confirmation: true` required).
-  - `GET /api/intent/sessions/{id}`: Session state inspection.
-  - `DELETE /api/intent/sessions/{id}`: Session reset.
-- Extended `backend/api/schemas.py` with intent orchestrator schemas and registered router in `backend/main.py`.
-- Exported all Phase 6 types from `backend/intent/__init__.py`.
-- Created `backend/tests/test_orchestrator.py`: 20 unit and integration tests covering happy path, session persistence, multi-item baskets, budget constraints, user choice resolution, checkout authorization invariants, and REST API endpoints.
+- **Task 1 — Choice Integrity & Session Hardening (`backend/intent/orchestrator.py`, `session.py`):**
+  - Added `removes_spin_id` and `intended_quantity` to `PendingClarification`.
+  - Hardened `handle_choice` to validate candidate against pending options, preserve all unrelated basket items, calculate pack size multiples, re-verify with `IntentVerifier`, and safely block violations.
+  - Hardened `IntentParser` with negative lookaheads in `_extract_items` to prevent conjunction/preposition greediness, and added `_is_incremental_add` for multi-turn cart additions.
+  - 24/24 tests passing in `backend/tests/test_orchestrator.py`.
+- **Task 2 — Deterministic Failure Simulation (`backend/integrations/commerce/mock_adapter.py`, `models.py`):**
+  - Added `is_available: bool = True` to `CartItem`.
+  - Added deterministic failure hooks to `MockCommerceAdapter`: `inject_out_of_stock`, `inject_price_change`, `inject_stale_cart`, `inject_transient_error`, and `reset_injections`.
+  - Instance-isolated catalog deepcopy to prevent cross-test pollution.
+- **Tasks 4 & 5 — Looping Recovery Engine (`backend/intent/recovery.py`, `recovery_loop.py`):**
+  - Created `LoopingRecoveryEngine` implementing the exact 10-step bounded recovery sequence (Spec §12).
+  - Infinite retry loop signature detection and bounded step counter (`max_attempts`).
+  - Separated mutating actions from non-mutating (`retry`, `refresh_cart`) to perform controlled live re-fetch from `CommercePort`.
+  - Created `backend/tests/test_recovery_loop.py` (4/4 passing tests).
+- **Task 6 — Intent Verifier Hardening (`backend/intent/verifier.py`):**
+  - Added `_check_item_availability` checking `getattr(item, "is_available", True) is False` to trigger `ViolationCode.ITEM_UNAVAILABLE` (is_hard=True).
+  - Sanitized dietary token matching with regex word boundaries to prevent punctuation trapping non-veg words.
+- **Task 3 — Flagship Golden OOS Recovery Scenario (`backend/tests/test_golden_oos_recovery.py`):**
+  - Proves the complete flagship scenario end-to-end: parse → contract → basket build → OOS fault injection on Amul 1L milk → drift detection → `LoopingRecoveryEngine` auto-recovers to 2x Amul 500ml → preserves bread & tomatoes → verification passes → explicit confirmation required → confirmed checkout to `ORDERED`. Both tests passing.
+- **Tasks 7 & 9 — Intent Commerce Workbench UI (`components/customer/IntentCommerceWorkbench.tsx`, `app/page.tsx`, `lib/apiClient.ts`):**
+  - Added canonical Intent API methods to `grocerApi`: `sendIntentChat`, `sendIntentChoice`, `confirmIntentOrder`, `getIntentSession`, and `resetIntentSession`.
+  - Built `IntentCommerceWorkbench` component with WhatsApp phone simulation, live verified basket card, budget tracking progress bar, interactive substitution cards for `NEEDS_DECISION`, and consequential checkout gate (`explicit_confirmation` required).
+  - Rendered `IntentCommerceWorkbench` as the primary view in `app/page.tsx`.
+- **Task 11 — Documentation:**
+  - Created `docs/GOLDEN_FLOW.md` detailing the product thesis, 10-step sequence, architecture diagram, and automated verification matrix.
 
-**Next milestone:** Phase 7 — Deterministic Failure Simulation (Spec §15 & §20: scenario/failure injection at commerce boundary — OOS, brand deviation, pack size change, budget drift, stale cart, transient error).
+**Quality Gates:**
+- `pytest backend/tests -q`: 132/132 tests passed (100% green).
+- `npm run lint`: 0 errors, 0 warnings.
+- `npm run build`: Compiled successfully in Next.js 16 (Turbopack).
+- Branch: `refactor/intent-cleanroom` (preserved, zero modifications to `main`).
 
-**Consumer flow is intact:**
-```
-WhatsApp / UI → IntentChat API (/api/intent/chat)
-  ↓
-GrocerOrchestrator
-  ↓
-IntentParser (Phase 2) → IntentContract (Phase 1) → PolicyEngine (Phase 3)
-  ↓
-CommercePort (MockAdapter / SwiggyAdapter)
-  ↓
-IntentVerifier (Phase 4)
-  ├── PASS ──────────────────────────────────────────┐
-  └── FAIL → RecoveryEngine (Phase 5)                │
-               ├── RECOVERED → re-verify ────────────┤
-               ├── NEEDS_USER_DECISION → ask user ───┤
-               └── BLOCKED / FAILED                  │
-                                                     ↓
-                                        AWAITING_CONFIRMATION
-                                                     ↓
-                                    Explicit Confirmation (Spec §8.3)
-                                                     ↓
-                                            POST /confirm → ORDERED
-```
-Checkout guard (`explicit_confirmation`) confirmed active across `backend/api/customers.py`, `backend/api/intent_chat.py`, `AuthorizationScope`, and `IntentVerifier.verify_checkout()`.
 
 

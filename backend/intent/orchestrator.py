@@ -744,14 +744,11 @@ class GrocerOrchestrator:
         )
 
 
-<<<<<<< HEAD
-=======
 def _is_incremental_add(message: str) -> bool:
     lower = message.lower().strip()
     return lower.startswith(("add", "also add", "plus", "and add", "include"))
 
 
->>>>>>> b916129 (feat(intent): implement deterministic recovery loop, failure injection, and golden oos test)
 def _is_fresh_request(message: str) -> bool:
     """Heuristic: treat message as fresh grocery request vs a refinement."""
     lower = message.lower().strip()

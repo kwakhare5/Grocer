@@ -1,3 +1,17 @@
+# Tracer Bullets: Cleanroom Intent-Preserving Commerce & Golden Flow
+
+- [x] 1. Choice Integrity: Harden `handle_choice` in `backend/intent/orchestrator.py` and `backend/intent/session.py` <!-- id: 1 -->
+- [x] 2. Failure Injection: Add deterministic fault injection to `backend/integrations/commerce/mock_adapter.py` and `models.py` <!-- id: 2 -->
+- [x] 3. Recovery Hardening: Fix transient retry bug in `recovery.py` and create `backend/intent/recovery_loop.py` (`LoopingRecoveryEngine`) <!-- id: 3 -->
+- [x] 4. Verifier Hardening: Audit `backend/intent/verifier.py` for item availability and dietary token sanitization <!-- id: 4 -->
+- [x] 5. Golden Scenario: Implement flagship end-to-end OOS recovery test in `backend/tests/test_golden_oos_recovery.py` <!-- id: 5 -->
+- [x] 6. Checkout Safety: Add regression tests in `backend/tests/test_orchestrator.py` enforcing checkout confirmation invariants <!-- id: 6 -->
+- [x] 7. Frontend Workbench: Implement `components/customer/IntentCommerceWorkbench.tsx`, update `lib/apiClient.ts` and `app/page.tsx`, fix lint errors <!-- id: 7 -->
+- [x] 8. Full Validation: Run `pytest -q`, `npm run lint`, and `npm run build` <!-- id: 8 -->
+- [x] 9. Documentation: Document golden recovery flow in `docs/GOLDEN_FLOW.md` and update `AGENTS.md` / `JOURNAL.md` <!-- id: 9 -->
+
+---
+
 # GROCER — Active Task Board
 
 > **Source of truth:** `GROCER_V2_MASTER_SPEC.md`

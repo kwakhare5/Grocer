@@ -228,18 +228,18 @@ If the answer is no, it does not belong in GROCER v2 unless the master spec is d
 
 ## 15. SESSION RESUME
 
-**Last completed:** PR #1 Canonical Recovery Loop Unification & Regression Hardening (2026-09-06)
+**Last completed:** PR #1 Merged into Main — Intent-Preserving Cleanroom Architecture (2026-09-06)
 
-**Status:** ✅ Complete & Verified. Resolved PR #1 review finding: eliminated dual recovery paths by making `LoopingRecoveryEngine.run()` the single canonical source of truth, delegating `execute_recovery()` directly to `run()`, and updating `GrocerOrchestrator` to invoke `run()`. Added multi-turn live cart drift observation and existing cart item preservation across turns. Added 7 canonical regression tests in `test_canonical_recovery_regression.py`.
-Build 100% green: 98/98 backend tests passing (including 2 golden OOS flow tests and 7 canonical recovery regression tests), `npm run lint` 0 errors, `npm run build` 100% clean Next.js 16 Turbopack compile.
-PR #1 not merged. Branch `main` completely untouched (`06726f2`).
+**Status:** ✅ PR #1 Merged & Verified on `main`. Clarified test accounting (91 baseline tests including 2 golden OOS proof flows + 7 canonical recovery regression tests = 98 total tests). PR #1 merged via GitHub API into `main` (`6fc1629`).
+No scratch/experimental branches were merged; only `refactor/intent-cleanroom` was merged into `main`.
+Full quality gates re-verified directly on `main`: 98/98 tests passing in 0.36s, `npm run lint` 0 errors, `npm run build` compiled cleanly in 1.7s via Turbopack, and knowledge graph updated via `graphify update .`.
 
-**Quality Gates:**
+**Quality Gates (Verified on `main`):**
 - `pytest`: 98/98 tests passed (100% green).
 - `npm run lint`: 0 errors, 0 warnings.
 - `npm run build`: Compiled successfully in Next.js 16 (Turbopack).
-- Branch: strictly `refactor/intent-cleanroom`.
-- Remote `main`: `06726f20b3a3aa1f5ea5838cf6f1b23bce5ca56d` (untouched).
+- Remote `main`: Synchronized with local `main`.
+- Remote `refactor/intent-cleanroom`: Cleanroom branch preserved on GitHub.
 
 
 

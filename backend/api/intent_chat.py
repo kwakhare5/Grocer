@@ -1,46 +1,27 @@
-"""Intent Chat API — Phase 6 Agent Orchestration endpoints (Spec §12, §20).
-
-Endpoints:
-    POST   /api/intent/chat                    — main conversational turn
-    POST   /api/intent/sessions/{id}/choice    — resolve pending NEEDS_DECISION
-    POST   /api/intent/sessions/{id}/confirm   — explicit checkout confirmation
-    GET    /api/intent/sessions/{id}           — inspect session state
-    DELETE /api/intent/sessions/{id}           — clear/reset session
-
-Safety invariants (Spec §17):
-    - Checkout is rejected unless session is in AWAITING_CONFIRMATION state.
-    - explicit_confirmation must be True in the request body.
-    - Backend verifies the cart against intent before executing checkout.
-    - No autonomous checkout without explicit human confirmation.
-"""
+"""Intent Chat API — the canonical GROCER conversational commerce surface."""
 from __future__ import annotations
 
-from typing import Optional
+from fastapi import APIRouter, HTTPException, status
 
-from fastapi import APIRouter, HTTPException, Response, status
-
-from backend.intent.orchestrator import GrocerOrchestrator, OrchestratorTurnResult
-from backend.intent.session import ConversationState, default_session_store
-from backend.integrations.commerce.exceptions import UnconfirmedCheckoutError
 from backend.api.schemas import (
+    BasketItemSchema,
+    BasketSummarySchema,
+    ClarificationOptionSchema,
     IntentChatRequest,
     IntentChatResponse,
     IntentChoiceRequest,
     IntentConfirmRequest,
     IntentSessionStateResponse,
-    BasketSummarySchema,
-    BasketItemSchema,
-    ClarificationOptionSchema,
 )
+from backend.integrations.commerce.exceptions import UnconfirmedCheckoutError
+from backend.intent.orchestrator import GrocerOrchestrator, OrchestratorTurnResult
+from backend.intent.session import default_session_store
 
 router = APIRouter(prefix="/api/intent", tags=["intent"])
-
-# Module-level orchestrator (stateless; sessions live in default_session_store)
 _orchestrator = GrocerOrchestrator()
 
 
 def _turn_to_response(result: OrchestratorTurnResult) -> IntentChatResponse:
-    """Map OrchestratorTurnResult → IntentChatResponse."""
     basket = None
     if result.basket_summary:
         b = result.basket_summary
@@ -93,17 +74,9 @@ def _turn_to_response(result: OrchestratorTurnResult) -> IntentChatResponse:
     )
 
 
-# ---------------------------------------------------------------------------
-# POST /api/intent/chat — main conversational turn
-# ---------------------------------------------------------------------------
-
 @router.post("/chat", response_model=IntentChatResponse)
 async def intent_chat(payload: IntentChatRequest) -> IntentChatResponse:
-    """Process one WhatsApp conversational turn through the full commerce loop.
-
-    Parses intent, resolves products, builds cart, verifies, recovers if needed.
-    Returns basket summary and state — does NOT execute checkout.
-    """
+    """Process one WhatsApp conversational turn without executing checkout."""
     result = await _orchestrator.handle_turn(
         session_id=payload.session_id,
         customer_id=payload.customer_id,
@@ -113,20 +86,28 @@ async def intent_chat(payload: IntentChatRequest) -> IntentChatResponse:
     return _turn_to_response(result)
 
 
-# ---------------------------------------------------------------------------
-# POST /api/intent/sessions/{session_id}/choice — resolve clarification
-# ---------------------------------------------------------------------------
-
 @router.post("/sessions/{session_id}/choice", response_model=IntentChatResponse)
 async def intent_choice(
     session_id: str,
     payload: IntentChoiceRequest,
 ) -> IntentChatResponse:
-    """Resolve a pending NEEDS_DECISION turn with the user's chosen product.
+    """Accept only a candidate that was actually offered for this session."""
+    session = default_session_store.get(session_id)
+    if session is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found.")
+    pending = session.pending_clarification
+    if pending is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="No pending product choice for this session.",
+        )
+    allowed = {candidate.spin_id for candidate in pending.candidates}
+    if payload.chosen_spin_id not in allowed:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="chosen_spin_id is not one of the offered alternatives.",
+        )
 
-    The chosen_spin_id must be one of the options returned in the
-    previous IntentChatResponse.clarification_options.
-    """
     result = await _orchestrator.handle_choice(
         session_id=session_id,
         chosen_spin_id=payload.chosen_spin_id,
@@ -134,23 +115,12 @@ async def intent_choice(
     return _turn_to_response(result)
 
 
-# ---------------------------------------------------------------------------
-# POST /api/intent/sessions/{session_id}/confirm — checkout confirmation
-# ---------------------------------------------------------------------------
-
 @router.post("/sessions/{session_id}/confirm", response_model=IntentChatResponse)
 async def intent_confirm(
     session_id: str,
     payload: IntentConfirmRequest,
 ) -> IntentChatResponse:
-    """Execute checkout with explicit user confirmation (Spec §8.3).
-
-    CRITICAL INVARIANT: explicit_confirmation must be True.
-    Returns 400 if:
-        - explicit_confirmation is False.
-        - session is not in AWAITING_CONFIRMATION state.
-        - pre-checkout verification fails.
-    """
+    """Execute checkout only after explicit confirmation and pre-check verification."""
     if not payload.explicit_confirmation:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -163,23 +133,13 @@ async def intent_confirm(
             address_id=payload.address_id,
         )
     except UnconfirmedCheckoutError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(exc),
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
     return _turn_to_response(result)
 
 
-# ---------------------------------------------------------------------------
-# GET /api/intent/sessions/{session_id} — session state inspection
-# ---------------------------------------------------------------------------
-
 @router.get("/sessions/{session_id}", response_model=IntentSessionStateResponse)
 async def get_session(session_id: str) -> IntentSessionStateResponse:
-    """Return current session state for the given session_id.
-
-    Returns 404 if session has not been created yet.
-    """
+    """Return current state for a conversational commerce session."""
     session = default_session_store.get(session_id)
     if session is None:
         raise HTTPException(
@@ -199,12 +159,8 @@ async def get_session(session_id: str) -> IntentSessionStateResponse:
     )
 
 
-# ---------------------------------------------------------------------------
-# DELETE /api/intent/sessions/{session_id} — reset session
-# ---------------------------------------------------------------------------
-
 @router.delete("/sessions/{session_id}")
 async def clear_session(session_id: str) -> dict:
-    """Clear and reset a session. Useful for starting a fresh shopping task."""
+    """Clear a session so the next turn starts a fresh commerce task."""
     default_session_store.clear(session_id)
     return {"cleared": True, "session_id": session_id}

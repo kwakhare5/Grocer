@@ -775,19 +775,38 @@ class RecoveryEngine:
             return cart, verification_result, outcome
 
         # Apply actions to commerce cart
-        updates: list[CartItemUpdate] = []
-        removed_spins = {a.removes_spin_id for a in outcome.recovery_actions if a.removes_spin_id}
-        for item in cart.items:
-            if item.spin_id not in removed_spins:
-                updates.append(CartItemUpdate(spin_id=item.spin_id, quantity=item.quantity))
+        mutation_actions = [
+            a for a in outcome.recovery_actions
+            if a.action_type in ("add_item", "replace_item", "remove_item", "adjust_quantity")
+        ]
 
-        for action in outcome.recovery_actions:
-            if action.action_type in ("add_item", "replace_item"):
-                updates.append(CartItemUpdate(spin_id=action.spin_id, quantity=action.quantity))
+        if mutation_actions:
+            updates: list[CartItemUpdate] = []
+            removed_spins = {a.removes_spin_id for a in mutation_actions if a.removes_spin_id}
+            removed_spins.update(
+                a.spin_id for a in mutation_actions if a.action_type == "remove_item"
+            )
+            adjusted_quantities = {
+                a.spin_id: a.quantity
+                for a in mutation_actions
+                if a.action_type == "adjust_quantity"
+            }
 
-        updated_cart = await commerce_port.update_cart(
-            items=updates, cart_id=cart_id, address_id=address_id
-        )
+            for item in cart.items:
+                if item.spin_id not in removed_spins:
+                    qty = adjusted_quantities.get(item.spin_id, item.quantity)
+                    updates.append(CartItemUpdate(spin_id=item.spin_id, quantity=qty))
+
+            for action in mutation_actions:
+                if action.action_type in ("add_item", "replace_item"):
+                    updates.append(CartItemUpdate(spin_id=action.spin_id, quantity=action.quantity))
+
+            updated_cart = await commerce_port.update_cart(
+                items=updates, cart_id=cart_id, address_id=address_id
+            )
+        else:
+            # Non-mutating recovery action (retry or refresh_cart): controlled live re-fetch
+            updated_cart = await commerce_port.get_cart(cart_id)
 
         # Verify again!
         new_v_result = verifier.verify(contract, updated_cart)
@@ -798,4 +817,5 @@ class RecoveryEngine:
             outcome.remaining_violations = new_v_result.violations
 
         return updated_cart, new_v_result, outcome
+
 

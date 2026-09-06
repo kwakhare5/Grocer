@@ -237,11 +237,155 @@ async def test_handle_choice_valid_spin(
         session_id=session_id,
         chosen_spin_id="SPIN-MILK-500ML",
     )
-    # Should re-verify and move to AWAITING_CONFIRMATION (milk in cart, constraint PASS)
-    assert result.conversation_state in (
-        ConversationState.AWAITING_CONFIRMATION,
-        ConversationState.FAILED,  # acceptable if verifier has more constraints
+    assert result.conversation_state == ConversationState.AWAITING_CONFIRMATION
+    assert result.requires_confirmation is True
+
+
+@pytest.mark.asyncio
+async def test_handle_choice_preserves_unrelated_items_and_quantity(
+    orchestrator: GrocerOrchestrator,
+    mock_adapter: MockCommerceAdapter,
+    fresh_store: OrchestratorSessionStore,
+) -> None:
+    """handle_choice must preserve other basket items and respect intended quantity."""
+    session_id, customer_id = new_session()
+    cart_id = f"cart-{session_id}"
+
+    # Pre-populate cart with bread (unrelated item)
+    from backend.integrations.commerce.models import CartItemUpdate
+    await mock_adapter.update_cart(
+        items=[CartItemUpdate(spin_id="SPIN-BREAD-400G", quantity=2)],
+        cart_id=cart_id,
     )
+
+    session = fresh_store.get_or_create(session_id, customer_id)
+    session.conversation_state = ConversationState.NEEDS_DECISION
+    session.cart_id = cart_id
+
+    from backend.intent.parser import IntentParser
+    contract = IntentParser().parse("get me 2 packs of milk and 2 packs of bread", session_id=session_id)
+    session.intent_contract = contract
+
+    from backend.intent.session import PendingClarification
+    from backend.intent.recovery import RecoveryCandidate
+    session.pending_clarification = PendingClarification(
+        item_name="milk",
+        candidates=[
+            RecoveryCandidate(
+                spin_id="SPIN-MILK-500ML",
+                name="Amul Taaza Milk 500ml",
+                pack_size="500 ml",
+                price=34.0,
+                category="dairy",
+                score=0.85,
+            )
+        ],
+        clarification_question="Which milk would you prefer?",
+        intended_quantity=2,
+    )
+    fresh_store.save(session)
+
+    result = await orchestrator.handle_choice(
+        session_id=session_id,
+        chosen_spin_id="SPIN-MILK-500ML",
+    )
+
+    assert result.conversation_state == ConversationState.AWAITING_CONFIRMATION
+    live_cart = await mock_adapter.get_cart(cart_id)
+    items_by_spin = {it.spin_id: it for it in live_cart.items}
+
+    # Verify unrelated bread is PRESERVED with its quantity 2
+    assert "SPIN-BREAD-400G" in items_by_spin
+    assert items_by_spin["SPIN-BREAD-400G"].quantity == 2
+
+    # Verify chosen milk is ADDED with intended quantity 2
+    assert "SPIN-MILK-500ML" in items_by_spin
+    assert items_by_spin["SPIN-MILK-500ML"].quantity == 2
+
+
+@pytest.mark.asyncio
+async def test_handle_choice_invalid_unlisted_rejected(
+    orchestrator: GrocerOrchestrator,
+    fresh_store: OrchestratorSessionStore,
+) -> None:
+    """handle_choice rejects spins not in pending_clarification.candidates."""
+    session_id, customer_id = new_session()
+    session = fresh_store.get_or_create(session_id, customer_id)
+    session.conversation_state = ConversationState.NEEDS_DECISION
+    session.cart_id = f"cart-{session_id}"
+
+    from backend.intent.parser import IntentParser
+    session.intent_contract = IntentParser().parse("get me milk", session_id=session_id)
+
+    from backend.intent.session import PendingClarification
+    from backend.intent.recovery import RecoveryCandidate
+    session.pending_clarification = PendingClarification(
+        item_name="milk",
+        candidates=[
+            RecoveryCandidate(
+                spin_id="SPIN-MILK-500ML",
+                name="Amul Taaza Milk 500ml",
+                pack_size="500 ml",
+                price=34.0,
+                category="dairy",
+                score=0.8,
+            )
+        ],
+        clarification_question="Which milk?",
+    )
+    fresh_store.save(session)
+
+    result = await orchestrator.handle_choice(
+        session_id=session_id,
+        chosen_spin_id="SPIN-UNLISTED-RANDOM",
+    )
+
+    # Must NOT transition to AWAITING_CONFIRMATION or crash; remains in NEEDS_DECISION
+    assert result.conversation_state == ConversationState.NEEDS_DECISION
+    assert "not one of the available options" in result.user_message
+
+
+@pytest.mark.asyncio
+async def test_handle_choice_violating_hard_constraint_handled_safely(
+    orchestrator: GrocerOrchestrator,
+    fresh_store: OrchestratorSessionStore,
+) -> None:
+    """If user choice violates a hard constraint (e.g. eggs chosen with vegetarian contract), do not silently accept."""
+    session_id, customer_id = new_session()
+    session = fresh_store.get_or_create(session_id, customer_id)
+    session.conversation_state = ConversationState.NEEDS_DECISION
+    session.cart_id = f"cart-{session_id}"
+
+    from backend.intent.parser import IntentParser
+    contract = IntentParser().parse("get me snacks, strictly vegetarian", session_id=session_id)
+    session.intent_contract = contract
+
+    from backend.intent.session import PendingClarification
+    from backend.intent.recovery import RecoveryCandidate
+    session.pending_clarification = PendingClarification(
+        item_name="snacks",
+        candidates=[
+            RecoveryCandidate(
+                spin_id="SPIN-EGGS-6",
+                name="Farm Fresh Eggs (6 pcs)",
+                pack_size="6 pcs",
+                price=48.0,
+                category="poultry",
+                score=0.5,
+            )
+        ],
+        clarification_question="Which snack?",
+    )
+    fresh_store.save(session)
+
+    result = await orchestrator.handle_choice(
+        session_id=session_id,
+        chosen_spin_id="SPIN-EGGS-6",
+    )
+
+    # Must NOT accept eggs for a vegetarian contract
+    assert result.conversation_state in (ConversationState.NEEDS_DECISION, ConversationState.FAILED)
+    assert result.requires_confirmation is False
 
 
 # ---------------------------------------------------------------------------
@@ -261,6 +405,32 @@ async def test_handle_choice_wrong_state(
     )
     assert result.conversation_state == ConversationState.READY
     assert "No pending decision" in result.user_message
+
+
+@pytest.mark.asyncio
+async def test_checkout_safety_no_unconfirmed_checkout(
+    orchestrator: GrocerOrchestrator, fresh_store: OrchestratorSessionStore
+) -> None:
+    """Checkout must strictly require AWAITING_CONFIRMATION state and cannot be bypassed."""
+    session_id, customer_id = new_session()
+    session = fresh_store.get_or_create(session_id, customer_id)
+
+    # In READY state
+    with pytest.raises(UnconfirmedCheckoutError):
+        await orchestrator.handle_confirm(session_id=session_id)
+
+    # In NEEDS_DECISION state
+    session.conversation_state = ConversationState.NEEDS_DECISION
+    fresh_store.save(session)
+    with pytest.raises(UnconfirmedCheckoutError):
+        await orchestrator.handle_confirm(session_id=session_id)
+
+    # In FAILED state
+    session.conversation_state = ConversationState.FAILED
+    fresh_store.save(session)
+    with pytest.raises(UnconfirmedCheckoutError):
+        await orchestrator.handle_confirm(session_id=session_id)
+
 
 
 # ---------------------------------------------------------------------------

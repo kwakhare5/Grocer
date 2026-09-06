@@ -53,7 +53,6 @@ from backend.intent.recovery import (
     RecoveryOutcome,
     RecoveryState,
 )
-from backend.intent.recovery_loop import LoopingRecoveryEngine
 from backend.intent.session import (
     BasketItem,
     BasketSummary,
@@ -64,7 +63,14 @@ from backend.intent.session import (
     PendingClarification,
     default_session_store,
 )
-from backend.intent.orchestrator import GrocerOrchestrator, OrchestratorTurnResult
+from backend.intent.orchestrator import (
+    GrocerOrchestrator,
+    OrchestratorTurnResult,
+)
+from backend.intent.recovery_loop import (
+    LoopingRecoveryEngine,
+    LoopingRecoveryResult,
+)
 
 __all__ = [
     "ConstraintType",
@@ -120,4 +126,8 @@ __all__ = [
     "default_session_store",
     "GrocerOrchestrator",
     "OrchestratorTurnResult",
+    # Recovery Loop (Phase 5/7)
+    "LoopingRecoveryEngine",
+    "LoopingRecoveryResult",
 ]
+

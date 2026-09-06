@@ -332,10 +332,27 @@ class GrocerOrchestrator:
             question = outcome.message or (
                 f"Your usual {item_name} is unavailable. Which alternative would you prefer?"
             )
+            removes_spin_id = None
+            intended_quantity = 1
+            if outcome.recovery_actions:
+                top_act = outcome.recovery_actions[0]
+                removes_spin_id = top_act.removes_spin_id
+                intended_quantity = max(1, top_act.quantity)
+            else:
+                matched_cart_item = next(
+                    (ci for ci in cart.items if item_name.lower() in ci.name.lower() or ci.name.lower() in item_name.lower()),
+                    None,
+                )
+                if matched_cart_item:
+                    removes_spin_id = matched_cart_item.spin_id
+                    intended_quantity = matched_cart_item.quantity
+
             session.pending_clarification = PendingClarification(
                 item_name=item_name,
                 candidates=candidates,
                 clarification_question=question,
+                removes_spin_id=removes_spin_id,
+                intended_quantity=intended_quantity,
             )
             session.conversation_state = ConversationState.NEEDS_DECISION
             self._store.save(session)
@@ -372,7 +389,10 @@ class GrocerOrchestrator:
                 events=["SESSION_NOT_FOUND"],
             )
 
-        if session.conversation_state != ConversationState.NEEDS_DECISION:
+        if (
+            session.conversation_state != ConversationState.NEEDS_DECISION
+            or not session.pending_clarification
+        ):
             return OrchestratorTurnResult(
                 session_id=session_id,
                 conversation_state=session.conversation_state,
@@ -380,14 +400,102 @@ class GrocerOrchestrator:
                 events=["NO_PENDING_DECISION"],
             )
 
+        # 1. Validate chosen_spin_id strictly inside orchestrator
+        pending = session.pending_clarification
+        matching_candidate = next(
+            (c for c in pending.candidates if c.spin_id == chosen_spin_id),
+            None,
+        )
+        if matching_candidate is None:
+            options = _candidates_to_options(pending.candidates)
+            events = list(session.events) + [f"INVALID_CHOICE spin_id={chosen_spin_id}"]
+            return OrchestratorTurnResult(
+                session_id=session_id,
+                conversation_state=ConversationState.NEEDS_DECISION,
+                user_message=(
+                    f"'{chosen_spin_id}' is not one of the available options. Please choose from:\n"
+                    + _msg_clarification(pending.clarification_question, options)
+                ),
+                clarification_options=options,
+                events=events,
+            )
+
         events: list[str] = [f"USER_CHOICE spin_id={chosen_spin_id}"]
         contract = session.intent_contract
+        if contract is None:
+            session.conversation_state = ConversationState.FAILED
+            self._store.save(session)
+            return OrchestratorTurnResult(
+                session_id=session_id,
+                conversation_state=ConversationState.FAILED,
+                user_message=_msg_failed("no active intent contract"),
+                events=events,
+            )
+
         effective_address = session.address_id or f"addr-{session.customer_id}"
         cart_id = session.cart_id or f"cart-{session_id}"
 
+        # 2. Fetch live cart to preserve all existing items
+        try:
+            current_cart = await self._port.get_cart(cart_id)
+        except Exception as exc:
+            session.conversation_state = ConversationState.FAILED
+            self._store.save(session)
+            return OrchestratorTurnResult(
+                session_id=session_id,
+                conversation_state=ConversationState.FAILED,
+                user_message=_msg_failed(f"could not fetch cart: {exc}"),
+                events=events,
+            )
+
+        # 3. Determine quantity to add / replace
+        quantity = pending.intended_quantity
+        intent_item = next(
+            (
+                item
+                for item in contract.items
+                if item.name.lower() in pending.item_name.lower()
+                or pending.item_name.lower() in item.name.lower()
+            ),
+            None,
+        )
+        if intent_item and contract.pack_size_rules.preferred_multiples:
+            engine = RecoveryEngine(policy_engine=self._policy)
+            multiple = engine._calculate_pack_multiple(intent_item, matching_candidate.pack_size)
+            if multiple > 1:
+                quantity = multiple * max(1, int(intent_item.quantity))
+
+        removes_spin_id = pending.removes_spin_id
+        if not removes_spin_id:
+            matched = next(
+                (
+                    ci
+                    for ci in current_cart.items
+                    if pending.item_name.lower() in ci.name.lower()
+                    or ci.name.lower() in pending.item_name.lower()
+                ),
+                None,
+            )
+            if matched:
+                removes_spin_id = matched.spin_id
+
+        # 4. Build cart updates preserving ALL other items
+        updates: list[CartItemUpdate] = []
+        replaced = False
+        for ci in current_cart.items:
+            if removes_spin_id and ci.spin_id == removes_spin_id:
+                updates.append(CartItemUpdate(spin_id=chosen_spin_id, quantity=quantity))
+                replaced = True
+            else:
+                updates.append(CartItemUpdate(spin_id=ci.spin_id, quantity=ci.quantity))
+
+        if not replaced:
+            updates.append(CartItemUpdate(spin_id=chosen_spin_id, quantity=quantity))
+
+        # 5. Apply update to commerce port
         try:
             cart = await self._port.update_cart(
-                items=[CartItemUpdate(spin_id=chosen_spin_id, quantity=1)],
+                items=updates,
                 cart_id=cart_id,
                 address_id=effective_address,
             )
@@ -401,38 +509,73 @@ class GrocerOrchestrator:
                 events=events,
             )
 
-        session.pending_clarification = None
         events.append(f"CART_UPDATED cart_id={cart_id}")
 
-        if contract is None:
+        # 6. Re-verify full cart against full intent
+        verification = self._verifier.verify(contract, cart)
+        session.last_verification = {"status": verification.status.value}
+        events.append(f"VERIFICATION_{verification.status.value.upper()}")
+
+        if verification.status == VerificationStatus.PASS:
+            session.pending_clarification = None
+            return self._make_awaiting_confirmation(
+                session, contract, cart, [f"Applied your choice: {matching_candidate.name}."], events
+            )
+
+        # 7. If chosen option still violates intent (e.g. hard budget or dietary)
+        events.append("CHOICE_VIOLATION_DETECTED")
+        reason = (
+            verification.violations[0].detail if verification.violations else "constraint violation"
+        )
+
+        try:
+            available: list[CommerceProductItem] = await self._port.get_go_to_items(effective_address)
+        except Exception:
+            available = []
+
+        engine = RecoveryEngine(policy_engine=self._policy)
+        outcome = engine.recover(
+            contract=contract,
+            cart=cart,
+            verification_result=verification,
+            available_products=available,
+            attempt_number=1,
+            max_attempts=3,
+        )
+
+        if outcome.state == RecoveryState.NEEDS_USER_DECISION:
+            new_candidates = outcome.candidates_for_user or []
+            options = _candidates_to_options(new_candidates)
+            session.pending_clarification = PendingClarification(
+                item_name=(
+                    verification.violations[0].target
+                    if verification.violations
+                    else pending.item_name
+                ),
+                candidates=new_candidates,
+                clarification_question=outcome.message,
+                removes_spin_id=chosen_spin_id,
+                intended_quantity=quantity,
+            )
+            session.conversation_state = ConversationState.NEEDS_DECISION
+            self._store.save(session)
+            return OrchestratorTurnResult(
+                session_id=session_id,
+                conversation_state=ConversationState.NEEDS_DECISION,
+                user_message=f"That choice causes an issue: {reason}. {outcome.message}",
+                clarification_options=options,
+                events=events,
+            )
+        else:
+            session.pending_clarification = None
             session.conversation_state = ConversationState.FAILED
             self._store.save(session)
             return OrchestratorTurnResult(
                 session_id=session_id,
                 conversation_state=ConversationState.FAILED,
-                user_message=_msg_failed("no active intent contract"),
+                user_message=_msg_failed(f"Selected option cannot be used: {reason}"),
                 events=events,
             )
-
-        verification = self._verifier.verify(contract, cart)
-        events.append(f"VERIFICATION_{verification.status.value.upper()}")
-
-        if verification.status == VerificationStatus.PASS:
-            return self._make_awaiting_confirmation(
-                session, contract, cart, ["Applied your choice."], events
-            )
-
-        reason = (
-            verification.violations[0].detail if verification.violations else "constraint violation"
-        )
-        session.conversation_state = ConversationState.FAILED
-        self._store.save(session)
-        return OrchestratorTurnResult(
-            session_id=session_id,
-            conversation_state=ConversationState.FAILED,
-            user_message=_msg_failed(reason),
-            events=events,
-        )
 
     async def handle_confirm(
         self,
@@ -537,8 +680,10 @@ class GrocerOrchestrator:
         """Parse message → IntentContract, inheriting session_id."""
         contract = self._parser.parse(message, session_id=session.session_id)
         if session.intent_contract and not _is_fresh_request(message):
-            contract = _merge_contracts(session.intent_contract, contract)
-        events.append(f"INTENT_PARSED goal={contract.goal!r} items={len(contract.items)}")
+            contract = _merge_contracts(session.intent_contract, contract, message)
+        events.append(
+            f"INTENT_PARSED goal={contract.goal!r} items={len(contract.items)}"
+        )
         return contract
 
     def _apply_preferences(self, contract: IntentContract, customer_id: str, events: list[str]) -> None:
@@ -599,23 +744,46 @@ class GrocerOrchestrator:
         )
 
 
+<<<<<<< HEAD
+=======
+def _is_incremental_add(message: str) -> bool:
+    lower = message.lower().strip()
+    return lower.startswith(("add", "also add", "plus", "and add", "include"))
+
+
+>>>>>>> b916129 (feat(intent): implement deterministic recovery loop, failure injection, and golden oos test)
 def _is_fresh_request(message: str) -> bool:
     """Heuristic: treat message as fresh grocery request vs a refinement."""
+    lower = message.lower().strip()
+    if _is_incremental_add(message):
+        return False
     fresh_keywords = {
         "get", "buy", "order", "weekly", "monthly", "groceries",
         "vegetables", "staples", "restock", "need",
     }
-    lower = message.lower()
     return any(kw in lower for kw in fresh_keywords)
 
 
-def _merge_contracts(existing: IntentContract, new: IntentContract) -> IntentContract:
+def _merge_contracts(
+    existing: IntentContract, new: IntentContract, message: str = ""
+) -> IntentContract:
     """Merge new contract onto existing, respecting intent precedence (Spec §5.3)."""
-    if new.items:
-        return new
     merged = copy.deepcopy(existing)
     merged.intent_id = new.intent_id
     merged.version = existing.version + 1
+
+    if _is_incremental_add(message):
+        existing_names = {it.name.lower() for it in merged.items}
+        for it in new.items:
+            if it.name.lower() not in existing_names:
+                merged.items.append(it)
+        if new.budget and new.budget.max_budget:
+            merged.budget = new.budget
+        return merged
+
+    if new.items:
+        return new  # New explicit request wins entirely
+
     if new.goal:
         merged.goal = new.goal
     if new.hard_constraints:
@@ -623,3 +791,4 @@ def _merge_contracts(existing: IntentContract, new: IntentContract) -> IntentCon
     if new.budget and new.budget.max_budget:
         merged.budget = new.budget
     return merged
+

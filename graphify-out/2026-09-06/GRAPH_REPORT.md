@@ -1,16 +1,16 @@
 # Graph Report - Grocer  (2026-09-06)
 
 ## Corpus Check
-- 123 files · ~135,181 words
+- 128 files · ~143,260 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 1902 nodes · 4392 edges · 108 communities (98 shown, 10 thin omitted)
-- Extraction: 90% EXTRACTED · 10% INFERRED · 0% AMBIGUOUS · INFERRED: 418 edges (avg confidence: 0.51)
+- 1973 nodes · 4672 edges · 114 communities (101 shown, 13 thin omitted)
+- Extraction: 90% EXTRACTED · 10% INFERRED · 0% AMBIGUOUS · INFERRED: 445 edges (avg confidence: 0.51)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `ede06908`
+- Built from commit: `06726f20`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -18,7 +18,7 @@
 - SwiggyMCPAdapter
 - main.py
 - tools.py
-- AgentState
+- agent.py
 - AGENTS.md — GROCER Project Rules
 - MockCommerceAdapter
 - compilerOptions
@@ -46,7 +46,7 @@
 - UUID
 - Changes Made
 - apiClient.ts
-- risk/engine.py
+- risk/models.py
 - Log Entries
 - 7. Phase 5 — Recovery engine
 - 5. Phase 3 — Policy and memory
@@ -60,7 +60,7 @@
 - graphify
 - workflows/graphify.md
 - simulations.py
-- recovery.py
+- _make_contract
 - decision/models.py
 - 11. Conversation behavior
 - 3.1 IN SCOPE
@@ -82,12 +82,12 @@
 - next.config.ts
 - next-env.d.ts
 - postcss.config.mjs
-- Tracer Bullets: Codebase Cleanup, Architecture Refactoring & Bloat Purge
+- task.md
 - 11. Phase 9 — Live Swiggy hardening
 - 3. Phase 1 — Intent Contract
 - 9. Phase 7 — Deterministic failure simulation
 - test_health_endpoint_reports_db_status
-- 23. Anti-drift rules for coding agents
+- IntentItem
 - IMPLEMENTATION_PLAN.md
 - 4. Product job-to-be-done
 - 2. Component Disposition (REUSE / REFACTOR / DELETE / MISSING / RISK)
@@ -97,75 +97,81 @@
 - GrocerOrchestrator
 - IntentParser
 - RuleBasedExtractor
-- Event
+- asyncio
 - GROCER_V2_MASTER_SPEC.md
 - Batch
-- SimulationClock
+- GROCER v2 — Flagship Golden Flow: Intent-Preserving Grocery Replenishment
 - swiggy_adapter.py
 - OrchestratorSessionStore
 - agents/__init__.py
 - services/__init__.py
 - IntentSessionStore
-- .handle_choice
-- PrecedenceLevel
+- PendingClarification
+- ._make_awaiting_confirmation
 - .to_summary_dict
 - 8. Phase 6 — Agent orchestration
+- ._parse_intent
+- orchestrator
+- 19. Repository boundary and cleanup
+- test_handle_choice_preserves_unrelated_items_and_quantity
 - 2. Phase 0 — Consumer boundary cleanup
+- test_handle_choice_invalid_unlisted_rejected
+- test_handle_choice_violating_hard_constraint_handled_safely
 - AGENTS.md — GROCER Coding Agent Contract
 - CommercePort
 
 ## God Nodes (most connected - your core abstractions)
-1. `IntentContract` - 71 edges
-2. `CommerceCart` - 58 edges
-3. `RecoveryEngine` - 55 edges
-4. `GrocerOrchestrator` - 48 edges
-5. `ConstraintType` - 47 edges
-6. `VerificationResult` - 47 edges
-7. `IntentVerifier` - 46 edges
-8. `CustomerService` - 45 edges
-9. `CommercePort` - 44 edges
-10. `CommerceProductItem` - 43 edges
+1. `IntentContract` - 77 edges
+2. `CommerceCart` - 62 edges
+3. `RecoveryEngine` - 60 edges
+4. `MockCommerceAdapter` - 56 edges
+5. `CartItemUpdate` - 54 edges
+6. `GrocerOrchestrator` - 54 edges
+7. `IntentVerifier` - 54 edges
+8. `VerificationResult` - 50 edges
+9. `CommercePort` - 48 edges
+10. `CommerceProductItem` - 47 edges
 
 ## Surprising Connections (you probably didn't know these)
-- `build_execution_graph()` --indirect_call--> `node_execute()`  [INFERRED]
-  backend/agents/execution/graph.py → backend/agents/execution/nodes.py
-- `build_execution_graph()` --indirect_call--> `node_recover()`  [INFERRED]
-  backend/agents/execution/graph.py → backend/agents/execution/nodes.py
+- `RunResult` --uses--> `AgentState`  [INFERRED]
+  backend/agents/execution/runner.py → backend/agents/execution/state.py
+- `ExecutionRunner` --uses--> `AgentState`  [INFERRED]
+  backend/agents/execution/runner.py → backend/agents/execution/state.py
 - `EventBus` --uses--> `Event`  [INFERRED]
   backend/events/bus.py → backend/models/core.py
+- `MockCommerceAdapter` --uses--> `CommerceError`  [INFERRED]
+  backend/integrations/commerce/mock_adapter.py → backend/integrations/commerce/exceptions.py
 - `SwiggyMCPAdapter` --uses--> `CommerceError`  [INFERRED]
   backend/integrations/commerce/swiggy_adapter.py → backend/integrations/commerce/exceptions.py
-- `MockCommerceAdapter` --uses--> `UnconfirmedCheckoutError`  [INFERRED]
-  backend/integrations/commerce/mock_adapter.py → backend/integrations/commerce/exceptions.py
 
 ## Import Cycles
 - None detected.
 
-## Communities (108 total, 10 thin omitted)
+## Communities (114 total, 13 thin omitted)
 
 ### Community 0 - "SwiggyMCPAdapter"
-Cohesion: 0.18
-Nodes (8): PaymentOption, Available payment method., Fetch available payment methods (UPI, Cash on Delivery)., Any, Classify errors from Swiggy envelope per official error taxonomy., Production adapter for Swiggy Instamart MCP server., Execute JSON-RPC tool call against Swiggy Instamart MCP endpoint., SwiggyMCPAdapter
+Cohesion: 0.24
+Nodes (5): Any, Classify errors from Swiggy envelope per official error taxonomy., Production adapter for Swiggy Instamart MCP server., Execute JSON-RPC tool call against Swiggy Instamart MCP endpoint., SwiggyMCPAdapter
 
 ### Community 1 - "main.py"
 Cohesion: 0.13
 Nodes (13): do_run_migrations(), run_async_migrations(), run_migrations_online(), health_check(), AsyncSession, get, Health check endpoint. Verifies API and database connectivity., Settings (+5 more)
 
 ### Community 2 - "tools.py"
-Cohesion: 0.10
-Nodes (43): _enum_val(), node_execute(), node_recover(), Any, LangGraph node functions for the GROCER v2 execution agent (spec section 19).…, Dispatch to the appropriate tool based on action_type. HOLD: no-op execution…, Handle execution failure: recalculate alternatives, require human review. Per…, apply_discount() (+35 more)
+Cohesion: 0.07
+Nodes (59): build_execution_graph(), LangGraph StateGraph wiring for the GROCER v2 execution agent (spec section…, Fail fast if validate produced an error., Divert to recover if world state has changed., Divert to recover on execution error., Divert to recover if verification failed., Build and return the compiled LangGraph execution graph., _route_after_execute() (+51 more)
 
-### Community 3 - "AgentState"
-Cohesion: 0.06
-Nodes (47): build_execution_graph(), LangGraph StateGraph wiring for the GROCER v2 execution agent (spec section…, Fail fast if validate produced an error., Divert to recover if world state has changed., Divert to recover on execution error., Divert to recover if verification failed., Build and return the compiled LangGraph execution graph., _route_after_execute() (+39 more)
+### Community 3 - "agent.py"
+Cohesion: 0.10
+Nodes (24): Execution agent subpackage -- LangGraph 5-node execution graph., ExecutionRunner, _naive_now(), AsyncSession, datetime, UUID, Agent ExecutionRunner -- async entry point for the execution graph. Usage:…, Typed result returned by ExecutionRunner.run(). (+16 more)
 
 ### Community 4 - "AGENTS.md — GROCER Project Rules"
 Cohesion: 0.10
 Nodes (19): 10. SWIGGY MCP RULES, 11. UI RULES, 12. SAFETY INVARIANTS, 13. QUALITY GATE, 14. DECISION RULE FOR NEW IDEAS, 15. SESSION RESUME, 1. PROJECT IDENTITY — LOCKED, 2. TARGET FLOW (+11 more)
 
 ### Community 5 - "MockCommerceAdapter"
-Cohesion: 0.10
-Nodes (20): MinOrderNotMetError, Raised when cart grand total is below minimum order threshold., MockCommerceAdapter, High-fidelity mock commerce adapter for local simulation and testing., Deterministic in-memory commerce simulation adapter., CartItem, CommerceOrderResult, DeliveryAddress (+12 more)
+Cohesion: 0.09
+Nodes (14): MinOrderNotMetError, Raised when cart grand total is below minimum order threshold., MockCommerceAdapter, Deterministic in-memory commerce simulation adapter with failure injection., Initialize instance-isolated catalog copies., Simulate an item variant going out of stock in real-time., Simulate a supplier or store-level price surge., Simulate session expiry or store becoming unserviceable. (+6 more)
 
 ### Community 6 - "compilerOptions"
 Cohesion: 0.07
@@ -173,7 +179,7 @@ Nodes (28): dom, dom.iterable, esnext, **/*.mts, .next/dev/types/**/*.ts, next-e
 
 ### Community 7 - "ConstraintType"
 Cohesion: 0.08
-Nodes (76): AmbiguitySeverity, BrandTolerance, ConstraintType, PreferenceType, Enum, str, Domain enums for GROCER Intent Contract (Spec §5). Encodes explicit vocabulary…, Categorization for hard non-negotiable boundaries. (+68 more)
+Nodes (72): AmbiguitySeverity, BrandTolerance, ConstraintType, PrecedenceLevel, PreferenceType, Enum, str, Domain enums for GROCER Intent Contract (Spec §5). Encodes explicit vocabulary… (+64 more)
 
 ### Community 8 - "ARCHITECTURE.md — GROCER v2"
 Cohesion: 0.07
@@ -213,7 +219,7 @@ Nodes (8): 15. Deterministic failure simulation, Initial scenario set, Scenario 
 
 ### Community 18 - "IntentContract"
 Cohesion: 0.06
-Nodes (35): CommerceCart, Active customer cart with bill breakdown., IntentContract, The canonical structured representation of user shopping intent (Spec §5). The…, Validate critical domain invariants across the contract., Check whether a specific dietary constraint applies., Check if target attribute is governed by a hard constraint., Get brand preference for a product or category. (+27 more)
+Nodes (33): CommerceCart, Active customer cart with bill breakdown., IntentContract, The canonical structured representation of user shopping intent (Spec §5). The…, Validate critical domain invariants across the contract., Check whether a specific dietary constraint applies., Check if target attribute is governed by a hard constraint., Get brand preference for a product or category. (+25 more)
 
 ### Community 19 - "5. Intent Contract"
 Cohesion: 0.29
@@ -221,7 +227,7 @@ Nodes (7): 5.1 Required conceptual fields, 5.2 Example, 5.3 Precedence rules, 5.
 
 ### Community 20 - "core.py"
 Cohesion: 0.11
-Nodes (48): Customer, Forecast, Order, OrderItem, Product, Risk, Scenario, Store (+40 more)
+Nodes (35): In-process event bus for GROCER v2. LOCKED (spec §30): async in-process pub/sub…, Action, Forecast, Inventory, Recommendation, Risk, ActionStatus, ActionType (+27 more)
 
 ### Community 21 - "CONTEXT.md — GROCER Domain Context"
 Cohesion: 0.11
@@ -229,11 +235,11 @@ Nodes (18): 10. UI rule, 11. External provider rule, 12. Quality gate, 1. Projec
 
 ### Community 22 - "CustomerService"
 Cohesion: 0.09
-Nodes (22): CustomerService, Any, AsyncSession, UUID, Fetch payment options (UPI, COD) via CommercePort., Consequential customer checkout. Strictly requires explicit confirmation. If db…, Internal helper to record commerce order into shared database and deduct stock., List all customers with home store linkage and quick pantry status. (+14 more)
+Nodes (23): CustomerService, Any, AsyncSession, UUID, Fetch payment options (UPI, COD) via CommercePort., Consequential customer checkout. Strictly requires explicit confirmation. If db…, Get live order delivery status and ETA via CommercePort., Internal helper to record commerce order into shared database and deduct stock. (+15 more)
 
 ### Community 23 - "intent/__init__.py"
-Cohesion: 0.08
-Nodes (48): GROCER Intent Contract Subsystem (Spec §5). Provides canonical domain…, _build_basket_summary(), _candidates_to_options(), _is_fresh_request(), _merge_contracts(), _msg_auto_recovered(), _msg_basket_ready(), _msg_clarification() (+40 more)
+Cohesion: 0.07
+Nodes (64): ProductVariant, SKU-level variant with provider-specific spinId., GROCER Intent Contract Subsystem (Spec §5). Provides canonical domain…, OrchestratorTurnResult, BaseModel, GrocerOrchestrator — end-to-end conversational commerce loop (Spec §12, §20…, Output of a single conversational turn through GrocerOrchestrator., ActionProposal (+56 more)
 
 ### Community 24 - "Component 3: Component-Wide Light Surface Transformation & Component Reuse"
 Cohesion: 0.20
@@ -248,8 +254,8 @@ Cohesion: 0.18
 Nodes (10): arrowParens, bracketSpacing, endOfLine, jsxSingleQuote, printWidth, semi, singleQuote, tabWidth (+2 more)
 
 ### Community 27 - "IntentVerifier"
-Cohesion: 0.11
-Nodes (46): IntentItem, An individual item requested within an intent., Calculate multiple packs if primary pack size is unavailable (Spec §10.2 item…, IntentVerifier, Deterministic engine that compares live commerce state to IntentContract. All…, Verify brand lock constraint registers as non-negotiable hard constraint (Spec…, Verify IntentSessionStore records snapshots and retrieves active versions., test_brand_preference_hard_lock() (+38 more)
+Cohesion: 0.13
+Nodes (41): CartItem, Item present in active commerce cart., IntentVerifier, Deterministic engine that compares live commerce state to IntentContract. All…, _bread_item(), _make_cart(), _make_contract(), _milk_item() (+33 more)
 
 ### Community 28 - "layout.tsx"
 Cohesion: 0.40
@@ -264,16 +270,16 @@ Cohesion: 0.22
 Nodes (8): 1. Hero Section (`GrocerHero.tsx`), 2. Page Streamlining (`page.tsx`), 3. Component & Micro-Interaction Polish, Automated Tests, Changes Made, Next Steps, Verification Results, Walkthrough — Side-by-Side Hero & UI Perfection Complete
 
 ### Community 31 - "apiClient.ts"
-Cohesion: 0.05
-Nodes (55): CustomerReplenishmentView(), CustomerReplenishmentViewProps, DEFAULT_FALLBACK_ADAPTER, DEFAULT_FALLBACK_CART, DEFAULT_GO_TO_ITEMS, PANTRY_ITEMS, PhoneMockup(), AppGlobalHeader() (+47 more)
+Cohesion: 0.06
+Nodes (57): CustomerReplenishmentView(), CustomerReplenishmentViewProps, DEFAULT_FALLBACK_ADAPTER, DEFAULT_FALLBACK_CART, DEFAULT_GO_TO_ITEMS, PANTRY_ITEMS, ChatMessage, IntentCommerceWorkbench() (+49 more)
 
-### Community 32 - "risk/engine.py"
-Cohesion: 0.10
-Nodes (31): _naive_now(), datetime, GROCER v2 Risk Engine. Orchestrates risk detection across inventory, forecasts,…, Return naive current UTC datetime for database compatibility., Detects inventory stockout and batch spoilage risks. Usage: engine =…, Scan all inventory and batches, evaluate risks, persist rows and emit events.…, RiskEngine, BatchInfo (+23 more)
+### Community 32 - "risk/models.py"
+Cohesion: 0.09
+Nodes (28): _naive_now(), datetime, Return naive current UTC datetime for database compatibility., Scan all inventory and batches, evaluate risks, persist rows and emit events.…, BatchInfo, discount_tier_for_hours(), DiscountTier, MultiBatchSpoilageInput (+20 more)
 
 ### Community 33 - "Log Entries"
 Cohesion: 0.13
-Nodes (14): [Grocer — Complete WhatsApp Demo Redesign & Operational Clutter Removal] 2026-09-04, [Grocer — Customer Replenishment, Swiggy MCP Integration & Full 10-Phase Completion] 2026-09-05, [Grocer — Full Codebase Architecture Refactoring & Guided Demo Tour] 2026-08-14, [Grocer — Official App Icon Design & Full UI Architecture Overhaul] 2026-09-02, [GROCER — Phase 0–5: Boundary Cleanup, Intent Contract, Extraction, Policy, Verifier & Recovery] 2026-09-06, [Grocer — Phase 0 Audit, Phase 1 Backend Foundation & Phase 2 Simulator Engine] 2026-08-27, [Grocer — Phase 0 Repository Audit & v2 Architecture Alignment] 2026-08-26, [Grocer — Phase 9 Customer / WhatsApp Integration & Phase 10 Hardening & Polish] 2026-08-28 (+6 more)
+Nodes (14): [GROCER — Cleanroom Intent Refactor & Flagship Golden Flow Completion] 2026-09-06, [Grocer — Complete WhatsApp Demo Redesign & Operational Clutter Removal] 2026-09-04, [Grocer — Customer Replenishment, Swiggy MCP Integration & Full 10-Phase Completion] 2026-09-05, [Grocer — Full Codebase Architecture Refactoring & Guided Demo Tour] 2026-08-14, [Grocer — Official App Icon Design & Full UI Architecture Overhaul] 2026-09-02, [Grocer — Phase 0 Audit, Phase 1 Backend Foundation & Phase 2 Simulator Engine] 2026-08-27, [Grocer — Phase 0 Repository Audit & v2 Architecture Alignment] 2026-08-26, [Grocer — Phase 9 Customer / WhatsApp Integration & Phase 10 Hardening & Polish] 2026-08-28 (+6 more)
 
 ### Community 34 - "7. Phase 5 — Recovery engine"
 Cohesion: 0.29
@@ -304,24 +310,24 @@ Cohesion: 0.40
 Nodes (5): 10.1 Recovery loop, 10.2 Initial recovery classes, 10.3 Candidate ranking, 10.4 Recovery limits, 10. Recovery engine
 
 ### Community 43 - "RecoveryEngine"
-Cohesion: 0.11
-Nodes (42): Deterministic recovery and candidate ranking engine (Spec §10)., Map VerificationResult violations and cart state to a FailureClass., Handle stale cart or serviceability changes. Always requires human attention., RecoveryEngine, Full output of a verification pass (Spec §9.2)., VerificationResult, engine(), _make_cart() (+34 more)
+Cohesion: 0.12
+Nodes (40): Deterministic recovery and candidate ranking engine (Spec §10)., RecoveryEngine, Full output of a verification pass (Spec §9.2)., VerificationResult, engine(), _make_cart(), _make_catalog(), _make_contract() (+32 more)
 
 ### Community 44 - "schemas.py"
-Cohesion: 0.09
-Nodes (47): FastAPI Customer Endpoints for Phase 9 (Spec §22 & §32.8). Provides: - GET…, AgentRunStatusResponse, BaseSchema, BatchResponse, CartItemUpdatePayload, CommerceAdapterInfoResponse, CommerceCartItemResponse, CommerceCartResponse (+39 more)
+Cohesion: 0.10
+Nodes (46): FastAPI Customer Endpoints for Phase 9 (Spec §22 & §32.8). Provides: - GET…, BaseSchema, BatchResponse, CartItemUpdatePayload, CommerceAdapterInfoResponse, CommerceCartItemResponse, CommerceCartResponse, CommerceCartUpdateRequest (+38 more)
 
 ### Community 47 - "simulations.py"
 Cohesion: 0.10
-Nodes (39): advance_simulation(), AdvanceTimeRequest, ApplyScenarioRequest, create_simulation(), CreateSimulationRequest, get_active_simulation(), _get_or_restore_engine(), get_simulation() (+31 more)
+Nodes (41): advance_simulation(), AdvanceTimeRequest, ApplyScenarioRequest, create_simulation(), CreateSimulationRequest, get_active_simulation(), _get_or_restore_engine(), get_simulation() (+33 more)
 
-### Community 48 - "recovery.py"
-Cohesion: 0.11
-Nodes (26): ActionProposal, AutonomyLevel, PolicyDecision, PolicyEngine, BaseModel, Enum, str, Policy Engine — deterministic agent autonomy classification (Spec §6).… (+18 more)
+### Community 48 - "_make_contract"
+Cohesion: 0.17
+Nodes (12): _make_contract(), Adding non-veg item to vegetarian contract → BLOCKED., Price pushes total over hard budget with zero deviation → BLOCKED., Small overrun within allowed deviation → ASK_USER (not blocked)., Different brand for brand-locked product → BLOCKED., Helper to build a minimal IntentContract with overrides., Any checkout proposal must return REQUIRE_CONFIRMATION (Spec §8.3)., test_ask_user_for_budget_within_deviation() (+4 more)
 
 ### Community 49 - "decision/models.py"
 Cohesion: 0.08
-Nodes (32): AsyncSession, Scan all active risks without pending recommendations and generate decisions.…, Evaluate decision for a risk and persist the top recommendation. Returns the…, ActionScorer, CandidateAction, DecisionResult, DiscountInput, ExplainabilityFacts (+24 more)
+Nodes (30): Evaluate decision for a risk and persist the top recommendation. Returns the…, ActionScorer, CandidateAction, DecisionResult, DiscountInput, ExplainabilityFacts, HoldInput, PureDecisionEvaluator (+22 more)
 
 ### Community 50 - "11. Conversation behavior"
 Cohesion: 0.40
@@ -373,7 +379,7 @@ Nodes (8): Agent compatibility, Install, IP as Logo, License, Model behavior, Re
 
 ### Community 62 - "intent_chat.py"
 Cohesion: 0.10
-Nodes (29): clear_session(), get_session(), intent_chat(), intent_choice(), intent_confirm(), delete, get, post (+21 more)
+Nodes (30): clear_session(), get_session(), intent_chat(), intent_choice(), intent_confirm(), delete, get, post (+22 more)
 
 ### Community 63 - "7. Memory and preferences"
 Cohesion: 0.50
@@ -403,9 +409,9 @@ Nodes (4): 9. Phase 7 — Deterministic failure simulation, Acceptance, Goal, In
 Cohesion: 0.38
 Nodes (6): AsyncClient, asyncio, Health endpoint should report database connectivity., Health endpoint should return 200 with status healthy., test_health_endpoint_reports_db_status(), test_health_endpoint_returns_200()
 
-### Community 75 - "23. Anti-drift rules for coding agents"
-Cohesion: 0.67
-Nodes (3): 23. Anti-drift rules for coding agents, ALWAYS, NEVER
+### Community 75 - "IntentItem"
+Cohesion: 0.12
+Nodes (22): IntentItem, An individual item requested within an intent., LoopingRecoveryEngine, Bounded, deterministic recovery loop orchestrator (Spec §10)., Run the multi-turn recovery loop up to max_attempts., Find in-stock product variants matching the target's category or name., Calculate multiple packs if primary pack size is unavailable (Spec §10.2 item…, Verify brand lock constraint registers as non-negotiable hard constraint (Spec… (+14 more)
 
 ### Community 76 - "IMPLEMENTATION_PLAN.md"
 Cohesion: 0.17
@@ -420,20 +426,20 @@ Cohesion: 0.18
 Nodes (10): 1. Executive Summary, 2. Component Disposition (REUSE / REFACTOR / DELETE / MISSING / RISK), 3. Test & Runtime Baseline, DELETE / DEPRECATE, Key Audit Findings, MISSING, Phase 0: Repository Audit & Technical Baseline, REFACTOR (+2 more)
 
 ### Community 80 - "test_phase8_commerce.py"
-Cohesion: 0.08
-Nodes (46): CartItemUpdate, Request to modify quantity of a variant in the cart., Search commerce for an IntentItem and pick the best matching variant. Strategy:…, Resolve each IntentItem into a CartItemUpdate via CommercePort search., _search_and_pick(), create_app(), asyncio, POST /api/customers/{id}/reorder should deduct inventory and create order. (+38 more)
+Cohesion: 0.07
+Nodes (47): CartItemUpdate, Request to modify quantity of a variant in the cart., Update or replace cart items with given variants and quantities., Search commerce for an IntentItem and pick the best matching variant. Strategy:…, Resolve each IntentItem into a CartItemUpdate via CommercePort search., _search_and_pick(), create_app(), asyncio (+39 more)
 
 ### Community 82 - "PreferenceStore"
 Cohesion: 0.10
 Nodes (19): PreferenceStore, BaseModel, Get all durable preferences for a customer., Convert stored brand preferences to domain BrandPreference models. Only returns…, Convert stored non-brand preferences to domain SoftPreference models. Only…, Remove preferences older than the threshold (Spec §7.2). Returns the number of…, Check if a preference should be rejected per Spec §7.2. Rejects: - price-type…, Remove all preferences for a customer. (+11 more)
 
 ### Community 83 - "SimulationEngine"
-Cohesion: 0.13
-Nodes (18): Any, AsyncSession, UUID, Advance simulation time, generate new orders, handle batch expiry. Returns…, Reset simulation: clear generated data, re-seed, restart clock., Seed stores, suppliers, products, and customers., Create initial inventory and batches for all store-product pairs., Generate orders day by day for the historical period. (+10 more)
+Cohesion: 0.06
+Nodes (49): Customer, Order, OrderItem, Product, Scenario, Store, Supplier, Any (+41 more)
 
 ### Community 84 - "GrocerOrchestrator"
-Cohesion: 0.21
-Nodes (26): GrocerOrchestrator, Stateless conversational commerce orchestrator (Spec §12, Phase 6).…, new_session(), asyncio, Phase 6 — GrocerOrchestrator end-to-end tests (Spec §20 Phase 6). Tests the…, Return a fresh (session_id, customer_id) pair., test_api_chat_endpoint(), test_api_confirm_without_explicit_rejects() (+18 more)
+Cohesion: 0.19
+Nodes (28): GrocerOrchestrator, Stateless conversational commerce orchestrator (Spec §12, Phase 6).…, new_session(), asyncio, Phase 6 — GrocerOrchestrator end-to-end tests (Spec §20 Phase 6). Tests the…, Checkout must strictly require AWAITING_CONFIRMATION state and cannot be…, Return a fresh (session_id, customer_id) pair., test_api_chat_endpoint() (+20 more)
 
 ### Community 85 - "IntentParser"
 Cohesion: 0.07
@@ -443,45 +449,57 @@ Nodes (25): IntentParser, Parse WhatsApp natural language into a validated Inten
 Cohesion: 0.11
 Nodes (13): Deterministic pattern-based extraction of intent fields from natural language., Extract raw intent fields from text. Returns a dict of candidate fields., Extract the high-level shopping goal., Extract budget constraint from text., Extract individual shopping items with quantities and units., Build an item dict with category hint., Extract dietary constraints (always hard)., Extract brand-level preferences and hard locks. (+5 more)
 
-### Community 87 - "Event"
-Cohesion: 0.16
-Nodes (18): In-process event bus for GROCER v2. LOCKED (spec §30): async in-process pub/sub…, Event, apply_supplier_delay(), clear_active_pos(), create_purchase_order(), get_active_pos(), process_supplier_deliveries(), PurchaseOrder (+10 more)
+### Community 87 - "asyncio"
+Cohesion: 0.20
+Nodes (14): asyncio, AsyncSession, Should persist Simulation and Scenario., Should persist an Event with JSON payload., Should persist a Store with all required fields., Should persist a Supplier., Should persist a Product linked to a Supplier., Should persist a Customer linked to a home Store. (+6 more)
 
 ### Community 88 - "GROCER_V2_MASTER_SPEC.md"
 Cohesion: 0.14
-Nodes (13): 0. Purpose of this document, 14. Error and retry semantics, 17. Security and safety invariants, 18. Existing GROCER UX foundation, 19. Repository boundary and cleanup, 22. Engineering standards, 24. Definition of done, 2. Product goals (+5 more)
+Nodes (13): 0. Purpose of this document, 14. Error and retry semantics, 17. Security and safety invariants, 18. Existing GROCER UX foundation, 22. Engineering standards, 23. Anti-drift rules for coding agents, 24. Definition of done, 2. Product goals (+5 more)
 
 ### Community 89 - "Batch"
-Cohesion: 0.16
-Nodes (18): Batch, calculate_haversine_distance(), calculate_transfer_eta_minutes(), clear_active_transfers(), dispatch_transfer(), get_active_transfers(), InTransitTransfer, process_arriving_transfers() (+10 more)
+Cohesion: 0.12
+Nodes (28): Batch, Event, apply_supplier_delay(), create_purchase_order(), get_active_pos(), process_supplier_deliveries(), PurchaseOrder, AsyncSession (+20 more)
 
-### Community 90 - "SimulationClock"
-Cohesion: 0.13
-Nodes (13): datetime, Manages simulated time for a simulation instance., Advance simulation time by N hours. Returns new current time., Reset clock to start time., SimulationClock, _id(), UUID, Deterministic seed data catalog for the GROCER v2 simulator. Defines 5 dark… (+5 more)
+### Community 90 - "GROCER v2 — Flagship Golden Flow: Intent-Preserving Grocery Replenishment"
+Cohesion: 0.14
+Nodes (13): 1. Executive Summary & Product Thesis, 2. The Flagship Scenario, 3. End-to-End Execution Trace (10-Step Loop), 4. Automated Test Verification, 5. Interactive UI Workbench, 6. Non-Negotiable Invariants Upheld, Detailed Trace, Extracted Intent Contract (+5 more)
 
 ### Community 91 - "swiggy_adapter.py"
-Cohesion: 0.12
+Cohesion: 0.13
 Nodes (18): AddressNotServiceableError, CartExpiredError, CommerceError, ItemOutOfStockError, ProviderAuthError, Canonical exception taxonomy for CommercePort and Swiggy Instamart integration., Raised when checkout is attempted without explicit human/user confirmation. In…, Raised when the target delivery address is outside dark store service radius. (+10 more)
 
 ### Community 92 - "OrchestratorSessionStore"
-Cohesion: 0.13
-Nodes (10): OrchestratorSessionStore, Thread-safe in-memory store for OrchestratorSession objects. Keyed by…, Return existing session or create a fresh READY session., fresh_store(), mock_adapter(), orchestrator(), fixture, Return a clean, isolated session store for each test. (+2 more)
+Cohesion: 0.18
+Nodes (8): OrchestratorSession, OrchestratorSessionStore, Full per-session conversational commerce state. Created on first turn for a…, Thread-safe in-memory store for OrchestratorSession objects. Keyed by…, Return existing session or create a fresh READY session., asyncio, Conversational GrocerOrchestrator turn-by-turn with OOS recovery and explicit…, test_golden_orchestrator_turn_with_oos_recovery()
 
 ### Community 95 - "IntentSessionStore"
 Cohesion: 0.13
 Nodes (8): IntentSessionStore, In-memory session store providing snapshot versioning for IntentContracts., Save an intent contract snapshot into session history., Get the latest (highest version) IntentContract for a session., Retrieve an IntentContract by its unique intent_id., Retrieve a specific version of the IntentContract for a session., List all version snapshots for a session in ascending order., Clear all intent history for a session.
 
-### Community 99 - ".handle_choice"
-Cohesion: 0.33
-Nodes (4): _msg_failed(), _msg_ordered(), Resolve a NEEDS_DECISION clarification with the user's chosen spin_id., Execute checkout after explicit user confirmation (Spec §6, §8.3). CRITICAL:…
+### Community 99 - "PendingClarification"
+Cohesion: 0.17
+Nodes (11): _candidates_to_options(), _msg_clarification(), _msg_failed(), _msg_ordered(), Process one conversational message through the full commerce loop. Flow: parse…, Resolve a NEEDS_DECISION clarification with the user's chosen spin_id., Execute checkout after explicit user confirmation (Spec §6, §8.3). CRITICAL:…, Load established soft preferences and apply where not overridden (Spec §7).… (+3 more)
 
-### Community 100 - "PrecedenceLevel"
-Cohesion: 0.67
-Nodes (3): PrecedenceLevel, Strict evaluation order for conflicting instructions (Spec §5.3). 1.…, int
+### Community 100 - "._make_awaiting_confirmation"
+Cohesion: 0.29
+Nodes (7): _build_basket_summary(), _msg_auto_recovered(), _msg_basket_ready(), Any, Convert a CommerceCart + contract into a BasketSummary., Transition to AWAITING_CONFIRMATION and return the full result., BasketSummary
 
 ### Community 103 - "8. Phase 6 — Agent orchestration"
 Cohesion: 0.50
 Nodes (4): 8. Phase 6 — Agent orchestration, Desired flow, Goal, Rule
+
+### Community 105 - "._parse_intent"
+Cohesion: 0.33
+Nodes (6): _is_fresh_request(), _is_incremental_add(), _merge_contracts(), Parse message → IntentContract, inheriting session_id., Heuristic: treat message as fresh grocery request vs a refinement., Merge new contract onto existing, respecting intent precedence (Spec §5.3).
+
+### Community 106 - "orchestrator"
+Cohesion: 0.29
+Nodes (7): fresh_store(), mock_adapter(), orchestrator(), fixture, Return a clean, isolated session store for each test., Return a fresh MockCommerceAdapter per test., GrocerOrchestrator wired to the mock adapter and an isolated session store.
+
+### Community 107 - "19. Repository boundary and cleanup"
+Cohesion: 0.67
+Nodes (3): 19. Repository boundary and cleanup, Keep and extend, Refactor or remove from GROCER
 
 ### Community 109 - "2. Phase 0 — Consumer boundary cleanup"
 Cohesion: 0.25
@@ -493,27 +511,27 @@ Nodes (15): 10. Frontend rules, 11. Engineering behavior, 12. Quality commands, 
 
 ### Community 130 - "CommercePort"
 Cohesion: 0.08
-Nodes (22): ABC, get_commerce_adapter(), Factory for obtaining configured CommercePort adapter., Resolve and return active CommercePort adapter based on settings., CommerceProductItem, Catalogue product item containing one or more pack-size variations., CommercePort, Abstract interface for grocery commerce adapters (Spec §5.1, §28.1). Enforces… (+14 more)
+Nodes (30): ABC, get_commerce_adapter(), Factory for obtaining configured CommercePort adapter., Resolve and return active CommercePort adapter based on settings., High-fidelity mock commerce adapter for local simulation and testing., CommerceOrderResult, DeliveryAddress, DeliveryTrackingStatus (+22 more)
 
 ## Knowledge Gaps
-- **382 isolated node(s):** `semi`, `singleQuote`, `jsxSingleQuote`, `trailingComma`, `printWidth` (+377 more)
+- **384 isolated node(s):** `semi`, `singleQuote`, `jsxSingleQuote`, `trailingComma`, `printWidth` (+379 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **10 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **13 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `CommerceCart` connect `IntentContract` to `SwiggyMCPAdapter`, `CommercePort`, `MockCommerceAdapter`, `IntentVerifier`, `RecoveryEngine`, `recovery.py`, `test_phase8_commerce.py`, `CustomerService`, `intent/__init__.py`, `swiggy_adapter.py`?**
-  _High betweenness centrality (0.049) - this node is a cross-community bridge._
-- **Why does `CustomerService` connect `CustomerService` to `SwiggyMCPAdapter`, `CommercePort`, `tools.py`, `MockCommerceAdapter`, `schemas.py`, `test_phase8_commerce.py`, `IntentContract`, `core.py`, `swiggy_adapter.py`?**
-  _High betweenness centrality (0.045) - this node is a cross-community bridge._
-- **Why does `Inventory` connect `tools.py` to `risk/engine.py`, `CommercePort`, `simulations.py`, `test_phase8_commerce.py`, `SimulationEngine`, `core.py`, `CustomerService`, `Event`, `Batch`, `SimulationClock`?**
-  _High betweenness centrality (0.041) - this node is a cross-community bridge._
+- **Why does `CommerceCart` connect `IntentContract` to `SwiggyMCPAdapter`, `CommercePort`, `MockCommerceAdapter`, `IntentVerifier`, `IntentItem`, `RecoveryEngine`, `test_phase8_commerce.py`, `CustomerService`, `intent/__init__.py`, `swiggy_adapter.py`?**
+  _High betweenness centrality (0.055) - this node is a cross-community bridge._
+- **Why does `CartItemUpdate` connect `test_phase8_commerce.py` to `SwiggyMCPAdapter`, `CommercePort`, `PendingClarification`, `MockCommerceAdapter`, `ConstraintType`, `IntentItem`, `schemas.py`, `RecoveryEngine`, `test_handle_choice_preserves_unrelated_items_and_quantity`, `IntentContract`, `GrocerOrchestrator`, `CustomerService`, `intent/__init__.py`, `swiggy_adapter.py`, `UUID`?**
+  _High betweenness centrality (0.042) - this node is a cross-community bridge._
+- **Why does `IntentContract` connect `IntentContract` to `PendingClarification`, `._make_awaiting_confirmation`, `.to_summary_dict`, `ConstraintType`, `._parse_intent`, `IntentItem`, `RecoveryEngine`, `test_phase8_commerce.py`, `_make_contract`, `IntentParser`, `intent/__init__.py`, `IntentVerifier`, `IntentSessionStore`?**
+  _High betweenness centrality (0.040) - this node is a cross-community bridge._
 - **Are the 5 inferred relationships involving `IntentContract` (e.g. with `AmbiguitySeverity` and `BrandTolerance`) actually correct?**
   _`IntentContract` has 5 INFERRED edges - model-reasoned connections that need verification._
-- **Are the 16 inferred relationships involving `CommerceCart` (e.g. with `MockCommerceAdapter` and `CommercePort`) actually correct?**
-  _`CommerceCart` has 16 INFERRED edges - model-reasoned connections that need verification._
-- **Are the 20 inferred relationships involving `RecoveryEngine` (e.g. with `GrocerOrchestrator` and `OrchestratorTurnResult`) actually correct?**
-  _`RecoveryEngine` has 20 INFERRED edges - model-reasoned connections that need verification._
-- **Are the 19 inferred relationships involving `GrocerOrchestrator` (e.g. with `UnconfirmedCheckoutError` and `CartItemUpdate`) actually correct?**
-  _`GrocerOrchestrator` has 19 INFERRED edges - model-reasoned connections that need verification._
+- **Are the 18 inferred relationships involving `CommerceCart` (e.g. with `MockCommerceAdapter` and `CommercePort`) actually correct?**
+  _`CommerceCart` has 18 INFERRED edges - model-reasoned connections that need verification._
+- **Are the 22 inferred relationships involving `RecoveryEngine` (e.g. with `GrocerOrchestrator` and `OrchestratorTurnResult`) actually correct?**
+  _`RecoveryEngine` has 22 INFERRED edges - model-reasoned connections that need verification._
+- **Are the 15 inferred relationships involving `MockCommerceAdapter` (e.g. with `AddressNotServiceableError` and `CommerceError`) actually correct?**
+  _`MockCommerceAdapter` has 15 INFERRED edges - model-reasoned connections that need verification._

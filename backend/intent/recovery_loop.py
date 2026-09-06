@@ -101,11 +101,33 @@ class LoopingRecoveryEngine(RecoveryEngine):
 
         for attempt in range(attempt_number, max_attempts + 1):
             # 1. Fetch live cart
-            cart = await commerce_port.get_cart(cart_id)
+            try:
+                cart = await commerce_port.get_cart(cart_id)
+            except Exception as exc:
+                outcome = self._recovery._handle_transient_error(attempt, max_attempts)
+                all_actions.extend(outcome.recovery_actions)
+                all_notes.append("Transient provider error detected; retried non-mutating cart inspection")
+                if attempt < max_attempts:
+                    continue
+                outcome.state = RecoveryState.FAILED
+                outcome.can_auto_apply = False
+                outcome.message = f"Provider failed after {max_attempts} attempts: {exc}"
+                return LoopingRecoveryResult(
+                    state=RecoveryState.FAILED,
+                    cart=CommerceCart(cart_id=cart_id, is_serviceable=False),
+                    verification=VerificationResult(status=VerificationStatus.FAIL, violations=[]),
+                    outcome=outcome,
+                    attempts=attempt,
+                    recovery_notes=all_notes,
+                    actions_taken=all_actions,
+                )
 
             # 2. Verify against full intent
             verification = effective_verifier.verify(contract, cart)
-            if verification.status == VerificationStatus.PASS:
+            is_below_min_order = bool(
+                cart and cart.items and cart.grand_total < cart.min_order_threshold
+            )
+            if verification.status == VerificationStatus.PASS and not is_below_min_order:
                 return LoopingRecoveryResult(
                     state=RecoveryState.RECOVERED,
                     cart=cart,
@@ -220,7 +242,10 @@ class LoopingRecoveryEngine(RecoveryEngine):
             reverification = effective_verifier.verify(contract, live_cart_after)
 
             # 7. Either return success, return user decision/blocked/failed, or continue
-            if reverification.status == VerificationStatus.PASS:
+            post_below_min_order = bool(
+                live_cart_after and live_cart_after.items and live_cart_after.grand_total < live_cart_after.min_order_threshold
+            )
+            if reverification.status == VerificationStatus.PASS and not post_below_min_order:
                 recovered_outcome = RecoveryOutcome(
                     state=RecoveryState.RECOVERED,
                     failure_class=outcome.failure_class,
@@ -314,20 +339,19 @@ class LoopingRecoveryEngine(RecoveryEngine):
         removed_spins.update(
             a.spin_id for a in mutation_actions if a.action_type == "remove_item"
         )
-        adjusted_quantities = {
-            a.spin_id: a.quantity
+        action_spins = {
+            a.spin_id
             for a in mutation_actions
-            if a.action_type == "adjust_quantity"
+            if a.action_type in ("add_item", "replace_item", "adjust_quantity")
         }
 
         updates: list[CartItemUpdate] = []
         for item in cart.items:
-            if item.spin_id not in removed_spins:
-                qty = adjusted_quantities.get(item.spin_id, item.quantity)
-                updates.append(CartItemUpdate(spin_id=item.spin_id, quantity=qty))
+            if item.spin_id not in removed_spins and item.spin_id not in action_spins:
+                updates.append(CartItemUpdate(spin_id=item.spin_id, quantity=item.quantity))
 
         for action in mutation_actions:
-            if action.action_type in ("add_item", "replace_item"):
+            if action.action_type in ("add_item", "replace_item", "adjust_quantity"):
                 updates.append(CartItemUpdate(spin_id=action.spin_id, quantity=action.quantity))
 
         return updates

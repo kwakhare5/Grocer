@@ -14,7 +14,7 @@ from typing import Any, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from backend.intent.enums import ConstraintType
+from backend.intent.enums import ConstraintType, SubstitutionTolerance
 from backend.intent.models import IntentContract
 
 
@@ -239,6 +239,17 @@ class PolicyEngine:
                         reason=f"Brand '{new_brand}' is not in known alternatives for {target_lower}",
                         clarification_needed=f"Your usual brand isn't available. Can I use {new_brand} instead?",
                     )
+
+        # Check pack size rules
+        old_pack = details.get("old_pack_size", "").strip()
+        new_pack = details.get("new_pack_size", "").strip()
+        if old_pack and new_pack and old_pack.lower() != new_pack.lower():
+            if not contract.pack_size_rules.preferred_multiples or contract.pack_size_rules.tolerance == SubstitutionTolerance.STRICT:
+                return PolicyDecision(
+                    autonomy_level=AutonomyLevel.ASK_USER,
+                    reason=f"Pack size change from '{old_pack}' to '{new_pack}' requires user approval per pack size rules",
+                    clarification_needed=f"'{old_pack}' is unavailable. Can I substitute with '{new_pack}' ({details.get('item_name')}) instead?",
+                )
 
         # Same category, no price increase, within tolerance → auto-execute
         return PolicyDecision(

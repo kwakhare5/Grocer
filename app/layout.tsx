@@ -17,9 +17,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Grocer — Quick-Commerce Inventory Balancing & Proactive Restocking",
+  title: "Grocer — Intent-Preserving Grocery Replenishment",
   description:
-    "An end-to-end prototype exploring time-series consumption forecasting, inter-store spatial transfers, and 1-tap WhatsApp pantry restocking.",
+    "WhatsApp consumer grocery replenishment assistant with deterministic intent verification, bounded recovery, and Swiggy Instamart integration.",
   icons: {
     icon: '/logo.svg',
     shortcut: '/logo.svg',

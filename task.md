@@ -27,41 +27,41 @@
 - [x] Remove duplicate implementation-plan file.
 - [x] Ignore generated Graphify output.
 - [x] Add cleanroom completion criteria and quarantine legacy architecture context.
-- [ ] Remove obsolete operation ORM models/enums after dependency audit.
-- [ ] Remove remaining obsolete frontend operation clients/types.
-- [ ] Remove generated `graphify-out/` tracked artifacts.
-- [ ] Archive/remove stale walkthrough and audit documents.
-- [ ] Run repository-wide import/reference audit and repair any breakage.
+- [x] Remove obsolete operation ORM models/enums after dependency audit.
+- [x] Remove remaining obsolete frontend operation clients/types.
+- [x] Remove generated `graphify-out/` tracked artifacts.
+- [x] Archive/remove stale walkthrough and audit documents.
+- [x] Run repository-wide import/reference audit and repair any breakage.
 
 ## P1 — Intent correctness
-- [ ] Audit and harden `IntentContract` semantics.
-- [ ] Harden parser normalization and ambiguity handling.
-- [ ] Verify explicit-current-request > stored-preference precedence.
-- [ ] Strengthen product identity matching.
-- [ ] Add commerce snapshot/version semantics.
-- [ ] Make consequential actions require current-state verification.
+- [x] Audit and harden `IntentContract` semantics.
+- [x] Harden parser normalization and ambiguity handling.
+- [x] Verify explicit-current-request > stored-preference precedence.
+- [x] Strengthen product identity matching.
+- [x] Add commerce snapshot/version semantics.
+- [x] Make consequential actions require current-state verification.
 
 ## P2 — Golden vertical slice
-- [ ] User request → intent contract → cart.
-- [ ] Capture commerce snapshot.
-- [ ] Inject cart drift/failure.
-- [ ] Detect intent violation.
-- [ ] Recover safely.
-- [ ] Re-verify.
-- [ ] Ask only when ambiguity remains.
-- [ ] Explicit checkout confirmation.
-- [ ] Truthful success/failure reporting.
+- [x] User request → intent contract → cart.
+- [x] Capture commerce snapshot.
+- [x] Inject cart drift/failure.
+- [x] Detect intent violation.
+- [x] Recover safely.
+- [x] Re-verify.
+- [x] Ask only when ambiguity remains.
+- [x] Explicit checkout confirmation.
+- [x] Truthful success/failure reporting.
 
 ## P3 — Reliability + evaluation
-- [ ] Deterministic failure injection at the commerce seam.
-- [ ] Adversarial regression suite.
-- [ ] Reliability metrics.
-- [ ] Live Swiggy MCP hardening.
+- [x] Deterministic failure injection at the commerce seam.
+- [x] Adversarial regression suite.
+- [x] Reliability metrics.
+- [x] Live Swiggy MCP hardening.
 
 ## P4 — Experience
-- [ ] Make the WhatsApp demo UI backend-driven rather than commerce-script-driven.
-- [ ] Preserve visual language; make failure/recovery/approval states truthful.
-- [ ] Polish flagship failure-and-recovery demo.
+- [x] Make the WhatsApp demo UI backend-driven rather than commerce-script-driven.
+- [x] Preserve visual language; make failure/recovery/approval states truthful.
+- [x] Polish flagship failure-and-recovery demo.
 
 ## Non-negotiables
 - No dark-store / warehouse / supplier / inventory-operations subsystem in GROCER.

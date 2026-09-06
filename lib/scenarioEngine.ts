@@ -1,17 +1,53 @@
 /**
- * GROCER v2 — Deterministic Scenario Engine (Spec §23–§27)
+ * OPERATIONS RESIDUE — DECOUPLED FROM GROCER v2 — Phase 0 boundary cleanup
  *
+ * This module implemented the deterministic scenario engine for the dark-store
+ * operations simulation product. It is NOT part of the consumer WhatsApp
+ * replenishment boundary. Not imported by any consumer component.
+ * Belongs in companion repo: kwakhare5/Dark-store-operator
+ * Source: GROCER_V2_MASTER_SPEC.md §19
+ *
+ * Original docstring:
+ * GROCER v2 — Deterministic Scenario Engine (Spec §23–§27)
  * Provides seeded PRNG for reproducible simulation, three built-in scenarios
  * (Hero §25, Perishables §26, Failure §27), and step-by-step event generation
  * that mutates store/recommendation/event state.
  */
 
-import {
-  DarkStore,
-  RecommendationItem,
-  SimulationEvent,
-} from "./types";
-import { INITIAL_STORES, INITIAL_RECOMMENDATIONS } from "./mockData";
+// Operations types kept inline since they were removed from lib/types.ts
+type DarkStore = {
+  id: string; code: string; name: string; location: string;
+  lat: number; lng: number; x: number; y: number;
+  status: "active" | "maintenance" | "critical";
+  totalSkus: number; activeBatches: number;
+  stockoutRiskCount: number; spoilageRiskCount: number; excessCapacityUnits: number;
+  inventoryHealth: { dairy: number; produce: number; bakery: number; staples: number; packaged: number };
+};
+type RecommendationItem = {
+  id: string; riskId: string; title: string; productName: string; productCategory: string;
+  sourceStore?: { id: string; code: string; name: string; safeExcess: number };
+  destinationStore: { id: string; code: string; name: string };
+  actionType: string; severity: string; status: string;
+  quantity: number; unit: string; distanceKm?: number;
+  stockoutInHours: number; supplierEtaHours: number;
+  probability: number; confidence: number; discountPct?: number;
+  reasonCodes: string[];
+  alternatives: { action: string; label: string; score: number; reason: string; isRecommended?: boolean }[];
+  tradeoffAnalysis: { spoilageAvoidanceINR: number; transportCostINR: number; stockoutLossAvoidedINR: number; netBenefitINR: number };
+  createdAt: string;
+};
+type SimulationEvent = {
+  id: string; timestamp: string;
+  type: string; description: string; storeCode?: string;
+  severity?: "critical" | "warning" | "info" | "success";
+};
+
+// INITIAL_STORES and INITIAL_RECOMMENDATIONS removed from mockData in Phase 0
+// Using empty arrays as stubs; this file is not called by any consumer component.
+const INITIAL_STORES: DarkStore[] = [];
+const INITIAL_RECOMMENDATIONS: RecommendationItem[] = [];
+
+
 
 // ---------------------------------------------------------------------------
 // Seeded PRNG (Mulberry32) per Spec §24.1 — deterministic replay

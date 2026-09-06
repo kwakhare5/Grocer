@@ -1,4 +1,10 @@
-"""Forecast REST API — spec §32.
+# OPERATIONS RESIDUE — DECOUPLED FROM GROCER v2
+# This module implements store×product demand forecasting for dark-store operations.
+# It is NOT part of the consumer WhatsApp replenishment boundary.
+# Phase 0 cleanup: router removed from main.py.
+# Belongs in companion repo: kwakhare5/Dark-store-operator
+# Source: GROCER_V2_MASTER_SPEC.md §19
+
 
 Endpoints:
     GET  /api/forecasts              — list forecasts (with filters)

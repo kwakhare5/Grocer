@@ -1,4 +1,10 @@
-"""Recommendations REST API -- spec sections 17, 18 (Human-in-the-loop).
+# OPERATIONS RESIDUE — DECOUPLED FROM GROCER v2
+# This module implements the dark-store decision engine (transfer/reorder/discount/hold).
+# It is NOT part of the consumer WhatsApp replenishment boundary.
+# Phase 0 cleanup: router removed from main.py.
+# Belongs in companion repo: kwakhare5/Dark-store-operator
+# Source: GROCER_V2_MASTER_SPEC.md §19
+
 
 Endpoints:
     POST /api/recommendations/evaluate/{risk_id} -- trigger Decision Engine

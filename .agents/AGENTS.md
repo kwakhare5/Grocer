@@ -225,3 +225,57 @@ Before implementing a proposed feature, ask:
 > Does this directly improve the user's ability to complete a grocery task while preserving the stated intent across changing commerce state?
 
 If the answer is no, it does not belong in GROCER v2 unless the master spec is deliberately changed first.
+
+## 15. SESSION RESUME
+
+**Last completed:** Phase 6 — Agent Orchestration (2026-09-06)
+
+**Status:** ✅ Phase 6 complete. End-to-end conversational shopping loop (`GrocerOrchestrator`) connecting WhatsApp turn → IntentParser → PolicyEngine → CommercePort → IntentVerifier → RecoveryEngine → Explicit Confirmation → Checkout. Build green. 122/122 tests passing (100% green).
+
+**What was done:**
+- Created `backend/intent/session.py`:
+  - `ConversationState` enum: `READY`, `BUILDING`, `RECOVERING`, `NEEDS_DECISION`, `AWAITING_CONFIRMATION`, `ORDERED`, `FAILED`.
+  - Models: `OrchestratorSession`, `PendingClarification`, `BasketSummary`, `BasketItem`, `ClarificationOption`.
+  - `OrchestratorSessionStore`: Thread-safe in-memory session manager with `default_session_store` singleton.
+- Created `backend/intent/orchestrator.py`:
+  - `GrocerOrchestrator`: Coordinates the full conversational commerce loop deterministically (LLM interprets/proposes; deterministic code verifies/enforces per Spec §12.3).
+  - Methods: `handle_turn()` (parse, preferences, resolve products, build cart, verify, recover), `handle_choice()` (resolve clarification candidate), `handle_confirm()` (explicit checkout double-gated by server-side state & pre-checkout verification).
+  - Multi-item resolution, brand preference weighting, and pack-size preference resolution.
+- Created `backend/api/intent_chat.py`:
+  - `POST /api/intent/chat`: Main conversational turn endpoint.
+  - `POST /api/intent/sessions/{id}/choice`: Select candidate option during `NEEDS_DECISION`.
+  - `POST /api/intent/sessions/{id}/confirm`: Consequential checkout gate (`explicit_confirmation: true` required).
+  - `GET /api/intent/sessions/{id}`: Session state inspection.
+  - `DELETE /api/intent/sessions/{id}`: Session reset.
+- Extended `backend/api/schemas.py` with intent orchestrator schemas and registered router in `backend/main.py`.
+- Exported all Phase 6 types from `backend/intent/__init__.py`.
+- Created `backend/tests/test_orchestrator.py`: 20 unit and integration tests covering happy path, session persistence, multi-item baskets, budget constraints, user choice resolution, checkout authorization invariants, and REST API endpoints.
+
+**Next milestone:** Phase 7 — Deterministic Failure Simulation (Spec §15 & §20: scenario/failure injection at commerce boundary — OOS, brand deviation, pack size change, budget drift, stale cart, transient error).
+
+**Consumer flow is intact:**
+```
+WhatsApp / UI → IntentChat API (/api/intent/chat)
+  ↓
+GrocerOrchestrator
+  ↓
+IntentParser (Phase 2) → IntentContract (Phase 1) → PolicyEngine (Phase 3)
+  ↓
+CommercePort (MockAdapter / SwiggyAdapter)
+  ↓
+IntentVerifier (Phase 4)
+  ├── PASS ──────────────────────────────────────────┐
+  └── FAIL → RecoveryEngine (Phase 5)                │
+               ├── RECOVERED → re-verify ────────────┤
+               ├── NEEDS_USER_DECISION → ask user ───┤
+               └── BLOCKED / FAILED                  │
+                                                     ↓
+                                        AWAITING_CONFIRMATION
+                                                     ↓
+                                    Explicit Confirmation (Spec §8.3)
+                                                     ↓
+                                            POST /confirm → ORDERED
+```
+Checkout guard (`explicit_confirmation`) confirmed active across `backend/api/customers.py`, `backend/api/intent_chat.py`, `AuthorizationScope`, and `IntentVerifier.verify_checkout()`.
+
+

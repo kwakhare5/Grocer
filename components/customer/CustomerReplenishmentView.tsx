@@ -26,7 +26,6 @@ import {
 import {
   CustomerPersona,
   CustomerOrderPayload,
-  DarkStore,
 } from "../../lib/types";
 import {
   SIMULATED_CUSTOMERS,
@@ -48,9 +47,9 @@ interface CustomerReplenishmentViewProps {
   onPlaceOrder?: (payload: CustomerOrderPayload) => void;
   onScheduleReminder?: (customerId: string, delayHours: number) => void;
   onSkipRestock?: (customerId: string, reason?: string) => void;
-  stores?: DarkStore[];
   isLiveApiConnected?: boolean;
 }
+
 
 const PANTRY_ITEMS = [
   {

@@ -1,4 +1,11 @@
+# OPERATIONS RESIDUE — DECOUPLED FROM GROCER v2
+# This module implements the dark-store time-simulation engine (store network,
+# inventory time-advance, scenario injection). It is NOT part of the consumer
+# WhatsApp replenishment boundary. Phase 0 cleanup: router removed from main.py.
+# Belongs in companion repo: kwakhare5/Dark-store-operator
+# Source: GROCER_V2_MASTER_SPEC.md §19
 """Simulation API endpoints for GROCER v2."""
+
 import uuid as _uuid
 from typing import Any
 

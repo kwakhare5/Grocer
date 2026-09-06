@@ -228,45 +228,19 @@ If the answer is no, it does not belong in GROCER v2 unless the master spec is d
 
 ## 15. SESSION RESUME
 
-**Last completed:** Flagship Golden Flow & Cleanroom Intent Refactor (2026-09-06)
+**Last completed:** Flagship Golden Flow & Cleanroom Intent Git Reconciliation (2026-09-06)
 
-**Status:** ✅ Complete. End-to-end verified proof of the flagship shopping task:
-`"get my weekly groceries under ₹2,000, vegetarian, use my usual brands."`
+**Status:** ✅ Complete & Pushed. Clean Git rebase reconciliation on `refactor/intent-cleanroom` safely executed and fast-forward pushed to `origin/refactor/intent-cleanroom` (`3b2b961`).
 Full loop: Parse → IntentContract → PolicyEngine → CommercePort Cart Build → Deterministic OOS Fault Injection → Drift Detection (`ITEM_UNAVAILABLE`) → LoopingRecoveryEngine Auto-Recovery (2x Amul 500ml, Delta ₹0) → Re-verification → AWAITING_CONFIRMATION → Explicit Human Confirmation Gate → Consequential Checkout → ORDERED.
-Build 100% green: 132/132 backend tests passing, `npm run lint` 0 errors, `npm run build` 100% clean.
-
-**What was done:**
-- **Task 1 — Choice Integrity & Session Hardening (`backend/intent/orchestrator.py`, `session.py`):**
-  - Added `removes_spin_id` and `intended_quantity` to `PendingClarification`.
-  - Hardened `handle_choice` to validate candidate against pending options, preserve all unrelated basket items, calculate pack size multiples, re-verify with `IntentVerifier`, and safely block violations.
-  - Hardened `IntentParser` with negative lookaheads in `_extract_items` to prevent conjunction/preposition greediness, and added `_is_incremental_add` for multi-turn cart additions.
-  - 24/24 tests passing in `backend/tests/test_orchestrator.py`.
-- **Task 2 — Deterministic Failure Simulation (`backend/integrations/commerce/mock_adapter.py`, `models.py`):**
-  - Added `is_available: bool = True` to `CartItem`.
-  - Added deterministic failure hooks to `MockCommerceAdapter`: `inject_out_of_stock`, `inject_price_change`, `inject_stale_cart`, `inject_transient_error`, and `reset_injections`.
-  - Instance-isolated catalog deepcopy to prevent cross-test pollution.
-- **Tasks 4 & 5 — Looping Recovery Engine (`backend/intent/recovery.py`, `recovery_loop.py`):**
-  - Created `LoopingRecoveryEngine` implementing the exact 10-step bounded recovery sequence (Spec §12).
-  - Infinite retry loop signature detection and bounded step counter (`max_attempts`).
-  - Separated mutating actions from non-mutating (`retry`, `refresh_cart`) to perform controlled live re-fetch from `CommercePort`.
-  - Created `backend/tests/test_recovery_loop.py` (4/4 passing tests).
-- **Task 6 — Intent Verifier Hardening (`backend/intent/verifier.py`):**
-  - Added `_check_item_availability` checking `getattr(item, "is_available", True) is False` to trigger `ViolationCode.ITEM_UNAVAILABLE` (is_hard=True).
-  - Sanitized dietary token matching with regex word boundaries to prevent punctuation trapping non-veg words.
-- **Task 3 — Flagship Golden OOS Recovery Scenario (`backend/tests/test_golden_oos_recovery.py`):**
-  - Proves the complete flagship scenario end-to-end: parse → contract → basket build → OOS fault injection on Amul 1L milk → drift detection → `LoopingRecoveryEngine` auto-recovers to 2x Amul 500ml → preserves bread & tomatoes → verification passes → explicit confirmation required → confirmed checkout to `ORDERED`. Both tests passing.
-- **Tasks 7 & 9 — Intent Commerce Workbench UI (`components/customer/IntentCommerceWorkbench.tsx`, `app/page.tsx`, `lib/apiClient.ts`):**
-  - Added canonical Intent API methods to `grocerApi`: `sendIntentChat`, `sendIntentChoice`, `confirmIntentOrder`, `getIntentSession`, and `resetIntentSession`.
-  - Built `IntentCommerceWorkbench` component with WhatsApp phone simulation, live verified basket card, budget tracking progress bar, interactive substitution cards for `NEEDS_DECISION`, and consequential checkout gate (`explicit_confirmation` required).
-  - Rendered `IntentCommerceWorkbench` as the primary view in `app/page.tsx`.
-- **Task 11 — Documentation:**
-  - Created `docs/GOLDEN_FLOW.md` detailing the product thesis, 10-step sequence, architecture diagram, and automated verification matrix.
+Build 100% green: 91/91 backend tests passing, `npm run lint` 0 errors, `npm run build` 100% clean Next.js 16 compile.
+Branch `main` completely untouched (`06726f2`).
 
 **Quality Gates:**
-- `pytest backend/tests -q`: 132/132 tests passed (100% green).
+- `pytest`: 91/91 tests passed (100% green).
 - `npm run lint`: 0 errors, 0 warnings.
 - `npm run build`: Compiled successfully in Next.js 16 (Turbopack).
-- Branch: `refactor/intent-cleanroom` (preserved, zero modifications to `main`).
+- Remote HEAD: `3b2b96119bfc971c1d58fe16f1dff199c5feecb8` (origin/refactor/intent-cleanroom matches local HEAD).
+- Remote `main`: `06726f20b3a3aa1f5ea5838cf6f1b23bce5ca56d` (untouched).
 
 
 

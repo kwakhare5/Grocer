@@ -85,15 +85,16 @@ class FakeCommercePort(CommercePort):
         raise AssertionError("tracking is not part of recovery-loop test")
 
 
-class ThreeStepVerifier:
+class TwoAttemptRecoveryVerifier:
     def __init__(self) -> None:
         self.calls = 0
 
     def verify(self, contract, cart):
         self.calls += 1
-        if self.calls < 3:
-            return VerificationResult(status=VerificationStatus.FAIL)
-        return VerificationResult(status=VerificationStatus.PASS)
+        # Intent is only satisfied when second recovery attempt mutates cart to grand_total >= 20.0
+        if cart.grand_total >= 20.0:
+            return VerificationResult(status=VerificationStatus.PASS)
+        return VerificationResult(status=VerificationStatus.FAIL)
 
 
 class CountingRecoveryEngine(LoopingRecoveryEngine):
@@ -125,7 +126,7 @@ class CountingRecoveryEngine(LoopingRecoveryEngine):
 @pytest.mark.asyncio
 async def test_recovery_retries_after_failed_reverification() -> None:
     port = FakeCommercePort()
-    verifier = ThreeStepVerifier()
+    verifier = TwoAttemptRecoveryVerifier()
     engine = CountingRecoveryEngine()
     contract = IntentContract(
         session_id="session-1",
@@ -147,9 +148,9 @@ async def test_recovery_retries_after_failed_reverification() -> None:
     assert outcome.state == RecoveryState.RECOVERED
     assert result.status == VerificationStatus.PASS
     assert engine.recover_calls == 2
-    assert verifier.calls == 3
+    assert verifier.calls == 4
     assert port.update_calls == 2
-    assert port.get_cart_calls == 2
+    assert port.get_cart_calls == 4
     assert port.refresh_calls == 1
     assert cart.grand_total == 20.0
 

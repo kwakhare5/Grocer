@@ -127,32 +127,57 @@ sequenceDiagram
 
 ---
 
-## 4. Automated Test Verification
+## 4. Canonical Recovery Loop & Automated Test Verification
+
+### Canonical Recovery Engine Architecture
+In accordance with Spec §10 and §12, the recovery loop has been consolidated into **ONE single canonical implementation**:
+- **Source of Truth:** `LoopingRecoveryEngine.run()` in `backend/intent/recovery_loop.py`.
+- **Delegation:** `execute_recovery()` is a backward-compatible adapter delegating directly to `self.run()`.
+- **Production Orchestrator:** `GrocerOrchestrator` directly invokes `LoopingRecoveryEngine.run()`.
+- **Strict 7-Step Sequence Per Iteration:**
+  1. `get_cart()`: Fetch live cart state from `CommercePort`.
+  2. `verifier.verify()`: Deterministic full-intent verification.
+  3. `recover()`: Candidate generation, constraint filtering, and policy evaluation.
+  4. Action execution: Apply authorized cart mutation (`add_item`, `replace_item`, `remove_item`, `adjust_quantity`) or controlled non-mutating retry/refresh (`retry`, `refresh_cart`). Non-mutating actions NEVER corrupt cart state through fake `update_cart()`.
+  5. `get_cart()` again: Re-fetch live cart state after provider mutation.
+  6. `verifier.verify()` again: Verify full intent after mutation.
+  7. Terminate with `RECOVERED` only upon passing verification, escalate to `NEEDS_USER_DECISION`/`FAILED`, or continue if bounded attempts remain.
+- **Infinite Loop Protection:** Action signatures (`action_type:spin_id:removes:qty`) are tracked; repeating the same recovery action aborts immediately with `RecoveryState.FAILED`.
+- **Multi-Turn Drift Observation:** `GrocerOrchestrator.handle_turn()` observes live cart state for existing carts before processing new user requests, detecting out-of-stock drift and executing canonical recovery while preserving unaffected cart items.
 
 The entire loop is verified by deterministic pytest test suites running against the live Python FastAPI backend:
 
 | Test File | Tests | Coverage / Verification Focus | Result |
 |---|---|---|---|
 | `backend/tests/test_golden_oos_recovery.py` | 2 | End-to-end flagship scenario + orchestrator turn with OOS injection | ✅ PASS |
+| `backend/tests/test_canonical_recovery_regression.py` | 7 | Canonical 7-step loop invariants, infinite loop abort, live cart re-fetch, non-mutating retry isolation | ✅ PASS |
+| `backend/tests/test_recovery_loop.py` | 8 | LoopingRecoveryEngine unit tests, multi-attempt reverification, API choice validation | ✅ PASS |
+| `backend/tests/test_recovery_engine.py` | 14 | Closed-loop candidate generation, policy checks, pack size multiples, budget drift | ✅ PASS |
 | `backend/tests/test_orchestrator.py` | 24 | Choice integrity, session isolation, confirmation gates, REST APIs | ✅ PASS |
-| `backend/tests/test_recovery_loop.py` | 4 | LoopingRecoveryEngine 10-step sequence, loop prevention, bounds | ✅ PASS |
-| `backend/tests/test_verifier.py` | 22 | Deterministic verification: budget arithmetic, vegetarian invariants, OOS | ✅ PASS |
-| `backend/tests/test_parser.py` | 24 | Parser extraction, negative lookahead token safety, incremental turns | ✅ PASS |
-| `backend/tests/test_policy.py` | 18 | Policy precedence, brand stickiness, soft vs hard constraint hierarchy | ✅ PASS |
-| `backend/tests/test_commerce_port.py` | 20 | CommercePort contracts, MockCommerceAdapter failure injection | ✅ PASS |
-| `backend/tests/test_customer_commerce.py` | 18 | Customer commerce service, address resolution, order tracking | ✅ PASS |
-| **Total Backend Suite** | **132** | **100% Deterministic Code Verification** | **132/132 PASS (100%)** |
+| `backend/tests/test_intent_verifier.py` | 13 | Deterministic verification: budget arithmetic, vegetarian invariants, OOS, stale cart | ✅ PASS |
+| `backend/tests/test_intent_parser.py` | 10 | Parser extraction, negative lookahead token safety, incremental turns | ✅ PASS |
+| `backend/tests/test_intent_contract.py` | 8 | IntentContract domain model, precedence rules, serialization | ✅ PASS |
+| `backend/tests/test_policy_engine.py` | 11 | Policy precedence, brand stickiness, soft vs hard constraint hierarchy | ✅ PASS |
+| `backend/tests/test_health.py` | 1 | Database-free decoupled health endpoint | ✅ PASS |
+| **Total Backend Suite** | **98** | **100% Deterministic Code Verification** | **98/98 PASS (100%)** |
 
-### Running the Golden Test Directly
+### Running the Golden and Canonical Regression Tests Directly
 ```bash
-pytest backend/tests/test_golden_oos_recovery.py -v
+pytest backend/tests/test_golden_oos_recovery.py backend/tests/test_canonical_recovery_regression.py -v
 ```
 
 Output:
 ```text
-backend/tests/test_golden_oos_recovery.py::test_golden_oos_recovery_scenario PASSED     [ 50%]
-backend/tests/test_golden_oos_recovery.py::test_golden_orchestrator_turn_with_oos_recovery PASSED [100%]
-=================================== 2 passed in 0.35s ===================================
+backend/tests/test_golden_oos_recovery.py::test_golden_oos_recovery_scenario PASSED     [ 11%]
+backend/tests/test_golden_oos_recovery.py::test_golden_orchestrator_turn_with_oos_recovery PASSED [ 22%]
+backend/tests/test_canonical_recovery_regression.py::test_orchestrator_oos_recovery_canonical_path PASSED [ 33%]
+backend/tests/test_canonical_recovery_regression.py::test_orchestrator_repeated_identical_recovery_infinite_loop_protection PASSED [ 44%]
+backend/tests/test_canonical_recovery_regression.py::test_orchestrator_failed_recovery_reaches_max_attempts_safely PASSED [ 55%]
+backend/tests/test_canonical_recovery_regression.py::test_unrelated_cart_items_survive_recovery PASSED [ 66%]
+backend/tests/test_canonical_recovery_regression.py::test_live_cart_refetched_and_reverified_between_iterations PASSED [ 77%]
+backend/tests/test_canonical_recovery_regression.py::test_transient_retry_does_not_mutate_cart PASSED [ 88%]
+backend/tests/test_canonical_recovery_regression.py::test_recovery_ends_only_after_fresh_verification_pass PASSED [100%]
+=================================== 9 passed in 0.08s ===================================
 ```
 
 ---

@@ -10,6 +10,7 @@ The Intent subsystem is being retained, not replaced wholesale.
 - `policy.py`: KEEP + REFACTOR
 - `verifier.py`: KEEP + HARDEN
 - `recovery.py`: REFACTOR into candidate generation, policy gate, execution, and re-verification
+- `recovery_loop.py`: NEW (Single canonical LoopingRecoveryEngine implementing 7-step bounded recovery, infinite-loop signature protection, non-mutating action isolation, and direct orchestrator delegation)
 - `session.py`: KEEP + REFACTOR
 - `orchestrator.py`: REFACTOR so orchestration owns lifecycle, not business rules
 - `integrations/commerce/port.py`: KEEP

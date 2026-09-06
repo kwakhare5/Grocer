@@ -150,14 +150,21 @@ async def _search_and_pick(
     else:
         candidates = all_variants
 
-    if item.pack_size_preference:
-        pref = item.pack_size_preference.lower()
-        size_match = [(p, v) for p, v in candidates if pref in v.pack_size.lower()]
+    target_size = item.pack_size_preference
+    if not target_size and item.unit:
+        qty_val = int(item.quantity) if getattr(item.quantity, "is_integer", lambda: False)() else item.quantity
+        target_size = f"{qty_val} {item.unit}"
+
+    if target_size:
+        pref = target_size.lower().replace(" ", "")
+        size_match = [(p, v) for p, v in candidates if pref in v.pack_size.lower().replace(" ", "")]
         if size_match:
             candidates = size_match
 
     _best_product, best_variant = min(candidates, key=lambda pv: pv[1].price)
-    quantity = max(1, int(item.quantity))
+    multiple = RecoveryEngine()._calculate_pack_multiple(item, best_variant.pack_size)
+    base_qty = max(1, int(item.quantity))
+    quantity = (multiple * base_qty) if multiple > 1 else base_qty
 
     return CartItemUpdate(spin_id=best_variant.spin_id, quantity=quantity)
 
@@ -224,12 +231,15 @@ class GrocerOrchestrator:
         self,
         commerce_adapter: Optional[CommercePort] = None,
         session_store: Optional[OrchestratorSessionStore] = None,
+        recovery_engine: Optional[LoopingRecoveryEngine] = None,
+        verifier: Optional[IntentVerifier] = None,
     ) -> None:
         self._port: CommercePort = commerce_adapter or get_commerce_adapter()
         self._store: OrchestratorSessionStore = session_store or default_session_store
         self._parser = IntentParser()
-        self._verifier = IntentVerifier()
+        self._verifier = verifier or IntentVerifier()
         self._policy = PolicyEngine()
+        self._recovery = recovery_engine
 
     async def handle_turn(
         self,
@@ -248,66 +258,149 @@ class GrocerOrchestrator:
         effective_address = session.address_id or f"addr-{customer_id}"
 
         session.conversation_state = ConversationState.BUILDING
+        cart_id = session.cart_id or f"cart-{session_id}"
+        session.cart_id = cart_id
+
+        prior_recovery_notes: list[str] = []
+        live_cart: Optional[CommerceCart] = None
+        new_contract_items: list[IntentItem] = []
+
+        # 1. Inspect live commerce cart for drift against prior intent contract
+        prior_contract = session.intent_contract
+        if session.turn_count > 1 and session.cart_id and prior_contract and not _is_fresh_request(message):
+            try:
+                live_cart = await self._port.get_cart(cart_id)
+            except Exception:
+                live_cart = None
+
+            if live_cart and live_cart.items:
+                drift = self._verifier.verify(prior_contract, live_cart)
+                if drift.status != VerificationStatus.PASS:
+                    events.append("RECOVERY_STARTED")
+                    session.conversation_state = ConversationState.RECOVERING
+                    try:
+                        available = await self._port.search_products(effective_address, "")
+                    except Exception:
+                        available = []
+                    engine = self._recovery or LoopingRecoveryEngine(
+                        policy_engine=self._policy,
+                        verifier=self._verifier,
+                    )
+                    rec_result = await engine.run(
+                        contract=prior_contract,
+                        cart_id=cart_id,
+                        commerce_port=self._port,
+                        available_products=available,
+                        address_id=effective_address,
+                        verifier=self._verifier,
+                    )
+                    events.append(f"RECOVERY_{rec_result.state.value.upper()}")
+                    events.append(f"POST_RECOVERY_VERIFY_{rec_result.verification.status.value.upper()}")
+                    if rec_result.state == RecoveryState.RECOVERED:
+                        prior_recovery_notes = rec_result.recovery_notes
+                        live_cart = rec_result.cart
+                    elif rec_result.state == RecoveryState.NEEDS_USER_DECISION:
+                        outcome = rec_result.outcome or RecoveryOutcome(
+                            state=rec_result.state,
+                            failure_class=FailureClass.UNKNOWN,
+                            message=rec_result.outcome.message if rec_result.outcome else "Clarification needed",
+                            attempt_number=rec_result.attempts,
+                            can_auto_apply=False,
+                            remaining_violations=rec_result.verification.violations,
+                        )
+                        return self._handle_needs_decision(session, live_cart, drift, outcome, events)
+                    else:
+                        reason = (
+                            rec_result.verification.violations[0].detail
+                            if rec_result.verification.violations
+                            else "a constraint could not be satisfied"
+                        )
+                        return self._handle_failed(session, reason, events)
+
+        # 2. Parse current message into IntentContract and update session
         contract = self._parse_intent(message, session, events)
         session.intent_contract = contract
         default_intent_store.save(contract)
 
         self._apply_preferences(contract, customer_id, events)
 
-        cart_id = session.cart_id or f"cart-{session_id}"
-        session.cart_id = cart_id
+        if live_cart and live_cart.items:
+            existing_updates = [
+                CartItemUpdate(spin_id=ci.spin_id, quantity=ci.quantity)
+                for ci in live_cart.items
+            ]
+            new_contract_items = [
+                item for item in contract.items
+                if not any(
+                    item.name.lower() in ci.name.lower() or ci.name.lower() in item.name.lower()
+                    for ci in live_cart.items
+                )
+            ]
+            if new_contract_items:
+                new_updates: list[CartItemUpdate] = []
+                for item in new_contract_items:
+                    update = await _search_and_pick(self._port, effective_address, item)
+                    if update:
+                        new_updates.append(update)
+                        events.append(f"ITEM_RESOLVED name={item.name!r} spin_id={update.spin_id}")
+                    else:
+                        events.append(f"ITEM_UNRESOLVED name={item.name!r}")
+                resolved_items = existing_updates + new_updates
+            else:
+                resolved_items = existing_updates
+        else:
+            resolved_items = await self._resolve_items(contract, effective_address, events)
 
-        resolved_items = await self._resolve_items(contract, effective_address, events)
         if not resolved_items:
-            session.conversation_state = ConversationState.FAILED
-            self._store.save(session)
-            return OrchestratorTurnResult(
-                session_id=session_id,
-                conversation_state=ConversationState.FAILED,
-                user_message=_msg_failed("no matching products found for your request"),
-                events=events,
-            )
+            return self._handle_failed(session, "no matching products found for your request", events)
 
-        try:
-            cart = await self._port.update_cart(
-                items=resolved_items, cart_id=cart_id, address_id=effective_address
-            )
-        except Exception as exc:
-            session.conversation_state = ConversationState.FAILED
-            self._store.save(session)
-            return OrchestratorTurnResult(
-                session_id=session_id,
-                conversation_state=ConversationState.FAILED,
-                user_message=_msg_failed(str(exc)),
-                events=events,
-            )
-
-        events.append(f"CART_BUILT cart_id={cart_id} total=₹{cart.grand_total}")
+        if not live_cart or not live_cart.items or new_contract_items:
+            try:
+                cart = await self._port.update_cart(
+                    items=resolved_items, cart_id=cart_id, address_id=effective_address
+                )
+            except Exception as exc:
+                return self._handle_failed(session, str(exc), events)
+            events.append(f"CART_BUILT cart_id={cart_id} total=₹{cart.grand_total}")
+        else:
+            cart = live_cart
 
         verification = self._verifier.verify(contract, cart)
         session.last_verification = {"status": verification.status.value}
         events.append(f"VERIFICATION_{verification.status.value.upper()}")
 
         if verification.status == VerificationStatus.PASS:
-            return self._make_awaiting_confirmation(session, contract, cart, [], events)
+            return self._make_awaiting_confirmation(session, contract, cart, prior_recovery_notes, events)
 
         events.append("RECOVERY_STARTED")
         session.conversation_state = ConversationState.RECOVERING
 
         try:
-            available: list[CommerceProductItem] = await self._port.get_go_to_items(effective_address)
+            available = await self._port.get_go_to_items(effective_address)
         except Exception:
             available = []
 
-        engine = LoopingRecoveryEngine(policy_engine=self._policy)
-        updated_cart, new_verification, outcome = await engine.execute_recovery(
+        engine = self._recovery or LoopingRecoveryEngine(
+            policy_engine=self._policy,
+            verifier=self._verifier,
+        )
+        recovery_result = await engine.run(
             contract=contract,
             cart_id=cart_id,
             commerce_port=self._port,
-            verifier=self._verifier,
             available_products=available,
-            verification_result=verification,
             address_id=effective_address,
+            verifier=self._verifier,
+        )
+        updated_cart = recovery_result.cart
+        new_verification = recovery_result.verification
+        outcome = recovery_result.outcome or RecoveryOutcome(
+            state=recovery_result.state,
+            failure_class=FailureClass.UNKNOWN,
+            message="Intent verified against live commerce state.",
+            attempt_number=recovery_result.attempts,
+            can_auto_apply=(recovery_result.state == RecoveryState.RECOVERED),
+            remaining_violations=new_verification.violations,
         )
 
         session.last_verification = {"status": new_verification.status.value}
@@ -316,63 +409,83 @@ class GrocerOrchestrator:
         events.append(f"POST_RECOVERY_VERIFY_{new_verification.status.value.upper()}")
 
         if outcome.state == RecoveryState.RECOVERED and new_verification.status == VerificationStatus.PASS:
-            recovery_notes = [a.reason for a in outcome.recovery_actions]
+            recovery_notes = prior_recovery_notes + (
+                recovery_result.recovery_notes or [a.reason for a in outcome.recovery_actions]
+            )
             return self._make_awaiting_confirmation(
                 session, contract, updated_cart, recovery_notes, events
             )
 
         if outcome.state == RecoveryState.NEEDS_USER_DECISION:
-            candidates = outcome.candidates_for_user or []
-            options = _candidates_to_options(candidates)
-            item_name = (
-                verification.violations[0].target
-                if verification.violations
-                else "an item"
-            )
-            question = outcome.message or (
-                f"Your usual {item_name} is unavailable. Which alternative would you prefer?"
-            )
-            removes_spin_id = None
-            intended_quantity = 1
-            if outcome.recovery_actions:
-                top_act = outcome.recovery_actions[0]
-                removes_spin_id = top_act.removes_spin_id
-                intended_quantity = max(1, top_act.quantity)
-            else:
-                matched_cart_item = next(
-                    (ci for ci in cart.items if item_name.lower() in ci.name.lower() or ci.name.lower() in item_name.lower()),
-                    None,
-                )
-                if matched_cart_item:
-                    removes_spin_id = matched_cart_item.spin_id
-                    intended_quantity = matched_cart_item.quantity
-
-            session.pending_clarification = PendingClarification(
-                item_name=item_name,
-                candidates=candidates,
-                clarification_question=question,
-                removes_spin_id=removes_spin_id,
-                intended_quantity=intended_quantity,
-            )
-            session.conversation_state = ConversationState.NEEDS_DECISION
-            self._store.save(session)
-            return OrchestratorTurnResult(
-                session_id=session_id,
-                conversation_state=ConversationState.NEEDS_DECISION,
-                user_message=_msg_clarification(question, options),
-                clarification_options=options,
-                events=events,
-            )
+            return self._handle_needs_decision(session, updated_cart, new_verification, outcome, events)
 
         reason = (
             new_verification.violations[0].detail
             if new_verification.violations
             else "a constraint could not be satisfied"
         )
+        return self._handle_failed(session, reason, events)
+
+    def _handle_needs_decision(
+        self,
+        session: OrchestratorSession,
+        cart: CommerceCart,
+        verification: VerificationResult,
+        outcome: RecoveryOutcome,
+        events: list[str],
+    ) -> OrchestratorTurnResult:
+        candidates = outcome.candidates_for_user or []
+        options = _candidates_to_options(candidates)
+        item_name = (
+            verification.violations[0].target
+            if verification.violations
+            else "an item"
+        )
+        question = outcome.message or (
+            f"Your usual {item_name} is unavailable. Which alternative would you prefer?"
+        )
+        removes_spin_id = None
+        intended_quantity = 1
+        if outcome.recovery_actions:
+            top_act = outcome.recovery_actions[0]
+            removes_spin_id = top_act.removes_spin_id
+            intended_quantity = max(1, top_act.quantity)
+        else:
+            matched_cart_item = next(
+                (ci for ci in cart.items if item_name.lower() in ci.name.lower() or ci.name.lower() in item_name.lower()),
+                None,
+            )
+            if matched_cart_item:
+                removes_spin_id = matched_cart_item.spin_id
+                intended_quantity = matched_cart_item.quantity
+
+        session.pending_clarification = PendingClarification(
+            item_name=item_name,
+            candidates=candidates,
+            clarification_question=question,
+            removes_spin_id=removes_spin_id,
+            intended_quantity=intended_quantity,
+        )
+        session.conversation_state = ConversationState.NEEDS_DECISION
+        self._store.save(session)
+        return OrchestratorTurnResult(
+            session_id=session.session_id,
+            conversation_state=ConversationState.NEEDS_DECISION,
+            user_message=_msg_clarification(question, options),
+            clarification_options=options,
+            events=events,
+        )
+
+    def _handle_failed(
+        self,
+        session: OrchestratorSession,
+        reason: str,
+        events: list[str],
+    ) -> OrchestratorTurnResult:
         session.conversation_state = ConversationState.FAILED
         self._store.save(session)
         return OrchestratorTurnResult(
-            session_id=session_id,
+            session_id=session.session_id,
             conversation_state=ConversationState.FAILED,
             user_message=_msg_failed(reason),
             events=events,

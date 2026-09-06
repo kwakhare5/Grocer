@@ -448,6 +448,7 @@ class RecoveryEngine:
         # Identify target item
         for v in verification_result.violations:
             if v.violation_code in (
+                ViolationCode.ITEM_UNAVAILABLE,
                 ViolationCode.MISSING_ITEM,
                 ViolationCode.WRONG_BRAND,
                 ViolationCode.WRONG_PACK_SIZE,

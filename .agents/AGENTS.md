@@ -228,18 +228,17 @@ If the answer is no, it does not belong in GROCER v2 unless the master spec is d
 
 ## 15. SESSION RESUME
 
-**Last completed:** Flagship Golden Flow & Cleanroom Intent Git Reconciliation (2026-09-06)
+**Last completed:** PR #1 Canonical Recovery Loop Unification & Regression Hardening (2026-09-06)
 
-**Status:** ✅ Complete & Pushed. Clean Git rebase reconciliation on `refactor/intent-cleanroom` safely executed and fast-forward pushed to `origin/refactor/intent-cleanroom` (`3b2b961`).
-Full loop: Parse → IntentContract → PolicyEngine → CommercePort Cart Build → Deterministic OOS Fault Injection → Drift Detection (`ITEM_UNAVAILABLE`) → LoopingRecoveryEngine Auto-Recovery (2x Amul 500ml, Delta ₹0) → Re-verification → AWAITING_CONFIRMATION → Explicit Human Confirmation Gate → Consequential Checkout → ORDERED.
-Build 100% green: 91/91 backend tests passing, `npm run lint` 0 errors, `npm run build` 100% clean Next.js 16 compile.
-Branch `main` completely untouched (`06726f2`).
+**Status:** ✅ Complete & Verified. Resolved PR #1 review finding: eliminated dual recovery paths by making `LoopingRecoveryEngine.run()` the single canonical source of truth, delegating `execute_recovery()` directly to `run()`, and updating `GrocerOrchestrator` to invoke `run()`. Added multi-turn live cart drift observation and existing cart item preservation across turns. Added 7 canonical regression tests in `test_canonical_recovery_regression.py`.
+Build 100% green: 98/98 backend tests passing (including 2 golden OOS flow tests and 7 canonical recovery regression tests), `npm run lint` 0 errors, `npm run build` 100% clean Next.js 16 Turbopack compile.
+PR #1 not merged. Branch `main` completely untouched (`06726f2`).
 
 **Quality Gates:**
-- `pytest`: 91/91 tests passed (100% green).
+- `pytest`: 98/98 tests passed (100% green).
 - `npm run lint`: 0 errors, 0 warnings.
 - `npm run build`: Compiled successfully in Next.js 16 (Turbopack).
-- Remote HEAD: `3b2b96119bfc971c1d58fe16f1dff199c5feecb8` (origin/refactor/intent-cleanroom matches local HEAD).
+- Branch: strictly `refactor/intent-cleanroom`.
 - Remote `main`: `06726f20b3a3aa1f5ea5838cf6f1b23bce5ca56d` (untouched).
 
 

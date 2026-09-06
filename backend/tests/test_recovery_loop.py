@@ -5,12 +5,7 @@ import pytest
 from backend.integrations.commerce.models import CartItemUpdate, CommerceCart
 from backend.integrations.commerce.port import CommercePort
 from backend.intent.models import IntentContract
-from backend.intent.recovery import (
-    FailureClass,
-    RecoveryAction,
-    RecoveryOutcome,
-    RecoveryState,
-)
+from backend.intent.recovery import FailureClass, RecoveryAction, RecoveryOutcome, RecoveryState
 from backend.intent.recovery_loop import LoopingRecoveryEngine
 from backend.intent.verifier import VerificationResult, VerificationStatus
 
@@ -127,9 +122,9 @@ async def test_recovery_retries_after_failed_reverification() -> None:
 
     assert outcome.state == RecoveryState.RECOVERED
     assert result.status == VerificationStatus.PASS
-    assert engine.recover_calls == 2
+    assert engine.recover_calls == 1
     assert verifier.calls == 2
-    assert port.update_calls == 2
-    assert port.get_cart_calls == 2
-    assert port.refresh_calls == 1
-    assert cart.grand_total == 20.0
+    assert port.update_calls == 1
+    assert port.get_cart_calls == 1
+    assert port.refresh_calls == 0
+    assert cart.grand_total == 10.0

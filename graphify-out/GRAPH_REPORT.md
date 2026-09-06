@@ -1,7 +1,7 @@
 # Graph Report - Grocer  (2026-09-06)
 
 ## Corpus Check
-- 92 files · ~112,851 words
+- 92 files · ~112,918 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
@@ -10,7 +10,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `6fc16297`
+- Built from commit: `da01bc8b`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -33,7 +33,7 @@
 - Core metrics
 - Intent Cleanroom Audit
 - Initial scenario set
-- IntentVerifier
+- ConstraintViolation
 - 5. Intent Contract
 - GROCER Cleanroom Status
 - CONTEXT.md — GROCER Domain Context
@@ -42,7 +42,7 @@
 - Component 3: Component-Wide Light Surface Transformation & Component Reuse
 - IphoneFrame.tsx
 - .prettierrc.json
-- test_intent_verifier.py
+- IntentVerifier
 - layout.tsx
 - 23. Anti-drift rules for coding agents
 - Changes Made
@@ -112,8 +112,8 @@
 1. `IntentContract` - 85 edges
 2. `CommerceCart` - 72 edges
 3. `IntentVerifier` - 64 edges
-4. `GrocerOrchestrator` - 63 edges
-5. `RecoveryEngine` - 63 edges
+4. `RecoveryEngine` - 63 edges
+5. `GrocerOrchestrator` - 63 edges
 6. `VerificationResult` - 62 edges
 7. `MockCommerceAdapter` - 60 edges
 8. `RecoveryOutcome` - 53 edges
@@ -123,14 +123,14 @@
 ## Surprising Connections (you probably didn't know these)
 - `IntentCommerceWorkbenchProps` --references--> `CustomerPersona`  [EXTRACTED]
   components/customer/IntentCommerceWorkbench.tsx → lib/types.ts
-- `Home()` --calls--> `checkIntentBackend()`  [EXTRACTED]
-  app/page.tsx → lib/apiClient.ts
-- `MockCommerceAdapter` --uses--> `CommerceError`  [INFERRED]
-  backend/integrations/commerce/mock_adapter.py → backend/integrations/commerce/exceptions.py
+- `SwiggyMCPAdapter` --uses--> `AddressNotServiceableError`  [INFERRED]
+  backend/integrations/commerce/swiggy_adapter.py → backend/integrations/commerce/exceptions.py
+- `SwiggyMCPAdapter` --uses--> `CartExpiredError`  [INFERRED]
+  backend/integrations/commerce/swiggy_adapter.py → backend/integrations/commerce/exceptions.py
 - `SwiggyMCPAdapter` --uses--> `CommerceError`  [INFERRED]
   backend/integrations/commerce/swiggy_adapter.py → backend/integrations/commerce/exceptions.py
-- `MockCommerceAdapter` --uses--> `UnconfirmedCheckoutError`  [INFERRED]
-  backend/integrations/commerce/mock_adapter.py → backend/integrations/commerce/exceptions.py
+- `SwiggyMCPAdapter` --uses--> `ItemOutOfStockError`  [INFERRED]
+  backend/integrations/commerce/swiggy_adapter.py → backend/integrations/commerce/exceptions.py
 
 ## Import Cycles
 - None detected.
@@ -209,9 +209,9 @@ Nodes (5): Decisions, First failure scenario, Golden path, Intent Cleanroom Audi
 Cohesion: 0.25
 Nodes (8): 15. Deterministic failure simulation, Initial scenario set, Scenario A — happy path, Scenario B — preferred item unavailable, Scenario C — budget drift, Scenario D — ambiguous substitution, Scenario E — stale cart, Scenario F — transient provider failure
 
-### Community 18 - "IntentVerifier"
-Cohesion: 0.12
-Nodes (17): ConstraintViolation, IntentVerifier, PreferenceDeviation, BaseModel, Deterministic engine that compares live commerce state to IntentContract. All…, Compare cart state to intent contract. Args: contract: The active…, Full verification pass with checkout authorization gate (Spec §8.3, §17.1).…, Check for items in active cart that have become out-of-stock or unserviceable. (+9 more)
+### Community 18 - "ConstraintViolation"
+Cohesion: 0.13
+Nodes (13): ConstraintViolation, PreferenceDeviation, BaseModel, Compare cart state to intent contract. Args: contract: The active…, Full verification pass with checkout authorization gate (Spec §8.3, §17.1).…, Check for items in active cart that have become out-of-stock or unserviceable., Return (budget_delta, violations). budget_delta = grand_total - max_budget…, Return (missing_item_names, deviations_for_non_essential_missing). (+5 more)
 
 ### Community 19 - "5. Intent Contract"
 Cohesion: 0.29
@@ -241,9 +241,9 @@ Nodes (10): Component 1: Hero Section Clean Up, Component 2: Design System Token
 Cohesion: 0.18
 Nodes (10): arrowParens, bracketSpacing, endOfLine, jsxSingleQuote, printWidth, semi, singleQuote, tabWidth (+2 more)
 
-### Community 27 - "test_intent_verifier.py"
+### Community 27 - "IntentVerifier"
 Cohesion: 0.13
-Nodes (37): CartItem, Item present in active commerce cart., _bread_item(), _make_cart(), _make_contract(), _milk_item(), Unit tests for GROCER Phase 4 Intent Verifier (Spec §9, §16.2, §17). Covers 12…, A cart satisfying every intent item and constraint should PASS. (+29 more)
+Nodes (41): CartItem, Item present in active commerce cart., IntentVerifier, Deterministic engine that compares live commerce state to IntentContract. All…, _bread_item(), _make_cart(), _make_contract(), _milk_item() (+33 more)
 
 ### Community 28 - "layout.tsx"
 Cohesion: 0.40
@@ -458,24 +458,24 @@ Cohesion: 0.12
 Nodes (25): ABC, get_commerce_adapter(), Factory for obtaining configured CommercePort adapter., Resolve and return active CommercePort adapter based on settings., Commerce integration layer for Grocer (Spec §5.1, §28, & §38.9). Provides the…, High-fidelity mock commerce adapter for local simulation and testing., CommerceOrderResult, DeliveryAddress (+17 more)
 
 ## Knowledge Gaps
-- **386 isolated node(s):** `semi`, `singleQuote`, `jsxSingleQuote`, `trailingComma`, `printWidth` (+381 more)
+- **386 isolated node(s):** `Critical anti-drift rule`, `2. TARGET FLOW`, `3. NEVER BUILD THESE INSIDE GROCER`, `4. INTENT RULES`, `5. AUTONOMY RULES` (+381 more)
   These have ≤1 connection - possible missing edges or undocumented components.
 - **12 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `IntentContract` connect `IntentContract` to `CommerceCart`, `orchestrator.py`, `test_canonical_recovery_regression.py`, `intent/__init__.py`, `IntentItem`, `RecoveryCandidate`, `RecoveryEngine`, `CartItemUpdate`, `IntentVerifier`, `IntentParser`, `test_policy_engine.py`, `test_intent_verifier.py`?**
-  _High betweenness centrality (0.043) - this node is a cross-community bridge._
-- **Why does `GrocerOrchestrator` connect `GrocerOrchestrator` to `CommerceCart`, `orchestrator.py`, `CommercePort`, `test_canonical_recovery_regression.py`, `intent/__init__.py`, `orchestrator`, `IntentItem`, `RecoveryCandidate`, `RecoveryEngine`, `CartItemUpdate`, `IntentVerifier`, `IntentParser`, `test_policy_engine.py`, `CommerceError`, `OrchestratorSessionStore`, `intent_chat.py`?**
-  _High betweenness centrality (0.038) - this node is a cross-community bridge._
-- **Why does `CommercePort` connect `CommercePort` to `.get_cart`, `SwiggyMCPAdapter`, `CommerceCart`, `orchestrator.py`, `test_canonical_recovery_regression.py`, `MockCommerceAdapter`, `.get_go_to_items`, `IntentItem`, `.search_products`, `RecoveryCandidate`, `RecoveryEngine`, `CartItemUpdate`, `GrocerOrchestrator`, `OrchestratorSessionStore`?**
-  _High betweenness centrality (0.030) - this node is a cross-community bridge._
+- **Why does `IntentContract` connect `IntentContract` to `CommerceCart`, `orchestrator.py`, `test_canonical_recovery_regression.py`, `intent/__init__.py`, `IntentItem`, `RecoveryCandidate`, `RecoveryEngine`, `CartItemUpdate`, `ConstraintViolation`, `IntentParser`, `test_policy_engine.py`, `IntentVerifier`?**
+  _High betweenness centrality (0.036) - this node is a cross-community bridge._
+- **Why does `GrocerOrchestrator` connect `GrocerOrchestrator` to `CommerceCart`, `orchestrator.py`, `CommercePort`, `test_canonical_recovery_regression.py`, `intent/__init__.py`, `IntentVerifier`, `orchestrator`, `IntentItem`, `RecoveryCandidate`, `RecoveryEngine`, `CartItemUpdate`, `IntentParser`, `test_policy_engine.py`, `CommerceError`, `OrchestratorSessionStore`, `intent_chat.py`?**
+  _High betweenness centrality (0.034) - this node is a cross-community bridge._
+- **Why does `IntentParser` connect `IntentParser` to `orchestrator.py`, `intent/__init__.py`, `RecoveryCandidate`, `PreferenceStore`, `GrocerOrchestrator`, `RuleBasedExtractor`, `test_policy_engine.py`, `OrchestratorSessionStore`?**
+  _High betweenness centrality (0.028) - this node is a cross-community bridge._
 - **Are the 5 inferred relationships involving `IntentContract` (e.g. with `AmbiguitySeverity` and `BrandTolerance`) actually correct?**
   _`IntentContract` has 5 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 22 inferred relationships involving `CommerceCart` (e.g. with `MockCommerceAdapter` and `CommercePort`) actually correct?**
   _`CommerceCart` has 22 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 19 inferred relationships involving `IntentVerifier` (e.g. with `GrocerOrchestrator` and `OrchestratorTurnResult`) actually correct?**
   _`IntentVerifier` has 19 INFERRED edges - model-reasoned connections that need verification._
-- **Are the 22 inferred relationships involving `GrocerOrchestrator` (e.g. with `UnconfirmedCheckoutError` and `CartItemUpdate`) actually correct?**
-  _`GrocerOrchestrator` has 22 INFERRED edges - model-reasoned connections that need verification._
+- **Are the 24 inferred relationships involving `RecoveryEngine` (e.g. with `GrocerOrchestrator` and `OrchestratorTurnResult`) actually correct?**
+  _`RecoveryEngine` has 24 INFERRED edges - model-reasoned connections that need verification._

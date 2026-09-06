@@ -20,7 +20,8 @@ During the Session End ritual (called automatically whenever significant changes
 - **Typography Consolidation**: Standardized the application across three deliberate typography layers: `Geist Sans` for conversational bubbles and UI controls, `Geist Mono` for telemetry, prices, and IDs, and Google Font `Lora` for brand and section headlines.
 - **Font Purge & Bundle Cleanup**: Permanently deleted local OTF fonts `TWKLausannePan-800.otf`, `PPEditorialNew-Regular-BF644b214ff145f.otf`, `PPEditorialNew-Ultrabold-BF644b21500840c.otf`, and `PPEditorialNew-Ultralight-BF644b21500d0c0.otf`.
 - **CSS & Token Modernization**: Configured `Lora` via `next/font/google` in `app/layout.tsx` (`--font-lora`), updated `--font-editorial` to point to `var(--font-lora)`, and cleaned `@font-face` rules in `app/globals.css`.
-- **Quality Gates**: `npm run lint` clean (0 errors), Next.js Turbopack `npm run build` compiled successfully in 2.3s, and all 147 backend tests verified green.
+- **Brand Favicon Consolidation**: Enforced `public/logo.svg` as the sole canonical icon across the application (purged extra fallback ICO/PNG files; added explicit SVG icon and apple-touch-icon links in `app/layout.tsx`).
+- **Quality Gates**: `npm run lint` clean (0 errors), Next.js Turbopack `npm run build` compiled successfully in 2.2s, and all 147 backend tests verified green.
 
 ### [GROCER — Real Commerce Swiggy MCP Live Verification & WhatsApp Channel Abstraction] 2026-09-06
 

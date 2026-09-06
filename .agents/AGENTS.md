@@ -230,9 +230,9 @@ If the answer is no, it does not belong in GROCER v2 unless the master spec is d
 
 ## 15. SESSION RESUME
 
-**Last completed:** Typography Consolidation & Google Font Lora Integration (2026-09-07)
+**Last completed:** Typography Consolidation, Lora Integration & Sole SVG Favicon (2026-09-07)
 
-**Status:** ✅ Complete & Verified. Local OTF fonts (TWK Lausanne and PP Editorial New) purged. Replaced with Google Font `Lora` via `next/font/google` (`--font-lora`). Typography architecture locked to Geist Sans (UI/chat), Geist Mono (data/logs/prices), and Lora (editorial headlines). Both frontend (`:3000`) and backend (`:8000`) running live.
+**Status:** ✅ Complete & Verified. Local OTF fonts (TWK Lausanne and PP Editorial New) purged. Replaced with Google Font `Lora` via `next/font/google` (`--font-lora`). `public/logo.svg` locked as sole application icon/favicon. Both frontend (`:3000`) and backend (`:8000`) running live.
 
 **Quality Gates:**
 - `pytest`: 147/147 tests passed (100% green).

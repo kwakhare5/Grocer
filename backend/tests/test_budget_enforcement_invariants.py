@@ -163,3 +163,88 @@ async def test_checkout_gate_strictly_rejects_budget_breach() -> None:
     v_checkout = verifier.verify_checkout(contract, cart_over_budget, explicit_confirmation=True)
     assert v_checkout.status == VerificationStatus.FAIL
     assert any(v.violation_code == ViolationCode.BUDGET_EXCEEDED for v in v_checkout.violations)
+
+
+@pytest.mark.asyncio
+async def test_swiggy_adapter_budget_breach_strictly_escalates() -> None:
+    """Proof 4: Upstream Swiggy live price change causing budget overrun strictly halts and escalates."""
+    from unittest.mock import AsyncMock, patch
+    import httpx
+    from backend.integrations.commerce.swiggy_adapter import SwiggyMCPAdapter
+
+    adapter = SwiggyMCPAdapter()
+    store = OrchestratorSessionStore()
+    orchestrator = GrocerOrchestrator(commerce_adapter=adapter, session_store=store)
+
+    session_id = f"swiggy-budget-{uuid.uuid4().hex[:6]}"
+    customer_id = f"cust-swiggy-budget-{uuid.uuid4().hex[:6]}"
+
+    # Mock responses for Swiggy:
+    # 1. get_addresses returns address
+    # 2. search_products returns items
+    # 3. update_cart returns cart with total \u20b9250 > user hard budget of \u20b9200
+    mock_addr = {
+        "success": True,
+        "data": {"addresses": [{"id": "addr-101", "addressLine": "Bandra West", "city": "Mumbai"}]},
+    }
+    mock_search = {
+        "success": True,
+        "data": {
+            "products": [
+                {
+                    "productId": "prod-1",
+                    "displayName": "Premium Ghee",
+                    "variations": [
+                        {
+                            "spinId": "spin-ghee-1",
+                            "displayName": "Organic Cow Ghee 500ml",
+                            "quantityDescription": "500 ml",
+                            "price": {"mrp": 280.0, "offerPrice": 250.0},
+                            "isInStockAndAvailable": True,
+                        }
+                    ],
+                }
+            ]
+        },
+    }
+    mock_cart_over = {
+        "success": True,
+        "data": {
+            "cartId": "cart-swiggy-over",
+            "selectedAddress": "addr-101",
+            "cartTotalAmount": "285.0",  # 250 + 35 fees > 200 hard budget
+            "items": [
+                {
+                    "spinId": "spin-ghee-1",
+                    "itemName": "Organic Cow Ghee 500ml",
+                    "discountedFinalPrice": 250.0,
+                    "quantity": 1,
+                    "isInStockAndAvailable": True,
+                }
+            ],
+            "billBreakdown": {
+                "lineItems": [{"label": "Item Total", "value": "₹250.0"}],
+                "toPay": {"label": "To Pay", "value": "₹285.0"},
+            },
+        },
+    }
+
+    with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
+        mock_post.side_effect = [
+            httpx.Response(status_code=200, json=mock_addr, request=httpx.Request("POST", adapter.base_url)),
+            httpx.Response(status_code=200, json=mock_search, request=httpx.Request("POST", adapter.base_url)),
+            httpx.Response(status_code=200, json=mock_cart_over, request=httpx.Request("POST", adapter.base_url)),
+        ]
+
+        result = await orchestrator.handle_turn(
+            session_id=session_id,
+            customer_id=customer_id,
+            message="get ghee under 200",
+            address_id="addr-101",
+        )
+
+        # Budget overrun must NEVER result in autonomous AWAITING_CONFIRMATION or ORDERED
+        assert result.conversation_state in (ConversationState.NEEDS_DECISION, ConversationState.FAILED)
+        assert result.order_id is None
+        assert result.requires_confirmation is False
+

@@ -349,7 +349,9 @@ class MockCommerceAdapter(CommercePort):
         return True
 
 
-    async def get_payment_options(self, cart_id: Optional[str] = None) -> list[PaymentOption]:
+    async def get_payment_options(
+        self, cart_id: Optional[str] = None, address_id: Optional[str] = None
+    ) -> list[PaymentOption]:
         return [
             PaymentOption(
                 method="UPI",

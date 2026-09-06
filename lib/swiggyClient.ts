@@ -1,14 +1,15 @@
 /**
  * Client library for Swiggy Instamart OAuth 2.1 PKCE Flow.
  *
- * Commerce tool executions remain strictly server-side behind CommercePort (SwiggyMCPAdapter).
+ * Security Invariants:
+ * - No raw access tokens stored in plaintext browser localStorage.
+ * - Sensitive credentials remain server-side in HttpOnly cookies and TokenVault.
+ * - Dynamic Client Registration (RFC 7591) and S256 PKCE challenge supported.
  */
 
 const SWIGGY_AUTH_URL = "https://mcp.swiggy.com/auth/authorize";
-const CLIENT_ID = "swiggy-mcp";
-const REDIRECT_URI = "https://grocerr.vercel.app";
+const DEFAULT_REDIRECT_URI = "https://grocerr.vercel.app";
 
-// Helper for Base64URL encoding
 function base64UrlEncode(buffer: ArrayBuffer): string {
   const bytes = new Uint8Array(buffer);
   let binary = "";
@@ -21,14 +22,12 @@ function base64UrlEncode(buffer: ArrayBuffer): string {
     .replace(/=+$/, "");
 }
 
-// Generate random string
 function generateRandomString(length: number): string {
   const array = new Uint8Array(length);
   crypto.getRandomValues(array);
   return base64UrlEncode(array.buffer);
 }
 
-// Compute SHA-256 code challenge
 async function generateCodeChallenge(verifier: string): Promise<string> {
   const encoder = new TextEncoder();
   const data = encoder.encode(verifier);
@@ -36,42 +35,57 @@ async function generateCodeChallenge(verifier: string): Promise<string> {
   return base64UrlEncode(digest);
 }
 
-export interface SwiggyTokenResponse {
-  access_token: string;
-  token_type: string;
-  expires_in: number;
-  scope: string;
-}
-
 export class SwiggyClient {
-  private static TOKEN_KEY = "swiggy_access_token";
-  private static EXPIRES_KEY = "swiggy_token_expires_at";
+  private static AUTH_FLAG_KEY = "swiggy_authenticated";
   private static VERIFIER_KEY = "swiggy_pkce_verifier";
   private static STATE_KEY = "swiggy_oauth_state";
 
   /**
    * Initiates Swiggy OAuth 2.1 PKCE login flow.
-   * Redirects user to Swiggy consent UI.
+   * Fetches registered client_id & redirect from server or generates S256 PKCE locally.
    */
-  static async startLogin(): Promise<void> {
+  static async startLogin(customRedirect?: string): Promise<void> {
     if (typeof window === "undefined") return;
+
+    const redirectUri =
+      customRedirect ||
+      (window.location.origin.includes("localhost")
+        ? window.location.origin
+        : DEFAULT_REDIRECT_URI);
+
+    try {
+      // Prefer server-side authorize endpoint if available
+      const resp = await fetch(
+        `/api/swiggy/authorize?redirect_uri=${encodeURIComponent(redirectUri)}&customer_id=cust-web`,
+        { method: "GET" }
+      );
+      if (resp.ok) {
+        const data = await resp.json();
+        if (data.authorize_url) {
+          if (data.code_verifier) {
+            sessionStorage.setItem(this.VERIFIER_KEY, data.code_verifier);
+          }
+          if (data.state) {
+            sessionStorage.setItem(this.STATE_KEY, data.state);
+          }
+          window.location.href = data.authorize_url;
+          return;
+        }
+      }
+    } catch {
+      // Fall back to client-side PKCE generation
+    }
 
     const verifier = generateRandomString(32);
     const challenge = await generateCodeChallenge(verifier);
     const state = generateRandomString(16);
 
-    // Persist in localStorage for recovery after redirect
-    localStorage.setItem(this.VERIFIER_KEY, verifier);
-    localStorage.setItem(this.STATE_KEY, state);
-
-    // Current origin fallback for local dev vs production
-    const redirectUri = window.location.origin.includes("localhost")
-      ? window.location.origin
-      : REDIRECT_URI;
+    sessionStorage.setItem(this.VERIFIER_KEY, verifier);
+    sessionStorage.setItem(this.STATE_KEY, state);
 
     const params = new URLSearchParams({
       response_type: "code",
-      client_id: CLIENT_ID,
+      client_id: "swiggy-mcp",
       redirect_uri: redirectUri,
       code_challenge: challenge,
       code_challenge_method: "S256",
@@ -84,21 +98,28 @@ export class SwiggyClient {
 
   /**
    * Handles callback redirect when `?code=` is detected.
+   * Exchanges authorization code server-side and stores session securely in HttpOnly cookie.
    */
-  static async handleAuthCallback(code: string, state: string): Promise<boolean> {
+  static async handleAuthCallback(
+    code: string,
+    state: string,
+    customRedirect?: string
+  ): Promise<boolean> {
     if (typeof window === "undefined") return false;
 
-    const savedState = localStorage.getItem(this.STATE_KEY);
-    const verifier = localStorage.getItem(this.VERIFIER_KEY);
+    const savedState = sessionStorage.getItem(this.STATE_KEY);
+    const verifier = sessionStorage.getItem(this.VERIFIER_KEY);
 
-    if (!verifier || (savedState && savedState !== state)) {
-      console.error("Swiggy OAuth state/verifier validation failed");
+    if (savedState && savedState !== state) {
+      console.error("Swiggy OAuth state mismatch: anti-CSRF check failed");
       return false;
     }
 
-    const redirectUri = window.location.origin.includes("localhost")
-      ? window.location.origin
-      : REDIRECT_URI;
+    const redirectUri =
+      customRedirect ||
+      (window.location.origin.includes("localhost")
+        ? window.location.origin
+        : DEFAULT_REDIRECT_URI);
 
     try {
       const resp = await fetch("/api/swiggy/token", {
@@ -106,8 +127,10 @@ export class SwiggyClient {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           code,
-          code_verifier: verifier,
+          state,
+          code_verifier: verifier || undefined,
           redirect_uri: redirectUri,
+          customer_id: "cust-web",
         }),
       });
 
@@ -117,16 +140,12 @@ export class SwiggyClient {
         return false;
       }
 
-      const data: SwiggyTokenResponse = await resp.json();
-      const expiresAt = Date.now() + data.expires_in * 1000;
+      // Cleanup ephemeral PKCE handshake verifiers
+      sessionStorage.removeItem(this.VERIFIER_KEY);
+      sessionStorage.removeItem(this.STATE_KEY);
 
-      localStorage.setItem(this.TOKEN_KEY, data.access_token);
-      localStorage.setItem(this.EXPIRES_KEY, expiresAt.toString());
-
-      // Clean up verifier
-      localStorage.removeItem(this.VERIFIER_KEY);
-      localStorage.removeItem(this.STATE_KEY);
-
+      // Record authenticated session flag in sessionStorage (never raw token)
+      sessionStorage.setItem(this.AUTH_FLAG_KEY, "true");
       return true;
     } catch (err) {
       console.error("Error exchanging Swiggy code:", err);
@@ -135,39 +154,44 @@ export class SwiggyClient {
   }
 
   /**
-   * Get active access token if not expired.
-   */
-  static getAccessToken(): string | null {
-    if (typeof window === "undefined") return null;
-
-    const token = localStorage.getItem(this.TOKEN_KEY);
-    const expiresAt = localStorage.getItem(this.EXPIRES_KEY);
-
-    if (!token || !expiresAt) return null;
-
-    // Check expiry with 60s buffer
-    if (Date.now() > parseInt(expiresAt, 10) - 60000) {
-      this.disconnect();
-      return null;
-    }
-
-    return token;
-  }
-
-  /**
    * Check if Swiggy Instamart is connected.
    */
-  static isConnected(): boolean {
-    return !!this.getAccessToken();
+  static async isConnected(customerId: string = "cust-web"): Promise<boolean> {
+    if (typeof window === "undefined") return false;
+
+    try {
+      const res = await fetch(`/api/swiggy/status?customer_id=${encodeURIComponent(customerId)}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.authenticated) {
+          sessionStorage.setItem(this.AUTH_FLAG_KEY, "true");
+          return true;
+        }
+      }
+    } catch {
+      // Fall back to session storage flag
+    }
+
+    return sessionStorage.getItem(this.AUTH_FLAG_KEY) === "true";
   }
 
   /**
    * Disconnect active Swiggy session.
    */
-  static disconnect(): void {
+  static async disconnect(customerId: string = "cust-web"): Promise<void> {
     if (typeof window === "undefined") return;
-    localStorage.removeItem(this.TOKEN_KEY);
-    localStorage.removeItem(this.EXPIRES_KEY);
+    sessionStorage.removeItem(this.AUTH_FLAG_KEY);
+    sessionStorage.removeItem(this.VERIFIER_KEY);
+    sessionStorage.removeItem(this.STATE_KEY);
+
+    try {
+      await fetch("/api/swiggy/logout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ customer_id: customerId }),
+      });
+    } catch {
+      // Ignore network errors on logout
+    }
   }
 }
-

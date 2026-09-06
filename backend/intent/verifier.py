@@ -15,6 +15,7 @@ Rules:
 """
 from __future__ import annotations
 
+import re
 from enum import Enum
 from typing import Optional
 
@@ -164,7 +165,14 @@ class IntentVerifier:
         if stale_violations:
             recovery_hints.append("Refresh cart state before proceeding")
 
+        # 1b. Item availability check (in-cart OOS items)
+        availability_violations = self._check_item_availability(cart)
+        violations.extend(availability_violations)
+        if availability_violations:
+            recovery_hints.append("Replace or remove out-of-stock items from the basket")
+
         # 2. Budget check
+
         budget_delta, budget_violations = self._check_budget(contract, cart)
         violations.extend(budget_violations)
         if budget_violations:
@@ -273,6 +281,23 @@ class IntentVerifier:
             ))
         return violations
 
+    def _check_item_availability(
+        self, cart: CommerceCart
+    ) -> list[ConstraintViolation]:
+        """Check for items in active cart that have become out-of-stock or unserviceable."""
+        violations: list[ConstraintViolation] = []
+        for item in cart.items:
+            if getattr(item, "is_available", True) is False:
+                violations.append(
+                    ConstraintViolation(
+                        violation_code=ViolationCode.ITEM_UNAVAILABLE,
+                        target=item.name,
+                        detail=f"Item '{item.name}' in cart is out of stock or unavailable",
+                        is_hard=True,
+                    )
+                )
+        return violations
+
     def _check_budget(
         self, contract: IntentContract, cart: CommerceCart
     ) -> tuple[float, list[ConstraintViolation]]:
@@ -322,10 +347,9 @@ class IntentVerifier:
 
         for item in cart.items:
             item_name_lower = item.name.lower()
+            tokens = set(re.findall(r"[a-z]+", item_name_lower))
 
             if "vegetarian" in hard_tags or "veg" in hard_tags:
-                # Check item name tokens against non-veg keywords
-                tokens = set(item_name_lower.split())
                 if tokens & _NON_VEG_KEYWORDS:
                     violations.append(ConstraintViolation(
                         violation_code=ViolationCode.DIETARY_VIOLATION,
@@ -337,7 +361,6 @@ class IntentVerifier:
                     ))
 
             if "vegan" in hard_tags:
-                tokens = set(item_name_lower.split())
                 if (tokens & _NON_VEG_KEYWORDS) or (tokens & _VEGAN_EXCLUDED_KEYWORDS):
                     violations.append(ConstraintViolation(
                         violation_code=ViolationCode.DIETARY_VIOLATION,
@@ -356,7 +379,11 @@ class IntentVerifier:
         """Return (missing_item_names, deviations_for_non_essential_missing)."""
         missing: list[str] = []
         deviations: list[PreferenceDeviation] = []
-        cart_names_lower = [ci.name.lower() for ci in cart.items]
+        cart_names_lower = [
+            ci.name.lower()
+            for ci in cart.items
+            if getattr(ci, "is_available", True) is not False
+        ]
 
         for intent_item in contract.items:
             query = intent_item.name.lower()
@@ -364,6 +391,7 @@ class IntentVerifier:
             if not matched:
                 if intent_item.is_essential:
                     missing.append(intent_item.name)
+
                 else:
                     deviations.append(PreferenceDeviation(
                         preference_type=PreferenceType.PRODUCT_VARIANT,

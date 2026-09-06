@@ -71,15 +71,21 @@ from backend.intent.orchestrator import (
     OrchestratorTurnResult,
 )
 
+# Compatibility wiring: the orchestrator still imports RecoveryEngine directly.
+# Replace that module-global with the bounded closed-loop implementation after
+# the orchestrator module has finished importing, without changing its public API.
+from backend.intent import orchestrator as _orchestrator_module
+from backend.intent.recovery_loop import LoopingRecoveryEngine
+
+_orchestrator_module.RecoveryEngine = LoopingRecoveryEngine
+
 __all__ = [
-    # Enums
     "ConstraintType",
     "PreferenceType",
     "SubstitutionTolerance",
     "BrandTolerance",
     "AmbiguitySeverity",
     "PrecedenceLevel",
-    # Domain Models
     "IntentItem",
     "HardConstraint",
     "SoftPreference",
@@ -94,35 +100,29 @@ __all__ = [
     "Ambiguity",
     "SourceContext",
     "IntentContract",
-    # Storage
     "IntentSessionStore",
     "default_intent_store",
-    # Parser
     "IntentParser",
-    # Policy (Phase 3)
     "ActionProposal",
     "AutonomyLevel",
     "PolicyDecision",
     "PolicyEngine",
-    # Preferences (Phase 3)
     "PreferenceStore",
     "StoredPreference",
     "default_preference_store",
-    # Verifier (Phase 4)
     "ConstraintViolation",
     "IntentVerifier",
     "PreferenceDeviation",
     "VerificationResult",
     "VerificationStatus",
     "ViolationCode",
-    # Recovery (Phase 5)
     "FailureClass",
     "RecoveryAction",
     "RecoveryCandidate",
     "RecoveryEngine",
+    "LoopingRecoveryEngine",
     "RecoveryOutcome",
     "RecoveryState",
-    # Session (Phase 6)
     "BasketItem",
     "BasketSummary",
     "ClarificationOption",
@@ -131,7 +131,6 @@ __all__ = [
     "OrchestratorSessionStore",
     "PendingClarification",
     "default_session_store",
-    # Orchestrator (Phase 6)
     "GrocerOrchestrator",
     "OrchestratorTurnResult",
 ]

@@ -152,14 +152,14 @@ The entire loop is verified by deterministic pytest test suites running against 
 | `backend/tests/test_golden_oos_recovery.py` | 2 | End-to-end flagship scenario + orchestrator turn with OOS injection | ✅ PASS |
 | `backend/tests/test_canonical_recovery_regression.py` | 7 | Canonical 7-step loop invariants, infinite loop abort, live cart re-fetch, non-mutating retry isolation | ✅ PASS |
 | `backend/tests/test_recovery_loop.py` | 8 | LoopingRecoveryEngine unit tests, multi-attempt reverification, API choice validation | ✅ PASS |
-| `backend/tests/test_recovery_engine.py` | 14 | Closed-loop candidate generation, policy checks, pack size multiples, budget drift | ✅ PASS |
-| `backend/tests/test_orchestrator.py` | 24 | Choice integrity, session isolation, confirmation gates, REST APIs | ✅ PASS |
+| `backend/tests/test_recovery_engine.py` | 13 | Closed-loop candidate generation, policy checks, pack size multiples, budget drift | ✅ PASS |
+| `backend/tests/test_orchestrator.py` | 25 | Choice integrity, session isolation, confirmation gates, REST APIs | ✅ PASS |
 | `backend/tests/test_intent_verifier.py` | 13 | Deterministic verification: budget arithmetic, vegetarian invariants, OOS, stale cart | ✅ PASS |
 | `backend/tests/test_intent_parser.py` | 10 | Parser extraction, negative lookahead token safety, incremental turns | ✅ PASS |
 | `backend/tests/test_intent_contract.py` | 8 | IntentContract domain model, precedence rules, serialization | ✅ PASS |
 | `backend/tests/test_policy_engine.py` | 11 | Policy precedence, brand stickiness, soft vs hard constraint hierarchy | ✅ PASS |
 | `backend/tests/test_health.py` | 1 | Database-free decoupled health endpoint | ✅ PASS |
-| **Total Backend Suite** | **98** | **100% Deterministic Code Verification** | **98/98 PASS (100%)** |
+| **Total Backend Suite** | **98** | **91 baseline tests (incl. 2 golden OOS) + 7 canonical regression tests** | **98/98 PASS (100%)** |
 
 ### Running the Golden and Canonical Regression Tests Directly
 ```bash

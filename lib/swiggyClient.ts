@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Client library for Swiggy Instamart MCP OAuth 2.1 PKCE Flow and Tool Execution.
  */
 
@@ -171,7 +171,11 @@ export class SwiggyClient {
   /**
    * Execute JSON-RPC tool call against Swiggy Instamart MCP gateway.
    */
-  static async callTool<T = any>(toolName: string, args: Record<string, any> = {}): Promise<T | null> {
+  static async callTool<T = unknown>(
+    toolName: string,
+    args: Record<string, unknown> = {}
+  ): Promise<T | null> {
+
     const token = this.getAccessToken();
     if (!token) return null;
 

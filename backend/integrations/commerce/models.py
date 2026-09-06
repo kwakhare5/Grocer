@@ -1,4 +1,4 @@
-﻿"""Domain models for the CommercePort abstraction layer."""
+"""Domain models for the CommercePort abstraction layer."""
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -51,6 +51,7 @@ class CartItem(BaseModel):
     unit_price: float
     quantity: int
     total_price: float
+    is_available: bool = True
 
 
 class CommerceCart(BaseModel):

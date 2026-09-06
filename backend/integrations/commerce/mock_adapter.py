@@ -1,6 +1,7 @@
 """High-fidelity mock commerce adapter for local simulation and testing."""
 from __future__ import annotations
 
+import copy
 import uuid
 from datetime import datetime, timezone
 from typing import Optional
@@ -18,6 +19,7 @@ from backend.integrations.commerce.models import (
     DeliveryTrackingStatus,
 )
 from backend.integrations.commerce.exceptions import (
+    CommerceError,
     UnconfirmedCheckoutError,
     AddressNotServiceableError,
     ItemOutOfStockError,
@@ -137,41 +139,123 @@ MOCK_ADDRESSES = [
 
 
 class MockCommerceAdapter(CommercePort):
-    """Deterministic in-memory commerce simulation adapter."""
+    """Deterministic in-memory commerce simulation adapter with failure injection."""
 
     def __init__(self) -> None:
         self._carts: dict[str, CommerceCart] = {}
         self._orders: dict[str, CommerceOrderResult] = {}
+        self._injected_oos: set[str] = set()
+        self._price_overrides: dict[str, float] = {}
+        self._injected_stale: bool = False
+        self._transient_errors_remaining: int = 0
+        self._init_catalog()
+
+    def _init_catalog(self) -> None:
+        """Initialize instance-isolated catalog copies."""
+        self._products: list[CommerceProductItem] = copy.deepcopy(MOCK_PRODUCTS)
         self._catalog_by_spin: dict[str, tuple[CommerceProductItem, ProductVariant]] = {}
-        for prod in MOCK_PRODUCTS:
+        for prod in self._products:
             for variant in prod.variants:
                 self._catalog_by_spin[variant.spin_id] = (prod, variant)
+
+    # -----------------------------------------------------------------------
+    # Deterministic Failure Injection Hooks (Spec §15, §20)
+    # -----------------------------------------------------------------------
+
+    def inject_out_of_stock(self, spin_id: str) -> None:
+        """Simulate an item variant going out of stock in real-time."""
+        self._injected_oos.add(spin_id)
+        if spin_id in self._catalog_by_spin:
+            _prod, variant = self._catalog_by_spin[spin_id]
+            variant.in_stock = False
+
+        # Flag existing cart items as unavailable
+        for cart in self._carts.values():
+            for item in cart.items:
+                if item.spin_id == spin_id:
+                    item.is_available = False
+
+    def inject_price_change(self, spin_id: str, new_price: float) -> None:
+        """Simulate a supplier or store-level price surge."""
+        self._price_overrides[spin_id] = new_price
+        if spin_id in self._catalog_by_spin:
+            _prod, variant = self._catalog_by_spin[spin_id]
+            variant.price = new_price
+
+        # Update cart items and recalculate grand total
+        for cart in self._carts.values():
+            for item in cart.items:
+                if item.spin_id == spin_id:
+                    item.unit_price = new_price
+                    item.total_price = round(new_price * item.quantity, 2)
+            item_total = sum(it.total_price for it in cart.items)
+            cart.item_total = round(item_total, 2)
+            cart.delivery_fee = 0.0 if (item_total >= 199.0 or not cart.items) else 30.0
+            cart.grand_total = round(item_total + cart.packaging_fee + cart.delivery_fee, 2)
+
+    def inject_stale_cart(self, is_stale: bool = True) -> None:
+        """Simulate session expiry or store becoming unserviceable."""
+        self._injected_stale = is_stale
+        for cart in self._carts.values():
+            cart.is_serviceable = not is_stale
+
+    def inject_transient_error(self, count: int = 1) -> None:
+        """Simulate transient upstream provider failure (e.g. 503 or network drop)."""
+        self._transient_errors_remaining = count
+
+    def reset_injections(self) -> None:
+        """Restore pristine catalog and clear all simulated faults."""
+        self._injected_oos.clear()
+        self._price_overrides.clear()
+        self._injected_stale = False
+        self._transient_errors_remaining = 0
+        self._init_catalog()
+
+    # -----------------------------------------------------------------------
+    # CommercePort Methods
+    # -----------------------------------------------------------------------
 
     async def get_addresses(self, customer_id: str) -> list[DeliveryAddress]:
         return list(MOCK_ADDRESSES)
 
     async def get_go_to_items(self, address_id: str) -> list[CommerceProductItem]:
-        # Return Milk, Bread, and Eggs as frequent staples
-        return [p for p in MOCK_PRODUCTS if p.product_id in ["prod-milk", "prod-bread", "prod-eggs"]]
+        return [p for p in self._products if p.product_id in ["prod-milk", "prod-bread", "prod-eggs"]]
 
     async def search_products(self, address_id: str, query: str) -> list[CommerceProductItem]:
         q = query.strip().lower()
         if not q:
-            return list(MOCK_PRODUCTS)
+            return list(self._products)
         return [
-            p for p in MOCK_PRODUCTS
+            p for p in self._products
             if q in p.name.lower() or q in p.category.lower() or any(q in v.name.lower() for v in p.variants)
         ]
 
     async def get_cart(self, cart_id: Optional[str] = None) -> CommerceCart:
+        if self._transient_errors_remaining > 0:
+            self._transient_errors_remaining -= 1
+            raise CommerceError("Simulated upstream transient network timeout", code="TRANSIENT_TIMEOUT")
+
         cid = cart_id or "default-cart"
         if cid not in self._carts:
             self._carts[cid] = CommerceCart(cart_id=cid)
-        return self._carts[cid]
+
+        cart = self._carts[cid]
+        # Ensure availability matches injected state
+        for item in cart.items:
+            if item.spin_id in self._injected_oos:
+                item.is_available = False
+        if self._injected_stale:
+            cart.is_serviceable = False
+
+        return cart
 
     async def update_cart(
         self, items: list[CartItemUpdate], cart_id: Optional[str] = None, address_id: Optional[str] = None
     ) -> CommerceCart:
+        if self._transient_errors_remaining > 0:
+            self._transient_errors_remaining -= 1
+            raise CommerceError("Simulated upstream transient network timeout", code="TRANSIENT_TIMEOUT")
+
         cid = cart_id or "default-cart"
         cart_items: list[CartItem] = []
         item_total = 0.0
@@ -183,15 +267,20 @@ class MockCommerceAdapter(CommercePort):
                 raise ItemOutOfStockError(spin_id=update.spin_id, available_quantity=0)
 
             prod, variant = self._catalog_by_spin[update.spin_id]
-            total_price = round(variant.price * update.quantity, 2)
+            if not variant.in_stock or update.spin_id in self._injected_oos:
+                raise ItemOutOfStockError(spin_id=update.spin_id, available_quantity=0)
+
+            price = self._price_overrides.get(variant.spin_id, variant.price)
+            total_price = round(price * update.quantity, 2)
             cart_items.append(
                 CartItem(
                     spin_id=variant.spin_id,
                     name=variant.name,
                     pack_size=variant.pack_size,
-                    unit_price=variant.price,
+                    unit_price=price,
                     quantity=update.quantity,
                     total_price=total_price,
+                    is_available=True,
                 )
             )
             item_total += total_price
@@ -208,7 +297,7 @@ class MockCommerceAdapter(CommercePort):
             packaging_fee=packaging_fee,
             delivery_fee=delivery_fee,
             grand_total=grand_total,
-            is_serviceable=True,
+            is_serviceable=not self._injected_stale,
         )
         self._carts[cid] = cart
         return cart
@@ -217,6 +306,7 @@ class MockCommerceAdapter(CommercePort):
         cid = cart_id or "default-cart"
         self._carts[cid] = CommerceCart(cart_id=cid)
         return True
+
 
     async def get_payment_options(self, cart_id: Optional[str] = None) -> list[PaymentOption]:
         return [

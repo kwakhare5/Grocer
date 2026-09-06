@@ -104,6 +104,13 @@ class PendingClarification(BaseModel):
     item_name: str = Field(..., description="Name of the item requiring user decision")
     candidates: list[RecoveryCandidate] = Field(default_factory=list)
     clarification_question: str
+    removes_spin_id: Optional[str] = Field(
+        default=None, description="Spin ID of cart item being replaced, if any"
+    )
+    intended_quantity: int = Field(
+        default=1, description="Intended quantity to add/substitute"
+    )
+
 
 
 # ---------------------------------------------------------------------------

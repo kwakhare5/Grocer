@@ -1,26 +1,31 @@
-venv/
-.venv/
-.pytest_cache/
-__pycache__/
-*.pyc
-.DS_Store
+# dependencies
 node_modules/
+.venv/
+__pycache__/
+*.py[cod]
+
+# local env / secrets
+.env
+.env.*
+!.env.example
+
+# build / test output
 .next/
+out/
 dist/
 build/
+coverage/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# generated analysis artifacts
+graphify-out/
+
+# local IDE / OS
+.DS_Store
+Thumbs.db
+.vscode/*.local
+
+# logs
 *.log
-backend/seed/generated_orders.json
-api_keys_backup.md
-.codegraph/
-
-# Build artifacts / local env
-tsconfig.tsbuildinfo
-.env.local
-*.db
-*.sqlite
-scratch/
-
-
-.vercel
-.env*
-graphify-out/cache/

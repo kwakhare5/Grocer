@@ -1,21 +1,16 @@
-from fastapi import APIRouter, Depends
-from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession
+from datetime import datetime, timezone
 
-from backend.database import get_db
+from fastapi import APIRouter
 
 router = APIRouter()
 
-@router.get('/health')
-async def health_check(db: AsyncSession = Depends(get_db)) -> dict:
-    """Health check endpoint. Verifies API and database connectivity."""
-    try:
-        await db.execute(text('SELECT 1'))
-        db_status = 'connected'
-    except Exception:
-        db_status = 'disconnected'
+
+@router.get("/health")
+async def health_check() -> dict[str, str]:
+    """Report API health without depending on the retired operations database."""
     return {
-        'status': 'healthy',
-        'database': db_status,
-        'service': 'GROCER v2',
+        "status": "healthy",
+        "service": "GROCER v2",
+        "database": "not_required",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }

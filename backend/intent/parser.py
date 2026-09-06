@@ -178,17 +178,18 @@ class RuleBasedExtractor:
             r"(\d+(?:\.\d+)?)\s*"                          # quantity
             r"(litres?|liters?|l|lt|kg|kgs?|kilos?|g|gms?|grams?|ml|pcs?|pieces?|packs?|packets?|dozen|doz)?\s*"  # unit
             r"(?:of\s+)?"                                   # optional "of"
-            r"([a-zA-Z][a-zA-Z\s]{1,30})",                 # item name
+            r"((?:(?!and\b|or\b|also\b|plus\b|under\b|below\b|within\b|budget\b)[a-zA-Z\s])+)",  # item name
             re.I,
         )
+
         for match in qty_unit_item.finditer(text):
             qty = float(match.group(1))
             raw_unit = (match.group(2) or "").strip().lower()
             name = match.group(3).strip().rstrip(",. ")
             # Clean trailing conjunctions
-            name = re.sub(r"\s+(?:and|or|also|plus)\s*$", "", name, flags=re.I).strip()
+            name = re.sub(r"\s+(?:and|or|also|plus|under|below|within)\s*$", "", name, flags=re.I).strip()
             # Strip leading verbs/articles
-            name = re.sub(r"^(?:get|buy|add|order|and|also|plus|with|the|my|some|a|an)\s+", "", name, flags=re.I).strip()
+            name = re.sub(r"^(?:get|buy|add|order|and|also|plus|with|the|my|some|a|an|of)\s+", "", name, flags=re.I).strip()
             if not name or name.lower() in seen_names or name.lower() in _STOP_WORDS or len(name) < 2:
                 continue
             unit = _UNIT_MAP.get(raw_unit, "units") if raw_unit else "units"
@@ -198,16 +199,19 @@ class RuleBasedExtractor:
 
         # Pattern: word-number items like "eggs 6", "bread 2"
         item_qty = re.compile(
-            r"\b([a-zA-Z][a-zA-Z\s]{1,20}?)\s+"
+            r"\b((?:(?!and\b|or\b|also\b|plus\b|under\b|below\b|within\b|budget\b)[a-zA-Z\s])+?)\s+"
             r"(\d+(?:\.\d+)?)\s*"
             r"(litres?|liters?|l|kg|kgs?|g|gms?|ml|pcs?|pieces?|packs?|dozen)?\b",
             re.I,
         )
+
         for match in item_qty.finditer(text):
             name = match.group(1).strip().rstrip(",. ")
-            name = re.sub(r"^(?:get|buy|add|order|and|also|plus|with|the|my|some|a|an)\s+", "", name, flags=re.I).strip()
+            name = re.sub(r"\s+(?:and|or|also|plus|of)\s*$", "", name, flags=re.I).strip()
+            name = re.sub(r"^(?:get|buy|add|order|and|also|plus|with|the|my|some|a|an|of)\s+", "", name, flags=re.I).strip()
             if not name or name.lower() in seen_names or name.lower() in _STOP_WORDS or len(name) < 2:
                 continue
+
             qty = float(match.group(2))
             raw_unit = (match.group(3) or "").strip().lower()
             unit = _UNIT_MAP.get(raw_unit, "units") if raw_unit else "units"

@@ -27,13 +27,9 @@ export const metadata: Metadata = {
   description:
     "WhatsApp consumer grocery replenishment assistant with deterministic intent verification, bounded recovery, and Swiggy Instamart integration.",
   icons: {
-    icon: [
-      { url: '/favicon.ico', sizes: 'any' },
-      { url: '/logo.svg', type: 'image/svg+xml' },
-      { url: '/icon.png', type: 'image/png' },
-    ],
-    shortcut: '/favicon.ico',
-    apple: '/icon.png',
+    icon: { url: '/logo.svg', type: 'image/svg+xml' },
+    shortcut: '/logo.svg',
+    apple: '/logo.svg',
   },
 };
 
@@ -47,6 +43,11 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} ${lora.variable} h-full antialiased`}
     >
+      <head>
+        <link rel="icon" href="/logo.svg" type="image/svg+xml" />
+        <link rel="alternate icon" href="/logo.svg" />
+        <link rel="apple-touch-icon" href="/logo.svg" />
+      </head>
       <body className="min-h-full flex flex-col selection:bg-emerald-600 selection:text-white relative overflow-x-hidden bg-[#FAFAFA] text-zinc-900 font-sans">
         
         {/* Page Content */}

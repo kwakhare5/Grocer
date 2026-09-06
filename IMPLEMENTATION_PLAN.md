@@ -11,7 +11,7 @@ This is an execution plan, not a second product specification.
 1. GROCER is the existing WhatsApp consumer replenishment assistant being extended with Intent.
 2. `GROCER_V2_MASTER_SPEC.md` controls product scope and architecture.
 3. Do not reintroduce the separate dark-store operations platform.
-4. Extend the existing `CustomerService` + `CommercePort` foundation.
+4. Extend the existing commerce foundation (`GrocerOrchestrator` + `CommercePort`, where `GrocerOrchestrator` collapses legacy `CustomerService` per Resolution A).
 5. LLMs interpret/propose; deterministic services enforce/verify.
 6. Backend is authoritative for commerce/session/intent/recovery/authorization state.
 7. Checkout requires explicit human confirmation.
@@ -75,7 +75,7 @@ A customer order should not mutate a simulated dark-store inventory universe mer
 ### Preserve
 
 - WhatsApp customer experience;
-- `CustomerService` customer flow;
+- `GrocerOrchestrator` customer flow (collapsing legacy `CustomerService` per Resolution A);
 - `CommercePort`;
 - `MockCommerceAdapter`;
 - `SwiggyMCPAdapter`;
@@ -86,7 +86,7 @@ A customer order should not mutate a simulated dark-store inventory universe mer
 
 ```text
 Consumer request
-→ CustomerService
+→ GrocerOrchestrator (collapsing legacy CustomerService)
 → CommercePort
 → adapter
 ```

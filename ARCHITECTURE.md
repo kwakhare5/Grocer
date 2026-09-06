@@ -35,7 +35,8 @@ The separate dark-store operations system lives in:
              │                             │
              └──────────────┬──────────────┘
                             ▼
-                  CUSTOMER COMMERCE SERVICE
+                   CUSTOMER COMMERCE SERVICE
+                     (GrocerOrchestrator)
                             │
                             ▼
                       COMMERCE PORT
@@ -152,9 +153,11 @@ current explicit request
     > default
 ```
 
-### Customer Commerce Service
+### Customer Commerce Service (GrocerOrchestrator)
 
 Coordinates the consumer workflow without exposing provider details upward.
+
+*(Resolution A: The legacy v1 `CustomerService` was intentionally collapsed into `GrocerOrchestrator` (`backend/intent/orchestrator.py`) as the sole approved v2 application boundary communicating directly with `CommercePort`.)*
 
 It delegates commerce operations through `CommercePort`.
 
@@ -300,7 +303,7 @@ Do not rebuild the removed dark-store cockpit inside GROCER.
 
 - `components/customer/`
 - WhatsApp demo/interaction components where they support the customer experience
-- `CustomerService`
+- `GrocerOrchestrator` (`backend/intent/orchestrator.py`, collapsing legacy `CustomerService`)
 - `backend/integrations/commerce/`
 - `CommercePort`
 - `MockCommerceAdapter`

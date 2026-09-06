@@ -1,4 +1,4 @@
-﻿"""Swiggy Instamart MCP commerce adapter (Spec §5.1, §28, & §38.9).
+"""Swiggy Instamart MCP commerce adapter (Spec §5.1, §28, & §38.9).
 
 Authoritative integration with Swiggy Instamart MCP server following official
 Swiggy Builders Club specifications. Strictly enforces:
@@ -98,6 +98,7 @@ class SwiggyMCPAdapter(CommercePort):
                     msg = rpc_err.get("message", "Unknown JSON-RPC error")
                     if code == -32001:
                         raise ProviderAuthError(msg)
+                    self._parse_error_if_failed({"success": False, "error": rpc_err})
                     raise CommerceError(f"Swiggy MCP RPC error {code}: {msg}")
 
                 result = data.get("result", data)

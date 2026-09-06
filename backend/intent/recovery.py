@@ -505,6 +505,12 @@ class RecoveryEngine:
         top_candidate = scored[0]
 
         # 4. Check policy on top candidate
+        old_pack = (
+            matched_cart_item.pack_size
+            if matched_cart_item and matched_cart_item.pack_size
+            else (intent_item.pack_size_preference if intent_item and intent_item.pack_size_preference else "")
+        )
+        new_pack = top_candidate.pack_size or ""
         proposal = ActionProposal(
             action_type="substitute" if removes_spin_id else "add_item",
             target=target_name,
@@ -514,6 +520,8 @@ class RecoveryEngine:
                 "category": top_candidate.category,
                 "price_delta": top_candidate.price - (matched_cart_item.unit_price if matched_cart_item else 0.0),
                 "new_brand": self._extract_brand(top_candidate.name),
+                "old_pack_size": old_pack,
+                "new_pack_size": new_pack,
             },
             reason=f"Substitute for unavailable '{target_name}'",
         )

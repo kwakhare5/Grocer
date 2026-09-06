@@ -1,5 +1,11 @@
 # Phase 0: Repository Audit & Technical Baseline
 
+> [!CAUTION]
+> **HISTORICAL AUDIT ARTIFACT (ARCHIVED):**
+> This document records the pre-cleanroom Phase 0 baseline prior to the extraction of dark-store operations into `kwakhare5/Dark-store-operator`.
+> References to warehouse transfer/reorder/spoilage services, dark-store batch optimization, or internal fleet operations are legacy and superseded by `GROCER_V2_MASTER_SPEC.md` and `docs/CLEANROOM_STATUS.md`.
+> Authoritative system scope: WhatsApp consumer grocery replenishment + Intent-Preserving Conversational Commerce.
+
 > **Version:** GROCER v2  
 > **Milestone:** Phase 0 — Repository Audit  
 > **Source of Truth:** `GROCER_V2_MASTER_SPEC.md` & `IMPLEMENTATION_PLAN.md`  

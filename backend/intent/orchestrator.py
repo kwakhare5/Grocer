@@ -268,54 +268,74 @@ class GrocerOrchestrator:
         # 1. Inspect live commerce cart for drift against prior intent contract
         prior_contract = session.intent_contract
         if session.turn_count > 1 and session.cart_id and prior_contract and not _is_fresh_request(message):
+            cart_fetch_error: Optional[Exception] = None
             try:
                 live_cart = await self._port.get_cart(cart_id)
-            except Exception:
+            except Exception as exc:
                 live_cart = None
+                cart_fetch_error = exc
 
-            if live_cart and live_cart.items:
-                drift = self._verifier.verify(prior_contract, live_cart)
-                if drift.status != VerificationStatus.PASS:
-                    events.append("RECOVERY_STARTED")
-                    session.conversation_state = ConversationState.RECOVERING
-                    try:
-                        available = await self._port.search_products(effective_address, "")
-                    except Exception:
-                        available = []
-                    engine = self._recovery or LoopingRecoveryEngine(
-                        policy_engine=self._policy,
-                        verifier=self._verifier,
-                    )
-                    rec_result = await engine.run(
-                        contract=prior_contract,
-                        cart_id=cart_id,
-                        commerce_port=self._port,
-                        available_products=available,
-                        address_id=effective_address,
-                        verifier=self._verifier,
-                    )
-                    events.append(f"RECOVERY_{rec_result.state.value.upper()}")
-                    events.append(f"POST_RECOVERY_VERIFY_{rec_result.verification.status.value.upper()}")
-                    if rec_result.state == RecoveryState.RECOVERED:
-                        prior_recovery_notes = rec_result.recovery_notes
-                        live_cart = rec_result.cart
-                    elif rec_result.state == RecoveryState.NEEDS_USER_DECISION:
-                        outcome = rec_result.outcome or RecoveryOutcome(
-                            state=rec_result.state,
-                            failure_class=FailureClass.UNKNOWN,
-                            message=rec_result.outcome.message if rec_result.outcome else "Clarification needed",
-                            attempt_number=rec_result.attempts,
-                            can_auto_apply=False,
-                            remaining_violations=rec_result.verification.violations,
+            drift = self._verifier.verify(prior_contract, live_cart) if live_cart else None
+            needs_recovery = False
+
+            if cart_fetch_error is not None:
+                needs_recovery = True
+            elif live_cart:
+                is_below_min = bool(live_cart.items and live_cart.grand_total < live_cart.min_order_threshold)
+                if (drift and drift.status != VerificationStatus.PASS) or not live_cart.is_serviceable or is_below_min:
+                    needs_recovery = True
+
+            if needs_recovery:
+                events.append("RECOVERY_STARTED")
+                session.conversation_state = ConversationState.RECOVERING
+                try:
+                    available = await self._port.search_products(effective_address, "")
+                except Exception:
+                    available = []
+                engine = self._recovery or LoopingRecoveryEngine(
+                    policy_engine=self._policy,
+                    verifier=self._verifier,
+                )
+                rec_result = await engine.run(
+                    contract=prior_contract,
+                    cart_id=cart_id,
+                    commerce_port=self._port,
+                    available_products=available,
+                    address_id=effective_address,
+                    verifier=self._verifier,
+                )
+                events.append(f"RECOVERY_{rec_result.state.value.upper()}")
+                events.append(f"POST_RECOVERY_VERIFY_{rec_result.verification.status.value.upper()}")
+                if rec_result.state == RecoveryState.RECOVERED:
+                    prior_recovery_notes = rec_result.recovery_notes
+                    live_cart = rec_result.cart
+                    if not _is_incremental_add(message):
+                        return self._make_awaiting_confirmation(
+                            session, prior_contract, live_cart, prior_recovery_notes, events
                         )
-                        return self._handle_needs_decision(session, live_cart, drift, outcome, events)
-                    else:
-                        reason = (
-                            rec_result.verification.violations[0].detail
-                            if rec_result.verification.violations
-                            else "a constraint could not be satisfied"
-                        )
-                        return self._handle_failed(session, reason, events)
+                elif rec_result.state == RecoveryState.NEEDS_USER_DECISION:
+                    outcome = rec_result.outcome or RecoveryOutcome(
+                        state=rec_result.state,
+                        failure_class=FailureClass.UNKNOWN,
+                        message=rec_result.outcome.message if rec_result.outcome else "Clarification needed",
+                        attempt_number=rec_result.attempts,
+                        can_auto_apply=False,
+                        remaining_violations=rec_result.verification.violations,
+                    )
+                    return self._handle_needs_decision(
+                        session,
+                        rec_result.cart or live_cart,
+                        drift or rec_result.verification,
+                        outcome,
+                        events,
+                    )
+                else:
+                    reason = (
+                        rec_result.verification.violations[0].detail
+                        if rec_result.verification.violations
+                        else "a constraint could not be satisfied"
+                    )
+                    return self._handle_failed(session, reason, events)
 
         # 2. Parse current message into IntentContract and update session
         contract = self._parse_intent(message, session, events)
@@ -368,8 +388,8 @@ class GrocerOrchestrator:
         verification = self._verifier.verify(contract, cart)
         session.last_verification = {"status": verification.status.value}
         events.append(f"VERIFICATION_{verification.status.value.upper()}")
-
-        if verification.status == VerificationStatus.PASS:
+        is_below_min = bool(cart and cart.items and cart.grand_total < cart.min_order_threshold)
+        if verification.status == VerificationStatus.PASS and not is_below_min and getattr(cart, "is_serviceable", True):
             return self._make_awaiting_confirmation(session, contract, cart, prior_recovery_notes, events)
 
         events.append("RECOVERY_STARTED")

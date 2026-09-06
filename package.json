@@ -2,7 +2,7 @@
   "name": "grocer",
   "version": "1.0.0",
   "private": true,
-  "description": "Intelligent grocery depletion forecasting & proactive WhatsApp assistant",
+  "description": "WhatsApp consumer grocery replenishment assistant with deterministic intent verification, bounded recovery, and Swiggy Instamart integration",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

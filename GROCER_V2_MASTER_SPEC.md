@@ -382,7 +382,7 @@ WhatsApp / Conversation Layer
           ↓
 Intent Layer
           ↓
-Customer Commerce Service
+Customer Commerce Service (GrocerOrchestrator)
           ↓
 CommercePort
        ↙      ↘
@@ -393,7 +393,7 @@ Mock Adapter   Swiggy MCP Adapter
 
 ## 8.1 Existing foundation to preserve
 
-- `CustomerService` / customer domain service layer.
+- `GrocerOrchestrator` (`backend/intent/orchestrator.py`, collapsing legacy `CustomerService` per Resolution A) / customer domain service layer.
 - `CommercePort`.
 - `MockCommerceAdapter`.
 - `SwiggyMCPAdapter`.
@@ -704,7 +704,7 @@ The simulator sits at the commerce boundary and injects known failures around th
 Example:
 
 ```text
-CustomerService
+GrocerOrchestrator (collapsing legacy CustomerService)
      ↓
 CommercePort
      ↓
@@ -847,7 +847,7 @@ The current codebase contains leftovers from the historical dark-store implement
 
 - customer UI;
 - WhatsApp demo/interaction engine where still useful;
-- `CustomerService` / customer domain;
+- `GrocerOrchestrator` (`backend/intent/orchestrator.py`, collapsing legacy `CustomerService` per Resolution A) / customer domain;
 - `CommercePort`;
 - `MockCommerceAdapter`;
 - `SwiggyMCPAdapter`;

@@ -1,7 +1,13 @@
 # GROCER v2 — Complete UI, Colors, Buttons, Layout & Screen Flows Specification
 
+> [!NOTE]
+> **SCOPE CLARIFICATION (CLEANROOM BOUNDARY):**
+> Per `GROCER_V2_MASTER_SPEC.md`, GROCER is strictly the WhatsApp consumer replenishment companion.
+> Any historical references to "Operations Deck", "Cockpit", or "Fleet Command" belong exclusively to `kwakhare5/Dark-store-operator`.
+> Within GROCER, the design tokens below apply strictly to the consumer WhatsApp/iPhone simulation interface and its customer replenishment controls.
+
 > **Status:** Fully Aligned via `/taste-skill`, `/emil-design-eng`, and `/grill-me`.
-> **Applies to:** Frontend architecture, Tailwind tokens, Component Library, Operations Deck, and WhatsApp Simulator.
+> **Applies to:** Frontend architecture, Tailwind tokens, Component Library, and WhatsApp Simulator.
 
 ---
 

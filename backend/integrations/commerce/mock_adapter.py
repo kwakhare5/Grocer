@@ -148,6 +148,10 @@ class MockCommerceAdapter(CommercePort):
         self._price_overrides: dict[str, float] = {}
         self._injected_stale: bool = False
         self._transient_errors_remaining: int = 0
+        self._partial_drop_spins: set[str] = set()
+        self._min_order_threshold: Optional[float] = None
+        self.call_count: int = 0
+        self.successful_call_count: int = 0
         self._init_catalog()
 
     def _init_catalog(self) -> None:
@@ -203,12 +207,32 @@ class MockCommerceAdapter(CommercePort):
         """Simulate transient upstream provider failure (e.g. 503 or network drop)."""
         self._transient_errors_remaining = count
 
+    def inject_partial_cart_drop(self, spin_id: str) -> None:
+        """Simulate partial cart success where provider drops an item during mutation."""
+        self._partial_drop_spins.add(spin_id)
+
+    def inject_min_order_threshold(self, min_amount: float) -> None:
+        """Set a minimum order threshold for checkout / basket validation."""
+        self._min_order_threshold = min_amount
+
+    def inject_brand_mismatch(self, cart_id: str, spin_id: str, substitute_name: str) -> None:
+        """Simulate upstream provider substituting a non-compliant brand in cart."""
+        cid = cart_id or "default-cart"
+        if cid in self._carts:
+            for it in self._carts[cid].items:
+                if it.spin_id == spin_id:
+                    it.name = substitute_name
+
     def reset_injections(self) -> None:
         """Restore pristine catalog and clear all simulated faults."""
         self._injected_oos.clear()
         self._price_overrides.clear()
         self._injected_stale = False
         self._transient_errors_remaining = 0
+        self._partial_drop_spins.clear()
+        self._min_order_threshold = None
+        self.call_count = 0
+        self.successful_call_count = 0
         self._init_catalog()
 
     # -----------------------------------------------------------------------
@@ -216,30 +240,41 @@ class MockCommerceAdapter(CommercePort):
     # -----------------------------------------------------------------------
 
     async def get_addresses(self, customer_id: str) -> list[DeliveryAddress]:
+        self.call_count += 1
+        self.successful_call_count += 1
         return list(MOCK_ADDRESSES)
 
     async def get_go_to_items(self, address_id: str) -> list[CommerceProductItem]:
+        self.call_count += 1
+        self.successful_call_count += 1
         return [p for p in self._products if p.product_id in ["prod-milk", "prod-bread", "prod-eggs"]]
 
     async def search_products(self, address_id: str, query: str) -> list[CommerceProductItem]:
+        self.call_count += 1
         q = query.strip().lower()
-        if not q:
-            return list(self._products)
-        return [
+        res = list(self._products) if not q else [
             p for p in self._products
             if q in p.name.lower() or q in p.category.lower() or any(q in v.name.lower() for v in p.variants)
         ]
+        self.successful_call_count += 1
+        return res
 
     async def get_cart(self, cart_id: Optional[str] = None) -> CommerceCart:
+        self.call_count += 1
         if self._transient_errors_remaining > 0:
             self._transient_errors_remaining -= 1
             raise CommerceError("Simulated upstream transient network timeout", code="TRANSIENT_TIMEOUT")
 
         cid = cart_id or "default-cart"
         if cid not in self._carts:
-            self._carts[cid] = CommerceCart(cart_id=cid)
+            self._carts[cid] = CommerceCart(
+                cart_id=cid,
+                min_order_threshold=self._min_order_threshold if self._min_order_threshold is not None else 0.0,
+            )
 
         cart = self._carts[cid]
+        if self._min_order_threshold is not None:
+            cart.min_order_threshold = self._min_order_threshold
         # Ensure availability matches injected state
         for item in cart.items:
             if item.spin_id in self._injected_oos:
@@ -247,11 +282,13 @@ class MockCommerceAdapter(CommercePort):
         if self._injected_stale:
             cart.is_serviceable = False
 
+        self.successful_call_count += 1
         return cart
 
     async def update_cart(
         self, items: list[CartItemUpdate], cart_id: Optional[str] = None, address_id: Optional[str] = None
     ) -> CommerceCart:
+        self.call_count += 1
         if self._transient_errors_remaining > 0:
             self._transient_errors_remaining -= 1
             raise CommerceError("Simulated upstream transient network timeout", code="TRANSIENT_TIMEOUT")
@@ -261,7 +298,7 @@ class MockCommerceAdapter(CommercePort):
         item_total = 0.0
 
         for update in items:
-            if update.quantity <= 0:
+            if update.quantity <= 0 or update.spin_id in self._partial_drop_spins:
                 continue
             if update.spin_id not in self._catalog_by_spin:
                 raise ItemOutOfStockError(spin_id=update.spin_id, available_quantity=0)
@@ -298,13 +335,17 @@ class MockCommerceAdapter(CommercePort):
             delivery_fee=delivery_fee,
             grand_total=grand_total,
             is_serviceable=not self._injected_stale,
+            min_order_threshold=self._min_order_threshold if self._min_order_threshold is not None else 0.0,
         )
         self._carts[cid] = cart
+        self.successful_call_count += 1
         return cart
 
     async def clear_cart(self, cart_id: Optional[str] = None) -> bool:
+        self.call_count += 1
         cid = cart_id or "default-cart"
         self._carts[cid] = CommerceCart(cart_id=cid)
+        self.successful_call_count += 1
         return True
 
 
@@ -331,14 +372,18 @@ class MockCommerceAdapter(CommercePort):
         explicit_confirmation: bool = False,
         address_id: Optional[str] = None,
     ) -> CommerceOrderResult:
+        self.call_count += 1
         if not explicit_confirmation:
             raise UnconfirmedCheckoutError(
                 "Checkout rejected: explicit confirmation is strictly required."
             )
 
         cart = await self.get_cart(cart_id)
+        min_required = self._min_order_threshold or 99.0
         if not cart.items:
-            raise MinOrderNotMetError(current_total=0.0, min_required=99.0)
+            raise MinOrderNotMetError(current_total=0.0, min_required=min_required)
+        if self._min_order_threshold and cart.grand_total < self._min_order_threshold:
+            raise MinOrderNotMetError(current_total=cart.grand_total, min_required=self._min_order_threshold)
 
         # Resolve address
         addr = next((a for a in MOCK_ADDRESSES if a.id == address_id), MOCK_ADDRESSES[0])
@@ -358,6 +403,7 @@ class MockCommerceAdapter(CommercePort):
         self._orders[order_id] = order_result
         # Clear cart on successful order
         await self.clear_cart(cart_id)
+        self.successful_call_count += 1
         return order_result
 
     async def track_order(self, order_id: str) -> DeliveryTrackingStatus:

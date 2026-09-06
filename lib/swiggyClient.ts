@@ -1,5 +1,7 @@
 /**
- * Client library for Swiggy Instamart MCP OAuth 2.1 PKCE Flow and Tool Execution.
+ * Client library for Swiggy Instamart OAuth 2.1 PKCE Flow.
+ *
+ * Commerce tool executions remain strictly server-side behind CommercePort (SwiggyMCPAdapter).
  */
 
 const SWIGGY_AUTH_URL = "https://mcp.swiggy.com/auth/authorize";
@@ -167,41 +169,5 @@ export class SwiggyClient {
     localStorage.removeItem(this.TOKEN_KEY);
     localStorage.removeItem(this.EXPIRES_KEY);
   }
-
-  /**
-   * Execute JSON-RPC tool call against Swiggy Instamart MCP gateway.
-   */
-  static async callTool<T = unknown>(
-    toolName: string,
-    args: Record<string, unknown> = {}
-  ): Promise<T | null> {
-
-    const token = this.getAccessToken();
-    if (!token) return null;
-
-    try {
-      const resp = await fetch("/api/swiggy/mcp", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          tool_name: toolName,
-          arguments: args,
-        }),
-      });
-
-      if (resp.status === 401) {
-        this.disconnect();
-        return null;
-      }
-
-      const data = await resp.json();
-      return data?.result || data;
-    } catch (err) {
-      console.error(`Failed to call Swiggy tool ${toolName}:`, err);
-      return null;
-    }
-  }
 }
+

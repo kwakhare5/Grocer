@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pytest
+from httpx import AsyncClient
 
 from backend.integrations.commerce.models import CartItemUpdate, CommerceCart
 from backend.integrations.commerce.port import CommercePort
@@ -128,3 +129,41 @@ async def test_recovery_retries_after_failed_reverification() -> None:
     assert port.get_cart_calls == 2
     assert port.refresh_calls == 1
     assert cart.grand_total == 20.0
+
+
+@pytest.mark.asyncio
+async def test_intent_api_exposes_canonical_chat_surface(client: AsyncClient) -> None:
+    response = await client.post(
+        "/api/intent/chat",
+        json={
+            "session_id": "api-test-session",
+            "customer_id": "customer-1",
+            "message": "buy 1L milk",
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["session_id"] == "api-test-session"
+    assert body["conversation_state"] in {"awaiting_confirmation", "failed", "needs_decision"}
+    assert isinstance(body["events"], list)
+
+
+@pytest.mark.asyncio
+async def test_intent_api_rejects_unoffered_choice(client: AsyncClient) -> None:
+    response = await client.post(
+        "/api/intent/sessions/missing-choice-session/choice",
+        json={"chosen_spin_id": "SPIN-NOT-OFFERED"},
+    )
+
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_intent_api_requires_explicit_confirmation(client: AsyncClient) -> None:
+    response = await client.post(
+        "/api/intent/sessions/missing-confirm-session/confirm",
+        json={"explicit_confirmation": False, "payment_method": "UPI"},
+    )
+
+    assert response.status_code == 400

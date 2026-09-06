@@ -15,6 +15,13 @@ During the Session End ritual (called automatically whenever significant changes
 
 ## Log Entries
 
+### [GROCER — Real Commerce Swiggy MCP Live Verification & WhatsApp Channel Abstraction] 2026-09-06
+
+- **Live Swiggy MCP Instamart Production Verification**: Connected real authenticated Swiggy session (Karan Wakhare, User ID: 26057200) directly to production Instamart MCP gateway (`https://mcp.swiggy.com/im`). Verified live `get_addresses` returning 3 real delivery addresses (Nashik, Pune), live `search_products` returning 12 in-stock items (Amul Taaza Tetra, ₹17), live `update_cart` item additions (cart total ₹86.0), and `clear_cart` cleanup (`verified: true`). Patched MCP JSON-RPC protocol handling to enforce `Accept: application/json, text/event-stream` and unpack `structuredContent` envelopes.
+- **Swiggy OAuth 2.1 + PKCE & Zero-Leakage TokenVault**: Built RFC 7591 Dynamic Client Registration (`POST /auth/register`), S256 PKCE challenge generation, state validation, and server-side token storage in `SwiggyTokenVault` (60s safety buffer, token masking in logs/repr, zero plaintext localStorage leaks). Added `/api/swiggy/authorize` and `/api/swiggy/token` endpoints with automatic root redirect handling in `app/page.tsx`.
+- **Channel Abstraction & Official WhatsApp Cloud API**: Built decoupled channel transport layer (`backend/channels/`) separating transport from `GrocerOrchestrator`. Implemented `WhatsAppChannel` supporting Meta WhatsApp Cloud API webhooks (`GET/POST /api/whatsapp/webhook`), HMAC-SHA256 signature verification, message deduplication, and interactive List/Button formatting.
+- **Quality Gates & Tests**: 147/147 pytest tests passing (100% green), Next.js 16 (Turbopack) compiled cleanly, and evaluation harness benchmark maintained. Pushed to `main` (`d01e48a`).
+
 ### [GROCER — Cleanroom Intent Refactor & Flagship Golden Flow Completion] 2026-09-06
 
 - **Official Merge to `main` & `v2.0.0` Tag Release (`main`)**: Merged `cleanup/master-spec-final` (`719a7eb`) into `main` via merge commit `48b6e2d`. Tree hashes match byte-for-byte (`937894d1bcb88d9ea0540ed8025db9a620f23880`). Successfully ran all quality gates on `main`: 125/125 pytest tests passing green, 8/8 evaluation scenarios passing (100.0% Intent Preservation, 100.0% Hard-Constraint Satisfaction, 0.0% Unsafe Actions, 37.5% Autonomous Recovery, 62.5% Safe Clarification, 97.7% Commerce Adapter Efficiency), 0 ESLint errors/warnings, and clean Next.js 16 Turbopack production build. Formally created release tag `v2.0.0` and pushed `main` and `--tags` to GitHub `origin`. Architecture frozen.

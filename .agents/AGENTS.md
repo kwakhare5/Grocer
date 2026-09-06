@@ -230,17 +230,16 @@ If the answer is no, it does not belong in GROCER v2 unless the master spec is d
 
 ## 15. SESSION RESUME
 
-**Last completed:** GROCER v2 Official Merge to `main` & `v2.0.0` Tag Release (2026-09-06)
+**Last completed:** Real Commerce Swiggy MCP Live Verification & WhatsApp Channel Abstraction (2026-09-06)
 
-**Status:** ✅ Complete, 100% Verified, Merged & Tagged. Merged `cleanup/master-spec-final` (`719a7eb`) into `main` (`48b6e2d`). Tree hash on `main` is identical (`937894d1bcb88d9ea0540ed8025db9a620f23880`). Successfully ran all quality gates on `main`. Formally tagged release as `v2.0.0` and pushed `main` and tags to GitHub `origin`. Cleanroom architecture is frozen.
+**Status:** ✅ Complete, 100% Live Verified & Pushed to `main`. Real Swiggy MCP Instamart gateway confirmed live with authenticated user session (`26057200`, Karan Wakhare), fetching real addresses in Nashik and Pune, searching products on Instamart, updating cart, and clearing cart. WhatsApp channel abstraction and Meta Cloud API webhook integrated.
 
 **Quality Gates (Verified on `main`):**
-- `pytest`: 125/125 tests passed (100% green in 6.12s).
+- `pytest`: 147/147 tests passed (100% green in 5.59s).
 - `python -m backend.evaluation.harness`: 100.0% Intent Preservation, 100.0% Hard-Constraint Satisfaction, 0.0% Unsafe Actions, +0.0% Autonomous Budget Overrun, 97.7% Commerce Adapter Efficiency across all 8 canonical scenarios.
 - `npm run lint`: 0 errors, 0 warnings.
-- `npm run build`: Compiled successfully in Next.js 16 (Turbopack: `/`, `/_not-found`, `/api/swiggy/token`).
-- Git Tag: `v2.0.0` pushed to `origin`.
-- Remote `main`: Synchronized (`48b6e2d`).
+- `npm run build`: Compiled successfully in Next.js 16 (Turbopack: `/`, `/_not-found`, `/api/swiggy/authorize`, `/api/swiggy/token`, `/auth/callback`).
+- Remote `main`: Synchronized and pushed to GitHub `origin`.
 
 
 

@@ -11,7 +11,7 @@ import {
   type IntentBasketSummary,
   type IntentChoiceOption,
   type IntentTurnResponse,
-} from "../../lib/intentClient";
+} from "../../lib/apiClient";
 
 interface IntentCommerceWorkbenchProps {
   customer: CustomerPersona;
@@ -103,6 +103,17 @@ export function IntentCommerceWorkbench({ customer, isBackendConnected }: Intent
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const applyResponse = (response: IntentTurnResponse) => {
+    setState(response.conversation_state);
+    setBasket(response.basket_summary);
+    setOptions(response.clarification_options || []);
+    setEvents(response.events || []);
+    setMessages((current) => [
+      ...current,
+      { id: crypto.randomUUID(), role: "assistant", text: response.user_message },
+    ]);
+  };
+
   const send = async (message: string) => {
     if (!message.trim() || busy) return;
     setBusy(true);
@@ -122,17 +133,6 @@ export function IntentCommerceWorkbench({ customer, isBackendConnected }: Intent
     } finally {
       setBusy(false);
     }
-  };
-
-  const applyResponse = (response: IntentTurnResponse) => {
-    setState(response.conversation_state);
-    setBasket(response.basket_summary);
-    setOptions(response.clarification_options || []);
-    setEvents(response.events || []);
-    setMessages((current) => [
-      ...current,
-      { id: crypto.randomUUID(), role: "assistant", text: response.user_message },
-    ]);
   };
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {

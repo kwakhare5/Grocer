@@ -1,8 +1,5 @@
-"""GROCER Intent Contract Subsystem (Spec §5).
+"""GROCER intent-preserving commerce subsystem."""
 
-Provides canonical domain representations of user intent, constraints,
-preferences, authorization boundaries, and session snapshots.
-"""
 from backend.intent.enums import (
     AmbiguitySeverity,
     BrandTolerance,
@@ -56,6 +53,7 @@ from backend.intent.recovery import (
     RecoveryOutcome,
     RecoveryState,
 )
+from backend.intent.recovery_loop import LoopingRecoveryEngine
 from backend.intent.session import (
     BasketItem,
     BasketSummary,
@@ -66,18 +64,7 @@ from backend.intent.session import (
     PendingClarification,
     default_session_store,
 )
-from backend.intent.orchestrator import (
-    GrocerOrchestrator,
-    OrchestratorTurnResult,
-)
-
-# Compatibility wiring: the orchestrator still imports RecoveryEngine directly.
-# Replace that module-global with the bounded closed-loop implementation after
-# the orchestrator module has finished importing, without changing its public API.
-from backend.intent import orchestrator as _orchestrator_module
-from backend.intent.recovery_loop import LoopingRecoveryEngine
-
-_orchestrator_module.RecoveryEngine = LoopingRecoveryEngine
+from backend.intent.orchestrator import GrocerOrchestrator, OrchestratorTurnResult
 
 __all__ = [
     "ConstraintType",

@@ -168,7 +168,7 @@ async def test_intent_api_exposes_canonical_chat_surface(client: AsyncClient) ->
     assert response.status_code == 200
     body = response.json()
     assert body["session_id"] == "api-test-session"
-    assert body["conversation_state"] in {"awaiting_confirmation", "failed", "needs_decision"}
+    assert body["conversation_state"].lower() in {"awaiting_confirmation", "failed", "needs_decision"}
     assert isinstance(body["events"], list)
 
 

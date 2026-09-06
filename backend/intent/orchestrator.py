@@ -29,7 +29,7 @@ from backend.intent.models import IntentContract, IntentItem
 from backend.intent.parser import IntentParser
 from backend.intent.policy import PolicyEngine
 from backend.intent.preferences import default_preference_store
-from backend.intent.recovery import RecoveryCandidate, RecoveryState
+from backend.intent.recovery import RecoveryCandidate, RecoveryEngine, RecoveryState
 from backend.intent.recovery_loop import LoopingRecoveryEngine
 from backend.intent.storage import default_intent_store
 from backend.intent.verifier import IntentVerifier, VerificationStatus

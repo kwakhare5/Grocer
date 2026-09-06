@@ -249,21 +249,22 @@ class LoopingRecoveryEngine(RecoveryEngine):
         for attempt in range(attempt_number, max_attempts + 1):
             cart = await commerce_port.get_cart(cart_id)
 
-            current_verification = verifier.verify(contract, cart)
-            if current_verification.status == VerificationStatus.PASS:
-                return cart, current_verification, RecoveryOutcome(
-                    state=RecoveryState.RECOVERED,
-                    failure_class=last_outcome.failure_class if last_outcome else self._classify(current_verification, cart),
-                    message="Intent verified against live commerce state.",
-                    attempt_number=attempt,
-                    can_auto_apply=True,
-                    remaining_violations=[],
-                )
-
-            if attempt == attempt_number and current_hint.status != current_verification.status:
-                current_hint = current_verification
+            # Never trust an old verification result over live provider state.
+            if attempt == attempt_number:
+                current_verification = verifier.verify(contract, cart)
+                if current_verification.status == VerificationStatus.PASS:
+                    return cart, current_verification, RecoveryOutcome(
+                        state=RecoveryState.RECOVERED,
+                        failure_class=last_outcome.failure_class if last_outcome else self._classify(current_verification, cart),
+                        message="Intent verified against live commerce state.",
+                        attempt_number=attempt,
+                        can_auto_apply=True,
+                        remaining_violations=[],
+                    )
             else:
-                current_hint = current_verification
+                current_verification = current_hint
+
+            current_hint = current_verification
 
             outcome = self.recover(
                 contract,

@@ -5,7 +5,7 @@ import { AppGlobalHeader } from "../components/navigation/AppGlobalHeader";
 import { IntentCommerceWorkbench } from "../components/customer/IntentCommerceWorkbench";
 import { DEFAULT_CUSTOMER_PERSONA } from "../lib/mockData";
 import type { CustomerPersona } from "../lib/types";
-import { checkIntentBackend } from "../lib/intentClient";
+import { checkIntentBackend } from "../lib/apiClient";
 
 export default function Home() {
   const [activeCustomer, setActiveCustomer] = useState<CustomerPersona>(DEFAULT_CUSTOMER_PERSONA);

@@ -29,7 +29,8 @@ from backend.intent.models import IntentContract, IntentItem
 from backend.intent.parser import IntentParser
 from backend.intent.policy import PolicyEngine
 from backend.intent.preferences import default_preference_store
-from backend.intent.recovery import RecoveryCandidate, RecoveryEngine, RecoveryState
+from backend.intent.recovery import RecoveryCandidate, RecoveryState
+from backend.intent.recovery_loop import LoopingRecoveryEngine
 from backend.intent.storage import default_intent_store
 from backend.intent.verifier import IntentVerifier, VerificationStatus
 from backend.intent.session import (
@@ -131,7 +132,6 @@ async def _search_and_pick(
     if not results:
         return None
 
-    # Flatten all variants across results, keeping only available ones
     all_variants = [
         (product, variant)
         for product in results
@@ -141,7 +141,6 @@ async def _search_and_pick(
     if not all_variants:
         return None
 
-    # Brand filter (soft preference — won't exclude if no match)
     if item.brand_preference:
         branded = [
             (p, v) for p, v in all_variants
@@ -151,14 +150,12 @@ async def _search_and_pick(
     else:
         candidates = all_variants
 
-    # Pack size preference
     if item.pack_size_preference:
         pref = item.pack_size_preference.lower()
         size_match = [(p, v) for p, v in candidates if pref in v.pack_size.lower()]
         if size_match:
             candidates = size_match
 
-    # Pick cheapest among remaining
     _best_product, best_variant = min(candidates, key=lambda pv: pv[1].price)
     quantity = max(1, int(item.quantity))
 
@@ -234,10 +231,6 @@ class GrocerOrchestrator:
         self._verifier = IntentVerifier()
         self._policy = PolicyEngine()
 
-    # ------------------------------------------------------------------
-    # Public entry points
-    # ------------------------------------------------------------------
-
     async def handle_turn(
         self,
         session_id: str,
@@ -245,11 +238,7 @@ class GrocerOrchestrator:
         message: str,
         address_id: Optional[str] = None,
     ) -> OrchestratorTurnResult:
-        """Process one conversational message through the full commerce loop.
-
-        Flow: parse → preferences → resolve products → build cart
-              → verify → recover if needed → return result.
-        """
+        """Process one conversational message through the full commerce loop."""
         session = self._store.get_or_create(session_id, customer_id)
         session.turn_count += 1
         events: list[str] = []
@@ -258,16 +247,13 @@ class GrocerOrchestrator:
             session.address_id = address_id
         effective_address = session.address_id or f"addr-{customer_id}"
 
-        # 1. Parse intent
         session.conversation_state = ConversationState.BUILDING
         contract = self._parse_intent(message, session, events)
         session.intent_contract = contract
         default_intent_store.save(contract)
 
-        # 2. Apply stored soft preferences (Spec §7 — memory does NOT override current request)
         self._apply_preferences(contract, customer_id, events)
 
-        # 3. Resolve products → CartItemUpdate list
         cart_id = session.cart_id or f"cart-{session_id}"
         session.cart_id = cart_id
 
@@ -282,7 +268,6 @@ class GrocerOrchestrator:
                 events=events,
             )
 
-        # 4. Build cart
         try:
             cart = await self._port.update_cart(
                 items=resolved_items, cart_id=cart_id, address_id=effective_address
@@ -299,7 +284,6 @@ class GrocerOrchestrator:
 
         events.append(f"CART_BUILT cart_id={cart_id} total=₹{cart.grand_total}")
 
-        # 5. Verify intent vs cart (Spec §9)
         verification = self._verifier.verify(contract, cart)
         session.last_verification = {"status": verification.status.value}
         events.append(f"VERIFICATION_{verification.status.value.upper()}")
@@ -307,7 +291,6 @@ class GrocerOrchestrator:
         if verification.status == VerificationStatus.PASS:
             return self._make_awaiting_confirmation(session, contract, cart, [], events)
 
-        # 6. Recovery (Spec §10)
         events.append("RECOVERY_STARTED")
         session.conversation_state = ConversationState.RECOVERING
 
@@ -316,7 +299,7 @@ class GrocerOrchestrator:
         except Exception:
             available = []
 
-        engine = RecoveryEngine(policy_engine=self._policy)
+        engine = LoopingRecoveryEngine(policy_engine=self._policy)
         updated_cart, new_verification, outcome = await engine.execute_recovery(
             contract=contract,
             cart_id=cart_id,
@@ -327,16 +310,18 @@ class GrocerOrchestrator:
             address_id=effective_address,
         )
 
+        session.last_verification = {"status": new_verification.status.value}
         session.last_recovery_state = outcome.state.value
         events.append(f"RECOVERY_{outcome.state.value.upper()}")
+        events.append(f"POST_RECOVERY_VERIFY_{new_verification.status.value.upper()}")
 
-        if outcome.state == RecoveryState.RECOVERED:
+        if outcome.state == RecoveryState.RECOVERED and new_verification.status == VerificationStatus.PASS:
             recovery_notes = [a.reason for a in outcome.recovery_actions]
             return self._make_awaiting_confirmation(
                 session, contract, updated_cart, recovery_notes, events
             )
 
-        elif outcome.state == RecoveryState.NEEDS_USER_DECISION:
+        if outcome.state == RecoveryState.NEEDS_USER_DECISION:
             candidates = outcome.candidates_for_user or []
             options = _candidates_to_options(candidates)
             item_name = (
@@ -362,27 +347,21 @@ class GrocerOrchestrator:
                 events=events,
             )
 
-        else:
-            # BLOCKED or FAILED
-            reason = (
-                verification.violations[0].detail
-                if verification.violations
-                else "a constraint could not be satisfied"
-            )
-            session.conversation_state = ConversationState.FAILED
-            self._store.save(session)
-            return OrchestratorTurnResult(
-                session_id=session_id,
-                conversation_state=ConversationState.FAILED,
-                user_message=_msg_failed(reason),
-                events=events,
-            )
+        reason = (
+            new_verification.violations[0].detail
+            if new_verification.violations
+            else "a constraint could not be satisfied"
+        )
+        session.conversation_state = ConversationState.FAILED
+        self._store.save(session)
+        return OrchestratorTurnResult(
+            session_id=session_id,
+            conversation_state=ConversationState.FAILED,
+            user_message=_msg_failed(reason),
+            events=events,
+        )
 
-    async def handle_choice(
-        self,
-        session_id: str,
-        chosen_spin_id: str,
-    ) -> OrchestratorTurnResult:
+    async def handle_choice(self, session_id: str, chosen_spin_id: str) -> OrchestratorTurnResult:
         """Resolve a NEEDS_DECISION clarification with the user's chosen spin_id."""
         session = self._store.get(session_id)
         if session is None:
@@ -406,7 +385,6 @@ class GrocerOrchestrator:
         effective_address = session.address_id or f"addr-{session.customer_id}"
         cart_id = session.cart_id or f"cart-{session_id}"
 
-        # Update cart with the chosen variant
         try:
             cart = await self._port.update_cart(
                 items=[CartItemUpdate(spin_id=chosen_spin_id, quantity=1)],
@@ -436,7 +414,6 @@ class GrocerOrchestrator:
                 events=events,
             )
 
-        # Re-verify after user choice
         verification = self._verifier.verify(contract, cart)
         events.append(f"VERIFICATION_{verification.status.value.upper()}")
 
@@ -463,11 +440,7 @@ class GrocerOrchestrator:
         payment_method: str = "UPI",
         address_id: Optional[str] = None,
     ) -> OrchestratorTurnResult:
-        """Execute checkout after explicit user confirmation (Spec §6, §8.3).
-
-        CRITICAL: Raises UnconfirmedCheckoutError if session is not in
-        AWAITING_CONFIRMATION state. Checkout is always server-side gated.
-        """
+        """Execute checkout after explicit user confirmation (Spec §6, §8.3)."""
         session = self._store.get(session_id)
         if session is None:
             return OrchestratorTurnResult(
@@ -488,7 +461,6 @@ class GrocerOrchestrator:
         effective_address = address_id or session.address_id or f"addr-{session.customer_id}"
         events: list[str] = ["CHECKOUT_INITIATED"]
 
-        # Re-fetch cart for pre-checkout verification (Spec §9.3)
         try:
             cart = await self._port.get_cart(cart_id)
         except Exception as exc:
@@ -501,7 +473,6 @@ class GrocerOrchestrator:
                 events=events,
             )
 
-        # Pre-checkout verification (mandatory — Spec §9.3, §17.5)
         if contract is not None:
             pre_check = self._verifier.verify_checkout(
                 contract=contract,
@@ -524,7 +495,6 @@ class GrocerOrchestrator:
                     events=events,
                 )
 
-        # Execute checkout
         try:
             order = await self._port.checkout(
                 cart_id=cart_id,
@@ -563,55 +533,29 @@ class GrocerOrchestrator:
     # Private helpers
     # ------------------------------------------------------------------
 
-    def _parse_intent(
-        self,
-        message: str,
-        session: OrchestratorSession,
-        events: list[str],
-    ) -> IntentContract:
+    def _parse_intent(self, message: str, session: OrchestratorSession, events: list[str]) -> IntentContract:
         """Parse message → IntentContract, inheriting session_id."""
         contract = self._parser.parse(message, session_id=session.session_id)
-        # Merge with prior contract only if this is a refinement (no items)
         if session.intent_contract and not _is_fresh_request(message):
             contract = _merge_contracts(session.intent_contract, contract)
-        events.append(
-            f"INTENT_PARSED goal={contract.goal!r} items={len(contract.items)}"
-        )
+        events.append(f"INTENT_PARSED goal={contract.goal!r} items={len(contract.items)}")
         return contract
 
-    def _apply_preferences(
-        self,
-        contract: IntentContract,
-        customer_id: str,
-        events: list[str],
-    ) -> None:
-        """Load established soft preferences and apply where not overridden (Spec §7).
-
-        Precedence: current request > stored preference (Spec §5.3).
-        """
+    def _apply_preferences(self, contract: IntentContract, customer_id: str, events: list[str]) -> None:
+        """Load established soft preferences and apply where not overridden (Spec §7)."""
         prefs = default_preference_store.get_preferences(customer_id)
         applied = 0
         for pref in prefs:
-            if pref.preference_type != PreferenceType.BRAND:
-                continue
-            if not pref.is_established:
+            if pref.preference_type != PreferenceType.BRAND or not pref.is_established:
                 continue
             for item in contract.items:
-                if (
-                    pref.product_or_category.lower() in item.name.lower()
-                    and item.brand_preference is None  # don't override explicit request
-                ):
+                if pref.product_or_category.lower() in item.name.lower() and item.brand_preference is None:
                     item.brand_preference = pref.value
                     applied += 1
         if applied:
             events.append(f"PREFERENCES_APPLIED count={applied}")
 
-    async def _resolve_items(
-        self,
-        contract: IntentContract,
-        address_id: str,
-        events: list[str],
-    ) -> list[CartItemUpdate]:
+    async def _resolve_items(self, contract: IntentContract, address_id: str, events: list[str]) -> list[CartItemUpdate]:
         """Resolve each IntentItem into a CartItemUpdate via CommercePort search."""
         updates: list[CartItemUpdate] = []
         for item in contract.items:
@@ -655,10 +599,6 @@ class GrocerOrchestrator:
         )
 
 
-# ---------------------------------------------------------------------------
-# Merge helpers
-# ---------------------------------------------------------------------------
-
 def _is_fresh_request(message: str) -> bool:
     """Heuristic: treat message as fresh grocery request vs a refinement."""
     fresh_keywords = {
@@ -672,7 +612,7 @@ def _is_fresh_request(message: str) -> bool:
 def _merge_contracts(existing: IntentContract, new: IntentContract) -> IntentContract:
     """Merge new contract onto existing, respecting intent precedence (Spec §5.3)."""
     if new.items:
-        return new  # New explicit request wins entirely
+        return new
     merged = copy.deepcopy(existing)
     merged.intent_id = new.intent_id
     merged.version = existing.version + 1

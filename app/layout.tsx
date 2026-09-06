@@ -27,9 +27,13 @@ export const metadata: Metadata = {
   description:
     "WhatsApp consumer grocery replenishment assistant with deterministic intent verification, bounded recovery, and Swiggy Instamart integration.",
   icons: {
-    icon: '/logo.svg',
-    shortcut: '/logo.svg',
-    apple: '/logo.svg',
+    icon: [
+      { url: '/favicon.ico', sizes: 'any' },
+      { url: '/logo.svg', type: 'image/svg+xml' },
+      { url: '/icon.png', type: 'image/png' },
+    ],
+    shortcut: '/favicon.ico',
+    apple: '/icon.png',
   },
 };
 

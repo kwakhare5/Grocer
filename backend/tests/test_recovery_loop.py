@@ -61,18 +61,18 @@ class FakeCommercePort(CommercePort):
         raise AssertionError("tracking is not part of recovery-loop test")
 
 
-class SequenceVerifier:
+class ThreeStepVerifier:
     def __init__(self) -> None:
         self.calls = 0
 
     def verify(self, contract, cart):
         self.calls += 1
-        if self.calls == 1:
+        if self.calls < 3:
             return VerificationResult(status=VerificationStatus.FAIL)
         return VerificationResult(status=VerificationStatus.PASS)
 
 
-class TwoStepRecoveryEngine(LoopingRecoveryEngine):
+class CountingRecoveryEngine(LoopingRecoveryEngine):
     def __init__(self) -> None:
         super().__init__()
         self.recover_calls = 0
@@ -101,8 +101,8 @@ class TwoStepRecoveryEngine(LoopingRecoveryEngine):
 @pytest.mark.asyncio
 async def test_recovery_retries_after_failed_reverification() -> None:
     port = FakeCommercePort()
-    verifier = SequenceVerifier()
-    engine = TwoStepRecoveryEngine()
+    verifier = ThreeStepVerifier()
+    engine = CountingRecoveryEngine()
     contract = IntentContract(
         session_id="session-1",
         goal="weekly restock",
@@ -122,9 +122,9 @@ async def test_recovery_retries_after_failed_reverification() -> None:
 
     assert outcome.state == RecoveryState.RECOVERED
     assert result.status == VerificationStatus.PASS
-    assert engine.recover_calls == 1
-    assert verifier.calls == 2
-    assert port.update_calls == 1
-    assert port.get_cart_calls == 1
-    assert port.refresh_calls == 0
-    assert cart.grand_total == 10.0
+    assert engine.recover_calls == 2
+    assert verifier.calls == 3
+    assert port.update_calls == 2
+    assert port.get_cart_calls == 2
+    assert port.refresh_calls == 1
+    assert cart.grand_total == 20.0

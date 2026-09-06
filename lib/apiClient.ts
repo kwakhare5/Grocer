@@ -4,7 +4,8 @@
  * Provides fallback to simulated state when backend is offline.
  */
 
-import { DarkStore, RecommendationItem, ActionType, RiskSeverity, ActionStatus } from "./types";
+// Consumer-facing types only â€” operations types removed in Phase 0 cleanup
+
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
@@ -305,6 +306,8 @@ export interface BackendCommerceTracking {
 // Store Coordinate & Metadata Map (Mumbai Topography)
 // ---------------------------------------------------------------------------
 
+// OPERATIONS RESIDUE — Phase 0 cleanup: used by transformStores which was removed.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const STORE_UI_METADATA: Record<string, { code: string; location: string; x: number; y: number }> = {
   "Andheri East": { code: "St 01", location: "MIDC Cyber Hub, Mumbai", x: 130, y: 110 },
   "Bandra West": { code: "St 02", location: "Hill Road / Turner, Mumbai", x: 90, y: 210 },
@@ -312,6 +315,7 @@ const STORE_UI_METADATA: Record<string, { code: string; location: string; x: num
   "Dadar / Lower Parel": { code: "St 04", location: "Senapati Bapat Marg, Mumbai", x: 120, y: 290 },
   "Thane West": { code: "St 05", location: "Ghodbunder Road, Mumbai", x: 240, y: 40 },
 };
+
 
 // ---------------------------------------------------------------------------
 // API Client Functions
@@ -342,93 +346,15 @@ export const grocerApi = {
     return data !== null && data.status === "ok";
   },
 
-  /** Fetch active simulation from backend (or auto-initialize default) */
-  async getActiveSimulation(): Promise<BackendSimulation | null> {
-    return safeFetch<BackendSimulation>("/api/simulations/active");
-  },
-
-  /** Fetch all stores from backend */
-  async getStores(): Promise<BackendStore[] | null> {
-    return safeFetch<BackendStore[]>("/api/stores");
-  },
-
-  /** Fetch all products from backend */
-  async getProducts(): Promise<BackendProduct[] | null> {
-    return safeFetch<BackendProduct[]>("/api/products");
-  },
-
-  /** Fetch active risks */
-  async getRisks(status = "active"): Promise<BackendRisk[] | null> {
-    return safeFetch<BackendRisk[]>(`/api/risks?status=${status}`);
-  },
-
-  /** Trigger risk evaluation */
-  async evaluateRisks(): Promise<{ active_risks_count: number } | null> {
-    return safeFetch<{ active_risks_count: number }>("/api/risks/evaluate", {
-      method: "POST",
-    });
-  },
-
-  /** Fetch recommendations */
-  async getRecommendations(status?: string): Promise<BackendRecommendation[] | null> {
-    const query = status ? `?status=${status}` : "";
-    return safeFetch<BackendRecommendation[]>(`/api/recommendations${query}`);
-  },
-
-  /** Trigger recommendation evaluation for a specific risk */
-  async evaluateRecommendation(riskId: string): Promise<BackendRecommendation | null> {
-    return safeFetch<BackendRecommendation>(`/api/recommendations/evaluate/${riskId}`, {
-      method: "POST",
-    });
-  },
-
-  /** Approve a recommendation (spec §18 LOCKED human approval) */
-  async approveRecommendation(recommendationId: string): Promise<{ recommendation_id: string; status: string } | null> {
-    return safeFetch<{ recommendation_id: string; status: string }>(
-      `/api/recommendations/${recommendationId}/approve`,
-      { method: "POST" }
-    );
-  },
-
-  /** Reject a recommendation */
-  async rejectRecommendation(recommendationId: string): Promise<{ recommendation_id: string; status: string } | null> {
-    return safeFetch<{ recommendation_id: string; status: string }>(
-      `/api/recommendations/${recommendationId}/reject`,
-      { method: "POST" }
-    );
-  },
-
-  /** Execute transfer execution pipeline for an APPROVED recommendation (spec §19–21) */
-  async executeAgent(recommendationId: string): Promise<BackendAgentRun | null> {
-    return safeFetch<BackendAgentRun>(`/api/agent/execute/${recommendationId}`, {
-      method: "POST",
-    });
-  },
-
-  /** Get agent run status */
-  async getAgentRun(runId: string): Promise<{ run_id: string; status: string } | null> {
-    return safeFetch<{ run_id: string; status: string }>(`/api/agent/runs/${runId}`);
-  },
-
-  /** Fetch recent agent runs from backend (Phase 7) */
-  async getAgentRuns(): Promise<BackendAgentRun[] | null> {
-    return safeFetch<BackendAgentRun[]>("/api/agent/runs");
-  },
-
-  /** Advance simulation clock by N hours */
-  async advanceSimulation(simulationId: string, hours: number): Promise<BackendSimulation | null> {
-    return safeFetch<BackendSimulation>(`/api/simulations/${simulationId}/advance`, {
-      method: "POST",
-      body: JSON.stringify({ hours }),
-    });
-  },
-
-  /** Reset simulation */
-  async resetSimulation(simulationId: string): Promise<BackendSimulation | null> {
-    return safeFetch<BackendSimulation>(`/api/simulations/${simulationId}/reset`, {
-      method: "POST",
-    });
-  },
+  // -------------------------------------------------------------------------
+  // OPERATIONS RESIDUE REMOVED — Phase 0 boundary cleanup
+  // The following methods called operations-only routes that are now decoupled:
+  //   getActiveSimulation, getStores, getProducts, getRisks, evaluateRisks,
+  //   getRecommendations, evaluateRecommendation, approveRecommendation,
+  //   rejectRecommendation, executeAgent, getAgentRun, getAgentRuns,
+  //   advanceSimulation, resetSimulation
+  // Source: GROCER_V2_MASTER_SPEC.md §19
+  // -------------------------------------------------------------------------
 
   /** Fetch all customers */
   async getCustomers(): Promise<BackendCustomerListItem[] | null> {
@@ -590,247 +516,11 @@ export const grocerApi = {
 };
 
 // ---------------------------------------------------------------------------
-// Transformers: Backend Models -> UI View Models
+// OPERATIONS RESIDUE REMOVED — Phase 0 boundary cleanup
+// The following functions were removed because they depend on DarkStore/RecommendationItem
+// which are operations types not part of the GROCER v2 consumer boundary:
+//   - transformStores(backendStores, risks) -> DarkStore[]
+//   - transformRecommendation(rec, stores, products, risks) -> RecommendationItem
+//   - createSyntheticAgentRun(rec) -> BackendAgentRun
+// Source: GROCER_V2_MASTER_SPEC.md §19
 // ---------------------------------------------------------------------------
-
-export function transformStores(
-  backendStores: BackendStore[],
-  risks: BackendRisk[] = []
-): DarkStore[] {
-  return backendStores.map((bs, idx) => {
-    const meta = STORE_UI_METADATA[bs.name] || {
-      code: `St 0${idx + 1}`,
-      location: "Mumbai Dark Store",
-      x: 100 + (idx % 3) * 60,
-      y: 80 + Math.floor(idx / 3) * 90,
-    };
-
-    const storeRisks = risks.filter((r) => r.store_id === bs.store_id);
-    const stockoutCount = storeRisks.filter((r) => r.risk_type.toLowerCase() === "stockout").length;
-    const spoilageCount = storeRisks.filter((r) => r.risk_type.toLowerCase() === "spoilage").length;
-
-    const hasCritical = storeRisks.some((r) => r.severity.toLowerCase() === "critical");
-    const status: "active" | "maintenance" | "critical" =
-      bs.operating_status.toLowerCase() === "maintenance"
-        ? "maintenance"
-        : hasCritical
-        ? "critical"
-        : "active";
-
-    return {
-      id: bs.store_id,
-      code: meta.code,
-      name: bs.name,
-      location: meta.location,
-      lat: bs.latitude,
-      lng: bs.longitude,
-      x: meta.x,
-      y: meta.y,
-      status,
-      totalSkus: 25,
-      activeBatches: 30 + (idx * 4) % 15,
-      stockoutRiskCount: stockoutCount,
-      spoilageRiskCount: spoilageCount,
-      excessCapacityUnits: Math.max(10, 60 - stockoutCount * 20),
-      inventoryHealth: {
-        dairy: Math.max(20, 95 - stockoutCount * 35),
-        produce: 80,
-        bakery: 85,
-        staples: 92,
-        packaged: 96,
-      },
-    };
-  });
-}
-
-export function transformRecommendation(
-  rec: BackendRecommendation,
-  stores: DarkStore[],
-  products: BackendProduct[],
-  risks: BackendRisk[] = []
-): RecommendationItem {
-  const risk = risks.find((r) => r.risk_id === rec.risk_id);
-  const product = products.find((p) => p.product_id === (risk?.product_id || ""));
-  const destStore = stores.find((s) => s.id === rec.destination_store_id) || {
-    id: rec.destination_store_id || "st-04",
-    code: "St 04",
-    name: "Destination Dark Store",
-  };
-  const srcStore = rec.source_store_id
-    ? stores.find((s) => s.id === rec.source_store_id) || {
-        id: rec.source_store_id,
-        code: "St 02",
-        name: "Source Dark Store",
-      }
-    : undefined;
-
-  const actionType = (rec.action_type.toLowerCase() as ActionType) || "hold";
-  const severity: RiskSeverity =
-    risk?.severity.toLowerCase() === "critical"
-      ? "critical"
-      : risk?.severity.toLowerCase() === "warning"
-      ? "warning"
-      : "low";
-
-  const rawReasonCodes = Array.isArray(rec.reason_codes)
-    ? rec.reason_codes
-    : typeof rec.reason_codes === "string"
-    ? [rec.reason_codes]
-    : [];
-
-  const alternatives = (rec.alternatives || []).map((alt) => {
-    const act = ((alt.action_type || alt.action || "hold").toLowerCase() as ActionType);
-    return {
-      action: act,
-      label: act.toUpperCase(),
-      score: alt.score || 0,
-      reason:
-        alt.reason ||
-        (alt.rejection_codes && alt.rejection_codes.length > 0
-          ? alt.rejection_codes.join(", ")
-          : alt.reason_codes?.join(", ") || "Alternative candidate"),
-      isRecommended: act === actionType,
-    };
-  });
-
-  const title =
-    actionType === "transfer"
-      ? `Transfer ${rec.quantity} units to ${destStore.name}`
-      : actionType === "reorder"
-      ? `Reorder ${rec.quantity} units from supplier`
-      : actionType === "discount"
-      ? `Apply 20% discount on ${product?.name || "Inventory"}`
-      : `Hold stock for ${destStore.name}`;
-
-  return {
-    id: rec.recommendation_id,
-    riskId: rec.risk_id,
-    title,
-    productName: product?.name || "Amul Taaza Milk 1L",
-    productCategory: product?.category || "Dairy",
-    sourceStore: srcStore
-      ? {
-          id: srcStore.id,
-          code: srcStore.code,
-          name: srcStore.name,
-          safeExcess: 25,
-        }
-      : undefined,
-    destinationStore: {
-      id: destStore.id,
-      code: destStore.code,
-      name: destStore.name,
-    },
-    actionType,
-    severity,
-    status: (rec.status.toLowerCase() as ActionStatus) || "pending",
-    quantity: rec.quantity,
-    unit: product?.unit || "units",
-    distanceKm: 2.1,
-    stockoutInHours: 14,
-    supplierEtaHours: 30,
-    probability: risk?.probability || 0.85,
-    confidence: rec.confidence,
-    discountPct: actionType === "discount" ? 20 : undefined,
-    reasonCodes: rawReasonCodes,
-    alternatives,
-    tradeoffAnalysis: {
-      spoilageAvoidanceINR: actionType === "discount" ? 2800 : 0,
-      transportCostINR: actionType === "transfer" ? 45 : 0,
-      stockoutLossAvoidedINR: actionType === "transfer" || actionType === "reorder" ? 1850 : 0,
-      netBenefitINR: actionType === "transfer" ? 1805 : actionType === "discount" ? 2800 : 850,
-    },
-    createdAt: rec.created_at || new Date().toISOString(),
-  };
-}
-
-/**
- * Generates an authoritative client-side LangGraph 5-node synthetic trace (Phase 7).
- * Used when the FastAPI backend is offline to provide realistic execution feedback.
- */
-export function createSyntheticAgentRun(rec: RecommendationItem): BackendAgentRun {
-  const runId = `run-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
-  const now = new Date();
-  const startedAt = new Date(now.getTime() - 540).toISOString();
-  const finishedAt = now.toISOString();
-
-  const isTransfer = rec.actionType === "transfer";
-  const isReorder = rec.actionType === "reorder";
-
-  const events: BackendAgentRunEvent[] = [
-    {
-      node: "validate",
-      result: "valid",
-      action_id: `act-${rec.id.slice(0, 8)}`,
-      status: "executing",
-      recommendation_id: rec.id,
-      action_type: rec.actionType,
-      target_store: rec.destinationStore.code,
-    },
-    {
-      node: "execute",
-      action: rec.actionType,
-      transfer_id: isTransfer ? `tr-${Date.now().toString(36)}` : undefined,
-      purchase_order_id: isReorder ? `po-${Date.now().toString(36)}` : undefined,
-      batches_affected: isTransfer
-        ? [
-            {
-              batch_id: `batch-src-${rec.sourceStore?.code || "01"}-a`,
-              quantity_deducted: Math.min(rec.quantity, 15),
-              destination_batch_id: `batch-dst-${rec.destinationStore.code}-x`,
-              quantity_added: Math.min(rec.quantity, 15),
-              expires_at: new Date(Date.now() + 48 * 3600 * 1000).toISOString(),
-            },
-            ...(rec.quantity > 15
-              ? [
-                  {
-                    batch_id: `batch-src-${rec.sourceStore?.code || "01"}-b`,
-                    quantity_deducted: rec.quantity - 15,
-                    destination_batch_id: `batch-dst-${rec.destinationStore.code}-y`,
-                    quantity_added: rec.quantity - 15,
-                    expires_at: new Date(Date.now() + 72 * 3600 * 1000).toISOString(),
-                  },
-                ]
-              : []),
-          ]
-        : [
-            {
-              batch_id: `batch-po-${rec.destinationStore.code}-fresh`,
-              quantity_added: rec.quantity,
-              expires_at: new Date(Date.now() + 120 * 3600 * 1000).toISOString(),
-            },
-          ],
-      quantity: rec.quantity,
-    },
-    {
-      node: "verify",
-      result: "verified",
-      verification_details: {
-        source_non_negative: true,
-        dest_inventory_updated: true,
-        batches_balanced: true,
-        audit_events_count: 2,
-        invariants_satisfied: true,
-      },
-    },
-    {
-      node: "finalize",
-      result: "action completed",
-      executed_at: finishedAt,
-      status: "completed",
-    },
-  ];
-
-  return {
-    run_id: runId,
-    recommendation_id: rec.id,
-    status: "completed",
-    action_type: rec.actionType,
-    events,
-    error: null,
-    new_recommendation_id: null,
-    requires_human_review: false,
-    started_at: startedAt,
-    finished_at: finishedAt,
-  };
-}

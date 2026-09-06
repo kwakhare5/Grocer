@@ -1,3 +1,6 @@
+# OPERATIONS RESIDUE — DECOUPLED FROM GROCER v2
+# Dark-store risk detection engine (spoilage/stockout). Belongs in kwakhare5/Dark-store-operator.
+
 from backend.services.risk.engine import RiskEngine
 from backend.services.risk.models import (
     DiscountTier,

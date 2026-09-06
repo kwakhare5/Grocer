@@ -1,4 +1,7 @@
+# OPERATIONS RESIDUE — DECOUPLED FROM GROCER v2
+# Dark-store demand forecasting engine. Belongs in kwakhare5/Dark-store-operator.
 from backend.services.forecasting.engine import ForecastingEngine
+
 from backend.services.forecasting.models import (
     DemandPoint,
     ModelEvaluationResult,

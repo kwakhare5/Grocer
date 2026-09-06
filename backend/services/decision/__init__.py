@@ -1,4 +1,7 @@
-﻿"""Decision Engine service package."""
+# OPERATIONS RESIDUE — DECOUPLED FROM GROCER v2
+# Dark-store decision engine (transfer/reorder/discount/hold). Belongs in kwakhare5/Dark-store-operator.
+"""Decision Engine service package."""
+
 from backend.services.decision.models import (
     ReasonCode,
     ScoringWeights,

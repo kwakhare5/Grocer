@@ -429,3 +429,90 @@ class CommerceTrackingResponse(BaseModel):
     last_updated_at: datetime
 
 
+# ---------------------------------------------------------------------------
+# Phase 6 — Intent Orchestrator schemas
+# ---------------------------------------------------------------------------
+
+
+class IntentChatRequest(BaseModel):
+    """Request body for POST /api/intent/chat."""
+
+    session_id: str
+    customer_id: str
+    message: str
+    address_id: Optional[str] = None
+
+
+class BasketItemSchema(BaseModel):
+    spin_id: str
+    name: str
+    pack_size: str
+    quantity: int
+    unit_price: float
+    line_total: float
+    substituted: bool = False
+
+
+class BasketSummarySchema(BaseModel):
+    cart_id: str
+    items: list[BasketItemSchema]
+    item_total: float
+    delivery_fee: float
+    grand_total: float
+    budget: Optional[float] = None
+    within_budget: bool
+    recovery_notes: list[str] = []
+
+
+class ClarificationOptionSchema(BaseModel):
+    index: int
+    spin_id: str
+    name: str
+    pack_size: str
+    price: float
+    score: float = 0.0
+
+
+class IntentChatResponse(BaseModel):
+    """Response from POST /api/intent/chat."""
+
+    session_id: str
+    conversation_state: str
+    user_message: str
+    basket_summary: Optional[BasketSummarySchema] = None
+    clarification_options: Optional[list[ClarificationOptionSchema]] = None
+    requires_confirmation: bool = False
+    order_id: Optional[str] = None
+    order_total: Optional[float] = None
+    events: list[str] = []
+
+
+class IntentChoiceRequest(BaseModel):
+    """Request body for POST /api/intent/sessions/{id}/choice."""
+
+    chosen_spin_id: str
+
+
+class IntentConfirmRequest(BaseModel):
+    """Request body for POST /api/intent/sessions/{id}/confirm.
+
+    CRITICAL: explicit_confirmation must be True or the server rejects checkout.
+    """
+
+    explicit_confirmation: bool = False
+    payment_method: str = "UPI"
+    address_id: Optional[str] = None
+
+
+class IntentSessionStateResponse(BaseModel):
+    """Session state snapshot returned by GET /api/intent/sessions/{id}."""
+
+    session_id: str
+    customer_id: str
+    conversation_state: str
+    cart_id: Optional[str] = None
+    turn_count: int
+    has_pending_clarification: bool
+    order_id: Optional[str] = None
+    order_total: Optional[float] = None
+    events: list[str] = []

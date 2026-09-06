@@ -1,4 +1,10 @@
-"""Stores REST API — spec §32.3.
+# OPERATIONS RESIDUE — DECOUPLED FROM GROCER v2
+# This module exposes dark-store network, inventory, batch, and forecast routes.
+# It is NOT part of the consumer WhatsApp replenishment boundary.
+# Phase 0 cleanup: router removed from main.py.
+# Belongs in companion repo: kwakhare5/Dark-store-operator
+# Source: GROCER_V2_MASTER_SPEC.md §19
+
 
 Endpoints:
     GET /api/stores                          — list all dark stores

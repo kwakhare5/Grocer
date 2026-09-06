@@ -1,4 +1,10 @@
-"""Risk REST API — spec §32.
+# OPERATIONS RESIDUE — DECOUPLED FROM GROCER v2
+# This module implements the dark-store risk detection engine (spoilage, stockout).
+# It is NOT part of the consumer WhatsApp replenishment boundary.
+# Phase 0 cleanup: router removed from main.py.
+# Belongs in companion repo: kwakhare5/Dark-store-operator
+# Source: GROCER_V2_MASTER_SPEC.md §19
+
 
 Endpoints:
     GET  /api/risks                  — list risks with optional filters (store_id, product_id, risk_type, severity, status)

@@ -1,14 +1,45 @@
 /**
+ * OPERATIONS RESIDUE — DECOUPLED FROM GROCER v2 — Phase 0 boundary cleanup
+ *
+ * This module computed simulation metrics for the dark-store operations product.
+ * It is NOT part of the consumer WhatsApp replenishment boundary.
+ * Not imported by any consumer component.
+ * Belongs in companion repo: kwakhare5/Dark-store-operator
+ * Source: GROCER_V2_MASTER_SPEC.md §19
+ *
+ * Original docstring:
  * GROCER v2 — Baseline vs GROCER Metrics Engine (Spec §28)
- *
- * Computes simulation metrics for both GROCER policy (forecasting + risk +
- * decision engine + approved execution) and a fair Baseline policy (simple
- * reorder-point, no transfers, no discounts).
- *
- * All numbers are simulation results, not real-world company claims.
+ * Computes simulation metrics for both GROCER policy and a fair Baseline policy.
  */
 
-import { SimulationMetrics, SimulationEvent, DarkStore, RecommendationItem } from "./types";
+// Operations types below are kept inline since they were removed from lib/types.ts
+// These are only used by this file and scenarioEngine.ts (also operations residue).
+
+type SimulationMetrics = {
+  stockoutEvents: number;
+  spoiledUnits: number;
+  emergencyReorders: number;
+  serviceLevel: number;
+  excessInventory: number;
+  transferCount: number;
+  estimatedWasteCostINR: number;
+  recommendationAcceptanceRate: number;
+};
+type SimulationEvent = { type: string; storeCode?: string; description: string; severity?: string };
+
+type DarkStore = {
+  id: string; name: string; status?: string;
+  excessCapacityUnits: number;
+  inventoryHealth: Record<string, number>;
+};
+
+type RecommendationItem = {
+  id: string; actionType: string; status: string;
+  tradeoffAnalysis: { spoilageAvoidanceINR: number; transportCostINR: number; stockoutLossAvoidedINR: number; netBenefitINR: number };
+};
+
+
+
 
 // ---------------------------------------------------------------------------
 // Default (zeroed) metrics

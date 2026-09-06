@@ -3,18 +3,10 @@
 import React, { useState, useEffect, useCallback, Suspense } from "react";
 import { AppGlobalHeader } from "../components/navigation/AppGlobalHeader";
 import { CustomerReplenishmentView } from "../components/customer/CustomerReplenishmentView";
-import {
-  INITIAL_STORES,
-  DEFAULT_CUSTOMER_PERSONA,
-} from "../lib/mockData";
-import {
-  DarkStore,
-  CustomerPersona,
-  CustomerOrderPayload,
-} from "../lib/types";
+import { DEFAULT_CUSTOMER_PERSONA } from "../lib/mockData";
+import { CustomerPersona, CustomerOrderPayload } from "../lib/types";
 import {
   grocerApi,
-  transformStores,
   BackendCommerceAdapterInfo,
 } from "../lib/apiClient";
 import { toast } from "sonner";
@@ -25,7 +17,6 @@ import { toast } from "sonner";
 
 function GrocerConsumerApp() {
   const [activeCustomer, setActiveCustomer] = useState<CustomerPersona>(DEFAULT_CUSTOMER_PERSONA);
-  const [stores, setStores] = useState<DarkStore[]>(INITIAL_STORES);
   const [isLiveApiConnected, setIsLiveApiConnected] = useState<boolean>(false);
   const [adapterInfo, setAdapterInfo] = useState<BackendCommerceAdapterInfo | null>(null);
 
@@ -37,22 +28,10 @@ function GrocerConsumerApp() {
         setIsLiveApiConnected(false);
         return;
       }
-
       setIsLiveApiConnected(true);
-
-      const [backendStores, backendRisks, adapter] = await Promise.all([
-        grocerApi.getStores(),
-        grocerApi.getRisks(),
-        grocerApi.getCommerceAdapterInfo(),
-      ]);
-
+      const adapter = await grocerApi.getCommerceAdapterInfo();
       if (adapter) {
         setAdapterInfo(adapter);
-      }
-
-      if (backendStores && backendStores.length > 0) {
-        const transformedStores = transformStores(backendStores, backendRisks || []);
-        setStores(transformedStores);
       }
     } catch {
       setIsLiveApiConnected(false);
@@ -69,22 +48,11 @@ function GrocerConsumerApp() {
           setIsLiveApiConnected(false);
           return;
         }
-
         setIsLiveApiConnected(true);
-        const [backendStores, backendRisks, adapter] = await Promise.all([
-          grocerApi.getStores(),
-          grocerApi.getRisks(),
-          grocerApi.getCommerceAdapterInfo(),
-        ]);
+        const adapter = await grocerApi.getCommerceAdapterInfo();
         if (!isMounted) return;
-
         if (adapter) {
           setAdapterInfo(adapter);
-        }
-
-        if (backendStores && backendStores.length > 0) {
-          const transformedStores = transformStores(backendStores, backendRisks || []);
-          setStores(transformedStores);
         }
       } catch {
         if (isMounted) setIsLiveApiConnected(false);
@@ -97,44 +65,11 @@ function GrocerConsumerApp() {
     };
   }, []);
 
-  // Order Placement Handler (with Consequential Guard validation)
+  // Order Placement Handler - backend is authoritative; no fake dark-store mutation
   const handleCustomerOrder = useCallback(
     async (payload: CustomerOrderPayload) => {
-      // 1. Optimistic local stock reduction for household dark store
-      setStores((prevStores) =>
-        prevStores.map((store) => {
-          if (
-            store.code === payload.homeStoreCode ||
-            store.name.toLowerCase().includes(payload.homeStoreName.toLowerCase())
-          ) {
-            const hasDairy = payload.items.some(
-              (i) => i.productId.includes("milk") || i.productName.toLowerCase().includes("milk")
-            );
-            const hasBakery = payload.items.some(
-              (i) => i.productId.includes("bread") || i.productName.toLowerCase().includes("bread")
-            );
-
-            return {
-              ...store,
-              inventoryHealth: {
-                ...store.inventoryHealth,
-                dairy: hasDairy
-                  ? Math.max(10, store.inventoryHealth.dairy - 4)
-                  : store.inventoryHealth.dairy,
-                bakery: hasBakery
-                  ? Math.max(10, store.inventoryHealth.bakery - 5)
-                  : store.inventoryHealth.bakery,
-              },
-            };
-          }
-          return store;
-        })
-      );
-
-      // 2. Call authoritative backend API if live
       if (isLiveApiConnected) {
         try {
-          // Trigger checkout with explicit confirmation
           const checkoutResult = await grocerApi.checkoutCustomer(
             payload.customerId,
             {
@@ -142,7 +77,6 @@ function GrocerConsumerApp() {
               explicit_confirmation: true,
             }
           );
-
           if (checkoutResult && checkoutResult.status === "placed") {
             toast.success(
               `Order Confirmed: #${checkoutResult.order_id.slice(0, 8)} via Swiggy Instamart`
@@ -150,18 +84,18 @@ function GrocerConsumerApp() {
           }
           await syncWithBackend();
         } catch (err: unknown) {
-          console.warn("Backend checkout call failed, relying on edge simulation:", err);
+          console.warn("Backend checkout call failed:", err);
           toast.success(
-            `Order Dispatched: ₹${payload.totalINR} to ${payload.address || activeCustomer.address} (Simulated Instamart)`
+            `Order Dispatched to ${payload.address || activeCustomer.address} (Simulated Instamart)`
           );
         }
       } else {
         toast.success(
-          `Order Dispatched: ₹${payload.totalINR} to ${payload.address || activeCustomer.address} (Simulated Instamart)`
+          `Order Dispatched to ${payload.address || activeCustomer.address} (Simulated Instamart)`
         );
       }
     },
-    [activeCustomer, isLiveApiConnected, syncWithBackend]
+    [activeCustomer.address, isLiveApiConnected, syncWithBackend]
   );
 
   // Reminder Handler
@@ -194,12 +128,6 @@ function GrocerConsumerApp() {
     [isLiveApiConnected]
   );
 
-  // Reset Pantry Handler
-  const handleResetPantry = useCallback(() => {
-    setStores(INITIAL_STORES);
-    toast.info("Pantry items & stock levels reset to baseline");
-  }, []);
-
   return (
     <div className="min-h-screen bg-[#FAFAFA] text-zinc-900 font-sans flex flex-col antialiased selection:bg-emerald-600 selection:text-white">
       {/* 1. Dedicated Header */}
@@ -208,7 +136,6 @@ function GrocerConsumerApp() {
         onCustomerChange={setActiveCustomer}
         isLiveApiConnected={isLiveApiConnected}
         adapterInfo={adapterInfo}
-        onResetPantry={handleResetPantry}
       />
 
       {/* 2. Customer Proactive WhatsApp Replenishment View */}
@@ -219,7 +146,6 @@ function GrocerConsumerApp() {
           onPlaceOrder={handleCustomerOrder}
           onScheduleReminder={handleCustomerReminder}
           onSkipRestock={handleCustomerSkip}
-          stores={stores}
           isLiveApiConnected={isLiveApiConnected}
         />
       </main>

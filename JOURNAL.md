@@ -15,6 +15,13 @@ During the Session End ritual (called automatically whenever significant changes
 
 ## Log Entries
 
+### [GROCER — Typography Consolidation & Google Font Lora Integration] 2026-09-07
+
+- **Typography Consolidation**: Standardized the application across three deliberate typography layers: `Geist Sans` for conversational bubbles and UI controls, `Geist Mono` for telemetry, prices, and IDs, and Google Font `Lora` for brand and section headlines.
+- **Font Purge & Bundle Cleanup**: Permanently deleted local OTF fonts `TWKLausannePan-800.otf`, `PPEditorialNew-Regular-BF644b214ff145f.otf`, `PPEditorialNew-Ultrabold-BF644b21500840c.otf`, and `PPEditorialNew-Ultralight-BF644b21500d0c0.otf`.
+- **CSS & Token Modernization**: Configured `Lora` via `next/font/google` in `app/layout.tsx` (`--font-lora`), updated `--font-editorial` to point to `var(--font-lora)`, and cleaned `@font-face` rules in `app/globals.css`.
+- **Quality Gates**: `npm run lint` clean (0 errors), Next.js Turbopack `npm run build` compiled successfully in 2.3s, and all 147 backend tests verified green.
+
 ### [GROCER — Real Commerce Swiggy MCP Live Verification & WhatsApp Channel Abstraction] 2026-09-06
 
 - **Live Swiggy MCP Instamart Production Verification**: Connected real authenticated Swiggy session (Karan Wakhare, User ID: 26057200) directly to production Instamart MCP gateway (`https://mcp.swiggy.com/im`). Verified live `get_addresses` returning 3 real delivery addresses (Nashik, Pune), live `search_products` returning 12 in-stock items (Amul Taaza Tetra, ₹17), live `update_cart` item additions (cart total ₹86.0), and `clear_cart` cleanup (`verified: true`). Patched MCP JSON-RPC protocol handling to enforce `Accept: application/json, text/event-stream` and unpack `structuredContent` envelopes.

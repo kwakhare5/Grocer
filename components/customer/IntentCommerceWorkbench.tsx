@@ -199,7 +199,7 @@ export function IntentCommerceWorkbench({ customer, isBackendConnected }: Intent
           <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-emerald-700">
             <Sparkles className="h-3 w-3" /> intent-preserving commerce
           </div>
-          <h1 className="text-3xl font-bold tracking-tight text-zinc-950">Grocer × WhatsApp</h1>
+          <h1 className="text-3xl font-editorial font-bold tracking-tight text-zinc-950">Grocer × WhatsApp</h1>
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-zinc-600">
             the interface is conversational. the backend treats the user&apos;s original shopping goal as a contract,
             verifies live cart state, and recovers before checkout.

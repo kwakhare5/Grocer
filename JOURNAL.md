@@ -17,6 +17,7 @@ During the Session End ritual (called automatically whenever significant changes
 
 ### [GROCER — Typography Consolidation & Google Font Lora Integration] 2026-09-07
 
+- **Meta WhatsApp Cloud API Live E2E Verification**: Connected Meta WhatsApp Business Platform sandbox number (`+1 (555) 663-1707`) via Webhook and Graph API v20.0 directly to `GrocerOrchestrator`. Verified bidirectional conversational messaging: natural language replenishment request (`Need milk and bread under ₹200`), deterministic intent parsing and budget verification (`Your basket is ready — ₹119 under ₹200`), interactive quick-reply buttons (`[Confirm Order]`, `[Change Items]`), explicit confirmation checkout guard (`Order placed! OD-68355847`), and autonomous out-of-stock recovery with interactive list picker (`[Select Alternative]`).
 - **Typography Consolidation**: Standardized the application across three deliberate typography layers: `Geist Sans` for conversational bubbles and UI controls, `Geist Mono` for telemetry, prices, and IDs, and Google Font `Lora` for brand and section headlines.
 - **Font Purge & Bundle Cleanup**: Permanently deleted local OTF fonts `TWKLausannePan-800.otf`, `PPEditorialNew-Regular-BF644b214ff145f.otf`, `PPEditorialNew-Ultrabold-BF644b21500840c.otf`, and `PPEditorialNew-Ultralight-BF644b21500d0c0.otf`.
 - **CSS & Token Modernization**: Configured `Lora` via `next/font/google` in `app/layout.tsx` (`--font-lora`), updated `--font-editorial` to point to `var(--font-lora)`, and cleaned `@font-face` rules in `app/globals.css`.

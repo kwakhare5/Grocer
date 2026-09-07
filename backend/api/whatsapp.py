@@ -53,11 +53,14 @@ async def receive_webhook(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Malformed JSON: {exc}")
 
     incoming_messages = default_whatsapp_adapter.parse_webhook_payload(payload)
+    logger.info("Parsed %d incoming message(s) from WhatsApp webhook", len(incoming_messages))
 
     processed_count = 0
     for incoming in incoming_messages:
         try:
-            await default_whatsapp_adapter.dispatch(incoming, _orchestrator)
+            logger.info("Dispatching incoming WhatsApp message from %s: %r", incoming.sender_id, incoming.text)
+            out = await default_whatsapp_adapter.dispatch(incoming, _orchestrator)
+            logger.info("Dispatched WhatsApp message. Bot reply: %r", out.text)
             processed_count += 1
         except Exception as exc:
             logger.error("Error dispatching WhatsApp message %s: %s", incoming.message_id, exc)

@@ -15,6 +15,7 @@ import hashlib
 import hmac
 import logging
 import time
+import os
 from typing import Any, Optional
 import httpx
 
@@ -35,17 +36,17 @@ class WhatsAppChannelAdapter(BaseChannelAdapter):
 
     def __init__(
         self,
-        verify_token: str = "grocer_whatsapp_verify_token",
+        verify_token: Optional[str] = None,
         app_secret: Optional[str] = None,
         phone_number_id: Optional[str] = None,
         access_token: Optional[str] = None,
         timeout: float = 10.0,
     ) -> None:
         super().__init__(channel_type=ChannelType.WHATSAPP)
-        self.verify_token = verify_token
-        self.app_secret = app_secret
-        self.phone_number_id = phone_number_id
-        self._access_token = access_token
+        self.verify_token = verify_token or os.environ.get("WHATSAPP_VERIFY_TOKEN", "grocer_whatsapp_verify_token")
+        self.app_secret = app_secret or os.environ.get("WHATSAPP_APP_SECRET")
+        self.phone_number_id = phone_number_id or os.environ.get("WHATSAPP_PHONE_NUMBER_ID")
+        self._access_token = access_token or os.environ.get("WHATSAPP_ACCESS_TOKEN")
         self.timeout = timeout
 
         # Deduplication cache: message_id -> timestamp (1 hour TTL)

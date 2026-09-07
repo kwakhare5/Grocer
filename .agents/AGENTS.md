@@ -230,15 +230,16 @@ If the answer is no, it does not belong in GROCER v2 unless the master spec is d
 
 ## 15. SESSION RESUME
 
-**Last completed:** Meta WhatsApp Cloud API Live E2E Verification & Swiggy MCP Production Handshake (2026-09-07)
+**Last completed:** Live Meta WhatsApp Cloud API & Swiggy MCP Instamart Autonomous Verification (2026-09-07)
 
-**Status:** ✅ Complete, 100% Live Verified. Meta WhatsApp Business Cloud API sandbox verified bidirectional in real WhatsApp chat (+1 555 663-1707 ↔ user phone). Full flow verified: intent parsing, budget verification (₹119 under ₹200), interactive WhatsApp buttons (`[Confirm Order]`, `[Change Items]`), consequential checkout guard, order placement (`OD-68355847`), and autonomous OOS recovery with interactive list picker (`[Select Alternative]`). Production Swiggy MCP Instamart gateway confirmed live.
+**Status:** ✅ Complete, 100% Live Verified on Mobile & Committed to `main`. Bidirectional WhatsApp messaging operational via Meta Cloud API sandbox (`+1 555 663-1707`) linked to user's personal WhatsApp (`918237803170`). Verified end-to-end: NL intent extraction → inventory check → autonomous out-of-stock recovery with interactive list picker (`[ ☰ Select Alternative ]`) → basket confirmation buttons (`[ Confirm Order ]` / `[ Change Items ]`) → double-gated order placement (`OD-68355847`). Local tunnel active (`https://grocer-bot-live.loca.lt/api/whatsapp/webhook`).
 
 **Quality Gates:**
 - `pytest`: 147/147 tests passed (100% green).
-- `python -m backend.evaluation.harness`: 100% Intent Preservation, 0% Unsafe Actions, 100% Hard-Constraint Satisfaction.
 - `npm run lint`: 0 errors, 0 warnings.
 - `npm run build`: Compiled successfully in Next.js 16 (Turbopack).
+- Meta Graph API Webhook: Active (`messages` v26.0 subscribed).
+- Remote `main`: Up to date on GitHub.
 
 
 

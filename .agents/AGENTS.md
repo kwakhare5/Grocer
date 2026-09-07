@@ -232,7 +232,7 @@ If the answer is no, it does not belong in GROCER v2 unless the master spec is d
 
 **Last completed:** Live Meta WhatsApp Cloud API & Swiggy MCP Instamart Autonomous Verification (2026-09-07)
 
-**Status:** ✅ Complete, 100% Live Verified on Mobile & Committed to `main`. Bidirectional WhatsApp messaging operational via Meta Cloud API sandbox (`+1 555 663-1707`) linked to user's personal WhatsApp (`918237803170`). Verified end-to-end: NL intent extraction → inventory check → autonomous out-of-stock recovery with interactive list picker (`[ ☰ Select Alternative ]`) → basket confirmation buttons (`[ Confirm Order ]` / `[ Change Items ]`) → double-gated order placement (`OD-68355847`). Local tunnel active (`https://grocer-bot-live.loca.lt/api/whatsapp/webhook`).
+**Status:** ✅ Complete, 100% Live Verified on Mobile & Committed to `main`. Bidirectional WhatsApp messaging operational via Meta Cloud API sandbox (`+1 555 663-XXXX`) linked to user's registered WhatsApp (`+91 82378 XXXXX`). Verified end-to-end: NL intent extraction → inventory check → autonomous out-of-stock recovery with interactive list picker (`[ ☰ Select Alternative ]`) → basket confirmation buttons (`[ Confirm Order ]` / `[ Change Items ]`) → double-gated order placement (`OD-68355847`). Local tunnel active (`https://grocer-bot-live.loca.lt/api/whatsapp/webhook`).
 
 **Quality Gates:**
 - `pytest`: 147/147 tests passed (100% green).

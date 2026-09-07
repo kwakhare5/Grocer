@@ -63,6 +63,17 @@
 - [x] Preserve visual language; make failure/recovery/approval states truthful.
 - [x] Polish flagship failure-and-recovery demo.
 
+## P5 — Live WhatsApp Cloud API & Swiggy MCP Integration [COMPLETED]
+- [x] Official Meta WhatsApp Cloud API adapter (`backend/channels/whatsapp.py`).
+- [x] Webhook challenge verification (`hub.challenge`) and HMAC-SHA256 signature checking.
+- [x] In-memory message deduplication and replay protection.
+- [x] Telephone-number-to-customer identity and session continuity (`wa-{sender_id}`).
+- [x] Live Swiggy MCP Instamart production integration (`https://mcp.swiggy.com/im`).
+- [x] Live address resolution, catalog search, and cart mutation.
+- [x] Multi-turn out-of-stock recovery rendering interactive WhatsApp lists (`[ ☰ Select Alternative ]`).
+- [x] Consequential basket confirmation rendering interactive quick reply buttons (`[ Confirm Order ]`).
+- [x] End-to-end verified real shopping order placement (`OD-68355847`).
+
 ## Non-negotiables
 - No dark-store / warehouse / supplier / inventory-operations subsystem in GROCER.
 - No second commerce abstraction competing with `CommercePort`.
@@ -72,3 +83,15 @@
 - Current explicit user instructions override stored preferences.
 - Never silently substitute across incompatible constraints.
 - Never claim success when the underlying action is failed or unknown.
+
+---
+
+## NEXT TASK — NOT STARTED
+
+### Objective: Persistent Cloud Deployment & Production Webhook Stability
+- [ ] Containerize FastAPI backend with production Docker configuration.
+- [ ] Deploy backend to persistent public cloud infrastructure (e.g. Fly.io, Railway, or AWS) to eliminate local development tunnels.
+- [ ] Exchange 24-hour Meta developer access token for a permanent System User Token in Meta Business Suite.
+- [ ] Connect Redis/Postgres state storage for `OrchestratorSessionStore` and `SwiggyTokenVault` to ensure session continuity across service restarts.
+- [ ] Live physical rider verification for `track_order` tool with real dispatch on the road.
+

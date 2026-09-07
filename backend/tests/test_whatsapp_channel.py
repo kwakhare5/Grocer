@@ -8,7 +8,7 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from backend.channels.models import ChannelType, NormalizedIncomingMessage
-from backend.channels.whatsapp import WhatsAppChannelAdapter
+from backend.channels.whatsapp import WhatsAppChannelAdapter, default_whatsapp_adapter
 from backend.main import app
 
 
@@ -211,11 +211,19 @@ async def test_api_whatsapp_webhook_post_flow() -> None:
         }
 
         body_bytes = json.dumps(payload).encode("utf-8")
-        # In test mode without secret configured on default_whatsapp_adapter, it accepts or checks secret
+        headers = {"Content-Type": "application/json"}
+        if default_whatsapp_adapter.app_secret:
+            sig = hmac.new(
+                default_whatsapp_adapter.app_secret.encode("utf-8"),
+                body_bytes,
+                hashlib.sha256,
+            ).hexdigest()
+            headers["X-Hub-Signature-256"] = f"sha256={sig}"
+
         res = await client.post(
             "/api/whatsapp/webhook",
             content=body_bytes,
-            headers={"Content-Type": "application/json"},
+            headers=headers,
         )
         assert res.status_code == 200
         data = res.json()

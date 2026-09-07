@@ -1,4 +1,28 @@
-# Tracer Bullets: Cleanroom Intent-Preserving Commerce & Golden Flow
+# Active Tracer Bullets: Codex Deep Audit and Reliability Hardening
+
+> Branch: `audit/codex-deep-review`
+> Plan: `docs/audit/CODEX_DEEP_AUDIT_MISSION.md`
+> Findings: `docs/audit/CODEX_AUDIT_REPORT.md`
+> Tests: `docs/audit/ADVERSARIAL_TEST_MATRIX.md`
+
+- [x] Recover branch, worktree, commit, artifact, and baseline test state. <!-- id: codex-1 -->
+- [x] Inspect repository and official current Swiggy commerce documentation. <!-- id: codex-2 -->
+- [x] Record initial mission, audit report, and adversarial matrix. <!-- id: codex-3 -->
+- [ ] Implement shared physical quantity and product identity semantics test-first. <!-- id: codex-4 -->
+- [ ] Bind approval to basket/address/payment/intent and serialize checkout. <!-- id: codex-5 -->
+- [ ] Complete truthful payment, multi-order, order, and tracking models/flows. <!-- id: codex-6 -->
+- [ ] Remove live Swiggy fabricated fallbacks and unsafe timeout reconciliation. <!-- id: codex-7 -->
+- [ ] Unify provider authentication and prevent cross-user provider state. <!-- id: codex-8 -->
+- [ ] Harden WhatsApp/API session ownership, signatures, stale actions, privacy, and failures. <!-- id: codex-9 -->
+- [ ] Remove proven dead/duplicate dependencies, routes, code, assets, and legacy docs. <!-- id: codex-10 -->
+- [ ] Expand and run high-value adversarial/evaluation coverage. <!-- id: codex-11 -->
+- [ ] Synchronize active architecture/state/setup documentation. <!-- id: codex-12 -->
+- [ ] Run full Python, lint, build, static/reference, and no-real-order gates. <!-- id: codex-13 -->
+- [ ] Commit logical slices and run independent standards/spec self-review. <!-- id: codex-14 -->
+
+---
+
+# Historical Tracer Bullets: Cleanroom Intent-Preserving Commerce & Golden Flow
 
 - [x] 1. Choice Integrity: Harden `handle_choice` in `backend/intent/orchestrator.py` and `backend/intent/session.py` <!-- id: 1 -->
 - [x] 2. Failure Injection: Add deterministic fault injection to `backend/integrations/commerce/mock_adapter.py` and `models.py` <!-- id: 2 -->

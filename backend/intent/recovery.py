@@ -43,6 +43,13 @@ from backend.intent.verifier import (
     VerificationStatus,
     ViolationCode,
 )
+from backend.intent.semantics import (
+    brand_identity_matches,
+    normalize_pack_quantity,
+    normalize_requested_quantity,
+    product_identity_matches,
+    required_pack_count,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -485,6 +492,34 @@ class RecoveryEngine:
             raw_candidates, target_name, contract, cart, removes_spin_id
         )
 
+        if intent_item:
+            requested_quantity = normalize_requested_quantity(
+                intent_item.quantity,
+                intent_item.unit,
+                intent_item.name,
+                quantity_is_explicit=intent_item.quantity_is_explicit,
+                pack_size_preference=intent_item.pack_size_preference,
+            )
+            filtered_candidates = [
+                (product, variant)
+                for product, variant in filtered_candidates
+                if requested_quantity is not None
+                and required_pack_count(
+                    requested_quantity,
+                    normalize_pack_quantity(variant.pack_size),
+                )
+                is not None
+                and (
+                    not intent_item.brand_preference
+                    or brand_identity_matches(
+                        intent_item.brand_preference,
+                        product.brand,
+                        product.name,
+                        variant.name,
+                    )
+                )
+            ]
+
         if not filtered_candidates:
             return RecoveryOutcome(
                 state=RecoveryState.BLOCKED,
@@ -545,12 +580,21 @@ class RecoveryEngine:
                 if score_diff < 0.08:
                     is_ambiguous = True
 
-        # Check if multiple packs can fulfill requested volume
+        # Resolve pack count using the same physical semantics as selection and
+        # verification. Invalid underfill/overfill candidates were filtered out.
         multiple = 1
-        if intent_item and contract.pack_size_rules.preferred_multiples:
+        if intent_item:
             multiple = self._calculate_pack_multiple(intent_item, top_candidate.pack_size)
-            if multiple > 1:
-                quantity = multiple * (matched_cart_item.quantity if matched_cart_item else max(1, int(intent_item.quantity)))
+            if multiple < 1:
+                return RecoveryOutcome(
+                    state=RecoveryState.BLOCKED,
+                    failure_class=failure_class,
+                    message=f"No exact quantity-preserving replacement found for '{target_name}'",
+                    attempt_number=attempt_number,
+                    can_auto_apply=False,
+                    remaining_violations=verification_result.violations,
+                )
+            quantity = multiple
 
         action_reason = (
             f"Supplied {multiple}x {top_candidate.pack_size} packs to fulfill requested {intent_item.name}"
@@ -605,18 +649,23 @@ class RecoveryEngine:
     ) -> list[tuple[CommerceProductItem, ProductVariant]]:
         """Find in-stock product variants matching the target's category or name."""
         candidates: list[tuple[CommerceProductItem, ProductVariant]] = []
-        target_tokens = set(target_name.lower().split())
-        target_category = intent_item.category.lower() if (intent_item and intent_item.category) else ""
+        requested_name = intent_item.name if intent_item else target_name
+        requested_category = intent_item.category if intent_item else None
 
         for prod in available_products:
-            prod_tokens = set(prod.name.lower().split())
-            cat_match = bool(target_category and target_category in prod.category.lower())
-            name_overlap = bool(target_tokens & prod_tokens)
-
-            # Match on category or name keyword
-            if cat_match or name_overlap:
+            if product_identity_matches(
+                requested_name,
+                prod.name,
+                requested_category,
+                prod.category,
+            ):
                 for variant in prod.variants:
-                    if variant.in_stock:
+                    if variant.in_stock and product_identity_matches(
+                        requested_name,
+                        variant.name,
+                        requested_category,
+                        prod.category,
+                    ):
                         candidates.append((prod, variant))
 
         return candidates
@@ -732,21 +781,22 @@ class RecoveryEngine:
         return tokens[0] if tokens else ""
 
     def _calculate_pack_multiple(self, intent_item: IntentItem, candidate_pack_size: str) -> int:
-        """Calculate multiple packs if primary pack size is unavailable (Spec §10.2 item 3)."""
-        pref = (intent_item.pack_size_preference or "").lower().replace(" ", "")
-        cand = candidate_pack_size.lower().replace(" ", "")
+        """Return the exact quantity-preserving pack count, or zero if unsafe."""
 
-        # 1L requested vs 500ml candidate
-        if ("1l" in pref or (intent_item.unit.lower() == "l" and intent_item.quantity == 1.0)) and "500ml" in cand:
-            return 2
-        # 2L requested vs 1L candidate
-        if ("2l" in pref or (intent_item.unit.lower() == "l" and intent_item.quantity == 2.0)) and "1l" in cand:
-            return 2
-        # 1kg requested vs 500g candidate
-        if ("1kg" in pref or (intent_item.unit.lower() == "kg" and intent_item.quantity == 1.0)) and "500g" in cand:
-            return 2
-
-        return 1
+        requested = normalize_requested_quantity(
+            intent_item.quantity,
+            intent_item.unit,
+            intent_item.name,
+            quantity_is_explicit=intent_item.quantity_is_explicit,
+            pack_size_preference=intent_item.pack_size_preference,
+        )
+        if requested is None:
+            return 0
+        count = required_pack_count(
+            requested,
+            normalize_pack_quantity(candidate_pack_size),
+        )
+        return count or 0
 
     async def execute_recovery(
         self,

@@ -318,6 +318,9 @@ class MockCommerceAdapter(CommercePort):
                     quantity=update.quantity,
                     total_price=total_price,
                     is_available=True,
+                    product_id=prod.product_id,
+                    category=prod.category,
+                    brand=prod.brand,
                 )
             )
             item_total += total_price

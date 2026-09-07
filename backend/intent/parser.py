@@ -193,7 +193,7 @@ class RuleBasedExtractor:
             if not name or name.lower() in seen_names or name.lower() in _STOP_WORDS or len(name) < 2:
                 continue
             unit = _UNIT_MAP.get(raw_unit, "units") if raw_unit else "units"
-            item = self._build_item(name, qty, unit)
+            item = self._build_item(name, qty, unit, quantity_is_explicit=True)
             items.append(item)
             seen_names.add(name.lower())
 
@@ -215,7 +215,7 @@ class RuleBasedExtractor:
             qty = float(match.group(2))
             raw_unit = (match.group(3) or "").strip().lower()
             unit = _UNIT_MAP.get(raw_unit, "units") if raw_unit else "units"
-            item = self._build_item(name, qty, unit)
+            item = self._build_item(name, qty, unit, quantity_is_explicit=True)
             items.append(item)
             seen_names.add(name.lower())
 
@@ -233,7 +233,14 @@ class RuleBasedExtractor:
 
         return items
 
-    def _build_item(self, name: str, quantity: float, unit: str) -> dict:
+    def _build_item(
+        self,
+        name: str,
+        quantity: float,
+        unit: str,
+        *,
+        quantity_is_explicit: bool = False,
+    ) -> dict:
         """Build an item dict with category hint."""
         name_lower = name.lower().strip()
         category = None
@@ -259,6 +266,7 @@ class RuleBasedExtractor:
             "name": name.strip(),
             "quantity": quantity,
             "unit": unit,
+            "quantity_is_explicit": quantity_is_explicit,
             "brand_preference": brand,
             "category": category,
             "is_essential": True,

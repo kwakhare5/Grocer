@@ -64,6 +64,8 @@ class CartItem(BaseModel):
     sku_id: Optional[str] = None
     mrp: Optional[float] = None
     product_id: Optional[str] = None
+    category: Optional[str] = None
+    brand: Optional[str] = None
     max_quantity: Optional[int] = None
 
 

@@ -8,7 +8,7 @@
 - [x] Recover branch, worktree, commit, artifact, and baseline test state. <!-- id: codex-1 -->
 - [x] Inspect repository and official current Swiggy commerce documentation. <!-- id: codex-2 -->
 - [x] Record initial mission, audit report, and adversarial matrix. <!-- id: codex-3 -->
-- [ ] Implement shared physical quantity and product identity semantics test-first. <!-- id: codex-4 -->
+- [x] Implement shared physical quantity and product identity semantics test-first. <!-- id: codex-4 -->
 - [ ] Bind approval to basket/address/payment/intent and serialize checkout. <!-- id: codex-5 -->
 - [ ] Complete truthful payment, multi-order, order, and tracking models/flows. <!-- id: codex-6 -->
 - [ ] Remove live Swiggy fabricated fallbacks and unsafe timeout reconciliation. <!-- id: codex-7 -->

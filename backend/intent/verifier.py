@@ -21,9 +21,15 @@ from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from backend.integrations.commerce.models import CommerceCart
+from backend.integrations.commerce.models import CartItem, CommerceCart
 from backend.intent.enums import ConstraintType, PreferenceType
-from backend.intent.models import IntentContract
+from backend.intent.models import IntentContract, IntentItem
+from backend.intent.semantics import (
+    brand_identity_matches,
+    normalize_pack_quantity,
+    normalize_requested_quantity,
+    product_identity_matches,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -123,6 +129,15 @@ _VEGAN_EXCLUDED_KEYWORDS: frozenset[str] = frozenset({
     "milk", "butter", "ghee", "paneer", "curd", "yogurt", "cream",
     "cheese", "honey", "whey",
 })
+
+
+def _matches_intent_item(intent_item: IntentItem, cart_item: CartItem) -> bool:
+    return product_identity_matches(
+        intent_item.name,
+        cart_item.name,
+        intent_item.category,
+        cart_item.category,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -379,15 +394,12 @@ class IntentVerifier:
         """Return (missing_item_names, deviations_for_non_essential_missing)."""
         missing: list[str] = []
         deviations: list[PreferenceDeviation] = []
-        cart_names_lower = [
-            ci.name.lower()
-            for ci in cart.items
-            if getattr(ci, "is_available", True) is not False
-        ]
-
         for intent_item in contract.items:
-            query = intent_item.name.lower()
-            matched = any(query in cname or cname.startswith(query[:4]) for cname in cart_names_lower)
+            matched = any(
+                _matches_intent_item(intent_item, cart_item)
+                for cart_item in cart.items
+                if cart_item.is_available
+            )
             if not matched:
                 if intent_item.is_essential:
                     missing.append(intent_item.name)
@@ -409,32 +421,62 @@ class IntentVerifier:
         violations: list[ConstraintViolation] = []
 
         for intent_item in contract.items:
-            query = intent_item.name.lower()
             matched_cart_items = [
                 ci for ci in cart.items
-                if query in ci.name.lower() or ci.name.lower().startswith(query[:4])
+                if _matches_intent_item(intent_item, ci)
             ]
             if not matched_cart_items:
                 continue  # Already handled by _check_missing_items
 
-            # Sum quantities across matched variants
-            total_quantity = sum(ci.quantity for ci in matched_cart_items)
-            required = intent_item.quantity
-
-            # Only flag as violation if contract has EXACT_QUANTITY constraint for this item
             has_exact_constraint = any(
                 hc.constraint_type == ConstraintType.EXACT_QUANTITY
                 and intent_item.name.lower() in hc.target.lower()
                 for hc in contract.hard_constraints
             )
+            requested = normalize_requested_quantity(
+                intent_item.quantity,
+                intent_item.unit,
+                intent_item.name,
+                quantity_is_explicit=intent_item.quantity_is_explicit,
+                pack_size_preference=intent_item.pack_size_preference,
+            )
+            must_verify = bool(
+                requested
+                and (
+                    requested.dimension != "pack"
+                    or intent_item.quantity_is_explicit
+                    or has_exact_constraint
+                )
+            )
+            if not must_verify or requested is None:
+                continue
 
-            if has_exact_constraint and total_quantity != required:
+            if requested.dimension == "pack":
+                actual_amount = float(sum(ci.quantity for ci in matched_cart_items))
+                comparable = True
+            else:
+                normalized_packs = [
+                    (normalize_pack_quantity(ci.pack_size), ci.quantity)
+                    for ci in matched_cart_items
+                ]
+                comparable = all(
+                    pack is not None and pack.dimension == requested.dimension
+                    for pack, _quantity in normalized_packs
+                )
+                actual_amount = sum(
+                    pack.amount * quantity
+                    for pack, quantity in normalized_packs
+                    if pack is not None and pack.dimension == requested.dimension
+                )
+
+            if not comparable or not abs(actual_amount - requested.amount) < 1e-9:
                 violations.append(ConstraintViolation(
                     violation_code=ViolationCode.WRONG_QUANTITY,
                     target=intent_item.name,
                     detail=(
-                        f"'{intent_item.name}' requires exactly {required:.0f} "
-                        f"{intent_item.unit} but cart has {total_quantity}"
+                        f"'{intent_item.name}' requires {intent_item.quantity:g} "
+                        f"{intent_item.unit}; cart quantity is not an exact "
+                        "physical match"
                     ),
                     is_hard=True,
                 ))
@@ -449,21 +491,21 @@ class IntentVerifier:
         deviations: list[PreferenceDeviation] = []
 
         for bp in contract.brand_preferences:
-            product_lower = bp.product_or_category.lower()
             matched_items = [
                 ci for ci in cart.items
-                if product_lower in ci.name.lower()
+                if product_identity_matches(bp.product_or_category, ci.name)
             ]
             if not matched_items:
                 continue
 
-            preferred = bp.preferred_brand.lower()
-            alternatives = [b.lower() for b in bp.alternative_brands]
-
             for cart_item in matched_items:
-                item_name_lower = cart_item.name.lower()
-                brand_matched = preferred in item_name_lower or any(
-                    alt in item_name_lower for alt in alternatives
+                brand_matched = brand_identity_matches(
+                    bp.preferred_brand,
+                    cart_item.brand,
+                    cart_item.name,
+                ) or any(
+                    brand_identity_matches(alt, cart_item.brand, cart_item.name)
+                    for alt in bp.alternative_brands
                 )
 
                 if not brand_matched:
@@ -498,11 +540,10 @@ class IntentVerifier:
             if not intent_item.pack_size_preference:
                 continue
 
-            query = intent_item.name.lower()
             preferred_size = intent_item.pack_size_preference.lower()
             matched_items = [
                 ci for ci in cart.items
-                if query in ci.name.lower() or ci.name.lower().startswith(query[:4])
+                if _matches_intent_item(intent_item, ci)
             ]
             if not matched_items:
                 continue

@@ -22,7 +22,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from backend.integrations.commerce.factory import get_commerce_adapter
 from backend.integrations.commerce.models import CartItemUpdate, CommerceProductItem
 from backend.integrations.commerce.port import CommercePort
-from backend.integrations.commerce.exceptions import UnconfirmedCheckoutError
+from backend.integrations.commerce.exceptions import CommerceError, UnconfirmedCheckoutError
 
 from backend.intent.enums import PreferenceType
 from backend.intent.models import IntentContract, IntentItem
@@ -31,6 +31,13 @@ from backend.intent.policy import PolicyEngine
 from backend.intent.preferences import default_preference_store
 from backend.intent.recovery import RecoveryCandidate, RecoveryEngine, RecoveryState
 from backend.intent.recovery_loop import LoopingRecoveryEngine
+from backend.intent.semantics import (
+    brand_identity_matches,
+    normalize_pack_quantity,
+    normalize_requested_quantity,
+    product_identity_matches,
+    required_pack_count,
+)
 from backend.intent.storage import default_intent_store
 from backend.intent.verifier import IntentVerifier, VerificationStatus
 from backend.intent.session import (
@@ -117,16 +124,13 @@ async def _search_and_pick(
 ) -> Optional[CartItemUpdate]:
     """Search commerce for an IntentItem and pick the best matching variant.
 
-    Strategy:
-        1. Search by item name.
-        2. Prefer variant whose pack_size matches item.pack_size_preference.
-        3. Prefer variant whose product name contains brand_preference.
-        4. Fall back to cheapest available variant.
+    Candidates must first satisfy product, explicit-brand, and physical-quantity
+    semantics. Price ranks only the remaining semantically valid candidates.
     Returns None if no available variants found.
     """
     try:
         results: list[CommerceProductItem] = await port.search_products(address_id, item.name)
-    except Exception:
+    except CommerceError:
         return None
 
     if not results:
@@ -137,34 +141,70 @@ async def _search_and_pick(
         for product in results
         for variant in product.variants
         if variant.in_stock
+        and (
+            product_identity_matches(
+                item.name,
+                variant.name,
+                item.category,
+                product.category,
+            )
+            or product_identity_matches(
+                item.name,
+                product.name,
+                item.category,
+                product.category,
+            )
+        )
     ]
     if not all_variants:
         return None
 
     if item.brand_preference:
-        branded = [
-            (p, v) for p, v in all_variants
-            if item.brand_preference.lower() in p.name.lower()
+        candidates = [
+            (product, variant)
+            for product, variant in all_variants
+            if brand_identity_matches(
+                item.brand_preference,
+                product.brand,
+                product.name,
+                variant.name,
+            )
         ]
-        candidates = branded if branded else all_variants
+        if not candidates:
+            return None
     else:
         candidates = all_variants
 
-    target_size = item.pack_size_preference
-    if not target_size and item.unit:
-        qty_val = int(item.quantity) if getattr(item.quantity, "is_integer", lambda: False)() else item.quantity
-        target_size = f"{qty_val} {item.unit}"
+    requested = normalize_requested_quantity(
+        item.quantity,
+        item.unit,
+        item.name,
+        quantity_is_explicit=item.quantity_is_explicit,
+        pack_size_preference=item.pack_size_preference,
+    )
+    if requested is None:
+        return None
 
-    if target_size:
-        pref = target_size.lower().replace(" ", "")
-        size_match = [(p, v) for p, v in candidates if pref in v.pack_size.lower().replace(" ", "")]
-        if size_match:
-            candidates = size_match
+    resolved: list[tuple[CommerceProductItem, Any, int]] = []
+    for product, variant in candidates:
+        pack_count = required_pack_count(
+            requested,
+            normalize_pack_quantity(variant.pack_size),
+        )
+        if pack_count is not None:
+            resolved.append((product, variant, pack_count))
+    if not resolved:
+        return None
 
-    _best_product, best_variant = min(candidates, key=lambda pv: pv[1].price)
-    multiple = RecoveryEngine()._calculate_pack_multiple(item, best_variant.pack_size)
-    base_qty = max(1, int(item.quantity))
-    quantity = (multiple * base_qty) if multiple > 1 else base_qty
+    preferred_pack = normalize_pack_quantity(item.pack_size_preference or "")
+
+    def rank(candidate: tuple[CommerceProductItem, Any, int]) -> tuple[bool, float, float]:
+        _product, variant, pack_count = candidate
+        candidate_pack = normalize_pack_quantity(variant.pack_size)
+        misses_preference = preferred_pack is not None and candidate_pack != preferred_pack
+        return misses_preference, variant.price * pack_count, variant.price
+
+    _best_product, best_variant, quantity = min(resolved, key=rank)
 
     return CartItemUpdate(spin_id=best_variant.spin_id, quantity=quantity)
 
@@ -644,8 +684,8 @@ class GrocerOrchestrator:
         if intent_item and contract.pack_size_rules.preferred_multiples:
             engine = RecoveryEngine(policy_engine=self._policy)
             multiple = engine._calculate_pack_multiple(intent_item, matching_candidate.pack_size)
-            if multiple > 1:
-                quantity = multiple * max(1, int(intent_item.quantity))
+            if multiple > 0:
+                quantity = multiple
 
         removes_spin_id = pending.removes_spin_id
         if not removes_spin_id:

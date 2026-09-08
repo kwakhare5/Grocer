@@ -75,6 +75,7 @@ class OrchestratorTurnResult(BaseModel):
     user_message: str = Field(..., description="WhatsApp-style reply to the user")
     basket_summary: Optional[BasketSummary] = None
     clarification_options: Optional[list[ClarificationOption]] = None
+    clarification_nonce: Optional[str] = None
     requires_confirmation: bool = False
     order_id: Optional[str] = None
     order_total: Optional[float] = None
@@ -315,6 +316,23 @@ class GrocerOrchestrator:
         self._recovery = recovery_engine
 
     async def handle_turn(
+        self,
+        session_id: str,
+        customer_id: str,
+        message: str,
+        address_id: Optional[str] = None,
+    ) -> OrchestratorTurnResult:
+        """Run one turn with provider credentials bound to its customer."""
+        async with self._store.lock_for(session_id):
+            with self._port.customer_scope(customer_id):
+                return await self._handle_turn_scoped(
+                    session_id=session_id,
+                    customer_id=customer_id,
+                    message=message,
+                    address_id=address_id,
+                )
+
+    async def _handle_turn_scoped(
         self,
         session_id: str,
         customer_id: str,
@@ -619,6 +637,7 @@ class GrocerOrchestrator:
             conversation_state=ConversationState.NEEDS_DECISION,
             user_message=_msg_clarification(question, options),
             clarification_options=options,
+            clarification_nonce=session.pending_clarification.nonce,
             events=events,
         )
 
@@ -659,8 +678,27 @@ class GrocerOrchestrator:
             events=events,
         )
 
-    async def handle_choice(self, session_id: str, chosen_spin_id: str) -> OrchestratorTurnResult:
+    async def handle_choice(
+        self,
+        session_id: str,
+        chosen_spin_id: str,
+        clarification_nonce: str,
+    ) -> OrchestratorTurnResult:
         """Resolve a NEEDS_DECISION clarification with the user's chosen spin_id."""
+        async with self._store.lock_for(session_id):
+            return await self._handle_choice_locked(
+                session_id=session_id,
+                chosen_spin_id=chosen_spin_id,
+                clarification_nonce=clarification_nonce,
+            )
+
+    async def _handle_choice_locked(
+        self,
+        *,
+        session_id: str,
+        chosen_spin_id: str,
+        clarification_nonce: str,
+    ) -> OrchestratorTurnResult:
         session = self._store.get(session_id)
         if session is None:
             return OrchestratorTurnResult(
@@ -683,6 +721,15 @@ class GrocerOrchestrator:
 
         # 1. Validate chosen_spin_id strictly inside orchestrator
         pending = session.pending_clarification
+        if clarification_nonce != pending.nonce:
+            return OrchestratorTurnResult(
+                session_id=session_id,
+                conversation_state=ConversationState.NEEDS_DECISION,
+                user_message="That choice is stale. Please use the latest options.",
+                clarification_options=_candidates_to_options(pending.candidates),
+                clarification_nonce=pending.nonce,
+                events=["STALE_CHOICE_REJECTED"],
+            )
         matching_candidate = next(
             (c for c in pending.candidates if c.spin_id == chosen_spin_id),
             None,
@@ -698,6 +745,7 @@ class GrocerOrchestrator:
                     + _msg_clarification(pending.clarification_question, options)
                 ),
                 clarification_options=options,
+                clarification_nonce=pending.nonce,
                 events=events,
             )
 
@@ -718,7 +766,8 @@ class GrocerOrchestrator:
 
         # 2. Fetch live cart to preserve all existing items
         try:
-            current_cart = await self._port.get_cart(cart_id)
+            with self._port.customer_scope(session.customer_id):
+                current_cart = await self._port.get_cart(cart_id)
         except Exception as exc:
             session.conversation_state = ConversationState.FAILED
             self._store.save(session)
@@ -775,11 +824,12 @@ class GrocerOrchestrator:
 
         # 5. Apply update to commerce port
         try:
-            cart = await self._port.update_cart(
-                items=updates,
-                cart_id=cart_id,
-                address_id=effective_address,
-            )
+            with self._port.customer_scope(session.customer_id):
+                cart = await self._port.update_cart(
+                    items=updates,
+                    cart_id=cart_id,
+                    address_id=effective_address,
+                )
         except Exception as exc:
             session.conversation_state = ConversationState.FAILED
             self._store.save(session)
@@ -810,7 +860,10 @@ class GrocerOrchestrator:
         )
 
         try:
-            available: list[CommerceProductItem] = await self._port.get_go_to_items(effective_address)
+            with self._port.customer_scope(session.customer_id):
+                available: list[CommerceProductItem] = await self._port.get_go_to_items(
+                    effective_address
+                )
         except Exception:
             available = []
 
@@ -845,6 +898,7 @@ class GrocerOrchestrator:
                 conversation_state=ConversationState.NEEDS_DECISION,
                 user_message=f"That choice causes an issue: {reason}. {outcome.message}",
                 clarification_options=options,
+                clarification_nonce=session.pending_clarification.nonce,
                 events=events,
             )
         else:
@@ -929,7 +983,8 @@ class GrocerOrchestrator:
         events: list[str] = ["CHECKOUT_INITIATED"]
 
         try:
-            cart = await self._port.get_cart(cart_id)
+            with self._port.customer_scope(session.customer_id):
+                cart = await self._port.get_cart(cart_id)
         except Exception as exc:
             session.conversation_state = ConversationState.FAILED
             self._store.save(session)
@@ -993,12 +1048,13 @@ class GrocerOrchestrator:
         self._store.save(session)
 
         try:
-            order = await self._port.checkout(
-                cart_id=cart_id,
-                payment_method=pending.payment_method,
-                explicit_confirmation=True,
-                address_id=effective_address,
-            )
+            with self._port.customer_scope(session.customer_id):
+                order = await self._port.checkout(
+                    cart_id=cart_id,
+                    payment_method=pending.payment_method,
+                    explicit_confirmation=True,
+                    address_id=effective_address,
+                )
         except UnconfirmedCheckoutError:
             raise
         except Exception as exc:
@@ -1040,10 +1096,11 @@ class GrocerOrchestrator:
                     events=["NO_PENDING_PAYMENT"],
                 )
 
-            payment = await self._port.check_payment_status(
-                session.payment_paas_id,
-                session.order_id,
-            )
+            with self._port.customer_scope(session.customer_id):
+                payment = await self._port.check_payment_status(
+                    session.payment_paas_id,
+                    session.order_id,
+                )
             session.payment_status = payment.normalized_status
             events = [f"PAYMENT_STATUS_{payment.normalized_status}"]
 
@@ -1097,7 +1154,10 @@ class GrocerOrchestrator:
                     events=events + ["ORDER_CONFIRMED_BY_PAYMENT_STATUS"],
                 )
 
-            order = await self._port.confirm_order(session.order_id, session.payment_paas_id)
+            with self._port.customer_scope(session.customer_id):
+                order = await self._port.confirm_order(
+                    session.order_id, session.payment_paas_id
+                )
             return self._apply_order_result(session, order, events + ["ORDER_CONFIRM_ATTEMPTED"])
 
     async def handle_order_details(self, session_id: str) -> OrchestratorTurnResult:
@@ -1114,7 +1174,8 @@ class GrocerOrchestrator:
                 events=["ORDER_DETAILS_UNAVAILABLE"],
             )
         try:
-            details = await self._port.get_order_details(session.order_id)
+            with self._port.customer_scope(session.customer_id):
+                details = await self._port.get_order_details(session.order_id)
         except CommerceError:
             return OrchestratorTurnResult(
                 session_id=session_id,
@@ -1160,9 +1221,10 @@ class GrocerOrchestrator:
                 events=["DELIVERY_STATUS_UNAVAILABLE"],
             )
         try:
-            delivery = await self._port.get_delivery_status(
-                session.order_id, session.address_id
-            )
+            with self._port.customer_scope(session.customer_id):
+                delivery = await self._port.get_delivery_status(
+                    session.order_id, session.address_id
+                )
         except CommerceError:
             return OrchestratorTurnResult(
                 session_id=session_id,
@@ -1294,14 +1356,15 @@ class GrocerOrchestrator:
         """Transition to AWAITING_CONFIRMATION and return the full result."""
         address_id = session.address_id or cart.address_id
         try:
-            payment_options = [
-                option
-                for option in await self._port.get_payment_options(
-                    cart_id=cart.cart_id,
-                    address_id=address_id,
-                )
-                if option.is_available
-            ]
+            with self._port.customer_scope(session.customer_id):
+                payment_options = [
+                    option
+                    for option in await self._port.get_payment_options(
+                        cart_id=cart.cart_id,
+                        address_id=address_id,
+                    )
+                    if option.is_available
+                ]
         except Exception:
             payment_options = []
 

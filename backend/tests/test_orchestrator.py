@@ -7,6 +7,7 @@ All tests use deterministic mocks — no real commerce provider.
 """
 from __future__ import annotations
 
+import asyncio
 import uuid
 
 import pytest
@@ -236,6 +237,7 @@ async def test_handle_choice_valid_spin(
     result = await orchestrator.handle_choice(
         session_id=session_id,
         chosen_spin_id="SPIN-MILK-500ML",
+        clarification_nonce=session.pending_clarification.nonce,
     )
     assert result.conversation_state == ConversationState.AWAITING_CONFIRMATION
     assert result.requires_confirmation is True
@@ -288,6 +290,7 @@ async def test_handle_choice_preserves_unrelated_items_and_quantity(
     result = await orchestrator.handle_choice(
         session_id=session_id,
         chosen_spin_id="SPIN-MILK-500ML",
+        clarification_nonce=session.pending_clarification.nonce,
     )
 
     assert result.conversation_state == ConversationState.AWAITING_CONFIRMATION
@@ -338,11 +341,58 @@ async def test_handle_choice_invalid_unlisted_rejected(
     result = await orchestrator.handle_choice(
         session_id=session_id,
         chosen_spin_id="SPIN-UNLISTED-RANDOM",
+        clarification_nonce=session.pending_clarification.nonce,
     )
 
     # Must NOT transition to AWAITING_CONFIRMATION or crash; remains in NEEDS_DECISION
     assert result.conversation_state == ConversationState.NEEDS_DECISION
     assert "not one of the available options" in result.user_message
+
+
+@pytest.mark.asyncio
+async def test_handle_choice_rejects_stale_clarification_nonce(
+    orchestrator: GrocerOrchestrator,
+    fresh_store: OrchestratorSessionStore,
+) -> None:
+    session_id, customer_id = new_session()
+    session = fresh_store.get_or_create(session_id, customer_id)
+    session.conversation_state = ConversationState.NEEDS_DECISION
+    session.cart_id = f"cart-{session_id}"
+
+    from backend.intent.parser import IntentParser
+    from backend.intent.recovery import RecoveryCandidate
+    from backend.intent.session import PendingClarification
+
+    session.intent_contract = IntentParser().parse(
+        "get me milk", session_id=session_id
+    )
+    session.pending_clarification = PendingClarification(
+        item_name="milk",
+        candidates=[
+            RecoveryCandidate(
+                spin_id="SPIN-MILK-500ML",
+                name="Amul Taaza Milk 500ml",
+                pack_size="500 ml",
+                price=34.0,
+                category="dairy",
+                score=0.8,
+            )
+        ],
+        clarification_question="Which milk?",
+    )
+    current_nonce = session.pending_clarification.nonce
+    fresh_store.save(session)
+
+    result = await orchestrator.handle_choice(
+        session_id=session_id,
+        chosen_spin_id="SPIN-MILK-500ML",
+        clarification_nonce="stale-clarification-nonce",
+    )
+
+    assert result.conversation_state == ConversationState.NEEDS_DECISION
+    assert result.clarification_nonce == current_nonce
+    assert result.events == ["STALE_CHOICE_REJECTED"]
+    assert fresh_store.get(session_id).pending_clarification is not None
 
 
 @pytest.mark.asyncio
@@ -381,6 +431,7 @@ async def test_handle_choice_violating_hard_constraint_handled_safely(
     result = await orchestrator.handle_choice(
         session_id=session_id,
         chosen_spin_id="SPIN-EGGS-6",
+        clarification_nonce=session.pending_clarification.nonce,
     )
 
     # Must NOT accept eggs for a vegetarian contract
@@ -402,9 +453,67 @@ async def test_handle_choice_wrong_state(
     result = await orchestrator.handle_choice(
         session_id=session_id,
         chosen_spin_id="SPIN-MILK-1L",
+        clarification_nonce="no-pending-decision",
     )
     assert result.conversation_state == ConversationState.READY
     assert "No pending decision" in result.user_message
+
+
+@pytest.mark.asyncio
+async def test_concurrent_choices_apply_at_most_one_cart_update(
+    orchestrator: GrocerOrchestrator,
+    mock_adapter: MockCommerceAdapter,
+    fresh_store: OrchestratorSessionStore,
+    monkeypatch,
+) -> None:  # type: ignore[no-untyped-def]
+    session_id, customer_id = new_session()
+    session = fresh_store.get_or_create(session_id, customer_id)
+    session.conversation_state = ConversationState.NEEDS_DECISION
+    session.cart_id = f"cart-{session_id}"
+
+    from backend.intent.parser import IntentParser
+    from backend.intent.recovery import RecoveryCandidate
+    from backend.intent.session import PendingClarification
+
+    session.intent_contract = IntentParser().parse(
+        "get me milk", session_id=session_id
+    )
+    session.pending_clarification = PendingClarification(
+        item_name="milk",
+        candidates=[
+            RecoveryCandidate(
+                spin_id="SPIN-MILK-500ML",
+                name="Amul Taaza Milk 500ml",
+                pack_size="500 ml",
+                price=34.0,
+                category="dairy",
+                score=0.8,
+            )
+        ],
+        clarification_question="Which milk?",
+    )
+    nonce = session.pending_clarification.nonce
+    fresh_store.save(session)
+
+    original_update_cart = mock_adapter.update_cart
+    update_count = 0
+
+    async def counted_update_cart(*args, **kwargs):  # type: ignore[no-untyped-def]
+        nonlocal update_count
+        update_count += 1
+        await asyncio.sleep(0)
+        return await original_update_cart(*args, **kwargs)
+
+    monkeypatch.setattr(mock_adapter, "update_cart", counted_update_cart)
+
+    results = await asyncio.gather(
+        orchestrator.handle_choice(session_id, "SPIN-MILK-500ML", nonce),
+        orchestrator.handle_choice(session_id, "SPIN-MILK-500ML", nonce),
+    )
+
+    assert update_count == 1
+    assert sum("NO_PENDING_DECISION" in result.events for result in results) == 1
+    assert fresh_store.get(session_id).pending_clarification is None
 
 
 @pytest.mark.asyncio
@@ -526,17 +635,26 @@ async def test_checkout_produces_order_id(orchestrator: GrocerOrchestrator) -> N
 # 16. API — POST /api/intent/chat returns 200 and valid body
 # ---------------------------------------------------------------------------
 
+async def _create_api_session(client, customer_id: str) -> tuple[str, dict[str, str]]:  # type: ignore[no-untyped-def]
+    del customer_id
+    response = await client.post("/api/intent/sessions", json={})
+    assert response.status_code == 201
+    body = response.json()
+    return body["session_id"], {
+        "X-Grocer-Session-Capability": body["session_capability"]
+    }
+
 @pytest.mark.asyncio
 async def test_api_chat_endpoint(client) -> None:
-    session_id = str(uuid.uuid4())
     customer_id = str(uuid.uuid4())
+    session_id, headers = await _create_api_session(client, customer_id)
     response = await client.post(
         "/api/intent/chat",
         json={
             "session_id": session_id,
-            "customer_id": customer_id,
             "message": "get me 1L milk",
         },
+        headers=headers,
     )
     assert response.status_code == 200
     data = response.json()
@@ -553,18 +671,18 @@ async def test_api_chat_endpoint(client) -> None:
 
 @pytest.mark.asyncio
 async def test_api_get_session(client) -> None:
-    session_id = str(uuid.uuid4())
     customer_id = str(uuid.uuid4())
+    session_id, headers = await _create_api_session(client, customer_id)
     # First create a session via chat
     await client.post(
         "/api/intent/chat",
         json={
             "session_id": session_id,
-            "customer_id": customer_id,
             "message": "get me bread",
         },
+        headers=headers,
     )
-    response = await client.get(f"/api/intent/sessions/{session_id}")
+    response = await client.get(f"/api/intent/sessions/{session_id}", headers=headers)
     assert response.status_code == 200
     data = response.json()
     assert data["session_id"] == session_id
@@ -577,10 +695,11 @@ async def test_api_get_session(client) -> None:
 
 @pytest.mark.asyncio
 async def test_api_confirm_without_explicit_rejects(client) -> None:
-    session_id = str(uuid.uuid4())
+    session_id, headers = await _create_api_session(client, str(uuid.uuid4()))
     response = await client.post(
         f"/api/intent/sessions/{session_id}/confirm",
         json={"explicit_confirmation": False, "payment_method": "UPI"},
+        headers=headers,
     )
     assert response.status_code == 400
     assert "explicit_confirmation" in response.json()["detail"].lower()
@@ -602,14 +721,15 @@ async def test_api_get_session_not_found(client) -> None:
 
 @pytest.mark.asyncio
 async def test_api_delete_session(client) -> None:
-    session_id = str(uuid.uuid4())
     customer_id = str(uuid.uuid4())
+    session_id, headers = await _create_api_session(client, customer_id)
     await client.post(
         "/api/intent/chat",
-        json={"session_id": session_id, "customer_id": customer_id, "message": "get milk"},
+        json={"session_id": session_id, "message": "get milk"},
+        headers=headers,
     )
-    delete_resp = await client.delete(f"/api/intent/sessions/{session_id}")
+    delete_resp = await client.delete(f"/api/intent/sessions/{session_id}", headers=headers)
     assert delete_resp.status_code == 200
     # Session should now be gone
-    get_resp = await client.get(f"/api/intent/sessions/{session_id}")
+    get_resp = await client.get(f"/api/intent/sessions/{session_id}", headers=headers)
     assert get_resp.status_code == 404

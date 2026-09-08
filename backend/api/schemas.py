@@ -4,7 +4,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class CommerceAdapterInfoResponse(BaseModel):
@@ -110,7 +110,6 @@ class CommerceTrackingResponse(BaseModel):
 
 class IntentChatRequest(BaseModel):
     session_id: str
-    customer_id: str
     message: str = Field(min_length=1)
     address_id: Optional[str] = None
 
@@ -167,6 +166,7 @@ class IntentChatResponse(BaseModel):
     user_message: str
     basket_summary: Optional[BasketSummarySchema] = None
     clarification_options: Optional[list[ClarificationOptionSchema]] = None
+    clarification_nonce: Optional[str] = None
     requires_confirmation: bool = False
     order_id: Optional[str] = None
     order_total: Optional[float] = None
@@ -178,6 +178,7 @@ class IntentChatResponse(BaseModel):
 
 class IntentChoiceRequest(BaseModel):
     chosen_spin_id: str = Field(min_length=1)
+    clarification_nonce: str = Field(min_length=16)
 
 
 class IntentConfirmRequest(BaseModel):
@@ -199,3 +200,13 @@ class IntentSessionStateResponse(BaseModel):
     payment_status: Optional[str] = None
     payment_url: Optional[str] = None
     events: list[str] = Field(default_factory=list)
+
+
+class IntentSessionCreateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+
+class IntentSessionCreateResponse(BaseModel):
+    session_id: str
+    customer_id: str
+    session_capability: str

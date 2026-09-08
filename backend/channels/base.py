@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import re
+import secrets
 from abc import ABC, abstractmethod
 from typing import Optional
 
@@ -41,7 +42,7 @@ class BaseChannelAdapter(ABC):
                 session_id = None
 
         if not session_id:
-            session_id = f"sess_{customer_id}_{int(default_session_store.get_or_create('', customer_id).turn_count + 1)}"
+            session_id = f"sess_{secrets.token_urlsafe(24)}"
             self._active_sessions[customer_id] = session_id
 
         return session_id
@@ -49,6 +50,19 @@ class BaseChannelAdapter(ABC):
     def reset_session(self, customer_id: str) -> None:
         """Reset active session for a customer."""
         self._active_sessions.pop(customer_id, None)
+
+    def pending_delivery(
+        self, message_id: str
+    ) -> Optional[NormalizedOutgoingResponse]:
+        """Return a staged response for retry-aware transports, if any."""
+        del message_id
+        return None
+
+    def stage_delivery(
+        self, message_id: str, response: NormalizedOutgoingResponse
+    ) -> None:
+        """Stage an outcome before attempting outbound delivery."""
+        del message_id, response
 
     async def dispatch(
         self,
@@ -144,15 +158,20 @@ class BaseChannelAdapter(ABC):
         # 2. Check for clarification choice
         elif session and session.conversation_state == ConversationState.NEEDS_DECISION and session.pending_clarification:
             chosen_spin_id: Optional[str] = None
+            clarification_nonce: Optional[str] = None
             pending = session.pending_clarification
 
             if interactive_id:
                 if interactive_id.startswith("choice:"):
-                    chosen_spin_id = interactive_id.replace("choice:", "")
-                elif any(c.spin_id == interactive_id for c in pending.candidates):
-                    chosen_spin_id = interactive_id
+                    parts = interactive_id.split(":", 2)
+                    if len(parts) == 3:
+                        clarification_nonce = parts[1]
+                        chosen_spin_id = parts[2]
+                    elif pending.candidates:
+                        clarification_nonce = "invalid"
+                        chosen_spin_id = pending.candidates[0].spin_id
 
-            if not chosen_spin_id:
+            if not interactive_id and not chosen_spin_id:
                 # Check if user texted an option number (e.g. "1", "2")
                 if clean_text.isdigit():
                     idx = int(clean_text) - 1
@@ -170,6 +189,7 @@ class BaseChannelAdapter(ABC):
                 turn_result = await orchestrator.handle_choice(
                     session_id=session_id,
                     chosen_spin_id=chosen_spin_id,
+                    clarification_nonce=clarification_nonce or pending.nonce,
                 )
             else:
                 turn_result = await orchestrator.handle_turn(
@@ -190,7 +210,9 @@ class BaseChannelAdapter(ABC):
 
         # Build normalized outgoing response
         response = self._build_normalized_response(incoming.sender_id, turn_result)
-        await self.send_response(response)
+        self.stage_delivery(incoming.message_id, response)
+        if not await self.send_response(response):
+            raise RuntimeError("Channel response delivery failed.")
         return response
 
     def _build_normalized_response(
@@ -210,7 +232,7 @@ class BaseChannelAdapter(ABC):
                 actions.append(
                     InteractiveAction(
                         action_type="list_item",
-                        id=f"choice:{opt.spin_id}",
+                        id=f"choice:{result.clarification_nonce or 'invalid'}:{opt.spin_id}",
                         title=f"{opt.index}. {opt.name}"[:24],
                         description=f"₹{opt.price:,.0f} ({opt.pack_size})"[:72],
                     )

@@ -11,6 +11,9 @@ Swiggy Builders Club specifications. Strictly enforces:
 from __future__ import annotations
 
 import logging
+from contextlib import contextmanager
+from contextvars import ContextVar
+from collections.abc import Iterator
 from typing import Any, Callable, Optional
 import httpx
 
@@ -58,11 +61,24 @@ class SwiggyMCPAdapter(CommercePort):
         auth_token: Optional[str] = None,
         timeout: float = 15.0,
         token_resolver: Optional[Callable[[str], Optional[str]]] = None,
+        owner_customer_id: Optional[str] = None,
     ) -> None:
         self.base_url = base_url.rstrip("/")
         self._auth_token = auth_token
         self.timeout = timeout
         self._token_resolver = token_resolver
+        self._owner_customer_id = owner_customer_id
+        self._customer_context: ContextVar[Optional[str]] = ContextVar(
+            f"swiggy_customer_{id(self)}", default=None
+        )
+
+    @contextmanager
+    def customer_scope(self, customer_id: str) -> Iterator[None]:
+        token = self._customer_context.set(customer_id)
+        try:
+            yield
+        finally:
+            self._customer_context.reset(token)
 
     def __repr__(self) -> str:
         # Strict zero-credential leakage in logs and repr strings
@@ -74,10 +90,14 @@ class SwiggyMCPAdapter(CommercePort):
         return repr(self)
 
     def _resolve_token(self, customer_id: Optional[str] = None) -> Optional[str]:
-        if self._token_resolver and customer_id:
-            resolved = self._token_resolver(customer_id)
-            if resolved:
-                return resolved
+        effective_customer = customer_id or self._customer_context.get()
+        if self._token_resolver:
+            return self._token_resolver(effective_customer) if effective_customer else None
+        if self._auth_token and self._owner_customer_id:
+            if effective_customer != self._owner_customer_id:
+                raise ProviderAuthError(
+                    "Configured Swiggy session belongs to a different customer."
+                )
         return self._auth_token
 
     async def _call_mcp_tool(
@@ -88,6 +108,10 @@ class SwiggyMCPAdapter(CommercePort):
     ) -> dict[str, Any]:
         """Execute JSON-RPC 2.0 tool call against Swiggy Instamart MCP endpoint."""
         token = self._resolve_token(customer_id)
+        if self._token_resolver is not None and not token:
+            raise ProviderAuthError(
+                "No active Swiggy session exists for this customer."
+            )
         headers = {
             "Content-Type": "application/json",
             "Accept": "application/json, text/event-stream",

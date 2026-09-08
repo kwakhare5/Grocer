@@ -7,6 +7,8 @@ simulation) solely through this port.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from contextlib import contextmanager
+from collections.abc import Iterator
 from typing import Optional
 
 from backend.integrations.commerce.models import (
@@ -110,3 +112,9 @@ class CommercePort(ABC):
     async def track_order(self, order_id: str) -> DeliveryTrackingStatus:
         """Fetch real-time delivery status and ETA for placed order."""
         raise NotImplementedError
+
+    @contextmanager
+    def customer_scope(self, customer_id: str) -> Iterator[None]:
+        """Bind provider calls to one customer for the current execution context."""
+        del customer_id
+        yield

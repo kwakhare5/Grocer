@@ -157,18 +157,23 @@ async def test_recovery_retries_after_failed_reverification() -> None:
 
 @pytest.mark.asyncio
 async def test_intent_api_exposes_canonical_chat_surface(client: AsyncClient) -> None:
+    created = await client.post("/api/intent/sessions", json={})
+    credentials = created.json()
+    headers = {
+        "X-Grocer-Session-Capability": credentials["session_capability"]
+    }
     response = await client.post(
         "/api/intent/chat",
         json={
-            "session_id": "api-test-session",
-            "customer_id": "customer-1",
+            "session_id": credentials["session_id"],
             "message": "buy 1L milk",
         },
+        headers=headers,
     )
 
     assert response.status_code == 200
     body = response.json()
-    assert body["session_id"] == "api-test-session"
+    assert body["session_id"] == credentials["session_id"]
     assert body["conversation_state"].lower() in {"awaiting_confirmation", "failed", "needs_decision"}
     assert isinstance(body["events"], list)
 
@@ -177,7 +182,10 @@ async def test_intent_api_exposes_canonical_chat_surface(client: AsyncClient) ->
 async def test_intent_api_rejects_unoffered_choice(client: AsyncClient) -> None:
     response = await client.post(
         "/api/intent/sessions/missing-choice-session/choice",
-        json={"chosen_spin_id": "SPIN-NOT-OFFERED"},
+        json={
+            "chosen_spin_id": "SPIN-NOT-OFFERED",
+            "clarification_nonce": "missing-choice-nonce",
+        },
     )
 
     assert response.status_code == 404
@@ -185,9 +193,14 @@ async def test_intent_api_rejects_unoffered_choice(client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_intent_api_requires_explicit_confirmation(client: AsyncClient) -> None:
+    created = await client.post("/api/intent/sessions", json={})
+    credentials = created.json()
     response = await client.post(
-        "/api/intent/sessions/missing-confirm-session/confirm",
+        f"/api/intent/sessions/{credentials['session_id']}/confirm",
         json={"explicit_confirmation": False, "payment_method": "UPI"},
+        headers={
+            "X-Grocer-Session-Capability": credentials["session_capability"]
+        },
     )
 
     assert response.status_code == 400

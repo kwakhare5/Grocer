@@ -66,6 +66,7 @@ export interface IntentTurnResponse {
   user_message: string;
   basket_summary: IntentBasketSummary | null;
   clarification_options: IntentChoiceOption[] | null;
+  clarification_nonce: string | null;
   requires_confirmation: boolean;
   order_id: string | null;
   order_total: number | null;
@@ -91,6 +92,16 @@ export interface IntentSessionState {
   order_id: string | null;
   order_total: number | null;
   events: string[];
+}
+
+export interface IntentSessionCredentials {
+  session_id: string;
+  customer_id: string;
+  session_capability: string;
+}
+
+function capabilityHeaders(sessionCapability: string): HeadersInit {
+  return { "X-Grocer-Session-Capability": sessionCapability };
 }
 
 async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
@@ -125,9 +136,16 @@ export async function checkIntentBackend(): Promise<boolean> {
   }
 }
 
+export async function createIntentSession(): Promise<IntentSessionCredentials> {
+  return request<IntentSessionCredentials>("/api/intent/sessions", {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+}
+
 export async function sendIntentTurn(input: {
   sessionId: string;
-  customerId: string;
+  sessionCapability: string;
   message: string;
   addressId?: string;
 }): Promise<IntentTurnResponse> {
@@ -135,28 +153,35 @@ export async function sendIntentTurn(input: {
     method: "POST",
     body: JSON.stringify({
       session_id: input.sessionId,
-      customer_id: input.customerId,
       message: input.message,
       address_id: input.addressId,
     }),
+    headers: capabilityHeaders(input.sessionCapability),
   });
 }
 
 export async function chooseIntentAlternative(
   sessionId: string,
+  sessionCapability: string,
   chosenSpinId: string,
+  clarificationNonce: string,
 ): Promise<IntentTurnResponse> {
   return request<IntentTurnResponse>(
     `/api/intent/sessions/${encodeURIComponent(sessionId)}/choice`,
     {
       method: "POST",
-      body: JSON.stringify({ chosen_spin_id: chosenSpinId }),
+      body: JSON.stringify({
+        chosen_spin_id: chosenSpinId,
+        clarification_nonce: clarificationNonce,
+      }),
+      headers: capabilityHeaders(sessionCapability),
     },
   );
 }
 
 export async function confirmIntentCheckout(input: {
   sessionId: string;
+  sessionCapability: string;
   paymentMethod: string;
   addressId?: string;
   confirmationNonce: string;
@@ -171,28 +196,37 @@ export async function confirmIntentCheckout(input: {
         address_id: input.addressId,
         confirmation_nonce: input.confirmationNonce,
       }),
+      headers: capabilityHeaders(input.sessionCapability),
     },
   );
 }
 
 export async function checkIntentPaymentStatus(
   sessionId: string,
+  sessionCapability: string,
 ): Promise<IntentTurnResponse> {
   return request<IntentTurnResponse>(
     `/api/intent/sessions/${encodeURIComponent(sessionId)}/payment-status`,
-    { method: "POST" },
+    { method: "POST", headers: capabilityHeaders(sessionCapability) },
   );
 }
 
-export async function getIntentSession(sessionId: string): Promise<IntentSessionState> {
+export async function getIntentSession(
+  sessionId: string,
+  sessionCapability: string,
+): Promise<IntentSessionState> {
   return request<IntentSessionState>(
     `/api/intent/sessions/${encodeURIComponent(sessionId)}`,
+    { headers: capabilityHeaders(sessionCapability) },
   );
 }
 
-export async function clearIntentSession(sessionId: string): Promise<void> {
+export async function clearIntentSession(
+  sessionId: string,
+  sessionCapability: string,
+): Promise<void> {
   await request<{ cleared: boolean }>(
     `/api/intent/sessions/${encodeURIComponent(sessionId)}`,
-    { method: "DELETE" },
+    { method: "DELETE", headers: capabilityHeaders(sessionCapability) },
   );
 }

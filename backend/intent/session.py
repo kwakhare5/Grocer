@@ -209,6 +209,7 @@ class PendingClarification(BaseModel):
 
     model_config = ConfigDict(extra="ignore")
 
+    nonce: str = Field(default_factory=lambda: secrets.token_urlsafe(16))
     item_name: str = Field(..., description="Name of the item requiring user decision")
     candidates: list[RecoveryCandidate] = Field(default_factory=list)
     clarification_question: str
@@ -235,6 +236,7 @@ class OrchestratorSession(BaseModel):
 
     session_id: str
     customer_id: str
+    capability_digest: Optional[str] = Field(default=None, exclude=True, repr=False)
     conversation_state: ConversationState = ConversationState.READY
     cart_id: Optional[str] = None
     address_id: Optional[str] = None
@@ -292,7 +294,36 @@ class OrchestratorSessionStore:
                     session_id=session_id,
                     customer_id=customer_id,
                 )
+            elif self._sessions[session_id].customer_id != customer_id:
+                raise ValueError("Session belongs to a different customer.")
             return self._sessions[session_id]
+
+    def create_capability_session(self) -> tuple[OrchestratorSession, str]:
+        """Create an opaque browser identity/session and return its capability once."""
+
+        session_id = f"sess_{secrets.token_urlsafe(24)}"
+        customer_id = f"cust_web_{secrets.token_urlsafe(24)}"
+        capability = secrets.token_urlsafe(32)
+        session = OrchestratorSession(
+            session_id=session_id,
+            customer_id=customer_id,
+            capability_digest=hashlib.sha256(capability.encode("utf-8")).hexdigest(),
+        )
+        with self._lock:
+            self._sessions[session_id] = session
+        return session, capability
+
+    def verify_capability(self, session_id: str, capability: Optional[str]) -> bool:
+        """Constant-time verification for a browser session capability."""
+
+        if not capability:
+            return False
+        with self._lock:
+            session = self._sessions.get(session_id)
+            if session is None or session.capability_digest is None:
+                return False
+            supplied = hashlib.sha256(capability.encode("utf-8")).hexdigest()
+            return secrets.compare_digest(session.capability_digest, supplied)
 
     def get(self, session_id: str) -> Optional[OrchestratorSession]:
         with self._lock:

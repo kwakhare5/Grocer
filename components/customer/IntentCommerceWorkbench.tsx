@@ -8,6 +8,7 @@ import {
   chooseIntentAlternative,
   clearIntentSession,
   confirmIntentCheckout,
+  createIntentSession,
   sendIntentTurn,
   type IntentBasketSummary,
   type IntentChoiceOption,
@@ -26,10 +27,6 @@ type ChatMessage = {
 };
 
 const STARTER_REQUEST = "get my weekly groceries under ₹2000, vegetarian, use my usual brands";
-
-function newSessionId(customerId: string) {
-  return `wa-${customerId}-${crypto.randomUUID()}`;
-}
 
 function formatMoney(value: number) {
   return `₹${value.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
@@ -103,11 +100,13 @@ function BasketCard({ basket }: { basket: IntentBasketSummary | null }) {
 }
 
 export function IntentCommerceWorkbench({ customer, isBackendConnected }: IntentCommerceWorkbenchProps) {
-  const [sessionId, setSessionId] = useState(() => newSessionId(customer.id));
+  const [sessionId, setSessionId] = useState("");
+  const [sessionCapability, setSessionCapability] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [basket, setBasket] = useState<IntentBasketSummary | null>(null);
   const [options, setOptions] = useState<IntentChoiceOption[]>([]);
+  const [choiceNonce, setChoiceNonce] = useState("");
   const [state, setState] = useState("READY");
   const [events, setEvents] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
@@ -117,11 +116,25 @@ export function IntentCommerceWorkbench({ customer, isBackendConnected }: Intent
     setState(response.conversation_state);
     setBasket(response.basket_summary);
     setOptions(response.clarification_options || []);
+    setChoiceNonce(response.clarification_nonce || "");
     setEvents(response.events || []);
     setMessages((current) => [
       ...current,
       { id: crypto.randomUUID(), role: "assistant", text: response.user_message },
     ]);
+  };
+
+  const ensureSession = async () => {
+    if (sessionId && sessionCapability) {
+      return { sessionId, sessionCapability };
+    }
+    const created = await createIntentSession();
+    setSessionId(created.session_id);
+    setSessionCapability(created.session_capability);
+    return {
+      sessionId: created.session_id,
+      sessionCapability: created.session_capability,
+    };
   };
 
   const send = async (message: string) => {
@@ -132,9 +145,10 @@ export function IntentCommerceWorkbench({ customer, isBackendConnected }: Intent
     setInput("");
 
     try {
+      const credentials = await ensureSession();
       const response = await sendIntentTurn({
-        sessionId,
-        customerId: customer.id,
+        sessionId: credentials.sessionId,
+        sessionCapability: credentials.sessionCapability,
         message: message.trim(),
       });
       applyResponse(response);
@@ -151,12 +165,17 @@ export function IntentCommerceWorkbench({ customer, isBackendConnected }: Intent
   };
 
   const handleChoice = async (option: IntentChoiceOption) => {
-    if (busy) return;
+    if (busy || !sessionId || !sessionCapability || !choiceNonce) return;
     setBusy(true);
     setError(null);
     setMessages((current) => [...current, { id: crypto.randomUUID(), role: "user", text: `${option.index}` }]);
     try {
-      const response = await chooseIntentAlternative(sessionId, option.spin_id);
+      const response = await chooseIntentAlternative(
+        sessionId,
+        sessionCapability,
+        option.spin_id,
+        choiceNonce,
+      );
       applyResponse(response);
     } catch (err) {
       setError(err instanceof Error ? err.message : "choice failed");
@@ -166,7 +185,7 @@ export function IntentCommerceWorkbench({ customer, isBackendConnected }: Intent
   };
 
   const handleConfirm = async () => {
-    if (busy || state !== "AWAITING_CONFIRMATION") return;
+    if (busy || state !== "AWAITING_CONFIRMATION" || !sessionCapability) return;
     setBusy(true);
     setError(null);
     setMessages((current) => [
@@ -179,6 +198,7 @@ export function IntentCommerceWorkbench({ customer, isBackendConnected }: Intent
       }
       const response = await confirmIntentCheckout({
         sessionId,
+        sessionCapability,
         paymentMethod: basket.selected_payment_method,
         confirmationNonce: basket.confirmation_nonce,
       });
@@ -191,11 +211,11 @@ export function IntentCommerceWorkbench({ customer, isBackendConnected }: Intent
   };
 
   const handlePaymentStatus = async () => {
-    if (busy || state !== "PAYMENT_PENDING") return;
+    if (busy || state !== "PAYMENT_PENDING" || !sessionCapability) return;
     setBusy(true);
     setError(null);
     try {
-      applyResponse(await checkIntentPaymentStatus(sessionId));
+      applyResponse(await checkIntentPaymentStatus(sessionId, sessionCapability));
     } catch (err) {
       setError(err instanceof Error ? err.message : "payment status check failed");
     } finally {
@@ -206,13 +226,16 @@ export function IntentCommerceWorkbench({ customer, isBackendConnected }: Intent
   const reset = async () => {
     setBusy(true);
     try {
-      await clearIntentSession(sessionId).catch(() => undefined);
+      if (sessionId && sessionCapability) {
+        await clearIntentSession(sessionId, sessionCapability).catch(() => undefined);
+      }
     } finally {
-      const next = newSessionId(customer.id);
-      setSessionId(next);
+      setSessionId("");
+      setSessionCapability("");
       setMessages([]);
       setBasket(null);
       setOptions([]);
+      setChoiceNonce("");
       setState("READY");
       setEvents([]);
       setError(null);

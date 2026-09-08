@@ -1,7 +1,7 @@
 """Intent Chat API — the canonical GROCER conversational commerce surface."""
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Header, HTTPException, status
 
 from backend.api.schemas import (
     BasketItemSchema,
@@ -12,13 +12,28 @@ from backend.api.schemas import (
     IntentChoiceRequest,
     IntentConfirmRequest,
     IntentSessionStateResponse,
+    IntentSessionCreateRequest,
+    IntentSessionCreateResponse,
 )
 from backend.integrations.commerce.exceptions import UnconfirmedCheckoutError
 from backend.intent.orchestrator import GrocerOrchestrator, OrchestratorTurnResult
 from backend.intent.session import default_session_store
+from backend.intent.storage import default_intent_store
 
 router = APIRouter(prefix="/api/intent", tags=["intent"])
 _orchestrator = GrocerOrchestrator()
+
+
+def _authorized_session(session_id: str, capability: str | None):
+    session = default_session_store.get(session_id)
+    if session is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found.")
+    if not default_session_store.verify_capability(session_id, capability):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Invalid session capability.",
+        )
+    return session
 
 
 def _turn_to_response(result: OrchestratorTurnResult) -> IntentChatResponse:
@@ -75,6 +90,7 @@ def _turn_to_response(result: OrchestratorTurnResult) -> IntentChatResponse:
         user_message=result.user_message,
         basket_summary=basket,
         clarification_options=clarification_options,
+        clarification_nonce=result.clarification_nonce,
         requires_confirmation=result.requires_confirmation,
         order_id=result.order_id,
         order_total=result.order_total,
@@ -85,12 +101,35 @@ def _turn_to_response(result: OrchestratorTurnResult) -> IntentChatResponse:
     )
 
 
+@router.post(
+    "/sessions",
+    response_model=IntentSessionCreateResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_intent_session(
+    _payload: IntentSessionCreateRequest,
+) -> IntentSessionCreateResponse:
+    """Create one opaque browser session and return its bearer capability once."""
+    session, capability = default_session_store.create_capability_session()
+    return IntentSessionCreateResponse(
+        session_id=session.session_id,
+        customer_id=session.customer_id,
+        session_capability=capability,
+    )
+
+
 @router.post("/chat", response_model=IntentChatResponse)
-async def intent_chat(payload: IntentChatRequest) -> IntentChatResponse:
+async def intent_chat(
+    payload: IntentChatRequest,
+    session_capability: str | None = Header(
+        None, alias="X-Grocer-Session-Capability"
+    ),
+) -> IntentChatResponse:
     """Process one WhatsApp conversational turn without executing checkout."""
+    session = _authorized_session(payload.session_id, session_capability)
     result = await _orchestrator.handle_turn(
         session_id=payload.session_id,
-        customer_id=payload.customer_id,
+        customer_id=session.customer_id,
         message=payload.message,
         address_id=payload.address_id,
     )
@@ -98,21 +137,39 @@ async def intent_chat(payload: IntentChatRequest) -> IntentChatResponse:
 
 
 @router.post("/sessions/{session_id}/payment-status", response_model=IntentChatResponse)
-async def intent_payment_status(session_id: str) -> IntentChatResponse:
+async def intent_payment_status(
+    session_id: str,
+    session_capability: str | None = Header(
+        None, alias="X-Grocer-Session-Capability"
+    ),
+) -> IntentChatResponse:
     """Observe one provider payment transition without polling in a request loop."""
+    _authorized_session(session_id, session_capability)
     result = await _orchestrator.handle_payment_status(session_id)
     return _turn_to_response(result)
 
 
 @router.get("/sessions/{session_id}/order-details", response_model=IntentChatResponse)
-async def intent_order_details(session_id: str) -> IntentChatResponse:
+async def intent_order_details(
+    session_id: str,
+    session_capability: str | None = Header(
+        None, alias="X-Grocer-Session-Capability"
+    ),
+) -> IntentChatResponse:
     """Return only order facts currently available from the commerce provider."""
+    _authorized_session(session_id, session_capability)
     return _turn_to_response(await _orchestrator.handle_order_details(session_id))
 
 
 @router.get("/sessions/{session_id}/delivery-status", response_model=IntentChatResponse)
-async def intent_delivery_status(session_id: str) -> IntentChatResponse:
+async def intent_delivery_status(
+    session_id: str,
+    session_capability: str | None = Header(
+        None, alias="X-Grocer-Session-Capability"
+    ),
+) -> IntentChatResponse:
     """Return one provider delivery observation without starting a poll loop."""
+    _authorized_session(session_id, session_capability)
     return _turn_to_response(await _orchestrator.handle_delivery_status(session_id))
 
 
@@ -120,11 +177,12 @@ async def intent_delivery_status(session_id: str) -> IntentChatResponse:
 async def intent_choice(
     session_id: str,
     payload: IntentChoiceRequest,
+    session_capability: str | None = Header(
+        None, alias="X-Grocer-Session-Capability"
+    ),
 ) -> IntentChatResponse:
     """Accept only a candidate that was actually offered for this session."""
-    session = default_session_store.get(session_id)
-    if session is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found.")
+    session = _authorized_session(session_id, session_capability)
     pending = session.pending_clarification
     if pending is None:
         raise HTTPException(
@@ -137,10 +195,16 @@ async def intent_choice(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="chosen_spin_id is not one of the offered alternatives.",
         )
+    if payload.clarification_nonce != pending.nonce:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="The product choice is stale.",
+        )
 
     result = await _orchestrator.handle_choice(
         session_id=session_id,
         chosen_spin_id=payload.chosen_spin_id,
+        clarification_nonce=payload.clarification_nonce,
     )
     return _turn_to_response(result)
 
@@ -149,8 +213,12 @@ async def intent_choice(
 async def intent_confirm(
     session_id: str,
     payload: IntentConfirmRequest,
+    session_capability: str | None = Header(
+        None, alias="X-Grocer-Session-Capability"
+    ),
 ) -> IntentChatResponse:
     """Execute checkout only after explicit confirmation and pre-check verification."""
+    _authorized_session(session_id, session_capability)
     if not payload.explicit_confirmation:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -175,14 +243,14 @@ async def intent_confirm(
 
 
 @router.get("/sessions/{session_id}", response_model=IntentSessionStateResponse)
-async def get_session(session_id: str) -> IntentSessionStateResponse:
+async def get_session(
+    session_id: str,
+    session_capability: str | None = Header(
+        None, alias="X-Grocer-Session-Capability"
+    ),
+) -> IntentSessionStateResponse:
     """Return current state for a conversational commerce session."""
-    session = default_session_store.get(session_id)
-    if session is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Session {session_id!r} not found.",
-        )
+    session = _authorized_session(session_id, session_capability)
     return IntentSessionStateResponse(
         session_id=session.session_id,
         customer_id=session.customer_id,
@@ -199,7 +267,14 @@ async def get_session(session_id: str) -> IntentSessionStateResponse:
 
 
 @router.delete("/sessions/{session_id}")
-async def clear_session(session_id: str) -> dict:
+async def clear_session(
+    session_id: str,
+    session_capability: str | None = Header(
+        None, alias="X-Grocer-Session-Capability"
+    ),
+) -> dict:
     """Clear a session so the next turn starts a fresh commerce task."""
+    _authorized_session(session_id, session_capability)
     default_session_store.clear(session_id)
+    default_intent_store.clear_session(session_id)
     return {"cleared": True, "session_id": session_id}

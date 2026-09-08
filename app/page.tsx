@@ -19,17 +19,6 @@ export default function Home() {
     };
     void probe();
 
-    // If user arrived from Swiggy OAuth redirect with ?code= and ?state=
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      const code = params.get("code");
-      const state = params.get("state");
-      if (code && state) {
-        window.location.replace(`/auth/callback?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state)}`);
-        return;
-      }
-    }
-
     const timer = window.setInterval(() => void probe(), 15_000);
     return () => {
       mounted = false;

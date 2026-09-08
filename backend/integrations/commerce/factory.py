@@ -5,6 +5,7 @@ from backend.config import settings
 from backend.integrations.commerce.port import CommercePort
 from backend.integrations.commerce.mock_adapter import MockCommerceAdapter
 from backend.integrations.commerce.swiggy_adapter import SwiggyMCPAdapter
+from backend.integrations.commerce.token_vault import default_token_vault
 
 
 _cached_mock_adapter: MockCommerceAdapter | None = None
@@ -19,7 +20,17 @@ def get_commerce_adapter(force_mock: bool = False) -> CommercePort:
     if adapter_type == "swiggy_mcp":
         base_url = getattr(settings, "SWIGGY_MCP_BASE_URL", "https://mcp.swiggy.com/im")
         auth_token = getattr(settings, "SWIGGY_AUTH_TOKEN", None)
-        return SwiggyMCPAdapter(base_url=base_url, auth_token=auth_token)
+        owner_customer_id = getattr(settings, "SWIGGY_CUSTOMER_ID", None)
+        if auth_token and not owner_customer_id:
+            raise RuntimeError(
+                "SWIGGY_CUSTOMER_ID is required when SWIGGY_AUTH_TOKEN is configured."
+            )
+        return SwiggyMCPAdapter(
+            base_url=base_url,
+            auth_token=auth_token,
+            owner_customer_id=owner_customer_id,
+            token_resolver=(None if auth_token else default_token_vault.get_token),
+        )
 
     if _cached_mock_adapter is None:
         _cached_mock_adapter = MockCommerceAdapter()

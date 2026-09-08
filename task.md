@@ -12,8 +12,8 @@
 - [x] Bind approval to basket/address/payment/intent and serialize checkout. <!-- id: codex-5 -->
 - [x] Complete truthful payment, multi-order, order, and tracking models/flows. <!-- id: codex-6 -->
 - [x] Remove live Swiggy fabricated fallbacks and unsafe timeout reconciliation. <!-- id: codex-7 -->
-- [ ] Unify provider authentication and prevent cross-user provider state. <!-- id: codex-8 -->
-- [ ] Harden WhatsApp/API session ownership, signatures, stale actions, privacy, and failures. <!-- id: codex-9 -->
+- [x] Unify provider authentication and prevent cross-user provider state. <!-- id: codex-8 -->
+- [x] Harden WhatsApp/API session ownership, signatures, stale actions, privacy, and failures. <!-- id: codex-9 -->
 - [ ] Remove proven dead/duplicate dependencies, routes, code, assets, and legacy docs. <!-- id: codex-10 -->
 - [ ] Expand and run high-value adversarial/evaluation coverage. <!-- id: codex-11 -->
 - [ ] Synchronize active architecture/state/setup documentation. <!-- id: codex-12 -->

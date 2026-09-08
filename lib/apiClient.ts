@@ -7,12 +7,6 @@
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
-export interface BackendCommerceAdapterInfo {
-  adapter_type: "mock" | "swiggy_mcp" | string;
-  endpoint: string;
-  mode: string;
-}
-
 export interface IntentBasketItem {
   spin_id: string;
   name: string;

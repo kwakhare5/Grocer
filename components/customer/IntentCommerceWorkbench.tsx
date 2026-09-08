@@ -2,7 +2,6 @@
 
 import React, { FormEvent, useMemo, useState } from "react";
 import { CheckCircle2, Loader2, MessageCircle, RefreshCw, Send, ShieldCheck, ShoppingCart, Sparkles } from "lucide-react";
-import type { CustomerPersona } from "../../lib/types";
 import {
   checkIntentPaymentStatus,
   chooseIntentAlternative,
@@ -16,7 +15,6 @@ import {
 } from "../../lib/apiClient";
 
 interface IntentCommerceWorkbenchProps {
-  customer: CustomerPersona;
   isBackendConnected: boolean;
 }
 
@@ -99,7 +97,7 @@ function BasketCard({ basket }: { basket: IntentBasketSummary | null }) {
   );
 }
 
-export function IntentCommerceWorkbench({ customer, isBackendConnected }: IntentCommerceWorkbenchProps) {
+export function IntentCommerceWorkbench({ isBackendConnected }: IntentCommerceWorkbenchProps) {
   const [sessionId, setSessionId] = useState("");
   const [sessionCapability, setSessionCapability] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -273,7 +271,7 @@ export function IntentCommerceWorkbench({ customer, isBackendConnected }: Intent
               </div>
               <div>
                 <div className="text-sm font-bold">Grocer Assistant</div>
-                <div className="text-[10px] text-emerald-100">{customer.name} • {statusLabel}</div>
+                <div className="text-[10px] text-emerald-100">Demo household • {statusLabel}</div>
               </div>
             </div>
             <button type="button" onClick={() => void reset()} className="rounded-lg p-2 text-white/80 hover:bg-white/10 hover:text-white" title="Reset conversation">

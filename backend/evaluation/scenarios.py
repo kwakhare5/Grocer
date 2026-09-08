@@ -34,6 +34,8 @@ class ScenarioDefinition:
     expected_failure_class: FailureClass
     expected_recovery_state: RecoveryState
     expected_auto_applied: bool
+    seed_prior_intent: bool = True
+    request_message: str = "please check my basket and proceed"
 
 
 def _build_s1_contract(session_id: str) -> IntentContract:
@@ -150,8 +152,27 @@ def _build_s8_contract(session_id: str) -> IntentContract:
     )
 
 
+def _build_s9_contract(session_id: str) -> IntentContract:
+    return IntentContract(
+        session_id=session_id,
+        customer_id=f"cust-{session_id}",
+        goal="1 L milk",
+        items=[
+            IntentItem(
+                name="milk",
+                quantity=1,
+                unit="L",
+                pack_size_preference="1 L",
+                category="dairy",
+                is_essential=True,
+            )
+        ],
+        budget=BudgetConstraint(max_budget=500.0, is_hard=True),
+    )
+
+
 def get_canonical_scenarios() -> list[ScenarioDefinition]:
-    """Return the 8 canonical evaluation scenarios mapping to Master Spec §15."""
+    """Return canonical evaluation scenarios mapping to Master Spec §15."""
     return [
         ScenarioDefinition(
             id="SCN-01",
@@ -169,26 +190,27 @@ def get_canonical_scenarios() -> list[ScenarioDefinition]:
         ),
         ScenarioDefinition(
             id="SCN-02",
-            name="Preferred Brand Unavailable (Strict Lock)",
-            description="User has hard brand lock on Amul; non-compliant brand requires user decision.",
+            name="Wrong Brand Drift (Strict Lock)",
+            description="Cart drifts to a non-compliant brand; the available locked brand is restored.",
             build_contract=_build_s2_contract,
             initial_items=[CartItemUpdate(spin_id="SPIN-MILK-1L", quantity=1)],
-            inject_fault=lambda adapter, cart_id: (
-                adapter.inject_brand_mismatch(cart_id, "SPIN-MILK-1L", "Nandini Toned Milk 1L"),
-                adapter.inject_out_of_stock("SPIN-MILK-1L"),
+            inject_fault=lambda adapter, cart_id: adapter.inject_brand_mismatch(
+                cart_id, "SPIN-MILK-1L", "Nandini Toned Milk 1L"
             ),
             expected_failure_class=FailureClass.BRAND_UNAVAILABLE,
-            expected_recovery_state=RecoveryState.NEEDS_USER_DECISION,
-            expected_auto_applied=False,
+            expected_recovery_state=RecoveryState.RECOVERED,
+            expected_auto_applied=True,
         ),
         ScenarioDefinition(
             id="SCN-03",
             name="Pack Size Change",
             description="1L pack unavailable; system computes pack multiple (2x 500ml) to satisfy volume.",
             build_contract=_build_s3_contract,
-            initial_items=[CartItemUpdate(spin_id="SPIN-MILK-1L", quantity=1)],
-            inject_fault=lambda adapter, cart_id: adapter.inject_out_of_stock("SPIN-MILK-1L"),
-            expected_failure_class=FailureClass.ITEM_UNAVAILABLE,
+            initial_items=[CartItemUpdate(spin_id="SPIN-MILK-500ML", quantity=1)],
+            inject_fault=lambda adapter, cart_id: adapter.inject_out_of_stock(
+                "SPIN-MILK-1L"
+            ),
+            expected_failure_class=FailureClass.PACK_SIZE_CHANGED,
             expected_recovery_state=RecoveryState.RECOVERED,
             expected_auto_applied=True,
         ),
@@ -223,7 +245,7 @@ def get_canonical_scenarios() -> list[ScenarioDefinition]:
             description="Transient 503/timeout error on provider call retries safely without item corruption.",
             build_contract=_build_s6_contract,
             initial_items=[CartItemUpdate(spin_id="SPIN-MILK-1L", quantity=1)],
-            inject_fault=lambda adapter, cart_id: adapter.inject_transient_error(1),
+            inject_fault=lambda adapter, cart_id: adapter.inject_transient_error(2),
             expected_failure_class=FailureClass.TRANSIENT_ERROR,
             expected_recovery_state=RecoveryState.RECOVERED,
             expected_auto_applied=True,
@@ -233,9 +255,12 @@ def get_canonical_scenarios() -> list[ScenarioDefinition]:
             name="Partial Cart Success",
             description="Provider drops tomato SKU during mutation; verifier catches missing item.",
             build_contract=_build_s7_contract,
-            initial_items=[CartItemUpdate(spin_id="SPIN-MILK-1L", quantity=1)],
+            initial_items=[
+                CartItemUpdate(spin_id="SPIN-MILK-1L", quantity=1),
+                CartItemUpdate(spin_id="SPIN-TOMATO-500G", quantity=1),
+            ],
             inject_fault=lambda adapter, cart_id: adapter.inject_partial_cart_drop("SPIN-TOMATO-500G"),
-            expected_failure_class=FailureClass.ITEM_UNAVAILABLE,
+            expected_failure_class=FailureClass.PARTIAL_SUCCESS,
             expected_recovery_state=RecoveryState.NEEDS_USER_DECISION,
             expected_auto_applied=False,
         ),
@@ -247,6 +272,35 @@ def get_canonical_scenarios() -> list[ScenarioDefinition]:
             initial_items=[CartItemUpdate(spin_id="SPIN-BREAD-400G", quantity=1)],
             inject_fault=lambda adapter, cart_id: adapter.inject_min_order_threshold(250.0),
             expected_failure_class=FailureClass.MIN_ORDER_FAILURE,
+            expected_recovery_state=RecoveryState.NEEDS_USER_DECISION,
+            expected_auto_applied=False,
+        ),
+        ScenarioDefinition(
+            id="SCN-09",
+            name="Happy Path",
+            description="A fresh explicit request builds a verified basket without recovery.",
+            build_contract=_build_s9_contract,
+            initial_items=[],
+            inject_fault=lambda adapter, cart_id: None,
+            expected_failure_class=FailureClass.UNKNOWN,
+            expected_recovery_state=RecoveryState.RECOVERED,
+            expected_auto_applied=False,
+            seed_prior_intent=False,
+            request_message="get 1L milk under ₹500",
+        ),
+        ScenarioDefinition(
+            id="SCN-10",
+            name="Ambiguous Missing Item",
+            description=(
+                "A required tomato is absent and materially different pack options "
+                "require the user's choice."
+            ),
+            build_contract=_build_s7_contract,
+            initial_items=[
+                CartItemUpdate(spin_id="SPIN-MILK-1L", quantity=1)
+            ],
+            inject_fault=lambda adapter, cart_id: None,
+            expected_failure_class=FailureClass.ITEM_UNAVAILABLE,
             expected_recovery_state=RecoveryState.NEEDS_USER_DECISION,
             expected_auto_applied=False,
         ),

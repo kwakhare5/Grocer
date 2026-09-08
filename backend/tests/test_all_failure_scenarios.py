@@ -404,6 +404,15 @@ async def test_scenario_7_partial_cart_success() -> None:
         v.violation_code == ViolationCode.MISSING_ITEM and "tomato" in v.target.lower()
         for v in v_res.violations
     )
+    outcome = RecoveryEngine().recover(
+        contract=contract,
+        cart=cart,
+        verification_result=v_res,
+        available_products=await adapter.search_products("addr-bandra-1", ""),
+    )
+    assert cart.cart_warning == "PARTIAL_SUCCESS"
+    assert outcome.failure_class == FailureClass.PARTIAL_SUCCESS
+    assert outcome.state == RecoveryState.NEEDS_USER_DECISION
 
 
 # ---------------------------------------------------------------------------
@@ -412,7 +421,7 @@ async def test_scenario_7_partial_cart_success() -> None:
 
 @pytest.mark.asyncio
 async def test_scenario_8_minimum_order_threshold() -> None:
-    """Scenario 8: Dark store enforces minimum order threshold; recovery proposes staple addition."""
+    """Scenario 8: Provider enforces minimum order; recovery proposes a sufficient addition."""
     adapter = MockCommerceAdapter()
     verifier = IntentVerifier()
     recovery_engine = RecoveryEngine()
@@ -453,4 +462,8 @@ async def test_scenario_8_minimum_order_threshold() -> None:
     assert outcome.state == RecoveryState.NEEDS_USER_DECISION
     assert len(outcome.recovery_actions) > 0
     assert outcome.recovery_actions[0].action_type == "add_item"
+    proposed = outcome.recovery_actions[0]
+    proposed_total = cart.grand_total + proposed.price * proposed.quantity
+    assert proposed_total >= cart.min_order_threshold
+    assert proposed_total <= contract.budget.max_budget
     assert "minimum order" in outcome.message.lower()

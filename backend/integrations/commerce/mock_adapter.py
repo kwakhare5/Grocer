@@ -215,6 +215,20 @@ class MockCommerceAdapter(CommercePort):
     def inject_partial_cart_drop(self, spin_id: str) -> None:
         """Simulate partial cart success where provider drops an item during mutation."""
         self._partial_drop_spins.add(spin_id)
+        for cart in self._carts.values():
+            original_count = len(cart.items)
+            cart.items = [item for item in cart.items if item.spin_id != spin_id]
+            if len(cart.items) == original_count:
+                continue
+            cart.item_total = round(sum(item.total_price for item in cart.items), 2)
+            cart.packaging_fee = 5.0 if cart.items else 0.0
+            cart.delivery_fee = (
+                0.0 if cart.item_total >= 199.0 or not cart.items else 30.0
+            )
+            cart.grand_total = round(
+                cart.item_total + cart.packaging_fee + cart.delivery_fee, 2
+            )
+            cart.cart_warning = "PARTIAL_SUCCESS"
 
     def inject_min_order_threshold(self, min_amount: float) -> None:
         """Set a minimum order threshold for checkout / basket validation."""
@@ -227,6 +241,7 @@ class MockCommerceAdapter(CommercePort):
             for it in self._carts[cid].items:
                 if it.spin_id == spin_id:
                     it.name = substitute_name
+                    it.brand = substitute_name.split(maxsplit=1)[0]
 
     def reset_injections(self) -> None:
         """Restore pristine catalog and clear all simulated faults."""
@@ -301,6 +316,10 @@ class MockCommerceAdapter(CommercePort):
         cid = cart_id or "default-cart"
         cart_items: list[CartItem] = []
         item_total = 0.0
+        partial_drop_detected = any(
+            update.quantity > 0 and update.spin_id in self._partial_drop_spins
+            for update in items
+        )
 
         for update in items:
             if update.quantity <= 0 or update.spin_id in self._partial_drop_spins:
@@ -344,6 +363,7 @@ class MockCommerceAdapter(CommercePort):
             grand_total=grand_total,
             is_serviceable=not self._injected_stale,
             min_order_threshold=self._min_order_threshold if self._min_order_threshold is not None else 0.0,
+            cart_warning="PARTIAL_SUCCESS" if partial_drop_detected else None,
         )
         self._carts[cid] = cart
         self.successful_call_count += 1

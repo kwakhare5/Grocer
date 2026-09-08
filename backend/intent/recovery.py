@@ -15,6 +15,7 @@ Principles:
 """
 from __future__ import annotations
 
+import math
 from enum import Enum
 from typing import Any, Literal, Optional
 
@@ -227,6 +228,8 @@ class RecoveryEngine:
         """Map VerificationResult violations and cart state to a FailureClass."""
         codes = verification_result.violation_codes
 
+        if cart and cart.cart_warning == "PARTIAL_SUCCESS":
+            return FailureClass.PARTIAL_SUCCESS
         if ViolationCode.STALE_CART in codes:
             return FailureClass.STALE_CART
         if ViolationCode.BUDGET_EXCEEDED in codes:
@@ -235,7 +238,10 @@ class RecoveryEngine:
             return FailureClass.ITEM_UNAVAILABLE
         if ViolationCode.WRONG_BRAND in codes:
             return FailureClass.BRAND_UNAVAILABLE
-        if ViolationCode.WRONG_PACK_SIZE in codes:
+        if (
+            ViolationCode.WRONG_PACK_SIZE in codes
+            or ViolationCode.WRONG_QUANTITY in codes
+        ):
             return FailureClass.PACK_SIZE_CHANGED
         if ViolationCode.DIETARY_VIOLATION in codes:
             return FailureClass.ITEM_UNAVAILABLE
@@ -280,33 +286,44 @@ class RecoveryEngine:
         shortfall = cart.min_order_threshold - cart.grand_total
         max_budget = contract.budget.max_budget if contract.budget else float("inf")
 
-        candidates: list[RecoveryCandidate] = []
+        candidates: list[tuple[RecoveryCandidate, int]] = []
         for prod in available_products:
             for variant in prod.variants:
-                if variant.in_stock:
-                    new_total = cart.grand_total + variant.price
+                if variant.in_stock and variant.price > 0:
+                    required_quantity = max(1, math.ceil(shortfall / variant.price))
+                    added_total = variant.price * required_quantity
+                    new_total = cart.grand_total + added_total
                     if new_total <= max_budget:
-                        score = round(max(0.1, 1.0 - abs(variant.price - shortfall) / 100.0), 2)
+                        score = round(
+                            max(0.1, 1.0 - abs(added_total - shortfall) / 100.0),
+                            2,
+                        )
                         candidates.append(
-                            RecoveryCandidate(
+                            (
+                                RecoveryCandidate(
                                 spin_id=variant.spin_id,
                                 name=variant.name,
                                 pack_size=variant.pack_size,
                                 price=variant.price,
                                 category=prod.category,
                                 score=score,
-                                reasons=[f"Adds ₹{variant.price:.0f} to satisfy min order threshold of ₹{cart.min_order_threshold:.0f}"],
+                                reasons=[
+                                    f"Adds {required_quantity} × ₹{variant.price:.0f} "
+                                    f"to satisfy the ₹{cart.min_order_threshold:.0f} minimum"
+                                ],
+                                ),
+                                required_quantity,
                             )
                         )
 
-        candidates.sort(key=lambda c: c.score, reverse=True)
+        candidates.sort(key=lambda entry: entry[0].score, reverse=True)
         if candidates:
-            top = candidates[0]
+            top, top_quantity = candidates[0]
             action = RecoveryAction(
                 action_type="add_item",
                 spin_id=top.spin_id,
                 name=top.name,
-                quantity=1,
+                quantity=top_quantity,
                 price=top.price,
                 reason=f"Add staple item to meet min order threshold (₹{cart.min_order_threshold:.0f})",
             )
@@ -314,8 +331,13 @@ class RecoveryEngine:
                 state=RecoveryState.NEEDS_USER_DECISION,
                 failure_class=FailureClass.MIN_ORDER_FAILURE,
                 recovery_actions=[action],
-                candidates_for_user=candidates[:3],
-                message=f"Cart total (₹{cart.grand_total:.0f}) is below the ₹{cart.min_order_threshold:.0f} minimum order threshold. Add {top.name} (₹{top.price:.0f}) to meet the threshold?",
+                candidates_for_user=[candidate for candidate, _ in candidates[:3]],
+                message=(
+                    f"Cart total (₹{cart.grand_total:.0f}) is below the "
+                    f"₹{cart.min_order_threshold:.0f} minimum order threshold. "
+                    f"Add {top_quantity} × {top.name} "
+                    f"(₹{top.price * top_quantity:.0f}) to meet the threshold?"
+                ),
                 attempt_number=attempt_number,
                 can_auto_apply=False,
             )
@@ -459,6 +481,7 @@ class RecoveryEngine:
                 ViolationCode.MISSING_ITEM,
                 ViolationCode.WRONG_BRAND,
                 ViolationCode.WRONG_PACK_SIZE,
+                ViolationCode.WRONG_QUANTITY,
                 ViolationCode.DIETARY_VIOLATION,
             ):
                 target_name = v.target

@@ -105,6 +105,7 @@ class LoopingRecoveryEngine(RecoveryEngine):
                 cart = await commerce_port.get_cart(cart_id)
             except Exception as exc:
                 outcome = self._recovery._handle_transient_error(attempt, max_attempts)
+                last_outcome = outcome
                 all_actions.extend(outcome.recovery_actions)
                 all_notes.append("Transient provider error detected; retried non-mutating cart inspection")
                 if attempt < max_attempts:

@@ -17,6 +17,11 @@ from backend.integrations.commerce.models import (
     PaymentOption,
     CommerceOrderResult,
     DeliveryTrackingStatus,
+    PaymentStatusResult,
+    DeliveryStatusResult,
+    OrderDetails,
+    OrderLineItem,
+    OrderSummary,
 )
 from backend.integrations.commerce.exceptions import (
     CommerceError,
@@ -397,13 +402,17 @@ class MockCommerceAdapter(CommercePort):
         order_result = CommerceOrderResult(
             order_id=order_id,
             cart_id=cart_id,
-            status="ORDER_CONFIRMED",
+            status="ORDER_PLACED",
+            raw_status="SIMULATED_ORDER_PLACED",
             items=list(cart.items),
             payment_method=payment_method,
             grand_total=cart.grand_total,
             delivery_address=addr,
             placed_at=datetime.now(timezone.utc),
             tracking_url=f"/orders/{order_id}/track",
+            order_count=1,
+            success_count=1,
+            all_succeeded=True,
         )
         self._orders[order_id] = order_result
         # Clear cart on successful order
@@ -411,20 +420,92 @@ class MockCommerceAdapter(CommercePort):
         self.successful_call_count += 1
         return order_result
 
+    async def check_payment_status(
+        self, paas_id: str, order_id: Optional[str] = None
+    ) -> PaymentStatusResult:
+        return PaymentStatusResult(
+            paas_id=paas_id,
+            order_id=order_id,
+            status="SIMULATED_SUCCESS",
+            normalized_status="PAYMENT_CONFIRMED",
+            terminal=True,
+            confirmed=True,
+            order_status="ORDER_PLACED",
+        )
+
+    async def confirm_order(self, order_id: str, paas_id: str) -> CommerceOrderResult:
+        order = self._orders.get(order_id)
+        if order is None:
+            raise CommerceError("Simulated order not found", code="ORDER_NOT_FOUND")
+        return order
+
+    async def get_orders(
+        self, count: int = 10, active_only: bool = False
+    ) -> list[OrderSummary]:
+        del active_only
+        recent = list(self._orders.values())[-max(1, count) :]
+        return [
+            OrderSummary(
+                order_id=order.order_id or "",
+                raw_status=order.raw_status,
+                normalized_status=order.status,
+                total_amount=order.grand_total,
+                payment_method=order.payment_method,
+                is_active=order.status == "ORDER_PLACED",
+                item_count=len(order.items),
+                items=[
+                    OrderLineItem(name=item.name, quantity=item.quantity)
+                    for item in order.items
+                ],
+            )
+            for order in recent
+            if order.order_id
+        ]
+
+    async def get_order_details(self, order_id: str) -> OrderDetails:
+        order = self._orders.get(order_id)
+        if order is None:
+            raise CommerceError("Simulated order not found", code="ORDER_NOT_FOUND")
+        return OrderDetails(
+            order_id=order_id,
+            raw_status=order.raw_status,
+            normalized_status=order.status,
+            total_bill=order.grand_total,
+            has_refunds=False,
+            items=[
+                OrderLineItem(
+                    name=item.name,
+                    quantity=item.quantity,
+                    final_price=item.total_price,
+                    removed=False,
+                )
+                for item in order.items
+            ],
+        )
+
+    async def get_delivery_status(
+        self, order_id: str, address_id: str
+    ) -> DeliveryStatusResult:
+        if order_id not in self._orders:
+            raise CommerceError("Simulated order not found", code="ORDER_NOT_FOUND")
+        del address_id
+        return DeliveryStatusResult(
+            order_id=order_id,
+            eta_text="12 minutes",
+            cancelled=False,
+            delivered=False,
+            status_text="Simulated packing",
+            poll_interval_sec=10,
+        )
+
     async def track_order(self, order_id: str) -> DeliveryTrackingStatus:
         if order_id not in self._orders:
-            # Generate deterministic fallback for tracking any order
-            return DeliveryTrackingStatus(
-                order_id=order_id,
-                status="PACKING",
-                eta_minutes=14,
-                driver_name="Ramesh Kamble",
-                driver_phone="+91 98201 12345",
-            )
+            raise CommerceError("Simulated order not found", code="ORDER_NOT_FOUND")
 
         return DeliveryTrackingStatus(
             order_id=order_id,
             status="PACKING",
+            raw_status="SIMULATED_PACKING",
             eta_minutes=12,
             driver_name="Ramesh Kamble",
             driver_phone="+91 98201 12345",

@@ -57,26 +57,89 @@ class BaseChannelAdapter(ABC):
     ) -> NormalizedOutgoingResponse:
         """Route incoming normalized message to GrocerOrchestrator and format response."""
         customer_id = self.map_sender_to_customer_id(incoming.sender_id)
-        session_id = self.get_or_create_session_id(customer_id)
-        session = default_session_store.get(session_id)
-
         clean_text = incoming.text.strip().lower()
         interactive_id = incoming.interactive_id
+        is_tracking_text = any(
+            phrase in clean_text
+            for phrase in ("track order", "where is my order", "delivery status", "order eta")
+        )
+        is_order_details_text = any(
+            phrase in clean_text
+            for phrase in ("order details", "what did i order", "show my order", "order bill")
+        )
+        is_cancel_order_text = "cancel" in clean_text and "order" in clean_text
+        prior_session_id = self._active_sessions.get(customer_id)
+        prior_session = (
+            default_session_store.get(prior_session_id) if prior_session_id else None
+        )
+        if (
+            prior_session_id
+            and prior_session
+            and prior_session.conversation_state == ConversationState.ORDERED
+            and (is_tracking_text or is_order_details_text or is_cancel_order_text)
+        ):
+            session_id = prior_session_id
+            session = prior_session
+        else:
+            session_id = self.get_or_create_session_id(customer_id)
+            session = default_session_store.get(session_id)
 
         turn_result: OrchestratorTurnResult
 
         # 1. Check for explicit checkout confirmation
-        is_confirm_action = interactive_id == "confirm_checkout"
+        is_confirm_action = bool(
+            interactive_id and interactive_id.startswith("confirm_checkout:")
+        )
         is_confirm_text = clean_text in ("yes", "confirm", "proceed", "yes checkout", "confirm checkout", "place order", "ok checkout")
 
         if (is_confirm_action or is_confirm_text) and session and session.conversation_state == ConversationState.AWAITING_CONFIRMATION:
+            confirmation_nonce = (
+                interactive_id.split(":", 1)[1]
+                if is_confirm_action and interactive_id
+                else (session.pending_confirmation.nonce if session.pending_confirmation else None)
+            )
             turn_result = await orchestrator.handle_confirm(
                 session_id=session_id,
-                payment_method="UPI",
+                payment_method=(
+                    session.pending_confirmation.payment_method
+                    if session.pending_confirmation
+                    else ""
+                ),
                 address_id=session.address_id,
+                explicit_confirmation=True,
+                confirmation_nonce=confirmation_nonce,
             )
-            if turn_result.conversation_state == ConversationState.ORDERED:
-                self.reset_session(customer_id)
+        elif interactive_id == "cancel_order" and session:
+            turn_result = await orchestrator.handle_change_request(session_id)
+
+        elif (
+            session
+            and session.conversation_state == ConversationState.PAYMENT_PENDING
+            and (
+                interactive_id == "check_payment_status"
+                or clean_text in ("check payment", "payment status", "check status")
+            )
+        ):
+            turn_result = await orchestrator.handle_payment_status(session_id)
+
+        elif session and session.order_id and is_tracking_text:
+            turn_result = await orchestrator.handle_delivery_status(session_id)
+
+        elif session and session.order_id and is_order_details_text:
+            turn_result = await orchestrator.handle_order_details(session_id)
+
+        elif session and session.order_id and is_cancel_order_text:
+            turn_result = OrchestratorTurnResult(
+                session_id=session_id,
+                conversation_state=session.conversation_state,
+                user_message=(
+                    "Order cancellation is not supported in this chat. "
+                    "Contact Swiggy customer care at 080-67466729."
+                ),
+                order_id=session.order_id,
+                order_total=session.order_total,
+                events=["ORDER_CANCELLATION_REDIRECTED"],
+            )
 
         # 2. Check for clarification choice
         elif session and session.conversation_state == ConversationState.NEEDS_DECISION and session.pending_clarification:
@@ -158,7 +221,11 @@ class BaseChannelAdapter(ABC):
             actions.append(
                 InteractiveAction(
                     action_type="button",
-                    id="confirm_checkout",
+                    id=(
+                        f"confirm_checkout:{result.basket_summary.confirmation_nonce}"
+                        if result.basket_summary
+                        else "confirm_checkout:invalid"
+                    ),
                     title="Confirm Order",
                 )
             )
@@ -167,6 +234,16 @@ class BaseChannelAdapter(ABC):
                     action_type="button",
                     id="cancel_order",
                     title="Change Items",
+                )
+            )
+
+        elif result.conversation_state == ConversationState.PAYMENT_PENDING:
+            interactive_title = "Payment Pending"
+            actions.append(
+                InteractiveAction(
+                    action_type="button",
+                    id="check_payment_status",
+                    title="Check Payment",
                 )
             )
 

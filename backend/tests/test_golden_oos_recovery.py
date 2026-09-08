@@ -170,7 +170,7 @@ async def test_golden_oos_recovery_scenario() -> None:
         address_id=address_id,
     )
 
-    assert order.status == "ORDER_CONFIRMED"
+    assert order.status == "ORDER_PLACED"
     assert order.order_id.startswith("OD-")
     assert order.grand_total == recovery_result.cart.grand_total
     assert len(order.items) == 3

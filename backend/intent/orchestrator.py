@@ -15,12 +15,19 @@ Entry points:
 from __future__ import annotations
 
 import copy
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from backend.integrations.commerce.factory import get_commerce_adapter
-from backend.integrations.commerce.models import CartItemUpdate, CommerceProductItem
+from backend.integrations.commerce.models import (
+    CartItemUpdate,
+    CommerceOrderResult,
+    CommerceProductItem,
+    OrderChildResult,
+    PaymentOption,
+)
 from backend.integrations.commerce.port import CommercePort
 from backend.integrations.commerce.exceptions import CommerceError, UnconfirmedCheckoutError
 
@@ -48,6 +55,8 @@ from backend.intent.session import (
     OrchestratorSession,
     OrchestratorSessionStore,
     PendingClarification,
+    confirmation_fingerprint,
+    create_confirmation_snapshot,
     default_session_store,
 )
 
@@ -69,6 +78,9 @@ class OrchestratorTurnResult(BaseModel):
     requires_confirmation: bool = False
     order_id: Optional[str] = None
     order_total: Optional[float] = None
+    payment_status: Optional[str] = None
+    payment_url: Optional[str] = None
+    child_orders: list[OrderChildResult] = Field(default_factory=list)
     events: list[str] = Field(default_factory=list)
 
 
@@ -109,8 +121,15 @@ def _msg_failed(reason: str) -> str:
     )
 
 
-def _msg_ordered(order_id: str, total: float) -> str:
-    return f"Order placed! ₹{total:,.0f}. Your order ID is {order_id}. Delivering soon. 🛵"
+def _msg_ordered(order_id: str, total: Optional[float]) -> str:
+    total_note = f" Total ₹{total:,.0f}." if total is not None else ""
+    return f"Order placed.{total_note} Order ID: {order_id}."
+
+
+def _msg_payment_pending(order_id: Optional[str], payment_url: Optional[str]) -> str:
+    order_note = f" for order {order_id}" if order_id else ""
+    action = f" Complete payment here: {payment_url}" if payment_url else ""
+    return f"Payment is pending{order_note}.{action} I will report success only after confirmation."
 
 
 # ---------------------------------------------------------------------------
@@ -213,6 +232,12 @@ def _build_basket_summary(
     cart: Any,
     contract: IntentContract,
     recovery_notes: list[str],
+    *,
+    confirmation_nonce: str,
+    confirmation_expires_at: Any,
+    payment_options: list[PaymentOption],
+    selected_payment_method: str,
+    selected_payment_option_id: Optional[str],
 ) -> BasketSummary:
     """Convert a CommerceCart + contract into a BasketSummary."""
     items: list[BasketItem] = []
@@ -235,10 +260,18 @@ def _build_basket_summary(
         items=items,
         item_total=cart.item_total,
         delivery_fee=cart.delivery_fee,
+        packaging_fee=cart.packaging_fee,
+        discount=cart.discount,
         grand_total=grand_total,
+        address_id=cart.address_id,
         budget=budget,
         within_budget=(budget is None or grand_total <= budget),
         recovery_notes=recovery_notes,
+        payment_options=payment_options,
+        selected_payment_method=selected_payment_method,
+        selected_payment_option_id=selected_payment_option_id,
+        confirmation_nonce=confirmation_nonce,
+        confirmation_expires_at=confirmation_expires_at,
     )
 
 
@@ -290,6 +323,7 @@ class GrocerOrchestrator:
     ) -> OrchestratorTurnResult:
         """Process one conversational message through the full commerce loop."""
         session = self._store.get_or_create(session_id, customer_id)
+        session.pending_confirmation = None
         session.turn_count += 1
         events: list[str] = []
 
@@ -345,6 +379,7 @@ class GrocerOrchestrator:
                     )
 
         effective_address = session.address_id or f"addr-{customer_id}"
+        session.address_id = effective_address
 
         session.conversation_state = ConversationState.BUILDING
         cart_id = session.cart_id or f"cart-{session_id}"
@@ -399,7 +434,7 @@ class GrocerOrchestrator:
                     prior_recovery_notes = rec_result.recovery_notes
                     live_cart = rec_result.cart
                     if not _is_incremental_add(message):
-                        return self._make_awaiting_confirmation(
+                        return await self._make_awaiting_confirmation(
                             session, prior_contract, live_cart, prior_recovery_notes, events
                         )
                 elif rec_result.state == RecoveryState.NEEDS_USER_DECISION:
@@ -479,7 +514,9 @@ class GrocerOrchestrator:
         events.append(f"VERIFICATION_{verification.status.value.upper()}")
         is_below_min = bool(cart and cart.items and cart.grand_total < cart.min_order_threshold)
         if verification.status == VerificationStatus.PASS and not is_below_min and getattr(cart, "is_serviceable", True):
-            return self._make_awaiting_confirmation(session, contract, cart, prior_recovery_notes, events)
+            return await self._make_awaiting_confirmation(
+                session, contract, cart, prior_recovery_notes, events
+            )
 
         events.append("RECOVERY_STARTED")
         session.conversation_state = ConversationState.RECOVERING
@@ -521,7 +558,7 @@ class GrocerOrchestrator:
             recovery_notes = prior_recovery_notes + (
                 recovery_result.recovery_notes or [a.reason for a in outcome.recovery_actions]
             )
-            return self._make_awaiting_confirmation(
+            return await self._make_awaiting_confirmation(
                 session, contract, updated_cart, recovery_notes, events
             )
 
@@ -584,6 +621,28 @@ class GrocerOrchestrator:
             clarification_options=options,
             events=events,
         )
+
+    async def handle_change_request(self, session_id: str) -> OrchestratorTurnResult:
+        """Invalidate checkout approval and return the session to an editable state."""
+
+        async with self._store.lock_for(session_id):
+            session = self._store.get(session_id)
+            if session is None:
+                return OrchestratorTurnResult(
+                    session_id=session_id,
+                    conversation_state=ConversationState.FAILED,
+                    user_message=_msg_failed("session not found"),
+                    events=["SESSION_NOT_FOUND"],
+                )
+            session.pending_confirmation = None
+            session.conversation_state = ConversationState.BUILDING
+            self._store.save(session)
+            return OrchestratorTurnResult(
+                session_id=session_id,
+                conversation_state=ConversationState.BUILDING,
+                user_message="Tell me what you want to change in the basket.",
+                events=["CONFIRMATION_CANCELLED"],
+            )
 
     def _handle_failed(
         self,
@@ -740,7 +799,7 @@ class GrocerOrchestrator:
 
         if verification.status == VerificationStatus.PASS:
             session.pending_clarification = None
-            return self._make_awaiting_confirmation(
+            return await self._make_awaiting_confirmation(
                 session, contract, cart, [f"Applied your choice: {matching_candidate.name}."], events
             )
 
@@ -804,8 +863,29 @@ class GrocerOrchestrator:
         session_id: str,
         payment_method: str = "UPI",
         address_id: Optional[str] = None,
+        explicit_confirmation: bool = True,
+        confirmation_nonce: Optional[str] = None,
     ) -> OrchestratorTurnResult:
         """Execute checkout after explicit user confirmation (Spec §6, §8.3)."""
+        if not explicit_confirmation:
+            raise UnconfirmedCheckoutError("Checkout requires explicit user confirmation")
+
+        async with self._store.lock_for(session_id):
+            return await self._handle_confirm_locked(
+                session_id=session_id,
+                payment_method=payment_method,
+                address_id=address_id,
+                confirmation_nonce=confirmation_nonce,
+            )
+
+    async def _handle_confirm_locked(
+        self,
+        *,
+        session_id: str,
+        payment_method: str,
+        address_id: Optional[str],
+        confirmation_nonce: Optional[str],
+    ) -> OrchestratorTurnResult:
         session = self._store.get(session_id)
         if session is None:
             return OrchestratorTurnResult(
@@ -815,6 +895,16 @@ class GrocerOrchestrator:
                 events=["SESSION_NOT_FOUND"],
             )
 
+        if session.conversation_state == ConversationState.ORDERED and session.order_id:
+            return OrchestratorTurnResult(
+                session_id=session_id,
+                conversation_state=ConversationState.ORDERED,
+                user_message=_msg_ordered(session.order_id, session.order_total),
+                order_id=session.order_id,
+                order_total=session.order_total,
+                events=["CHECKOUT_ALREADY_COMPLETED"],
+            )
+
         if session.conversation_state != ConversationState.AWAITING_CONFIRMATION:
             raise UnconfirmedCheckoutError(
                 f"Checkout requires session in AWAITING_CONFIRMATION state, "
@@ -822,6 +912,18 @@ class GrocerOrchestrator:
             )
 
         contract = session.intent_contract
+        pending = session.pending_confirmation
+        if contract is None or pending is None:
+            raise UnconfirmedCheckoutError("Checkout requires a current basket approval")
+        supplied_nonce = confirmation_nonce or pending.nonce
+        if supplied_nonce != pending.nonce or pending.consumed_at is not None or pending.is_expired:
+            return OrchestratorTurnResult(
+                session_id=session_id,
+                conversation_state=ConversationState.AWAITING_CONFIRMATION,
+                user_message="That confirmation is stale or invalid. Please review the current basket.",
+                requires_confirmation=True,
+                events=["CONFIRMATION_REJECTED"],
+            )
         cart_id = session.cart_id or f"cart-{session_id}"
         effective_address = address_id or session.address_id or f"addr-{session.customer_id}"
         events: list[str] = ["CHECKOUT_INITIATED"]
@@ -838,6 +940,32 @@ class GrocerOrchestrator:
                 events=events,
             )
 
+        current_fingerprint = confirmation_fingerprint(
+            cart,
+            contract,
+            effective_address,
+            pending.payment_method,
+            pending.payment_option_id,
+        )
+        if current_fingerprint != pending.fingerprint:
+            return await self._make_awaiting_confirmation(
+                session,
+                contract,
+                cart,
+                ["The basket changed after it was shown; please review it again."],
+                events + ["CONFIRMATION_INVALIDATED_BASKET_CHANGED"],
+            )
+
+        if payment_method != pending.payment_method:
+            return await self._make_awaiting_confirmation(
+                session,
+                contract,
+                cart,
+                ["Payment method changed; review the basket and payment choice again."],
+                events + ["CONFIRMATION_INVALIDATED_PAYMENT_CHANGED"],
+                preferred_payment_method=payment_method,
+            )
+
         if contract is not None:
             pre_check = self._verifier.verify_checkout(
                 contract=contract,
@@ -846,6 +974,7 @@ class GrocerOrchestrator:
             )
             events.append(f"PRE_CHECKOUT_VERIFY_{pre_check.status.value.upper()}")
             if pre_check.status != VerificationStatus.PASS:
+                session.pending_confirmation = None
                 session.conversation_state = ConversationState.FAILED
                 reason = (
                     pre_check.violations[0].detail
@@ -860,10 +989,13 @@ class GrocerOrchestrator:
                     events=events,
                 )
 
+        pending.consumed_at = datetime.now(timezone.utc)
+        self._store.save(session)
+
         try:
             order = await self._port.checkout(
                 cart_id=cart_id,
-                payment_method=payment_method,
+                payment_method=pending.payment_method,
                 explicit_confirmation=True,
                 address_id=effective_address,
             )
@@ -879,18 +1011,233 @@ class GrocerOrchestrator:
                 events=events,
             )
 
-        session.conversation_state = ConversationState.ORDERED
-        session.order_id = order.order_id
-        session.order_total = order.grand_total
-        events.append(f"CHECKOUT_SUCCEEDED order_id={order.order_id}")
-        self._store.save(session)
+        session.pending_confirmation = None
+        return self._apply_order_result(session, order, events)
 
+    async def handle_payment_status(self, session_id: str) -> OrchestratorTurnResult:
+        """Observe and advance a pending payment without tight-loop polling."""
+
+        async with self._store.lock_for(session_id):
+            session = self._store.get(session_id)
+            if session is None:
+                return OrchestratorTurnResult(
+                    session_id=session_id,
+                    conversation_state=ConversationState.FAILED,
+                    user_message=_msg_failed("session not found"),
+                    events=["SESSION_NOT_FOUND"],
+                )
+            if (
+                session.conversation_state != ConversationState.PAYMENT_PENDING
+                or not session.payment_paas_id
+            ):
+                return OrchestratorTurnResult(
+                    session_id=session_id,
+                    conversation_state=session.conversation_state,
+                    user_message="There is no pending payment to check.",
+                    order_id=session.order_id,
+                    order_total=session.order_total,
+                    payment_status=session.payment_status,
+                    events=["NO_PENDING_PAYMENT"],
+                )
+
+            payment = await self._port.check_payment_status(
+                session.payment_paas_id,
+                session.order_id,
+            )
+            session.payment_status = payment.normalized_status
+            events = [f"PAYMENT_STATUS_{payment.normalized_status}"]
+
+            if payment.normalized_status == "PAYMENT_PENDING":
+                self._store.save(session)
+                return OrchestratorTurnResult(
+                    session_id=session_id,
+                    conversation_state=ConversationState.PAYMENT_PENDING,
+                    user_message=_msg_payment_pending(session.order_id, session.payment_url),
+                    order_id=session.order_id,
+                    order_total=session.order_total,
+                    payment_status=payment.normalized_status,
+                    payment_url=session.payment_url,
+                    events=events,
+                )
+            if payment.normalized_status == "PAYMENT_FAILED":
+                session.conversation_state = ConversationState.PAYMENT_FAILED
+                self._store.save(session)
+                return OrchestratorTurnResult(
+                    session_id=session_id,
+                    conversation_state=ConversationState.PAYMENT_FAILED,
+                    user_message="Payment failed or was cancelled. No successful order is being reported.",
+                    order_id=session.order_id,
+                    order_total=session.order_total,
+                    payment_status=payment.normalized_status,
+                    events=events,
+                )
+            if payment.normalized_status != "PAYMENT_CONFIRMED" or not session.order_id:
+                session.conversation_state = ConversationState.ORDER_STATE_UNKNOWN
+                self._store.save(session)
+                return OrchestratorTurnResult(
+                    session_id=session_id,
+                    conversation_state=ConversationState.ORDER_STATE_UNKNOWN,
+                    user_message="Payment or order status is unknown. I will not retry checkout or claim success.",
+                    order_id=session.order_id,
+                    order_total=session.order_total,
+                    payment_status=payment.normalized_status,
+                    events=events,
+                )
+
+            if payment.confirmed:
+                session.conversation_state = ConversationState.ORDERED
+                self._store.save(session)
+                return OrchestratorTurnResult(
+                    session_id=session_id,
+                    conversation_state=ConversationState.ORDERED,
+                    user_message=_msg_ordered(session.order_id, session.order_total),
+                    order_id=session.order_id,
+                    order_total=session.order_total,
+                    payment_status=payment.normalized_status,
+                    events=events + ["ORDER_CONFIRMED_BY_PAYMENT_STATUS"],
+                )
+
+            order = await self._port.confirm_order(session.order_id, session.payment_paas_id)
+            return self._apply_order_result(session, order, events + ["ORDER_CONFIRM_ATTEMPTED"])
+
+    async def handle_order_details(self, session_id: str) -> OrchestratorTurnResult:
+        """Read back provider order facts without synthesizing missing fields."""
+
+        session = self._store.get(session_id)
+        if session is None or not session.order_id:
+            return OrchestratorTurnResult(
+                session_id=session_id,
+                conversation_state=(
+                    session.conversation_state if session else ConversationState.FAILED
+                ),
+                user_message="I do not have an order ID for this session.",
+                events=["ORDER_DETAILS_UNAVAILABLE"],
+            )
+        try:
+            details = await self._port.get_order_details(session.order_id)
+        except CommerceError:
+            return OrchestratorTurnResult(
+                session_id=session_id,
+                conversation_state=session.conversation_state,
+                user_message="Order details are unavailable from the commerce provider right now.",
+                order_id=session.order_id,
+                order_total=session.order_total,
+                events=["ORDER_DETAILS_UNAVAILABLE"],
+            )
+
+        facts = [
+            f"{item.quantity}× {item.name}"
+            for item in details.items
+            if item.removed is not True
+        ]
+        parts = [f"Order {details.order_id}"]
+        if details.raw_status:
+            parts.append(f"status: {details.raw_status}")
+        if facts:
+            parts.append("items: " + ", ".join(facts))
+        if details.total_bill is not None:
+            parts.append(f"total: ₹{details.total_bill:,.0f}")
         return OrchestratorTurnResult(
             session_id=session_id,
-            conversation_state=ConversationState.ORDERED,
-            user_message=_msg_ordered(order.order_id, order.grand_total),
+            conversation_state=session.conversation_state,
+            user_message=". ".join(parts) + ".",
+            order_id=details.order_id,
+            order_total=details.total_bill,
+            events=["ORDER_DETAILS_READ"],
+        )
+
+    async def handle_delivery_status(self, session_id: str) -> OrchestratorTurnResult:
+        """Read one structured provider delivery observation at user request."""
+
+        session = self._store.get(session_id)
+        if session is None or not session.order_id or not session.address_id:
+            return OrchestratorTurnResult(
+                session_id=session_id,
+                conversation_state=(
+                    session.conversation_state if session else ConversationState.FAILED
+                ),
+                user_message="I do not have enough provider order data to check delivery.",
+                events=["DELIVERY_STATUS_UNAVAILABLE"],
+            )
+        try:
+            delivery = await self._port.get_delivery_status(
+                session.order_id, session.address_id
+            )
+        except CommerceError:
+            return OrchestratorTurnResult(
+                session_id=session_id,
+                conversation_state=session.conversation_state,
+                user_message="Delivery status is unavailable from the commerce provider right now.",
+                order_id=session.order_id,
+                order_total=session.order_total,
+                events=["DELIVERY_STATUS_UNAVAILABLE"],
+            )
+
+        facts = [delivery.status_text, delivery.eta_text]
+        known = [fact for fact in facts if fact]
+        message = (
+            f"Order {delivery.order_id}: " + ". ".join(known) + "."
+            if known
+            else f"Order {delivery.order_id} has no new delivery status available."
+        )
+        return OrchestratorTurnResult(
+            session_id=session_id,
+            conversation_state=session.conversation_state,
+            user_message=message,
+            order_id=delivery.order_id,
+            order_total=session.order_total,
+            events=["DELIVERY_STATUS_READ"],
+        )
+
+    def _apply_order_result(
+        self,
+        session: OrchestratorSession,
+        order: CommerceOrderResult,
+        events: list[str],
+    ) -> OrchestratorTurnResult:
+        """Map a normalized provider result without collapsing uncertain states."""
+
+        session.order_id = order.order_id
+        session.order_total = order.grand_total
+        session.payment_status = order.status
+        session.payment_paas_id = order.paas_id
+        session.payment_transaction_id = order.transaction_id
+        session.payment_url = order.bridge_url or order.upi_intent_url
+        session.payment_polling_interval_ms = order.polling_interval_ms
+        session.payment_max_time_ms = order.max_time_to_poll_ms
+        session.child_orders = [child.model_dump(mode="json") for child in order.orders]
+
+        if order.status == "PAYMENT_PENDING":
+            session.conversation_state = ConversationState.PAYMENT_PENDING
+            message = _msg_payment_pending(order.order_id, session.payment_url)
+            events.append("PAYMENT_PENDING")
+        elif order.status == "PARTIAL_ORDER":
+            session.conversation_state = ConversationState.PARTIAL_ORDER
+            message = "Only part of the order was placed. Review the individual order results before continuing."
+            events.append("CHECKOUT_PARTIAL")
+        elif order.status == "ORDER_PLACED" and order.order_id:
+            session.conversation_state = ConversationState.ORDERED
+            message = _msg_ordered(order.order_id, order.grand_total)
+            events.append(f"CHECKOUT_SUCCEEDED order_id={order.order_id}")
+        elif order.status == "FAILED":
+            session.conversation_state = ConversationState.PAYMENT_FAILED
+            message = "Checkout failed. No successful order is being reported."
+            events.append("CHECKOUT_FAILED")
+        else:
+            session.conversation_state = ConversationState.ORDER_STATE_UNKNOWN
+            message = "The checkout outcome is unknown. I will not retry or claim that an order was placed."
+            events.append("CHECKOUT_STATE_UNKNOWN")
+
+        self._store.save(session)
+        return OrchestratorTurnResult(
+            session_id=session.session_id,
+            conversation_state=session.conversation_state,
+            user_message=message,
             order_id=order.order_id,
             order_total=order.grand_total,
+            payment_status=session.payment_status,
+            payment_url=session.payment_url,
+            child_orders=order.orders,
             events=events,
         )
 
@@ -934,19 +1281,78 @@ class GrocerOrchestrator:
                 events.append(f"ITEM_UNRESOLVED name={item.name!r}")
         return updates
 
-    def _make_awaiting_confirmation(
+    async def _make_awaiting_confirmation(
         self,
         session: OrchestratorSession,
         contract: IntentContract,
         cart: Any,
         recovery_notes: list[str],
         events: list[str],
+        *,
+        preferred_payment_method: Optional[str] = None,
     ) -> OrchestratorTurnResult:
         """Transition to AWAITING_CONFIRMATION and return the full result."""
+        address_id = session.address_id or cart.address_id
+        try:
+            payment_options = [
+                option
+                for option in await self._port.get_payment_options(
+                    cart_id=cart.cart_id,
+                    address_id=address_id,
+                )
+                if option.is_available
+            ]
+        except Exception:
+            payment_options = []
+
+        if not payment_options:
+            return self._handle_failed(
+                session,
+                "no payment option is currently available",
+                events + ["PAYMENT_OPTIONS_UNAVAILABLE"],
+            )
+
+        selected = payment_options[0]
+        if preferred_payment_method is not None:
+            requested = preferred_payment_method.casefold()
+            matching = next(
+                (
+                    option
+                    for option in payment_options
+                    if option.method.casefold() == requested
+                    or (option.id is not None and option.id.casefold() == requested)
+                ),
+                None,
+            )
+            if matching is None:
+                return self._handle_failed(
+                    session,
+                    "the requested payment method is not available",
+                    events + ["PAYMENT_METHOD_UNAVAILABLE"],
+                )
+            selected = matching
+
+        snapshot = create_confirmation_snapshot(
+            cart,
+            contract,
+            address_id,
+            selected.method,
+            selected.id,
+        )
+        session.pending_confirmation = snapshot
         session.conversation_state = ConversationState.AWAITING_CONFIRMATION
         self._store.save(session)
 
-        basket = _build_basket_summary(cart, contract, recovery_notes)
+        basket = _build_basket_summary(
+            cart,
+            contract,
+            recovery_notes,
+            confirmation_nonce=snapshot.nonce,
+            confirmation_expires_at=snapshot.expires_at,
+            payment_options=payment_options,
+            selected_payment_method=selected.method,
+            selected_payment_option_id=selected.id,
+        )
         budget = contract.budget.max_budget if contract.budget else None
 
         msg = (

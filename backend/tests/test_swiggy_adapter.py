@@ -16,6 +16,7 @@ import httpx
 import pytest
 
 from backend.integrations.commerce.exceptions import (
+    CommerceError,
     AddressNotServiceableError,
     CartExpiredError,
     CommerceError,
@@ -303,6 +304,45 @@ async def test_swiggy_adapter_update_cart_selected_address() -> None:
 
 
 @pytest.mark.asyncio
+async def test_swiggy_adapter_update_cart_requires_provider_address() -> None:
+    adapter = SwiggyMCPAdapter()
+
+    with pytest.raises(CommerceError, match="provider address ID"):
+        await adapter.update_cart(
+            items=[CartItemUpdate(spin_id="spin-amul-500ml", quantity=1)],
+            cart_id="cart-999",
+            address_id=None,
+        )
+
+
+def test_swiggy_adapter_drops_malformed_products_instead_of_fabricating() -> None:
+    adapter = SwiggyMCPAdapter()
+
+    products = adapter._parse_products(
+        [
+            {"variations": [{"price": 42}]},
+            {
+                "productId": "valid-product",
+                "displayName": "Milk",
+                "variations": [{"displayName": "Milk", "price": 42}],
+            },
+        ]
+    )
+
+    assert products == []
+
+
+def test_swiggy_adapter_drops_malformed_cart_items_instead_of_fabricating() -> None:
+    adapter = SwiggyMCPAdapter()
+
+    cart = adapter._build_commerce_cart(
+        {"cartId": "cart-1", "items": [{"quantity": 1, "price": 42}]}
+    )
+
+    assert cart.items == []
+
+
+@pytest.mark.asyncio
 async def test_swiggy_adapter_envelope_errors() -> None:
     """Envelope errors properly map to domain taxonomy."""
     adapter = SwiggyMCPAdapter()
@@ -407,8 +447,8 @@ async def test_swiggy_adapter_checkout_multi_store_and_upi_pending() -> None:
 
 
 @pytest.mark.asyncio
-async def test_swiggy_adapter_checkout_non_idempotent_timeout_probes_order_state() -> None:
-    """When checkout encounters 504 / timeout, it does NOT retry blindly. Probes get_orders first."""
+async def test_swiggy_adapter_checkout_timeout_does_not_accept_unrelated_order() -> None:
+    """An uncorrelated historical order cannot prove that this checkout succeeded."""
     adapter = SwiggyMCPAdapter()
 
     # First call (checkout) raises TimeoutException
@@ -432,15 +472,13 @@ async def test_swiggy_adapter_checkout_non_idempotent_timeout_probes_order_state
             mock_probe_resp,
         ]
 
-        result = await adapter.checkout(
-            cart_id="cart-test",
-            payment_method="UPI",
-            explicit_confirmation=True,
-            address_id="addr-1",
-        )
-        assert result.order_id == "SWIGGY-RECOVERED-999"
-        assert result.grand_total == 350.0
-        assert result.status == "ORDER_CONFIRMED"
+        with pytest.raises(OrderStateUnknownError):
+            await adapter.checkout(
+                cart_id="cart-test",
+                payment_method="UPI",
+                explicit_confirmation=True,
+                address_id="addr-1",
+            )
 
 
 @pytest.mark.asyncio
@@ -599,4 +637,3 @@ async def test_swiggy_orchestrator_no_address_fails_cleanly() -> None:
         )
         assert result.conversation_state == ConversationState.FAILED
         assert "No delivery address found" in result.user_message
-

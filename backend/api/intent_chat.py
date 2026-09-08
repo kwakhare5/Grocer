@@ -41,10 +41,18 @@ def _turn_to_response(result: OrchestratorTurnResult) -> IntentChatResponse:
             ],
             item_total=b.item_total,
             delivery_fee=b.delivery_fee,
+            packaging_fee=b.packaging_fee,
+            discount=b.discount,
             grand_total=b.grand_total,
+            address_id=b.address_id,
             budget=b.budget,
             within_budget=b.within_budget,
             recovery_notes=b.recovery_notes,
+            payment_options=[option.model_dump() for option in b.payment_options],
+            selected_payment_method=b.selected_payment_method,
+            selected_payment_option_id=b.selected_payment_option_id,
+            confirmation_nonce=b.confirmation_nonce,
+            confirmation_expires_at=b.confirmation_expires_at,
         )
 
     clarification_options = None
@@ -70,6 +78,9 @@ def _turn_to_response(result: OrchestratorTurnResult) -> IntentChatResponse:
         requires_confirmation=result.requires_confirmation,
         order_id=result.order_id,
         order_total=result.order_total,
+        payment_status=result.payment_status,
+        payment_url=result.payment_url,
+        child_orders=result.child_orders,
         events=result.events,
     )
 
@@ -84,6 +95,25 @@ async def intent_chat(payload: IntentChatRequest) -> IntentChatResponse:
         address_id=payload.address_id,
     )
     return _turn_to_response(result)
+
+
+@router.post("/sessions/{session_id}/payment-status", response_model=IntentChatResponse)
+async def intent_payment_status(session_id: str) -> IntentChatResponse:
+    """Observe one provider payment transition without polling in a request loop."""
+    result = await _orchestrator.handle_payment_status(session_id)
+    return _turn_to_response(result)
+
+
+@router.get("/sessions/{session_id}/order-details", response_model=IntentChatResponse)
+async def intent_order_details(session_id: str) -> IntentChatResponse:
+    """Return only order facts currently available from the commerce provider."""
+    return _turn_to_response(await _orchestrator.handle_order_details(session_id))
+
+
+@router.get("/sessions/{session_id}/delivery-status", response_model=IntentChatResponse)
+async def intent_delivery_status(session_id: str) -> IntentChatResponse:
+    """Return one provider delivery observation without starting a poll loop."""
+    return _turn_to_response(await _orchestrator.handle_delivery_status(session_id))
 
 
 @router.post("/sessions/{session_id}/choice", response_model=IntentChatResponse)
@@ -126,11 +156,18 @@ async def intent_confirm(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Checkout requires explicit_confirmation=true.",
         )
+    if not payload.confirmation_nonce:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Checkout requires the current confirmation_nonce.",
+        )
     try:
         result = await _orchestrator.handle_confirm(
             session_id=session_id,
             payment_method=payload.payment_method,
             address_id=payload.address_id,
+            explicit_confirmation=payload.explicit_confirmation,
+            confirmation_nonce=payload.confirmation_nonce,
         )
     except UnconfirmedCheckoutError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
@@ -155,6 +192,8 @@ async def get_session(session_id: str) -> IntentSessionStateResponse:
         has_pending_clarification=session.pending_clarification is not None,
         order_id=session.order_id,
         order_total=session.order_total,
+        payment_status=session.payment_status,
+        payment_url=session.payment_url,
         events=session.events,
     )
 

@@ -23,15 +23,32 @@ export interface IntentBasketItem {
   substituted: boolean;
 }
 
+export interface IntentPaymentOption {
+  method: string;
+  label: string;
+  is_available: boolean;
+  description: string | null;
+  id: string | null;
+  kind: string | null;
+}
+
 export interface IntentBasketSummary {
   cart_id: string;
   items: IntentBasketItem[];
   item_total: number;
   delivery_fee: number;
+  packaging_fee: number;
+  discount: number;
   grand_total: number;
+  address_id: string | null;
   budget: number | null;
   within_budget: boolean;
   recovery_notes: string[];
+  payment_options: IntentPaymentOption[];
+  selected_payment_method: string;
+  selected_payment_option_id: string | null;
+  confirmation_nonce: string;
+  confirmation_expires_at: string;
 }
 
 export interface IntentChoiceOption {
@@ -52,6 +69,15 @@ export interface IntentTurnResponse {
   requires_confirmation: boolean;
   order_id: string | null;
   order_total: number | null;
+  payment_status: string | null;
+  payment_url: string | null;
+  child_orders: Array<{
+    order_id: string | null;
+    status: string;
+    raw_status: string | null;
+    success: boolean | null;
+    grand_total: number | null;
+  }>;
   events: string[];
 }
 
@@ -131,8 +157,9 @@ export async function chooseIntentAlternative(
 
 export async function confirmIntentCheckout(input: {
   sessionId: string;
-  paymentMethod: "UPI" | "COD";
+  paymentMethod: string;
   addressId?: string;
+  confirmationNonce: string;
 }): Promise<IntentTurnResponse> {
   return request<IntentTurnResponse>(
     `/api/intent/sessions/${encodeURIComponent(input.sessionId)}/confirm`,
@@ -142,8 +169,18 @@ export async function confirmIntentCheckout(input: {
         explicit_confirmation: true,
         payment_method: input.paymentMethod,
         address_id: input.addressId,
+        confirmation_nonce: input.confirmationNonce,
       }),
     },
+  );
+}
+
+export async function checkIntentPaymentStatus(
+  sessionId: string,
+): Promise<IntentTurnResponse> {
+  return request<IntentTurnResponse>(
+    `/api/intent/sessions/${encodeURIComponent(sessionId)}/payment-status`,
+    { method: "POST" },
   );
 }
 

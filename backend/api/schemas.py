@@ -21,7 +21,7 @@ class CommerceDeliveryAddressResponse(BaseModel):
     postal_code: str
     latitude: Optional[float] = None
     longitude: Optional[float] = None
-    is_serviceable: bool
+    is_serviceable: Optional[bool] = None
 
 
 class CommerceProductVariantResponse(BaseModel):
@@ -30,7 +30,7 @@ class CommerceProductVariantResponse(BaseModel):
     pack_size: str
     price: float
     mrp: float
-    in_stock: bool
+    in_stock: Optional[bool] = None
 
 
 class CommerceProductItemResponse(BaseModel):
@@ -59,7 +59,7 @@ class CommerceCartResponse(BaseModel):
     packaging_fee: float = 0.0
     discount: float = 0.0
     grand_total: float = 0.0
-    is_serviceable: bool = True
+    is_serviceable: Optional[bool] = None
 
 
 class CartItemUpdatePayload(BaseModel):
@@ -77,6 +77,8 @@ class CommercePaymentOptionResponse(BaseModel):
     label: str
     is_available: bool = True
     description: Optional[str] = None
+    id: Optional[str] = None
+    kind: Optional[str] = None
 
 
 class CommerceCheckoutRequest(BaseModel):
@@ -128,10 +130,18 @@ class BasketSummarySchema(BaseModel):
     items: list[BasketItemSchema] = Field(default_factory=list)
     item_total: float
     delivery_fee: float
+    packaging_fee: float = 0.0
+    discount: float = 0.0
     grand_total: float
+    address_id: Optional[str] = None
     budget: Optional[float] = None
     within_budget: bool
     recovery_notes: list[str] = Field(default_factory=list)
+    payment_options: list[CommercePaymentOptionResponse] = Field(default_factory=list)
+    selected_payment_method: str
+    selected_payment_option_id: Optional[str] = None
+    confirmation_nonce: str
+    confirmation_expires_at: datetime
 
 
 class ClarificationOptionSchema(BaseModel):
@@ -143,6 +153,14 @@ class ClarificationOptionSchema(BaseModel):
     score: float = 0.0
 
 
+class OrderChildSchema(BaseModel):
+    order_id: Optional[str] = None
+    status: str
+    raw_status: Optional[str] = None
+    success: Optional[bool] = None
+    grand_total: Optional[float] = None
+
+
 class IntentChatResponse(BaseModel):
     session_id: str
     conversation_state: str
@@ -152,6 +170,9 @@ class IntentChatResponse(BaseModel):
     requires_confirmation: bool = False
     order_id: Optional[str] = None
     order_total: Optional[float] = None
+    payment_status: Optional[str] = None
+    payment_url: Optional[str] = None
+    child_orders: list[OrderChildSchema] = Field(default_factory=list)
     events: list[str] = Field(default_factory=list)
 
 
@@ -161,8 +182,9 @@ class IntentChoiceRequest(BaseModel):
 
 class IntentConfirmRequest(BaseModel):
     explicit_confirmation: bool = False
-    payment_method: str = "UPI"
+    payment_method: str = Field(min_length=1)
     address_id: Optional[str] = None
+    confirmation_nonce: Optional[str] = Field(default=None, min_length=16)
 
 
 class IntentSessionStateResponse(BaseModel):
@@ -174,4 +196,6 @@ class IntentSessionStateResponse(BaseModel):
     has_pending_clarification: bool
     order_id: Optional[str] = None
     order_total: Optional[float] = None
+    payment_status: Optional[str] = None
+    payment_url: Optional[str] = None
     events: list[str] = Field(default_factory=list)

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN || "grocer_whatsapp_verify_token";
-const BACKEND_URL = process.env.INTENT_BACKEND_URL || "http://127.0.0.1:8000";
+const BACKEND_URL = process.env.INTENT_BACKEND_URL || "https://grocer-backend-qwk4.onrender.com";
 
 export async function GET(req: NextRequest) {
   try {

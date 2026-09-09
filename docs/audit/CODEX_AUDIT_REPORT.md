@@ -50,6 +50,12 @@ The result is substantially safer and reviewable, but it is not a production-rea
 - conversational tracking uses `track_order` only with provider-returned coordinates and otherwise reports the structured ETA fallback explicitly;
 - supported payment/order/tracking methods are required CommercePort capabilities rather than optional runtime failures.
 
+Provider-contract evidence rechecked on 2026-09-09:
+
+- `https://mcp.swiggy.com/builders/docs/reference/instamart/checkout.md` contains no ₹1000 Instamart restriction. `https://mcp.swiggy.com/builders/llms-full.txt` assigns the ₹1000 cap to Food documentation, so the Instamart gate remains not applicable.
+- `https://mcp.swiggy.com/builders/docs/reference/instamart/track_order.md` defines `track_order` as the primary conversational tracking tool and requires trustworthy delivery coordinates.
+- `https://mcp.swiggy.com/builders/docs/reference/instamart/get_delivery_status.md` permits structured delivery ETA/status refreshes and says to prefer `track_order` for conversational answers; it does not classify the tool as widget-only. The truthful limited fallback therefore remains valid when coordinates are unavailable.
+
 ### Post-review defects corrected
 
 - the orchestrator no longer treats an omitted nonce as the expected nonce;

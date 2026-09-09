@@ -7,6 +7,8 @@ simulation) solely through this port.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from contextlib import contextmanager
+from collections.abc import Iterator
 from typing import Optional
 
 from backend.integrations.commerce.models import (
@@ -17,6 +19,10 @@ from backend.integrations.commerce.models import (
     PaymentOption,
     CommerceOrderResult,
     DeliveryTrackingStatus,
+    PaymentStatusResult,
+    DeliveryStatusResult,
+    OrderDetails,
+    OrderSummary,
 )
 
 
@@ -69,6 +75,8 @@ class CommercePort(ABC):
         payment_method: str = "UPI",
         explicit_confirmation: bool = False,
         address_id: Optional[str] = None,
+        payment_option_id: Optional[str] = None,
+        payment_option_kind: Optional[str] = None,
     ) -> CommerceOrderResult:
         """Place and confirm order.
 
@@ -77,6 +85,48 @@ class CommercePort(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def track_order(self, order_id: str) -> DeliveryTrackingStatus:
-        """Fetch real-time delivery status and ETA for placed order."""
+    async def check_payment_status(
+        self, paas_id: str, order_id: Optional[str] = None
+    ) -> PaymentStatusResult:
+        """Observe a pending payment without assuming that an order is placed."""
         raise NotImplementedError
+
+    @abstractmethod
+    async def confirm_order(self, order_id: str, paas_id: str) -> CommerceOrderResult:
+        """Confirm an order only after terminal successful payment."""
+        raise NotImplementedError
+
+    @abstractmethod
+    async def get_orders(
+        self, count: int = 10, active_only: bool = False
+    ) -> list[OrderSummary]:
+        """Return recent provider orders for order lookup and history."""
+        raise NotImplementedError
+
+    @abstractmethod
+    async def get_order_details(self, order_id: str) -> OrderDetails:
+        """Return provider facts for one existing order."""
+        raise NotImplementedError
+
+    @abstractmethod
+    async def get_delivery_status(
+        self, order_id: str, address_id: str
+    ) -> DeliveryStatusResult:
+        """Return one structured delivery-status observation."""
+        raise NotImplementedError
+
+    @abstractmethod
+    async def track_order(
+        self,
+        order_id: str,
+        lat: Optional[float] = None,
+        lng: Optional[float] = None,
+    ) -> DeliveryTrackingStatus:
+        """Fetch rich real-time tracking when delivery coordinates are available."""
+        raise NotImplementedError
+
+    @contextmanager
+    def customer_scope(self, customer_id: str) -> Iterator[None]:
+        """Bind provider calls to one customer for the current execution context."""
+        del customer_id
+        yield

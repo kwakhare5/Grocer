@@ -22,10 +22,10 @@ class UnconfirmedCheckoutError(CommerceError):
 
 
 class AddressNotServiceableError(CommerceError):
-    """Raised when the target delivery address is outside dark store service radius."""
+    """Raised when the commerce provider cannot serve a delivery address."""
     def __init__(self, address_id: str):
         super().__init__(
-            message=f"Address {address_id} is not currently serviceable by any dark store.",
+            message=f"Address {address_id} is not currently serviceable.",
             code="ADDRESS_NOT_SERVICEABLE",
         )
         self.address_id = address_id

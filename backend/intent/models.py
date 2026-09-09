@@ -29,6 +29,10 @@ class IntentItem(BaseModel):
     name: str = Field(..., min_length=1, description="Product query or standard name")
     quantity: float = Field(default=1.0, gt=0, description="Requested numerical quantity")
     unit: str = Field(default="units", description="Measurement unit (e.g., L, kg, pcs, pack)")
+    quantity_is_explicit: bool = Field(
+        default=False,
+        description="True when the current request explicitly supplied the quantity",
+    )
     brand_preference: Optional[str] = Field(default=None, description="Preferred brand if specified")
     is_essential: bool = Field(default=True, description="True if item is required; False if optional")
     pack_size_preference: Optional[str] = Field(default=None, description="e.g. '1L', '500g'")
@@ -257,7 +261,26 @@ class IntentContract(BaseModel):
                     )
                 )
 
-        # 3. Hard brand locks sync with hard constraints
+        # 3. A brand named in the current request is authoritative for
+        # autonomous selection. A different brand requires a later explicit
+        # user decision rather than a silent price-based substitution.
+        for item in self.items:
+            if not item.brand_preference:
+                continue
+            existing_item_brand = any(
+                preference.product_or_category.casefold() == item.name.casefold()
+                for preference in self.brand_preferences
+            )
+            if not existing_item_brand:
+                self.brand_preferences.append(
+                    BrandPreference(
+                        product_or_category=item.name,
+                        preferred_brand=item.brand_preference,
+                        is_hard=True,
+                    )
+                )
+
+        # 4. Hard brand locks sync with hard constraints
         for bp in self.brand_preferences:
             if bp.is_hard:
                 existing_bp_hc = any(

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import re
+import secrets
 from abc import ABC, abstractmethod
 from typing import Optional
 
@@ -41,7 +42,7 @@ class BaseChannelAdapter(ABC):
                 session_id = None
 
         if not session_id:
-            session_id = f"sess_{customer_id}_{int(default_session_store.get_or_create('', customer_id).turn_count + 1)}"
+            session_id = f"sess_{secrets.token_urlsafe(24)}"
             self._active_sessions[customer_id] = session_id
 
         return session_id
@@ -50,6 +51,19 @@ class BaseChannelAdapter(ABC):
         """Reset active session for a customer."""
         self._active_sessions.pop(customer_id, None)
 
+    def pending_delivery(
+        self, message_id: str
+    ) -> Optional[NormalizedOutgoingResponse]:
+        """Return a staged response for retry-aware transports, if any."""
+        del message_id
+        return None
+
+    def stage_delivery(
+        self, message_id: str, response: NormalizedOutgoingResponse
+    ) -> None:
+        """Stage an outcome before attempting outbound delivery."""
+        del message_id, response
+
     async def dispatch(
         self,
         incoming: NormalizedIncomingMessage,
@@ -57,39 +71,154 @@ class BaseChannelAdapter(ABC):
     ) -> NormalizedOutgoingResponse:
         """Route incoming normalized message to GrocerOrchestrator and format response."""
         customer_id = self.map_sender_to_customer_id(incoming.sender_id)
-        session_id = self.get_or_create_session_id(customer_id)
-        session = default_session_store.get(session_id)
-
         clean_text = incoming.text.strip().lower()
         interactive_id = incoming.interactive_id
+        is_tracking_text = any(
+            phrase in clean_text
+            for phrase in ("track order", "where is my order", "delivery status", "order eta")
+        )
+        is_order_details_text = any(
+            phrase in clean_text
+            for phrase in ("order details", "what did i order", "show my order", "order bill")
+        )
+        is_cancel_order_text = "cancel" in clean_text and "order" in clean_text
+        prior_session_id = self._active_sessions.get(customer_id)
+        prior_session = (
+            default_session_store.get(prior_session_id) if prior_session_id else None
+        )
+        if (
+            prior_session_id
+            and prior_session
+            and prior_session.conversation_state == ConversationState.ORDERED
+            and (is_tracking_text or is_order_details_text or is_cancel_order_text)
+        ):
+            session_id = prior_session_id
+            session = prior_session
+        else:
+            session_id = self.get_or_create_session_id(customer_id)
+            session = default_session_store.get(session_id)
 
         turn_result: OrchestratorTurnResult
 
         # 1. Check for explicit checkout confirmation
-        is_confirm_action = interactive_id == "confirm_checkout"
+        is_confirm_action = bool(
+            interactive_id and interactive_id.startswith("confirm_checkout:")
+        )
         is_confirm_text = clean_text in ("yes", "confirm", "proceed", "yes checkout", "confirm checkout", "place order", "ok checkout")
 
         if (is_confirm_action or is_confirm_text) and session and session.conversation_state == ConversationState.AWAITING_CONFIRMATION:
+            confirmation_nonce = (
+                interactive_id.split(":", 1)[1]
+                if is_confirm_action and interactive_id
+                else (session.pending_confirmation.nonce if session.pending_confirmation else None)
+            )
             turn_result = await orchestrator.handle_confirm(
                 session_id=session_id,
-                payment_method="UPI",
+                payment_method=(
+                    session.pending_confirmation.payment_method
+                    if session.pending_confirmation
+                    else ""
+                ),
                 address_id=session.address_id,
+                explicit_confirmation=True,
+                confirmation_nonce=confirmation_nonce,
             )
-            if turn_result.conversation_state == ConversationState.ORDERED:
-                self.reset_session(customer_id)
+        elif interactive_id == "cancel_order" and session:
+            turn_result = await orchestrator.handle_change_request(session_id)
 
-        # 2. Check for clarification choice
+        elif (
+            session
+            and session.conversation_state == ConversationState.PAYMENT_PENDING
+            and (
+                interactive_id == "check_payment_status"
+                or clean_text in ("check payment", "payment status", "check status")
+            )
+        ):
+            turn_result = await orchestrator.handle_payment_status(session_id)
+
+        elif session and session.order_id and is_tracking_text:
+            turn_result = await orchestrator.handle_delivery_status(session_id)
+
+        elif session and session.order_id and is_order_details_text:
+            turn_result = await orchestrator.handle_order_details(session_id)
+
+        elif session and session.order_id and is_cancel_order_text:
+            turn_result = OrchestratorTurnResult(
+                session_id=session_id,
+                conversation_state=session.conversation_state,
+                user_message=(
+                    "Order cancellation is not supported in this chat. "
+                    "Contact Swiggy customer care at 080-67466729."
+                ),
+                order_id=session.order_id,
+                order_total=session.order_total,
+                events=["ORDER_CANCELLATION_REDIRECTED"],
+            )
+
+        # 2. Check for payment-method choice
+        elif (
+            session
+            and session.conversation_state == ConversationState.NEEDS_DECISION
+            and session.pending_payment_choice
+        ):
+            pending_payment = session.pending_payment_choice
+            chosen_payment_id: Optional[str] = None
+            payment_choice_nonce: Optional[str] = None
+
+            if interactive_id and interactive_id.startswith("payment:"):
+                parts = interactive_id.split(":", 2)
+                if len(parts) == 3:
+                    payment_choice_nonce = parts[1]
+                    chosen_payment_id = parts[2]
+            elif clean_text.isdigit():
+                index = int(clean_text) - 1
+                if 0 <= index < len(pending_payment.options):
+                    chosen = pending_payment.options[index]
+                    chosen_payment_id = chosen.id or chosen.method
+            else:
+                for option in pending_payment.options:
+                    option_id = option.id or option.method
+                    if clean_text in {
+                        option_id.casefold(),
+                        option.method.casefold(),
+                        option.label.casefold(),
+                    }:
+                        chosen_payment_id = option_id
+                        break
+
+            if chosen_payment_id:
+                turn_result = await orchestrator.handle_payment_choice(
+                    session_id,
+                    chosen_payment_id,
+                    payment_choice_nonce or pending_payment.nonce,
+                )
+            else:
+                turn_result = OrchestratorTurnResult(
+                    session_id=session_id,
+                    conversation_state=ConversationState.NEEDS_DECISION,
+                    user_message="Please choose one of the current payment methods.",
+                    payment_options=pending_payment.options,
+                    payment_choice_nonce=pending_payment.nonce,
+                    events=["PAYMENT_CHOICE_REQUIRED"],
+                )
+
+        # 3. Check for product clarification choice
         elif session and session.conversation_state == ConversationState.NEEDS_DECISION and session.pending_clarification:
             chosen_spin_id: Optional[str] = None
+            clarification_nonce: Optional[str] = None
             pending = session.pending_clarification
 
             if interactive_id:
                 if interactive_id.startswith("choice:"):
-                    chosen_spin_id = interactive_id.replace("choice:", "")
-                elif any(c.spin_id == interactive_id for c in pending.candidates):
-                    chosen_spin_id = interactive_id
+                    parts = interactive_id.split(":", 2)
+                    if len(parts) == 3:
+                        clarification_nonce = parts[1]
+                        chosen_spin_id = parts[2]
+                    elif pending.candidates:
+                        clarification_nonce = "invalid"
+                        chosen_spin_id = pending.candidates[0].spin_id
 
-            if not chosen_spin_id:
+            if not interactive_id and not chosen_spin_id:
                 # Check if user texted an option number (e.g. "1", "2")
                 if clean_text.isdigit():
                     idx = int(clean_text) - 1
@@ -107,6 +236,7 @@ class BaseChannelAdapter(ABC):
                 turn_result = await orchestrator.handle_choice(
                     session_id=session_id,
                     chosen_spin_id=chosen_spin_id,
+                    clarification_nonce=clarification_nonce or pending.nonce,
                 )
             else:
                 turn_result = await orchestrator.handle_turn(
@@ -116,7 +246,7 @@ class BaseChannelAdapter(ABC):
                     address_id=session.address_id,
                 )
 
-        # 3. Standard conversational turn
+        # 4. Standard conversational turn
         else:
             turn_result = await orchestrator.handle_turn(
                 session_id=session_id,
@@ -127,7 +257,9 @@ class BaseChannelAdapter(ABC):
 
         # Build normalized outgoing response
         response = self._build_normalized_response(incoming.sender_id, turn_result)
-        await self.send_response(response)
+        self.stage_delivery(incoming.message_id, response)
+        if not await self.send_response(response):
+            raise RuntimeError("Channel response delivery failed.")
         return response
 
     def _build_normalized_response(
@@ -140,14 +272,34 @@ class BaseChannelAdapter(ABC):
         interactive_title = None
         interactive_button_text = None
 
-        if result.conversation_state == ConversationState.NEEDS_DECISION and result.clarification_options:
+        if result.conversation_state == ConversationState.NEEDS_DECISION and result.payment_options:
+            interactive_title = "Payment Options"
+            interactive_button_text = "Choose Payment"
+            for index, option in enumerate(result.payment_options, 1):
+                option_id = option.id or option.method
+                actions.append(
+                    InteractiveAction(
+                        action_type="list_item",
+                        id=(
+                            f"payment:{result.payment_choice_nonce or 'invalid'}:"
+                            f"{option_id}"
+                        ),
+                        title=f"{index}. {option.label}"[:24],
+                        description=option.method[:72],
+                    )
+                )
+
+        elif (
+            result.conversation_state == ConversationState.NEEDS_DECISION
+            and result.clarification_options
+        ):
             interactive_title = "Alternative Options"
             interactive_button_text = "Select Alternative"
             for opt in result.clarification_options:
                 actions.append(
                     InteractiveAction(
                         action_type="list_item",
-                        id=f"choice:{opt.spin_id}",
+                        id=f"choice:{result.clarification_nonce or 'invalid'}:{opt.spin_id}",
                         title=f"{opt.index}. {opt.name}"[:24],
                         description=f"₹{opt.price:,.0f} ({opt.pack_size})"[:72],
                     )
@@ -158,7 +310,11 @@ class BaseChannelAdapter(ABC):
             actions.append(
                 InteractiveAction(
                     action_type="button",
-                    id="confirm_checkout",
+                    id=(
+                        f"confirm_checkout:{result.basket_summary.confirmation_nonce}"
+                        if result.basket_summary
+                        else "confirm_checkout:invalid"
+                    ),
                     title="Confirm Order",
                 )
             )
@@ -167,6 +323,16 @@ class BaseChannelAdapter(ABC):
                     action_type="button",
                     id="cancel_order",
                     title="Change Items",
+                )
+            )
+
+        elif result.conversation_state == ConversationState.PAYMENT_PENDING:
+            interactive_title = "Payment Pending"
+            actions.append(
+                InteractiveAction(
+                    action_type="button",
+                    id="check_payment_status",
+                    title="Check Payment",
                 )
             )
 

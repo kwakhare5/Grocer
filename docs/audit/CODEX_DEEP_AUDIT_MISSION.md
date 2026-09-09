@@ -1,5 +1,7 @@
 # CODEX Deep Audit Mission
 
+> Status (2026-09-09): audit implementation, post-fix review, and local verification are complete. The branch is ready for independent review and remains unmerged. Production persistence/deployment remains outside this branch.
+
 > Branch: `audit/codex-deep-review`
 > Baseline: `de32abb` (`main`)
 > Started: 2026-09-07

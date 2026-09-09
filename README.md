@@ -7,6 +7,8 @@
 
 **Grocer** is the existing WhatsApp grocery replenishment assistant, extended with an **intent-preserving commerce layer**.
 
+> **Readiness:** the audited branch is a locally verified, single-process demo/research system. It is not production-ready; see [CURRENT_STATE.md](CURRENT_STATE.md) for verified gates and explicit blockers.
+
 The idea is simple: a user tells Grocer what outcome they want, the agent builds the basket through Swiggy Instamart, and then keeps checking whether the live commerce state still matches the original intent. When something changes, Grocer recovers automatically when the decision is safe and asks the user when the choice is genuinely ambiguous.
 
 > **Grocer does not just build your cart. It tries to keep the cart faithful to what you actually asked for.**
@@ -219,14 +221,15 @@ npm run build
 
 ### Backend
 
-```bash
-cd backend
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-pytest tests/
+```powershell
+py -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r backend/requirements.txt -r backend/requirements-dev.txt
+pytest backend/tests
 uvicorn backend.main:app --reload --port 8000
 ```
+
+On macOS/Linux, activate with source .venv/bin/activate.
 
 ## Engineering roadmap
 
@@ -254,6 +257,8 @@ Start with one extremely polished recovery scenario before expanding the failure
 - `CONTEXT.md` — coding-session context and anti-drift rules
 - `ARCHITECTURE.md` — system boundaries and data/control flow
 - `IMPLEMENTATION_PLAN.md` — execution order
+- `CURRENT_STATE.md` — latest evidence, readiness, and deferred limits
+- `docs/audit/` — deep-audit mission, findings, and 102-scenario coverage ledger
 - `.agents/AGENTS.md` — Antigravity/Gemini repository rules
 - `AGENTS.md` — general coding-agent contract
 

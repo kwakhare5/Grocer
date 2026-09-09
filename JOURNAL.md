@@ -15,6 +15,15 @@ During the Session End ritual (called automatically whenever significant changes
 
 ## Log Entries
 
+### [GROCER — Deep Audit and Reliability Hardening] 2026-09-09
+
+- **Shipped**: Audited and hardened intent quantity/identity, bounded recovery, basket-bound one-time confirmation, payment/order/partial/unknown state handling, provider identity, WhatsApp/API security, and privacy boundaries on `audit/codex-deep-review`.
+- **Shipped**: Removed disconnected OAuth/UI/runtime residue, archived stale active-looking history, and converted the 102-scenario adversarial matrix into an evidence ledger (47 automated, 26 partial, 28 uncovered, 1 not applicable).
+- **Verification**: 240 backend tests, 10/10 evaluation scenarios, ESLint, Next.js build/TypeScript, dependency/reference/secret scans, archive hash checks, and no-real-order audit passed locally.
+- **Limits**: Production durability, integrated OAuth lifecycle, positive timeout reconciliation, per-child lifecycle polling, primary coordinate tracking, configurable webhook size/envelope coverage, and approved live revalidation remain explicitly deferred.
+- **Commit**: Audit checkpoints complete on `audit/codex-deep-review`; branch remains unmerged.
+- **Vibe**: Evidence over completion theater; unknown stays unknown.
+
 ### [GROCER — Live WhatsApp Cloud API Verification & Typography Consolidation] 2026-09-07
 
 - **Live WhatsApp Cloud API Bidirectional Verification**: Fully wired and verified Meta WhatsApp Cloud API sandbox (`+1 555 663-XXXX`) with the user's registered WhatsApp (`+91 82378 XXXXX`). Verified the entire shopping loop in a live chat on mobile:

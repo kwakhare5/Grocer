@@ -14,11 +14,11 @@
 - [x] Remove live Swiggy fabricated fallbacks and unsafe timeout reconciliation. <!-- id: codex-7 -->
 - [x] Unify provider authentication and prevent cross-user provider state. <!-- id: codex-8 -->
 - [x] Harden WhatsApp/API session ownership, signatures, stale actions, privacy, and failures. <!-- id: codex-9 -->
-- [ ] Remove proven dead/duplicate dependencies, routes, code, assets, and legacy docs. <!-- id: codex-10 -->
-- [ ] Expand and run high-value adversarial/evaluation coverage. <!-- id: codex-11 -->
-- [ ] Synchronize active architecture/state/setup documentation. <!-- id: codex-12 -->
-- [ ] Run full Python, lint, build, static/reference, and no-real-order gates. <!-- id: codex-13 -->
-- [ ] Commit logical slices and run independent standards/spec self-review. <!-- id: codex-14 -->
+- [x] Remove proven dead/duplicate dependencies, routes, code, assets, and legacy docs. <!-- id: codex-10 -->
+- [x] Expand and run high-value adversarial/evaluation coverage. <!-- id: codex-11 -->
+- [x] Synchronize active architecture/state/setup documentation. <!-- id: codex-12 -->
+- [x] Run full Python, lint, build, static/reference, and no-real-order gates. <!-- id: codex-13 -->
+- [x] Commit final verification slices and complete post-fix standards/spec review. <!-- id: codex-14 -->
 
 ---
 
@@ -32,7 +32,7 @@
 - [x] 6. Checkout Safety: Add regression tests in `backend/tests/test_orchestrator.py` enforcing checkout confirmation invariants <!-- id: 6 -->
 - [x] 7. Frontend Workbench: Implement `components/customer/IntentCommerceWorkbench.tsx`, update `lib/apiClient.ts` and `app/page.tsx`, fix lint errors <!-- id: 7 -->
 - [x] 8. Full Validation: Run `pytest -q`, `npm run lint`, and `npm run build` <!-- id: 8 -->
-- [x] 9. Documentation: Document golden recovery flow in `docs/GOLDEN_FLOW.md` and update `AGENTS.md` / `JOURNAL.md` <!-- id: 9 -->
+- [x] 9. Documentation: Document golden recovery flow (now archived at `docs/archive/GOLDEN_FLOW.md`) and update `AGENTS.md` / `JOURNAL.md` <!-- id: 9 -->
 
 ---
 
@@ -87,7 +87,7 @@
 - [x] Preserve visual language; make failure/recovery/approval states truthful.
 - [x] Polish flagship failure-and-recovery demo.
 
-## P5 — Live WhatsApp Cloud API & Swiggy MCP Integration [COMPLETED]
+## P5 — Historical live WhatsApp/Swiggy milestone
 - [x] Official Meta WhatsApp Cloud API adapter (`backend/channels/whatsapp.py`).
 - [x] Webhook challenge verification (`hub.challenge`) and HMAC-SHA256 signature checking.
 - [x] In-memory message deduplication and replay protection.
@@ -110,7 +110,7 @@
 
 ---
 
-## NEXT TASK — NOT STARTED
+## DEFERRED MILESTONE — NOT STARTED ON AUDIT BRANCH
 
 ### Objective: Persistent Cloud Deployment & Production Webhook Stability
 - [ ] Containerize FastAPI backend with production Docker configuration.

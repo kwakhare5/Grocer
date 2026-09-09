@@ -2,7 +2,7 @@
 
 > **Source of truth:** `GROCER_V2_MASTER_SPEC.md`
 > **Status:** LOCKED consumer-commerce architecture
-> **Updated:** 2026-09-06
+> **Updated:** 2026-09-09
 
 ## 1. System identity
 
@@ -110,6 +110,20 @@ Deterministic services
 All Swiggy-specific MCP tool calls remain inside `SwiggyMCPAdapter`.
 
 Higher layers depend on `CommercePort` rather than raw provider APIs.
+
+The port carries a provider-neutral payment-option ID and kind. The Swiggy adapter alone maps those values to intentApp or generateUPIQR. Provider response field names remain adapter details.
+
+### 3.5 Consequential lifecycle
+
+    verified basket
+      -> one-time nonce + material fingerprint
+      -> explicit user confirmation
+      -> checkout exactly once in one process
+      -> PAYMENT_PENDING / PARTIAL_ORDER / ORDERED / ORDER_STATE_UNKNOWN
+      -> provider-paced payment observation
+      -> confirm_order only after verified payment success
+
+Unknown checkout outcomes consume the approval and prevent blind retry. This is a single-process safety boundary, not a durable multi-worker idempotency claim.
 
 ## 4. Major modules
 

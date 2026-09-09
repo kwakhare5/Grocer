@@ -19,6 +19,51 @@ unauthenticated or unsigned input
 
 No real provider mutation or order was executed during this audit.
 
+## Final verification update — 2026-09-09
+
+The critical baseline chain above has been broken for the supported single-process scope. Physical quantity and product identity are deterministic; confirmation is nonce-bound, expiring, material-state fingerprinted, one-time, and serialized; exact provider payment choices reach checkout; pending/partial/failed/unknown outcomes remain distinct; and checkout uncertainty cannot be retried through the consumed approval.
+
+Latest local evidence:
+
+| Gate | Result |
+|---|---|
+| Python suite | 240 passed |
+| Canonical evaluation | 10/10 passed; 40% evidence-based autonomous recovery |
+| Unsafe autonomous recovery mutations | 0 |
+| ESLint | passed |
+| Next.js build / TypeScript | passed |
+| Adversarial matrix | 47 automated, 26 partial, 28 uncovered, 1 not applicable |
+| Secret scan | no tracked environment file or hard-coded assignment match |
+| Live commerce during audit | none |
+
+The result is substantially safer and reviewable, but it is not a production-readiness claim. Durable identity/state/idempotency, integrated OAuth lifecycle, defensible positive timeout reconciliation, primary coordinate-based tracking, authoritative dietary metadata, complete webhook envelope/size defenses, and approved live validation remain explicit blockers.
+
+### Post-review defects corrected
+
+- the orchestrator no longer treats an omitted nonce as the expected nonce;
+- an explicit-confirmation flag now defaults closed at the authoritative boundary;
+- payment option ID/kind is included in the approval fingerprint and passed through CommercePort unchanged;
+- Swiggy alone maps payment selection to intentApp or generateUPIQR and no longer sends the Food-only addressId argument to Instamart payment-options lookup;
+- an OrderStateUnknownError remains ORDER_STATE_UNKNOWN instead of becoming FAILED;
+- payment-status orderId is retained before confirm_order;
+- provider cadence/deadline prevents tight-loop polling;
+- UNSUCCESSFUL, UNPAID, and OUT_FOR_DELIVERY cannot be inverted by substring normalization;
+- missing order IDs cannot yield ORDER_PLACED;
+- child-order states are authoritative over contradictory top-level success, and an unknown child cannot become complete success;
+- budget recovery validates exact physical quantity and projected line total before mutating;
+- price-increasing automatic recovery now requires explicit authorization in the contract rather than an implicit test assumption;
+- non-transient and authentication failures are not retried as transient recovery;
+- conversational confirmation now displays the approval-bound items, costs, address, and exact provider payment label;
+- the evaluation harness no longer counts its no-recovery happy path as autonomous recovery.
+
+### Intentionally not expanded in final verification
+
+- GrocerOrchestrator was not split solely because of file size.
+- Provider-neutral renaming of every legacy paasId/bridge URL storage field was deferred; provider tool arguments remain isolated, while a broader mechanical rename would add review surface without changing current safety.
+- Positive checkout-timeout reconciliation remains fail-closed because the documented order-history schema does not expose a defensible checkout/cart correlation key.
+- Proactive tracking polling, durable inbox/outbox, and deployment were not started.
+- Multi-store children are preserved and aggregated at checkout, but independent post-checkout payment/detail/delivery polling for every child remains deferred.
+
 ## Baseline evidence
 
 | Check | Recovered result |
@@ -43,7 +88,7 @@ Repository evidence includes:
 - README, current-state, walkthrough, cleanroom, golden-flow, project-history, legacy-architecture, and UI-spec documents;
 - Graphify report and dependency/reference searches.
 
-Official Swiggy sources checked on 2026-09-07:
+Official Swiggy sources checked and re-checked through 2026-09-09:
 
 - `https://mcp.swiggy.com/builders/llms.txt`
 - `https://mcp.swiggy.com/builders/llms-full.txt`

@@ -141,6 +141,119 @@
 
 ## Evaluation design
 
+## Verified coverage ledger
+
+Coverage was re-audited against the final branch on 2026-09-08. AUTOMATED means a deterministic test directly exercises the stated invariant. PARTIALLY COVERED means some layers or variants are tested but the complete scenario is not. MANUAL-LIVE ONLY is reserved for behavior for which the only current evidence is a controlled provider exercise; none was claimed because this audit placed no live order. NOT COVERED is an explicit remaining gap. NOT APPLICABLE means the exposed behavior was intentionally removed.
+
+Evidence aliases: QI = backend/tests/test_quantity_and_identity_semantics.py; RE = test_recovery_engine.py; AF = test_all_failure_scenarios.py; CR = test_canonical_recovery_regression.py; CI = test_confirmation_integrity.py; PL = test_payment_order_lifecycle.py; SA = test_swiggy_adapter.py; WA = test_whatsapp_channel.py; AS = test_api_session_security.py; PI = test_provider_identity_isolation.py; EH = test_evaluation_harness.py.
+
+| ID | Coverage | Evidence / limitation |
+|---|---|---|
+| Q01 | AUTOMATED | QI exact-pack-count parameterization |
+| Q02 | AUTOMATED | QI rejects silent underfill and overfill |
+| Q03 | AUTOMATED | QI preserves explicit 1.5 L quantity |
+| Q04 | PARTIALLY COVERED | QI covers the same exact-multiple rule, not this fixture |
+| Q05 | PARTIALLY COVERED | QI covers mass normalization, not this fixture |
+| Q06 | PARTIALLY COVERED | QI covers exact pack arithmetic, not paneer fixture |
+| Q07 | AUTOMATED | QI egg count-pack test |
+| Q08 | PARTIALLY COVERED | QI covers dozen/count conversion, not this fixture |
+| Q09 | NOT COVERED | No direct pack-count regression |
+| Q10 | PARTIALLY COVERED | Parser ambiguity behavior tested; no full mutation assertion |
+| Q11 | AUTOMATED | QI dimension mismatch |
+| Q12 | AUTOMATED | QI decimal/case normalization |
+| Q13 | AUTOMATED | QI multipack normalization |
+| Q14 | NOT COVERED | Missing-pack metadata has no direct regression |
+| Q15 | AUTOMATED | QI semantic validity precedes price |
+| Q16 | NOT COVERED | No max-quantity integration test |
+| I01 | AUTOMATED | QI derivative exclusion |
+| I02 | AUTOMATED | QI derivative exclusion |
+| I03 | AUTOMATED | QI derivative exclusion |
+| I04 | AUTOMATED | QI derivative exclusion |
+| I05 | AUTOMATED | QI incompatible product-head exclusion |
+| I06 | PARTIALLY COVERED | QI multi-word brand matcher; not full selection flow |
+| I07 | PARTIALLY COVERED | RE policy behavior; exact integration fixture absent |
+| I08 | AUTOMATED | test_intent_contract.py current-request precedence |
+| I09 | PARTIALLY COVERED | Merge/precedence tests do not cover this full turn sequence |
+| I10 | AUTOMATED | RE hard dietary violation |
+| I11 | NOT COVERED | Provider model lacks authoritative dietary metadata |
+| I12 | AUTOMATED | RE ambiguity handling |
+| R01 | AUTOMATED | CR out-of-stock recovery loop |
+| R02 | PARTIALLY COVERED | CR refetch/reverify, not unchanged-success fixture |
+| R03 | AUTOMATED | AF partial-cart scenario |
+| R04 | AUTOMATED | RE/EH hard budget drift |
+| R05 | PARTIALLY COVERED | CI fee fingerprint plus budget checks; no end-to-end drift |
+| R06 | AUTOMATED | AF/EH bounded transient-read scenario |
+| R07 | NOT COVERED | No documented idempotent mutation-retry test |
+| R08 | AUTOMATED | RE max-attempt terminal behavior |
+| R09 | AUTOMATED | test_orchestrator.py stale clarification token |
+| R10 | NOT COVERED | No remove-before-confirmation integration test |
+| R11 | NOT COVERED | No quantity-change-before-confirmation integration test |
+| R12 | PARTIALLY COVERED | CI payment-change invalidation; brand path incomplete |
+| C01 | AUTOMATED | CI/orchestrator wrong-state rejection |
+| C02 | AUTOMATED | CI missing and wrong nonce; zero checkout |
+| C03 | AUTOMATED | CI expired nonce; zero checkout |
+| C04 | AUTOMATED | CI sequential one-time confirmation |
+| C05 | AUTOMATED | CI concurrent confirmation |
+| C06 | AUTOMATED | CI price fingerprint invalidation |
+| C07 | AUTOMATED | CI fee fingerprint invalidation |
+| C08 | NOT COVERED | Discount-specific integration regression absent |
+| C09 | NOT COVERED | Same-name SKU-swap regression absent |
+| C10 | NOT COVERED | Composition-change regression absent |
+| C11 | NOT COVERED | Address-change regression absent |
+| C12 | AUTOMATED | CI payment-choice invalidation |
+| C13 | NOT COVERED | Cart-ID-change regression absent |
+| C14 | NOT COVERED | Intent-version-change regression absent |
+| C15 | NOT COVERED | Change-items action lacks direct integration test |
+| C16 | AUTOMATED | PL/SA uncertain checkout maps unknown; no blind retry |
+| P01 | AUTOMATED | PL preserves sole exact provider ID/kind/label |
+| P02 | AUTOMATED | PL excludes unavailable COD |
+| P03 | AUTOMATED | PL empty-options fail closed |
+| P04 | AUTOMATED | PL pending state and provider cadence fields |
+| P05 | PARTIALLY COVERED | PL enforces cadence/deadline and no success claim; live cap behavior unverified |
+| P06 | NOT COVERED | No direct already-confirmed payment orchestration test |
+| P07 | AUTOMATED | PL confirm-once with returned orderId/paasId |
+| P08 | AUTOMATED | PL failed payment never confirms |
+| P09 | NOT COVERED | Cart-changed payment response not classified |
+| P10 | NOT COVERED | No direct COD lifecycle regression |
+| P11 | AUTOMATED | SA missing order ID normalizes unknown |
+| P12 | PARTIALLY COVERED | SA parses children; all-success aggregate variant incomplete |
+| P13 | AUTOMATED | PL/SA partial child failure |
+| P14 | NOT COVERED | All-children-failed fixture absent |
+| P15 | NOT COVERED | Documented positive timeout reconciliation cannot be proven by current schema |
+| P16 | AUTOMATED | SA rejects unrelated historical order after timeout |
+| P17 | PARTIALLY COVERED | SA auth errors; integrated token eviction/reauth absent |
+| P18 | PARTIALLY COVERED | SA malformed/unknown fields fail safely; not exhaustive |
+| T01 | AUTOMATED | PL unknown raw order status |
+| T02 | AUTOMATED | PL/SA absent ETA remains absent |
+| T03 | PARTIALLY COVERED | SA rejects absent tracking coordinates; order history does not preserve them |
+| T04 | PARTIALLY COVERED | SA nullable rider/store parsing |
+| T05 | NOT COVERED | No cancelled tracking fixture |
+| T06 | PARTIALLY COVERED | Status normalization exists; terminal poll behavior not tested |
+| T07 | NOT COVERED | No heterogeneous child-tracking aggregate |
+| T08 | NOT COVERED | No unavailable-details user-message regression |
+| T09 | AUTOMATED | PL known details use returned facts |
+| T10 | NOT COVERED | No conversational pending-payment price question |
+| T11 | NOT COVERED | Proactive notification deduplication is deferred |
+| T12 | NOT COVERED | Semantic tracking notifications are deferred |
+| S01 | PARTIALLY COVERED | WA live-secret fail-closed paths; startup matrix incomplete |
+| S02 | PARTIALLY COVERED | WA HMAC rejection variants |
+| S03 | NOT COVERED | JSON-shape/phone-ID validation matrix absent |
+| S04 | NOT COVERED | Fixed 1 MB pre-parse limit exists; no boundary regression/configurability |
+| S05 | PARTIALLY COVERED | WA concurrent reservation, not full webhook dispatch |
+| S06 | AUTOMATED | WA failed dispatch remains retryable |
+| S07 | AUTOMATED | WA outbound retry does not repeat commerce |
+| S08 | PARTIALLY COVERED | AS protects session APIs; route matrix incomplete |
+| S09 | AUTOMATED | AS cross-session capability rejection |
+| S10 | AUTOMATED | AS customer/session ownership rejection |
+| S11 | NOT COVERED | No terminal-session reset test |
+| S12 | NOT APPLICABLE | Public OAuth callback removed; AS verifies it is not exposed |
+| S13 | PARTIALLY COVERED | PI token resolution/refusal; two-user cart isolation not exercised |
+| S14 | PARTIALLY COVERED | OAuth expiry is unit tested; automatic eviction incomplete |
+| S15 | PARTIALLY COVERED | Redaction helpers tested; full normal/error log audit incomplete |
+| S16 | PARTIALLY COVERED | Session and intent history deletion covered; post-delete capability rejection absent |
+
+Summary: **47 AUTOMATED**, **26 PARTIALLY COVERED**, **28 NOT COVERED**, **0 MANUAL-LIVE ONLY**, **1 NOT APPLICABLE** (102 total).
+
 The matrix contains 102 scenarios. Count is secondary to value; scenarios should be consolidated with parameterization where one invariant covers several inputs.
 
 Metrics must be computed from actual scenario outcomes:
@@ -148,7 +261,7 @@ Metrics must be computed from actual scenario outcomes:
 - intent preservation and hard-constraint satisfaction;
 - explicit physical-quantity underfill rate;
 - wrong-product/brand selection rate;
-- unsafe autonomous checkout rate (target zero);
+- unsafe autonomous checkout rate (target zero; verified by confirmation tests, not inferred from the recovery harness);
 - duplicate checkout attempt rate (target zero);
 - truthful pending/partial/unknown classification;
 - recovery success and unnecessary clarification;

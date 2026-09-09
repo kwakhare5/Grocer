@@ -5,9 +5,15 @@ from __future__ import annotations
 import pytest
 
 from backend.integrations.commerce.mock_adapter import MockCommerceAdapter
-from backend.integrations.commerce.models import CartItem, CommerceCart
+from backend.integrations.commerce.models import (
+    CartItem,
+    CommerceCart,
+    CommerceProductItem,
+    ProductVariant,
+)
 from backend.intent.models import IntentContract, IntentItem
 from backend.intent.orchestrator import _search_and_pick
+from backend.intent.recovery import RecoveryEngine, RecoveryState
 from backend.intent.semantics import (
     NormalizedQuantity,
     normalize_pack_quantity,
@@ -15,7 +21,13 @@ from backend.intent.semantics import (
     product_identity_matches,
     required_pack_count,
 )
-from backend.intent.verifier import IntentVerifier, ViolationCode
+from backend.intent.verifier import (
+    ConstraintViolation,
+    IntentVerifier,
+    VerificationResult,
+    VerificationStatus,
+    ViolationCode,
+)
 
 
 @pytest.mark.parametrize(
@@ -27,6 +39,9 @@ from backend.intent.verifier import IntentVerifier, ViolationCode
         (750, "g", "paneer", NormalizedQuantity("mass", 750)),
         (2, "dozen", "eggs", NormalizedQuantity("count", 24)),
         (12, "units", "eggs", NormalizedQuantity("count", 12)),
+        (6, "pieces", "apples", NormalizedQuantity("count", 6)),
+        (4, "units", "bananas", NormalizedQuantity("count", 4)),
+        (3, "packs", "biscuits", NormalizedQuantity("pack_count", 3)),
     ],
 )
 def test_requested_quantity_normalizes_to_base_dimension(
@@ -61,6 +76,123 @@ def test_required_pack_count_rejects_underfill_and_unapproved_overfill() -> None
     assert required_pack_count(requested, NormalizedQuantity("volume", 500)) == 2
     assert required_pack_count(requested, NormalizedQuantity("volume", 750)) is None
     assert required_pack_count(requested, NormalizedQuantity("mass", 500)) is None
+
+
+@pytest.mark.parametrize(
+    ("requested", "provider_pack", "expected"),
+    [
+        (NormalizedQuantity("count", 6), NormalizedQuantity("count", 6), 1),
+        (NormalizedQuantity("count", 6), NormalizedQuantity("count", 1), 6),
+        (NormalizedQuantity("pack_count", 3), NormalizedQuantity("count", 6), 3),
+        (NormalizedQuantity("count", 4), NormalizedQuantity("count", 3), None),
+    ],
+)
+def test_individual_and_pack_counts_convert_without_silent_quantity_drift(
+    requested: NormalizedQuantity,
+    provider_pack: NormalizedQuantity,
+    expected: int | None,
+) -> None:
+    assert required_pack_count(requested, provider_pack) == expected
+
+
+class _CatalogSearchPort:
+    def __init__(self, pack_size: str, product_name: str = "Fresh Bananas") -> None:
+        self._results = [
+            CommerceProductItem(
+                product_id="product",
+                name=product_name,
+                category="produce",
+                variants=[
+                    ProductVariant(
+                        spin_id="spin-product",
+                        name=product_name,
+                        pack_size=pack_size,
+                        price=30,
+                        mrp=30,
+                    )
+                ],
+            )
+        ]
+
+    async def search_products(
+        self, address_id: str, query: str
+    ) -> list[CommerceProductItem]:
+        return self._results
+
+
+@pytest.mark.parametrize(
+    ("item", "provider_pack", "provider_name", "expected_quantity"),
+    [
+        (
+            IntentItem(
+                name="bananas",
+                quantity=6,
+                unit="pieces",
+                quantity_is_explicit=True,
+                category="produce",
+            ),
+            "6 pieces",
+            "Fresh Bananas",
+            1,
+        ),
+        (
+            IntentItem(
+                name="bananas",
+                quantity=6,
+                unit="units",
+                quantity_is_explicit=True,
+                category="produce",
+            ),
+            "1 piece",
+            "Fresh Bananas",
+            6,
+        ),
+        (
+            IntentItem(
+                name="biscuits",
+                quantity=3,
+                unit="packs",
+                quantity_is_explicit=True,
+                category="produce",
+            ),
+            "6 pieces",
+            "Tea Biscuits",
+            3,
+        ),
+    ],
+)
+@pytest.mark.asyncio
+async def test_selection_distinguishes_individual_counts_from_pack_counts(
+    item: IntentItem,
+    provider_pack: str,
+    provider_name: str,
+    expected_quantity: int,
+) -> None:
+    update = await _search_and_pick(
+        _CatalogSearchPort(provider_pack, provider_name),  # type: ignore[arg-type]
+        "address",
+        item,
+    )
+
+    assert update is not None
+    assert update.quantity == expected_quantity
+
+
+@pytest.mark.asyncio
+async def test_selection_rejects_non_divisible_individual_count() -> None:
+    update = await _search_and_pick(
+        _CatalogSearchPort("3 pieces"),  # type: ignore[arg-type]
+        "address",
+        IntentItem(
+            name="bananas",
+            quantity=4,
+            unit="units",
+            quantity_is_explicit=True,
+            category="produce",
+        ),
+    )
+
+    assert update is None
 
 
 @pytest.mark.parametrize(
@@ -197,3 +329,88 @@ def test_verifier_checks_total_physical_quantity_without_exact_constraint() -> N
     result = IntentVerifier().verify(contract, cart)
 
     assert ViolationCode.WRONG_QUANTITY in result.violation_codes
+
+
+def test_verifier_rejects_non_divisible_individual_count() -> None:
+    contract = IntentContract(
+        session_id="count-verifier-test",
+        goal="buy four bananas",
+        items=[
+            IntentItem(
+                name="bananas",
+                quantity=4,
+                unit="units",
+                quantity_is_explicit=True,
+                category="produce",
+            )
+        ],
+    )
+    cart = CommerceCart(
+        cart_id="cart",
+        items=[
+            CartItem(
+                spin_id="spin-bananas",
+                name="Fresh Bananas",
+                pack_size="3 pieces",
+                unit_price=30,
+                quantity=1,
+                total_price=30,
+                category="produce",
+            )
+        ],
+        item_total=30,
+        grand_total=30,
+    )
+
+    result = IntentVerifier().verify(contract, cart)
+
+    assert ViolationCode.WRONG_QUANTITY in result.violation_codes
+
+
+def test_recovery_blocks_non_divisible_individual_count() -> None:
+    contract = IntentContract(
+        session_id="count-recovery-test",
+        goal="buy four bananas",
+        items=[
+            IntentItem(
+                name="bananas",
+                quantity=4,
+                unit="units",
+                quantity_is_explicit=True,
+                category="produce",
+            )
+        ],
+    )
+    cart = CommerceCart(cart_id="cart")
+    verification = VerificationResult(
+        status=VerificationStatus.FAIL,
+        violations=[
+            ConstraintViolation(
+                violation_code=ViolationCode.WRONG_QUANTITY,
+                target="bananas",
+                detail="Four bananas cannot be filled exactly",
+            )
+        ],
+        unresolved_items=["bananas"],
+    )
+    catalog = [
+        CommerceProductItem(
+            product_id="product-bananas",
+            name="Fresh Bananas",
+            category="produce",
+            variants=[
+                ProductVariant(
+                    spin_id="spin-bananas",
+                    name="Fresh Bananas",
+                    pack_size="3 pieces",
+                    price=30,
+                    mrp=30,
+                )
+            ],
+        )
+    ]
+
+    outcome = RecoveryEngine().recover(contract, cart, verification, catalog)
+
+    assert outcome.state == RecoveryState.BLOCKED
+    assert outcome.recovery_actions == []

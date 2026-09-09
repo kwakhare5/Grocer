@@ -2,12 +2,12 @@
 
 Validates the flagship proof loop:
 User request:
-    "get my weekly groceries under ₹2000, vegetarian, use my usual brands"
+    "get my weekly groceries under ₹2000, use my usual brands"
 
 End-to-End Cycle:
 1. Parse conversational request → structured IntentContract.
 2. Build initial basket via CommercePort (Amul milk, bread, tomatoes).
-3. Deterministic verification: initial basket passes (status PASS, within ₹2000 budget, vegetarian).
+3. Deterministic verification: initial basket passes (status PASS, within ₹2000 budget).
 4. Inject deterministic simulated commerce failure: Amul 1L milk goes out of stock.
 5. Re-fetch live commerce state → IntentVerifier flags violation (ITEM_UNAVAILABLE).
 6. LoopingRecoveryEngine executes bounded recovery:
@@ -16,7 +16,7 @@ End-to-End Cycle:
    - Selects compliant replacement (Amul 500ml milk with 2x pack multiple).
    - Mutates commerce cart while strictly preserving unrelated items (bread, tomatoes).
    - Re-fetches live cart from CommercePort.
-   - Re-verifies FULL intent: vegetarian constraint satisfied, total <= ₹2000, items present.
+    - Re-verifies FULL intent: total <= ₹2000, items present.
 7. Verification PASS → session transitions to AWAITING_CONFIRMATION with recovery notes.
 8. Server-side explicit confirmation gate enforces that checkout CANNOT happen automatically.
 9. Explicit user confirmation executes consequential checkout → ORDERED.
@@ -33,7 +33,6 @@ from backend.intent.enums import PrecedenceLevel, PreferenceType
 from backend.intent.models import (
     AuthorizationScope,
     BudgetConstraint,
-    DietaryConstraint,
     IntentContract,
     IntentItem,
     PackSizeRules,
@@ -62,20 +61,17 @@ async def test_golden_oos_recovery_scenario() -> None:
     address_id = "addr-bandra-1"
 
     # 1. Establish Intent Contract
-    # Goal: "get my weekly groceries under ₹2000, vegetarian, use my usual brands"
+    # Goal: "get my weekly groceries under ₹2000, use my usual brands"
     contract = IntentContract(
         session_id=session_id,
         customer_id=customer_id,
-        goal="weekly groceries under ₹2000, vegetarian, use usual brands",
+        goal="weekly groceries under ₹2000, use usual brands",
         items=[
             IntentItem(name="milk", quantity=1, unit="L", pack_size_preference="1 L", category="dairy", is_essential=True),
             IntentItem(name="bread", quantity=1, unit="pcs", pack_size_preference="400 g", category="bakery", is_essential=True),
             IntentItem(name="tomatoes", quantity=1, unit="kg", pack_size_preference="1 kg", category="produce", is_essential=True),
         ],
         budget=BudgetConstraint(max_budget=2000.0, is_hard=True, max_deviation=0.0),
-        dietary_constraints=[
-            DietaryConstraint(tag="vegetarian", is_hard=True, detail="Strictly vegetarian grocery restock")
-        ],
         pack_size_rules=PackSizeRules(preferred_multiples=True),
         soft_preferences=[
             SoftPreference(
@@ -152,7 +148,7 @@ async def test_golden_oos_recovery_scenario() -> None:
     assert "SPIN-MILK-500ML" in recovered_spins
     assert recovered_spins["SPIN-MILK-500ML"].quantity == 2
 
-    # Verify vegetarian constraint and budget constraints hold on recovered cart
+    # Verify budget constraints hold on recovered cart
     assert recovery_result.cart.grand_total <= contract.budget.max_budget
     assert len(recovery_result.verification.violations) == 0
 

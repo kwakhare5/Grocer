@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from typing import Literal, Optional
 
 
-QuantityDimension = Literal["volume", "mass", "count", "pack"]
+QuantityDimension = Literal["volume", "mass", "count", "pack_count"]
 
 
 @dataclass(frozen=True)
@@ -19,7 +19,6 @@ class NormalizedQuantity:
     amount: float
 
 
-_COUNT_PRODUCTS = {"egg", "eggs"}
 _TOKEN_RE = re.compile(r"[a-z0-9]+")
 _PACK_RE = re.compile(
     r"(?P<amount>\d+(?:\.\d+)?)\s*"
@@ -111,11 +110,14 @@ def normalize_requested_quantity(
             preferred_pack.amount * quantity,
         )
 
-    head = _product_head(product_name)
-    if quantity_is_explicit and head in {_singular(item) for item in _COUNT_PRODUCTS}:
+    if (
+        normalized_unit in {"pc", "pcs", "piece", "pieces"}
+        and quantity_is_explicit
+    ):
+        return NormalizedQuantity("count", quantity)
+    if normalized_unit in {"", "unit", "units"} and quantity_is_explicit:
         return NormalizedQuantity("count", quantity)
     if normalized_unit in {
-        "",
         "pack",
         "packs",
         "packet",
@@ -124,10 +126,10 @@ def normalize_requested_quantity(
         "pcs",
         "piece",
         "pieces",
-        "unit",
-        "units",
     }:
-        return NormalizedQuantity("pack", quantity)
+        return NormalizedQuantity("pack_count", quantity)
+    if normalized_unit in {"", "unit", "units"}:
+        return NormalizedQuantity("pack_count", quantity)
     return None
 
 
@@ -168,7 +170,7 @@ def required_pack_count(
 ) -> Optional[int]:
     """Return an exact pack count, rejecting underfill and silent overfill."""
 
-    if requested.dimension == "pack":
+    if requested.dimension == "pack_count":
         rounded = round(requested.amount)
         return int(rounded) if math.isclose(requested.amount, rounded) else None
     if pack is None or pack.dimension != requested.dimension or pack.amount <= 0:

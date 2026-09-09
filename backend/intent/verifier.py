@@ -46,6 +46,7 @@ class ViolationCode(str, Enum):
     """Machine-readable codes for hard-constraint violations (Spec §9.2)."""
     BUDGET_EXCEEDED = "budget_exceeded"
     DIETARY_VIOLATION = "dietary_violation"
+    DIETARY_UNVERIFIABLE = "dietary_unverifiable"
     MISSING_ITEM = "missing_item"
     WRONG_BRAND = "wrong_brand"
     WRONG_QUANTITY = "wrong_quantity"
@@ -200,7 +201,7 @@ class IntentVerifier:
         violations.extend(diet_violations)
         if diet_violations:
             targets = ", ".join(v.target for v in diet_violations)
-            recovery_hints.append(f"Remove items violating dietary constraints: {targets}")
+            recovery_hints.append(f"Verify or replace dietary-constrained items: {targets}")
 
         # 4. Missing essential items
         missing, item_deviations = self._check_missing_items(contract, cart)
@@ -358,33 +359,56 @@ class IntentVerifier:
         if not contract.dietary_constraints:
             return violations
 
-        hard_tags = {d.tag.lower() for d in contract.dietary_constraints if d.is_hard}
+        hard_tags = {
+            d.tag.strip().casefold()
+            for d in contract.dietary_constraints
+            if d.is_hard
+        }
 
         for item in cart.items:
-            item_name_lower = item.name.lower()
+            item_name_lower = item.name.casefold()
             tokens = set(re.findall(r"[a-z]+", item_name_lower))
+            category = (item.category or "").strip().casefold()
 
-            if "vegetarian" in hard_tags or "veg" in hard_tags:
-                if tokens & _NON_VEG_KEYWORDS:
-                    violations.append(ConstraintViolation(
-                        violation_code=ViolationCode.DIETARY_VIOLATION,
+            for tag in hard_tags:
+                is_known_violation = False
+                if tag in {"vegetarian", "veg"}:
+                    is_known_violation = bool(
+                        tokens & _NON_VEG_KEYWORDS
+                        or category in _NON_VEG_CATEGORIES
+                    )
+                elif tag == "vegan":
+                    is_known_violation = bool(
+                        tokens & (_NON_VEG_KEYWORDS | _VEGAN_EXCLUDED_KEYWORDS)
+                        or category in _NON_VEG_CATEGORIES
+                        or category == "dairy"
+                    )
+
+                if is_known_violation:
+                    violations.append(
+                        ConstraintViolation(
+                            violation_code=ViolationCode.DIETARY_VIOLATION,
+                            target=item.name,
+                            detail=(
+                                f"'{item.name}' contradicts the hard {tag} "
+                                "dietary constraint"
+                            ),
+                            is_hard=True,
+                        )
+                    )
+                    continue
+
+                violations.append(
+                    ConstraintViolation(
+                        violation_code=ViolationCode.DIETARY_UNVERIFIABLE,
                         target=item.name,
                         detail=(
-                            f"'{item.name}' appears to violate vegetarian dietary constraint"
+                            f"Authoritative metadata cannot prove that '{item.name}' "
+                            f"satisfies the hard {tag} dietary constraint"
                         ),
                         is_hard=True,
-                    ))
-
-            if "vegan" in hard_tags:
-                if (tokens & _NON_VEG_KEYWORDS) or (tokens & _VEGAN_EXCLUDED_KEYWORDS):
-                    violations.append(ConstraintViolation(
-                        violation_code=ViolationCode.DIETARY_VIOLATION,
-                        target=item.name,
-                        detail=(
-                            f"'{item.name}' appears to violate vegan dietary constraint"
-                        ),
-                        is_hard=True,
-                    ))
+                    )
+                )
 
         return violations
 
@@ -443,7 +467,7 @@ class IntentVerifier:
             must_verify = bool(
                 requested
                 and (
-                    requested.dimension != "pack"
+                    requested.dimension != "pack_count"
                     or intent_item.quantity_is_explicit
                     or has_exact_constraint
                 )
@@ -451,7 +475,7 @@ class IntentVerifier:
             if not must_verify or requested is None:
                 continue
 
-            if requested.dimension == "pack":
+            if requested.dimension == "pack_count":
                 actual_amount = float(sum(ci.quantity for ci in matched_cart_items))
                 comparable = True
             else:

@@ -16,7 +16,7 @@
 - [x] Update only materially changed audit/state evidence. <!-- id: remediation-11 -->
 - [x] Run focused regressions, full Python tests, adversarial evaluation, frontend lint/build, and `git diff --check`. <!-- id: remediation-12 -->
 - [x] Review the cumulative remediation diff for regressions. <!-- id: remediation-13 -->
-- [ ] Commit logical slices and push `audit/codex-deep-review`; do not merge `main`. <!-- id: remediation-14 -->
+- [x] Commit logical slices and push `audit/codex-deep-review`; do not merge `main`. <!-- id: remediation-14 -->
 
 ---
 

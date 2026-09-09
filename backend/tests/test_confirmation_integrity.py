@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import asyncio
 import uuid
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
 from backend.integrations.commerce.mock_adapter import MockCommerceAdapter
+from backend.integrations.commerce.exceptions import UnconfirmedCheckoutError
 from backend.intent.orchestrator import GrocerOrchestrator
 from backend.intent.session import ConversationState, OrchestratorSessionStore
 
@@ -64,6 +66,40 @@ async def test_wrong_confirmation_nonce_never_reaches_checkout() -> None:
 
 
 @pytest.mark.asyncio
+async def test_missing_confirmation_proof_never_reaches_checkout() -> None:
+    adapter = CountingCheckoutAdapter()
+    orchestrator, _store, session_id, _nonce, method = await _ready_basket(adapter)
+
+    with pytest.raises(UnconfirmedCheckoutError):
+        await orchestrator.handle_confirm(
+            session_id=session_id,
+            payment_method=method,
+        )
+
+    assert adapter.checkout_attempts == 0
+
+
+@pytest.mark.asyncio
+async def test_expired_confirmation_never_reaches_checkout() -> None:
+    adapter = CountingCheckoutAdapter()
+    orchestrator, store, session_id, nonce, method = await _ready_basket(adapter)
+    session = store.get(session_id)
+    assert session is not None and session.pending_confirmation is not None
+    session.pending_confirmation.expires_at = datetime.now(timezone.utc) - timedelta(seconds=1)
+
+    result = await orchestrator.handle_confirm(
+        session_id=session_id,
+        payment_method=method,
+        explicit_confirmation=True,
+        confirmation_nonce=nonce,
+    )
+
+    assert result.conversation_state == ConversationState.AWAITING_CONFIRMATION
+    assert "CONFIRMATION_REJECTED" in result.events
+    assert adapter.checkout_attempts == 0
+
+
+@pytest.mark.asyncio
 async def test_confirmation_is_bound_to_presented_payment_method() -> None:
     adapter = CountingCheckoutAdapter()
     orchestrator, _store, session_id, nonce, _method = await _ready_basket(adapter)
@@ -103,6 +139,28 @@ async def test_no_provider_payment_option_never_offers_checkout() -> None:
     assert result.basket_summary is None
     assert "PAYMENT_OPTIONS_UNAVAILABLE" in result.events
     assert adapter.checkout_attempts == 0
+
+
+@pytest.mark.asyncio
+async def test_confirmation_message_shows_every_available_approval_bound_fact() -> None:
+    result = await GrocerOrchestrator(
+        commerce_adapter=CountingCheckoutAdapter(),
+        session_store=OrchestratorSessionStore(),
+    ).handle_turn("visible-basket", "customer", "get 1L milk")
+
+    assert result.basket_summary is not None
+    for label in (
+        "Items:",
+        "Delivery:",
+        "Packaging:",
+        "Discount:",
+        "Total:",
+        "Address:",
+        "Payment:",
+    ):
+        assert label in result.user_message
+    assert result.basket_summary.items[0].name in result.user_message
+    assert result.basket_summary.selected_payment_option_label in result.user_message
 
 
 @pytest.mark.asyncio

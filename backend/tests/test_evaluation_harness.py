@@ -39,6 +39,7 @@ async def test_evaluation_metrics_separate_safe_halts_from_preserved_intent() ->
     assert metrics.intent_preservation_rate == 1.0
     assert metrics.hard_constraint_satisfaction == 1.0
     assert metrics.task_completion_rate == 0.5
+    assert metrics.autonomous_recovery_rate == 0.4
 
     budget_drift = next(r for r in report.results if r.scenario_id == "SCN-04")
     assert budget_drift.final_recovery_state == RecoveryState.NEEDS_USER_DECISION
@@ -111,7 +112,7 @@ def test_evaluation_report_formatting() -> None:
     assert "GROCER v2 RELIABILITY & INTENT EVALUATION REPORT" in formatted
     assert "Hard Constraints (completed):" in formatted
     assert "100.0%" in formatted
-    assert "Unsafe Autonomous Action Rate:       0.0%" in formatted
+    assert "Unsafe Recovery Mutation Rate:       0.0%" in formatted
     assert "Adapter Call Success Ratio:         95.7%" in formatted
     assert "Mean Calls / Completed Task:      3.00" in formatted
 

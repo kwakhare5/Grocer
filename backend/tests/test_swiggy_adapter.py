@@ -405,6 +405,159 @@ async def test_swiggy_adapter_checkout_requires_explicit_confirmation() -> None:
 
 
 @pytest.mark.asyncio
+async def test_swiggy_adapter_maps_exact_upi_intent_choice() -> None:
+    adapter = SwiggyMCPAdapter()
+    response = httpx.Response(
+        200,
+        json={"success": True, "data": {"orderId": "order-1", "status": "CONFIRMED"}},
+        request=httpx.Request("POST", adapter.base_url),
+    )
+    with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as post:
+        post.return_value = response
+        await adapter.checkout(
+            cart_id="cart-1",
+            payment_method="UPI",
+            payment_option_id="google-pay-provider-id",
+            payment_option_kind="intent",
+            explicit_confirmation=True,
+            address_id="addr-1",
+        )
+
+    assert post.call_args.kwargs["json"]["params"]["arguments"] == {
+        "addressId": "addr-1",
+        "paymentMethod": "UPI",
+        "intentApp": "google-pay-provider-id",
+    }
+
+
+@pytest.mark.parametrize(
+    ("raw_status", "expected"),
+    [
+        ("UNSUCCESSFUL", "PAYMENT_FAILED"),
+        ("UNPAID", "PAYMENT_FAILED"),
+        ("PAID", "PAYMENT_CONFIRMED"),
+    ],
+)
+def test_swiggy_payment_status_normalization_does_not_invert_negatives(
+    raw_status: str,
+    expected: str,
+) -> None:
+    assert SwiggyMCPAdapter._normalize_payment_status(raw_status) == expected
+
+
+def test_swiggy_existing_order_status_preserves_out_for_delivery() -> None:
+    assert (
+        SwiggyMCPAdapter._normalize_existing_order_status("OUT_FOR_DELIVERY")
+        == "OUT_FOR_DELIVERY"
+    )
+
+
+def test_swiggy_order_status_does_not_treat_unsuccessful_as_success() -> None:
+    assert SwiggyMCPAdapter._normalize_order_status(
+        "UNSUCCESSFUL",
+        order_count=1,
+        success_count=0,
+        failure_count=0,
+        all_succeeded=False,
+    ) == "FAILED"
+
+
+@pytest.mark.parametrize("raw_status", ["UNCONFIRMED", "NOT_PLACED", "SUCCESS_LATER"])
+def test_swiggy_order_status_unknown_values_never_match_success_substrings(
+    raw_status: str,
+) -> None:
+    assert SwiggyMCPAdapter._normalize_order_status(
+        raw_status,
+        order_count=1,
+        success_count=0,
+        failure_count=0,
+        all_succeeded=False,
+    ) == "ORDER_STATE_UNKNOWN"
+
+
+@pytest.mark.asyncio
+async def test_swiggy_checkout_without_order_id_is_unknown() -> None:
+    adapter = SwiggyMCPAdapter()
+    response = httpx.Response(
+        200,
+        json={"success": True, "data": {"status": "CONFIRMED"}},
+        request=httpx.Request("POST", adapter.base_url),
+    )
+    with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as post:
+        post.return_value = response
+        result = await adapter.checkout(
+            cart_id="cart-1",
+            payment_method="COD",
+            explicit_confirmation=True,
+            address_id="addr-1",
+        )
+
+    assert result.order_id is None
+    assert result.status == "ORDER_STATE_UNKNOWN"
+
+
+@pytest.mark.asyncio
+async def test_swiggy_failed_child_overrides_contradictory_top_level_success() -> None:
+    adapter = SwiggyMCPAdapter()
+    response = httpx.Response(
+        200,
+        json={
+            "success": True,
+            "data": {
+                "status": "CONFIRMED",
+                "orderId": "parent",
+                "orders": [{"orderId": "child", "status": "FAILED", "success": "false"}],
+            },
+        },
+        request=httpx.Request("POST", adapter.base_url),
+    )
+    with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as post:
+        post.return_value = response
+        result = await adapter.checkout(
+            cart_id="cart",
+            payment_method="COD",
+            explicit_confirmation=True,
+            address_id="addr",
+        )
+
+    assert result.status == "FAILED"
+    assert result.orders[0].success is False
+
+
+@pytest.mark.asyncio
+async def test_swiggy_unknown_child_prevents_complete_success() -> None:
+    adapter = SwiggyMCPAdapter()
+    response = httpx.Response(
+        200,
+        json={
+            "success": True,
+            "data": {
+                "status": "CONFIRMED",
+                "orderId": "parent",
+                "orders": [
+                    {"orderId": "A", "status": "CONFIRMED"},
+                    {"orderId": "B", "status": "UNRECOGNIZED_PROVIDER_STATE"},
+                ],
+                "allSucceeded": True,
+            },
+        },
+        request=httpx.Request("POST", adapter.base_url),
+    )
+    with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as post:
+        post.return_value = response
+        result = await adapter.checkout(
+            cart_id="cart",
+            payment_method="COD",
+            explicit_confirmation=True,
+            address_id="addr",
+        )
+
+    assert result.status == "PARTIAL_ORDER"
+    assert result.success_count == 1
+    assert result.all_succeeded is False
+
+
+@pytest.mark.asyncio
 async def test_swiggy_adapter_checkout_multi_store_and_upi_pending() -> None:
     """Handles multi-store orders and UPI PENDING_PAYMENT flows."""
     adapter = SwiggyMCPAdapter()
@@ -414,6 +567,7 @@ async def test_swiggy_adapter_checkout_multi_store_and_upi_pending() -> None:
             "success": True,
             "data": {
                 "orderId": "SWIGGY-MULTI-101",
+                "message": "Complete payment securely on Swiggy.",
                 "status": "PENDING_PAYMENT",
                 "paymentMethod": "UPI",
                 "paasId": "paas-token-xyz",
@@ -435,6 +589,8 @@ async def test_swiggy_adapter_checkout_multi_store_and_upi_pending() -> None:
         result = await adapter.checkout(
             cart_id="cart-multi",
             payment_method="UPI",
+            payment_option_id="google-pay-provider-id",
+            payment_option_kind="intent",
             explicit_confirmation=True,
             address_id="addr-1",
         )
@@ -442,6 +598,7 @@ async def test_swiggy_adapter_checkout_multi_store_and_upi_pending() -> None:
         assert result.status == "PAYMENT_PENDING"
         assert result.paas_id == "paas-token-xyz"
         assert result.bridge_url == "https://mcp.swiggy.com/pay/bridge-123"
+        assert result.provider_message == "Complete payment securely on Swiggy."
         assert result.order_count == 2
         assert len(result.orders) == 2
 
@@ -476,6 +633,8 @@ async def test_swiggy_adapter_checkout_timeout_does_not_accept_unrelated_order()
             await adapter.checkout(
                 cart_id="cart-test",
                 payment_method="UPI",
+                payment_option_id="google-pay-provider-id",
+                payment_option_kind="intent",
                 explicit_confirmation=True,
                 address_id="addr-1",
             )
@@ -502,6 +661,8 @@ async def test_swiggy_adapter_checkout_unrecovered_timeout_raises_order_state_un
             await adapter.checkout(
                 cart_id="cart-test",
                 payment_method="UPI",
+                payment_option_id="google-pay-provider-id",
+                payment_option_kind="intent",
                 explicit_confirmation=True,
                 address_id="addr-1",
             )

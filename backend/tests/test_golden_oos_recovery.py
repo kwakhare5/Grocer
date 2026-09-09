@@ -31,6 +31,7 @@ from backend.integrations.commerce.models import CartItemUpdate
 from backend.integrations.commerce.exceptions import UnconfirmedCheckoutError
 from backend.intent.enums import PrecedenceLevel, PreferenceType
 from backend.intent.models import (
+    AuthorizationScope,
     BudgetConstraint,
     DietaryConstraint,
     IntentContract,
@@ -86,6 +87,9 @@ async def test_golden_oos_recovery_scenario() -> None:
 
         ],
         substitution_policy=SubstitutionPolicy(),
+        authorization_scope=AuthorizationScope(
+            requires_approval_for_price_increase=False,
+        ),
     )
 
     # 2. Build initial basket via CommercePort
@@ -195,6 +199,13 @@ async def test_golden_orchestrator_turn_with_oos_recovery() -> None:
     assert turn1.conversation_state == ConversationState.AWAITING_CONFIRMATION
     assert turn1.requires_confirmation is True
 
+    # This golden path explicitly authorizes compliant substitutions that cost
+    # more while remaining inside the hard basket budget.
+    session = store.get(session_id)
+    assert session is not None and session.intent_contract is not None
+    session.intent_contract.authorization_scope.requires_approval_for_price_increase = False
+    store.save(session)
+
     # Now inject OOS on 1L milk
     adapter.inject_out_of_stock("SPIN-MILK-1L")
 
@@ -214,7 +225,12 @@ async def test_golden_orchestrator_turn_with_oos_recovery() -> None:
     assert any("milk" in n for n in names)
 
     # Confirm checkout
-    confirm_res = await orchestrator.handle_confirm(session_id=session_id)
+    confirm_res = await orchestrator.handle_confirm(
+        session_id=session_id,
+        payment_method=turn2.basket_summary.selected_payment_method,
+        explicit_confirmation=True,
+        confirmation_nonce=turn2.basket_summary.confirmation_nonce,
+    )
     assert confirm_res.conversation_state == ConversationState.ORDERED
     assert confirm_res.order_id is not None
 

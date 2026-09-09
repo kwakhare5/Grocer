@@ -35,12 +35,15 @@ export interface IntentBasketSummary {
   discount: number;
   grand_total: number;
   address_id: string | null;
+  address_display: string | null;
   budget: number | null;
   within_budget: boolean;
   recovery_notes: string[];
   payment_options: IntentPaymentOption[];
   selected_payment_method: string;
   selected_payment_option_id: string | null;
+  selected_payment_option_kind: string | null;
+  selected_payment_option_label: string | null;
   confirmation_nonce: string;
   confirmation_expires_at: string;
 }
@@ -72,6 +75,7 @@ export interface IntentTurnResponse {
     raw_status: string | null;
     success: boolean | null;
     grand_total: number | null;
+    error: string | null;
   }>;
   events: string[];
 }

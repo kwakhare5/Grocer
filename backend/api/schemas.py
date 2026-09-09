@@ -133,12 +133,15 @@ class BasketSummarySchema(BaseModel):
     discount: float = 0.0
     grand_total: float
     address_id: Optional[str] = None
+    address_display: Optional[str] = None
     budget: Optional[float] = None
     within_budget: bool
     recovery_notes: list[str] = Field(default_factory=list)
     payment_options: list[CommercePaymentOptionResponse] = Field(default_factory=list)
     selected_payment_method: str
     selected_payment_option_id: Optional[str] = None
+    selected_payment_option_kind: Optional[str] = None
+    selected_payment_option_label: Optional[str] = None
     confirmation_nonce: str
     confirmation_expires_at: datetime
 
@@ -158,6 +161,7 @@ class OrderChildSchema(BaseModel):
     raw_status: Optional[str] = None
     success: Optional[bool] = None
     grand_total: Optional[float] = None
+    error: Optional[str] = None
 
 
 class IntentChatResponse(BaseModel):

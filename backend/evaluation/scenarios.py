@@ -12,6 +12,7 @@ from backend.integrations.commerce.mock_adapter import MockCommerceAdapter
 from backend.integrations.commerce.models import CartItemUpdate
 from backend.intent.enums import SubstitutionTolerance
 from backend.intent.models import (
+    AuthorizationScope,
     BrandPreference,
     BudgetConstraint,
     DietaryConstraint,
@@ -49,6 +50,9 @@ def _build_s1_contract(session_id: str) -> IntentContract:
         ],
         budget=BudgetConstraint(max_budget=2000.0, is_hard=True),
         pack_size_rules=PackSizeRules(preferred_multiples=True),
+        authorization_scope=AuthorizationScope(
+            requires_approval_for_price_increase=False,
+        ),
     )
 
 
@@ -93,6 +97,9 @@ def _build_s3_contract(session_id: str) -> IntentContract:
             preferred_multiples=True,
         ),
         budget=BudgetConstraint(max_budget=500.0, is_hard=True),
+        authorization_scope=AuthorizationScope(
+            requires_approval_for_price_increase=False,
+        ),
     )
 
 

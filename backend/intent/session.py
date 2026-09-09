@@ -105,12 +105,15 @@ class BasketSummary(BaseModel):
     discount: float = 0.0
     grand_total: float
     address_id: Optional[str] = None
+    address_display: Optional[str] = None
     budget: Optional[float] = None
     within_budget: bool = Field(default=True)
     recovery_notes: list[str] = Field(default_factory=list)
     payment_options: list[PaymentOption] = Field(default_factory=list)
     selected_payment_method: str
     selected_payment_option_id: Optional[str] = None
+    selected_payment_option_kind: Optional[str] = None
+    selected_payment_option_label: Optional[str] = None
     confirmation_nonce: str
     confirmation_expires_at: datetime
 
@@ -124,6 +127,7 @@ class ConfirmationSnapshot(BaseModel):
     fingerprint: str
     payment_method: str
     payment_option_id: Optional[str] = None
+    payment_option_kind: Optional[str] = None
     created_at: datetime
     expires_at: datetime
     consumed_at: Optional[datetime] = None
@@ -139,6 +143,7 @@ def confirmation_fingerprint(
     address_id: Optional[str],
     payment_method: str,
     payment_option_id: Optional[str],
+    payment_option_kind: Optional[str],
 ) -> str:
     """Hash every material field that requires renewed user approval."""
 
@@ -167,6 +172,7 @@ def confirmation_fingerprint(
         "intent_version": contract.version,
         "payment_method": payment_method,
         "payment_option_id": payment_option_id,
+        "payment_option_kind": payment_option_kind,
         "items": items,
         "item_total": f"{cart.item_total:.2f}",
         "delivery_fee": f"{cart.delivery_fee:.2f}",
@@ -184,6 +190,7 @@ def create_confirmation_snapshot(
     address_id: Optional[str],
     payment_method: str,
     payment_option_id: Optional[str],
+    payment_option_kind: Optional[str],
     *,
     ttl: timedelta = timedelta(minutes=10),
 ) -> ConfirmationSnapshot:
@@ -196,9 +203,11 @@ def create_confirmation_snapshot(
             address_id,
             payment_method,
             payment_option_id,
+            payment_option_kind,
         ),
         payment_method=payment_method,
         payment_option_id=payment_option_id,
+        payment_option_kind=payment_option_kind,
         created_at=now,
         expires_at=now + ttl,
     )
@@ -240,6 +249,7 @@ class OrchestratorSession(BaseModel):
     conversation_state: ConversationState = ConversationState.READY
     cart_id: Optional[str] = None
     address_id: Optional[str] = None
+    address_display: Optional[str] = None
 
     # Intent
     intent_contract: Optional[IntentContract] = None
@@ -267,6 +277,8 @@ class OrchestratorSession(BaseModel):
     payment_url: Optional[str] = None
     payment_polling_interval_ms: Optional[int] = None
     payment_max_time_ms: Optional[int] = None
+    payment_next_poll_at: Optional[datetime] = None
+    payment_poll_deadline: Optional[datetime] = None
     child_orders: list[dict[str, Any]] = Field(default_factory=list)
 
 

@@ -15,9 +15,11 @@ import pytest
 from httpx import AsyncClient
 
 from backend.integrations.commerce.mock_adapter import MockCommerceAdapter
+from backend.integrations.commerce.exceptions import ProviderAuthError
 from backend.integrations.commerce.models import CartItemUpdate, CommerceCart
 from backend.integrations.commerce.port import CommercePort
 from backend.intent.models import (
+    AuthorizationScope,
     BudgetConstraint,
     IntentContract,
     IntentItem,
@@ -121,6 +123,36 @@ class CountingRecoveryEngine(LoopingRecoveryEngine):
             attempt_number=self.recover_calls,
             can_auto_apply=True,
         )
+
+
+class AuthFailureAdapter(MockCommerceAdapter):
+    def __init__(self) -> None:
+        super().__init__()
+        self.get_cart_calls = 0
+
+    async def get_cart(self, cart_id=None):  # type: ignore[no-untyped-def]
+        self.get_cart_calls += 1
+        raise ProviderAuthError("reauthentication required")
+
+
+@pytest.mark.asyncio
+async def test_recovery_does_not_retry_provider_auth_failure() -> None:
+    adapter = AuthFailureAdapter()
+    result = await LoopingRecoveryEngine().run(
+        contract=IntentContract(
+            session_id="auth-failure",
+            goal="test auth failure",
+            items=[],
+        ),
+        cart_id="cart",
+        commerce_port=adapter,
+        available_products=[],
+        max_attempts=3,
+    )
+
+    assert result.state == RecoveryState.FAILED
+    assert result.attempts == 1
+    assert adapter.get_cart_calls == 1
 
 
 @pytest.mark.asyncio
@@ -256,6 +288,9 @@ async def test_loop_single_successful_recovery_and_preserves_unrelated() -> None
         IntentItem(name="milk", quantity=1, pack_size_preference="1 L", category="dairy"),
         IntentItem(name="bread", quantity=1, pack_size_preference="400 g", category="bakery"),
     ])
+    contract.authorization_scope = AuthorizationScope(
+        requires_approval_for_price_increase=False,
+    )
 
     # Initial cart has 1L milk and bread
     await adapter.update_cart(

@@ -15,7 +15,7 @@ Entry points:
 from __future__ import annotations
 
 import copy
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -25,11 +25,16 @@ from backend.integrations.commerce.models import (
     CartItemUpdate,
     CommerceOrderResult,
     CommerceProductItem,
+    DeliveryAddress,
     OrderChildResult,
     PaymentOption,
 )
 from backend.integrations.commerce.port import CommercePort
-from backend.integrations.commerce.exceptions import CommerceError, UnconfirmedCheckoutError
+from backend.integrations.commerce.exceptions import (
+    CommerceError,
+    OrderStateUnknownError,
+    UnconfirmedCheckoutError,
+)
 
 from backend.intent.enums import PreferenceType
 from backend.intent.models import IntentContract, IntentItem
@@ -89,22 +94,42 @@ class OrchestratorTurnResult(BaseModel):
 # Message templates  (Spec §11)
 # ---------------------------------------------------------------------------
 
-def _msg_basket_ready(total: float, budget: Optional[float], recovery_notes: list[str]) -> str:
-    budget_note = f" under ₹{budget:,.0f}" if budget else ""
-    base = f"Your basket is ready — ₹{total:,.0f}{budget_note}."
-    if recovery_notes:
-        changes = "; ".join(recovery_notes)
-        base += f" ({changes})"
-    base += " Confirm to place the order."
-    return base
+def _msg_confirmation_basket(basket: BasketSummary) -> str:
+    """Render every approval-bound fact available to conversational clients."""
 
-
-def _msg_auto_recovered(notes: list[str], total: float) -> str:
-    changes = "; ".join(notes) if notes else "some items changed"
-    return (
-        f"I made a few adjustments: {changes}. "
-        f"The basket is ready — ₹{total:,.0f}. Confirm to place the order."
+    lines = ["Your basket is ready:"]
+    lines.extend(
+        f"- {item.quantity} x {item.name} ({item.pack_size}): ₹{item.line_total:,.0f}"
+        for item in basket.items
     )
+    lines.extend(
+        [
+            f"Items: ₹{basket.item_total:,.0f}",
+            f"Delivery: ₹{basket.delivery_fee:,.0f}",
+            f"Packaging: ₹{basket.packaging_fee:,.0f}",
+            f"Discount: -₹{basket.discount:,.0f}",
+            f"Total: ₹{basket.grand_total:,.0f}",
+            f"Address: {basket.address_display or basket.address_id or 'selected address'}",
+            f"Payment: {basket.selected_payment_option_label or basket.selected_payment_method}",
+        ]
+    )
+    if basket.recovery_notes:
+        lines.append(f"Recovery: {'; '.join(basket.recovery_notes)}")
+    lines.append("Confirm to place this exact order.")
+    return "\n".join(lines)
+
+
+def _display_address(address: DeliveryAddress) -> str:
+    return ", ".join(
+        part
+        for part in (
+            address.label,
+            address.street,
+            address.city,
+            address.postal_code,
+        )
+        if part
+    ) or address.id
 
 
 def _msg_clarification(question: str, options: list[ClarificationOption]) -> str:
@@ -237,8 +262,11 @@ def _build_basket_summary(
     confirmation_nonce: str,
     confirmation_expires_at: Any,
     payment_options: list[PaymentOption],
+    address_display: Optional[str],
     selected_payment_method: str,
     selected_payment_option_id: Optional[str],
+    selected_payment_option_kind: Optional[str],
+    selected_payment_option_label: Optional[str],
 ) -> BasketSummary:
     """Convert a CommerceCart + contract into a BasketSummary."""
     items: list[BasketItem] = []
@@ -265,12 +293,15 @@ def _build_basket_summary(
         discount=cart.discount,
         grand_total=grand_total,
         address_id=cart.address_id,
+        address_display=address_display,
         budget=budget,
         within_budget=(budget is None or grand_total <= budget),
         recovery_notes=recovery_notes,
         payment_options=payment_options,
         selected_payment_method=selected_payment_method,
         selected_payment_option_id=selected_payment_option_id,
+        selected_payment_option_kind=selected_payment_option_kind,
+        selected_payment_option_label=selected_payment_option_label,
         confirmation_nonce=confirmation_nonce,
         confirmation_expires_at=confirmation_expires_at,
     )
@@ -346,6 +377,8 @@ class GrocerOrchestrator:
         events: list[str] = []
 
         if address_id:
+            if address_id != session.address_id:
+                session.address_display = None
             session.address_id = address_id
 
         # Phase B: Strict live address resolution per Swiggy Builders Club spec
@@ -359,6 +392,7 @@ class GrocerOrchestrator:
 
                 if len(addresses) == 1:
                     session.address_id = addresses[0].id
+                    session.address_display = _display_address(addresses[0])
                 elif len(addresses) > 1:
                     lower_msg = message.lower().strip()
                     selected = None
@@ -372,6 +406,7 @@ class GrocerOrchestrator:
 
                     if selected:
                         session.address_id = selected.id
+                        session.address_display = _display_address(selected)
                         events.append(f"ADDRESS_SELECTED id={selected.id}")
                     else:
                         session.conversation_state = ConversationState.NEEDS_DECISION
@@ -917,12 +952,14 @@ class GrocerOrchestrator:
         session_id: str,
         payment_method: str = "UPI",
         address_id: Optional[str] = None,
-        explicit_confirmation: bool = True,
+        explicit_confirmation: bool = False,
         confirmation_nonce: Optional[str] = None,
     ) -> OrchestratorTurnResult:
         """Execute checkout after explicit user confirmation (Spec §6, §8.3)."""
-        if not explicit_confirmation:
-            raise UnconfirmedCheckoutError("Checkout requires explicit user confirmation")
+        if not explicit_confirmation or confirmation_nonce is None:
+            raise UnconfirmedCheckoutError(
+                "Checkout requires explicit confirmation bound to the presented basket"
+            )
 
         async with self._store.lock_for(session_id):
             return await self._handle_confirm_locked(
@@ -969,8 +1006,7 @@ class GrocerOrchestrator:
         pending = session.pending_confirmation
         if contract is None or pending is None:
             raise UnconfirmedCheckoutError("Checkout requires a current basket approval")
-        supplied_nonce = confirmation_nonce or pending.nonce
-        if supplied_nonce != pending.nonce or pending.consumed_at is not None or pending.is_expired:
+        if confirmation_nonce != pending.nonce or pending.consumed_at is not None or pending.is_expired:
             return OrchestratorTurnResult(
                 session_id=session_id,
                 conversation_state=ConversationState.AWAITING_CONFIRMATION,
@@ -1001,6 +1037,7 @@ class GrocerOrchestrator:
             effective_address,
             pending.payment_method,
             pending.payment_option_id,
+            pending.payment_option_kind,
         )
         if current_fingerprint != pending.fingerprint:
             return await self._make_awaiting_confirmation(
@@ -1054,9 +1091,21 @@ class GrocerOrchestrator:
                     payment_method=pending.payment_method,
                     explicit_confirmation=True,
                     address_id=effective_address,
+                    payment_option_id=pending.payment_option_id,
+                    payment_option_kind=pending.payment_option_kind,
                 )
         except UnconfirmedCheckoutError:
             raise
+        except OrderStateUnknownError:
+            session.pending_confirmation = None
+            session.conversation_state = ConversationState.ORDER_STATE_UNKNOWN
+            self._store.save(session)
+            return OrchestratorTurnResult(
+                session_id=session_id,
+                conversation_state=ConversationState.ORDER_STATE_UNKNOWN,
+                user_message="The checkout outcome is unknown. I will not retry or claim that an order was placed.",
+                events=events + ["CHECKOUT_STATE_UNKNOWN"],
+            )
         except Exception as exc:
             session.conversation_state = ConversationState.FAILED
             self._store.save(session)
@@ -1096,15 +1145,46 @@ class GrocerOrchestrator:
                     events=["NO_PENDING_PAYMENT"],
                 )
 
+            now = datetime.now(timezone.utc)
+            if session.payment_poll_deadline and now >= session.payment_poll_deadline:
+                session.conversation_state = ConversationState.ORDER_STATE_UNKNOWN
+                self._store.save(session)
+                return OrchestratorTurnResult(
+                    session_id=session_id,
+                    conversation_state=ConversationState.ORDER_STATE_UNKNOWN,
+                    user_message="The payment polling window ended without a verified result. I will not retry checkout or claim success.",
+                    order_id=session.order_id,
+                    order_total=session.order_total,
+                    payment_status=session.payment_status,
+                    events=["PAYMENT_POLL_WINDOW_EXHAUSTED"],
+                )
+            if session.payment_next_poll_at and now < session.payment_next_poll_at:
+                return OrchestratorTurnResult(
+                    session_id=session_id,
+                    conversation_state=ConversationState.PAYMENT_PENDING,
+                    user_message=_msg_payment_pending(session.order_id, session.payment_url),
+                    order_id=session.order_id,
+                    order_total=session.order_total,
+                    payment_status=session.payment_status,
+                    payment_url=session.payment_url,
+                    events=["PAYMENT_POLL_DEFERRED"],
+                )
+
             with self._port.customer_scope(session.customer_id):
                 payment = await self._port.check_payment_status(
                     session.payment_paas_id,
                     session.order_id,
                 )
             session.payment_status = payment.normalized_status
+            if payment.order_id:
+                session.order_id = payment.order_id
             events = [f"PAYMENT_STATUS_{payment.normalized_status}"]
 
             if payment.normalized_status == "PAYMENT_PENDING":
+                if session.payment_polling_interval_ms:
+                    session.payment_next_poll_at = now + timedelta(
+                        milliseconds=session.payment_polling_interval_ms
+                    )
                 self._store.save(session)
                 return OrchestratorTurnResult(
                     session_id=session_id,
@@ -1267,6 +1347,17 @@ class GrocerOrchestrator:
         session.payment_url = order.bridge_url or order.upi_intent_url
         session.payment_polling_interval_ms = order.polling_interval_ms
         session.payment_max_time_ms = order.max_time_to_poll_ms
+        now = datetime.now(timezone.utc)
+        session.payment_next_poll_at = (
+            now + timedelta(milliseconds=order.polling_interval_ms)
+            if order.polling_interval_ms
+            else None
+        )
+        session.payment_poll_deadline = (
+            now + timedelta(milliseconds=order.max_time_to_poll_ms)
+            if order.max_time_to_poll_ms
+            else None
+        )
         session.child_orders = [child.model_dump(mode="json") for child in order.orders]
 
         if order.status == "PAYMENT_PENDING":
@@ -1275,11 +1366,20 @@ class GrocerOrchestrator:
             events.append("PAYMENT_PENDING")
         elif order.status == "PARTIAL_ORDER":
             session.conversation_state = ConversationState.PARTIAL_ORDER
-            message = "Only part of the order was placed. Review the individual order results before continuing."
+            failed_children = [
+                f"{child.order_id or 'unknown store'}: {child.error}"
+                for child in order.orders
+                if child.status == "FAILED" and child.error
+            ]
+            detail = f" Failed: {'; '.join(failed_children)}." if failed_children else ""
+            message = (
+                "Only part of the order was placed. Review the individual order results before continuing."
+                + detail
+            )
             events.append("CHECKOUT_PARTIAL")
         elif order.status == "ORDER_PLACED" and order.order_id:
             session.conversation_state = ConversationState.ORDERED
-            message = _msg_ordered(order.order_id, order.grand_total)
+            message = order.provider_message or _msg_ordered(order.order_id, order.grand_total)
             events.append(f"CHECKOUT_SUCCEEDED order_id={order.order_id}")
         elif order.status == "FAILED":
             session.conversation_state = ConversationState.PAYMENT_FAILED
@@ -1401,6 +1501,7 @@ class GrocerOrchestrator:
             address_id,
             selected.method,
             selected.id,
+            selected.kind,
         )
         session.pending_confirmation = snapshot
         session.conversation_state = ConversationState.AWAITING_CONFIRMATION
@@ -1413,16 +1514,13 @@ class GrocerOrchestrator:
             confirmation_nonce=snapshot.nonce,
             confirmation_expires_at=snapshot.expires_at,
             payment_options=payment_options,
+            address_display=session.address_display,
             selected_payment_method=selected.method,
             selected_payment_option_id=selected.id,
+            selected_payment_option_kind=selected.kind,
+            selected_payment_option_label=selected.label,
         )
-        budget = contract.budget.max_budget if contract.budget else None
-
-        msg = (
-            _msg_auto_recovered(recovery_notes, cart.grand_total)
-            if recovery_notes
-            else _msg_basket_ready(cart.grand_total, budget, [])
-        )
+        msg = _msg_confirmation_basket(basket)
 
         events.append("AWAITING_CONFIRMATION")
         return OrchestratorTurnResult(

@@ -401,7 +401,10 @@ class MockCommerceAdapter(CommercePort):
         payment_method: str = "UPI",
         explicit_confirmation: bool = False,
         address_id: Optional[str] = None,
+        payment_option_id: Optional[str] = None,
+        payment_option_kind: Optional[str] = None,
     ) -> CommerceOrderResult:
+        del payment_option_id, payment_option_kind
         self.call_count += 1
         if not explicit_confirmation:
             raise UnconfirmedCheckoutError(

@@ -550,14 +550,34 @@ class SwiggyMCPAdapter(CommercePort):
 
     async def get_payment_options(self, cart_id: Optional[str] = None, address_id: Optional[str] = None) -> list[PaymentOption]:
         """Fetch live available payment methods via get_payment_options tool."""
+        del cart_id, address_id
         args: dict[str, Any] = {}
-        if address_id:
-            args["addressId"] = address_id
         res = await self._call_mcp_tool("get_payment_options", args)
         self._parse_error_if_failed(res)
 
         data = res.get("data", {})
         options: list[PaymentOption] = []
+
+        platform_kinds: dict[str, str] = {}
+        platforms = data.get("platforms")
+        if isinstance(platforms, dict):
+            for platform_name, inferred_kind in (("mobile", "intent"), ("desktop", "qr")):
+                platform = platforms.get(platform_name)
+                methods = platform.get("methods", []) if isinstance(platform, dict) else []
+                for method in methods if isinstance(methods, list) else []:
+                    if not isinstance(method, dict) or not method.get("id"):
+                        continue
+                    method_id = str(method["id"])
+                    raw_kind = method.get("kind")
+                    kind = (
+                        str(raw_kind).casefold()
+                        if raw_kind is not None
+                        else inferred_kind
+                    )
+                    if kind not in ("intent", "qr"):
+                        continue
+                    existing = platform_kinds.get(method_id)
+                    platform_kinds[method_id] = kind if existing in (None, kind) else ""
 
         all_methods = data.get("allMethods", [])
         if isinstance(all_methods, list) and all_methods:
@@ -568,7 +588,14 @@ class SwiggyMCPAdapter(CommercePort):
                 if not mid:
                     continue
                 dname = m.get("displayName", mid)
-                kind = m.get("kind")
+                raw_kind = m.get("kind")
+                kind = (
+                    str(raw_kind).casefold()
+                    if raw_kind is not None
+                    else platform_kinds.get(str(mid))
+                )
+                if kind not in ("intent", "qr"):
+                    kind = None
                 is_upi = "upi" in mid.lower() or "upi" in dname.lower() or kind in ("intent", "qr")
                 lowered = f"{mid} {dname}".lower()
                 if is_upi:
@@ -610,8 +637,8 @@ class SwiggyMCPAdapter(CommercePort):
         payment_method: str = "UPI",
         explicit_confirmation: bool = False,
         address_id: Optional[str] = None,
-        intent_app: Optional[str] = None,
-        generate_upi_qr: bool = False,
+        payment_option_id: Optional[str] = None,
+        payment_option_kind: Optional[str] = None,
     ) -> CommerceOrderResult:
         """Place Instamart order with strict server-side confirmation and non-idempotent retry guard."""
         if not explicit_confirmation:
@@ -630,10 +657,22 @@ class SwiggyMCPAdapter(CommercePort):
             "addressId": effective_address,
             "paymentMethod": payment_method,
         }
-        if intent_app:
-            args["intentApp"] = intent_app
-        if generate_upi_qr:
+        if payment_option_kind == "intent":
+            if not payment_option_id:
+                raise CommerceError(
+                    "UPI intent checkout requires the selected provider option ID.",
+                    provider="swiggy",
+                    code="MISSING_PAYMENT_OPTION",
+                )
+            args["intentApp"] = payment_option_id
+        elif payment_option_kind == "qr":
             args["generateUPIQR"] = True
+        elif payment_method.upper() == "UPI":
+            raise CommerceError(
+                "UPI checkout requires an exact intent-app or QR selection.",
+                provider="swiggy",
+                code="AMBIGUOUS_PAYMENT_OPTION",
+            )
 
         try:
             res = await self._call_mcp_tool("checkout", args)
@@ -655,32 +694,57 @@ class SwiggyMCPAdapter(CommercePort):
         raw_orders = data.get("orders", [])
         orders_list = raw_orders if isinstance(raw_orders, list) else []
         children = [self._parse_child_order(raw) for raw in orders_list if isinstance(raw, dict)]
-        order_count = int(data.get("orderCount", len(children)))
-        success_count = int(
-            data.get("successCount", sum(child.success is True for child in children))
-        )
-        failure_count = int(
-            data.get("failureCount", sum(child.success is False for child in children))
-        )
-        all_succeeded = bool(
-            data.get(
-                "allSucceeded",
-                bool(order_count and success_count == order_count and failure_count == 0),
+        if children:
+            order_count = len(children)
+            success_count = sum(child.status == "ORDER_PLACED" for child in children)
+            failure_count = sum(child.status == "FAILED" for child in children)
+            all_succeeded = bool(
+                order_count
+                and success_count == order_count
+                and failure_count == 0
             )
-        )
+        else:
+            order_count = int(data.get("orderCount", 0))
+            success_count = int(data.get("successCount", 0))
+            failure_count = int(data.get("failureCount", 0))
+            reported_all_succeeded = data.get("allSucceeded")
+            all_succeeded = (
+                reported_all_succeeded
+                if isinstance(reported_all_succeeded, bool)
+                else bool(
+                    order_count
+                    and success_count == order_count
+                    and failure_count == 0
+                )
+            )
         primary_order_id = data.get("orderId") or next(
             (child.order_id for child in children if child.order_id), None
         )
 
         raw_status_value = data.get("status")
         raw_status = str(raw_status_value).upper() if raw_status_value is not None else None
-        status = self._normalize_order_status(
+        top_level_status = self._normalize_order_status(
             raw_status,
             order_count=order_count,
             success_count=success_count,
             failure_count=failure_count,
             all_succeeded=all_succeeded,
         )
+        if children:
+            if all_succeeded:
+                status = "ORDER_PLACED"
+            elif failure_count == order_count:
+                status = "FAILED"
+            elif success_count > 0:
+                status = "PARTIAL_ORDER"
+            elif top_level_status == "PAYMENT_PENDING" and failure_count == 0:
+                status = "PAYMENT_PENDING"
+            else:
+                status = "ORDER_STATE_UNKNOWN"
+        else:
+            status = top_level_status
+        if status == "ORDER_PLACED" and not primary_order_id:
+            status = "ORDER_STATE_UNKNOWN"
 
         raw_grand_total = data.get("cartTotal", data.get("grandTotal"))
         grand_total = float(raw_grand_total) if raw_grand_total is not None else None
@@ -712,6 +776,11 @@ class SwiggyMCPAdapter(CommercePort):
             is_qr_flow=bool(data.get("isQrFlow", False)),
             polling_interval_ms=data.get("pollingIntervalInMs"),
             max_time_to_poll_ms=data.get("maxTimeToPollForInMs"),
+            provider_message=(
+                str(data["message"])
+                if data.get("message") is not None
+                else (str(res["message"]) if res.get("message") is not None else None)
+            ),
         )
 
     async def _probe_order_status_after_failure(
@@ -842,12 +911,12 @@ class SwiggyMCPAdapter(CommercePort):
 
     @staticmethod
     def _normalize_payment_status(raw_status: Any) -> str:
-        status = str(raw_status or "").upper()
-        if any(token in status for token in ("SUCCESS", "PAID", "COMPLETED")):
-            return "PAYMENT_CONFIRMED"
-        if any(token in status for token in ("FAIL", "CANCEL", "EXPIRE", "REFUND")):
+        status = str(raw_status or "").strip().upper()
+        if status in {"FAILED", "FAILURE", "CANCELLED", "CANCELED", "EXPIRED", "REFUNDED", "REFUND_INITIATED", "UNSUCCESSFUL", "UNPAID"}:
             return "PAYMENT_FAILED"
-        if any(token in status for token in ("PENDING", "PROCESS", "INITIATED")):
+        if status in {"SUCCESS", "PAID", "COMPLETED", "CAPTURED"}:
+            return "PAYMENT_CONFIRMED"
+        if status in {"PENDING", "PROCESSING", "INITIATED", "PENDING_PAYMENT"}:
             return "PAYMENT_PENDING"
         return "PAYMENT_UNKNOWN"
 
@@ -860,14 +929,29 @@ class SwiggyMCPAdapter(CommercePort):
         failure_count: int,
         all_succeeded: bool,
     ) -> str:
-        status = raw_status or ""
-        if "PENDING_PAYMENT" in status or status == "PAYMENT_PENDING":
+        status = (raw_status or "").strip().upper()
+        if status in {"PENDING_PAYMENT", "PAYMENT_PENDING"}:
             return "PAYMENT_PENDING"
-        if (failure_count > 0 and success_count > 0) or "PARTIAL" in status:
+        if (failure_count > 0 and success_count > 0) or status in {
+            "PARTIAL",
+            "PARTIAL_ORDER",
+            "PARTIALLY_PLACED",
+        }:
             return "PARTIAL_ORDER"
-        if (failure_count > 0 and success_count == 0) or "FAIL" in status:
+        if (
+            (failure_count > 0 and success_count == 0)
+            or status in {"FAILED", "FAILURE", "UNSUCCESSFUL", "CANCELLED", "CANCELED", "EXPIRED"}
+        ):
             return "FAILED"
-        if any(token in status for token in ("CONFIRM", "PLACED", "SUCCESS")):
+        if status in {
+            "CONFIRMED",
+            "ORDER_PLACED",
+            "PLACED",
+            "SUCCESS",
+            "SUCCEEDED",
+            "COMPLETED",
+            "PAYMENT_CONFIRMED",
+        }:
             return "ORDER_PLACED"
         if order_count > 0 and all_succeeded and success_count == order_count:
             return "ORDER_PLACED"
@@ -877,7 +961,12 @@ class SwiggyMCPAdapter(CommercePort):
         raw_status_value = raw.get("status")
         raw_status = str(raw_status_value).upper() if raw_status_value is not None else None
         explicit_success = raw.get("success")
-        success = bool(explicit_success) if explicit_success is not None else None
+        success = explicit_success if isinstance(explicit_success, bool) else None
+        raw_error = raw.get("error")
+        if isinstance(raw_error, dict):
+            child_error = raw_error.get("message") or raw_error.get("code")
+        else:
+            child_error = raw_error
         normalized = self._normalize_order_status(
             raw_status,
             order_count=1,
@@ -885,12 +974,20 @@ class SwiggyMCPAdapter(CommercePort):
             failure_count=1 if success is False else 0,
             all_succeeded=success is True,
         )
+        if child_error is not None and normalized == "ORDER_STATE_UNKNOWN":
+            normalized = "FAILED"
+        if success is None:
+            if normalized == "ORDER_PLACED":
+                success = True
+            elif normalized == "FAILED":
+                success = False
         return OrderChildResult(
             order_id=str(raw["orderId"]) if raw.get("orderId") else None,
             status=normalized,
             raw_status=raw_status,
             success=success,
             grand_total=float(raw["orderTotal"]) if raw.get("orderTotal") is not None else None,
+            error=str(child_error) if child_error is not None else None,
         )
 
     @staticmethod
@@ -921,12 +1018,12 @@ class SwiggyMCPAdapter(CommercePort):
         status = str(raw_status or "").upper()
         if "CANCEL" in status:
             return "CANCELLED"
-        if "DELIVER" in status:
+        if any(token in status for token in ("OUT_FOR_DELIVERY", "DISPATCH")):
+            return "OUT_FOR_DELIVERY"
+        if status == "DELIVERED":
             return "DELIVERED"
         if any(token in status for token in ("PACK", "PREPAR")):
             return "PACKING"
-        if any(token in status for token in ("OUT_FOR_DELIVERY", "DISPATCH")):
-            return "OUT_FOR_DELIVERY"
         return cls._normalize_order_status(
             status or None,
             order_count=0,

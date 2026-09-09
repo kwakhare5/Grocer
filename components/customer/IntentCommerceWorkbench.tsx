@@ -83,6 +83,9 @@ function BasketCard({ basket }: { basket: IntentBasketSummary | null }) {
         <div className="mt-2 flex items-center justify-between text-sm font-bold text-zinc-950">
           <span>total</span><span>{formatMoney(basket.grand_total)}</span>
         </div>
+        <div className="mt-2 text-[10px] text-zinc-500">
+          delivery to {basket.address_display || basket.address_id || "selected address"}
+        </div>
       </div>
 
       {basket.recovery_notes.length > 0 && (
@@ -373,7 +376,7 @@ export function IntentCommerceWorkbench({ isBackendConnected }: IntentCommerceWo
                 the backend checked this basket against the original intent. checkout is blocked until this basket, address, and payment choice are explicitly approved.
               </div>
               <div className="mt-3 rounded-xl border border-emerald-200 bg-white px-3 py-2 text-xs text-emerald-900">
-                Payment: <span className="font-bold">{basket.selected_payment_method}</span>
+                Payment: <span className="font-bold">{basket.selected_payment_option_label || basket.selected_payment_method}</span>
               </div>
               <button type="button" disabled={busy} onClick={() => void handleConfirm()} className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-[#075E54] px-4 py-3 text-xs font-bold text-white disabled:opacity-50">
                 {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}

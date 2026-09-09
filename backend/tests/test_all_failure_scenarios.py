@@ -24,6 +24,7 @@ from backend.integrations.commerce.exceptions import (
 )
 from backend.intent.enums import PrecedenceLevel, PreferenceType, SubstitutionTolerance
 from backend.intent.models import (
+    AuthorizationScope,
     BrandPreference,
     BudgetConstraint,
     DietaryConstraint,
@@ -68,6 +69,9 @@ async def test_scenario_1_unavailable_product_oos() -> None:
         ],
         budget=BudgetConstraint(max_budget=2000.0, is_hard=True),
         pack_size_rules=PackSizeRules(preferred_multiples=True),
+        authorization_scope=AuthorizationScope(
+            requires_approval_for_price_increase=False,
+        ),
     )
 
     # Initial cart setup: 1L milk + bread

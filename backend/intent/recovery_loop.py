@@ -16,6 +16,7 @@ Executes the deterministic recovery sequence across live commerce state:
 """
 from __future__ import annotations
 
+import asyncio
 from typing import Optional
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -25,6 +26,7 @@ from backend.integrations.commerce.models import (
     CommerceProductItem,
 )
 from backend.integrations.commerce.port import CommercePort
+from backend.integrations.commerce.exceptions import CommerceError
 from backend.intent.models import IntentContract
 from backend.intent.policy import PolicyEngine
 from backend.intent.recovery import (
@@ -106,13 +108,25 @@ class LoopingRecoveryEngine(RecoveryEngine):
             except Exception as exc:
                 outcome = self._recovery._handle_transient_error(attempt, max_attempts)
                 last_outcome = outcome
-                all_actions.extend(outcome.recovery_actions)
-                all_notes.append("Transient provider error detected; retried non-mutating cart inspection")
-                if attempt < max_attempts:
+                retryable = (
+                    isinstance(exc, CommerceError)
+                    and exc.code in {"TRANSIENT_TIMEOUT", "UPSTREAM_TIMEOUT"}
+                )
+                if retryable:
+                    all_actions.extend(outcome.recovery_actions)
+                    all_notes.append(
+                        "Transient provider error detected; retried non-mutating cart inspection"
+                    )
+                if retryable and attempt < max_attempts:
+                    await asyncio.sleep(min(0.1 * (2 ** (attempt - 1)), 0.5))
                     continue
                 outcome.state = RecoveryState.FAILED
                 outcome.can_auto_apply = False
-                outcome.message = f"Provider failed after {max_attempts} attempts: {exc}"
+                outcome.message = (
+                    f"Provider failed after {max_attempts} attempts."
+                    if retryable
+                    else "Provider operation is not safely retryable; user action may be required."
+                )
                 return LoopingRecoveryResult(
                     state=RecoveryState.FAILED,
                     cart=CommerceCart(cart_id=cart_id, is_serviceable=False),

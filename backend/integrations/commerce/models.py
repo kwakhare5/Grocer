@@ -107,6 +107,7 @@ class OrderChildResult(BaseModel):
     raw_status: Optional[str] = None
     success: Optional[bool] = None
     grand_total: Optional[float] = None
+    error: Optional[str] = None
 
 
 class PaymentStatusResult(BaseModel):
@@ -157,6 +158,7 @@ class CommerceOrderResult(BaseModel):
     is_qr_flow: bool = False
     polling_interval_ms: Optional[int] = None
     max_time_to_poll_ms: Optional[int] = None
+    provider_message: Optional[str] = None
 
 
 class DeliveryTrackingStatus(BaseModel):

@@ -127,6 +127,8 @@ async def test_full_checkout_happy_path(orchestrator: GrocerOrchestrator) -> Non
     confirm = await orchestrator.handle_confirm(
         session_id=session_id,
         payment_method="UPI",
+        explicit_confirmation=True,
+        confirmation_nonce=turn.basket_summary.confirmation_nonce,
     )
     assert confirm.conversation_state == ConversationState.ORDERED
     assert confirm.order_id is not None
@@ -153,7 +155,11 @@ async def test_confirm_without_awaiting_raises(orchestrator: GrocerOrchestrator)
 
 @pytest.mark.asyncio
 async def test_confirm_nonexistent_session_returns_failed(orchestrator: GrocerOrchestrator) -> None:
-    result = await orchestrator.handle_confirm(session_id="no-such-session")
+    result = await orchestrator.handle_confirm(
+        session_id="no-such-session",
+        explicit_confirmation=True,
+        confirmation_nonce="not-a-real-nonce",
+    )
     assert result.conversation_state == ConversationState.FAILED
     assert "session not found" in result.user_message.lower()
 
@@ -623,10 +629,16 @@ async def test_basket_summary_structure(orchestrator: GrocerOrchestrator) -> Non
 @pytest.mark.asyncio
 async def test_checkout_produces_order_id(orchestrator: GrocerOrchestrator) -> None:
     session_id, customer_id = new_session()
-    await orchestrator.handle_turn(
+    turn = await orchestrator.handle_turn(
         session_id=session_id, customer_id=customer_id, message="get me milk"
     )
-    result = await orchestrator.handle_confirm(session_id=session_id)
+    assert turn.basket_summary is not None
+    result = await orchestrator.handle_confirm(
+        session_id=session_id,
+        payment_method=turn.basket_summary.selected_payment_method,
+        explicit_confirmation=True,
+        confirmation_nonce=turn.basket_summary.confirmation_nonce,
+    )
     assert result.order_id is not None
     assert result.order_id.startswith("OD-")
 

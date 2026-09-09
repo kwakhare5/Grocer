@@ -94,7 +94,9 @@ class SwiggyMCPAdapter(CommercePort):
     def _resolve_token(self, customer_id: Optional[str] = None) -> Optional[str]:
         effective_customer = customer_id or self._customer_context.get()
         if self._token_resolver:
-            return self._token_resolver(effective_customer) if effective_customer else None
+            token = self._token_resolver(effective_customer) if effective_customer else None
+            if token:
+                return token
         if self._auth_token and self._owner_customer_id:
             if effective_customer != self._owner_customer_id:
                 raise ProviderAuthError(

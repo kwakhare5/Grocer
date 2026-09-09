@@ -171,6 +171,8 @@ class IntentChatResponse(BaseModel):
     basket_summary: Optional[BasketSummarySchema] = None
     clarification_options: Optional[list[ClarificationOptionSchema]] = None
     clarification_nonce: Optional[str] = None
+    payment_options: list[CommercePaymentOptionResponse] = Field(default_factory=list)
+    payment_choice_nonce: Optional[str] = None
     requires_confirmation: bool = False
     order_id: Optional[str] = None
     order_total: Optional[float] = None
@@ -183,6 +185,11 @@ class IntentChatResponse(BaseModel):
 class IntentChoiceRequest(BaseModel):
     chosen_spin_id: str = Field(min_length=1)
     clarification_nonce: str = Field(min_length=16)
+
+
+class IntentPaymentChoiceRequest(BaseModel):
+    payment_option_id: str = Field(min_length=1)
+    payment_choice_nonce: str = Field(min_length=16)
 
 
 class IntentConfirmRequest(BaseModel):
@@ -199,6 +206,7 @@ class IntentSessionStateResponse(BaseModel):
     cart_id: Optional[str] = None
     turn_count: int
     has_pending_clarification: bool
+    has_pending_payment_choice: bool = False
     order_id: Optional[str] = None
     order_total: Optional[float] = None
     payment_status: Optional[str] = None

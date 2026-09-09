@@ -700,6 +700,84 @@ async def test_swiggy_adapter_track_order() -> None:
         assert tracking.store_name == "Swiggy Instamart Indiranagar"
 
 
+@pytest.mark.asyncio
+async def test_swiggy_adapter_track_order_preserves_rich_provider_facts() -> None:
+    adapter = SwiggyMCPAdapter()
+    mock_resp = httpx.Response(
+        status_code=200,
+        json={
+            "success": True,
+            "data": {
+                "orderId": "SWIGGY-OD-RICH",
+                "orderTitle": "Instamart order",
+                "orderSubtitle": "Arriving soon",
+                "status": {
+                    "statusMessage": "Rider is out for delivery",
+                    "subStatusMessage": "Your order is nearby",
+                    "etaMinutes": 7,
+                    "etaText": "7 minutes",
+                },
+                "storeInfo": {
+                    "name": "Swiggy Instamart Indiranagar",
+                    "address": "100 Feet Road, Bengaluru",
+                },
+                "deliveryInfo": {
+                    "addressLabel": "Home",
+                    "fullAddress": "12th Main, Bengaluru",
+                },
+                "items": [{"name": "Milk", "quantity": 2, "price": "₹132"}],
+                "itemCount": 2,
+                "placedAt": "2026-09-09T10:00:00Z",
+                "paymentInfo": {"message": "Paid via UPI", "amount": "₹132"},
+                "mapInfo": {
+                    "storeLocation": {"latitude": 12.9716, "longitude": 77.5946},
+                    "storeAnnotation": "Store",
+                    "deliveryLocation": {"latitude": 12.9816, "longitude": 77.6046},
+                    "deliveryAnnotation": "Home",
+                    "riderLocation": {"latitude": 12.9766, "longitude": 77.5996},
+                },
+                "pollingIntervalSeconds": 15,
+            },
+        },
+        request=httpx.Request("POST", adapter.base_url),
+    )
+
+    with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
+        mock_post.return_value = mock_resp
+        tracking = await adapter.track_order(
+            "SWIGGY-OD-RICH", lat=12.9816, lng=77.6046
+        )
+
+    arguments = mock_post.call_args.kwargs["json"]["params"]["arguments"]
+    assert arguments == {
+        "orderId": "SWIGGY-OD-RICH",
+        "lat": 12.9816,
+        "lng": 77.6046,
+    }
+    assert tracking.status == "OUT_FOR_DELIVERY"
+    assert tracking.raw_status == "Rider is out for delivery"
+    assert tracking.sub_status_message == "Your order is nearby"
+    assert tracking.order_title == "Instamart order"
+    assert tracking.order_subtitle == "Arriving soon"
+    assert tracking.store_name == "Swiggy Instamart Indiranagar"
+    assert tracking.store_address == "100 Feet Road, Bengaluru"
+    assert tracking.delivery_address_label == "Home"
+    assert tracking.delivery_address == "12th Main, Bengaluru"
+    assert tracking.items[0].name == "Milk"
+    assert tracking.items[0].quantity == 2
+    assert tracking.items[0].price == "₹132"
+    assert tracking.item_count == 2
+    assert tracking.placed_at == "2026-09-09T10:00:00Z"
+    assert tracking.payment_message == "Paid via UPI"
+    assert tracking.payment_amount == "₹132"
+    assert tracking.store_location.latitude == 12.9716
+    assert tracking.delivery_location.longitude == 77.6046
+    assert tracking.rider_location.latitude == 12.9766
+    assert tracking.store_annotation == "Store"
+    assert tracking.delivery_annotation == "Home"
+    assert tracking.polling_interval_seconds == 15
+
+
 # ---------------------------------------------------------------------------
 # 8. Address Selection Workflow in Orchestrator
 # ---------------------------------------------------------------------------
@@ -763,9 +841,16 @@ async def test_swiggy_orchestrator_address_selection_persists() -> None:
         request=httpx.Request("POST", adapter.base_url),
     )
 
-    # When user replies with "1" or "Home"
+    # The address choice is valid only after the provider's offered set is stored.
     with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
         mock_post.return_value = mock_addr_resp
+        prompted = await orchestrator.handle_turn(
+            session_id="session-multi-addr-2",
+            customer_id="cust-multi-2",
+            message="get milk",
+        )
+        assert "NEEDS_ADDRESS_SELECTION" in prompted.events
+
         result = await orchestrator.handle_turn(
             session_id="session-multi-addr-2",
             customer_id="cust-multi-2",

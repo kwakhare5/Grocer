@@ -28,6 +28,8 @@ from backend.integrations.commerce.models import (
     PaymentOption,
     CommerceOrderResult,
     DeliveryTrackingStatus,
+    TrackingLineItem,
+    TrackingLocation,
     OrderChildResult,
     PaymentStatusResult,
     DeliveryStatusResult,
@@ -1183,16 +1185,112 @@ class SwiggyMCPAdapter(CommercePort):
             status = "UNKNOWN"
 
         store_info = data.get("storeInfo", {})
-        store_name = store_info.get("name") if isinstance(store_info, dict) else None
+        delivery_info = data.get("deliveryInfo", {})
+        payment_info = data.get("paymentInfo", {})
+        map_info = data.get("mapInfo", {})
+
+        def parse_location(raw: Any) -> Optional[TrackingLocation]:
+            if not isinstance(raw, dict):
+                return None
+            latitude = raw.get("latitude")
+            longitude = raw.get("longitude")
+            if latitude is None or longitude is None:
+                return None
+            return TrackingLocation(latitude=float(latitude), longitude=float(longitude))
+
+        raw_items = data.get("items", [])
+        items = [
+            TrackingLineItem(
+                name=str(item["name"]),
+                quantity=int(item["quantity"]),
+                price=(str(item["price"]) if item.get("price") is not None else None),
+            )
+            for item in raw_items
+            if isinstance(item, dict) and item.get("name") and item.get("quantity") is not None
+        ] if isinstance(raw_items, list) else []
 
         return DeliveryTrackingStatus(
-            order_id=order_id,
+            order_id=str(data.get("orderId") or order_id),
             status=status,
             raw_status=str(raw_status) if raw_status is not None else None,
+            sub_status_message=(
+                str(status_info["subStatusMessage"])
+                if isinstance(status_info, dict)
+                and status_info.get("subStatusMessage") is not None
+                else None
+            ),
             eta_minutes=eta_minutes,
             eta_text=eta_text,
+            order_title=(
+                str(data["orderTitle"]) if data.get("orderTitle") is not None else None
+            ),
+            order_subtitle=(
+                str(data["orderSubtitle"])
+                if data.get("orderSubtitle") is not None
+                else None
+            ),
             status_message=str(raw_status) if raw_status is not None else None,
-            store_name=store_name,
+            store_name=(
+                str(store_info["name"])
+                if isinstance(store_info, dict) and store_info.get("name") is not None
+                else None
+            ),
+            store_address=(
+                str(store_info["address"])
+                if isinstance(store_info, dict) and store_info.get("address") is not None
+                else None
+            ),
+            delivery_address_label=(
+                str(delivery_info["addressLabel"])
+                if isinstance(delivery_info, dict)
+                and delivery_info.get("addressLabel") is not None
+                else None
+            ),
+            delivery_address=(
+                str(delivery_info["fullAddress"])
+                if isinstance(delivery_info, dict)
+                and delivery_info.get("fullAddress") is not None
+                else None
+            ),
+            items=items,
+            item_count=(int(data["itemCount"]) if data.get("itemCount") is not None else None),
+            placed_at=(str(data["placedAt"]) if data.get("placedAt") is not None else None),
+            payment_message=(
+                str(payment_info["message"])
+                if isinstance(payment_info, dict) and payment_info.get("message") is not None
+                else None
+            ),
+            payment_amount=(
+                str(payment_info["amount"])
+                if isinstance(payment_info, dict) and payment_info.get("amount") is not None
+                else None
+            ),
+            store_location=(
+                parse_location(map_info.get("storeLocation"))
+                if isinstance(map_info, dict)
+                else None
+            ),
+            store_annotation=(
+                str(map_info["storeAnnotation"])
+                if isinstance(map_info, dict) and map_info.get("storeAnnotation") is not None
+                else None
+            ),
+            delivery_location=(
+                parse_location(map_info.get("deliveryLocation"))
+                if isinstance(map_info, dict)
+                else None
+            ),
+            delivery_annotation=(
+                str(map_info["deliveryAnnotation"])
+                if isinstance(map_info, dict)
+                and map_info.get("deliveryAnnotation") is not None
+                else None
+            ),
+            rider_location=(
+                parse_location(map_info.get("riderLocation"))
+                if isinstance(map_info, dict)
+                else None
+            ),
             polling_interval_seconds=(
                 int(data["pollingIntervalSeconds"])
                 if data.get("pollingIntervalSeconds") is not None

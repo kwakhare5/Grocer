@@ -11,6 +11,7 @@ from backend.api.schemas import (
     IntentChatResponse,
     IntentChoiceRequest,
     IntentConfirmRequest,
+    IntentPaymentChoiceRequest,
     IntentSessionStateResponse,
     IntentSessionCreateRequest,
     IntentSessionCreateResponse,
@@ -94,6 +95,8 @@ def _turn_to_response(result: OrchestratorTurnResult) -> IntentChatResponse:
         basket_summary=basket,
         clarification_options=clarification_options,
         clarification_nonce=result.clarification_nonce,
+        payment_options=[option.model_dump() for option in result.payment_options],
+        payment_choice_nonce=result.payment_choice_nonce,
         requires_confirmation=result.requires_confirmation,
         order_id=result.order_id,
         order_total=result.order_total,
@@ -212,6 +215,47 @@ async def intent_choice(
     return _turn_to_response(result)
 
 
+@router.post(
+    "/sessions/{session_id}/payment-choice",
+    response_model=IntentChatResponse,
+)
+async def intent_payment_choice(
+    session_id: str,
+    payload: IntentPaymentChoiceRequest,
+    session_capability: str | None = Header(
+        None, alias="X-Grocer-Session-Capability"
+    ),
+) -> IntentChatResponse:
+    """Accept only an exact live payment option offered for this basket."""
+
+    session = _authorized_session(session_id, session_capability)
+    pending = session.pending_payment_choice
+    if pending is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="No pending payment choice for this session.",
+        )
+    if payload.payment_choice_nonce != pending.nonce:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="The payment choice is stale.",
+        )
+    if payload.payment_option_id not in {
+        option.id or option.method for option in pending.options
+    }:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="payment_option_id is not one of the offered methods.",
+        )
+    return _turn_to_response(
+        await _orchestrator.handle_payment_choice(
+            session_id,
+            payload.payment_option_id,
+            payload.payment_choice_nonce,
+        )
+    )
+
+
 @router.post("/sessions/{session_id}/confirm", response_model=IntentChatResponse)
 async def intent_confirm(
     session_id: str,
@@ -261,6 +305,7 @@ async def get_session(
         cart_id=session.cart_id,
         turn_count=session.turn_count,
         has_pending_clarification=session.pending_clarification is not None,
+        has_pending_payment_choice=session.pending_payment_choice is not None,
         order_id=session.order_id,
         order_total=session.order_total,
         payment_status=session.payment_status,

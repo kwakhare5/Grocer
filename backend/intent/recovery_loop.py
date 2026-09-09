@@ -241,10 +241,7 @@ class LoopingRecoveryEngine(RecoveryEngine):
             elif non_mutation_actions:
                 # Controlled non-mutating provider operation: re-fetch / refresh
                 # Do NOT fake retries through update_cart()!
-                try:
-                    current_catalog = await commerce_port.get_go_to_items(address_id or "")
-                except Exception:
-                    pass
+                current_catalog = await commerce_port.get_go_to_items(address_id or "")
 
             for a in outcome.recovery_actions:
                 all_actions.append(a)
@@ -283,10 +280,7 @@ class LoopingRecoveryEngine(RecoveryEngine):
 
             # If reverification failed and this was not a non-mutation action, refresh catalog
             if not non_mutation_actions:
-                try:
-                    current_catalog = await commerce_port.get_go_to_items(address_id or "")
-                except Exception:
-                    pass
+                current_catalog = await commerce_port.get_go_to_items(address_id or "")
 
         # Reached max_attempts without PASS
         final_cart = await commerce_port.get_cart(cart_id)

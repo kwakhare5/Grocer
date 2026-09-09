@@ -111,10 +111,11 @@ async def test_confirmation_is_bound_to_presented_payment_method() -> None:
         payment_method="COD",
     )
 
-    assert result.conversation_state == ConversationState.AWAITING_CONFIRMATION
-    assert result.basket_summary is not None
-    assert result.basket_summary.selected_payment_method == "COD"
-    assert result.basket_summary.confirmation_nonce != nonce
+    assert result.conversation_state == ConversationState.NEEDS_DECISION
+    assert result.basket_summary is None
+    assert "PAYMENT_METHOD_UNAVAILABLE" in result.events
+    assert result.payment_options
+    assert all(option.method != "COD" for option in result.payment_options)
     assert adapter.checkout_attempts == 0
 
 

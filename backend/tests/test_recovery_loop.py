@@ -77,13 +77,28 @@ class FakeCommercePort(CommercePort):
     async def clear_cart(self, cart_id=None):
         return True
 
-    async def get_payment_options(self, cart_id=None):
+    async def get_payment_options(self, cart_id=None, address_id=None):
         return []
 
     async def checkout(self, cart_id: str, payment_method="UPI", explicit_confirmation=False, address_id=None):
         raise AssertionError("checkout is not part of recovery-loop test")
 
-    async def track_order(self, order_id: str):
+    async def check_payment_status(self, paas_id: str, order_id=None):
+        raise AssertionError("payment is not part of recovery-loop test")
+
+    async def confirm_order(self, order_id: str, paas_id: str):
+        raise AssertionError("payment is not part of recovery-loop test")
+
+    async def get_orders(self, count: int = 10, active_only: bool = False):
+        raise AssertionError("orders are not part of recovery-loop test")
+
+    async def get_order_details(self, order_id: str):
+        raise AssertionError("orders are not part of recovery-loop test")
+
+    async def get_delivery_status(self, order_id: str, address_id: str):
+        raise AssertionError("tracking is not part of recovery-loop test")
+
+    async def track_order(self, order_id: str, lat=None, lng=None):
         raise AssertionError("tracking is not part of recovery-loop test")
 
 

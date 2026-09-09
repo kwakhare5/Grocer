@@ -161,8 +161,24 @@ class CommerceOrderResult(BaseModel):
     provider_message: Optional[str] = None
 
 
+class TrackingLocation(BaseModel):
+    """Provider-neutral geographic point returned by order tracking."""
+
+    latitude: float
+    longitude: float
+
+
+class TrackingLineItem(BaseModel):
+    """Provider-returned item summary for a tracked order."""
+
+    name: str
+    quantity: int
+    price: Optional[str] = None
+
+
 class DeliveryTrackingStatus(BaseModel):
     """Live status and ETA of an in-flight order."""
+
     order_id: str
     status: Literal[
         "UNKNOWN",
@@ -174,12 +190,28 @@ class DeliveryTrackingStatus(BaseModel):
         "CANCELLED",
     ] = "UNKNOWN"
     raw_status: Optional[str] = None
+    sub_status_message: Optional[str] = None
     eta_minutes: Optional[int] = None
     eta_text: Optional[str] = None
+    order_title: Optional[str] = None
+    order_subtitle: Optional[str] = None
     driver_name: Optional[str] = None
     driver_phone: Optional[str] = None
     status_message: Optional[str] = None
     store_name: Optional[str] = None
+    store_address: Optional[str] = None
+    delivery_address_label: Optional[str] = None
+    delivery_address: Optional[str] = None
+    items: list[TrackingLineItem] = Field(default_factory=list)
+    item_count: Optional[int] = None
+    placed_at: Optional[str] = None
+    payment_message: Optional[str] = None
+    payment_amount: Optional[str] = None
+    store_location: Optional[TrackingLocation] = None
+    store_annotation: Optional[str] = None
+    delivery_location: Optional[TrackingLocation] = None
+    delivery_annotation: Optional[str] = None
+    rider_location: Optional[TrackingLocation] = None
     polling_interval_seconds: Optional[int] = None
     last_updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 

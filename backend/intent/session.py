@@ -26,7 +26,7 @@ from backend.intent.models import IntentContract
 from backend.intent.verifier import VerificationResult
 from backend.intent.recovery import RecoveryOutcome, RecoveryCandidate
 from backend.intent.semantics import normalize_pack_quantity
-from backend.integrations.commerce.models import CommerceCart, PaymentOption
+from backend.integrations.commerce.models import CommerceCart, DeliveryAddress, PaymentOption
 
 
 # ---------------------------------------------------------------------------
@@ -230,6 +230,25 @@ class PendingClarification(BaseModel):
     )
 
 
+class PendingAddressChoice(BaseModel):
+    """Saved provider addresses awaiting an explicit user selection."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    addresses: list[DeliveryAddress]
+    request_message: str
+
+
+class PendingPaymentChoice(BaseModel):
+    """Live provider payment methods awaiting an explicit user selection."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    nonce: str = Field(default_factory=lambda: secrets.token_urlsafe(16))
+    options: list[PaymentOption]
+    recovery_notes: list[str] = Field(default_factory=list)
+
+
 
 # ---------------------------------------------------------------------------
 # Session model  (Spec §13.1)
@@ -256,6 +275,8 @@ class OrchestratorSession(BaseModel):
 
     # Pending states
     pending_clarification: Optional[PendingClarification] = None
+    pending_address_choice: Optional[PendingAddressChoice] = None
+    pending_payment_choice: Optional[PendingPaymentChoice] = None
     pending_confirmation: Optional[ConfirmationSnapshot] = None
 
     # Last verification/recovery for audit
@@ -279,6 +300,8 @@ class OrchestratorSession(BaseModel):
     payment_max_time_ms: Optional[int] = None
     payment_next_poll_at: Optional[datetime] = None
     payment_poll_deadline: Optional[datetime] = None
+    delivery_latitude: Optional[float] = None
+    delivery_longitude: Optional[float] = None
     child_orders: list[dict[str, Any]] = Field(default_factory=list)
 
 

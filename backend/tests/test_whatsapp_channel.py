@@ -12,6 +12,12 @@ from httpx import ASGITransport, AsyncClient
 
 from backend.channels.models import ChannelType, NormalizedIncomingMessage
 from backend.channels.whatsapp import WhatsAppChannelAdapter, default_whatsapp_adapter
+from backend.intent.orchestrator import OrchestratorTurnResult
+from backend.intent.session import (
+    ConversationState,
+    OrchestratorSession,
+    default_session_store,
+)
 from backend.main import app
 
 
@@ -145,6 +151,62 @@ def test_identity_mapping_and_session_continuity(whatsapp_adapter: WhatsAppChann
     sess1 = whatsapp_adapter.get_or_create_session_id(customer_id)
     sess2 = whatsapp_adapter.get_or_create_session_id(customer_id)
     assert sess1 == sess2
+
+
+@pytest.mark.parametrize(
+    "phrase",
+    ["track order", "where is my order", "delivery status", "order eta"],
+)
+@pytest.mark.asyncio
+async def test_order_tracking_phrases_route_to_delivery_status(
+    whatsapp_adapter: WhatsAppChannelAdapter,
+    monkeypatch,
+    phrase: str,
+) -> None:  # type: ignore[no-untyped-def]
+    sender_id = f"91900000{uuid.uuid4().int % 100000:05d}"
+    customer_id = whatsapp_adapter.map_sender_to_customer_id(sender_id)
+    session_id = f"tracking-{uuid.uuid4()}"
+    session = OrchestratorSession(
+        session_id=session_id,
+        customer_id=customer_id,
+        conversation_state=ConversationState.ORDERED,
+        order_id="order-tracking",
+    )
+    default_session_store.save(session)
+    whatsapp_adapter._active_sessions[customer_id] = session_id
+    calls: list[str] = []
+
+    class TrackingOrchestrator:
+        async def handle_delivery_status(self, active_session_id: str):
+            calls.append(active_session_id)
+            return OrchestratorTurnResult(
+                session_id=active_session_id,
+                conversation_state=ConversationState.ORDERED,
+                user_message="Rider is on the way.",
+                order_id="order-tracking",
+                events=["ORDER_TRACKING_READ"],
+            )
+
+    async def send_success(response):  # type: ignore[no-untyped-def]
+        del response
+        return True
+
+    monkeypatch.setattr(whatsapp_adapter, "send_response", send_success)
+    try:
+        response = await whatsapp_adapter.dispatch(
+            NormalizedIncomingMessage(
+                sender_id=sender_id,
+                channel=ChannelType.WHATSAPP,
+                text=phrase,
+                message_id=f"message-{uuid.uuid4()}",
+            ),
+            TrackingOrchestrator(),  # type: ignore[arg-type]
+        )
+    finally:
+        default_session_store.clear(session_id)
+
+    assert calls == [session_id]
+    assert response.events == ["ORDER_TRACKING_READ"]
 
 
 # ---------------------------------------------------------------------------

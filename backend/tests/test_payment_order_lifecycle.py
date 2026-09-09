@@ -39,6 +39,17 @@ class PendingPaymentAdapter(MockCommerceAdapter):
         self.confirm_calls = 0
         self.payment_status_calls = 0
 
+    async def get_payment_options(self, *args, **kwargs):  # type: ignore[no-untyped-def]
+        del args, kwargs
+        return [
+            PaymentOption(
+                method="UPI",
+                label="Google Pay",
+                id="google-pay-provider-id",
+                kind="intent",
+            )
+        ]
+
     async def checkout(self, cart_id: str, **kwargs) -> CommerceOrderResult:  # type: ignore[no-untyped-def]
         cart = await self.get_cart(cart_id)
         return CommerceOrderResult(
@@ -231,9 +242,13 @@ async def test_payment_polling_honors_provider_cadence_and_deadline() -> None:
     assert session is not None
     session.payment_poll_deadline = datetime.now(timezone.utc) - timedelta(seconds=1)
     expired = await orchestrator.handle_payment_status("payment-cadence")
-    assert expired.conversation_state == ConversationState.ORDER_STATE_UNKNOWN
-    assert expired.events == ["PAYMENT_POLL_WINDOW_EXHAUSTED"]
+    assert expired.conversation_state == ConversationState.ORDERED
+    assert expired.events == [
+        "PAYMENT_POLL_CAP_CONFIRM_ATTEMPTED",
+        "CHECKOUT_SUCCEEDED order_id=order-1",
+    ]
     assert adapter.payment_status_calls == 0
+    assert adapter.confirm_calls == 1
 
 
 @pytest.mark.asyncio

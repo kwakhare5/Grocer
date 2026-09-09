@@ -155,7 +155,54 @@ class BaseChannelAdapter(ABC):
                 events=["ORDER_CANCELLATION_REDIRECTED"],
             )
 
-        # 2. Check for clarification choice
+        # 2. Check for payment-method choice
+        elif (
+            session
+            and session.conversation_state == ConversationState.NEEDS_DECISION
+            and session.pending_payment_choice
+        ):
+            pending_payment = session.pending_payment_choice
+            chosen_payment_id: Optional[str] = None
+            payment_choice_nonce: Optional[str] = None
+
+            if interactive_id and interactive_id.startswith("payment:"):
+                parts = interactive_id.split(":", 2)
+                if len(parts) == 3:
+                    payment_choice_nonce = parts[1]
+                    chosen_payment_id = parts[2]
+            elif clean_text.isdigit():
+                index = int(clean_text) - 1
+                if 0 <= index < len(pending_payment.options):
+                    chosen = pending_payment.options[index]
+                    chosen_payment_id = chosen.id or chosen.method
+            else:
+                for option in pending_payment.options:
+                    option_id = option.id or option.method
+                    if clean_text in {
+                        option_id.casefold(),
+                        option.method.casefold(),
+                        option.label.casefold(),
+                    }:
+                        chosen_payment_id = option_id
+                        break
+
+            if chosen_payment_id:
+                turn_result = await orchestrator.handle_payment_choice(
+                    session_id,
+                    chosen_payment_id,
+                    payment_choice_nonce or pending_payment.nonce,
+                )
+            else:
+                turn_result = OrchestratorTurnResult(
+                    session_id=session_id,
+                    conversation_state=ConversationState.NEEDS_DECISION,
+                    user_message="Please choose one of the current payment methods.",
+                    payment_options=pending_payment.options,
+                    payment_choice_nonce=pending_payment.nonce,
+                    events=["PAYMENT_CHOICE_REQUIRED"],
+                )
+
+        # 3. Check for product clarification choice
         elif session and session.conversation_state == ConversationState.NEEDS_DECISION and session.pending_clarification:
             chosen_spin_id: Optional[str] = None
             clarification_nonce: Optional[str] = None
@@ -199,7 +246,7 @@ class BaseChannelAdapter(ABC):
                     address_id=session.address_id,
                 )
 
-        # 3. Standard conversational turn
+        # 4. Standard conversational turn
         else:
             turn_result = await orchestrator.handle_turn(
                 session_id=session_id,
@@ -225,7 +272,27 @@ class BaseChannelAdapter(ABC):
         interactive_title = None
         interactive_button_text = None
 
-        if result.conversation_state == ConversationState.NEEDS_DECISION and result.clarification_options:
+        if result.conversation_state == ConversationState.NEEDS_DECISION and result.payment_options:
+            interactive_title = "Payment Options"
+            interactive_button_text = "Choose Payment"
+            for index, option in enumerate(result.payment_options, 1):
+                option_id = option.id or option.method
+                actions.append(
+                    InteractiveAction(
+                        action_type="list_item",
+                        id=(
+                            f"payment:{result.payment_choice_nonce or 'invalid'}:"
+                            f"{option_id}"
+                        ),
+                        title=f"{index}. {option.label}"[:24],
+                        description=option.method[:72],
+                    )
+                )
+
+        elif (
+            result.conversation_state == ConversationState.NEEDS_DECISION
+            and result.clarification_options
+        ):
             interactive_title = "Alternative Options"
             interactive_button_text = "Select Alternative"
             for opt in result.clarification_options:

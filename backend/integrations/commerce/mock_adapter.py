@@ -387,12 +387,6 @@ class MockCommerceAdapter(CommercePort):
                 is_available=True,
                 description="Instant authorization via UPI Intent or scan QR",
             ),
-            PaymentOption(
-                method="COD",
-                label="Cash on Delivery",
-                is_available=True,
-                description="Pay in cash or UPI to delivery partner upon arrival",
-            ),
         ]
 
     async def checkout(
@@ -521,7 +515,13 @@ class MockCommerceAdapter(CommercePort):
             poll_interval_sec=10,
         )
 
-    async def track_order(self, order_id: str) -> DeliveryTrackingStatus:
+    async def track_order(
+        self,
+        order_id: str,
+        lat: Optional[float] = None,
+        lng: Optional[float] = None,
+    ) -> DeliveryTrackingStatus:
+        del lat, lng
         if order_id not in self._orders:
             raise CommerceError("Simulated order not found", code="ORDER_NOT_FOUND")
 
@@ -529,6 +529,7 @@ class MockCommerceAdapter(CommercePort):
             order_id=order_id,
             status="PACKING",
             raw_status="SIMULATED_PACKING",
+            status_message="Simulated packing",
             eta_minutes=12,
             driver_name="Ramesh Kamble",
             driver_phone="+91 98201 12345",

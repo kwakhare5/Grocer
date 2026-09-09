@@ -230,16 +230,16 @@ If the answer is no, it does not belong in GROCER v2 unless the master spec is d
 
 ## 15. SESSION RESUME
 
-**Last completed:** Codex deep audit implementation, final review, and verification (2026-09-09)
+**Last completed:** Targeted independent merge-blocker and provider-contract remediation (2026-09-09)
 
-**Status:** Audit branch `audit/codex-deep-review` is unmerged and ready for independent review. Supported single-process flows are hardened and locally green; production persistence/deployment, per-child lifecycle polling, and approved live lifecycle revalidation are deferred. No live provider mutation or order occurred during the audit.
+**Status:** Audit branch `audit/codex-deep-review` is unmerged and ready for one final independent merge review. Confirmed quantity/dietary, address, provider-failure, payment-choice, polling-cap, tracking, and CommercePort contract gaps are resolved and locally green. Production persistence/deployment, per-child lifecycle polling, and approved live lifecycle revalidation remain deferred. No live provider mutation or order occurred.
 
 **Quality Gates:**
-- `pytest backend/tests`: 240 tests passed.
+- `pytest backend/tests`: 302 tests passed.
 - Evaluation: 10/10 scenarios; 40% evidence-based autonomous recovery; 0 unsafe autonomous actions.
 - `npm run lint`: 0 errors, 0 warnings.
 - `npm run build`: Next.js and TypeScript passed.
-- Adversarial ledger: 47 automated, 26 partial, 28 uncovered, 1 not applicable.
+- Adversarial ledger: 58 automated, 24 partial, 26 uncovered, 1 not applicable.
 - Current blockers and evidence: `CURRENT_STATE.md` and `docs/audit/CODEX_AUDIT_REPORT.md`.
 
 

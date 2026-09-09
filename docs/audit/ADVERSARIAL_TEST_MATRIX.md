@@ -22,6 +22,7 @@
 | Q14 | malformed/missing pack metadata | mark quantity unverifiable; do not assume one unit satisfies volume | unit |
 | Q15 | cheapest candidate underfills; dearer candidate satisfies | choose semantically valid candidate before price ranking | unit |
 | Q16 | max provider quantity below required amount | clarify/blocked; never claim full quantity | integration |
+| Q17 | 6 individual pieces vs 6-piece or 1-piece provider packs | choose 1 or 6 packs respectively; reject non-divisible fill | unit |
 
 ## Product identity, brand, and dietary intent
 
@@ -39,6 +40,7 @@
 | I10 | hard vegetarian request, product metadata contradicts | reject item | unit |
 | I11 | dietary metadata absent | do not claim compliance; clarify when material | unit |
 | I12 | two equally valid brands under soft policy | clarify only when ranking cannot decide safely | integration |
+| I13 | any currently parsed hard dietary tag lacks authoritative metadata | fail closed as dietary-unverifiable | unit |
 
 ## Intent mutation, policy, and recovery
 
@@ -100,6 +102,9 @@
 | P16 | checkout 5xx then unrelated historical order exists | ORDER_STATE_UNKNOWN; do not attach it | contract |
 | P17 | auth 401/419 | require reauthentication; do not retry with stale token | contract |
 | P18 | unsupported/malformed provider response | normalized provider-contract error, safe user state | contract |
+| P19 | multiple usable payment methods | require exact live choice and bind a fresh confirmation | integration |
+| P20 | provider failure during address/search/recovery/payment lookup | preserve auth/revoked/timeout/provider failure; do not report empty | integration |
+| P21 | adapter omits a supported lifecycle method | adapter cannot instantiate | contract |
 
 ## Tracking and order-detail truthfulness
 
@@ -117,6 +122,7 @@
 | T10 | “how much did I pay?” while payment pending | say payment pending, not paid | integration |
 | T11 | unchanged tracking polls | no duplicate user notification | unit |
 | T12 | meaningful transition/ETA change | one semantic notification event | unit |
+| T13 | conversational tracking phrases with/without trusted coordinates | use rich tracking or explicit structured ETA fallback; never synthesize coordinates | integration |
 
 ## WhatsApp, API, auth, privacy, and persistence
 
@@ -138,14 +144,15 @@
 | S14 | expired token | removed/re-auth required; token never logged | unit |
 | S15 | logs under normal/error flows | no full phone, raw message, token, address, payment/order detail | unit |
 | S16 | session deletion | removes session and intent history; capability invalid | integration |
+| S17 | provider returns one or many saved addresses | require exact user choice before commerce calls | integration |
 
 ## Evaluation design
 
 ## Verified coverage ledger
 
-Coverage was re-audited against the final branch on 2026-09-08. AUTOMATED means a deterministic test directly exercises the stated invariant. PARTIALLY COVERED means some layers or variants are tested but the complete scenario is not. MANUAL-LIVE ONLY is reserved for behavior for which the only current evidence is a controlled provider exercise; none was claimed because this audit placed no live order. NOT COVERED is an explicit remaining gap. NOT APPLICABLE means the exposed behavior was intentionally removed.
+Coverage was re-audited against the targeted-remediation branch on 2026-09-09. AUTOMATED means a deterministic test directly exercises the stated invariant. PARTIALLY COVERED means some layers or variants are tested but the complete scenario is not. MANUAL-LIVE ONLY is reserved for behavior for which the only current evidence is a controlled provider exercise; none was claimed because this audit placed no live order. NOT COVERED is an explicit remaining gap. NOT APPLICABLE means the exposed behavior was intentionally removed.
 
-Evidence aliases: QI = backend/tests/test_quantity_and_identity_semantics.py; RE = test_recovery_engine.py; AF = test_all_failure_scenarios.py; CR = test_canonical_recovery_regression.py; CI = test_confirmation_integrity.py; PL = test_payment_order_lifecycle.py; SA = test_swiggy_adapter.py; WA = test_whatsapp_channel.py; AS = test_api_session_security.py; PI = test_provider_identity_isolation.py; EH = test_evaluation_harness.py.
+Evidence aliases: QI = backend/tests/test_quantity_and_identity_semantics.py; DC = test_dietary_constraint_verification.py; TP = test_targeted_provider_contract_regressions.py; PC = test_commerce_port_contract.py; RE = test_recovery_engine.py; AF = test_all_failure_scenarios.py; CR = test_canonical_recovery_regression.py; CI = test_confirmation_integrity.py; PL = test_payment_order_lifecycle.py; SA = test_swiggy_adapter.py; WA = test_whatsapp_channel.py; AS = test_api_session_security.py; PI = test_provider_identity_isolation.py; EH = test_evaluation_harness.py.
 
 | ID | Coverage | Evidence / limitation |
 |---|---|---|
@@ -157,7 +164,7 @@ Evidence aliases: QI = backend/tests/test_quantity_and_identity_semantics.py; RE
 | Q06 | PARTIALLY COVERED | QI covers exact pack arithmetic, not paneer fixture |
 | Q07 | AUTOMATED | QI egg count-pack test |
 | Q08 | PARTIALLY COVERED | QI covers dozen/count conversion, not this fixture |
-| Q09 | NOT COVERED | No direct pack-count regression |
+| Q09 | AUTOMATED | QI preserves explicit pack count independently of provider unit count |
 | Q10 | PARTIALLY COVERED | Parser ambiguity behavior tested; no full mutation assertion |
 | Q11 | AUTOMATED | QI dimension mismatch |
 | Q12 | AUTOMATED | QI decimal/case normalization |
@@ -165,6 +172,7 @@ Evidence aliases: QI = backend/tests/test_quantity_and_identity_semantics.py; RE
 | Q14 | NOT COVERED | Missing-pack metadata has no direct regression |
 | Q15 | AUTOMATED | QI semantic validity precedes price |
 | Q16 | NOT COVERED | No max-quantity integration test |
+| Q17 | AUTOMATED | QI covers exact 6-piece/1-piece conversion and rejects non-divisible fill in selection, verification, and recovery |
 | I01 | AUTOMATED | QI derivative exclusion |
 | I02 | AUTOMATED | QI derivative exclusion |
 | I03 | AUTOMATED | QI derivative exclusion |
@@ -175,8 +183,9 @@ Evidence aliases: QI = backend/tests/test_quantity_and_identity_semantics.py; RE
 | I08 | AUTOMATED | test_intent_contract.py current-request precedence |
 | I09 | PARTIALLY COVERED | Merge/precedence tests do not cover this full turn sequence |
 | I10 | AUTOMATED | RE hard dietary violation |
-| I11 | NOT COVERED | Provider model lacks authoritative dietary metadata |
+| I11 | AUTOMATED | DC fails closed when authoritative dietary metadata is absent |
 | I12 | AUTOMATED | RE ambiguity handling |
+| I13 | AUTOMATED | DC parameterizes every dietary tag currently accepted by the parser |
 | R01 | AUTOMATED | CR out-of-stock recovery loop |
 | R02 | PARTIALLY COVERED | CR refetch/reverify, not unchanged-success fixture |
 | R03 | AUTOMATED | AF partial-cart scenario |
@@ -209,7 +218,7 @@ Evidence aliases: QI = backend/tests/test_quantity_and_identity_semantics.py; RE
 | P02 | AUTOMATED | PL excludes unavailable COD |
 | P03 | AUTOMATED | PL empty-options fail closed |
 | P04 | AUTOMATED | PL pending state and provider cadence fields |
-| P05 | PARTIALLY COVERED | PL enforces cadence/deadline and no success claim; live cap behavior unverified |
+| P05 | AUTOMATED | PL/TP enforce cadence and call confirm_order once at the polling cap without checkout retry |
 | P06 | NOT COVERED | No direct already-confirmed payment orchestration test |
 | P07 | AUTOMATED | PL confirm-once with returned orderId/paasId |
 | P08 | AUTOMATED | PL failed payment never confirms |
@@ -223,9 +232,12 @@ Evidence aliases: QI = backend/tests/test_quantity_and_identity_semantics.py; RE
 | P16 | AUTOMATED | SA rejects unrelated historical order after timeout |
 | P17 | PARTIALLY COVERED | SA auth errors; integrated token eviction/reauth absent |
 | P18 | PARTIALLY COVERED | SA malformed/unknown fields fail safely; not exhaustive |
+| P19 | AUTOMATED | TP requires exact live option IDs, rejects stale choices, and renews confirmation |
+| P20 | AUTOMATED | TP distinguishes auth, revoked session, timeout/network, provider failure, and true empty results across lookup phases |
+| P21 | AUTOMATED | PC proves incomplete lifecycle adapters cannot instantiate and production adapters do |
 | T01 | AUTOMATED | PL unknown raw order status |
 | T02 | AUTOMATED | PL/SA absent ETA remains absent |
-| T03 | PARTIALLY COVERED | SA rejects absent tracking coordinates; order history does not preserve them |
+| T03 | AUTOMATED | SA rejects absent coordinates; TP makes zero rich calls and uses the explicit structured fallback |
 | T04 | PARTIALLY COVERED | SA nullable rider/store parsing |
 | T05 | NOT COVERED | No cancelled tracking fixture |
 | T06 | PARTIALLY COVERED | Status normalization exists; terminal poll behavior not tested |
@@ -235,6 +247,7 @@ Evidence aliases: QI = backend/tests/test_quantity_and_identity_semantics.py; RE
 | T10 | NOT COVERED | No conversational pending-payment price question |
 | T11 | NOT COVERED | Proactive notification deduplication is deferred |
 | T12 | NOT COVERED | Semantic tracking notifications are deferred |
+| T13 | AUTOMATED | WA routes all four conversational phrases; TP selects rich tracking only with trusted coordinates |
 | S01 | PARTIALLY COVERED | WA live-secret fail-closed paths; startup matrix incomplete |
 | S02 | PARTIALLY COVERED | WA HMAC rejection variants |
 | S03 | NOT COVERED | JSON-shape/phone-ID validation matrix absent |
@@ -251,10 +264,11 @@ Evidence aliases: QI = backend/tests/test_quantity_and_identity_semantics.py; RE
 | S14 | PARTIALLY COVERED | OAuth expiry is unit tested; automatic eviction incomplete |
 | S15 | PARTIALLY COVERED | Redaction helpers tested; full normal/error log audit incomplete |
 | S16 | PARTIALLY COVERED | Session and intent history deletion covered; post-delete capability rejection absent |
+| S17 | AUTOMATED | TP/SA require explicit one-or-many saved-address selection and exact offered IDs |
 
-Summary: **47 AUTOMATED**, **26 PARTIALLY COVERED**, **28 NOT COVERED**, **0 MANUAL-LIVE ONLY**, **1 NOT APPLICABLE** (102 total).
+Summary: **58 AUTOMATED**, **24 PARTIALLY COVERED**, **26 NOT COVERED**, **0 MANUAL-LIVE ONLY**, **1 NOT APPLICABLE** (109 total).
 
-The matrix contains 102 scenarios. Count is secondary to value; scenarios should be consolidated with parameterization where one invariant covers several inputs.
+The matrix contains 109 scenarios. Count is secondary to value; scenarios should be consolidated with parameterization where one invariant covers several inputs.
 
 Metrics must be computed from actual scenario outcomes:
 

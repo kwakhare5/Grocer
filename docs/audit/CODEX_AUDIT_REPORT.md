@@ -27,16 +27,28 @@ Latest local evidence:
 
 | Gate | Result |
 |---|---|
-| Python suite | 240 passed |
+| Python suite | 302 passed |
 | Canonical evaluation | 10/10 passed; 40% evidence-based autonomous recovery |
 | Unsafe autonomous recovery mutations | 0 |
 | ESLint | passed |
 | Next.js build / TypeScript | passed |
-| Adversarial matrix | 47 automated, 26 partial, 28 uncovered, 1 not applicable |
+| Adversarial matrix | 58 automated, 24 partial, 26 uncovered, 1 not applicable |
 | Secret scan | no tracked environment file or hard-coded assignment match |
 | Live commerce during audit | none |
 
-The result is substantially safer and reviewable, but it is not a production-readiness claim. Durable identity/state/idempotency, integrated OAuth lifecycle, defensible positive timeout reconciliation, primary coordinate-based tracking, authoritative dietary metadata, complete webhook envelope/size defenses, and approved live validation remain explicit blockers.
+The result is substantially safer and reviewable, but it is not a production-readiness claim. Durable identity/state/idempotency, integrated OAuth lifecycle, defensible positive timeout reconciliation, authoritative dietary metadata, complete webhook envelope/size defenses, and approved live lifecycle validation remain explicit blockers.
+
+### Independent merge-blocker remediation
+
+- explicit individual COUNT requests are distinct from PACK_COUNT and convert only through exact provider pack arithmetic;
+- every parsed hard dietary constraint fails closed when authoritative provider metadata cannot prove compliance;
+- the current provider documentation does not impose the reported ₹1000 Instamart checkout cap, so no stale limit was added;
+- every Swiggy saved-address set requires an exact user choice, including a single returned address;
+- auth, revoked-session, timeout/network, generic provider failure, and genuine empty results remain distinct;
+- multiple live payment options require an exact user choice and a fresh basket-bound confirmation;
+- reaching the headless UPI polling cap calls `confirm_order` once, never retries checkout, and preserves unknown outcomes;
+- conversational tracking uses `track_order` only with provider-returned coordinates and otherwise reports the structured ETA fallback explicitly;
+- supported payment/order/tracking methods are required CommercePort capabilities rather than optional runtime failures.
 
 ### Post-review defects corrected
 

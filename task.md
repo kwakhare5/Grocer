@@ -1,3 +1,25 @@
+# Active Tracer Bullets: Independent Merge-Blocker Remediation
+
+> Branch: `audit/codex-deep-review`
+> Approved plan: `docs/audit/TARGETED_REMEDIATION_PLAN.md`
+
+- [x] Verify all nine reported findings against current code and official provider docs. <!-- id: remediation-1 -->
+- [x] Add red regressions and fix general COUNT versus PACK_COUNT semantics. <!-- id: remediation-2 -->
+- [x] Add red regressions and fail closed for unverifiable hard dietary constraints. <!-- id: remediation-3 -->
+- [x] Classify the reported Instamart ₹1000 cap as current-provider-doc changed/not applicable. <!-- id: remediation-4 -->
+- [x] Require explicit saved-address selection for one or many returned addresses. <!-- id: remediation-5 -->
+- [x] Preserve auth, revoked-session, timeout/network, and genuinely empty provider outcomes. <!-- id: remediation-6 -->
+- [x] Add deterministic live payment-option selection and confirmation invalidation. <!-- id: remediation-7 -->
+- [x] Finalize headless UPI once at the polling cap and map the result truthfully. <!-- id: remediation-8 -->
+- [x] Prefer conversational rich tracking with trustworthy coordinates and use an explicit ETA fallback otherwise. <!-- id: remediation-9 -->
+- [x] Make required CommercePort lifecycle capabilities explicit and align tracking signatures. <!-- id: remediation-10 -->
+- [x] Update only materially changed audit/state evidence. <!-- id: remediation-11 -->
+- [x] Run focused regressions, full Python tests, adversarial evaluation, frontend lint/build, and `git diff --check`. <!-- id: remediation-12 -->
+- [x] Review the cumulative remediation diff for regressions. <!-- id: remediation-13 -->
+- [ ] Commit logical slices and push `audit/codex-deep-review`; do not merge `main`. <!-- id: remediation-14 -->
+
+---
+
 # Active Tracer Bullets: Codex Deep Audit and Reliability Hardening
 
 > Branch: `audit/codex-deep-review`

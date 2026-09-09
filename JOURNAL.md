@@ -19,9 +19,10 @@ During the Session End ritual (called automatically whenever significant changes
 
 - **Shipped**: Audited and hardened intent quantity/identity, bounded recovery, basket-bound one-time confirmation, payment/order/partial/unknown state handling, provider identity, WhatsApp/API security, and privacy boundaries on `audit/codex-deep-review`.
 - **Shipped**: Removed disconnected OAuth/UI/runtime residue, archived stale active-looking history, and converted the 102-scenario adversarial matrix into an evidence ledger (47 automated, 26 partial, 28 uncovered, 1 not applicable).
-- **Verification**: 240 backend tests, 10/10 evaluation scenarios, ESLint, Next.js build/TypeScript, dependency/reference/secret scans, archive hash checks, and no-real-order audit passed locally.
+- **Shipped**: Resolved the independently reported COUNT/PACK_COUNT, hard-dietary, saved-address, provider-failure, payment-choice, UPI polling-cap, conversational tracking, and CommercePort lifecycle contract gaps without expanding into persistence or deployment.
+- **Verification**: 302 backend tests, 10/10 evaluation scenarios, ESLint, Next.js build/TypeScript, `git diff --check`, and the scoped cumulative remediation review passed locally.
 - **Limits**: Production durability, integrated OAuth lifecycle, positive timeout reconciliation, per-child lifecycle polling, primary coordinate tracking, configurable webhook size/envelope coverage, and approved live revalidation remain explicitly deferred.
-- **Commit**: Audit checkpoints complete on `audit/codex-deep-review`; branch remains unmerged.
+- **Commit**: Targeted remediation complete on `audit/codex-deep-review`; branch remains unmerged for one final independent merge review.
 - **Vibe**: Evidence over completion theater; unknown stays unknown.
 
 ### [GROCER — Live WhatsApp Cloud API Verification & Typography Consolidation] 2026-09-07

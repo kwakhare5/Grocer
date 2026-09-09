@@ -32,21 +32,26 @@ The backend owns commerce truth. A checkout requires explicit_confirmation=true 
 ## Implemented and verified locally
 
 - physical volume, mass, count, and exact pack-multiple preservation;
+- explicit separation of individual COUNT requests from PACK_COUNT requests;
+- fail-closed handling for every parsed hard dietary tag when provider metadata cannot prove compliance;
 - tokenized product identity with known derivative exclusions;
 - current-request precedence and deterministic brand/substitution policy;
 - bounded recovery with post-mutation cart refetch and reverification;
 - serialized, one-time checkout confirmation with stale-basket invalidation;
-- exact provider payment-option ID/kind propagation for UPI intent or QR;
+- explicit saved-address selection even when the provider returns one address;
+- exact live payment-option selection before basket-bound confirmation when multiple methods are available;
 - truthful PAYMENT_PENDING, PAYMENT_FAILED, PARTIAL_ORDER, ORDERED, and ORDER_STATE_UNKNOWN transitions;
-- provider polling cadence/deadline enforcement and confirm-once behavior after verified payment success;
+- provider polling cadence/deadline enforcement and one final `confirm_order` call at the headless polling cap;
 - fail-closed checkout uncertainty with no blind retry or fabricated order ID;
 - session capability/ownership checks, per-customer provider token resolution, webhook signature checks, and local replay control;
-- provider order-detail and delivery-status reads without invented values;
-- a 102-scenario adversarial coverage ledger.
+- provider order-detail reads and conversational rich tracking when checkout returned trustworthy coordinates;
+- an explicit structured ETA fallback when provider coordinates are unavailable, without invented values;
+- required CommercePort lifecycle capabilities enforced at adapter construction;
+- a 109-scenario adversarial coverage ledger.
 
 ## Current quality gates
 
-- Python: 240 tests passed.
+- Python: 302 tests passed.
 - Evaluation: 10/10 canonical scenarios pass; autonomous recovery rate is evidence-based at 40%, with zero unsafe recovery mutations in the harness. Checkout authorization is verified separately.
 - Frontend: ESLint passes.
 - Frontend: Next.js production build and TypeScript checks pass.
@@ -59,8 +64,8 @@ The backend owns commerce truth. A checkout requires explicit_confirmation=true 
 1. Session, intent, token, replay, checkout-attempt, and notification state are process-local. Restart/multi-worker guarantees require durable storage and an inbox/outbox.
 2. The documented get_orders response lacks a defensible cart correlation key. A timed-out checkout therefore fails closed as ORDER_STATE_UNKNOWN; positive reconciliation is not claimed.
 3. OAuth helpers and token isolation exist, but production login, token eviction/re-auth on every provider auth failure, encrypted durable storage, and logout revocation are not integrated end-to-end.
-4. Structured get_delivery_status works, but primary track_order needs provider-returned coordinates that the current OrderSummary boundary does not retain. Live rider tracking is unverified.
-5. Provider models do not expose authoritative dietary metadata; name heuristics cannot prove compliance when metadata is absent.
+4. Primary `track_order` is used only when a checkout response supplied trustworthy delivery coordinates; other order-history flows use the documented lesser-capability delivery-status fallback. Live rider tracking remains unverified.
+5. Provider models do not expose authoritative dietary metadata. Hard dietary requirements therefore fail closed as unverifiable unless a contradiction is already known; compliant fulfillment cannot yet be proven.
 6. Webhook validation has a fixed 1 MB pre-parse limit, but the limit is not configurable and malformed-envelope/phone-ID boundary coverage is incomplete.
 7. Proactive tracking-change notifications and deduplication are deferred with the durable worker/outbox milestone.
 8. Corrected payment/order/tracking behavior is contract-tested against mocked official payloads, not revalidated by placing a live order.

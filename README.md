@@ -125,7 +125,7 @@ Intent Contract
   ↓
 Policy / Memory
   ↓
-Customer Commerce Service
+GrocerOrchestrator
   ↓
 CommercePort
   ├── MockCommerceAdapter
@@ -197,8 +197,10 @@ Before changing the integration, read the current Swiggy Builders Club documenta
 GROCER operates across a multi-surface deployment:
 
 - **Frontend on Vercel (`grocerr.vercel.app`)**:
-  - Serves as the official whitelisted redirect URI for Swiggy OAuth 2.1 PKCE.
-  - Houses the user connect screen and proxies incoming Meta WhatsApp Cloud API webhooks.
+  - Dedicated consumer product landing page (`app/page.tsx`) with plain human copy, strict typography (`font-editorial` headlines, `font-sans` body, `font-mono` tokens), fixed `+91` phone input badge, and WhatsApp mobile conversation preview.
+  - Same-origin Next.js API proxy routes (`/api/auth/swiggy/login`, `/api/auth/swiggy/callback`) relaying requests server-side to Render to eliminate browser CORS preflight errors.
+  - Official whitelisted redirect URI for Swiggy OAuth 2.1 PKCE.
+  - Meta WhatsApp Cloud API webhook handler (`app/api/whatsapp/webhook/route.ts`).
 - **Backend on Render**:
   - Hosts the FastAPI `GrocerOrchestrator`, deterministic verifier, and recovery loop.
   - Manages `SwiggyTokenVault` with disk-backed JSON persistence surviving container cold starts.

@@ -13,6 +13,7 @@ from backend.api.health import router as health_router
 from backend.api.intent_chat import router as intent_chat_router
 from backend.api.whatsapp import router as whatsapp_router
 from backend.api.debug import router as debug_router
+from backend.api.oauth import router as oauth_router
 
 
 def create_app() -> FastAPI:
@@ -40,6 +41,7 @@ def create_app() -> FastAPI:
     app.include_router(intent_chat_router)
     app.include_router(whatsapp_router)
     app.include_router(debug_router)
+    app.include_router(oauth_router, prefix="/api")
 
     @app.get("/", tags=["health"])
     def root() -> dict[str, str]:

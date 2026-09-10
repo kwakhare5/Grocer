@@ -2,7 +2,7 @@
 
 > Read this file before coding. It is the operational instruction set for Antigravity/Gemini and other repository agents.
 > Product authority: `GROCER_V2_MASTER_SPEC.md`
-> Updated: 2026-09-06
+> Updated: 2026-09-10
 
 ## 1. PROJECT IDENTITY — LOCKED
 

@@ -256,9 +256,9 @@ Start with one extremely polished recovery scenario before expanding the failure
 - `GROCER_V2_MASTER_SPEC.md` — authoritative product and engineering specification
 - `CONTEXT.md` — coding-session context and anti-drift rules
 - `ARCHITECTURE.md` — system boundaries and data/control flow
-- `IMPLEMENTATION_PLAN.md` — execution order
+- `docs/archive/IMPLEMENTATION_PLAN.md` — historical execution order (archived)
 - `CURRENT_STATE.md` — latest evidence, readiness, and deferred limits
-- `docs/audit/` — deep-audit mission, findings, and 102-scenario coverage ledger
+- `docs/archive/audit/` — historical deep-audit mission, findings, and coverage ledger
 - `.agents/AGENTS.md` — Antigravity/Gemini repository rules
 - `AGENTS.md` — general coding-agent contract
 

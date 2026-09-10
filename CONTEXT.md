@@ -2,7 +2,7 @@
 
 > **Read at the START of EVERY coding session.**
 > **Authoritative product spec:** `GROCER_V2_MASTER_SPEC.md`
-> **Updated:** 2026-09-06
+> **Updated:** 2026-09-10
 
 ## 1. Project identity
 

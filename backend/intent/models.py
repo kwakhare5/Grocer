@@ -46,6 +46,7 @@ class ResolvedMeaning(BaseModel):
     expected_amount: Optional[float] = Field(default=None, ge=0)
     clarification_required: bool = False
     explanation: str
+    candidates: list[dict] = Field(default_factory=list)
     actual_cart_quantity: Optional[int] = Field(default=None, ge=0)
 
 

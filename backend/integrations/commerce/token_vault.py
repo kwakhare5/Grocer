@@ -38,12 +38,40 @@ class SwiggyTokenEntry(BaseModel):
         return time.time() >= (self.expires_at - 60.0)
 
 
+import os
+import json
+
+_PERSIST_FILE = "/tmp/grocer_tokens.json"
+
 class SwiggyTokenVault:
     """Thread-safe server-side in-memory token vault for Swiggy MCP credentials."""
 
     def __init__(self) -> None:
         self._tokens: dict[str, SwiggyTokenEntry] = {}
         self._lock = threading.Lock()
+        self._load()
+
+    def _load(self) -> None:
+        """Load tokens from disk for demo survival."""
+        if not os.path.exists(_PERSIST_FILE):
+            return
+        try:
+            with open(_PERSIST_FILE, "r") as f:
+                data = json.load(f)
+            for cid, raw in data.items():
+                self._tokens[cid] = SwiggyTokenEntry(**raw)
+        except Exception as exc:
+            logger.warning("Failed to load token vault: %s", exc)
+
+    def _save(self) -> None:
+        """Save tokens to disk."""
+        try:
+            os.makedirs(os.path.dirname(_PERSIST_FILE), exist_ok=True)
+            with open(_PERSIST_FILE, "w") as f:
+                data = {cid: entry.model_dump(mode="json") for cid, entry in self._tokens.items()}
+                json.dump(data, f)
+        except Exception as exc:
+            logger.warning("Failed to save token vault: %s", exc)
 
     def store_token(
         self,
@@ -65,6 +93,7 @@ class SwiggyTokenVault:
         )
         with self._lock:
             self._tokens[customer_id] = entry
+            self._save()
         logger.info("Stored a customer-scoped Swiggy token (expires_in=%ds)", expires_in)
         return entry
 
@@ -77,6 +106,7 @@ class SwiggyTokenVault:
             if entry.is_expired:
                 logger.info("A customer-scoped Swiggy token expired.")
                 del self._tokens[customer_id]
+                self._save()
                 return None
             return entry.access_token
 
@@ -88,6 +118,7 @@ class SwiggyTokenVault:
                 return None
             if entry.is_expired:
                 del self._tokens[customer_id]
+                self._save()
                 return None
             return entry
 
@@ -99,12 +130,15 @@ class SwiggyTokenVault:
         """Remove and return token from vault for revocation."""
         with self._lock:
             entry = self._tokens.pop(customer_id, None)
+            if entry:
+                self._save()
             return entry.access_token if entry else None
 
     def clear(self) -> None:
         """Clear all stored tokens."""
         with self._lock:
             self._tokens.clear()
+            self._save()
 
 
 # Default singleton instance

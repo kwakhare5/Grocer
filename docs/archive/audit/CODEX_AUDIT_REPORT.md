@@ -1,6 +1,6 @@
 # CODEX Audit Report
 
-> Living report for branch `audit/codex-deep-review`. Line references identify the `de32abb` baseline unless a later commit is named.
+> Historical audit report for branch `audit/codex-deep-review` (now merged into `ag/mainline`). Line references identify the `de32abb` baseline unless a later commit is named.
 
 ## Executive verdict
 

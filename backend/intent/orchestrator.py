@@ -89,6 +89,7 @@ class OrchestratorTurnResult(BaseModel):
     clarification_nonce: Optional[str] = None
     payment_options: list[PaymentOption] = Field(default_factory=list)
     payment_choice_nonce: Optional[str] = None
+    address_options: Optional[list[DeliveryAddress]] = None
     requires_confirmation: bool = False
     order_id: Optional[str] = None
     order_total: Optional[float] = None
@@ -346,6 +347,16 @@ async def _search_and_pick(
                 and not math.isclose(pack.amount, 1)
             ]
             if count_packs:
+                ambiguous_candidates = []
+                for _product, variant in candidates:
+                    if (pack := normalize_pack_quantity(variant.pack_size)) is not None and pack.dimension == "count" and not math.isclose(pack.amount, 1):
+                        ambiguous_candidates.append({
+                            "spin_id": variant.spin_id,
+                            "name": variant.name,
+                            "pack_size": variant.pack_size,
+                            "price": variant.price,
+                            "brand": _product.brand
+                        })
                 item.resolved_meaning = ResolvedMeaning(
                     original_expression=f"{item.quantity:g} {item.name}",
                     requested_quantity=item.quantity,
@@ -357,6 +368,7 @@ async def _search_and_pick(
                         f"{item.name} is available only in count packs ({', '.join(count_packs)}), "
                         f"so I need to know which pack you mean."
                     ),
+                    candidates=ambiguous_candidates,
                 )
         return None
 
@@ -580,6 +592,7 @@ class GrocerOrchestrator:
                         f"{options_text}\n"
                         "Reply with the number or label of your choice."
                     ),
+                    address_options=addresses,
                     events=events + ["NEEDS_ADDRESS_SELECTION"],
                 )
 
@@ -729,28 +742,8 @@ class GrocerOrchestrator:
             except Exception as exc:
                 return self._provider_failure_result(session, exc, events)
 
-        if not resolved_items:
-            ambiguity = next(
-                (
-                    item.resolved_meaning
-                    for item in contract.items
-                    if item.resolved_meaning is not None
-                    and item.resolved_meaning.clarification_required
-                ),
-                None,
-            )
-            if ambiguity is not None:
-                session.conversation_state = ConversationState.NEEDS_DECISION
-                self._store.save(session)
-                return OrchestratorTurnResult(
-                    session_id=session.session_id,
-                    conversation_state=ConversationState.NEEDS_DECISION,
-                    user_message=ambiguity.explanation,
-                    events=events + ["QUANTITY_CLARIFICATION_REQUIRED"],
-                )
-            return self._handle_failed(session, "no matching products found for your request", events)
-
-        if not live_cart or not live_cart.items or new_contract_items:
+        # First, apply whatever we successfully resolved
+        if resolved_items and (not live_cart or not live_cart.items or new_contract_items):
             try:
                 cart = await self._port.update_cart(
                     items=resolved_items, cart_id=cart_id, address_id=effective_address
@@ -760,6 +753,60 @@ class GrocerOrchestrator:
             events.append(f"CART_BUILT cart_id={cart_id} total=₹{cart.grand_total}")
         else:
             cart = live_cart
+
+        # Second, check for any ambiguities that need clarification
+        ambiguity_item = next(
+            (
+                item
+                for item in contract.items
+                if item.resolved_meaning is not None
+                and item.resolved_meaning.clarification_required
+            ),
+            None,
+        )
+        
+        if ambiguity_item is not None:
+            ambiguity = ambiguity_item.resolved_meaning
+            session.conversation_state = ConversationState.NEEDS_DECISION
+            
+            clarification_options = []
+            candidates_for_session = []
+            for i, cand in enumerate(ambiguity.candidates[:10], 1):
+                opt = ClarificationOption(
+                    index=i,
+                    spin_id=cand["spin_id"],
+                    name=cand["name"],
+                    pack_size=cand["pack_size"],
+                    price=cand["price"],
+                    brand=cand.get("brand")
+                )
+                clarification_options.append(opt)
+                candidates_for_session.append(RecoveryCandidate(
+                    spin_id=cand["spin_id"],
+                    name=cand["name"],
+                    pack_size=cand["pack_size"],
+                    price=cand["price"],
+                ))
+                
+            session.pending_clarification = PendingClarification(
+                item_name=ambiguity_item.name,
+                clarification_question=ambiguity.explanation,
+                candidates=candidates_for_session,
+                intended_quantity=int(ambiguity_item.quantity)
+            )
+            
+            self._store.save(session)
+            return OrchestratorTurnResult(
+                session_id=session.session_id,
+                conversation_state=ConversationState.NEEDS_DECISION,
+                user_message=ambiguity.explanation,
+                clarification_options=clarification_options,
+                clarification_nonce=session.pending_clarification.nonce,
+                events=events + ["QUANTITY_CLARIFICATION_REQUIRED"],
+            )
+
+        if not resolved_items:
+            return self._handle_failed(session, "no matching products found for your request", events)
 
         verification = self._verifier.verify(contract, cart)
         session.last_verification = {"status": verification.status.value}
@@ -1142,6 +1189,14 @@ class GrocerOrchestrator:
 
         events.append(f"CART_UPDATED cart_id={cart_id}")
 
+        if intent_item and intent_item.resolved_meaning:
+            intent_item.resolved_meaning.status = "EXACT"
+            intent_item.resolved_meaning.spin_id = chosen_spin_id
+            intent_item.resolved_meaning.provider_pack_description = matching_candidate.pack_size
+            intent_item.resolved_meaning.cart_quantity = quantity
+            intent_item.resolved_meaning.clarification_required = False
+            intent_item.resolved_meaning.explanation = f"User explicitly chose {matching_candidate.name} ({matching_candidate.pack_size})"
+
         # 6. Re-verify full cart against full intent
         verification = self._verifier.verify(contract, cart)
         session.last_verification = {"status": verification.status.value}
@@ -1428,16 +1483,30 @@ class GrocerOrchestrator:
         pending.consumed_at = datetime.now(timezone.utc)
         self._store.save(session)
 
+        import os
+        demo_mode = os.getenv("DEMO_MODE", "false").lower() in ("true", "1")
+        
         try:
-            with self._port.customer_scope(session.customer_id):
-                order = await self._port.checkout(
-                    cart_id=cart_id,
-                    payment_method=pending.payment_method,
-                    explicit_confirmation=True,
-                    address_id=effective_address,
-                    payment_option_id=pending.payment_option_id,
-                    payment_option_kind=pending.payment_option_kind,
+            if demo_mode:
+                order = CommerceOrderResult(
+                    order_id="demo_order_123",
+                    status="ORDER_PLACED",
+                    raw_status="success",
+                    success=True,
+                    grand_total=1.0,
+                    provider_message="✅ Your order is ready. Demo mode: order not actually placed on Swiggy."
                 )
+                events.append("DEMO_CHECKOUT_SIMULATED")
+            else:
+                with self._port.customer_scope(session.customer_id):
+                    order = await self._port.checkout(
+                        cart_id=cart_id,
+                        payment_method=pending.payment_method,
+                        explicit_confirmation=True,
+                        address_id=effective_address,
+                        payment_option_id=pending.payment_option_id,
+                        payment_option_kind=pending.payment_option_kind,
+                    )
         except UnconfirmedCheckoutError:
             raise
         except OrderStateUnknownError:

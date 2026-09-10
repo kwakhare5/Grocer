@@ -1,8 +1,8 @@
 # Live Swiggy Integration Hardening Plan
 
-**Status:** In progress  
-**Branch:** `live/swiggy-integration-hardening`  
-**Prepared:** 2026-09-09
+**Status:** Completed and merged into `ag/mainline` (Archived)  
+**Branch:** `ag/mainline` (formerly `live/swiggy-integration-hardening`)  
+**Completed:** 2026-09-10
 
 ## Objective
 

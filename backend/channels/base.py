@@ -248,12 +248,21 @@ class BaseChannelAdapter(ABC):
 
         # 4. Standard conversational turn
         else:
-            turn_result = await orchestrator.handle_turn(
-                session_id=session_id,
-                customer_id=customer_id,
-                message=incoming.text,
-                address_id=session.address_id if session else None,
-            )
+            if interactive_id and interactive_id.startswith("address:"):
+                chosen_address_id = interactive_id.split(":", 1)[1]
+                turn_result = await orchestrator.handle_turn(
+                    session_id=session_id,
+                    customer_id=customer_id,
+                    message=incoming.text,
+                    address_id=chosen_address_id,
+                )
+            else:
+                turn_result = await orchestrator.handle_turn(
+                    session_id=session_id,
+                    customer_id=customer_id,
+                    message=incoming.text,
+                    address_id=session.address_id if session else None,
+                )
 
         # Build normalized outgoing response
         response = self._build_normalized_response(incoming.sender_id, turn_result)
@@ -286,6 +295,19 @@ class BaseChannelAdapter(ABC):
                         ),
                         title=f"{index}. {option.label}"[:24],
                         description=option.method[:72],
+                    )
+                )
+        
+        elif result.conversation_state == ConversationState.NEEDS_DECISION and result.address_options:
+            interactive_title = "Delivery Address"
+            interactive_button_text = "Choose Address"
+            for index, address in enumerate(result.address_options, 1):
+                actions.append(
+                    InteractiveAction(
+                        action_type="list_item",
+                        id=f"address:{address.id}",
+                        title=f"{index}. {address.label}"[:24],
+                        description=(address.street or address.city or "Saved Address")[:72],
                     )
                 )
 

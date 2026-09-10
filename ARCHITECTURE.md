@@ -2,7 +2,7 @@
 
 > **Source of truth:** `GROCER_V2_MASTER_SPEC.md`
 > **Status:** LOCKED consumer-commerce architecture
-> **Updated:** 2026-09-09
+> **Updated:** 2026-09-10
 
 ## 1. System identity
 

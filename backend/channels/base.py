@@ -16,6 +16,9 @@ from backend.intent.orchestrator import GrocerOrchestrator, OrchestratorTurnResu
 from backend.intent.session import ConversationState, default_session_store
 
 
+_customer_saved_addresses: dict[str, str] = {}
+
+
 class BaseChannelAdapter(ABC):
     """Abstract adapter decoupling transport protocols from GrocerOrchestrator."""
 
@@ -44,6 +47,10 @@ class BaseChannelAdapter(ABC):
         if not session_id:
             session_id = f"sess_{secrets.token_urlsafe(24)}"
             self._active_sessions[customer_id] = session_id
+            if customer_id in _customer_saved_addresses:
+                new_session = default_session_store.get_or_create(session_id, customer_id)
+                new_session.address_id = _customer_saved_addresses[customer_id]
+                default_session_store.save(new_session)
 
         return session_id
 
@@ -250,6 +257,7 @@ class BaseChannelAdapter(ABC):
         else:
             if interactive_id and interactive_id.startswith("address:"):
                 chosen_address_id = interactive_id.split(":", 1)[1]
+                _customer_saved_addresses[customer_id] = chosen_address_id
                 turn_result = await orchestrator.handle_turn(
                     session_id=session_id,
                     customer_id=customer_id,

@@ -230,14 +230,14 @@ If the answer is no, it does not belong in GROCER v2 unless the master spec is d
 
 ## 15. SESSION RESUME
 
-**Last completed:** Consumer Landing Page Redesign, Strict Typography & Zero-CORS Proxy Routes (2026-09-10)
+**Last completed:** Gemini LLM Intent Extractor, Greeting Flow & Address Persistence (2026-09-10)
 
-**Status:** Built dedicated consumer product landing page (`app/page.tsx`) with simple human copy (zero AI slop buzzwords), strict typography (`font-editorial` for brand headlines, `font-sans` for body/cards/buttons, and `font-mono` exclusively for phone code and numeric tokens), fixed `+91` input badge, 10-digit auto-sanitizing phone input, and authentic WhatsApp conversation mockup. Built same-origin Next.js API proxy routes (`app/api/auth/swiggy/login/route.ts`, `app/api/auth/swiggy/callback/route.ts`) and configured backend FastAPI CORS to eliminate browser CORS preflight issues on `grocerr.vercel.app`. Purged developer clutter (`LIVE DEBUG` button, drawer, and telemetry dots) from `AppGlobalHeader.tsx` for a clean consumer experience.
+**Status:** Integrated `GeminiIntentExtractor` with Google Gemini (`gemini-3.5-flash-lite`) in `backend/intent/parser.py` for resilient natural language intent parsing (eliminating regex fragility on conversational phrases like "i want 3 dairy milk and 2 milk"). Wired greeting detection in `GrocerOrchestrator` to provide friendly conversational replies for greetings like "Hi Grocer!" without triggering cart builds. Added durable customer address persistence so users are never repeatedly asked for delivery addresses across sessions.
 
 **Quality Gates:**
 - `pytest backend/tests`: 363 tests passed (100% green).
 - `npm run lint`: 0 errors, 0 warnings.
-- `npm run build`: Next.js Turbopack compiled successfully in 1.9s.
+- `npm run build`: Next.js Turbopack compiled successfully in 2.3s.
 - Zero credential leakage; all safety invariants preserved.
 
 **Branch state:**

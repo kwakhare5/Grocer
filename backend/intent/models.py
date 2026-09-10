@@ -241,6 +241,7 @@ class IntentContract(BaseModel):
     intent_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     session_id: str = Field(..., min_length=1)
     goal: str = Field(..., min_length=1, description="High-level goal, e.g. 'weekly grocery replenishment'")
+    is_greeting: bool = Field(default=False, description="True if the request is a friendly greeting without items")
     items: list[IntentItem] = Field(default_factory=list)
     hard_constraints: list[HardConstraint] = Field(default_factory=list)
     soft_preferences: list[SoftPreference] = Field(default_factory=list)

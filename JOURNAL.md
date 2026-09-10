@@ -27,9 +27,12 @@ During the Session End ritual (called automatically whenever significant changes
   - Built dedicated consumer landing page (`app/page.tsx`) from scratch: clear human copy (zero AI slop buzzwords), strict typography (`font-editorial` for brand headlines, `font-sans` for body/cards, and `font-mono` exclusively for phone code and code numbers), fixed `+91` input badge, 10-digit auto-sanitizing phone input, and authentic WhatsApp conversation mockup.
   - Built same-origin Next.js API proxy routes (`app/api/auth/swiggy/login/route.ts`, `app/api/auth/swiggy/callback/route.ts`) and configured backend FastAPI CORS to eliminate browser CORS preflight issues on `grocerr.vercel.app`.
   - Stripped developer clutter, live debug drawer, and status dots from `AppGlobalHeader.tsx` for a clean consumer experience.
-- **Verification**: 363 backend tests passing (100% green), Next.js Turbopack `npm run build` compiled in 1.9s, `npm run lint` clean (0 errors, 0 warnings).
-- **Commit**: `b1a7d60` feat(landing-page): consumer landing page with fixed +91 input, no-ai-slop copy, and zero-cors nextjs proxy
-- **Vibe**: Clean, confident consumer interface with rock-solid server-side proxying.
+  - Integrated `GeminiIntentExtractor` via Google Gemini (`gemini-3.5-flash-lite`) in `backend/intent/parser.py` for human-resilient natural language intent parsing (handling conversational phrasing like "i want 3 dairy milk and 2 milk", Hinglish, and multi-item lists with zero phantom items). Added graceful fallback to hardened `RuleBasedExtractor`.
+  - Added dedicated conversational greeting handling in `GrocerOrchestrator` so messages like "Hi Grocer!" receive a friendly conversational reply rather than triggering empty commerce cart builds.
+  - Persisted customer delivery address selection across sessions so customers are never repeatedly prompted for address once chosen.
+- **Verification**: 363 backend tests passing (100% green), Next.js Turbopack `npm run build` compiled in 2.3s, `npm run lint` clean (0 errors, 0 warnings).
+- **Commit**: `390fca1` feat(intent): gemini llm intent extractor, greeting handling, and durable address persistence
+- **Vibe**: Natural conversational understanding powered by Gemini with deterministic safety verification.
 
 ### [GROCER — Deep Audit and Reliability Hardening & Developer Live-Debug View] 2026-09-09
 

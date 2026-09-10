@@ -487,6 +487,7 @@ class GrocerOrchestrator:
         self._verifier = verifier or IntentVerifier()
         self._policy = PolicyEngine()
         self._recovery = recovery_engine
+        self._customer_addresses: dict[str, str] = {}
 
     async def handle_turn(
         self,
@@ -517,6 +518,24 @@ class GrocerOrchestrator:
         session.pending_confirmation = None
         session.turn_count += 1
         events: list[str] = []
+
+        # 0. Check if message is a conversational greeting BEFORE triggering commerce flow
+        temp_contract = self._parser.parse(message, session_id=session.session_id)
+        if temp_contract.is_greeting:
+            session.conversation_state = ConversationState.READY
+            self._store.save(session)
+            return OrchestratorTurnResult(
+                session_id=session.session_id,
+                conversation_state=ConversationState.READY,
+                user_message=(
+                    "Hi! I'm Grocer, your WhatsApp grocery assistant. "
+                    "Tell me what you need, like '1L milk and brown bread under ₹200' or 'get my weekly groceries'."
+                ),
+                events=events + ["GREETING_HANDLED"],
+            )
+
+        if not session.address_id and customer_id in self._customer_addresses:
+            session.address_id = self._customer_addresses[customer_id]
 
         from backend.integrations.commerce.swiggy_adapter import SwiggyMCPAdapter
 
@@ -598,6 +617,7 @@ class GrocerOrchestrator:
 
             session.address_id = selected.id
             session.address_display = _display_address(selected)
+            self._customer_addresses[customer_id] = selected.id
             if pending_address is not None:
                 message = pending_address.request_message
             session.pending_address_choice = None

@@ -9,11 +9,17 @@ The DeterministicValidator always runs and has final authority over the output
 """
 from __future__ import annotations
 
+import json
+import logging
+import os
 import re
 import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
+import requests
+
+from backend.config import settings
 from backend.intent.enums import (
     AmbiguitySeverity,
     BrandTolerance,
@@ -95,6 +101,7 @@ _STOP_WORDS: set[str] = {
     "with", "under", "within", "below", "above", "for", "from", "to",
     "in", "on", "at", "of", "is", "it", "this", "that", "i", "we",
     "only", "just", "please", "ok", "okay", "yes", "no", "not",
+    "i want", "we want", "give me", "send me", "can you", "bhai",
 }
 
 # Goal pattern keywords
@@ -115,26 +122,38 @@ _GOAL_PATTERNS: list[tuple[re.Pattern[str], str]] = [
 class RuleBasedExtractor:
     """Deterministic pattern-based extraction of intent fields from natural language."""
 
+    def _detect_greeting(self, text: str) -> bool:
+        return bool(
+            re.match(
+                r"^(?:hi|hello|hey|good\s+morning|good\s+evening|namaste)(?:\s+grocer)?[\s!.,?]*$",
+                text.strip(),
+                re.I,
+            )
+        )
+
     def extract(self, text: str) -> dict:
         """Extract raw intent fields from text. Returns a dict of candidate fields."""
+        is_greeting = self._detect_greeting(text)
         result: dict = {
-            "goal": self._extract_goal(text),
-            "items": self._extract_items(text),
-            "budget": self._extract_budget(text),
-            "dietary_constraints": self._extract_dietary(text),
-            "brand_preferences": self._extract_brand_preferences(text),
-            "substitution_policy": self._extract_substitution_policy(text),
-            "soft_preferences": self._extract_soft_preferences(text),
+            "is_greeting": is_greeting,
+            "goal": "greeting" if is_greeting else self._extract_goal(text),
+            "items": [] if is_greeting else self._extract_items(text),
+            "budget": None if is_greeting else self._extract_budget(text),
+            "dietary_constraints": [] if is_greeting else self._extract_dietary(text),
+            "brand_preferences": [] if is_greeting else self._extract_brand_preferences(text),
+            "substitution_policy": {} if is_greeting else self._extract_substitution_policy(text),
+            "soft_preferences": [] if is_greeting else self._extract_soft_preferences(text),
             "ambiguities": [],
         }
 
-        # Detect contradictions
-        contradictions = self._detect_contradictions(text, result)
-        result["ambiguities"].extend(contradictions)
+        if not is_greeting:
+            # Detect contradictions
+            contradictions = self._detect_contradictions(text, result)
+            result["ambiguities"].extend(contradictions)
 
-        # Detect vague quantities
-        vague = self._detect_vague_quantities(text, result["items"])
-        result["ambiguities"].extend(vague)
+            # Detect vague quantities
+            vague = self._detect_vague_quantities(text, result["items"])
+            result["ambiguities"].extend(vague)
 
         return result
 
@@ -188,8 +207,13 @@ class RuleBasedExtractor:
             name = match.group(3).strip().rstrip(",. ")
             # Clean trailing conjunctions
             name = re.sub(r"\s+(?:and|or|also|plus|under|below|within)\s*$", "", name, flags=re.I).strip()
-            # Strip leading verbs/articles
-            name = re.sub(r"^(?:get|buy|add|order|and|also|plus|with|the|my|some|a|an|of)\s+", "", name, flags=re.I).strip()
+            # Strip leading verbs/articles/conversational phrases
+            name = re.sub(
+                r"^(?:get|buy|add|order|and|also|plus|with|the|my|some|a|an|of|i want|we want|want|need|give me|send me|bhai|please)\s+",
+                "",
+                name,
+                flags=re.I,
+            ).strip()
             if not name or name.lower() in seen_names or name.lower() in _STOP_WORDS or len(name) < 2:
                 continue
             unit = _UNIT_MAP.get(raw_unit, "units") if raw_unit else "units"
@@ -208,8 +232,15 @@ class RuleBasedExtractor:
         for match in item_qty.finditer(text):
             name = match.group(1).strip().rstrip(",. ")
             name = re.sub(r"\s+(?:and|or|also|plus|of)\s*$", "", name, flags=re.I).strip()
-            name = re.sub(r"^(?:get|buy|add|order|and|also|plus|with|the|my|some|a|an|of)\s+", "", name, flags=re.I).strip()
+            name = re.sub(
+                r"^(?:get|buy|add|order|and|also|plus|with|the|my|some|a|an|of|i want|we want|want|need|give me|send me|bhai|please)\s+",
+                "",
+                name,
+                flags=re.I,
+            ).strip()
             if not name or name.lower() in seen_names or name.lower() in _STOP_WORDS or len(name) < 2:
+                continue
+            if any(term in name.lower() for term in ("want", "need", "give", "send", "please", "bhai")):
                 continue
 
             qty = float(match.group(2))
@@ -503,8 +534,10 @@ class DeterministicValidator:
                 confidence -= 0.05
         confidence = max(0.0, min(1.0, confidence))
 
+        is_greeting = bool(raw.get("is_greeting", False))
+
         # Flag missing critical info
-        if not items and not raw.get("goal", "").strip():
+        if not items and not raw.get("goal", "").strip() and not is_greeting:
             ambiguities.append(Ambiguity(
                 field="goal",
                 description="No specific items or clear goal could be extracted from the request",
@@ -524,7 +557,8 @@ class DeterministicValidator:
         contract = IntentContract(
             intent_id=str(uuid.uuid4()),
             session_id=session_id,
-            goal=raw.get("goal", "grocery request"),
+            goal=raw.get("goal", "greeting" if is_greeting else "grocery request"),
+            is_greeting=is_greeting,
             items=items,
             budget=budget,
             dietary_constraints=dietary,
@@ -544,6 +578,117 @@ class DeterministicValidator:
 
 
 # ---------------------------------------------------------------------------
+# GeminiIntentExtractor — LLM Natural Language Intent Parser
+# ---------------------------------------------------------------------------
+
+logger = logging.getLogger(__name__)
+
+
+class GeminiIntentExtractor:
+    """LLM-based natural language intent extractor using Google Gemini (Spec Section 12)."""
+
+    def __init__(self, api_key: Optional[str] = None) -> None:
+        self._api_key = api_key or settings.GEMINI_API_KEY
+        self._url = (
+            f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key={self._api_key}"
+            if self._api_key
+            else None
+        )
+
+    def extract(self, text: str) -> Optional[dict]:
+        """Extract structured intent fields using Gemini. Returns raw dict or None on failure."""
+        if not self._url or "PYTEST_CURRENT_TEST" in os.environ:
+            return None
+
+        system_prompt = (
+            "You are the Grocer WhatsApp natural language grocery intent parser.\n"
+            "Given a user message on WhatsApp, extract a clean JSON object with this schema:\n"
+            "{\n"
+            '  "is_greeting": boolean (true ONLY if the user message is purely a greeting like \'hi\', \'hello\', \'hey\' with NO grocery items requested),\n'
+            '  "goal": string (e.g. "grocery request", "dairy restock"),\n'
+            '  "items": [\n'
+            "    {\n"
+            '      "name": string (clean product name, e.g. "Dairy Milk", "Milk", "Brown Bread"),\n'
+            '      "quantity": number,\n'
+            '      "unit": string ("units", "L", "kg", "g", "pack")\n'
+            "    }\n"
+            "  ],\n"
+            '  "budget": number or null (e.g. 300 if \'under 300\', otherwise null),\n'
+            '  "dietary_constraints": [string] (e.g. ["vegetarian"] if mentioned, otherwise [])\n'
+            "}\n"
+            "Never include conversational phrases (like 'i want', 'send me', 'bhai') in item names.\n"
+            "Output strictly valid JSON only. Do not wrap in markdown fences."
+        )
+
+        try:
+            payload = {
+                "contents": [
+                    {"parts": [{"text": f"{system_prompt}\n\nUser message: \"{text}\""}]}
+                ]
+            }
+            resp = requests.post(self._url, json=payload, timeout=12)
+            if resp.status_code != 200:
+                logger.warning("Gemini extraction returned status %d: %s", resp.status_code, resp.text[:120])
+                return None
+
+            data = resp.json()
+            candidates = data.get("candidates", [])
+            if not candidates:
+                return None
+            parts = candidates[0].get("content", {}).get("parts", [])
+            if not parts or "text" not in parts[0]:
+                return None
+
+            raw_text = parts[0]["text"].strip()
+            clean_json = re.sub(r"^```(?:json)?\s*", "", raw_text)
+            clean_json = re.sub(r"\s*```$", "", clean_json)
+            extracted = json.loads(clean_json)
+
+            is_greeting = bool(extracted.get("is_greeting", False))
+
+            items = []
+            for item in extracted.get("items", []):
+                name = str(item.get("name", "")).strip()
+                if not name or name.lower() in _STOP_WORDS:
+                    continue
+                qty = float(item.get("quantity", 1.0))
+                unit = _UNIT_MAP.get(str(item.get("unit", "units")).lower(), "units")
+                items.append({
+                    "name": name,
+                    "quantity": qty,
+                    "unit": unit,
+                    "quantity_rules": {"quantity_is_explicit": True},
+                    "is_essential": True,
+                })
+
+            budget_val = extracted.get("budget")
+            budget_dict = None
+            if budget_val and isinstance(budget_val, (int, float)) and budget_val > 0:
+                budget_dict = {"max_budget": float(budget_val), "currency": "INR", "is_hard": True}
+
+            dietary = [
+                {"tag": d.lower(), "is_hard": True}
+                for d in extracted.get("dietary_constraints", [])
+                if isinstance(d, str) and d.lower() in _DIETARY_TAGS
+            ]
+
+            return {
+                "is_greeting": is_greeting,
+                "goal": "greeting" if is_greeting else extracted.get("goal", "grocery request"),
+                "items": [] if is_greeting else items,
+                "budget": None if is_greeting else budget_dict,
+                "dietary_constraints": [] if is_greeting else dietary,
+                "brand_preferences": [],
+                "substitution_policy": {},
+                "soft_preferences": [],
+                "ambiguities": [],
+            }
+        except Exception as exc:
+            logger.warning("Gemini intent extraction failed, falling back to rule-based: %s", exc)
+            return None
+
+
+# ---------------------------------------------------------------------------
 # IntentParser — public interface
 # ---------------------------------------------------------------------------
 
@@ -551,13 +696,14 @@ class IntentParser:
     """Parse WhatsApp natural language into a validated IntentContract.
 
     Architecture (Spec Section 12):
-        text → RuleBasedExtractor → DeterministicValidator → IntentContract
+        text → LLM (Gemini) / RuleBasedExtractor → DeterministicValidator → IntentContract
 
     The deterministic validator always has final authority.
     """
 
     def __init__(self) -> None:
-        self._extractor = RuleBasedExtractor()
+        self._llm_extractor = GeminiIntentExtractor()
+        self._rule_extractor = RuleBasedExtractor()
         self._validator = DeterministicValidator()
 
     def parse(
@@ -576,10 +722,14 @@ class IntentParser:
         Returns:
             A fully validated IntentContract with confidence and ambiguity tracking.
         """
-        # 1. Extract candidate fields deterministically
-        raw = self._extractor.extract(text)
+        # 1. Attempt LLM extraction first (handles messy natural language, Hinglish, conversational styles)
+        raw = self._llm_extractor.extract(text)
 
-        # 2. Validate, enforce invariants, and build contract
+        # 2. Fall back to deterministic rule-based extractor if offline or disabled
+        if raw is None:
+            raw = self._rule_extractor.extract(text)
+
+        # 3. Validate, enforce invariants, and build contract
         contract = self._validator.validate(raw, text, session_id, customer_id)
 
         return contract

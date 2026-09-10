@@ -5,10 +5,13 @@ import { AppGlobalHeader } from "../components/navigation/AppGlobalHeader";
 import { Sparkles, ArrowRight, CheckCircle2, MessageCircle, Loader2 } from "lucide-react";
 import { checkIntentBackend } from "../lib/apiClient";
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
+const BACKEND_URL =
+  process.env.NEXT_PUBLIC_BACKEND_URL ||
+  process.env.NEXT_PUBLIC_API_URL ||
+  "https://grocer-backend-qwk4.onrender.com";
 
 export default function Home() {
-  const [isBackendConnected, setIsBackendConnected] = useState(false);
+  const [isBackendConnected, setIsBackendConnected] = useState(true);
   const [phone, setPhone] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -140,7 +143,7 @@ export default function Home() {
 
               <button
                 type="submit"
-                disabled={busy || !isBackendConnected}
+                disabled={busy}
                 className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#fc8019] px-4 py-4 text-sm font-bold text-white hover:bg-[#e47112] transition shadow-md disabled:opacity-50"
               >
                 {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : (

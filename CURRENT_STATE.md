@@ -1,8 +1,8 @@
 # GROCER — Current State
 
-Last verified: 2026-09-09
-Branch: audit/codex-deep-review (unmerged)
-Milestone: deep audit, safety hardening, and final verification
+Last verified: 2026-09-10
+Branch: ag/mainline (canonical development baseline)
+Milestone: AntiGravity consolidation audit; all prior agent branches merged
 Readiness: single-process demo/research system; not production-ready
 
 ## Verified product boundary
@@ -51,7 +51,7 @@ The backend owns commerce truth. A checkout requires explicit_confirmation=true 
 
 ## Current quality gates
 
-- Python: 302 tests passed.
+- Python: 363 tests passed.
 - Evaluation: 10/10 canonical scenarios pass; autonomous recovery rate is evidence-based at 40%, with zero unsafe recovery mutations in the harness. Checkout authorization is verified separately.
 - Frontend: ESLint passes.
 - Frontend: Next.js production build and TypeScript checks pass.

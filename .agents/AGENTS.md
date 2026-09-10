@@ -230,15 +230,17 @@ If the answer is no, it does not belong in GROCER v2 unless the master spec is d
 
 ## 15. SESSION RESUME
 
-**Last completed:** Developer-only GROCER live-debug telemetry view for live WhatsApp testing (2026-09-09)
+**Last completed:** AntiGravity repository consolidation audit and cleanup (2026-09-10)
 
-**Status:** Read-only live debug telemetry router (`GET /api/debug/latest`, `GET /api/debug/sessions`) and interactive inspector UI (`LiveDebugInspector.tsx`, slide-over drawer in `AppGlobalHeader.tsx`, and `/debug` standalone route) shipped. Surfaces all 13 dimensions for live WhatsApp turn inspection with strict PII masking (phone numbers, sanitized addresses, stripped credentials). Core intent, recovery, checkout, payment, Swiggy adapter, and quantity semantics preserved untouched.
+**Status:** Full 8-phase repository consolidation executed. All prior agent branches (Codex, OpenCode) confirmed fully merged into `a0ae400`. Canonical `ag/mainline` branch created. Dead `backend/services/` and `backend/models/` `__pycache__` residue removed. Stale agent artifacts (`task.md`, `skills-lock.json`) removed. Historical docs (`CLEANROOM_INTENT_AUDIT.md`, `IMPLEMENTATION_PLAN.md`) archived. `CURRENT_STATE.md` updated to reflect current branch and test count. `.gitignore` updated for bundle files and agent artifacts. Old worktree cleaned up. All hardening invariants verified intact.
 
 **Quality Gates:**
-- `pytest backend/tests`: 305 tests passed (including `test_debug_api.py`).
-- `npm run lint`: 0 errors, 0 warnings.
-- `npm run build`: Next.js Turbopack and TypeScript passed cleanly.
-- Privacy & security: 100% PII masked, 0 credential leakage, zero backend business logic additions.
+- `pytest backend/tests`: 363 tests passed.
+- `npm run lint`: pending re-verification after cleanup.
+- `npm run build`: pending re-verification after cleanup.
+- All 15 hardening invariants verified present in code.
 
-
-
+**Branch state:**
+- `ag/mainline` — canonical active development branch.
+- `main` — stable reference (same commit `a0ae400`).
+- Old branches (`audit/codex-deep-review`, `cleanup/master-spec-final`, `refactor/intent-cleanroom`) — fully merged ancestors, tagged for archival.

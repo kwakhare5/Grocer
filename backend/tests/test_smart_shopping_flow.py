@@ -247,6 +247,65 @@ async def test_conversational_item_removal_in_orchestrator() -> None:
     assert "milk" not in r2.basket_summary.items[0].name.lower()
 
 
+class SkuEnforcingAdapter(MockCommerceAdapter):
+    """Adapter that strictly requires sku_id on update_cart just like Swiggy MCP."""
+    async def update_cart(
+        self,
+        items: list[CartItemUpdate],
+        cart_id: Optional[str] = None,
+        address_id: Optional[str] = None,
+    ) -> CommerceCart:
+        for it in items:
+            if not it.sku_id:
+                raise ValueError("Cart update requires a catalog SKU ID for every item.")
+        return await super().update_cart(items, cart_id=cart_id, address_id=address_id)
+
+
+@pytest.mark.asyncio
+async def test_clarification_choice_forwards_sku_id_to_cart_update() -> None:
+    adapter = SkuEnforcingAdapter()
+    store = OrchestratorSessionStore()
+    orchestrator = GrocerOrchestrator(commerce_adapter=adapter, session_store=store)
+
+    from backend.intent.recovery import RecoveryCandidate
+    from backend.intent.session import PendingClarification
+
+    # Setup session in NEEDS_DECISION with a pending clarification having sku_id
+    session = store.get_or_create("sess-sku-test", "cust-sku")
+    session.conversation_state = ConversationState.NEEDS_DECISION
+    candidate = RecoveryCandidate(
+        spin_id="SPIN-MILK-500ML",
+        sku_id="SKU-MILK-500ML",
+        name="Amul Taaza 500ml",
+        pack_size="500 ml",
+        price=27.0,
+        category="Dairy",
+    )
+    session.pending_clarification = PendingClarification(
+        item_name="milk",
+        candidates=[candidate],
+        clarification_question="Which pack size?",
+        intended_quantity=1,
+    )
+    # create intent contract
+    contract = orchestrator._parse_intent("buy milk", session, [])
+    session.intent_contract = contract
+    store.save(session)
+
+    # Call handle_choice
+    result = await orchestrator.handle_choice(
+        session_id="sess-sku-test",
+        chosen_spin_id="SPIN-MILK-500ML",
+        clarification_nonce=session.pending_clarification.nonce,
+    )
+
+    # SkuEnforcingAdapter would have thrown ValueError if sku_id was omitted
+    assert result.conversation_state == ConversationState.AWAITING_CONFIRMATION
+    updated_session = store.get("sess-sku-test")
+    cart = await adapter.get_cart(updated_session.cart_id)
+    assert any(ci.sku_id == "SKU-MILK-500ML" for ci in cart.items)
+
+
 # ---------------------------------------------------------------------------
 # 6. Natural Affirmations Verification
 # ---------------------------------------------------------------------------

@@ -336,7 +336,7 @@ class MockCommerceAdapter(CommercePort):
             cart_items.append(
                 CartItem(
                     spin_id=variant.spin_id,
-                    sku_id=variant.sku_id,
+                    sku_id=update.sku_id or variant.sku_id,
                     name=variant.name,
                     pack_size=variant.pack_size,
                     unit_price=price,

@@ -407,6 +407,17 @@ class SwiggyMCPAdapter(CommercePort):
                 code="MISSING_ADDRESS",
             )
         effective_address = address_id
+        # Defensive lookup: if any item is missing a sku_id, inspect current cart first
+        for it in items:
+            if not it.sku_id:
+                try:
+                    current_cart_state = await self.get_cart()
+                    matched = next((ci for ci in current_cart_state.items if ci.spin_id == it.spin_id and ci.sku_id), None)
+                    if matched:
+                        it.sku_id = matched.sku_id
+                except Exception:
+                    pass
+
         payload_items = []
         for it in items:
             if not it.sku_id:

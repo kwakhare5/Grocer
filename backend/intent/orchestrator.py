@@ -524,6 +524,7 @@ async def _search_and_pick(
                     if (pack := normalize_pack_quantity(variant.pack_size)) is not None and pack.dimension == "count" and not math.isclose(pack.amount, 1):
                         ambiguous_candidates.append({
                             "spin_id": variant.spin_id,
+                            "sku_id": variant.sku_id,
                             "name": variant.name,
                             "pack_size": variant.pack_size,
                             "price": variant.price,
@@ -1125,6 +1126,7 @@ class GrocerOrchestrator:
                 clarification_options.append(opt)
                 candidates_for_session.append(RecoveryCandidate(
                     spin_id=cand["spin_id"],
+                    sku_id=cand.get("sku_id"),
                     name=cand["name"],
                     pack_size=cand["pack_size"],
                     price=cand["price"],
@@ -1454,6 +1456,7 @@ class GrocerOrchestrator:
 
         effective_address = session.address_id or f"addr-{session.customer_id}"
         cart_id = session.cart_id or f"cart-{session_id}"
+        session.cart_id = cart_id
 
         # 2. Fetch live cart to preserve all existing items
         try:
@@ -1503,15 +1506,31 @@ class GrocerOrchestrator:
         # 4. Build cart updates preserving ALL other items
         updates: list[CartItemUpdate] = []
         replaced = False
+        chosen_sku_id = matching_candidate.sku_id
+        if not chosen_sku_id:
+            try:
+                with self._port.customer_scope(session.customer_id):
+                    search_query = matching_candidate.name or pending.item_name
+                    prods = await self._port.search_products(effective_address, search_query)
+                    for p in prods:
+                        for v in p.variants:
+                            if v.spin_id == chosen_spin_id and v.sku_id:
+                                chosen_sku_id = v.sku_id
+                                break
+                        if chosen_sku_id:
+                            break
+            except Exception:
+                pass
+
         for ci in current_cart.items:
             if removes_spin_id and ci.spin_id == removes_spin_id:
-                updates.append(CartItemUpdate(spin_id=chosen_spin_id, quantity=quantity))
+                updates.append(CartItemUpdate(spin_id=chosen_spin_id, sku_id=chosen_sku_id, quantity=quantity))
                 replaced = True
             else:
-                updates.append(CartItemUpdate(spin_id=ci.spin_id, quantity=ci.quantity))
+                updates.append(CartItemUpdate(spin_id=ci.spin_id, sku_id=ci.sku_id, quantity=ci.quantity))
 
         if not replaced:
-            updates.append(CartItemUpdate(spin_id=chosen_spin_id, quantity=quantity))
+            updates.append(CartItemUpdate(spin_id=chosen_spin_id, sku_id=chosen_sku_id, quantity=quantity))
 
         # 5. Apply update to commerce port
         try:

@@ -54,6 +54,11 @@ from backend.integrations.commerce.exceptions import (
 logger = logging.getLogger("grocer.integrations.swiggy")
 
 
+def _optional_provider_bool(value: Any) -> Optional[bool]:
+    """Keep a missing provider boolean as unknown rather than coercing it."""
+    return value if isinstance(value, bool) else None
+
+
 class SwiggyMCPAdapter(CommercePort):
     """Authoritative production adapter for Swiggy Instamart MCP server."""
 
@@ -255,11 +260,7 @@ class SwiggyMCPAdapter(CommercePort):
                         phone_number=raw.get("phoneNumber"),
                         address_category=raw.get("addressCategory"),
                         address_tag=raw.get("addressTag"),
-                        is_serviceable=(
-                            bool(raw["serviceable"])
-                            if "serviceable" in raw
-                            else None
-                        ),
+                        is_serviceable=_optional_provider_bool(raw.get("serviceable")),
                     )
                 )
         return addresses
@@ -274,6 +275,12 @@ class SwiggyMCPAdapter(CommercePort):
 
     async def search_products(self, address_id: str, query: str) -> list[CommerceProductItem]:
         """Search products available at delivery address via search_products tool."""
+        if not query.strip():
+            raise CommerceError(
+                "Product search requires a non-empty query.",
+                provider="swiggy",
+                code="MISSING_SEARCH_QUERY",
+            )
         res = await self._call_mcp_tool(
             "search_products",
             {"addressId": address_id, "query": query, "offset": 0},
@@ -345,7 +352,7 @@ class SwiggyMCPAdapter(CommercePort):
                 stock_value = v.get(
                     "isInStockAndAvailable", v.get("inStock", item.get("inStock"))
                 )
-                in_stock = bool(stock_value) if stock_value is not None else None
+                in_stock = _optional_provider_bool(stock_value)
                 image_url = v.get("imageUrl") or item.get("imageUrl")
 
                 variants.append(
@@ -359,6 +366,8 @@ class SwiggyMCPAdapter(CommercePort):
                         mrp=mrp,
                         in_stock=in_stock,
                         image_url=image_url,
+                        max_quantity=v.get("maxQuantity"),
+                        max_quantity_message=v.get("maxQuantityMessage"),
                     )
                 )
 
@@ -378,13 +387,11 @@ class SwiggyMCPAdapter(CommercePort):
 
     async def get_cart(self, cart_id: Optional[str] = None) -> CommerceCart:
         """Fetch current Instamart cart per official get_cart schema."""
-        args: dict[str, Any] = {}
-        if cart_id:
-            args["cartId"] = cart_id
-        res = await self._call_mcp_tool("get_cart", args)
+        del cart_id
+        res = await self._call_mcp_tool("get_cart", {})
         self._parse_error_if_failed(res)
         data = res.get("data", {})
-        return self._build_commerce_cart(data, cart_id)
+        return self._build_commerce_cart(data)
 
     async def update_cart(
         self,
@@ -402,26 +409,31 @@ class SwiggyMCPAdapter(CommercePort):
         effective_address = address_id
         payload_items = []
         for it in items:
+            if not it.sku_id:
+                raise CommerceError(
+                    "Cart update requires a catalog SKU ID for every item.",
+                    provider="swiggy",
+                    code="MISSING_SKU",
+                )
             item_entry: dict[str, Any] = {"spinId": it.spin_id, "quantity": it.quantity}
-            if it.sku_id:
-                item_entry["skuId"] = it.sku_id
+            item_entry["skuId"] = it.sku_id
             payload_items.append(item_entry)
 
         args: dict[str, Any] = {
             "selectedAddressId": effective_address,
             "items": payload_items,
         }
-        if cart_id:
-            args["cartId"] = cart_id
-
         res = await self._call_mcp_tool("update_cart", args)
         self._parse_error_if_failed(res)
 
         data = res.get("data", {})
-        # If update_cart returned full InstamartCart, build from it, else refresh via get_cart
-        if isinstance(data, dict) and "items" in data:
-            return self._build_commerce_cart(data, cart_id)
-        return await self.get_cart(cart_id)
+        reduced_quantity_items = data.get("reducedQuantityItems", []) if isinstance(data, dict) else []
+        canonical_cart = await self.get_cart()
+        if isinstance(reduced_quantity_items, list):
+            canonical_cart.reduced_quantity_items = [
+                item for item in reduced_quantity_items if isinstance(item, dict)
+            ]
+        return canonical_cart
 
     def _build_commerce_cart(self, data: dict[str, Any], cart_id: Optional[str] = None) -> CommerceCart:
         """Construct CommerceCart domain model from InstamartCart schema."""
@@ -444,7 +456,7 @@ class SwiggyMCPAdapter(CommercePort):
             quantity = int(raw["quantity"])
             total_price = unit_price * quantity
             stock_value = raw.get("isInStockAndAvailable")
-            is_available = bool(stock_value) if stock_value is not None else None
+            is_available = _optional_provider_bool(stock_value)
 
             cart_items.append(
                 CartItem(
@@ -461,6 +473,7 @@ class SwiggyMCPAdapter(CommercePort):
                     total_price=total_price,
                     is_available=is_available,
                     max_quantity=raw.get("maxQuantity"),
+                    max_quantity_message=raw.get("maxQuantityMessage"),
                 )
             )
 
@@ -512,22 +525,12 @@ class SwiggyMCPAdapter(CommercePort):
             except ValueError:
                 grand_total = item_total + delivery_fee + packaging_fee - discount
 
-        is_serviceable = (
-            bool(data["serviceable"]) if "serviceable" in data else None
-        )
+        is_serviceable = _optional_provider_bool(data.get("serviceable"))
         if data.get("addressWarning") or data.get("unserviceableItems"):
             is_serviceable = False
 
-        resolved_cart_id = cart_id or data.get("cartId")
-        if not resolved_cart_id:
-            raise CommerceError(
-                "Provider cart response omitted cartId.",
-                provider="swiggy",
-                code="INVALID_PROVIDER_RESPONSE",
-            )
-
         return CommerceCart(
-            cart_id=str(resolved_cart_id),
+            cart_id=str(data["cartId"]) if data.get("cartId") is not None else None,
             address_id=data.get("selectedAddress"),
             items=cart_items,
             item_total=item_total,
@@ -541,7 +544,12 @@ class SwiggyMCPAdapter(CommercePort):
                 if data.get("minimumOrderAmount") is not None
                 else 0.0
             ),
-            cart_absent=bool(data.get("cartAbsent", False)),
+            cart_absent=_optional_provider_bool(data.get("cartAbsent")),
+            reduced_quantity_items=(
+                [item for item in data.get("reducedQuantityItems", []) if isinstance(item, dict)]
+                if isinstance(data.get("reducedQuantityItems", []), list)
+                else []
+            ),
             address_warning=data.get("addressWarning"),
             available_payment_methods=data.get("availablePaymentMethods", []),
         )

@@ -15,15 +15,15 @@ During the Session End ritual (called automatically whenever significant changes
 
 ## Log Entries
 
-### [GROCER — Deep Audit and Reliability Hardening] 2026-09-09
+### [GROCER — Deep Audit and Reliability Hardening & Developer Live-Debug View] 2026-09-09
 
 - **Shipped**: Audited and hardened intent quantity/identity, bounded recovery, basket-bound one-time confirmation, payment/order/partial/unknown state handling, provider identity, WhatsApp/API security, and privacy boundaries on `audit/codex-deep-review`.
-- **Shipped**: Removed disconnected OAuth/UI/runtime residue, archived stale active-looking history, and converted the 102-scenario adversarial matrix into an evidence ledger (47 automated, 26 partial, 28 uncovered, 1 not applicable).
-- **Shipped**: Resolved the independently reported COUNT/PACK_COUNT, hard-dietary, saved-address, provider-failure, payment-choice, UPI polling-cap, conversational tracking, and CommercePort lifecycle contract gaps without expanding into persistence or deployment.
-- **Verification**: 302 backend tests, 10/10 evaluation scenarios, ESLint, Next.js build/TypeScript, `git diff --check`, and the scoped cumulative remediation review passed locally.
+- **Shipped**: Built developer-only GROCER live-debug inspection view (`/debug` standalone route and slide-over inspector drawer in `AppGlobalHeader.tsx`) surfacing real-time live WhatsApp turn telemetry across all 13 required dimensions (original request, interpreted quantity, selected product, pack size, planned quantity, expected fulfillment, canonical cart quantity, actual fulfillment, provider max cap, verification result, recovery classification, clarification status, safe event names).
+- **Shipped**: Strictly masked customer phone numbers (`+91 ••••• ••XXXX`), sanitized addresses to area/city only, and stripped all credentials/tokens from debug inspection payloads. Zero modifications made to core intent, recovery, checkout, payment, Swiggy adapter, or quantity semantics.
+- **Verification**: 305 backend tests passing, `test_debug_api.py` unit suite green, `npm run lint` clean (0 errors, 0 warnings), Next.js App Router Turbopack `npm run build` compiled cleanly.
 - **Limits**: Production durability, integrated OAuth lifecycle, positive timeout reconciliation, per-child lifecycle polling, primary coordinate tracking, configurable webhook size/envelope coverage, and approved live revalidation remain explicitly deferred.
-- **Commit**: Targeted remediation complete on `audit/codex-deep-review`; branch remains unmerged for one final independent merge review.
-- **Vibe**: Evidence over completion theater; unknown stays unknown.
+- **Commit**: Live-debug view complete and verified; zero business logic modifications.
+- **Vibe**: Direct observability without invasive complexity.
 
 ### [GROCER — Live WhatsApp Cloud API Verification & Typography Consolidation] 2026-09-07
 

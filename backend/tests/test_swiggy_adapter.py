@@ -288,7 +288,13 @@ async def test_swiggy_adapter_update_cart_selected_address() -> None:
     with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
         mock_post.return_value = mock_resp
         cart = await adapter.update_cart(
-            items=[CartItemUpdate(spin_id="spin-amul-500ml", quantity=3)],
+            items=[
+                CartItemUpdate(
+                    spin_id="spin-amul-500ml",
+                    sku_id="sku-amul-500ml",
+                    quantity=3,
+                )
+            ],
             cart_id="cart-999",
             address_id="addr-101",
         )
@@ -297,10 +303,19 @@ async def test_swiggy_adapter_update_cart_selected_address() -> None:
         assert len(cart.items) == 1
         assert cart.items[0].total_price == 102.0
 
-        # Assert args sent to Swiggy MCP
-        sent_args = mock_post.call_args[1]["json"]["params"]["arguments"]
-        assert sent_args["selectedAddressId"] == "addr-101"
-        assert sent_args["items"][0]["spinId"] == "spin-amul-500ml"
+        # Assert exact documented mutation arguments followed by canonical cart fetch.
+        assert mock_post.call_count == 2
+        assert mock_post.call_args_list[0].kwargs["json"]["params"]["arguments"] == {
+            "selectedAddressId": "addr-101",
+            "items": [
+                {
+                    "spinId": "spin-amul-500ml",
+                    "skuId": "sku-amul-500ml",
+                    "quantity": 3,
+                }
+            ],
+        }
+        assert mock_post.call_args_list[1].kwargs["json"]["params"]["arguments"] == {}
 
 
 @pytest.mark.asyncio

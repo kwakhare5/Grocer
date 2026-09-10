@@ -40,7 +40,7 @@ class FakeCommercePort(CommercePort):
     def __init__(self) -> None:
         self.get_cart_calls = 0
         self.update_calls = 0
-        self.refresh_calls = 0
+        self.targeted_searches: list[tuple[str, str]] = []
         self.cart = CommerceCart(
             cart_id="cart-1",
             items=[],
@@ -53,10 +53,10 @@ class FakeCommercePort(CommercePort):
         return []
 
     async def get_go_to_items(self, address_id: str):
-        self.refresh_calls += 1
         return []
 
     async def search_products(self, address_id: str, query: str):
+        self.targeted_searches.append((address_id, query))
         return []
 
     async def get_cart(self, cart_id=None):
@@ -198,7 +198,7 @@ async def test_recovery_retries_after_failed_reverification() -> None:
     assert verifier.calls == 4
     assert port.update_calls == 2
     assert port.get_cart_calls == 4
-    assert port.refresh_calls == 1
+    assert port.targeted_searches == [("", "grocery item")]
     assert cart.grand_total == 20.0
 
 

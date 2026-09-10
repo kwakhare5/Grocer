@@ -230,17 +230,15 @@ If the answer is no, it does not belong in GROCER v2 unless the master spec is d
 
 ## 15. SESSION RESUME
 
-**Last completed:** Targeted independent merge-blocker and provider-contract remediation (2026-09-09)
+**Last completed:** Developer-only GROCER live-debug telemetry view for live WhatsApp testing (2026-09-09)
 
-**Status:** Audit branch `audit/codex-deep-review` is unmerged and ready for one final independent merge review. Confirmed quantity/dietary, address, provider-failure, payment-choice, polling-cap, tracking, and CommercePort contract gaps are resolved and locally green. Production persistence/deployment, per-child lifecycle polling, and approved live lifecycle revalidation remain deferred. No live provider mutation or order occurred.
+**Status:** Read-only live debug telemetry router (`GET /api/debug/latest`, `GET /api/debug/sessions`) and interactive inspector UI (`LiveDebugInspector.tsx`, slide-over drawer in `AppGlobalHeader.tsx`, and `/debug` standalone route) shipped. Surfaces all 13 dimensions for live WhatsApp turn inspection with strict PII masking (phone numbers, sanitized addresses, stripped credentials). Core intent, recovery, checkout, payment, Swiggy adapter, and quantity semantics preserved untouched.
 
 **Quality Gates:**
-- `pytest backend/tests`: 302 tests passed.
-- Evaluation: 10/10 scenarios; 40% evidence-based autonomous recovery; 0 unsafe autonomous actions.
+- `pytest backend/tests`: 305 tests passed (including `test_debug_api.py`).
 - `npm run lint`: 0 errors, 0 warnings.
-- `npm run build`: Next.js and TypeScript passed.
-- Adversarial ledger: 58 automated, 24 partial, 26 uncovered, 1 not applicable.
-- Current blockers and evidence: `CURRENT_STATE.md` and `docs/audit/CODEX_AUDIT_REPORT.md`.
+- `npm run build`: Next.js Turbopack and TypeScript passed cleanly.
+- Privacy & security: 100% PII masked, 0 credential leakage, zero backend business logic additions.
 
 
 

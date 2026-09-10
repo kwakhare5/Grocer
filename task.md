@@ -1,3 +1,34 @@
+# Active Tracer Bullets: Developer Live-Debug View
+
+> Purpose: Understand live WhatsApp tests without modifying core intent/commerce behavior
+
+- [x] Create read-only sanitized debug endpoint (`GET /api/debug/latest`, `GET /api/debug/sessions`) <!-- id: live-debug-1 -->
+- [x] Add unit test verifying telemetry structure, zero credential leaks, phone masking, and PII safety <!-- id: live-debug-2 -->
+- [x] Build `LiveDebugInspector.tsx` displaying all 13 dimensions with developer-focused styling <!-- id: live-debug-3 -->
+- [x] Integrate quick-toggle drawer in `AppGlobalHeader.tsx` on main page <!-- id: live-debug-4 -->
+- [x] Add dedicated standalone route `app/debug/page.tsx` for side-by-side WhatsApp phone testing <!-- id: live-debug-5 -->
+- [x] Run quality gates: pytest, npm run lint, npm run build <!-- id: live-debug-6 -->
+- [x] Verify live debug telemetry across all dimensions and confirm goal completion <!-- id: live-debug-7 -->
+
+---
+
+# Active Tracer Bullets: Live Swiggy Integration Hardening
+
+> Branch: `live/swiggy-integration-hardening`
+> Plan: `docs/LIVE_SWIGGY_INTEGRATION_HARDENING_PLAN.md`
+
+- [x] Add sanitized real-response replay fixtures and first failing regressions. <!-- id: live-swiggy-1 -->
+- [x] Preserve bare quantity as catalog-dependent and introduce canonical resolved meaning. <!-- id: live-swiggy-2 -->
+- [x] Use resolved meaning for selection, cart verification, recovery, and user communication. <!-- id: live-swiggy-3 -->
+- [x] Enforce exact current MCP arguments and provider tri-state semantics. <!-- id: live-swiggy-4 -->
+- [x] Canonically reconcile material mutations and classify accepted shortfalls. <!-- id: live-swiggy-5 -->
+- [x] Recover provider limits using targeted bounded catalog search. <!-- id: live-swiggy-6 -->
+- [x] Add safe interpretation tracing and generalized semantic test coverage. <!-- id: live-swiggy-7 -->
+- [x] Run backend, evaluation, frontend, and diff quality gates. <!-- id: live-swiggy-8 -->
+- [ ] Update session evidence and handoff documentation; do not merge main. <!-- id: live-swiggy-9 -->
+
+---
+
 # Active Tracer Bullets: Independent Merge-Blocker Remediation
 
 > Branch: `audit/codex-deep-review`

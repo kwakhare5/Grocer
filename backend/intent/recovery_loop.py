@@ -241,7 +241,10 @@ class LoopingRecoveryEngine(RecoveryEngine):
             elif non_mutation_actions:
                 # Controlled non-mutating provider operation: re-fetch / refresh
                 # Do NOT fake retries through update_cart()!
-                current_catalog = await commerce_port.get_go_to_items(address_id or "")
+                current_catalog = await commerce_port.search_products(
+                    address_id or "",
+                    contract.items[0].name if contract.items else "grocery item",
+                )
 
             for a in outcome.recovery_actions:
                 all_actions.append(a)
@@ -280,7 +283,10 @@ class LoopingRecoveryEngine(RecoveryEngine):
 
             # If reverification failed and this was not a non-mutation action, refresh catalog
             if not non_mutation_actions:
-                current_catalog = await commerce_port.get_go_to_items(address_id or "")
+                current_catalog = await commerce_port.search_products(
+                    address_id or "",
+                    contract.items[0].name if contract.items else "grocery item",
+                )
 
         # Reached max_attempts without PASS
         final_cart = await commerce_port.get_cart(cart_id)
@@ -357,11 +363,23 @@ class LoopingRecoveryEngine(RecoveryEngine):
         updates: list[CartItemUpdate] = []
         for item in cart.items:
             if item.spin_id not in removed_spins and item.spin_id not in action_spins:
-                updates.append(CartItemUpdate(spin_id=item.spin_id, quantity=item.quantity))
+                updates.append(
+                    CartItemUpdate(
+                        spin_id=item.spin_id,
+                        sku_id=item.sku_id,
+                        quantity=item.quantity,
+                    )
+                )
 
         for action in mutation_actions:
             if action.action_type in ("add_item", "replace_item", "adjust_quantity"):
-                updates.append(CartItemUpdate(spin_id=action.spin_id, quantity=action.quantity))
+                updates.append(
+                    CartItemUpdate(
+                        spin_id=action.spin_id,
+                        sku_id=action.sku_id,
+                        quantity=action.quantity,
+                    )
+                )
 
         return updates
 

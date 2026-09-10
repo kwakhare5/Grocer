@@ -97,7 +97,7 @@ class BasketSummary(BaseModel):
 
     model_config = ConfigDict(extra="ignore")
 
-    cart_id: str
+    cart_id: Optional[str] = None
     items: list[BasketItem] = Field(default_factory=list)
     item_total: float
     delivery_fee: float
@@ -109,6 +109,7 @@ class BasketSummary(BaseModel):
     budget: Optional[float] = None
     within_budget: bool = Field(default=True)
     recovery_notes: list[str] = Field(default_factory=list)
+    interpretation_notes: list[str] = Field(default_factory=list)
     payment_options: list[PaymentOption] = Field(default_factory=list)
     selected_payment_method: str
     selected_payment_option_id: Optional[str] = None

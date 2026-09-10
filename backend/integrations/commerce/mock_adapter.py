@@ -328,7 +328,7 @@ class MockCommerceAdapter(CommercePort):
                 raise ItemOutOfStockError(spin_id=update.spin_id, available_quantity=0)
 
             prod, variant = self._catalog_by_spin[update.spin_id]
-            if not variant.in_stock or update.spin_id in self._injected_oos:
+            if variant.in_stock is False or update.spin_id in self._injected_oos:
                 raise ItemOutOfStockError(spin_id=update.spin_id, available_quantity=0)
 
             price = self._price_overrides.get(variant.spin_id, variant.price)
@@ -336,6 +336,7 @@ class MockCommerceAdapter(CommercePort):
             cart_items.append(
                 CartItem(
                     spin_id=variant.spin_id,
+                    sku_id=variant.sku_id,
                     name=variant.name,
                     pack_size=variant.pack_size,
                     unit_price=price,

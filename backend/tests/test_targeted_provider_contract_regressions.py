@@ -222,6 +222,10 @@ class RecoveryCatalogFailureAdapter(MockCommerceAdapter):
         del address_id
         raise self.error
 
+    async def search_products(self, address_id: str, query: str):  # type: ignore[no-untyped-def]
+        del address_id, query
+        raise self.error
+
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(

@@ -15,7 +15,7 @@ class DeliveryAddress(BaseModel):
     postal_code: Optional[str] = None
     latitude: Optional[float] = None
     longitude: Optional[float] = None
-    is_serviceable: Optional[bool] = True
+    is_serviceable: Optional[bool] = None
     phone_number: Optional[str] = None
     address_category: Optional[str] = None
     address_tag: Optional[str] = None
@@ -28,10 +28,12 @@ class ProductVariant(BaseModel):
     pack_size: str
     price: float
     mrp: float
-    in_stock: Optional[bool] = True
+    in_stock: Optional[bool] = None
     sku_id: Optional[str] = None
     offer_price: Optional[float] = None
     image_url: Optional[str] = None
+    max_quantity: Optional[int] = None
+    max_quantity_message: Optional[str] = None
 
 
 class CommerceProductItem(BaseModel):
@@ -60,18 +62,19 @@ class CartItem(BaseModel):
     unit_price: float
     quantity: int
     total_price: float
-    is_available: Optional[bool] = True
+    is_available: Optional[bool] = None
     sku_id: Optional[str] = None
     mrp: Optional[float] = None
     product_id: Optional[str] = None
     category: Optional[str] = None
     brand: Optional[str] = None
     max_quantity: Optional[int] = None
+    max_quantity_message: Optional[str] = None
 
 
 class CommerceCart(BaseModel):
     """Active customer cart with bill breakdown and serviceability."""
-    cart_id: str
+    cart_id: Optional[str] = None
     address_id: Optional[str] = None
     items: list[CartItem] = Field(default_factory=list)
     item_total: float = 0.0
@@ -79,11 +82,11 @@ class CommerceCart(BaseModel):
     packaging_fee: float = 0.0
     discount: float = 0.0
     grand_total: float = 0.0
-    is_serviceable: Optional[bool] = True
+    is_serviceable: Optional[bool] = None
     min_order_threshold: float = 99.0
     unserviceable_items: list[CartItem] = Field(default_factory=list)
     reduced_quantity_items: list[dict[str, Any]] = Field(default_factory=list)
-    cart_absent: bool = False
+    cart_absent: Optional[bool] = None
     cart_warning: Optional[str] = None
     address_warning: Optional[str] = None
     available_payment_methods: list[str] = Field(default_factory=list)

@@ -21,6 +21,34 @@ from backend.intent.enums import (
 )
 
 
+class ResolvedMeaning(BaseModel):
+    """One catalog-backed fulfilment interpretation for an intent item."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    original_expression: str
+    requested_quantity: float = Field(gt=0)
+    requested_dimension: str
+    interpretation_explicit: bool
+    status: Literal[
+        "EXACT",
+        "INFERRED",
+        "AMBIGUOUS",
+        "UNVERIFIABLE",
+        "PROVIDER_LIMITED",
+        "PARTIALLY_FULFILLED",
+    ]
+    spin_id: Optional[str] = None
+    sku_id: Optional[str] = None
+    provider_pack_description: Optional[str] = None
+    cart_quantity: Optional[int] = Field(default=None, ge=0)
+    expected_dimension: Optional[str] = None
+    expected_amount: Optional[float] = Field(default=None, ge=0)
+    clarification_required: bool = False
+    explanation: str
+    actual_cart_quantity: Optional[int] = Field(default=None, ge=0)
+
+
 class IntentItem(BaseModel):
     """An individual item requested within an intent."""
     model_config = ConfigDict(extra="ignore")
@@ -39,6 +67,10 @@ class IntentItem(BaseModel):
     category: Optional[str] = Field(default=None, description="Product category (dairy, bakery, etc.)")
     max_price: Optional[float] = Field(default=None, gt=0, description="Price cap for this item")
     notes: Optional[str] = None
+    resolved_meaning: Optional[ResolvedMeaning] = Field(
+        default=None,
+        description="Catalog-backed interpretation used across selection, verification, recovery, and messaging",
+    )
 
 
 class HardConstraint(BaseModel):

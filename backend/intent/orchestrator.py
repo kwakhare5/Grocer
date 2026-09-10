@@ -15,6 +15,7 @@ Entry points:
 from __future__ import annotations
 
 import copy
+import math
 from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
@@ -40,7 +41,7 @@ from backend.integrations.commerce.exceptions import (
 )
 
 from backend.intent.enums import PreferenceType
-from backend.intent.models import IntentContract, IntentItem
+from backend.intent.models import IntentContract, IntentItem, ResolvedMeaning
 from backend.intent.parser import IntentParser
 from backend.intent.policy import PolicyEngine
 from backend.intent.preferences import default_preference_store
@@ -122,6 +123,8 @@ def _msg_confirmation_basket(basket: BasketSummary) -> str:
     )
     if basket.recovery_notes:
         lines.append(f"Recovery: {'; '.join(basket.recovery_notes)}")
+    if basket.interpretation_notes:
+        lines.append(f"Interpretation: {'; '.join(basket.interpretation_notes)}")
     lines.append("Confirm to place this exact order.")
     return "\n".join(lines)
 
@@ -176,6 +179,22 @@ def _payment_option_key(option: PaymentOption) -> str:
     return option.id or option.method
 
 
+def _targeted_recovery_query(
+    contract: IntentContract, verification: Optional[Any]
+) -> str:
+    """Return one bounded, failed-intent catalog query rather than a broad pool."""
+    violation_targets = {
+        str(violation.target).casefold()
+        for violation in getattr(verification, "violations", [])
+        if getattr(violation, "target", None)
+    }
+    for item in contract.items:
+        item_name = item.name.casefold()
+        if any(target in item_name or item_name in target for target in violation_targets):
+            return item.name
+    return contract.items[0].name if contract.items else "grocery item"
+
+
 # ---------------------------------------------------------------------------
 # Product resolution helpers
 # ---------------------------------------------------------------------------
@@ -200,7 +219,7 @@ async def _search_and_pick(
         (product, variant)
         for product in results
         for variant in product.variants
-        if variant.in_stock
+        if variant.in_stock is not False
         and (
             product_identity_matches(
                 item.name,
@@ -245,28 +264,118 @@ async def _search_and_pick(
     if requested is None:
         return None
 
-    resolved: list[tuple[CommerceProductItem, Any, int]] = []
+    resolved: list[tuple[CommerceProductItem, Any, int, ResolvedMeaning]] = []
+    catalog_dependent = requested.dimension == "catalog_dependent"
+    individual_variants = [
+        (product, variant)
+        for product, variant in candidates
+        if (pack := normalize_pack_quantity(variant.pack_size)) is not None
+        and pack.dimension == "count"
+        and math.isclose(pack.amount, 1)
+    ]
+    if catalog_dependent and individual_variants:
+        candidates = individual_variants
     for product, variant in candidates:
-        pack_count = required_pack_count(
-            requested,
-            normalize_pack_quantity(variant.pack_size),
-        )
+        pack = normalize_pack_quantity(variant.pack_size)
+        if catalog_dependent:
+            if individual_variants:
+                pack_count = int(requested.amount)
+                meaning = ResolvedMeaning(
+                    original_expression=f"{item.quantity:g} {item.name}",
+                    requested_quantity=item.quantity,
+                    requested_dimension="catalog_dependent",
+                    interpretation_explicit=False,
+                    status="EXACT",
+                    spin_id=variant.spin_id,
+                    sku_id=variant.sku_id,
+                    provider_pack_description=variant.pack_size,
+                    cart_quantity=pack_count,
+                    expected_dimension="count",
+                    expected_amount=requested.amount,
+                    explanation=(
+                        f"I found {item.name} sold individually, so this means "
+                        f"{item.quantity:g} individual items."
+                    ),
+                )
+            elif pack is not None and pack.dimension in {"mass", "volume"}:
+                pack_count = int(requested.amount)
+                meaning = ResolvedMeaning(
+                    original_expression=f"{item.quantity:g} {item.name}",
+                    requested_quantity=item.quantity,
+                    requested_dimension="catalog_dependent",
+                    interpretation_explicit=False,
+                    status="INFERRED",
+                    spin_id=variant.spin_id,
+                    sku_id=variant.sku_id,
+                    provider_pack_description=variant.pack_size,
+                    cart_quantity=pack_count,
+                    expected_dimension="pack_count",
+                    expected_amount=requested.amount,
+                    explanation=(
+                        f"I found {item.name} sold as {variant.pack_size} retail packs, so this means "
+                        f"{item.quantity:g} packs."
+                    ),
+                )
+            else:
+                continue
+        else:
+            pack_count = required_pack_count(requested, pack)
+            meaning = ResolvedMeaning(
+                original_expression=f"{item.quantity:g} {item.unit} {item.name}",
+                requested_quantity=item.quantity,
+                requested_dimension=requested.dimension,
+                interpretation_explicit=True,
+                status="EXACT",
+                spin_id=variant.spin_id,
+                sku_id=variant.sku_id,
+                provider_pack_description=variant.pack_size,
+                cart_quantity=pack_count,
+                expected_dimension=requested.dimension,
+                expected_amount=requested.amount,
+                explanation=f"Adding {pack_count} × {variant.pack_size}.",
+            )
         if pack_count is not None:
-            resolved.append((product, variant, pack_count))
+            resolved.append((product, variant, pack_count, meaning))
     if not resolved:
+        if catalog_dependent:
+            count_packs = [
+                variant.pack_size
+                for _product, variant in candidates
+                if (pack := normalize_pack_quantity(variant.pack_size)) is not None
+                and pack.dimension == "count"
+                and not math.isclose(pack.amount, 1)
+            ]
+            if count_packs:
+                item.resolved_meaning = ResolvedMeaning(
+                    original_expression=f"{item.quantity:g} {item.name}",
+                    requested_quantity=item.quantity,
+                    requested_dimension="catalog_dependent",
+                    interpretation_explicit=False,
+                    status="AMBIGUOUS",
+                    clarification_required=True,
+                    explanation=(
+                        f"{item.name} is available only in count packs ({', '.join(count_packs)}), "
+                        f"so I need to know which pack you mean."
+                    ),
+                )
         return None
 
     preferred_pack = normalize_pack_quantity(item.pack_size_preference or "")
 
-    def rank(candidate: tuple[CommerceProductItem, Any, int]) -> tuple[bool, float, float]:
-        _product, variant, pack_count = candidate
+    def rank(candidate: tuple[CommerceProductItem, Any, int, ResolvedMeaning]) -> tuple[bool, float, float]:
+        _product, variant, pack_count, _meaning = candidate
         candidate_pack = normalize_pack_quantity(variant.pack_size)
         misses_preference = preferred_pack is not None and candidate_pack != preferred_pack
         return misses_preference, variant.price * pack_count, variant.price
 
-    _best_product, best_variant, quantity = min(resolved, key=rank)
+    _best_product, best_variant, quantity, meaning = min(resolved, key=rank)
+    item.resolved_meaning = meaning
 
-    return CartItemUpdate(spin_id=best_variant.spin_id, quantity=quantity)
+    return CartItemUpdate(
+        spin_id=best_variant.spin_id,
+        quantity=quantity,
+        sku_id=best_variant.sku_id,
+    )
 
 
 def _build_basket_summary(
@@ -312,6 +421,12 @@ def _build_basket_summary(
         budget=budget,
         within_budget=(budget is None or grand_total <= budget),
         recovery_notes=recovery_notes,
+        interpretation_notes=[
+            item.resolved_meaning.explanation
+            for item in contract.items
+            if item.resolved_meaning is not None
+            and item.resolved_meaning.status == "INFERRED"
+        ],
         payment_options=payment_options,
         selected_payment_method=selected_payment_method,
         selected_payment_option_id=selected_payment_option_id,
@@ -503,14 +618,21 @@ class GrocerOrchestrator:
                 needs_recovery = True
             elif live_cart:
                 is_below_min = bool(live_cart.items and live_cart.grand_total < live_cart.min_order_threshold)
-                if (drift and drift.status != VerificationStatus.PASS) or not live_cart.is_serviceable or is_below_min:
+                if (
+                    (drift and drift.status != VerificationStatus.PASS)
+                    or live_cart.is_serviceable is False
+                    or is_below_min
+                ):
                     needs_recovery = True
 
             if needs_recovery:
                 events.append("RECOVERY_STARTED")
                 session.conversation_state = ConversationState.RECOVERING
                 try:
-                    available = await self._port.search_products(effective_address, "")
+                    available = await self._port.search_products(
+                        effective_address,
+                        _targeted_recovery_query(prior_contract, drift),
+                    )
                 except Exception as exc:
                     return self._provider_failure_result(session, exc, events)
                 engine = self._recovery or LoopingRecoveryEngine(
@@ -570,7 +692,7 @@ class GrocerOrchestrator:
 
         if live_cart and live_cart.items:
             existing_updates = [
-                CartItemUpdate(spin_id=ci.spin_id, quantity=ci.quantity)
+                CartItemUpdate(spin_id=ci.spin_id, sku_id=ci.sku_id, quantity=ci.quantity)
                 for ci in live_cart.items
             ]
             new_contract_items = [
@@ -608,6 +730,24 @@ class GrocerOrchestrator:
                 return self._provider_failure_result(session, exc, events)
 
         if not resolved_items:
+            ambiguity = next(
+                (
+                    item.resolved_meaning
+                    for item in contract.items
+                    if item.resolved_meaning is not None
+                    and item.resolved_meaning.clarification_required
+                ),
+                None,
+            )
+            if ambiguity is not None:
+                session.conversation_state = ConversationState.NEEDS_DECISION
+                self._store.save(session)
+                return OrchestratorTurnResult(
+                    session_id=session.session_id,
+                    conversation_state=ConversationState.NEEDS_DECISION,
+                    user_message=ambiguity.explanation,
+                    events=events + ["QUANTITY_CLARIFICATION_REQUIRED"],
+                )
             return self._handle_failed(session, "no matching products found for your request", events)
 
         if not live_cart or not live_cart.items or new_contract_items:
@@ -625,7 +765,11 @@ class GrocerOrchestrator:
         session.last_verification = {"status": verification.status.value}
         events.append(f"VERIFICATION_{verification.status.value.upper()}")
         is_below_min = bool(cart and cart.items and cart.grand_total < cart.min_order_threshold)
-        if verification.status == VerificationStatus.PASS and not is_below_min and getattr(cart, "is_serviceable", True):
+        if (
+            verification.status == VerificationStatus.PASS
+            and not is_below_min
+            and getattr(cart, "is_serviceable", None) is not False
+        ):
             return await self._make_awaiting_confirmation(
                 session, contract, cart, prior_recovery_notes, events
             )
@@ -634,7 +778,10 @@ class GrocerOrchestrator:
         session.conversation_state = ConversationState.RECOVERING
 
         try:
-            available = await self._port.get_go_to_items(effective_address)
+            available = await self._port.search_products(
+                effective_address,
+                _targeted_recovery_query(contract, verification),
+            )
         except Exception as exc:
             return self._provider_failure_result(session, exc, events)
 
@@ -1014,8 +1161,9 @@ class GrocerOrchestrator:
 
         try:
             with self._port.customer_scope(session.customer_id):
-                available: list[CommerceProductItem] = await self._port.get_go_to_items(
-                    effective_address
+                available: list[CommerceProductItem] = await self._port.search_products(
+                    effective_address,
+                    _targeted_recovery_query(contract, verification),
                 )
         except Exception as exc:
             return self._provider_failure_result(session, exc, events)

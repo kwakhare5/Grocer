@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from typing import Literal, Optional
 
 
-QuantityDimension = Literal["volume", "mass", "count", "pack_count"]
+QuantityDimension = Literal["volume", "mass", "count", "pack_count", "catalog_dependent"]
 
 
 @dataclass(frozen=True)
@@ -116,7 +116,7 @@ def normalize_requested_quantity(
     ):
         return NormalizedQuantity("count", quantity)
     if normalized_unit in {"", "unit", "units"} and quantity_is_explicit:
-        return NormalizedQuantity("count", quantity)
+        return NormalizedQuantity("catalog_dependent", quantity)
     if normalized_unit in {
         "pack",
         "packs",
@@ -173,6 +173,8 @@ def required_pack_count(
     if requested.dimension == "pack_count":
         rounded = round(requested.amount)
         return int(rounded) if math.isclose(requested.amount, rounded) else None
+    if requested.dimension == "catalog_dependent":
+        return None
     if pack is None or pack.dimension != requested.dimension or pack.amount <= 0:
         return None
 

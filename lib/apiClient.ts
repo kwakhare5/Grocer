@@ -228,3 +228,91 @@ export async function clearIntentSession(
     { method: "DELETE", headers: capabilityHeaders(sessionCapability) },
   );
 }
+
+// ---------------------------------------------------------------------------
+// Developer Live-Debug Telemetry
+// ---------------------------------------------------------------------------
+
+export interface DebugItemTelemetry {
+  item_id: string;
+  name: string;
+  original_requested_quantity: string;
+  interpreted_meaning: string;
+  dimension: string | null;
+  canonical_amount: number | null;
+  quantity_is_explicit: boolean;
+  pack_size_preference: string | null;
+  selected_provider_product: string | null;
+  selected_spin_id: string | null;
+  provider_pack_size: string | null;
+  planned_cart_quantity: number | null;
+  expected_fulfillment: string;
+  actual_canonical_cart_quantity: number | null;
+  actual_fulfillment: string;
+  provider_max_quantity: number | null;
+  is_mock: boolean;
+  integration_note: string | null;
+}
+
+export interface DebugSessionSummary {
+  session_id: string;
+  customer_id: string;
+  conversation_state: string;
+  turn_count: number;
+  original_user_request: string;
+  event_count: number;
+  has_cart: boolean;
+  is_active: boolean;
+}
+
+export interface DebugLiveInspectionResponse {
+  has_session: boolean;
+  session_id: string;
+  masked_customer_id: string;
+  conversation_state: string;
+  turn_count: number;
+  original_user_request: string;
+  sanitized_address: string | null;
+  cart_id: string | null;
+  order_id: string | null;
+  items: DebugItemTelemetry[];
+  verification_result: {
+    status?: string;
+    violations?: Array<{ violation_code: string; target: string; detail: string; is_hard: boolean }>;
+    deviations?: Array<{ preference_type: string; target: string; expected: string; actual: string }>;
+    budget_delta?: number;
+    is_stale?: boolean;
+    confidence?: number;
+    [key: string]: unknown;
+  };
+  recovery_classification: {
+    state?: string;
+    has_recovery?: boolean;
+    failure_class?: string;
+    can_auto_apply?: boolean;
+    attempt_number?: number;
+    [key: string]: unknown;
+  };
+  clarification_required: boolean;
+  clarification_details: {
+    item_name?: string;
+    question?: string;
+    candidate_count?: number;
+    candidates?: Array<{ spin_id: string; name: string; pack_size: string; price: number; score: number }>;
+  } | null;
+  relevant_safe_event_names: string[];
+  is_mock: boolean;
+  integration_points: string[];
+}
+
+export async function fetchLatestDebugTelemetry(): Promise<DebugLiveInspectionResponse> {
+  return request<DebugLiveInspectionResponse>("/api/debug/latest");
+}
+
+export async function fetchDebugSessions(): Promise<DebugSessionSummary[]> {
+  return request<DebugSessionSummary[]>("/api/debug/sessions");
+}
+
+export async function fetchDebugSessionById(sessionId: string): Promise<DebugLiveInspectionResponse> {
+  return request<DebugLiveInspectionResponse>(`/api/debug/sessions/${encodeURIComponent(sessionId)}`);
+}

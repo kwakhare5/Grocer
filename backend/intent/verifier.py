@@ -288,7 +288,7 @@ class IntentVerifier:
         self, cart: CommerceCart, stale_flag: bool
     ) -> list[ConstraintViolation]:
         violations: list[ConstraintViolation] = []
-        if stale_flag or not cart.is_serviceable:
+        if stale_flag or cart.is_serviceable is False:
             violations.append(ConstraintViolation(
                 violation_code=ViolationCode.STALE_CART,
                 target="cart",
@@ -422,7 +422,7 @@ class IntentVerifier:
             matched = any(
                 _matches_intent_item(intent_item, cart_item)
                 for cart_item in cart.items
-                if cart_item.is_available
+                if cart_item.is_available is not False
             )
             if not matched:
                 if intent_item.is_essential:
@@ -451,6 +451,40 @@ class IntentVerifier:
             ]
             if not matched_cart_items:
                 continue  # Already handled by _check_missing_items
+
+            resolved_meaning = intent_item.resolved_meaning
+            # A bare quantity is only meaningful after catalog resolution. Keep
+            # that chosen SKU and its canonical quantity authoritative; explicit
+            # physical quantities remain portable across an equivalent recovery
+            # pack (for example 1 L -> 2 x 500 ml).
+            if (
+                resolved_meaning
+                and resolved_meaning.requested_dimension == "catalog_dependent"
+                and resolved_meaning.cart_quantity is not None
+            ):
+                matched_resolved_items = [
+                    cart_item
+                    for cart_item in cart.items
+                    if cart_item.spin_id == resolved_meaning.spin_id
+                ]
+                actual_quantity = sum(cart_item.quantity for cart_item in matched_resolved_items)
+                resolved_meaning.actual_cart_quantity = actual_quantity
+                if actual_quantity < resolved_meaning.cart_quantity:
+                    resolved_meaning.status = "PARTIALLY_FULFILLED"
+                elif actual_quantity > resolved_meaning.cart_quantity:
+                    resolved_meaning.status = "UNVERIFIABLE"
+                if actual_quantity != resolved_meaning.cart_quantity:
+                    violations.append(ConstraintViolation(
+                        violation_code=ViolationCode.WRONG_QUANTITY,
+                        target=intent_item.name,
+                        detail=(
+                            f"'{intent_item.name}' planned {resolved_meaning.cart_quantity} "
+                            f"× {resolved_meaning.provider_pack_description or 'selected SKU'}, "
+                            f"but the canonical cart contains {actual_quantity}"
+                        ),
+                        is_hard=True,
+                    ))
+                continue
 
             has_exact_constraint = any(
                 hc.constraint_type == ConstraintType.EXACT_QUANTITY

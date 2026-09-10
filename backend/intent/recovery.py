@@ -74,6 +74,7 @@ class FailureClass(str, Enum):
     STALE_CART = "stale_cart"
     TRANSIENT_ERROR = "transient_error"
     PARTIAL_SUCCESS = "partial_success"
+    PROVIDER_QUANTITY_LIMIT = "provider_quantity_limit"
     MIN_ORDER_FAILURE = "min_order_failure"
     UNKNOWN = "unknown"
 
@@ -88,6 +89,7 @@ class RecoveryAction(BaseModel):
 
     action_type: Literal["add_item", "replace_item", "remove_item", "adjust_quantity", "refresh_cart", "retry"]
     spin_id: str = Field(..., description="Target SKU spin_id to add or adjust")
+    sku_id: Optional[str] = Field(default=None, description="Provider SKU ID for a cart mutation")
     name: str = Field(..., description="Product or variant name")
     quantity: int = Field(default=1, ge=0)
     removes_spin_id: Optional[str] = Field(
@@ -103,6 +105,7 @@ class RecoveryCandidate(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     spin_id: str
+    sku_id: Optional[str] = None
     name: str
     pack_size: str
     price: float
@@ -203,7 +206,13 @@ class RecoveryEngine:
                 contract, cart, verification_result, available_products, attempt_number
             )
 
-        if failure_class in (FailureClass.ITEM_UNAVAILABLE, FailureClass.BRAND_UNAVAILABLE, FailureClass.PACK_SIZE_CHANGED):
+        if failure_class in (
+            FailureClass.ITEM_UNAVAILABLE,
+            FailureClass.BRAND_UNAVAILABLE,
+            FailureClass.PACK_SIZE_CHANGED,
+            FailureClass.PARTIAL_SUCCESS,
+            FailureClass.PROVIDER_QUANTITY_LIMIT,
+        ):
             return self._handle_item_or_brand_unavailable(
                 contract, cart, verification_result, available_products, failure_class, attempt_number
             )
@@ -228,6 +237,14 @@ class RecoveryEngine:
         """Map VerificationResult violations and cart state to a FailureClass."""
         codes = verification_result.violation_codes
 
+        if cart and (
+            cart.reduced_quantity_items
+            or any(
+                item.max_quantity is not None and item.quantity >= item.max_quantity
+                for item in cart.items
+            )
+        ):
+            return FailureClass.PROVIDER_QUANTITY_LIMIT
         if cart and cart.cart_warning == "PARTIAL_SUCCESS":
             return FailureClass.PARTIAL_SUCCESS
         if ViolationCode.STALE_CART in codes:
@@ -289,7 +306,7 @@ class RecoveryEngine:
         candidates: list[tuple[RecoveryCandidate, int]] = []
         for prod in available_products:
             for variant in prod.variants:
-                if variant.in_stock and variant.price > 0:
+                if variant.in_stock is not False and variant.price > 0:
                     required_quantity = max(1, math.ceil(shortfall / variant.price))
                     added_total = variant.price * required_quantity
                     new_total = cart.grand_total + added_total
@@ -420,7 +437,7 @@ class RecoveryEngine:
             ]
             for prod in matching_products:
                 for variant in prod.variants:
-                    if not variant.in_stock:
+                    if variant.in_stock is False:
                         continue
                     if variant.spin_id == cart_item.spin_id:
                         continue
@@ -588,22 +605,10 @@ class RecoveryEngine:
         )
 
         if intent_item:
-            requested_quantity = normalize_requested_quantity(
-                intent_item.quantity,
-                intent_item.unit,
-                intent_item.name,
-                quantity_is_explicit=intent_item.quantity_is_explicit,
-                pack_size_preference=intent_item.pack_size_preference,
-            )
             filtered_candidates = [
                 (product, variant)
                 for product, variant in filtered_candidates
-                if requested_quantity is not None
-                and required_pack_count(
-                    requested_quantity,
-                    normalize_pack_quantity(variant.pack_size),
-                )
-                is not None
+                if self._calculate_pack_multiple(intent_item, variant.pack_size) > 0
                 and (
                     not intent_item.brand_preference
                     or brand_identity_matches(
@@ -717,6 +722,7 @@ class RecoveryEngine:
                 else ("replace_item" if removes_spin_id else "add_item")
             ),
             spin_id=top_candidate.spin_id,
+            sku_id=top_candidate.sku_id,
             name=top_candidate.name,
             quantity=quantity,
             removes_spin_id=None if restores_existing_variant else removes_spin_id,
@@ -725,6 +731,28 @@ class RecoveryEngine:
         )
 
         if policy_decision.autonomy_level == AutonomyLevel.AUTO_EXECUTE and not is_ambiguous:
+            if failure_class == FailureClass.PROVIDER_QUANTITY_LIMIT and intent_item is not None:
+                resolved = intent_item.resolved_meaning
+                if (
+                    resolved is not None
+                    and resolved.cart_quantity is not None
+                    and resolved.actual_cart_quantity is not None
+                    and resolved.actual_cart_quantity < resolved.cart_quantity
+                ):
+                    remaining = resolved.cart_quantity - resolved.actual_cart_quantity
+                    return RecoveryOutcome(
+                        state=RecoveryState.RECOVERED,
+                        failure_class=failure_class,
+                        recovery_actions=[action],
+                        message=(
+                            f"You asked for {resolved.cart_quantity} × "
+                            f"{resolved.provider_pack_description or top_candidate.pack_size}, "
+                            f"but this store currently allows only {resolved.actual_cart_quantity} "
+                            f"of this SKU. I added an alternative for the remaining {remaining}."
+                        ),
+                        attempt_number=attempt_number,
+                        can_auto_apply=True,
+                    )
             return RecoveryOutcome(
                 state=RecoveryState.RECOVERED,
                 failure_class=failure_class,
@@ -735,6 +763,33 @@ class RecoveryEngine:
             )
 
         # Ambiguous or requires approval
+        if failure_class == FailureClass.PROVIDER_QUANTITY_LIMIT and intent_item is not None:
+            resolved = intent_item.resolved_meaning
+            if (
+                resolved is not None
+                and resolved.cart_quantity is not None
+                and resolved.actual_cart_quantity is not None
+                and resolved.actual_cart_quantity < resolved.cart_quantity
+            ):
+                remaining = resolved.cart_quantity - resolved.actual_cart_quantity
+                clarification_msg = (
+                    policy_decision.clarification_needed
+                    or (
+                        f"You asked for {resolved.cart_quantity} × "
+                        f"{resolved.provider_pack_description or target_name}, "
+                        f"but this store currently allows only {resolved.actual_cart_quantity} "
+                        f"of this SKU. I can search for another option for the remaining {remaining}."
+                    )
+                )
+                return RecoveryOutcome(
+                    state=RecoveryState.NEEDS_USER_DECISION,
+                    failure_class=failure_class,
+                    candidates_for_user=scored[:3],
+                    recovery_actions=[action],  # Recommended top action
+                    message=clarification_msg,
+                    attempt_number=attempt_number,
+                    can_auto_apply=False,
+                )
         clarification_msg = (
             policy_decision.clarification_needed
             or f"'{target_name}' is unavailable. I found multiple options: {', '.join(c.name for c in scored[:2])}. Which should I choose?"
@@ -772,11 +827,21 @@ class RecoveryEngine:
                 prod.category,
             ):
                 for variant in prod.variants:
-                    if variant.in_stock and product_identity_matches(
+                    if (
+                        variant.in_stock is not False
+                        and (
+                            intent_item is None
+                            or intent_item.resolved_meaning is None
+                            or intent_item.resolved_meaning.cart_quantity is None
+                            or variant.max_quantity is None
+                            or variant.max_quantity >= intent_item.resolved_meaning.cart_quantity
+                        )
+                        and product_identity_matches(
                         requested_name,
                         variant.name,
                         requested_category,
                         prod.category,
+                        )
                     ):
                         candidates.append((prod, variant))
 
@@ -887,6 +952,7 @@ class RecoveryEngine:
 
         return RecoveryCandidate(
             spin_id=variant.spin_id,
+            sku_id=variant.sku_id,
             name=variant.name,
             pack_size=variant.pack_size,
             price=variant.price,
@@ -902,6 +968,13 @@ class RecoveryEngine:
 
     def _calculate_pack_multiple(self, intent_item: IntentItem, candidate_pack_size: str) -> int:
         """Return the exact quantity-preserving pack count, or zero if unsafe."""
+
+        if (
+            intent_item.resolved_meaning is not None
+            and intent_item.resolved_meaning.cart_quantity is not None
+            and intent_item.resolved_meaning.expected_dimension == "pack_count"
+        ):
+            return intent_item.resolved_meaning.cart_quantity
 
         requested = normalize_requested_quantity(
             intent_item.quantity,

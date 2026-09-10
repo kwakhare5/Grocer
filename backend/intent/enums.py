@@ -1,4 +1,4 @@
-"""Domain enums for GROCER Intent Contract (Spec §5).
+"""Domain enums for GROCER Intent Contract (Spec Section 5).
 
 Encodes explicit vocabulary for constraint types, preference classification,
 substitution tolerances, ambiguity levels, and deterministic precedence.
@@ -49,7 +49,7 @@ class AmbiguitySeverity(str, Enum):
 
 
 class PrecedenceLevel(int, Enum):
-    """Strict evaluation order for conflicting instructions (Spec §5.3).
+    """Strict evaluation order for conflicting instructions (Spec Section 5.3).
     
     1. CURRENT_EXPLICIT_REQUEST: What the user explicitly typed right now.
     2. HARD_CONSTRAINTS: Absolute boundaries that cannot be relaxed silently.

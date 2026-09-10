@@ -22,7 +22,7 @@ async def verify_webhook(
     hub_verify_token: str = Query(None, alias="hub.verify_token"),
     hub_challenge: str = Query(None, alias="hub.challenge"),
 ) -> Response:
-    """Meta WhatsApp Webhook verification endpoint (Spec §18)."""
+    """Meta WhatsApp Webhook verification endpoint (Spec Section 18)."""
     is_valid, challenge_or_err = default_whatsapp_adapter.verify_webhook_challenge(
         mode=hub_mode,
         token=hub_verify_token,

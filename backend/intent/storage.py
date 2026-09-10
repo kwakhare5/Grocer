@@ -1,4 +1,4 @@
-"""Session storage and snapshot history for Intent Contracts (Spec §5 & §7).
+"""Session storage and snapshot history for Intent Contracts (Spec Section 5 & Section 7).
 
 Maintains versioned snapshots of active user intents across session turns.
 Allows inspecting historical revisions and guarantees that the current active

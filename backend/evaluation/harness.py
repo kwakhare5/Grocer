@@ -1,4 +1,4 @@
-"""GROCER v2 Reliability Evaluation Harness (Spec §16, §20).
+"""GROCER v2 Reliability Evaluation Harness (Spec Section 16, Section 20).
 
 Executes batch failure scenarios against MockCommerceAdapter through the actual
 production application boundary (`GrocerOrchestrator.handle_turn()`), evaluates deterministic
@@ -78,7 +78,7 @@ class ScenarioRunResult:
 
 @dataclass
 class EvaluationMetrics:
-    """The core evaluation metrics defined in Spec §16 with truthful, separated semantics."""
+    """The core evaluation metrics defined in Spec Section 16 with truthful, separated semantics."""
     intent_preservation_rate: float = 0.0
     task_completion_rate: float = 0.0
     policy_adherence_rate: float = 0.0
@@ -120,7 +120,7 @@ class EvaluationReport:
             "Commerce Adapter:          MockCommerceAdapter [Simulated In-Memory Seam]",
             f"Suite Execution Time:      {self.duration_seconds:.3f}s",
             "-" * 70,
-            "CORE RELIABILITY & INTENT METRICS (Spec §16):",
+            "CORE RELIABILITY & INTENT METRICS (Spec Section 16):",
             f"1. Intent Preservation (completed): {self.metrics.intent_preservation_rate * 100:6.1f}%  (Target: >= 95%)",
             f"   - Task Completion Rate:            {self.metrics.task_completion_rate * 100:6.1f}%  (Others may halt safely)",
             f"2. Policy Adherence Rate:            {self.metrics.policy_adherence_rate * 100:6.1f}%  (Target: 100.0% STRICT)",

@@ -1,4 +1,4 @@
-"""Safe interpretation trace for live provider-semantics debugging (Spec §12).
+"""Safe interpretation trace for live provider-semantics debugging (Spec Section 12).
 
 Emits concise structured development evidence without tokens, credentials,
 addresses, or raw private identifiers. Only product names, pack descriptions,

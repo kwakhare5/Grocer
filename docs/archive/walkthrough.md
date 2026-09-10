@@ -40,7 +40,7 @@ Removed 12 legacy/orphaned operational and duplicate files via git staged deleti
 - `app/layout.tsx` & `package.json`: Updated metadata title and description to GROCER v2 intent-preserving assistant identity.
 
 ### Phase 7: All 8 Failure Scenarios Suite (`backend/tests/test_all_failure_scenarios.py`)
-Tested the 8 canonical failure scenarios from Spec §15:
+Tested the 8 canonical failure scenarios from Spec Section 15:
 1. `test_scenario_1_unavailable_product_oos`: Primary 1L milk OOS -> 2x 500ml auto-substitution within budget.
 2. `test_scenario_2_preferred_brand_unavailable_strict_vs_flexible`: Strict brand lock blocks unauthorized substitution (`WRONG_BRAND` failure); flexible preference allows equivalent.
 3. `test_scenario_3_pack_size_change`: Requested 1L pack size unavailable; computes pack multiple (2x 500ml) to satisfy requested volume under budget.
@@ -52,7 +52,7 @@ Tested the 8 canonical failure scenarios from Spec §15:
 
 ### Phase 8: Multi-Scenario Evaluation Suite (`backend/evaluation/`)
 - Created `backend/evaluation/scenarios.py` and `backend/evaluation/harness.py`.
-- Benchmark runner calculates the 9 core reliability metrics from Spec §16.
+- Benchmark runner calculates the 9 core reliability metrics from Spec Section 16.
 - Refined budget deviation metric to separate autonomous overrun (`+0.0%`) from upstream price drift (`+6.2%` on halted carts).
 - Enforced UTF-8 stdout encoding for clean cross-platform terminal rendering.
 - Added `backend/tests/test_evaluation_harness.py`.
@@ -69,7 +69,7 @@ Tested the 8 canonical failure scenarios from Spec §15:
 
 ---
 
-## 3. Evaluation Harness Results (Spec §16)
+## 3. Evaluation Harness Results (Spec Section 16)
 
 ```text
 ======================================================================
@@ -78,7 +78,7 @@ GROCER v2 RELIABILITY & INTENT EVALUATION REPORT
 Total Scenarios Evaluated: 8
 Suite Execution Time:      0.002s
 ----------------------------------------------------------------------
-CORE METRICS (Spec §16):
+CORE METRICS (Spec Section 16):
 1. Intent Preservation Rate:          100.0%  (Target: >= 95%)
 2. Recovery Success Rate:             100.0%  (Target: >= 90%)
 3. Hard-Constraint Satisfaction:      100.0%  (Target: 100.0% STRICT)

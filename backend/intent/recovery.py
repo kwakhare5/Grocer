@@ -1,4 +1,4 @@
-"""Recovery Engine — deterministic intent drift repair and candidate ranking (Spec §10).
+"""Recovery Engine — deterministic intent drift repair and candidate ranking (Spec Section 10).
 
 When the live commerce state no longer satisfies the user's intent, find the safest
 valid path back to the intent or ask the human when no safe path is known.
@@ -58,7 +58,7 @@ from backend.intent.semantics import (
 # ---------------------------------------------------------------------------
 
 class RecoveryState(str, Enum):
-    """Terminal or intermediate state of a recovery attempt (Spec §10.4)."""
+    """Terminal or intermediate state of a recovery attempt (Spec Section 10.4)."""
     RECOVERED = "recovered"
     NEEDS_USER_DECISION = "needs_user_decision"
     BLOCKED = "blocked"
@@ -66,7 +66,7 @@ class RecoveryState(str, Enum):
 
 
 class FailureClass(str, Enum):
-    """Normalized taxonomy of commerce intent failures (Spec §10.2)."""
+    """Normalized taxonomy of commerce intent failures (Spec Section 10.2)."""
     ITEM_UNAVAILABLE = "item_unavailable"
     BRAND_UNAVAILABLE = "brand_unavailable"
     PACK_SIZE_CHANGED = "pack_size_changed"
@@ -115,7 +115,7 @@ class RecoveryCandidate(BaseModel):
 
 
 class RecoveryOutcome(BaseModel):
-    """Result of a recovery pass with explicit instructions or user choices (Spec §10.1)."""
+    """Result of a recovery pass with explicit instructions or user choices (Spec Section 10.1)."""
     model_config = ConfigDict(extra="ignore")
 
     state: RecoveryState
@@ -136,7 +136,7 @@ class RecoveryOutcome(BaseModel):
 # ---------------------------------------------------------------------------
 
 class RecoveryEngine:
-    """Deterministic recovery and candidate ranking engine (Spec §10)."""
+    """Deterministic recovery and candidate ranking engine (Spec Section 10)."""
 
     def __init__(self, policy_engine: Optional[PolicyEngine] = None) -> None:
         self.policy_engine = policy_engine or PolicyEngine()
@@ -228,7 +228,7 @@ class RecoveryEngine:
         )
 
     # -----------------------------------------------------------------------
-    # Classification (Spec §10.1)
+    # Classification (Spec Section 10.1)
     # -----------------------------------------------------------------------
 
     def _classify(
@@ -274,7 +274,7 @@ class RecoveryEngine:
     def _handle_transient_error(
         self, attempt_number: int, max_attempts: int
     ) -> RecoveryOutcome:
-        """Handle safe provider retry after a transient error (Spec §10.2 item 6)."""
+        """Handle safe provider retry after a transient error (Spec Section 10.2 item 6)."""
         action = RecoveryAction(
             action_type="retry",
             spin_id="system-retry",
@@ -299,7 +299,7 @@ class RecoveryEngine:
         available_products: list[CommerceProductItem],
         attempt_number: int,
     ) -> RecoveryOutcome:
-        """Handle minimum-order basket failure by suggesting staple addition (Spec §10.2 item 8)."""
+        """Handle minimum-order basket failure by suggesting staple addition (Spec Section 10.2 item 8)."""
         shortfall = cart.min_order_threshold - cart.grand_total
         max_budget = contract.budget.max_budget if contract.budget else float("inf")
 
@@ -805,7 +805,7 @@ class RecoveryEngine:
         )
 
     # -----------------------------------------------------------------------
-    # Candidate Generation & Ranking (Spec §10.3)
+    # Candidate Generation & Ranking (Spec Section 10.3)
     # -----------------------------------------------------------------------
 
     def _find_candidates(
@@ -900,7 +900,7 @@ class RecoveryEngine:
         intent_item: Optional[IntentItem],
         contract: IntentContract,
     ) -> RecoveryCandidate:
-        """Score candidate along 7 deterministic dimensions (Spec §10.3)."""
+        """Score candidate along 7 deterministic dimensions (Spec Section 10.3)."""
         prod, variant = item_tuple
         score = 0.4  # Base score for category/keyword relevance
         reasons: list[str] = ["Category/keyword match"]
@@ -1004,7 +1004,7 @@ class RecoveryEngine:
         max_attempts: int = 3,
         address_id: Optional[str] = None,
     ) -> tuple[CommerceCart, VerificationResult, RecoveryOutcome]:
-        """Execute the complete closed recovery loop (Spec §10.1).
+        """Execute the complete closed recovery loop (Spec Section 10.1).
 
         Loop:
             Observe failure

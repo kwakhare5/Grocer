@@ -168,7 +168,7 @@ class MockCommerceAdapter(CommercePort):
                 self._catalog_by_spin[variant.spin_id] = (prod, variant)
 
     # -----------------------------------------------------------------------
-    # Deterministic Failure Injection Hooks (Spec §15, §20)
+    # Deterministic Failure Injection Hooks (Spec Section 15, Section 20)
     # -----------------------------------------------------------------------
 
     def inject_out_of_stock(self, spin_id: str) -> None:

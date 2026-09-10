@@ -1,4 +1,4 @@
-"""Unit tests for GROCER Phase 4 Intent Verifier (Spec §9, §16.2, §17).
+"""Unit tests for GROCER Phase 4 Intent Verifier (Spec Section 9, Section 16.2, Section 17).
 
 Covers 12 test scenarios:
  1.  Exact cart pass — PASS, zero violations

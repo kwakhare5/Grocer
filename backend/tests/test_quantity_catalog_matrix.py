@@ -1,4 +1,4 @@
-"""Generalized table-driven quantity/catalog semantic matrix (Spec §11).
+"""Generalized table-driven quantity/catalog semantic matrix (Spec Section 11).
 
 No product-name hacks: bare quantities resolve only from catalog evidence.
 Covers the ten required invariants across quantities, explicit semantics,

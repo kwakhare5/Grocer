@@ -1,4 +1,4 @@
-"""Canonical test scenarios for the GROCER v2 evaluation framework (Spec §15, §16, §20).
+"""Canonical test scenarios for the GROCER v2 evaluation framework (Spec Section 15, Section 16, Section 20).
 
 Provides reproducible scenario configurations for the 8 canonical failure cases
 plus standard replenishment baselines.
@@ -179,7 +179,7 @@ def _build_s9_contract(session_id: str) -> IntentContract:
 
 
 def get_canonical_scenarios() -> list[ScenarioDefinition]:
-    """Return canonical evaluation scenarios mapping to Master Spec §15."""
+    """Return canonical evaluation scenarios mapping to Master Spec Section 15."""
     return [
         ScenarioDefinition(
             id="SCN-01",

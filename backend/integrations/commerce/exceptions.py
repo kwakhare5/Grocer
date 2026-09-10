@@ -14,7 +14,7 @@ class CommerceError(Exception):
 class UnconfirmedCheckoutError(CommerceError):
     """Raised when checkout is attempted without explicit human/user confirmation.
 
-    In accordance with Spec §28.3 & §39.15, consequential actions require explicit
+    In accordance with Spec Section 28.3 & Section 39.15, consequential actions require explicit
     confirmation to prevent unintended production charges or inventory mutations.
     """
     def __init__(self, message: str = "Checkout requires explicit customer confirmation."):

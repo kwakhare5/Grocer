@@ -1,9 +1,9 @@
-"""GrocerOrchestrator — end-to-end conversational commerce loop (Spec §12, §20 Phase 6).
+"""GrocerOrchestrator — end-to-end conversational commerce loop (Spec Section 12, Section 20 Phase 6).
 
 Connects:
     IntentParser → PolicyEngine → CommercePort → IntentVerifier → RecoveryEngine
 
-Architecture rule (Spec §12.3):
+Architecture rule (Spec Section 12.3):
     LLM interprets and proposes. Deterministic code enforces and verifies.
     All state transitions in this module are deterministic.
 
@@ -100,7 +100,7 @@ class OrchestratorTurnResult(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Message templates  (Spec §11)
+# Message templates  (Spec Section 11)
 # ---------------------------------------------------------------------------
 
 def _msg_confirmation_basket(basket: BasketSummary) -> str:
@@ -468,7 +468,7 @@ def _candidates_to_options(candidates: list[RecoveryCandidate]) -> list[Clarific
 # ---------------------------------------------------------------------------
 
 class GrocerOrchestrator:
-    """Stateless conversational commerce orchestrator (Spec §12, Phase 6).
+    """Stateless conversational commerce orchestrator (Spec Section 12, Phase 6).
 
     Reads/writes OrchestratorSession via OrchestratorSessionStore.
     All routing decisions are deterministic — no LLM control flow.
@@ -1354,7 +1354,7 @@ class GrocerOrchestrator:
         explicit_confirmation: bool = False,
         confirmation_nonce: Optional[str] = None,
     ) -> OrchestratorTurnResult:
-        """Execute checkout after explicit user confirmation (Spec §6, §8.3)."""
+        """Execute checkout after explicit user confirmation (Spec Section 6, Section 8.3)."""
         if not explicit_confirmation or confirmation_nonce is None:
             raise UnconfirmedCheckoutError(
                 "Checkout requires explicit confirmation bound to the presented basket"
@@ -1932,7 +1932,7 @@ class GrocerOrchestrator:
         return contract
 
     def _apply_preferences(self, contract: IntentContract, customer_id: str, events: list[str]) -> None:
-        """Load established soft preferences and apply where not overridden (Spec §7)."""
+        """Load established soft preferences and apply where not overridden (Spec Section 7)."""
         prefs = default_preference_store.get_preferences(customer_id)
         applied = 0
         for pref in prefs:
@@ -2103,7 +2103,7 @@ def _is_fresh_request(message: str) -> bool:
 def _merge_contracts(
     existing: IntentContract, new: IntentContract, message: str = ""
 ) -> IntentContract:
-    """Merge new contract onto existing, respecting intent precedence (Spec §5.3)."""
+    """Merge new contract onto existing, respecting intent precedence (Spec Section 5.3)."""
     merged = copy.deepcopy(existing)
     merged.intent_id = new.intent_id
     merged.version = existing.version + 1

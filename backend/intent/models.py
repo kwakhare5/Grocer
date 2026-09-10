@@ -1,4 +1,4 @@
-"""Intent Contract canonical domain model (Spec §5).
+"""Intent Contract canonical domain model (Spec Section 5).
 
 Encodes user shopping intent as a structured, verifiable contract that separates
 hard constraints from soft preferences, enforces authorization invariants, and
@@ -75,7 +75,7 @@ class IntentItem(BaseModel):
 
 
 class HardConstraint(BaseModel):
-    """Non-negotiable rule that cannot be silently violated (Spec §5.4)."""
+    """Non-negotiable rule that cannot be silently violated (Spec Section 5.4)."""
     model_config = ConfigDict(extra="ignore")
 
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
@@ -87,7 +87,7 @@ class HardConstraint(BaseModel):
 
 
 class SoftPreference(BaseModel):
-    """Influences ranking and can be relaxed with user policy or confirmation (Spec §5.4)."""
+    """Influences ranking and can be relaxed with user policy or confirmation (Spec Section 5.4)."""
     model_config = ConfigDict(extra="ignore")
 
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
@@ -147,7 +147,7 @@ class BrandPreference(BaseModel):
 
 
 class SubstitutionPolicy(BaseModel):
-    """Policy governing automatic and human-directed substitutions (Spec §5.2)."""
+    """Policy governing automatic and human-directed substitutions (Spec Section 5.2)."""
     model_config = ConfigDict(extra="ignore")
 
     category_tolerance: str = Field(default="same_category", description="Category boundary for substitution")
@@ -181,7 +181,7 @@ class DeliveryPreferences(BaseModel):
 
 
 class AuthorizationScope(BaseModel):
-    """Server-enforced boundaries on autonomous agent action (Spec §6 & §8.3).
+    """Server-enforced boundaries on autonomous agent action (Spec Section 6 & Section 8.3).
     
     Invariants:
     - checkout_requires_explicit_confirmation is structurally locked to True.
@@ -208,7 +208,7 @@ class AuthorizationScope(BaseModel):
 
 
 class Ambiguity(BaseModel):
-    """An unresolved aspect of the intent that may require user clarification (Spec §6)."""
+    """An unresolved aspect of the intent that may require user clarification (Spec Section 6)."""
     model_config = ConfigDict(extra="ignore")
 
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
@@ -231,7 +231,7 @@ class SourceContext(BaseModel):
 
 
 class IntentContract(BaseModel):
-    """The canonical structured representation of user shopping intent (Spec §5).
+    """The canonical structured representation of user shopping intent (Spec Section 5).
     
     The cart is NOT the source of truth for intent. The IntentContract is the
     governing specification against which all commerce actions are verified.
@@ -358,7 +358,7 @@ class IntentContract(BaseModel):
         return any(a.severity == AmbiguitySeverity.HIGH for a in self.ambiguities)
 
     def is_checkout_authorized(self, explicit_confirmation: bool = False) -> bool:
-        """Authoritative checkout authorization check (Spec §8.3).
+        """Authoritative checkout authorization check (Spec Section 8.3).
         
         Always requires explicit user confirmation.
         """
@@ -366,14 +366,14 @@ class IntentContract(BaseModel):
             return False
         return True
 
-    # --- Precedence Engine (Spec §5.3) ---
+    # --- Precedence Engine (Spec Section 5.3) ---
 
     def apply_memory(
         self,
         stored_preferences: list[SoftPreference | BrandPreference],
         durable_dietary: Optional[list[str]] = None,
     ) -> IntentContract:
-        """Merge historical soft memory without overriding explicit request (Spec §5.3).
+        """Merge historical soft memory without overriding explicit request (Spec Section 5.3).
         
         Precedence:
         CURRENT EXPLICIT USER REQUEST > HARD CONSTRAINTS > STORED SOFT PREFERENCES > DEFAULTS.

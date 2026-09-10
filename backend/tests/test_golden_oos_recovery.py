@@ -1,4 +1,4 @@
-"""Golden Out-Of-Stock (OOS) Recovery Scenario (Spec §10, §15, §20).
+"""Golden Out-Of-Stock (OOS) Recovery Scenario (Spec Section 10, Section 15, Section 20).
 
 Validates the flagship proof loop:
 User request:

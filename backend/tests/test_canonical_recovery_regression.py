@@ -1,4 +1,4 @@
-"""Regression tests proving GrocerOrchestrator uses canonical LoopingRecoveryEngine (Spec §10, §12).
+"""Regression tests proving GrocerOrchestrator uses canonical LoopingRecoveryEngine (Spec Section 10, Section 12).
 
 Tests the 7 critical invariants:
 1. OOS recovery through GrocerOrchestrator.handle_turn() (end-to-end)

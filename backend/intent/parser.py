@@ -1,11 +1,11 @@
-"""Intent Parser — WhatsApp natural language → validated IntentContract (Spec §5, §12).
+"""Intent Parser — WhatsApp natural language → validated IntentContract (Spec Section 5, Section 12).
 
 Architecture:
     WhatsApp text → RuleBasedExtractor → DeterministicValidator → IntentContract
 
 The RuleBasedExtractor uses deterministic regex/heuristic extraction.
 The DeterministicValidator always runs and has final authority over the output
-(Spec §12.3: "LLM interprets and proposes. Deterministic code enforces and verifies.").
+(Spec Section 12.3: "LLM interprets and proposes. Deterministic code enforces and verifies.").
 """
 from __future__ import annotations
 
@@ -445,7 +445,7 @@ class RuleBasedExtractor:
 # ---------------------------------------------------------------------------
 
 class DeterministicValidator:
-    """Post-extraction validation and invariant enforcement (Spec §12.2)."""
+    """Post-extraction validation and invariant enforcement (Spec Section 12.2)."""
 
     def validate(self, raw: dict, text: str, session_id: str, customer_id: Optional[str]) -> IntentContract:
         """Build and validate an IntentContract from raw extraction output."""
@@ -550,7 +550,7 @@ class DeterministicValidator:
 class IntentParser:
     """Parse WhatsApp natural language into a validated IntentContract.
 
-    Architecture (Spec §12):
+    Architecture (Spec Section 12):
         text → RuleBasedExtractor → DeterministicValidator → IntentContract
 
     The deterministic validator always has final authority.

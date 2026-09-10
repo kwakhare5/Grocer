@@ -1,4 +1,4 @@
-"""Policy Engine — deterministic agent autonomy classification (Spec §6).
+"""Policy Engine — deterministic agent autonomy classification (Spec Section 6).
 
 Evaluates proposed agent actions against the active IntentContract and returns
 a PolicyDecision with an AutonomyLevel governing whether the action can be
@@ -19,7 +19,7 @@ from backend.intent.models import IntentContract
 
 
 # ---------------------------------------------------------------------------
-# Autonomy classification (Spec §6)
+# Autonomy classification (Spec Section 6)
 # ---------------------------------------------------------------------------
 
 class AutonomyLevel(str, Enum):
@@ -71,13 +71,13 @@ class PolicyDecision(BaseModel):
 # ---------------------------------------------------------------------------
 
 class PolicyEngine:
-    """Deterministic action authorization engine (Spec §6, §12.2).
+    """Deterministic action authorization engine (Spec Section 6, Section 12.2).
 
     Evaluates whether a proposed action is safe to auto-execute, requires
     user input, requires explicit confirmation, or is blocked by a hard constraint.
 
     Rules:
-        1. Checkout → always REQUIRE_CONFIRMATION (Spec §8.3)
+        1. Checkout → always REQUIRE_CONFIRMATION (Spec Section 8.3)
         2. Hard constraint violation → BLOCKED
         3. Action within approved substitution policy → AUTO_EXECUTE
         4. Ambiguous or outside policy → ASK_USER

@@ -1,4 +1,4 @@
-"""Comprehensive provider-contract tests for SwiggyMCPAdapter (Spec §5.1, §28, Phase B).
+"""Comprehensive provider-contract tests for SwiggyMCPAdapter (Spec Section 5.1, Section 28, Phase B).
 
 Tests the production adapter with mocked HTTP transport across:
 1. Authentication: success, 401, expired token, 419 revoked session

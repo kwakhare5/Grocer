@@ -1,4 +1,4 @@
-"""BaseChannelAdapter — transport-agnostic channel boundary (Spec §17, Phase C)."""
+"""BaseChannelAdapter — transport-agnostic channel boundary (Spec Section 17, Phase C)."""
 from __future__ import annotations
 
 import re

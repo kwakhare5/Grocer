@@ -35,13 +35,13 @@ def base64url_encode(data: bytes) -> str:
 
 
 def generate_code_verifier(byte_length: int = 32) -> str:
-    """Generate high-entropy cryptographic PKCE code_verifier (RFC 7636 §4.1)."""
+    """Generate high-entropy cryptographic PKCE code_verifier (RFC 7636 Section 4.1)."""
     random_bytes = secrets.token_bytes(byte_length)
     return base64url_encode(random_bytes)
 
 
 def generate_code_challenge(verifier: str) -> str:
-    """Generate SHA-256 PKCE code_challenge (RFC 7636 §4.2)."""
+    """Generate SHA-256 PKCE code_challenge (RFC 7636 Section 4.2)."""
     digest = hashlib.sha256(verifier.encode("ascii")).digest()
     return base64url_encode(digest)
 

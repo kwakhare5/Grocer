@@ -1,4 +1,4 @@
-"""Orchestrator session state — conversational shopping loop state machine (Spec §13).
+"""Orchestrator session state — conversational shopping loop state machine (Spec Section 13).
 
 Tracks the full lifecycle of a user's conversational grocery task:
     READY → BUILDING → AWAITING_CONFIRMATION → ORDERED (or FAILED / NEEDS_DECISION)
@@ -7,7 +7,7 @@ ConversationState is the authoritative routing signal used by GrocerOrchestrator
 OrchestratorSession is the per-session data bag persisted across turns.
 OrchestratorSessionStore is the thread-safe in-memory store keyed by session_id.
 
-LLM DOES NOT control state transitions — all routing is deterministic (Spec §12.3).
+LLM DOES NOT control state transitions — all routing is deterministic (Spec Section 12.3).
 """
 from __future__ import annotations
 
@@ -30,13 +30,13 @@ from backend.integrations.commerce.models import CommerceCart, DeliveryAddress, 
 
 
 # ---------------------------------------------------------------------------
-# Conversation state enum  (Spec §13.1 + §11)
+# Conversation state enum  (Spec Section 13.1 + Section 11)
 # ---------------------------------------------------------------------------
 
 class ConversationState(str, Enum):
     """Session lifecycle state for the WhatsApp commerce loop.
 
-    Used by the frontend to render compact UI state labels (Spec §11):
+    Used by the frontend to render compact UI state labels (Spec Section 11):
         READY               — idle, no active intent
         BUILDING            — parsing + building cart
         RECOVERING          — recovery engine active
@@ -252,7 +252,7 @@ class PendingPaymentChoice(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Session model  (Spec §13.1)
+# Session model  (Spec Section 13.1)
 # ---------------------------------------------------------------------------
 
 class OrchestratorSession(BaseModel):

@@ -1,4 +1,4 @@
-"""LoopingRecoveryEngine — canonical bounded multi-turn recovery loop (Spec §10, §12, §20).
+"""LoopingRecoveryEngine — canonical bounded multi-turn recovery loop (Spec Section 10, Section 12, Section 20).
 
 Executes the deterministic recovery sequence across live commerce state:
 1. Fetch live cart from CommercePort (never trust stale local cart).
@@ -53,7 +53,7 @@ class LoopingRecoveryResult(BaseModel):
 
 
 class LoopingRecoveryEngine(RecoveryEngine):
-    """Bounded, deterministic recovery loop orchestrator (Spec §10, §12)."""
+    """Bounded, deterministic recovery loop orchestrator (Spec Section 10, Section 12)."""
 
     def __init__(
         self,

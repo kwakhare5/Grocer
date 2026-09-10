@@ -1,4 +1,4 @@
-"""Intent Verifier — deterministic commerce-state-vs-intent comparison (Spec §9).
+"""Intent Verifier — deterministic commerce-state-vs-intent comparison (Spec Section 9).
 
 Answers the question: "Does the live cart still represent what the user intended?"
 
@@ -10,7 +10,7 @@ Rules:
     - Zero LLM dependency; every check is deterministic.
     - Hard constraint violations always produce VerificationStatus.FAIL.
     - Soft preference deviations are recorded but may still produce PASS.
-    - verify_checkout always fails without explicit_confirmation=True (Spec §8.3, §17.1).
+    - verify_checkout always fails without explicit_confirmation=True (Spec Section 8.3, Section 17.1).
     - Re-usable: called after cart mutations, after recovery, and before checkout.
 """
 from __future__ import annotations
@@ -43,7 +43,7 @@ class VerificationStatus(str, Enum):
 
 
 class ViolationCode(str, Enum):
-    """Machine-readable codes for hard-constraint violations (Spec §9.2)."""
+    """Machine-readable codes for hard-constraint violations (Spec Section 9.2)."""
     BUDGET_EXCEEDED = "budget_exceeded"
     DIETARY_VIOLATION = "dietary_violation"
     DIETARY_UNVERIFIABLE = "dietary_unverifiable"
@@ -57,7 +57,7 @@ class ViolationCode(str, Enum):
 
 
 # ---------------------------------------------------------------------------
-# Output models (Spec §9.2)
+# Output models (Spec Section 9.2)
 # ---------------------------------------------------------------------------
 
 class ConstraintViolation(BaseModel):
@@ -81,7 +81,7 @@ class PreferenceDeviation(BaseModel):
 
 
 class VerificationResult(BaseModel):
-    """Full output of a verification pass (Spec §9.2)."""
+    """Full output of a verification pass (Spec Section 9.2)."""
     model_config = ConfigDict(extra="ignore")
 
     status: VerificationStatus
@@ -260,7 +260,7 @@ class IntentVerifier:
         cart: CommerceCart,
         explicit_confirmation: bool = False,
     ) -> VerificationResult:
-        """Full verification pass with checkout authorization gate (Spec §8.3, §17.1).
+        """Full verification pass with checkout authorization gate (Spec Section 8.3, Section 17.1).
 
         Always fails without explicit_confirmation=True regardless of cart state.
         Runs the full verify() pass and then applies the authorization check.
@@ -271,7 +271,7 @@ class IntentVerifier:
             auth_violation = ConstraintViolation(
                 violation_code=ViolationCode.UNAUTHORIZED_CHECKOUT,
                 target="checkout",
-                detail="Checkout requires explicit user confirmation (Spec §8.3)",
+                detail="Checkout requires explicit user confirmation (Spec Section 8.3)",
                 is_hard=True,
             )
             result.violations.append(auth_violation)

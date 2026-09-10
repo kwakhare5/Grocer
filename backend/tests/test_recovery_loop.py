@@ -1,4 +1,4 @@
-"""Unit and integration tests for LoopingRecoveryEngine (Spec §10, Task 5).
+"""Unit and integration tests for LoopingRecoveryEngine (Spec Section 10, Task 5).
 
 Covers:
 1. recovery retries after failed reverification

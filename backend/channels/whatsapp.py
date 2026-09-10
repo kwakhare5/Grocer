@@ -1,4 +1,4 @@
-"""Official WhatsApp Business Platform Channel Adapter (Spec §18, §19, Phase D).
+"""Official WhatsApp Business Platform Channel Adapter (Spec Section 18, Section 19, Phase D).
 
 Supports:
 - Webhook verification (GET challenge verification)

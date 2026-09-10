@@ -1,4 +1,4 @@
-"""Phase 6 — GrocerOrchestrator end-to-end tests (Spec §20 Phase 6).
+"""Phase 6 — GrocerOrchestrator end-to-end tests (Spec Section 20 Phase 6).
 
 Tests the full conversational commerce loop using MockCommerceAdapter:
     parse → resolve products → build cart → verify → recover → confirm → checkout

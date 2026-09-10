@@ -243,10 +243,11 @@ class PendingAddressChoice(BaseModel):
 class PendingPaymentChoice(BaseModel):
     """Live provider payment methods awaiting an explicit user selection."""
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="ignore")
 
     nonce: str = Field(default_factory=lambda: secrets.token_urlsafe(16))
     options: list[PaymentOption]
+    raw_options: list[PaymentOption] = Field(default_factory=list)
     recovery_notes: list[str] = Field(default_factory=list)
 
 
@@ -270,6 +271,10 @@ class OrchestratorSession(BaseModel):
     cart_id: Optional[str] = None
     address_id: Optional[str] = None
     address_display: Optional[str] = None
+    selected_payment_method: Optional[str] = None
+    selected_payment_option_id: Optional[str] = None
+    selected_payment_option_kind: Optional[str] = None
+    selected_payment_option_label: Optional[str] = None
 
     # Intent
     intent_contract: Optional[IntentContract] = None

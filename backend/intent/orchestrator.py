@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import copy
 import math
+import re
 from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
@@ -111,12 +112,19 @@ def _msg_confirmation_basket(basket: BasketSummary) -> str:
         f"- {item.quantity} x {item.name} ({item.pack_size}): ₹{item.line_total:,.0f}"
         for item in basket.items
     )
+    lines.append(f"Items: ₹{basket.item_total:,.0f}")
+    lines.append(f"Delivery: ₹{basket.delivery_fee:,.0f}")
+    lines.append(f"Packaging: ₹{basket.packaging_fee:,.0f}")
+
+    # Explicit fee reconciliation so grand total math is transparent to the exact rupee
+    base_cost = basket.item_total + basket.delivery_fee + basket.packaging_fee - basket.discount
+    extra_fees = round(basket.grand_total - base_cost, 2)
+    if extra_fees > 0:
+        lines.append(f"Fees & Taxes: ₹{extra_fees:,.0f}")
+
+    lines.append(f"Discount: -₹{basket.discount:,.0f}")
     lines.extend(
         [
-            f"Items: ₹{basket.item_total:,.0f}",
-            f"Delivery: ₹{basket.delivery_fee:,.0f}",
-            f"Packaging: ₹{basket.packaging_fee:,.0f}",
-            f"Discount: -₹{basket.discount:,.0f}",
             f"Total: ₹{basket.grand_total:,.0f}",
             f"Address: {basket.address_display or basket.address_id or 'selected address'}",
             f"Payment: {basket.selected_payment_option_label or basket.selected_payment_method}",
@@ -124,23 +132,26 @@ def _msg_confirmation_basket(basket: BasketSummary) -> str:
     )
     if basket.recovery_notes:
         lines.append(f"Recovery: {'; '.join(basket.recovery_notes)}")
-    if basket.interpretation_notes:
-        lines.append(f"Interpretation: {'; '.join(basket.interpretation_notes)}")
+    # Purged robotic developer interpretation notes from consumer receipt
     lines.append("Confirm to place this exact order.")
     return "\n".join(lines)
 
 
 def _display_address(address: DeliveryAddress) -> str:
-    return ", ".join(
-        part
-        for part in (
-            address.label,
-            address.street,
-            address.city,
-            address.postal_code,
-        )
-        if part
-    ) or address.id
+    label = (address.label or "").strip()
+    city = (address.city or "").strip()
+    street = (address.street or "").strip()
+    if label and city:
+        return f"{label} ({city})"
+    if label and street:
+        return f"{label} - {street[:30]}"
+    if label:
+        return label
+    if city and street:
+        return f"{street[:30]}, {city}"
+    if street:
+        return street[:40]
+    return address.id
 
 
 def _msg_clarification(question: str, options: list[ClarificationOption]) -> str:
@@ -178,6 +189,167 @@ def _msg_payment_choice(options: list[PaymentOption]) -> str:
 
 def _payment_option_key(option: PaymentOption) -> str:
     return option.id or option.method
+
+
+def _group_payment_options(options: list[PaymentOption]) -> list[PaymentOption]:
+    """Collapse provider's raw payment options into clean, high-level consumer categories.
+
+    Categories:
+    1. UPI (GPay, PhonePe, Paytm, BHIM)
+    2. Pay on Delivery (Cash)
+    3. Credit / Debit Card
+    4. Net Banking & Wallets
+
+    If the list is already short (<= 4 options) and has no redundant multi-gateway duplicates,
+    preserve it as is.
+    """
+    if len(options) <= 4:
+        return options
+
+    upi_opts: list[PaymentOption] = []
+    cod_opts: list[PaymentOption] = []
+    card_opts: list[PaymentOption] = []
+    netbanking_opts: list[PaymentOption] = []
+    other_opts: list[PaymentOption] = []
+
+    for opt in options:
+        lowered_label = opt.label.lower()
+        lowered_id = (opt.id or "").lower()
+        lowered_method = opt.method.lower()
+
+        if (
+            opt.method.upper() == "UPI"
+            or opt.kind in ("intent", "qr")
+            or "upi" in lowered_id
+            or "upi" in lowered_label
+            or any(
+                brand in lowered_label or brand in lowered_id
+                for brand in ("gpay", "google pay", "phonepe", "paytm", "bhim", "cred", "super.money", "famapp", "qr")
+            )
+        ):
+            upi_opts.append(opt)
+        elif (
+            "cash" in lowered_method
+            or "cod" in lowered_method
+            or "pay on delivery" in lowered_label
+            or "cash on delivery" in lowered_label
+            or "cash" in lowered_label
+        ):
+            cod_opts.append(opt)
+        elif "card" in lowered_method or "card" in lowered_label:
+            card_opts.append(opt)
+        elif (
+            "netbanking" in lowered_method
+            or "wallet" in lowered_method
+            or "swiggy" in lowered_label
+            or "net banking" in lowered_label
+            or "money" in lowered_label
+        ):
+            netbanking_opts.append(opt)
+        else:
+            other_opts.append(opt)
+
+    grouped: list[PaymentOption] = []
+
+    if upi_opts:
+        pref_order = ("gpay", "phonepe", "bhim", "paytm")
+        rep_upi = next(
+            (
+                o
+                for pref in pref_order
+                for o in upi_opts
+                if pref in (o.id or "").lower() or pref in o.label.lower()
+            ),
+            upi_opts[0],
+        )
+        label = "UPI (GPay / PhonePe / Paytm / BHIM)" if len(upi_opts) > 1 else rep_upi.label
+        grouped.append(
+            PaymentOption(
+                method="UPI",
+                label=label,
+                is_available=True,
+                id=rep_upi.id or "UPI",
+                kind=rep_upi.kind or "intent",
+                description="Instant payment via any UPI app",
+            )
+        )
+
+    if cod_opts:
+        rep_cod = cod_opts[0]
+        grouped.append(
+            PaymentOption(
+                method=rep_cod.method or "Cash",
+                label="Pay on Delivery (Cash)",
+                is_available=True,
+                id=rep_cod.id or "Cash",
+                kind=None,
+                description="Pay with cash or UPI at delivery",
+            )
+        )
+
+    if card_opts:
+        rep_card = card_opts[0]
+        grouped.append(
+            PaymentOption(
+                method=rep_card.method or "Card",
+                label="Credit / Debit Card",
+                is_available=True,
+                id=rep_card.id or "Card",
+                kind=None,
+            )
+        )
+
+    if netbanking_opts:
+        rep_nb = netbanking_opts[0]
+        grouped.append(
+            PaymentOption(
+                method=rep_nb.method or "NetBanking",
+                label="Net Banking & Wallets",
+                is_available=True,
+                id=rep_nb.id or "NetBanking",
+                kind=None,
+            )
+        )
+
+    grouped.extend(other_opts)
+    return grouped or options
+
+
+def _detect_swap_request(message: str) -> Optional[tuple[Optional[str], str]]:
+    """Detect conversational swap/replacement request.
+
+    Returns (old_item_hint, new_item_name) or None.
+    """
+    lower = message.lower().strip()
+    m = re.match(r"^(?:replace|change|swap)\s+(.+?)\s+(?:with|to|for)\s+(.+)$", lower)
+    if m:
+        return m.group(1).strip(), m.group(2).strip()
+    m = re.match(r"^(?:make\s+it|switch\s+to|change(?:\s+it)?\s+to)\s+(.+)$", lower)
+    if m:
+        return None, m.group(1).strip()
+    m = re.match(r"^instead\s+of\s+(.+?)\s*,\s*(?:make\s+it|get|give\s+me)?\s*(.+)$", lower)
+    if m:
+        return m.group(1).strip(), m.group(2).strip()
+    m = re.match(r"^(.+?)\s+instead(?:\s+of\s+(.+))?$", lower)
+    if m:
+        old_part = m.group(2).strip() if m.group(2) else None
+        return old_part, m.group(1).strip()
+    return None
+
+
+def _detect_removal_request(message: str) -> Optional[str]:
+    """Detect conversational removal request.
+
+    Returns target item hint or None.
+    """
+    lower = message.lower().strip()
+    m = re.match(r"^(?:remove|drop|delete|cancel|omit|exclude)\s+(?:the\s+)?(.+)$", lower)
+    if m:
+        return m.group(1).strip()
+    m = re.match(r"^(?:no|don['']?t\s+need|don['']?t\s+want|do\s+not\s+want)\s+(?:the\s+)?(.+)$", lower)
+    if m:
+        return m.group(1).strip()
+    return None
 
 
 def _targeted_recovery_query(
@@ -488,6 +660,7 @@ class GrocerOrchestrator:
         self._policy = PolicyEngine()
         self._recovery = recovery_engine
         self._customer_addresses: dict[str, str] = {}
+        self._customer_payment_preferences: dict[str, str] = {}
 
     async def handle_turn(
         self,
@@ -634,9 +807,12 @@ class GrocerOrchestrator:
         live_cart: Optional[CommerceCart] = None
         new_contract_items: list[IntentItem] = []
 
-        # 1. Inspect live commerce cart for drift against prior intent contract
+        # 1. Inspect live commerce cart for drift against prior intent contract, swaps, or removals
         prior_contract = session.intent_contract
-        if session.turn_count > 1 and session.cart_id and prior_contract and not _is_fresh_request(message):
+        swap_req = _detect_swap_request(message)
+        removal_req = _detect_removal_request(message)
+
+        if session.cart_id and not _is_fresh_request(message):
             cart_fetch_error: Optional[Exception] = None
             try:
                 live_cart = await self._port.get_cart(cart_id)
@@ -644,12 +820,158 @@ class GrocerOrchestrator:
                 live_cart = None
                 cart_fetch_error = exc
 
-            drift = self._verifier.verify(prior_contract, live_cart) if live_cart else None
+            # Fast-path 1.1: Conversational item swap ("make it jim jam", "replace biscuits with jim jam")
+            if swap_req and live_cart and live_cart.items:
+                events.append("ITEM_SWAP_REQUESTED")
+                old_hint, new_hint = swap_req
+                temp_item = IntentItem(name=new_hint, quantity=1.0, unit="units")
+                try:
+                    replacement_update = await _search_and_pick(self._port, effective_address, temp_item)
+                except Exception as exc:
+                    return self._provider_failure_result(session, exc, events)
+
+                if not replacement_update:
+                    return OrchestratorTurnResult(
+                        session_id=session.session_id,
+                        conversation_state=session.conversation_state,
+                        user_message=f"I couldn't find '{new_hint}' in stock at your store.",
+                        events=events + ["SWAP_ITEM_NOT_FOUND"],
+                    )
+
+                target_old: Optional[CartItem] = None
+                if old_hint:
+                    target_old = next(
+                        (
+                            ci
+                            for ci in live_cart.items
+                            if old_hint.lower() in ci.name.lower() or ci.name.lower() in old_hint.lower()
+                        ),
+                        None,
+                    )
+                if not target_old:
+                    new_tokens = set(re.findall(r"\w+", new_hint.lower()))
+                    scored = []
+                    for ci in live_cart.items:
+                        ci_tokens = set(re.findall(r"\w+", ci.name.lower()))
+                        overlap = len(new_tokens & ci_tokens)
+                        scored.append((overlap, ci))
+                    scored.sort(key=lambda x: x[0], reverse=True)
+                    if scored and scored[0][0] > 0:
+                        target_old = scored[0][1]
+                    else:
+                        target_old = live_cart.items[0]
+
+                replacement_update.quantity = target_old.quantity
+
+                updated_updates = [
+                    CartItemUpdate(spin_id=ci.spin_id, sku_id=ci.sku_id, quantity=ci.quantity)
+                    for ci in live_cart.items
+                    if ci.spin_id != target_old.spin_id
+                ]
+                updated_updates.append(CartItemUpdate(spin_id=target_old.spin_id, sku_id=target_old.sku_id, quantity=0))
+                updated_updates.append(replacement_update)
+
+                try:
+                    cart = await self._port.update_cart(
+                        items=updated_updates, cart_id=cart_id, address_id=effective_address
+                    )
+                except Exception as exc:
+                    return self._provider_failure_result(session, exc, events)
+
+                contract = session.intent_contract or IntentContract(session_id=session_id, goal="grocery order")
+                new_items = []
+                replaced = False
+                for it in contract.items:
+                    if not replaced and (
+                        target_old.name.lower() in it.name.lower()
+                        or it.name.lower() in target_old.name.lower()
+                        or it.name.lower() == (old_hint or "").lower()
+                    ):
+                        new_items.append(IntentItem(name=new_hint, quantity=replacement_update.quantity, unit=it.unit))
+                        replaced = True
+                    else:
+                        new_items.append(it)
+                if not replaced:
+                    new_items.append(IntentItem(name=new_hint, quantity=replacement_update.quantity, unit="units"))
+                contract.items = new_items
+                session.intent_contract = contract
+                default_intent_store.save(contract)
+                self._store.save(session)
+
+                return await self._make_awaiting_confirmation(
+                    session, contract, cart, prior_recovery_notes, events + [f"ITEM_SWAPPED old={target_old.name!r} new={replacement_update.spin_id}"]
+                )
+
+            # Fast-path 1.2: Conversational item removal ("remove milk", "drop biscuits")
+            if removal_req and live_cart and live_cart.items:
+                events.append("ITEM_REMOVAL_REQUESTED")
+                target_hint = removal_req
+                target_old = None
+                if target_hint.isdigit():
+                    idx = int(target_hint) - 1
+                    if 0 <= idx < len(live_cart.items):
+                        target_old = live_cart.items[idx]
+                else:
+                    target_old = next(
+                        (
+                            ci
+                            for ci in live_cart.items
+                            if target_hint.lower() in ci.name.lower() or ci.name.lower() in target_hint.lower()
+                        ),
+                        None,
+                    )
+                if not target_old:
+                    return OrchestratorTurnResult(
+                        session_id=session.session_id,
+                        conversation_state=session.conversation_state,
+                        user_message=f"I couldn't find '{target_hint}' in your basket.",
+                        events=events + ["REMOVE_ITEM_NOT_FOUND"],
+                    )
+
+                updated_updates = [
+                    CartItemUpdate(spin_id=ci.spin_id, sku_id=ci.sku_id, quantity=ci.quantity)
+                    for ci in live_cart.items
+                    if ci.spin_id != target_old.spin_id
+                ]
+                updated_updates.append(CartItemUpdate(spin_id=target_old.spin_id, sku_id=target_old.sku_id, quantity=0))
+
+                try:
+                    cart = await self._port.update_cart(
+                        items=updated_updates, cart_id=cart_id, address_id=effective_address
+                    )
+                except Exception as exc:
+                    return self._provider_failure_result(session, exc, events)
+
+                contract = session.intent_contract or IntentContract(session_id=session_id, goal="grocery order")
+                contract.items = [
+                    it for it in contract.items
+                    if not (target_old.name.lower() in it.name.lower() or it.name.lower() in target_old.name.lower())
+                ]
+                session.intent_contract = contract
+                default_intent_store.save(contract)
+                self._store.save(session)
+
+                if not cart.items:
+                    session.conversation_state = ConversationState.READY
+                    self._store.save(session)
+                    return OrchestratorTurnResult(
+                        session_id=session.session_id,
+                        conversation_state=ConversationState.READY,
+                        user_message="I've removed that item. Your basket is now empty. What would you like to add?",
+                        events=events + ["ITEM_REMOVED_CART_EMPTY"],
+                    )
+
+                return await self._make_awaiting_confirmation(
+                    session, contract, cart, prior_recovery_notes, events + [f"ITEM_REMOVED name={target_old.name!r}"]
+                )
+
+            # Normal recovery check for drift
+            drift = self._verifier.verify(prior_contract, live_cart) if (prior_contract and live_cart) else None
             needs_recovery = False
 
             if cart_fetch_error is not None:
                 needs_recovery = True
-            elif live_cart:
+            elif live_cart and session.turn_count > 1 and prior_contract:
                 is_below_min = bool(live_cart.items and live_cart.grand_total < live_cart.min_order_threshold)
                 if (
                     (drift and drift.status != VerificationStatus.PASS)
@@ -1028,8 +1350,10 @@ class GrocerOrchestrator:
     ) -> OrchestratorTurnResult:
         """Persist and render a live provider payment choice without preselecting."""
 
+        grouped = _group_payment_options(options)
         payment_choice = pending or PendingPaymentChoice(
-            options=options,
+            options=grouped,
+            raw_options=options,
             recovery_notes=recovery_notes,
         )
         session.pending_confirmation = None
@@ -1326,11 +1650,15 @@ class GrocerOrchestrator:
                     pending=pending,
                 )
 
+            all_candidates = list(pending.options) + list(getattr(pending, "raw_options", []))
             selected = next(
                 (
                     option
-                    for option in pending.options
+                    for option in all_candidates
                     if _payment_option_key(option) == payment_option_id
+                    or option.method.casefold() == payment_option_id.casefold()
+                    or (option.id and option.id.casefold() == payment_option_id.casefold())
+                    or payment_option_id.casefold() in option.label.casefold()
                 ),
                 None,
             )
@@ -1342,6 +1670,12 @@ class GrocerOrchestrator:
                     ["PAYMENT_CHOICE_REJECTED"],
                     pending=pending,
                 )
+
+            self._customer_payment_preferences[session.customer_id] = selected.id or selected.method
+            session.selected_payment_method = selected.method
+            session.selected_payment_option_id = selected.id
+            session.selected_payment_option_kind = selected.kind
+            session.selected_payment_option_label = selected.label
 
             contract = session.intent_contract
             if contract is None:
@@ -2011,6 +2345,15 @@ class GrocerOrchestrator:
                 events + ["PAYMENT_OPTIONS_UNAVAILABLE"],
             )
 
+        # Resolve customer or session payment preference if not passed explicitly
+        if preferred_payment_option_id is None and preferred_payment_method is None:
+            if session.selected_payment_option_id:
+                preferred_payment_option_id = session.selected_payment_option_id
+            elif session.selected_payment_method:
+                preferred_payment_method = session.selected_payment_method
+            elif session.customer_id in self._customer_payment_preferences:
+                preferred_payment_option_id = self._customer_payment_preferences[session.customer_id]
+
         selected: Optional[PaymentOption] = None
         if preferred_payment_option_id is not None:
             selected = next(
@@ -2018,6 +2361,8 @@ class GrocerOrchestrator:
                     option
                     for option in payment_options
                     if _payment_option_key(option) == preferred_payment_option_id
+                    or (option.id and option.id.casefold() == preferred_payment_option_id.casefold())
+                    or option.method.casefold() == preferred_payment_option_id.casefold()
                 ),
                 None,
             )
@@ -2035,16 +2380,12 @@ class GrocerOrchestrator:
                 for option in payment_options
                 if option.method.casefold() == requested
                 or (option.id is not None and option.id.casefold() == requested)
+                or requested in option.label.casefold()
             ]
             if len(matching) == 1:
                 selected = matching[0]
             elif len(matching) > 1:
-                return self._payment_choice_result(
-                    session,
-                    matching,
-                    recovery_notes,
-                    events + ["PAYMENT_CHOICE_REQUIRED"],
-                )
+                selected = matching[0]
             else:
                 return self._payment_choice_result(
                     session,
@@ -2063,6 +2404,12 @@ class GrocerOrchestrator:
             )
 
         assert selected is not None
+
+        session.selected_payment_method = selected.method
+        session.selected_payment_option_id = selected.id
+        session.selected_payment_option_kind = selected.kind
+        session.selected_payment_option_label = selected.label
+        self._customer_payment_preferences[session.customer_id] = selected.id or selected.method
 
         snapshot = create_confirmation_snapshot(
             cart,
@@ -2111,7 +2458,7 @@ def _is_incremental_add(message: str) -> bool:
 def _is_fresh_request(message: str) -> bool:
     """Heuristic: treat message as fresh grocery request vs a refinement."""
     lower = message.lower().strip()
-    if _is_incremental_add(message):
+    if _is_incremental_add(message) or _detect_swap_request(message) or _detect_removal_request(message):
         return False
     fresh_keywords = {
         "get", "buy", "order", "weekly", "monthly", "groceries",

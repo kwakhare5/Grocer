@@ -262,6 +262,23 @@ class RuleBasedExtractor:
                         items.append(self._build_item(keyword.title(), 1.0, "units"))
                         seen_names.add(keyword)
 
+        # Pattern: conversational swap/replacement phrases if no items captured yet
+        if not items:
+            m = re.match(r"^(?:make\s+it|switch\s+to|change(?:\s+it)?\s+to|get\s+me|send\s+me)\s+(.+)$", text.strip(), re.I)
+            if m:
+                cand_name = m.group(1).strip().rstrip(",. ")
+                cand_name = re.sub(r"\s+(?:instead|please)\s*$", "", cand_name, flags=re.I).strip()
+                if cand_name and cand_name.lower() not in _STOP_WORDS and len(cand_name) >= 2:
+                    items.append(self._build_item(cand_name.title(), 1.0, "units"))
+                    seen_names.add(cand_name.lower())
+            else:
+                m = re.match(r"^(?:replace|change|swap)\s+(.+?)\s+(?:with|to|for)\s+(.+)$", text.strip(), re.I)
+                if m:
+                    cand_name = m.group(2).strip().rstrip(",. ")
+                    if cand_name and cand_name.lower() not in _STOP_WORDS and len(cand_name) >= 2:
+                        items.append(self._build_item(cand_name.title(), 1.0, "units"))
+                        seen_names.add(cand_name.lower())
+
         return items
 
     def _build_item(

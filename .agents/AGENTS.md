@@ -230,16 +230,22 @@ If the answer is no, it does not belong in GROCER v2 unless the master spec is d
 
 ## 15. SESSION RESUME
 
-**Last completed:** Codebase Deep Refactor, Pruning & Typography Standardization (2026-09-10)
+**Last completed:** Smart 4-Stage Flow, Payment Categorization, Conversational Swaps & Receipt Reconciliation (2026-09-11)
 
-**Status:** Completed repository-wide audit, dead code purging, and typography standardization. Deleted 17.3 MB git bundle, retired `/debug` route (`app/debug/page.tsx`, `components/debug/LiveDebugInspector.tsx`, `lib/apiClient.ts`) and backend debug endpoints (`backend/api/debug.py`), pruned unused `backend/channels/web.py` stub, unified `backend/intent/parser.py` on `httpx`, and synchronized dependencies. Standardized typography to `Lora` (headlines), `Geist Sans` (body/UI), and `Geist Mono` (code/numbers only).
+**Status:** Completed progressive WhatsApp conversational replenishment pipeline:
+1. **Smart Payment Grouping:** Collapses 11 granular provider gateways into 4 clean consumer categories (UPI, Pay on Delivery, Cards, Net Banking / Wallets).
+2. **Conversational Swaps & Removals:** Regex-driven intent detection for conversational item replacements (`"make it jim jam"`, `"replace X with Y"`) and removals (`"remove milk"`) directly mutating live cart SKUs while preserving other items and intent contract.
+3. **Non-Trapping Payment Flow:** Seamlessly routes item changes sent during payment selection turns directly to grocery swaps rather than trapping the user in a payment prompt rejection loop.
+4. **Receipt Math & Fee Transparency:** Explicitly calculates and itemizes `Fees & Taxes: ₹{extra}` when provider charges extra handling/platform fees so the receipt is mathematically transparent to the rupee; stripped all developer-facing `Interpretation:` notes from customer messages.
+5. **Affirmations & Clean Address Badges:** Expanded natural English/Hinglish confirmation vocabulary (`ok`, `haan`, `kardo`, `done`, `sure`, etc.) and formatted delivery addresses as readable badges (`Home (Nashik)`) while guarding Meta payload length under 1000 characters.
 
 **Quality Gates:**
-- `pytest backend/tests`: 360 tests passed (100% green in 13.5s).
+- `pytest backend/tests`: 370 tests passed (100% green in 11.89s).
 - `npm run lint`: 0 errors, 0 warnings.
-- `npm run build`: Next.js Turbopack compiled successfully in 2.9s.
+- `npm run build`: Next.js Turbopack compiled successfully in 2.3s.
 - Zero credential leakage; all safety invariants preserved.
 
 **Branch state:**
 - `ag/mainline` — canonical active development branch.
 - `main` — stable reference branch.
+

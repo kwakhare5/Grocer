@@ -111,7 +111,18 @@ class BaseChannelAdapter(ABC):
         is_confirm_action = bool(
             interactive_id and interactive_id.startswith("confirm_checkout:")
         )
-        is_confirm_text = clean_text in ("yes", "confirm", "proceed", "yes checkout", "confirm checkout", "place order", "ok checkout")
+        CONFIRM_AFFIRMATIONS = {
+            "yes", "y", "confirm", "proceed", "yes checkout", "confirm checkout",
+            "place order", "ok checkout", "ok", "okay", "done", "haan", "sure",
+            "yeah", "yep", "place this order", "confirm order", "go ahead",
+            "kardo", "kar do", "yes please", "yes confirm", "haan kardo",
+            "sahi hai", "order kardo", "order kar do", "order", "place",
+        }
+        is_confirm_text = (
+            clean_text in CONFIRM_AFFIRMATIONS
+            or clean_text.startswith(("confirm ", "place "))
+            or (clean_text.startswith("ok") and len(clean_text) <= 15)
+        )
 
         if (is_confirm_action or is_confirm_text) and session and session.conversation_state == ConversationState.AWAITING_CONFIRMATION:
             confirmation_nonce = (
@@ -183,15 +194,28 @@ class BaseChannelAdapter(ABC):
                     chosen = pending_payment.options[index]
                     chosen_payment_id = chosen.id or chosen.method
             else:
-                for option in pending_payment.options:
+                all_opts = list(pending_payment.options) + getattr(pending_payment, "raw_options", [])
+                for option in all_opts:
                     option_id = option.id or option.method
                     if clean_text in {
                         option_id.casefold(),
                         option.method.casefold(),
                         option.label.casefold(),
-                    }:
+                    } or clean_text in option.label.casefold():
                         chosen_payment_id = option_id
                         break
+                if not chosen_payment_id:
+                    if clean_text in ("upi", "pay via upi", "online", "gpay", "phonepe", "paytm", "bhim"):
+                        for opt in all_opts:
+                            if opt.method.upper() == "UPI" or opt.kind in ("intent", "qr") or "upi" in opt.label.lower():
+                                if clean_text in ("upi", "pay via upi", "online") or clean_text in opt.label.lower() or (opt.id and clean_text in opt.id.lower()):
+                                    chosen_payment_id = opt.id or opt.method
+                                    break
+                    elif clean_text in ("cash", "cod", "pay on delivery", "cash on delivery", "pod"):
+                        for opt in all_opts:
+                            if "cash" in opt.method.lower() or "cod" in opt.method.lower() or "delivery" in opt.label.lower():
+                                chosen_payment_id = opt.id or opt.method
+                                break
 
             if chosen_payment_id:
                 turn_result = await orchestrator.handle_payment_choice(
@@ -200,13 +224,13 @@ class BaseChannelAdapter(ABC):
                     payment_choice_nonce or pending_payment.nonce,
                 )
             else:
-                turn_result = OrchestratorTurnResult(
+                # User did not send a payment selection (e.g. "make it jim jam", "add bread").
+                # Seamlessly route to orchestrator turn so grocery changes execute immediately!
+                turn_result = await orchestrator.handle_turn(
                     session_id=session_id,
-                    conversation_state=ConversationState.NEEDS_DECISION,
-                    user_message="Please choose one of the current payment methods.",
-                    payment_options=pending_payment.options,
-                    payment_choice_nonce=pending_payment.nonce,
-                    events=["PAYMENT_CHOICE_REQUIRED"],
+                    customer_id=customer_id,
+                    message=incoming.text,
+                    address_id=session.address_id,
                 )
 
         # 3. Check for product clarification choice

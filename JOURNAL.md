@@ -15,7 +15,20 @@ During the Session End ritual (called automatically whenever significant changes
 
 ## Log Entries
 
-### [GROCER — Swiggy Builders Club Live Integration, OAuth PKCE Gateway & WhatsApp Hardening] 2026-09-10
+### [GROCER — Smart 4-Stage Flow, Payment Categorization, Conversational Swaps & Receipt Reconciliation] 2026-09-11
+
+- **Shipped**: Progressive and conversational shopping flow for WhatsApp replenishment:
+  - **Smart Payment Method Grouping**: Collapsed 11 granular Swiggy Instamart gateway options (`super.money`, `FamApp`, `CRED`, `BHIM`, `Paytm`, `QR`, `COD`, etc.) into 4 clean consumer categories (UPI, Pay on Delivery, Cards, Net Banking / Wallets).
+  - **Conversational Item Swapping & Removal**: Enabled natural in-flight basket adjustments without losing other items or restarting the session (e.g. `"make it jim jam"`, `"replace nice with jim jam"`, `"remove milk"`).
+  - **Non-Trapping Payment Flow**: If user sends item revisions (e.g. `"make it jim jam"`) while on a payment prompt, seamlessly routes to grocery replacement instead of trapping them in payment option rejection loops.
+  - **Transparent Receipt Math**: Explicitly itemized provider fees and taxes (`Fees & Taxes: ₹{extra}`) whenever Swiggy charges platform/handling fees, guaranteeing total receipt transparency down to the exact rupee without math discrepancy.
+  - **Developer Note Stripping**: Purged robotic developer-facing interpretation strings (`Interpretation: ...`) from customer-visible WhatsApp messages.
+  - **Natural Affirmation Expansion**: Expanded checkout confirmation triggers to recognize natural multi-lingual affirmations (`ok`, `okay`, `haan`, `done`, `sure`, `kardo`, `kar do`, `sahi hai`, `place order`).
+  - **Human Address Badges**: Formatted delivery addresses cleanly as `Home (Nashik)` or `Work (Pune)` instead of raw provider hash IDs, and guarded message lengths under 1000 characters for Meta Cloud API compliance.
+- **Verification**: 370 backend tests passing (100% green in 11.89s, including 10 dedicated smart shopping flow tests in `test_smart_shopping_flow.py`), Next.js Turbopack `npm run build` compiled in 2.3s, `npm run lint` clean (0 errors, 0 warnings), AST knowledge graph updated via `graphify update .`.
+- **Commit**: `feat(intent): progressive 4-stage flow, smart payment grouping, conversational swapping, and receipt fee reconciliation`
+- **Vibe**: Seamless, human-first WhatsApp replenishment with zero state traps and rock-solid receipt transparency.
+
 
 - **Shipped**: Complete Swiggy Builders Club live integration end-to-end:
   - Built compliant RFC 7636 Swiggy OAuth 2.1 PKCE authorization flow on FastAPI (`/api/auth/swiggy/login`, `/api/auth/swiggy/callback`) with consumer connect UI on Next.js (`app/page.tsx`).

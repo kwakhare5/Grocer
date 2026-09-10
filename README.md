@@ -7,7 +7,7 @@
 
 **Grocer** is the existing WhatsApp grocery replenishment assistant, extended with an **intent-preserving commerce layer**.
 
-> **Readiness:** the audited branch is a locally verified, single-process demo/research system. It is not production-ready; see [CURRENT_STATE.md](CURRENT_STATE.md) for verified gates and explicit blockers.
+> **Readiness:** Verified live integration for the Swiggy Builders Club with WhatsApp replenishment, live Swiggy MCP OAuth 2.1 PKCE gateway, deterministic verification, and safe demo-mode checkout gating. See [CURRENT_STATE.md](CURRENT_STATE.md) for verified gates and architectural details.
 
 The idea is simple: a user tells Grocer what outcome they want, the agent builds the basket through Swiggy Instamart, and then keeps checking whether the live commerce state still matches the original intent. When something changes, Grocer recovers automatically when the decision is safe and asks the user when the choice is genuinely ambiguous.
 
@@ -191,6 +191,23 @@ Commerce operations go through the existing provider-neutral `CommercePort`.
 Swiggy-specific MCP calls remain inside `SwiggyMCPAdapter`.
 
 Before changing the integration, read the current Swiggy Builders Club documentation and do not invent tool names, arguments, or retry semantics.
+
+### Live Deployment & Builders Club Architecture
+
+GROCER operates across a multi-surface deployment:
+
+- **Frontend on Vercel (`grocerr.vercel.app`)**:
+  - Serves as the official whitelisted redirect URI for Swiggy OAuth 2.1 PKCE.
+  - Houses the user connect screen and proxies incoming Meta WhatsApp Cloud API webhooks.
+- **Backend on Render**:
+  - Hosts the FastAPI `GrocerOrchestrator`, deterministic verifier, and recovery loop.
+  - Manages `SwiggyTokenVault` with disk-backed JSON persistence surviving container cold starts.
+  - Communicates directly with Swiggy Instamart MCP gateway (`https://mcp.swiggy.com/im`).
+- **WhatsApp Cloud API (`+1 555 663-1707`)**:
+  - Delivers native interactive List Messages for saved address selection and pack-size ambiguity resolution.
+  - Requires explicit interactive confirmation buttons before checkout.
+- **Demo Safety Guard (`DEMO_MODE`)**:
+  - Setting `DEMO_MODE=true` on Render exercises 100% of live catalog search, pack resolution, and cart mutation, while intercepting the final provider checkout call to simulate `ORDER_PLACED` safely without incurring financial charges.
 
 ## Safety invariants
 

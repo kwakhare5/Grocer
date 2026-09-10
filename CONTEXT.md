@@ -45,6 +45,8 @@ The dark-store operations project is separate:
 | MockCommerceAdapter | Deterministic commerce implementation for tests/demo/failure injection | Fake production integration |
 | Explicit confirmation | Backend authorization required before consequential checkout | A frontend-only button click |
 | Memory | Durable soft preferences used for convenience | Authority over the current request |
+| Swiggy OAuth PKCE | Compliant RFC 7636 authorization via whitelisted URI (`grocerr.vercel.app`) | Plaintext API keys or hardcoded tokens |
+| SwiggyTokenVault | Process-safe token store with cold-start JSON persistence | Unsafe local storage or plaintext logs |
 | Dark-store operator | Separate companion repository | GROCER subsystem |
 
 ## 3. Product objective

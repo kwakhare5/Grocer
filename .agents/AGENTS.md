@@ -230,17 +230,16 @@ If the answer is no, it does not belong in GROCER v2 unless the master spec is d
 
 ## 15. SESSION RESUME
 
-**Last completed:** AntiGravity repository consolidation audit and cleanup (2026-09-10)
+**Last completed:** Swiggy Builders Club Live Integration & Documentation Synchronization (2026-09-10)
 
-**Status:** Full 8-phase repository consolidation executed. All prior agent branches (Codex, OpenCode) confirmed fully merged into `a0ae400`. Canonical `ag/mainline` branch created. Dead `backend/services/` and `backend/models/` `__pycache__` residue removed. Stale agent artifacts (`task.md`, `skills-lock.json`) removed. Historical docs (`CLEANROOM_INTENT_AUDIT.md`, `IMPLEMENTATION_PLAN.md`) archived. `CURRENT_STATE.md` updated to reflect current branch and test count. `.gitignore` updated for bundle files and agent artifacts. Old worktree cleaned up. All hardening invariants verified intact.
+**Status:** Full live Swiggy Builders Club integration complete and pushed to `ag/mainline`. Built compliant Swiggy OAuth 2.1 PKCE authorization router and consumer connect page on Vercel (`grocerr.vercel.app`). Added cold-start disk persistence to `SwiggyTokenVault` for Render. Implemented WhatsApp interactive List Messages for saved delivery address selection and multi-variant pack ambiguity resolution. Implemented sequential multi-item cart loading. Added `DEMO_MODE=true` checkout guard for safe live demonstrations. Purged obsolete web UI (`components/customer/IntentCommerceWorkbench.tsx`) and dead skills (`.agents/skills/ip-as-logo/`). Synchronized all active documentation (`README.md`, `ARCHITECTURE.md`, `CONTEXT.md`, `GROCER_V2_MASTER_SPEC.md`, `CURRENT_STATE.md`, `JOURNAL.md`).
 
 **Quality Gates:**
-- `pytest backend/tests`: 363 tests passed.
-- `npm run lint`: pending re-verification after cleanup.
-- `npm run build`: pending re-verification after cleanup.
-- All 15 hardening invariants verified present in code.
+- `pytest backend/tests`: 363 tests passed (100% green).
+- `npm run lint`: 0 errors, 0 warnings.
+- `npm run build`: Next.js Turbopack compiled successfully.
+- Zero credential leakage; all safety invariants preserved.
 
 **Branch state:**
-- `ag/mainline` — canonical active development branch.
-- `main` — stable reference (same commit `a0ae400`).
-- Old branches (`audit/codex-deep-review`, `cleanup/master-spec-final`, `refactor/intent-cleanroom`) — fully merged ancestors, tagged for archival.
+- `ag/mainline` — canonical active development branch (pushed to origin).
+- `main` — stable reference branch.

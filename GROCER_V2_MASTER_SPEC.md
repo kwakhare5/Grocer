@@ -2,7 +2,7 @@
 
 > **Status:** LOCKED PRODUCT SCOPE / ACTIVE ENGINEERING SOURCE OF TRUTH
 > **Version:** 3.0
-> **Updated:** 2026-09-06
+> **Updated:** 2026-09-10
 > **Repository:** `kwakhare5/Grocer`
 > **Product:** WhatsApp grocery replenishment assistant + intent-preserving conversational commerce
 > **Commerce provider:** Swiggy Instamart through `CommercePort` / MCP
@@ -410,6 +410,15 @@ Before modifying provider integration, use the authoritative Swiggy Builders Clu
 Do not invent tool names, parameters, response shapes, retry semantics, or checkout behavior.
 
 Provider errors must be normalized at the adapter/domain boundary so higher layers can reason about failures without depending on raw MCP payloads.
+
+### 8.2.1 Swiggy OAuth 2.1 PKCE Gateway & Token Lifecycle
+
+Live Instamart MCP access requires RFC 7636 PKCE authorization via Swiggy's whitelisted redirect URI (`https://grocerr.vercel.app/`):
+1. **Dynamic Client Registration (RFC 7591)** registers or resolves the client ID.
+2. **S256 PKCE Challenge & Anti-CSRF State** are generated for each authorization flow.
+3. **`SwiggyTokenVault`** holds active access tokens in memory and writes to local disk storage (`/tmp/grocer_tokens.json`) to guarantee cold-start survival on Render.
+4. **Phone Pseudonymization:** Incoming WhatsApp sender numbers are hashed via HMAC-SHA256 with the app secret before token lookup or session mapping, preventing customer PII from entering the commerce logs.
+5. **Consequential Demo Guard:** When `DEMO_MODE=true` is set, real cart reads and mutations occur, but checkout execution returns a truthful local simulation without debiting payment.
 
 ## 8.3 Checkout guard
 

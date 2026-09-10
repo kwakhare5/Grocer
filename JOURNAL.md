@@ -15,6 +15,19 @@ During the Session End ritual (called automatically whenever significant changes
 
 ## Log Entries
 
+### [GROCER — Swiggy Builders Club Live Integration, OAuth PKCE Gateway & WhatsApp Hardening] 2026-09-10
+
+- **Shipped**: Complete Swiggy Builders Club live integration end-to-end:
+  - Built compliant RFC 7636 Swiggy OAuth 2.1 PKCE authorization flow on FastAPI (`/api/auth/swiggy/login`, `/api/auth/swiggy/callback`) with consumer connect UI on Next.js (`app/page.tsx`).
+  - Added cold-start resilience to `SwiggyTokenVault` with local JSON disk persistence (`/tmp/grocer_tokens.json`) to survive Render container restarts.
+  - Built native WhatsApp interactive List Messages for saved delivery address selection and multi-variant pack size ambiguity resolution.
+  - Implemented multi-item sequential resolution: auto-adding unambiguous items (e.g. milk, bread) silently to the live Swiggy cart while cleanly pausing to prompt interactive lists for ambiguous items (e.g. apples).
+  - Built `DEMO_MODE` checkout guard allowing 100% of live catalog search, stock checking, and cart mutation to occur during evaluations while safely intercepting final checkout calls without incurring live credit card/UPI charges.
+  - Purged obsolete web chat UI (`components/customer/IntentCommerceWorkbench.tsx`) and archived historical audits/plans to `docs/archive/`.
+- **Verification**: 363 backend tests passing (100% green), Next.js Turbopack `npm run build` compiled in 2.4s, `npm run lint` clean (0 errors, 0 warnings).
+- **Commit**: `0d6e750` feat(swiggy-mcp): live oauth pkce flow, interactive whatsapp lists, token persistence and demo checkout guard
+- **Vibe**: Production-grade conversational commerce with ironclad safety boundaries.
+
 ### [GROCER — Deep Audit and Reliability Hardening & Developer Live-Debug View] 2026-09-09
 
 - **Shipped**: Audited and hardened intent quantity/identity, bounded recovery, basket-bound one-time confirmation, payment/order/partial/unknown state handling, provider identity, WhatsApp/API security, and privacy boundaries on `audit/codex-deep-review`.

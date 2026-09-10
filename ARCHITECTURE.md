@@ -354,3 +354,45 @@ Do not optimize for:
 The architecture exists to make one thing reliable:
 
 > **preserve the user's intent while commerce state changes.**
+
+## 12. Swiggy OAuth 2.1 PKCE Architecture & TokenVault Lifecycle
+
+To adhere strictly to Swiggy Builders Club specifications without exposing consumer credentials:
+
+```text
+User Web Browser (grocerr.vercel.app)
+       │
+       │ 1. Phone number entered (e.g. 918237803170)
+       ▼
+FastAPI OAuth Route (/api/auth/swiggy/login)
+       │
+       │ 2. Map phone to pseudonymous customer ID (cust_wa_...) via HMAC-SHA256
+       │ 3. Generate high-entropy PKCE code_verifier (S256 challenge) & anti-CSRF state
+       │ 4. Issue redirect to https://mcp.swiggy.com/auth/authorize
+       ▼
+Swiggy MCP Gateway (User logs in & authorizes)
+       │
+       │ 5. Redirect back to https://grocerr.vercel.app/?code=...&state=...
+       ▼
+Frontend Callback Bridge
+       │
+       │ 6. POST /api/auth/swiggy/callback
+       ▼
+SwiggyOAuthManager & SwiggyTokenVault
+       │
+       │ 7. Exchange code + verifier at https://mcp.swiggy.com/auth/token
+       │ 8. Secure token stored in TokenVault (persisted to /tmp/grocer_tokens.json)
+       ▼
+WhatsApp Conversation Execution
+       │
+       │ 9. When user messages via WhatsApp (+1 555 663-1707),
+       │    phone is mapped to identical cust_wa_... key
+       ▼
+CommercePort / SwiggyMCPAdapter (Authenticated Cart Operations)
+```
+
+### 12.1 Security & Invariants
+- **Zero Token Leakage:** Tokens are never passed to the browser or logged in plaintext.
+- **Identity Isolation:** Phone numbers are pseudonymized with HMAC-SHA256 using `WHATSAPP_APP_SECRET`.
+- **Cold-Start Resilience:** `SwiggyTokenVault` writes active credentials to local disk storage to survive Render free-tier container sleep cycles.
+- **Safe Evaluation / Demo Mode:** Setting `DEMO_MODE=true` allows 100% of live catalog search and cart manipulation, but cleanly intercepts the final provider checkout call.

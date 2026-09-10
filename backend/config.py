@@ -6,7 +6,7 @@ class Settings(BaseSettings):
     SWIGGY_AUTH_TOKEN: str | None = None
     SWIGGY_CUSTOMER_ID: str | None = None
     SWIGGY_CLIENT_ID: str | None = None
-    CORS_ALLOWED_ORIGINS: str = "http://localhost:3000,http://127.0.0.1:3000"
+    CORS_ALLOWED_ORIGINS: str = "http://localhost:3000,http://127.0.0.1:3000,https://grocerr.vercel.app"
 
     model_config = SettingsConfigDict(env_file='.env', env_file_encoding='utf-8', extra='ignore')
 

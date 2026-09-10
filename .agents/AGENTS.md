@@ -230,14 +230,14 @@ If the answer is no, it does not belong in GROCER v2 unless the master spec is d
 
 ## 15. SESSION RESUME
 
-**Last completed:** Swiggy Builders Club Live Integration & Documentation Synchronization (2026-09-10)
+**Last completed:** Consumer Landing Page Redesign, Strict Typography & Zero-CORS Proxy Routes (2026-09-10)
 
-**Status:** Full live Swiggy Builders Club integration complete and pushed to `ag/mainline`. Built compliant Swiggy OAuth 2.1 PKCE authorization router and consumer connect page on Vercel (`grocerr.vercel.app`). Added cold-start disk persistence to `SwiggyTokenVault` for Render. Implemented WhatsApp interactive List Messages for saved delivery address selection and multi-variant pack ambiguity resolution. Implemented sequential multi-item cart loading. Added `DEMO_MODE=true` checkout guard for safe live demonstrations. Purged obsolete web UI (`components/customer/IntentCommerceWorkbench.tsx`) and dead skills (`.agents/skills/ip-as-logo/`). Synchronized all active documentation (`README.md`, `ARCHITECTURE.md`, `CONTEXT.md`, `GROCER_V2_MASTER_SPEC.md`, `CURRENT_STATE.md`, `JOURNAL.md`).
+**Status:** Built dedicated consumer product landing page (`app/page.tsx`) with simple human copy (zero AI slop buzzwords), strict typography (`font-editorial` for brand headlines, `font-sans` for body/cards/buttons, and `font-mono` exclusively for phone code and numeric tokens), fixed `+91` input badge, 10-digit auto-sanitizing phone input, and authentic WhatsApp conversation mockup. Built same-origin Next.js API proxy routes (`app/api/auth/swiggy/login/route.ts`, `app/api/auth/swiggy/callback/route.ts`) and configured backend FastAPI CORS to eliminate browser CORS preflight issues on `grocerr.vercel.app`. Purged developer clutter (`LIVE DEBUG` button, drawer, and telemetry dots) from `AppGlobalHeader.tsx` for a clean consumer experience.
 
 **Quality Gates:**
 - `pytest backend/tests`: 363 tests passed (100% green).
 - `npm run lint`: 0 errors, 0 warnings.
-- `npm run build`: Next.js Turbopack compiled successfully.
+- `npm run build`: Next.js Turbopack compiled successfully in 1.9s.
 - Zero credential leakage; all safety invariants preserved.
 
 **Branch state:**

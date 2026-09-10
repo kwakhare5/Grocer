@@ -31,9 +31,10 @@ def create_app() -> FastAPI:
             for origin in settings.CORS_ALLOWED_ORIGINS.split(",")
             if origin.strip()
         ],
+        allow_origin_regex=r"https://.*\.vercel\.app",
         allow_credentials=True,
         allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
-        allow_headers=["Content-Type", "X-Grocer-Session-Capability"],
+        allow_headers=["*"],
     )
 
     app.include_router(health_router, prefix="/api")

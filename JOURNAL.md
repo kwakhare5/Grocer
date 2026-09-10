@@ -24,9 +24,12 @@ During the Session End ritual (called automatically whenever significant changes
   - Implemented multi-item sequential resolution: auto-adding unambiguous items (e.g. milk, bread) silently to the live Swiggy cart while cleanly pausing to prompt interactive lists for ambiguous items (e.g. apples).
   - Built `DEMO_MODE` checkout guard allowing 100% of live catalog search, stock checking, and cart mutation to occur during evaluations while safely intercepting final checkout calls without incurring live credit card/UPI charges.
   - Purged obsolete web chat UI (`components/customer/IntentCommerceWorkbench.tsx`) and archived historical audits/plans to `docs/archive/`.
-- **Verification**: 363 backend tests passing (100% green), Next.js Turbopack `npm run build` compiled in 2.4s, `npm run lint` clean (0 errors, 0 warnings).
-- **Commit**: `0d6e750` feat(swiggy-mcp): live oauth pkce flow, interactive whatsapp lists, token persistence and demo checkout guard
-- **Vibe**: Production-grade conversational commerce with ironclad safety boundaries.
+  - Built dedicated consumer landing page (`app/page.tsx`) from scratch: clear human copy (zero AI slop buzzwords), strict typography (`font-editorial` for brand headlines, `font-sans` for body/cards, and `font-mono` exclusively for phone code and code numbers), fixed `+91` input badge, 10-digit auto-sanitizing phone input, and authentic WhatsApp conversation mockup.
+  - Built same-origin Next.js API proxy routes (`app/api/auth/swiggy/login/route.ts`, `app/api/auth/swiggy/callback/route.ts`) and configured backend FastAPI CORS to eliminate browser CORS preflight issues on `grocerr.vercel.app`.
+  - Stripped developer clutter, live debug drawer, and status dots from `AppGlobalHeader.tsx` for a clean consumer experience.
+- **Verification**: 363 backend tests passing (100% green), Next.js Turbopack `npm run build` compiled in 1.9s, `npm run lint` clean (0 errors, 0 warnings).
+- **Commit**: `b1a7d60` feat(landing-page): consumer landing page with fixed +91 input, no-ai-slop copy, and zero-cors nextjs proxy
+- **Vibe**: Clean, confident consumer interface with rock-solid server-side proxying.
 
 ### [GROCER — Deep Audit and Reliability Hardening & Developer Live-Debug View] 2026-09-09
 

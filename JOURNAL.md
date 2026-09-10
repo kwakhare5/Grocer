@@ -30,9 +30,12 @@ During the Session End ritual (called automatically whenever significant changes
   - Integrated `GeminiIntentExtractor` via Google Gemini (`gemini-3.5-flash-lite`) in `backend/intent/parser.py` for human-resilient natural language intent parsing (handling conversational phrasing like "i want 3 dairy milk and 2 milk", Hinglish, and multi-item lists with zero phantom items). Added graceful fallback to hardened `RuleBasedExtractor`.
   - Added dedicated conversational greeting handling in `GrocerOrchestrator` so messages like "Hi Grocer!" receive a friendly conversational reply rather than triggering empty commerce cart builds.
   - Persisted customer delivery address selection across sessions so customers are never repeatedly prompted for address once chosen.
-- **Verification**: 363 backend tests passing (100% green), Next.js Turbopack `npm run build` compiled in 2.3s, `npm run lint` clean (0 errors, 0 warnings).
-- **Commit**: `390fca1` feat(intent): gemini llm intent extractor, greeting handling, and durable address persistence
-- **Vibe**: Natural conversational understanding powered by Gemini with deterministic safety verification.
+  - Codebase Deep Refactor & Bloat Purge: Deleted 17.3 MB git bundle from repo root; completely retired `/debug` route (`app/debug/page.tsx`, `components/debug/LiveDebugInspector.tsx`, `lib/apiClient.ts`), backend debug endpoints (`backend/api/debug.py`), and test (`backend/tests/test_debug_api.py`); pruned unused `backend/channels/web.py` stub; wiped stale `__pycache__` artifacts.
+  - Standardized Backend HTTP Client: Refactored `GeminiIntentExtractor` to use `httpx.Client()` instead of `requests`, perfectly aligning with FastAPI and synchronizing root and backend `requirements.txt`.
+  - Enforced Strict Typography Hierarchy: Standardized `Lora` for brand & hero headlines, `Geist Sans` for all UI prose, cards, and buttons, and strictly reserved `Geist Mono` for code, nonces, phone numbers, and currency tags.
+- **Verification**: 360 backend tests passing (100% green in 13.5s), Next.js Turbopack `npm run build` compiled in 2.9s, `npm run lint` clean (0 errors, 0 warnings), AST code graph updated via `graphify update .`.
+- **Commit**: `refactor(codebase): deep cleanup, purge debug subsystem, standardize httpx and typography`
+- **Vibe**: Ultra-clean, zero-bloat consumer codebase with resilient intent preservation and pure typography.
 
 ### [GROCER — Deep Audit and Reliability Hardening & Developer Live-Debug View] 2026-09-09
 

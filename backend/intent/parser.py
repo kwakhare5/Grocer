@@ -17,7 +17,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
-import requests
+import httpx
 
 from backend.config import settings
 from backend.intent.enums import (
@@ -626,7 +626,8 @@ class GeminiIntentExtractor:
                     {"parts": [{"text": f"{system_prompt}\n\nUser message: \"{text}\""}]}
                 ]
             }
-            resp = requests.post(self._url, json=payload, timeout=12)
+            with httpx.Client(timeout=12.0) as client:
+                resp = client.post(self._url, json=payload)
             if resp.status_code != 200:
                 logger.warning("Gemini extraction returned status %d: %s", resp.status_code, resp.text[:120])
                 return None

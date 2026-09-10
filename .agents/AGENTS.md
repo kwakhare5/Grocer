@@ -230,16 +230,16 @@ If the answer is no, it does not belong in GROCER v2 unless the master spec is d
 
 ## 15. SESSION RESUME
 
-**Last completed:** Gemini LLM Intent Extractor, Greeting Flow & Address Persistence (2026-09-10)
+**Last completed:** Codebase Deep Refactor, Pruning & Typography Standardization (2026-09-10)
 
-**Status:** Integrated `GeminiIntentExtractor` with Google Gemini (`gemini-3.5-flash-lite`) in `backend/intent/parser.py` for resilient natural language intent parsing (eliminating regex fragility on conversational phrases like "i want 3 dairy milk and 2 milk"). Wired greeting detection in `GrocerOrchestrator` to provide friendly conversational replies for greetings like "Hi Grocer!" without triggering cart builds. Added durable customer address persistence so users are never repeatedly asked for delivery addresses across sessions.
+**Status:** Completed repository-wide audit, dead code purging, and typography standardization. Deleted 17.3 MB git bundle, retired `/debug` route (`app/debug/page.tsx`, `components/debug/LiveDebugInspector.tsx`, `lib/apiClient.ts`) and backend debug endpoints (`backend/api/debug.py`), pruned unused `backend/channels/web.py` stub, unified `backend/intent/parser.py` on `httpx`, and synchronized dependencies. Standardized typography to `Lora` (headlines), `Geist Sans` (body/UI), and `Geist Mono` (code/numbers only).
 
 **Quality Gates:**
-- `pytest backend/tests`: 363 tests passed (100% green).
+- `pytest backend/tests`: 360 tests passed (100% green in 13.5s).
 - `npm run lint`: 0 errors, 0 warnings.
-- `npm run build`: Next.js Turbopack compiled successfully in 2.3s.
+- `npm run build`: Next.js Turbopack compiled successfully in 2.9s.
 - Zero credential leakage; all safety invariants preserved.
 
 **Branch state:**
-- `ag/mainline` — canonical active development branch (pushed to origin).
+- `ag/mainline` — canonical active development branch.
 - `main` — stable reference branch.

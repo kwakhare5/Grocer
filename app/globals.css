@@ -194,19 +194,3 @@ body {
   -ms-overflow-style: none !important;  /* IE and Edge */
   scrollbar-width: none !important;  /* Firefox */
 }
-
-/* Hide Next.js Dev Overlay Indicator Badge Permanently */
-[data-nextjs-toast],
-[data-nextjs-portal],
-nextjs-portal,
-#next-logo,
-#__next-build-watcher,
-div[class*="nextjs-toast"],
-div[class*="next-logo"],
-div[class*="dev-overlay"],
-button[aria-label*="Next.js"] {
-  display: none !important;
-  opacity: 0 !important;
-  visibility: hidden !important;
-  pointer-events: none !important;
-}

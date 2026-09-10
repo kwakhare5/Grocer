@@ -15,9 +15,17 @@ During the Session End ritual (called automatically whenever significant changes
 
 ## Log Entries
 
-### [GROCER — Smart 4-Stage Flow, Payment Categorization, Conversational Swaps & Receipt Reconciliation] 2026-09-11
+### [GROCER — Modular Stage Architecture, SKU Propagation & Address Durability] 2026-09-11
 
 - **Shipped**: Progressive and conversational shopping flow for WhatsApp replenishment:
+  - **Modular 4-Stage Decomposition**: Decomposed the monolithic 2,516-line `backend/intent/orchestrator.py` by extracting 577+ lines of duplicated helper code into clean, specialized stage modules under `backend/intent/stages/`:
+    - `items_stage.py`: Search, variant resolution, swaps, removals, and contract merging.
+    - `address_stage.py`: `AddressStageManager` with durable file caching and preliminary background address selection.
+    - `payment_stage.py`: 4-category smart grouping and payment selection formatting.
+    - `confirm_stage.py`: Transparent receipt formatting with fee reconciliation down to the rupee.
+    - `tracking_stage.py`: Order delivery status formatting and customer care redirection.
+  - **SKU Propagation & Defensive Cart Updates**: Solved the live Swiggy MCP crash (`Cart update requires a catalog SKU ID for every item`) by ensuring `sku_id` is propagated on clarification choices and adding defensive live-cart fallback lookups in `SwiggyMCPAdapter.update_cart`.
+  - **Address Durability**: Replaced volatile in-memory address dictionaries with `default_address_manager` in `backend/channels/base.py` backed by disk persistence (`/tmp/grocer_customer_addresses.json`), ensuring saved customer addresses survive container and dev-server restarts.
   - **Smart Payment Method Grouping**: Collapsed 11 granular Swiggy Instamart gateway options (`super.money`, `FamApp`, `CRED`, `BHIM`, `Paytm`, `QR`, `COD`, etc.) into 4 clean consumer categories (UPI, Pay on Delivery, Cards, Net Banking / Wallets).
   - **Conversational Item Swapping & Removal**: Enabled natural in-flight basket adjustments without losing other items or restarting the session (e.g. `"make it jim jam"`, `"replace nice with jim jam"`, `"remove milk"`).
   - **Non-Trapping Payment Flow**: If user sends item revisions (e.g. `"make it jim jam"`) while on a payment prompt, seamlessly routes to grocery replacement instead of trapping them in payment option rejection loops.
@@ -25,9 +33,9 @@ During the Session End ritual (called automatically whenever significant changes
   - **Developer Note Stripping**: Purged robotic developer-facing interpretation strings (`Interpretation: ...`) from customer-visible WhatsApp messages.
   - **Natural Affirmation Expansion**: Expanded checkout confirmation triggers to recognize natural multi-lingual affirmations (`ok`, `okay`, `haan`, `done`, `sure`, `kardo`, `kar do`, `sahi hai`, `place order`).
   - **Human Address Badges**: Formatted delivery addresses cleanly as `Home (Nashik)` or `Work (Pune)` instead of raw provider hash IDs, and guarded message lengths under 1000 characters for Meta Cloud API compliance.
-- **Verification**: 370 backend tests passing (100% green in 11.89s, including 10 dedicated smart shopping flow tests in `test_smart_shopping_flow.py`), Next.js Turbopack `npm run build` compiled in 2.3s, `npm run lint` clean (0 errors, 0 warnings), AST knowledge graph updated via `graphify update .`.
-- **Commit**: `feat(intent): progressive 4-stage flow, smart payment grouping, conversational swapping, and receipt fee reconciliation`
-- **Vibe**: Seamless, human-first WhatsApp replenishment with zero state traps and rock-solid receipt transparency.
+- **Verification**: 372 backend tests passing (100% green in 13.36s), Next.js Turbopack `npm run build` compiled in 2.7s, `npm run lint` clean (0 errors, 0 warnings).
+- **Commit**: `refactor(intent): modular 4-stage pipeline decomposition, address durability, and sku propagation`
+- **Vibe**: Clean modular architecture, rock-solid SKU propagation, and zero state traps.
 
 
 - **Shipped**: Complete Swiggy Builders Club live integration end-to-end:

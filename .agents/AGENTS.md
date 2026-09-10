@@ -230,22 +230,27 @@ If the answer is no, it does not belong in GROCER v2 unless the master spec is d
 
 ## 15. SESSION RESUME
 
-**Last completed:** Smart 4-Stage Flow, Payment Categorization, Conversational Swaps & Receipt Reconciliation (2026-09-11)
+**Last completed:** Modular Stage Decomposition, Address Durability & SKU Propagation (2026-09-11)
 
-**Status:** Completed progressive WhatsApp conversational replenishment pipeline:
-1. **Smart Payment Grouping:** Collapses 11 granular provider gateways into 4 clean consumer categories (UPI, Pay on Delivery, Cards, Net Banking / Wallets).
-2. **Conversational Swaps & Removals:** Regex-driven intent detection for conversational item replacements (`"make it jim jam"`, `"replace X with Y"`) and removals (`"remove milk"`) directly mutating live cart SKUs while preserving other items and intent contract.
-3. **Non-Trapping Payment Flow:** Seamlessly routes item changes sent during payment selection turns directly to grocery swaps rather than trapping the user in a payment prompt rejection loop.
-4. **Receipt Math & Fee Transparency:** Explicitly calculates and itemizes `Fees & Taxes: ₹{extra}` when provider charges extra handling/platform fees so the receipt is mathematically transparent to the rupee; stripped all developer-facing `Interpretation:` notes from customer messages.
-5. **Affirmations & Clean Address Badges:** Expanded natural English/Hinglish confirmation vocabulary (`ok`, `haan`, `kardo`, `done`, `sure`, etc.) and formatted delivery addresses as readable badges (`Home (Nashik)`) while guarding Meta payload length under 1000 characters.
+**Status:** Decomposed monolithic orchestrator and hardened multi-turn shopping pipeline:
+1. **Modular 4-Stage Decomposition:** Extracted 577+ lines of duplicated helper code from `backend/intent/orchestrator.py` into dedicated modules under `backend/intent/stages/`:
+   - `items_stage.py`: Search, variant resolution, swaps, removals, and contract merging.
+   - `address_stage.py`: `AddressStageManager` with background preliminary address selection and persistent storage.
+   - `payment_stage.py`: 4-category smart grouping and payment selection formatting.
+   - `confirm_stage.py`: Transparent receipt formatting with fee reconciliation down to the rupee.
+   - `tracking_stage.py`: Live order status formatting and customer care redirection.
+2. **SKU Propagation & Defensive Cart Updates:** Fixed live Swiggy MCP crash (`Cart update requires a catalog SKU ID for every item`) by ensuring `sku_id` is propagated on clarification choices and adding defensive live-cart fallback lookups in `SwiggyMCPAdapter.update_cart`.
+3. **Address Durability:** Replaced volatile in-memory address dictionaries with `default_address_manager` in `backend/channels/base.py` backed by disk persistence (`/tmp/grocer_customer_addresses.json`), ensuring saved customer addresses survive container and dev-server restarts.
+4. **Clean Decoupling:** Streamlined `BaseChannelAdapter.dispatch` and `GrocerOrchestrator._handle_turn_scoped` to enforce single source of truth without split-brain state conflicts.
 
 **Quality Gates:**
-- `pytest backend/tests`: 370 tests passed (100% green in 11.89s).
+- `pytest backend/tests`: 372 tests passed (100% green in 13.36s).
 - `npm run lint`: 0 errors, 0 warnings.
-- `npm run build`: Next.js Turbopack compiled successfully in 2.3s.
+- `npm run build`: Next.js Turbopack compiled successfully in 2.7s.
 - Zero credential leakage; all safety invariants preserved.
 
 **Branch state:**
 - `ag/mainline` — canonical active development branch.
 - `main` — stable reference branch.
+
 

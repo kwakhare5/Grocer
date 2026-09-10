@@ -398,3 +398,23 @@ async def test_payment_choice_non_trapping_on_item_change() -> None:
     assert res.conversation_state == ConversationState.AWAITING_CONFIRMATION
     assert "jim jam" in res.text.lower()
 
+
+@pytest.mark.asyncio
+async def test_channel_restores_customer_address_from_manager() -> None:
+    from backend.intent.session import default_session_store
+    from backend.intent.stages.address_stage import default_address_manager
+    channel = DummyChannel()
+
+    customer_id = channel.map_sender_to_customer_id("+919876543299")
+    default_address_manager.save_address(customer_id, "addr-saved-nashik")
+
+    try:
+        session_id = channel.get_or_create_session_id(customer_id)
+        session = default_session_store.get(session_id)
+        assert session is not None
+        assert session.address_id == "addr-saved-nashik"
+    finally:
+        default_address_manager._cache.pop(customer_id, None)
+        default_address_manager._save_cache()
+
+

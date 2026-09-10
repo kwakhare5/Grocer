@@ -14,6 +14,7 @@ from backend.channels.models import (
 )
 from backend.intent.orchestrator import GrocerOrchestrator, OrchestratorTurnResult
 from backend.intent.session import ConversationState, default_session_store
+from backend.intent.stages.address_stage import default_address_manager
 
 
 _customer_saved_addresses: dict[str, str] = {}
@@ -47,9 +48,10 @@ class BaseChannelAdapter(ABC):
         if not session_id:
             session_id = f"sess_{secrets.token_urlsafe(24)}"
             self._active_sessions[customer_id] = session_id
-            if customer_id in _customer_saved_addresses:
+            saved_addr = default_address_manager.get_saved_address(customer_id) or _customer_saved_addresses.get(customer_id)
+            if saved_addr:
                 new_session = default_session_store.get_or_create(session_id, customer_id)
-                new_session.address_id = _customer_saved_addresses[customer_id]
+                new_session.address_id = saved_addr
                 default_session_store.save(new_session)
 
         return session_id
@@ -281,6 +283,7 @@ class BaseChannelAdapter(ABC):
         else:
             if interactive_id and interactive_id.startswith("address:"):
                 chosen_address_id = interactive_id.split(":", 1)[1]
+                default_address_manager.save_address(customer_id, chosen_address_id)
                 _customer_saved_addresses[customer_id] = chosen_address_id
                 turn_result = await orchestrator.handle_turn(
                     session_id=session_id,

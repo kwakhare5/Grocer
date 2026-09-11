@@ -66,3 +66,22 @@ async def swiggy_callback(req: CallbackRequest):
     except Exception as exc:
         logger.error(f"Callback failed: {exc}")
         raise HTTPException(status_code=400, detail=str(exc))
+
+
+@router.get("/auth/swiggy/status")
+async def swiggy_status(phone_number: str | None = None):
+    secret = (
+        default_whatsapp_adapter.app_secret
+        or getattr(settings, "WHATSAPP_APP_SECRET", None)
+        or "grocer_app_secret_fallback"
+    )
+    if phone_number:
+        normalized = "".join(c for c in phone_number if c.isdigit())
+        digest = hmac.new(
+            secret.encode("utf-8"), normalized.encode("utf-8"), hashlib.sha256
+        ).hexdigest()
+        customer_id = f"cust_wa_{digest[:24]}"
+        token = default_token_vault.get_token(customer_id)
+        return {"customer_id": customer_id, "authenticated": token is not None}
+    return {"authenticated_count": len(default_token_vault._tokens)}
+

@@ -20,10 +20,36 @@ if hasattr(sys.stdout, "reconfigure"):
 if hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8")
 
+import contextvars
+from typing import Optional
+
 from backend.channels.models import NormalizedIncomingMessage
 from backend.channels.whatsapp import WhatsAppChannelAdapter
 from backend.integrations.commerce.mock_adapter import MockCommerceAdapter
+from backend.integrations.commerce.models import PaymentOption
+from backend.integrations.commerce.swiggy_adapter import SwiggyMCPAdapter
 from backend.intent.orchestrator import GrocerOrchestrator
+
+
+class SimulatedSwiggyAdapter(MockCommerceAdapter, SwiggyMCPAdapter):
+    """Subclass of MockCommerceAdapter that satisfies SwiggyMCPAdapter contract
+
+    Enables high-fidelity 4-turn conversational testing (Items -> Address -> Payment -> Confirm).
+    """
+
+    def __init__(self) -> None:
+        MockCommerceAdapter.__init__(self)
+        self._customer_context = contextvars.ContextVar("customer_id", default=None)
+
+    async def get_payment_options(
+        self, cart_id: Optional[str] = None, address_id: Optional[str] = None
+    ) -> list[PaymentOption]:
+        return [
+            PaymentOption(method="COD", label="Pay on Delivery (Cash)", is_available=True),
+            PaymentOption(method="UPI", label="UPI Instant Pay (GPay / PhonePe / Paytm)", is_available=True),
+            PaymentOption(method="CARD", label="Credit / Debit Cards", is_available=True),
+            PaymentOption(method="NETBANKING", label="NetBanking & Wallets", is_available=True),
+        ]
 
 
 async def main() -> None:
@@ -31,12 +57,12 @@ async def main() -> None:
     print("=" * 65)
     print("🤖 GROCER v2 — INTERACTIVE WHATSAPP TERMINAL SIMULATOR")
     print("=" * 65)
-    print(f"Commerce Mode: {'SIMULATED (MockCommerceAdapter)' if is_mock else 'LIVE SWIGGY MCP'}")
+    print(f"Commerce Mode: {'SIMULATED (Full 4-Turn Mock)' if is_mock else 'LIVE SWIGGY MCP'}")
     print("Simulating live WhatsApp chat with Grocer replenishment assistant.")
     print("Type your message and press Enter. Type 'exit' or 'quit' to stop.\n")
 
     adapter = WhatsAppChannelAdapter(record_only=True)
-    commerce_adapter = MockCommerceAdapter() if is_mock else None
+    commerce_adapter = SimulatedSwiggyAdapter() if is_mock else None
     orchestrator = GrocerOrchestrator(commerce_adapter=commerce_adapter)
     sender_id = "919876543210"
 

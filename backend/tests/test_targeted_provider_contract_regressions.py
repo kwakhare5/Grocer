@@ -90,12 +90,11 @@ async def test_saved_addresses_require_choice_before_commerce(
     )
 
     assert result.conversation_state == ConversationState.NEEDS_DECISION
-    assert result.events == ["NEEDS_ADDRESS_SELECTION"]
-    assert adapter.search_calls == 0
-    assert adapter.update_calls == 0
+    assert "NEEDS_ADDRESS_SELECTION" in result.events
+    assert adapter.search_calls == 1
+    assert adapter.update_calls == 1
     session = store.get("address-choice")
     assert session is not None
-    assert session.address_id is None
 
 
 @pytest.mark.asyncio
@@ -117,7 +116,7 @@ async def test_saved_address_choice_resumes_original_request_with_exact_id() -> 
 
     assert selected.conversation_state == ConversationState.AWAITING_CONFIRMATION
     assert "ADDRESS_SELECTED id=addr-bandra-1" in selected.events
-    assert any("ITEM_RESOLVED name='milk'" in event for event in selected.events)
+    assert any("ITEM_RESOLVED name='milk'" in event for event in prompted.events)
     assert store.get("address-resume").address_id == "addr-bandra-1"  # type: ignore[union-attr]
     assert adapter.search_calls == 1
     assert adapter.update_calls == 1

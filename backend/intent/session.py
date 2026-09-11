@@ -14,9 +14,11 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import os
 import secrets
 import threading
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from enum import Enum
 from typing import Any, Optional
 
@@ -271,6 +273,7 @@ class OrchestratorSession(BaseModel):
     cart_id: Optional[str] = None
     address_id: Optional[str] = None
     address_display: Optional[str] = None
+    address_confirmed: bool = False
     selected_payment_method: Optional[str] = None
     selected_payment_option_id: Optional[str] = None
     selected_payment_option_kind: Optional[str] = None
@@ -315,17 +318,58 @@ class OrchestratorSession(BaseModel):
 # Session store
 # ---------------------------------------------------------------------------
 
+def _get_session_storage_file() -> Path:
+    return Path(os.environ.get("GROCER_SESSION_CACHE", "/tmp/grocer_orchestrator_sessions.json"))
+
+
 class OrchestratorSessionStore:
-    """Thread-safe in-memory store for OrchestratorSession objects.
+    """Thread-safe store for OrchestratorSession objects with disk-backed durability.
 
     Keyed by session_id (str). Compatible with per-request async usage
     since all critical mutations use a threading.RLock.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, persist: bool = True) -> None:
         self._lock = threading.RLock()
         self._sessions: dict[str, OrchestratorSession] = {}
         self._session_locks: dict[str, asyncio.Lock] = {}
+        self._persist_enabled = persist and os.environ.get("GROCER_SESSION_CACHE") != "none"
+        if self._persist_enabled:
+            self._load_cache()
+
+    def _load_cache(self) -> None:
+        try:
+            storage_file = _get_session_storage_file()
+            if storage_file.exists():
+                with open(storage_file, "r", encoding="utf-8") as f:
+                    raw_data = json.load(f)
+                    for sid, sdata in raw_data.items():
+                        self._sessions[sid] = OrchestratorSession.model_validate(sdata)
+        except Exception:
+            pass
+
+    def _persist_cache(self) -> None:
+        """Persist session snapshots atomically in a background thread."""
+        if not self._persist_enabled:
+            return
+
+        def _write() -> None:
+            try:
+                with self._lock:
+                    serialized = {
+                        sid: s.model_dump(mode="json")
+                        for sid, s in self._sessions.items()
+                    }
+                storage_file = _get_session_storage_file()
+                storage_file.parent.mkdir(parents=True, exist_ok=True)
+                tmp_file = storage_file.with_suffix(".tmp")
+                with open(tmp_file, "w", encoding="utf-8") as f:
+                    json.dump(serialized, f)
+                tmp_file.replace(storage_file)
+            except Exception:
+                pass
+
+        threading.Thread(target=_write, daemon=True).start()
 
     def get_or_create(self, session_id: str, customer_id: str) -> OrchestratorSession:
         """Return existing session or create a fresh READY session."""
@@ -335,6 +379,7 @@ class OrchestratorSessionStore:
                     session_id=session_id,
                     customer_id=customer_id,
                 )
+                self._persist_cache()
             elif self._sessions[session_id].customer_id != customer_id:
                 raise ValueError("Session belongs to a different customer.")
             return self._sessions[session_id]
@@ -352,6 +397,7 @@ class OrchestratorSessionStore:
         )
         with self._lock:
             self._sessions[session_id] = session
+        self._persist_cache()
         return session, capability
 
     def verify_capability(self, session_id: str, capability: Optional[str]) -> bool:
@@ -373,11 +419,25 @@ class OrchestratorSessionStore:
     def save(self, session: OrchestratorSession) -> None:
         with self._lock:
             self._sessions[session.session_id] = session
+        self._persist_cache()
 
     def clear(self, session_id: str) -> None:
         with self._lock:
             self._sessions.pop(session_id, None)
             self._session_locks.pop(session_id, None)
+        self._persist_cache()
+
+    def reset(self) -> None:
+        """Clear all sessions from memory and disk (used in test fixtures/teardown)."""
+        with self._lock:
+            self._sessions.clear()
+            self._session_locks.clear()
+        try:
+            storage_file = _get_session_storage_file()
+            if storage_file.exists():
+                storage_file.unlink(missing_ok=True)
+        except Exception:
+            pass
 
     def lock_for(self, session_id: str) -> asyncio.Lock:
         """Return the local async lock serializing one session transaction."""

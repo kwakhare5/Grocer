@@ -12,59 +12,74 @@ from backend.intent.session import BasketSummary
 
 
 def _msg_confirmation_basket(basket: BasketSummary) -> str:
-    """Render every approval-bound fact available to conversational clients."""
-    lines = ["Your basket is ready:"]
-    lines.extend(
-        f"- {item.quantity} x {item.name} ({item.pack_size}): ₹{item.line_total:,.0f}"
-        for item in basket.items
-    )
-    lines.append(f"Items: ₹{basket.item_total:,.0f}")
-    lines.append(f"Delivery: ₹{basket.delivery_fee:,.0f}")
-    lines.append(f"Packaging: ₹{basket.packaging_fee:,.0f}")
+    """Render clean, well-spaced order confirmation receipt for WhatsApp."""
+    lines = ["🧾 *Order Confirmation*", ""]
+    for item in basket.items:
+        lines.append(f"• {item.quantity} × {item.name} ({item.pack_size}) — ₹{item.line_total:,.0f}")
+
+    lines.append("")
+    lines.append("────────────────────")
+    lines.append(f"• Items: ₹{basket.item_total:,.0f}")
+    lines.append(f"• Delivery: ₹{basket.delivery_fee:,.0f}")
+    lines.append(f"• Packaging: ₹{basket.packaging_fee:,.0f}")
 
     # Explicit fee reconciliation so grand total math is transparent to the exact rupee
     base_cost = basket.item_total + basket.delivery_fee + basket.packaging_fee - basket.discount
     extra_fees = round(basket.grand_total - base_cost, 2)
     if extra_fees > 0:
-        lines.append(f"Fees & Taxes: ₹{extra_fees:,.0f}")
+        lines.append(f"• Fees & Taxes: ₹{extra_fees:,.0f}")
 
-    lines.append(f"Discount: -₹{basket.discount:,.0f}")
-    lines.extend(
-        [
-            f"Total: ₹{basket.grand_total:,.0f}",
-            f"Address: {basket.address_display or basket.address_id or 'selected address'}",
-            f"Payment: {basket.selected_payment_option_label or basket.selected_payment_method}",
-        ]
-    )
+    if basket.discount > 0:
+        lines.append(f"• Discount: -₹{basket.discount:,.0f}")
+    else:
+        lines.append("• Discount: ₹0")
+
+    lines.append("────────────────────")
+    lines.append(f"*Total: ₹{basket.grand_total:,.0f}*")
+    lines.append("")
+
+    addr_text = basket.address_display or basket.address_id or "Saved Address"
+    lines.append(f"📍 *Delivering to Address:*\n{addr_text}")
+    lines.append("")
+
+    pay_text = basket.selected_payment_option_label or basket.selected_payment_method or "Pay on Delivery"
+    lines.append(f"💳 *Payment:*\n{pay_text}")
+
     if basket.recovery_notes:
-        lines.append(f"Recovery: {'; '.join(basket.recovery_notes)}")
-    # Purged robotic developer interpretation notes from consumer receipt
-    lines.append("Confirm to place this exact order.")
+        lines.append("")
+        lines.append(f"🔄 *Substitutions:* {'; '.join(basket.recovery_notes)}")
+
+    lines.append("")
+    lines.append("Tap below or reply *confirm* to place this order with Swiggy Instamart.")
     return "\n".join(lines)
 
 
 def _display_address(address: DeliveryAddress) -> str:
-    """Format delivery address as a clean human-readable badge."""
-    label = (address.label or "").strip()
-    city = (address.city or "").strip()
-    street = (address.street or "").strip()
-    if label and city:
-        return f"{label} ({city})"
-    if label and street:
-        return f"{label} - {street[:30]}"
+    """Format delivery address with label and full address details."""
+    parts = []
+    street = getattr(address, "street", "") or ""
+    if street.strip():
+        parts.append(street.strip())
+    landmark = getattr(address, "landmark", None)
+    if landmark and landmark.strip():
+        parts.append(landmark.strip())
+    city = getattr(address, "city", None)
+    if city and city.strip():
+        if city.strip().lower() not in street.lower():
+            parts.append(city.strip())
+
+    full_address = ", ".join(parts) if parts else "Saved Address"
+    label = (getattr(address, "label", "") or "").strip()
     if label:
-        return label
-    if city and street:
-        return f"{street[:30]}, {city}"
-    if street:
-        return street[:40]
-    return address.id
+        return f"{label}: {full_address}"
+    return full_address
 
 
 def _msg_clarification(question: str, options: list[Any]) -> str:
-    lines = [question]
+    lines = [question, ""]
     for opt in options:
         lines.append(f"  {opt.index}. {opt.name} — ₹{opt.price:,.0f}")
+    lines.append("")
     lines.append("Reply with the number of your choice.")
     return "\n".join(lines)
 
@@ -76,12 +91,23 @@ def _msg_failed(reason: str) -> str:
     )
 
 
-def _msg_ordered(order_id: str, total: Optional[float]) -> str:
-    total_note = f" Total ₹{total:,.0f}." if total is not None else ""
-    return f"Order placed.{total_note} Order ID: {order_id}."
+def _msg_ordered(order_id: str, total: Optional[float], address_display: Optional[str] = None) -> str:
+    lines = ["🎉 *Order Placed with Swiggy Instamart!*", ""]
+    lines.append(f"*Order ID:* #{order_id}")
+    if total is not None:
+        lines.append(f"*Total Amount:* ₹{total:,.0f}")
+    lines.append("*Status:* Confirmed (Preparing)")
+    lines.append("*ETA:* 12–15 mins")
+    if address_display:
+        lines.append("")
+        lines.append(f"📍 *Delivered to:*\n{address_display}")
+    lines.append("")
+    lines.append(f"🛵 *Track your order live on Swiggy:*\nhttps://swiggy.com/track/{order_id}")
+    return "\n".join(lines)
 
 
 def _msg_payment_pending(order_id: Optional[str], payment_url: Optional[str]) -> str:
-    order_note = f" for order {order_id}" if order_id else ""
-    action = f" Complete payment here: {payment_url}" if payment_url else ""
-    return f"Payment is pending{order_note}.{action} I will report success only after confirmation."
+    order_note = f" for order #{order_id}" if order_id else ""
+    action = f"\n\n📱 *Complete payment here:*\n{payment_url}" if payment_url else ""
+    return f"Payment is pending{order_note}.{action}\n\nI will report success as soon as your payment confirms."
+

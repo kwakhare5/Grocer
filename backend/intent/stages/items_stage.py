@@ -5,6 +5,7 @@ conversational item swaps, and item removals while preserving SKU ID and spin ID
 """
 from __future__ import annotations
 
+import asyncio
 import copy
 import math
 import re
@@ -287,10 +288,19 @@ async def _resolve_items(
     address_id: str,
     events: list[str],
 ) -> list[CartItemUpdate]:
-    """Resolve each IntentItem into a CartItemUpdate via CommercePort search."""
+    """Resolve each IntentItem into a CartItemUpdate concurrently via CommercePort search."""
+    if not contract.items:
+        return []
+
+    tasks = [_search_and_pick(port, address_id, item) for item in contract.items]
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+
+    for res in results:
+        if isinstance(res, Exception):
+            raise res
+
     updates: list[CartItemUpdate] = []
-    for item in contract.items:
-        update = await _search_and_pick(port, address_id, item)
+    for item, update in zip(contract.items, results):
         if update:
             updates.append(update)
             events.append(f"ITEM_RESOLVED name={item.name!r} spin_id={update.spin_id}")

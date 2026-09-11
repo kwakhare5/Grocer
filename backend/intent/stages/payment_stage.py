@@ -10,9 +10,21 @@ from typing import Optional
 from backend.integrations.commerce.models import PaymentOption
 
 
-def _msg_payment_choice(options: list[PaymentOption]) -> str:
-    lines = ["Which payment method would you like to use?"]
-    lines.extend(f"{index}. {option.label}" for index, option in enumerate(options, 1))
+def _msg_payment_choice(
+    options: list[PaymentOption],
+    address_display: Optional[str] = None,
+) -> str:
+    lines: list[str] = []
+    if address_display:
+        lines.append(f"📍 *Delivering to:*\n{address_display}")
+        lines.append("")
+
+    lines.append("💳 *How would you like to pay?*")
+    lines.append("")
+    for index, option in enumerate(options, 1):
+        lines.append(f"{index}. {option.label}")
+
+    lines.append("")
     lines.append("Reply with the number or name of your choice.")
     return "\n".join(lines)
 

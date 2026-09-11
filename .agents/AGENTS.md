@@ -230,27 +230,26 @@ If the answer is no, it does not belong in GROCER v2 unless the master spec is d
 
 ## 15. SESSION RESUME
 
-**Last completed:** Modular Stage Decomposition, Address Durability & SKU Propagation (2026-09-11)
+**Last completed:** 4-Turn Flow Overhaul, Session Durability & Non-Blocking Cache I/O (2026-09-11)
 
-**Status:** Decomposed monolithic orchestrator and hardened multi-turn shopping pipeline:
-1. **Modular 4-Stage Decomposition:** Extracted 577+ lines of duplicated helper code from `backend/intent/orchestrator.py` into dedicated modules under `backend/intent/stages/`:
-   - `items_stage.py`: Search, variant resolution, swaps, removals, and contract merging.
-   - `address_stage.py`: `AddressStageManager` with background preliminary address selection and persistent storage.
-   - `payment_stage.py`: 4-category smart grouping and payment selection formatting.
-   - `confirm_stage.py`: Transparent receipt formatting with fee reconciliation down to the rupee.
-   - `tracking_stage.py`: Live order status formatting and customer care redirection.
-2. **SKU Propagation & Defensive Cart Updates:** Fixed live Swiggy MCP crash (`Cart update requires a catalog SKU ID for every item`) by ensuring `sku_id` is propagated on clarification choices and adding defensive live-cart fallback lookups in `SwiggyMCPAdapter.update_cart`.
-3. **Address Durability:** Replaced volatile in-memory address dictionaries with `default_address_manager` in `backend/channels/base.py` backed by disk persistence (`/tmp/grocer_customer_addresses.json`), ensuring saved customer addresses survive container and dev-server restarts.
-4. **Clean Decoupling:** Streamlined `BaseChannelAdapter.dispatch` and `GrocerOrchestrator._handle_turn_scoped` to enforce single source of truth without split-brain state conflicts.
+**Status:** Enforced strict 4-turn shopping flow, optimized backend latency, and hardened session durability:
+1. **Strict 4-Turn Sequence Enforced:** Turn 1 (Items added + address prompt) → Turn 2 (Address choice + payment prompt) → Turn 3 (Payment choice + itemized receipt) → Turn 4 (Final confirmation + live Swiggy checkout).
+2. **Session Disk Durability:** Backed `OrchestratorSessionStore` with atomic JSON file persistence (`/tmp/grocer_orchestrator_sessions.json`), ensuring active carts, confirmation nonces, and session states survive server reloads mid-conversation.
+3. **Non-Blocking Cache I/O:** Migrated `AddressStageManager` synchronous file I/O to atomic background thread writes with temporary file replacement, preventing event loop blocking on active WhatsApp webhook requests. Encapsulated address resolution in `AddressStageManager.resolve_session_address`.
+4. **Dead Code Purge:** Removed orphaned wrapper `GrocerOrchestrator._resolve_items` and purged duplicate in-memory state `_customer_saved_addresses` in `base.py`.
+5. **WhatsApp Aesthetics & Spacing:** Formatted full address badges (`Label: Street, Landmark, City`), divider lines (`────────────────────`), bullet points (`•`), and contextual emojis (`🛒`, `🧾`, `📍`, `💳`, `🎉`).
+6. **Concurrent Catalog Searches (`asyncio.gather`):** Parallelized catalog product searches in `backend/intent/stages/items_stage.py`, slashing multi-item search latency from ~4s to ~1s.
 
 **Quality Gates:**
-- `pytest backend/tests`: 372 tests passed (100% green in 13.36s).
+- `pytest backend/tests`: 372 tests passed (100% green in 16.17s).
 - `npm run lint`: 0 errors, 0 warnings.
-- `npm run build`: Next.js Turbopack compiled successfully in 2.7s.
+- `npm run build`: Next.js Turbopack compiled successfully in 2.3s.
+- `graphify update .`: Synchronized 2,177 nodes, 5,755 edges, 139 communities.
 - Zero credential leakage; all safety invariants preserved.
 
 **Branch state:**
 - `ag/mainline` — canonical active development branch.
 - `main` — stable reference branch.
+
 
 

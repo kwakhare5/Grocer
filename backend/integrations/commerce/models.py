@@ -17,6 +17,7 @@ class DeliveryAddress(BaseModel):
     longitude: Optional[float] = None
     is_serviceable: Optional[bool] = None
     phone_number: Optional[str] = None
+    landmark: Optional[str] = None
     address_category: Optional[str] = None
     address_tag: Optional[str] = None
 

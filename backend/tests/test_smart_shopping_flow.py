@@ -132,7 +132,7 @@ def test_display_address_clean_badge() -> None:
         postal_code="422005",
     )
     displayed = _display_address(addr)
-    assert displayed == "Home (Nashik)"
+    assert displayed == "Home: Flat 402, Shanti Heights, Nashik"
     assert "ctg57m6bbkmgsasadhqg" not in displayed
 
 

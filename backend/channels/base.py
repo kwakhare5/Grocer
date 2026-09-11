@@ -17,9 +17,6 @@ from backend.intent.session import ConversationState, default_session_store
 from backend.intent.stages.address_stage import default_address_manager
 
 
-_customer_saved_addresses: dict[str, str] = {}
-
-
 class BaseChannelAdapter(ABC):
     """Abstract adapter decoupling transport protocols from GrocerOrchestrator."""
 
@@ -48,7 +45,7 @@ class BaseChannelAdapter(ABC):
         if not session_id:
             session_id = f"sess_{secrets.token_urlsafe(24)}"
             self._active_sessions[customer_id] = session_id
-            saved_addr = default_address_manager.get_saved_address(customer_id) or _customer_saved_addresses.get(customer_id)
+            saved_addr = default_address_manager.get_saved_address(customer_id)
             if saved_addr:
                 new_session = default_session_store.get_or_create(session_id, customer_id)
                 new_session.address_id = saved_addr
@@ -175,7 +172,44 @@ class BaseChannelAdapter(ABC):
                 events=["ORDER_CANCELLATION_REDIRECTED"],
             )
 
-        # 2. Check for payment-method choice
+        # 2. Check for delivery address choice
+        elif (
+            session
+            and session.conversation_state == ConversationState.NEEDS_DECISION
+            and session.pending_address_choice
+        ):
+            pending_addresses = session.pending_address_choice.addresses
+            chosen_addr_id: Optional[str] = None
+
+            if interactive_id and interactive_id.startswith("address:"):
+                chosen_addr_id = interactive_id.split(":", 1)[1]
+            elif clean_text.isdigit():
+                idx = int(clean_text) - 1
+                if 0 <= idx < len(pending_addresses):
+                    chosen_addr_id = pending_addresses[idx].id
+            else:
+                for addr in pending_addresses:
+                    if clean_text in {
+                        addr.id.casefold(),
+                        (addr.label or "").casefold(),
+                    } or clean_text in (addr.street or "").casefold():
+                        chosen_addr_id = addr.id
+                        break
+
+            if chosen_addr_id:
+                turn_result = await orchestrator.handle_address_choice(
+                    session_id=session_id,
+                    address_id=chosen_addr_id,
+                )
+            else:
+                turn_result = await orchestrator.handle_turn(
+                    session_id=session_id,
+                    customer_id=customer_id,
+                    message=incoming.text,
+                    address_id=session.address_id,
+                )
+
+        # 3. Check for payment-method choice
         elif (
             session
             and session.conversation_state == ConversationState.NEEDS_DECISION

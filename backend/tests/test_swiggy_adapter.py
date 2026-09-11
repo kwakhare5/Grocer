@@ -806,29 +806,94 @@ async def test_swiggy_orchestrator_multi_address_prompts_user() -> None:
     adapter = SwiggyMCPAdapter()
     orchestrator = GrocerOrchestrator(commerce_adapter=adapter)
 
-    mock_resp = httpx.Response(
-        status_code=200,
-        json={
-            "success": True,
-            "data": {
-                "addresses": [
-                    {"id": "addr-home", "addressCategory": "Home", "addressLine": "12th Main Indiranagar"},
-                    {"id": "addr-office", "addressCategory": "Work", "addressLine": "EPIP Zone Whitefield"},
+    mock_addr_data = {
+        "addresses": [
+            {"id": "addr-home", "addressCategory": "Home", "addressLine": "12th Main Indiranagar"},
+            {"id": "addr-office", "addressCategory": "Work", "addressLine": "EPIP Zone Whitefield"},
+        ],
+    }
+    mock_search_data = {
+        "products": [
+            {
+                "productId": "prod-1",
+                "displayName": "Amul Milk",
+                "variations": [
+                    {
+                        "spinId": "spin-milk-1",
+                        "skuId": "sku-milk-1",
+                        "displayName": "Amul Taaza Milk 1L",
+                        "quantityDescription": "1 L",
+                        "price": {"mrp": 68.0, "offerPrice": 66.0},
+                        "isInStockAndAvailable": True,
+                    }
                 ],
             },
+            {
+                "productId": "prod-2",
+                "displayName": "Modern Bread",
+                "variations": [
+                    {
+                        "spinId": "spin-bread-1",
+                        "skuId": "sku-bread-1",
+                        "displayName": "Modern Whole Wheat Bread 400g",
+                        "quantityDescription": "400 g",
+                        "price": {"mrp": 50.0, "offerPrice": 45.0},
+                        "isInStockAndAvailable": True,
+                    }
+                ],
+            },
+        ]
+    }
+    mock_cart_data = {
+        "cartId": "cart-swiggy-test",
+        "selectedAddress": "addr-home",
+        "cartTotalAmount": "111.0",
+        "items": [
+            {
+                "spinId": "spin-milk-1",
+                "skuId": "sku-milk-1",
+                "itemName": "Amul Taaza Milk 1L",
+                "discountedFinalPrice": 66.0,
+                "quantity": 1,
+                "isInStockAndAvailable": True,
+            },
+            {
+                "spinId": "spin-bread-1",
+                "skuId": "sku-bread-1",
+                "itemName": "Modern Whole Wheat Bread 400g",
+                "discountedFinalPrice": 45.0,
+                "quantity": 1,
+                "isInStockAndAvailable": True,
+            },
+        ],
+        "billBreakdown": {
+            "lineItems": [{"label": "Item Total", "value": "₹111.0"}],
+            "toPay": {"label": "To Pay", "value": "₹111.0"},
         },
-        request=httpx.Request("POST", adapter.base_url),
-    )
+    }
+
+    async def mock_swiggy_post(*args, **kwargs):
+        payload = kwargs.get("json", {})
+        tool_name = payload.get("params", {}).get("name")
+        if tool_name == "get_addresses":
+            data = mock_addr_data
+        elif tool_name == "search_products":
+            data = mock_search_data
+        elif tool_name in ("update_cart", "get_cart"):
+            data = mock_cart_data
+        else:
+            data = {}
+        return httpx.Response(200, json={"success": True, "data": data}, request=httpx.Request("POST", adapter.base_url))
 
     with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
-        mock_post.return_value = mock_resp
+        mock_post.side_effect = mock_swiggy_post
         result = await orchestrator.handle_turn(
             session_id="session-multi-addr",
             customer_id="cust-multi-1",
             message="get milk and bread",
         )
         assert result.conversation_state == ConversationState.NEEDS_DECISION
-        assert "Which address would you like to use" in result.user_message
+        assert "Where would you like this delivered" in result.user_message or "Which address" in result.user_message
         assert "Home" in result.user_message
         assert "Work" in result.user_message
         assert "NEEDS_ADDRESS_SELECTION" in result.events
@@ -842,23 +907,72 @@ async def test_swiggy_orchestrator_address_selection_persists() -> None:
     adapter = SwiggyMCPAdapter()
     orchestrator = GrocerOrchestrator(commerce_adapter=adapter)
 
-    mock_addr_resp = httpx.Response(
-        status_code=200,
-        json={
-            "success": True,
-            "data": {
-                "addresses": [
-                    {"id": "addr-home", "addressCategory": "Home", "addressLine": "12th Main Indiranagar"},
-                    {"id": "addr-office", "addressCategory": "Work", "addressLine": "EPIP Zone Whitefield"},
+    mock_addr_data = {
+        "addresses": [
+            {"id": "addr-home", "addressCategory": "Home", "addressLine": "12th Main Indiranagar"},
+            {"id": "addr-office", "addressCategory": "Work", "addressLine": "EPIP Zone Whitefield"},
+        ],
+    }
+    mock_search_data = {
+        "products": [
+            {
+                "productId": "prod-1",
+                "displayName": "Amul Milk",
+                "variations": [
+                    {
+                        "spinId": "spin-milk-1",
+                        "skuId": "sku-milk-1",
+                        "displayName": "Amul Taaza Milk 1L",
+                        "quantityDescription": "1 L",
+                        "price": {"mrp": 68.0, "offerPrice": 66.0},
+                        "isInStockAndAvailable": True,
+                    }
                 ],
-            },
+            }
+        ]
+    }
+    mock_cart_data = {
+        "cartId": "cart-swiggy-test-2",
+        "selectedAddress": "addr-home",
+        "cartTotalAmount": "96.0",
+        "items": [
+            {
+                "spinId": "spin-milk-1",
+                "skuId": "sku-milk-1",
+                "itemName": "Amul Taaza Milk 1L",
+                "discountedFinalPrice": 66.0,
+                "quantity": 1,
+                "isInStockAndAvailable": True,
+            }
+        ],
+        "billBreakdown": {
+            "lineItems": [{"label": "Item Total", "value": "₹66.0"}],
+            "toPay": {"label": "To Pay", "value": "₹96.0"},
         },
-        request=httpx.Request("POST", adapter.base_url),
-    )
+    }
+    mock_payment_data = {
+        "paymentMethods": [
+            {"paymentMethod": "UPI", "displayName": "UPI (GPay / PhonePe)", "isAvailable": True},
+        ]
+    }
 
-    # The address choice is valid only after the provider's offered set is stored.
+    async def mock_swiggy_post(*args, **kwargs):
+        payload = kwargs.get("json", {})
+        tool_name = payload.get("params", {}).get("name")
+        if tool_name == "get_addresses":
+            data = mock_addr_data
+        elif tool_name == "search_products":
+            data = mock_search_data
+        elif tool_name in ("update_cart", "get_cart"):
+            data = mock_cart_data
+        elif tool_name == "get_payment_options":
+            data = mock_payment_data
+        else:
+            data = {}
+        return httpx.Response(200, json={"success": True, "data": data}, request=httpx.Request("POST", adapter.base_url))
+
     with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
-        mock_post.return_value = mock_addr_resp
+        mock_post.side_effect = mock_swiggy_post
         prompted = await orchestrator.handle_turn(
             session_id="session-multi-addr-2",
             customer_id="cust-multi-2",

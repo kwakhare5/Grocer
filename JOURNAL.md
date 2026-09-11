@@ -15,6 +15,16 @@ During the Session End ritual (called automatically whenever significant changes
 
 ## Log Entries
 
+### [GROCER — Swiggy Dynamic OAuth Resolution & Stale Env Var Cleanup] 2026-09-12
+
+- **Shipped**: Dynamic Swiggy OAuth Token Vault Prioritization & Stale Token Purge:
+  - **Dynamic Token Vault Prioritization (`factory.py`)**: Repaired `get_commerce_adapter` to always wire `token_resolver=default_token_vault.get_token`, eliminating a bug where presence of a static environment token disabled runtime OAuth token resolution for authenticated users.
+  - **Stale Token Env Var Purge**: Deleted expired static `SWIGGY_AUTH_TOKEN` and `SWIGGY_CUSTOMER_ID` environment variables from the live Render deployment via Render API, ensuring live requests only resolve against valid dynamic customer OAuth credentials.
+  - **Live Auth Status Verification Route (`/api/auth/swiggy/status`)**: Added an authentication status check endpoint on FastAPI and proxied via Next.js on Vercel to inspect customer OAuth readiness in real time.
+- **Verification**: 372 backend tests passing (100% green in 16.17s), Next.js Turbopack build compiled cleanly (2.7s), ESLint 0 errors/warnings, live Render service responding 200 OK with deployed commit `8e58f7e`.
+- **Commit**: `fix(auth): prioritize dynamic token_vault over stale static token and add auth status route`
+- **Vibe**: Direct dynamic OAuth resolution, zero stale credential masking, fully live on Render and Vercel.
+
 ### [GROCER — 4-Turn Flow Overhaul, Session Durability & Non-Blocking Cache I/O] 2026-09-11
 
 - **Shipped**: Progressive and conversational shopping flow for WhatsApp replenishment:

@@ -230,26 +230,21 @@ If the answer is no, it does not belong in GROCER v2 unless the master spec is d
 
 ## 15. SESSION RESUME
 
-**Last completed:** 4-Turn Flow Overhaul, Session Durability & Non-Blocking Cache I/O (2026-09-11)
+**Last completed:** Swiggy Dynamic OAuth Resolution & Stale Env Var Cleanup (2026-09-12)
 
-**Status:** Enforced strict 4-turn shopping flow, optimized backend latency, and hardened session durability:
-1. **Strict 4-Turn Sequence Enforced:** Turn 1 (Items added + address prompt) → Turn 2 (Address choice + payment prompt) → Turn 3 (Payment choice + itemized receipt) → Turn 4 (Final confirmation + live Swiggy checkout).
-2. **Session Disk Durability:** Backed `OrchestratorSessionStore` with atomic JSON file persistence (`/tmp/grocer_orchestrator_sessions.json`), ensuring active carts, confirmation nonces, and session states survive server reloads mid-conversation.
-3. **Non-Blocking Cache I/O:** Migrated `AddressStageManager` synchronous file I/O to atomic background thread writes with temporary file replacement, preventing event loop blocking on active WhatsApp webhook requests. Encapsulated address resolution in `AddressStageManager.resolve_session_address`.
-4. **Dead Code Purge:** Removed orphaned wrapper `GrocerOrchestrator._resolve_items` and purged duplicate in-memory state `_customer_saved_addresses` in `base.py`.
-5. **WhatsApp Aesthetics & Spacing:** Formatted full address badges (`Label: Street, Landmark, City`), divider lines (`────────────────────`), bullet points (`•`), and contextual emojis (`🛒`, `🧾`, `📍`, `💳`, `🎉`).
-6. **Concurrent Catalog Searches (`asyncio.gather`):** Parallelized catalog product searches in `backend/intent/stages/items_stage.py`, slashing multi-item search latency from ~4s to ~1s.
+**Status:** Fixed OAuth token resolution precedence and purged stale credentials on live Render deployment:
+1. **Dynamic Token Vault Prioritization:** Rewired `get_commerce_adapter` in `backend/integrations/commerce/factory.py` to always pass `token_resolver=default_token_vault.get_token`, ensuring runtime OAuth tokens take immediate precedence over fallback static tokens.
+2. **Stale Render Env Var Purge:** Deleted expired `SWIGGY_AUTH_TOKEN` and `SWIGGY_CUSTOMER_ID` environment variables from the live Render deployment via Render API.
+3. **Live Auth Status Verification Route:** Implemented `/api/auth/swiggy/status` on FastAPI and proxied via Next.js on Vercel to inspect customer OAuth authentication state in real time.
+4. **Live Deployment Verified:** Both Render (`https://grocer-backend-qwk4.onrender.com`) and Vercel (`https://grocerr.vercel.app`) deployed commit `8e58f7e` and return 200 OK.
 
 **Quality Gates:**
 - `pytest backend/tests`: 372 tests passed (100% green in 16.17s).
 - `npm run lint`: 0 errors, 0 warnings.
-- `npm run build`: Next.js Turbopack compiled successfully in 2.3s.
-- `graphify update .`: Synchronized 2,177 nodes, 5,755 edges, 139 communities.
+- `npm run build`: Next.js Turbopack compiled successfully in 2.7s.
+- `graphify update .`: Synchronized 2,185 nodes, 5,782 edges, 140 communities.
 - Zero credential leakage; all safety invariants preserved.
 
 **Branch state:**
 - `ag/mainline` — canonical active development branch.
 - `main` — stable reference branch.
-
-
-

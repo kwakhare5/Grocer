@@ -1,4 +1,4 @@
-﻿"""Abstract interface for grocery commerce adapters (Spec §5.1, §28.1).
+"""Abstract interface for grocery commerce adapters (Spec §5.1, §28.1).
 
 Enforces clean architectural boundary: internal dark store replenishment
 and customer reordering interact with external quick-commerce systems (or local
@@ -56,7 +56,9 @@ class CommercePort(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def get_payment_options(self, cart_id: Optional[str] = None) -> list[PaymentOption]:
+    async def get_payment_options(
+        self, cart_id: Optional[str] = None, address_id: Optional[str] = None
+    ) -> list[PaymentOption]:
         """Fetch available payment methods (UPI, Cash on Delivery)."""
         raise NotImplementedError
 

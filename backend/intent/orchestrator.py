@@ -255,6 +255,55 @@ class GrocerOrchestrator:
 
         if address_id:
             session.address_id = address_id
+
+        # Phase B: Strict live address resolution per Swiggy Builders Club spec
+        if not session.address_id:
+            from backend.integrations.commerce.swiggy_adapter import SwiggyMCPAdapter
+            if isinstance(self._port, SwiggyMCPAdapter):
+                try:
+                    addresses = await self._port.get_addresses(customer_id)
+                except Exception:
+                    addresses = []
+
+                if len(addresses) == 1:
+                    session.address_id = addresses[0].id
+                elif len(addresses) > 1:
+                    lower_msg = message.lower().strip()
+                    selected = None
+                    for idx, addr in enumerate(addresses, 1):
+                        if lower_msg in (str(idx), addr.label.lower(), addr.id.lower()):
+                            selected = addr
+                            break
+                        if addr.street and lower_msg in addr.street.lower():
+                            selected = addr
+                            break
+
+                    if selected:
+                        session.address_id = selected.id
+                        events.append(f"ADDRESS_SELECTED id={selected.id}")
+                    else:
+                        session.conversation_state = ConversationState.NEEDS_DECISION
+                        self._store.save(session)
+                        options_text = "\n".join(
+                            f"{i}. {a.label}: {a.street or a.city or 'Saved Address'}"
+                            for i, a in enumerate(addresses, 1)
+                        )
+                        return OrchestratorTurnResult(
+                            session_id=session.session_id,
+                            conversation_state=ConversationState.NEEDS_DECISION,
+                            user_message=f"Which address would you like to use for delivery?\n{options_text}\nReply with the number or label of your choice.",
+                            events=events + ["NEEDS_ADDRESS_SELECTION"],
+                        )
+                elif len(addresses) == 0:
+                    session.conversation_state = ConversationState.FAILED
+                    self._store.save(session)
+                    return OrchestratorTurnResult(
+                        session_id=session.session_id,
+                        conversation_state=ConversationState.FAILED,
+                        user_message="No delivery address found for your Swiggy account. Please add an address in Swiggy first.",
+                        events=events + ["NO_ADDRESS_FOUND"],
+                    )
+
         effective_address = session.address_id or f"addr-{customer_id}"
 
         session.conversation_state = ConversationState.BUILDING

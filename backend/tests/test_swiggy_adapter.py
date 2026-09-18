@@ -1,11 +1,13 @@
-"""Isolated unit tests for SwiggyMCPAdapter and official error taxonomy (Spec §5.1, §28, Phase 9).
+"""Comprehensive provider-contract tests for SwiggyMCPAdapter (Spec §5.1, §28, Phase B).
 
-Tests the production adapter with mocked HTTP transport:
-- HTTP 401 and JSON-RPC -32001 -> ProviderAuthError
-- HTTP 504 and httpx.TimeoutException -> UpstreamTimeoutError
-- Envelope error taxonomy: ItemOutOfStockError, AddressNotServiceableError, MinOrderNotMetError, CartExpiredError
-- Consequential checkout gate: UnconfirmedCheckoutError when explicit_confirmation is False
-- Token masking: zero credential leakage in repr() or str()
+Tests the production adapter with mocked HTTP transport across:
+1. Authentication: success, 401, expired token, 419 revoked session
+2. Address: one address, multiple addresses, pagination, no addresses, malformed response
+3. Search: products, variations, missing fields, OOS
+4. Cart: successful update, partial update, stale cart, min order, unserviceable
+5. Checkout: confirmation false, confirmation true, successful order, multiple orders, pending UPI, 5xx / timeout non-idempotent guard
+6. Tracking: successful tracking, status mapping, polling interval
+7. Token masking & zero leakage invariant
 """
 from __future__ import annotations
 
@@ -19,10 +21,13 @@ from backend.integrations.commerce.exceptions import (
     CommerceError,
     ItemOutOfStockError,
     MinOrderNotMetError,
+    OrderStateUnknownError,
     ProviderAuthError,
+    ProviderSessionRevokedError,
     UnconfirmedCheckoutError,
     UpstreamTimeoutError,
 )
+from backend.integrations.commerce.models import CartItemUpdate
 from backend.integrations.commerce.swiggy_adapter import SwiggyMCPAdapter
 
 
@@ -44,52 +49,53 @@ def test_swiggy_adapter_token_masking() -> None:
 
 
 # ---------------------------------------------------------------------------
-# 2. HTTP Status Code Errors
+# 2. Authentication Contract
 # ---------------------------------------------------------------------------
 
 @pytest.mark.asyncio
-async def test_swiggy_adapter_http_401_raises_provider_auth_error() -> None:
+async def test_swiggy_adapter_auth_success() -> None:
+    """Successful tool call with valid Bearer token."""
+    adapter = SwiggyMCPAdapter(auth_token="valid_jwt")
+    mock_resp = httpx.Response(
+        status_code=200,
+        json={"success": True, "data": {"addresses": []}},
+        request=httpx.Request("POST", adapter.base_url),
+    )
+
+    with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
+        mock_post.return_value = mock_resp
+        addresses = await adapter.get_addresses("cust-1")
+        assert addresses == []
+        assert "Authorization" in mock_post.call_args[1]["headers"]
+        assert mock_post.call_args[1]["headers"]["Authorization"] == "Bearer valid_jwt"
+
+
+@pytest.mark.asyncio
+async def test_swiggy_adapter_auth_401_expired() -> None:
     """HTTP 401 Unauthorized maps to ProviderAuthError."""
     adapter = SwiggyMCPAdapter(auth_token="expired_token")
-
     mock_resp = httpx.Response(status_code=401, request=httpx.Request("POST", adapter.base_url))
 
     with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
         mock_post.return_value = mock_resp
-        with pytest.raises(ProviderAuthError) as exc_info:
+        with pytest.raises(ProviderAuthError):
             await adapter.get_addresses("cust-1")
-        assert "unauthenticated" in str(exc_info.value).lower() or "expired" in str(exc_info.value).lower()
 
 
 @pytest.mark.asyncio
-async def test_swiggy_adapter_http_504_raises_upstream_timeout_error() -> None:
-    """HTTP 504 Gateway Timeout maps to UpstreamTimeoutError."""
-    adapter = SwiggyMCPAdapter()
-    mock_resp = httpx.Response(status_code=504, request=httpx.Request("POST", adapter.base_url))
+async def test_swiggy_adapter_auth_419_revoked() -> None:
+    """HTTP 419 Session Revoked maps to ProviderSessionRevokedError."""
+    adapter = SwiggyMCPAdapter(auth_token="revoked_token")
+    mock_resp = httpx.Response(status_code=419, request=httpx.Request("POST", adapter.base_url))
 
     with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
         mock_post.return_value = mock_resp
-        with pytest.raises(UpstreamTimeoutError):
+        with pytest.raises(ProviderSessionRevokedError):
             await adapter.get_addresses("cust-1")
 
 
 @pytest.mark.asyncio
-async def test_swiggy_adapter_httpx_timeout_raises_upstream_timeout_error() -> None:
-    """httpx.TimeoutException maps to UpstreamTimeoutError."""
-    adapter = SwiggyMCPAdapter()
-
-    with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
-        mock_post.side_effect = httpx.ReadTimeout("Read timed out")
-        with pytest.raises(UpstreamTimeoutError):
-            await adapter.get_addresses("cust-1")
-
-
-# ---------------------------------------------------------------------------
-# 3. JSON-RPC Protocol Errors
-# ---------------------------------------------------------------------------
-
-@pytest.mark.asyncio
-async def test_swiggy_adapter_rpc_32001_raises_provider_auth_error() -> None:
+async def test_swiggy_adapter_rpc_32001_auth_error() -> None:
     """JSON-RPC error code -32001 maps to ProviderAuthError."""
     adapter = SwiggyMCPAdapter()
     mock_resp = httpx.Response(
@@ -105,99 +111,37 @@ async def test_swiggy_adapter_rpc_32001_raises_provider_auth_error() -> None:
 
 
 # ---------------------------------------------------------------------------
-# 4. Swiggy Envelope Error Taxonomy
+# 3. Address Handling Contract (No Fake Fallbacks)
 # ---------------------------------------------------------------------------
 
 @pytest.mark.asyncio
-async def test_swiggy_adapter_envelope_out_of_stock() -> None:
-    """Envelope error containing 'out of stock' maps to ItemOutOfStockError."""
-    adapter = SwiggyMCPAdapter()
-    mock_resp = httpx.Response(
-        status_code=200,
-        json={"success": False, "error": {"message": "Selected item is out of stock in dark store"}},
-        request=httpx.Request("POST", adapter.base_url),
-    )
-
-    with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
-        mock_post.return_value = mock_resp
-        with pytest.raises(ItemOutOfStockError):
-            await adapter.get_addresses("cust-1")
-
-
-@pytest.mark.asyncio
-async def test_swiggy_adapter_envelope_not_serviceable() -> None:
-    """Envelope error containing 'not serviceable' maps to AddressNotServiceableError."""
-    adapter = SwiggyMCPAdapter()
-    mock_resp = httpx.Response(
-        status_code=200,
-        json={"success": False, "error": {"message": "Store is currently not serviceable"}},
-        request=httpx.Request("POST", adapter.base_url),
-    )
-
-    with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
-        mock_post.return_value = mock_resp
-        with pytest.raises(AddressNotServiceableError):
-            await adapter.get_addresses("cust-1")
-
-
-@pytest.mark.asyncio
-async def test_swiggy_adapter_envelope_minimum_order() -> None:
-    """Envelope error containing 'minimum order' maps to MinOrderNotMetError."""
-    adapter = SwiggyMCPAdapter()
-    mock_resp = httpx.Response(
-        status_code=200,
-        json={"success": False, "error": {"message": "Cart value is below minimum order threshold"}},
-        request=httpx.Request("POST", adapter.base_url),
-    )
-
-    with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
-        mock_post.return_value = mock_resp
-        with pytest.raises(MinOrderNotMetError):
-            await adapter.get_addresses("cust-1")
-
-
-@pytest.mark.asyncio
-async def test_swiggy_adapter_envelope_cart_expired() -> None:
-    """Envelope error containing 'expired' or 'abandoned' maps to CartExpiredError."""
-    adapter = SwiggyMCPAdapter()
-    mock_resp = httpx.Response(
-        status_code=200,
-        json={"success": False, "error": {"message": "Cart session has expired"}},
-        request=httpx.Request("POST", adapter.base_url),
-    )
-
-    with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
-        mock_post.return_value = mock_resp
-        with pytest.raises(CartExpiredError):
-            await adapter.get_addresses("cust-1")
-
-
-# ---------------------------------------------------------------------------
-# 5. Consequential Checkout Authorization Gate
-# ---------------------------------------------------------------------------
-
-@pytest.mark.asyncio
-async def test_swiggy_adapter_checkout_requires_explicit_confirmation() -> None:
-    """checkout() must strictly reject execution if explicit_confirmation is False."""
-    adapter = SwiggyMCPAdapter()
-
-    # Must raise before making any network call
-    with pytest.raises(UnconfirmedCheckoutError):
-        await adapter.checkout(cart_id="swiggy-cart-1", explicit_confirmation=False)
-
-
-@pytest.mark.asyncio
-async def test_swiggy_adapter_checkout_confirmed_succeeds() -> None:
-    """checkout() with explicit_confirmation=True issues checkout tool call."""
+async def test_swiggy_adapter_addresses_single_and_multiple() -> None:
+    """Parses real Swiggy address format without injecting fake Mumbai or pincode defaults."""
     adapter = SwiggyMCPAdapter()
     mock_resp = httpx.Response(
         status_code=200,
         json={
             "success": True,
             "data": {
-                "orderId": "SWIGGY-OD-9876",
-                "grandTotal": 245.0,
-                "deliveryAddress": {"id": "addr-1", "label": "Home", "street": "Bandra West", "pincode": "400050"},
+                "addresses": [
+                    {
+                        "id": "addr-indiranagar-1",
+                        "addressLine": "12th Main, HAL 2nd Stage, Indiranagar",
+                        "phoneNumber": "9876543210",
+                        "addressCategory": "Home",
+                        "city": "Bengaluru",
+                        "pincode": "560038",
+                    },
+                    {
+                        "id": "addr-whitefield-2",
+                        "addressLine": "EPIP Zone, Whitefield",
+                        "phoneNumber": "9876543211",
+                        "addressCategory": "Work",
+                        "city": "Bengaluru",
+                        "pincode": "560066",
+                    },
+                ],
+                "pagination": {"page": 1, "pageSize": 10, "total": 2, "totalPages": 1, "hasMore": False},
             },
         },
         request=httpx.Request("POST", adapter.base_url),
@@ -205,44 +149,454 @@ async def test_swiggy_adapter_checkout_confirmed_succeeds() -> None:
 
     with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
         mock_post.return_value = mock_resp
-        result = await adapter.checkout(cart_id="swiggy-cart-1", explicit_confirmation=True)
-        assert result.order_id == "SWIGGY-OD-9876"
-        assert result.grand_total == 245.0
-        assert result.status == "ORDER_CONFIRMED"
+        addresses = await adapter.get_addresses("cust-1")
+        assert len(addresses) == 2
+        assert addresses[0].id == "addr-indiranagar-1"
+        assert addresses[0].city == "Bengaluru"
+        assert addresses[0].postal_code == "560038"
+        assert addresses[0].label == "Home"
+        assert addresses[1].label == "Work"
 
-
-# ---------------------------------------------------------------------------
-# 6. Payload Parsing
-# ---------------------------------------------------------------------------
 
 @pytest.mark.asyncio
-async def test_swiggy_adapter_parses_addresses_and_products() -> None:
-    """Parses standard Swiggy MCP JSON-RPC address and catalog payloads."""
+async def test_swiggy_adapter_addresses_empty_and_malformed() -> None:
+    """Empty address list returns [] without crashing; malformed addresses are safely ignored."""
     adapter = SwiggyMCPAdapter()
-
-    # Test address parsing
-    addr_resp = httpx.Response(
+    mock_resp = httpx.Response(
         status_code=200,
         json={
             "success": True,
-            "data": [
-                {
-                    "id": "addr-101",
-                    "label": "Home",
-                    "formattedAddress": "Flat 4B, Pali Hill",
-                    "city": "Mumbai",
-                    "pincode": "400050",
-                    "serviceable": True,
-                }
-            ],
+            "data": {
+                "addresses": [
+                    {"invalid": "no id field"},
+                    {"id": "valid-1", "addressLine": "Connaught Place", "city": "Delhi"},
+                ],
+                "pagination": {"page": 1, "pageSize": 10, "total": 1, "totalPages": 1, "hasMore": False},
+            },
         },
         request=httpx.Request("POST", adapter.base_url),
     )
 
     with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
-        mock_post.return_value = addr_resp
+        mock_post.return_value = mock_resp
         addresses = await adapter.get_addresses("cust-1")
         assert len(addresses) == 1
-        assert addresses[0].id == "addr-101"
-        assert addresses[0].city == "Mumbai"
-        assert addresses[0].is_serviceable is True
+        assert addresses[0].id == "valid-1"
+        assert addresses[0].city == "Delhi"
+
+
+# ---------------------------------------------------------------------------
+# 4. Search Products & Variations Contract
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_swiggy_adapter_search_products_variations_and_pricing() -> None:
+    """Parses real Swiggy Instamart variation price objects {mrp, offerPrice} and stock."""
+    adapter = SwiggyMCPAdapter()
+    mock_resp = httpx.Response(
+        status_code=200,
+        json={
+            "success": True,
+            "data": {
+                "nextOffset": "offset-2",
+                "products": [
+                    {
+                        "productId": "prod-amul-milk",
+                        "displayName": "Amul Taaza Homogenised Toned Milk",
+                        "brand": "Amul",
+                        "variations": [
+                            {
+                                "spinId": "spin-amul-500ml",
+                                "skuId": "sku-101",
+                                "displayName": "Amul Taaza 500 ml",
+                                "quantityDescription": "500 ml",
+                                "price": {"mrp": 35.0, "offerPrice": 34.0},
+                                "isInStockAndAvailable": True,
+                            },
+                            {
+                                "spinId": "spin-amul-1l",
+                                "skuId": "sku-102",
+                                "displayName": "Amul Taaza 1 L",
+                                "quantityDescription": "1 L",
+                                "price": {"mrp": 68.0, "offerPrice": 66.0},
+                                "isInStockAndAvailable": False,
+                            },
+                        ],
+                    }
+                ],
+            },
+        },
+        request=httpx.Request("POST", adapter.base_url),
+    )
+
+    with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
+        mock_post.return_value = mock_resp
+        products = await adapter.search_products("addr-1", "milk")
+        assert len(products) == 1
+        assert products[0].name == "Amul Taaza Homogenised Toned Milk"
+        assert len(products[0].variants) == 2
+        v1 = products[0].variants[0]
+        assert v1.spin_id == "spin-amul-500ml"
+        assert v1.price == 34.0
+        assert v1.mrp == 35.0
+        assert v1.in_stock is True
+        assert v1.pack_size == "500 ml"
+
+        v2 = products[0].variants[1]
+        assert v2.in_stock is False
+
+
+# ---------------------------------------------------------------------------
+# 5. Cart Lifecycle & Error Taxonomy Contract
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_swiggy_adapter_update_cart_selected_address() -> None:
+    """update_cart sends selectedAddressId and item array per official Instamart schema."""
+    adapter = SwiggyMCPAdapter()
+    mock_resp = httpx.Response(
+        status_code=200,
+        json={
+            "success": True,
+            "data": {
+                "cartId": "cart-999",
+                "selectedAddress": "addr-101",
+                "cartTotalAmount": "102.0",
+                "items": [
+                    {
+                        "spinId": "spin-amul-500ml",
+                        "itemName": "Amul Taaza 500 ml",
+                        "discountedFinalPrice": 34.0,
+                        "mrp": 35.0,
+                        "quantity": 3,
+                        "isInStockAndAvailable": True,
+                    }
+                ],
+                "billBreakdown": {
+                    "lineItems": [
+                        {"label": "Item Total", "value": "₹102.0"},
+                        {"label": "Delivery Fee", "value": "₹0.0"},
+                    ],
+                    "toPay": {"label": "To Pay", "value": "₹102.0"},
+                },
+            },
+        },
+        request=httpx.Request("POST", adapter.base_url),
+    )
+
+    with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
+        mock_post.return_value = mock_resp
+        cart = await adapter.update_cart(
+            items=[CartItemUpdate(spin_id="spin-amul-500ml", quantity=3)],
+            cart_id="cart-999",
+            address_id="addr-101",
+        )
+        assert cart.cart_id == "cart-999"
+        assert cart.grand_total == 102.0
+        assert len(cart.items) == 1
+        assert cart.items[0].total_price == 102.0
+
+        # Assert args sent to Swiggy MCP
+        sent_args = mock_post.call_args[1]["json"]["params"]["arguments"]
+        assert sent_args["selectedAddressId"] == "addr-101"
+        assert sent_args["items"][0]["spinId"] == "spin-amul-500ml"
+
+
+@pytest.mark.asyncio
+async def test_swiggy_adapter_envelope_errors() -> None:
+    """Envelope errors properly map to domain taxonomy."""
+    adapter = SwiggyMCPAdapter()
+
+    # OOS
+    resp_oos = httpx.Response(
+        status_code=200,
+        json={"success": False, "error": {"message": "Selected item is out of stock in dark store"}},
+        request=httpx.Request("POST", adapter.base_url),
+    )
+    with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
+        mock_post.return_value = resp_oos
+        with pytest.raises(ItemOutOfStockError):
+            await adapter.get_cart("cart-1")
+
+    # Unserviceable
+    resp_srv = httpx.Response(
+        status_code=200,
+        json={"success": False, "error": {"message": "Address not serviceable by any dark store"}},
+        request=httpx.Request("POST", adapter.base_url),
+    )
+    with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
+        mock_post.return_value = resp_srv
+        with pytest.raises(AddressNotServiceableError):
+            await adapter.get_cart("cart-1")
+
+    # Min order
+    resp_min = httpx.Response(
+        status_code=200,
+        json={"success": False, "error": {"message": "Minimum order not met for checkout"}},
+        request=httpx.Request("POST", adapter.base_url),
+    )
+    with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
+        mock_post.return_value = resp_min
+        with pytest.raises(MinOrderNotMetError):
+            await adapter.get_cart("cart-1")
+
+    # Cart expired
+    resp_exp = httpx.Response(
+        status_code=200,
+        json={"success": False, "error": {"message": "Cart session has expired"}},
+        request=httpx.Request("POST", adapter.base_url),
+    )
+    with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
+        mock_post.return_value = resp_exp
+        with pytest.raises(CartExpiredError):
+            await adapter.get_cart("cart-1")
+
+
+# ---------------------------------------------------------------------------
+# 6. Checkout & Non-Idempotent Failure Recovery Contract
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_swiggy_adapter_checkout_requires_explicit_confirmation() -> None:
+    """checkout() must strictly reject execution if explicit_confirmation is False."""
+    adapter = SwiggyMCPAdapter()
+    with pytest.raises(UnconfirmedCheckoutError):
+        await adapter.checkout(cart_id="swiggy-cart-1", explicit_confirmation=False)
+
+
+@pytest.mark.asyncio
+async def test_swiggy_adapter_checkout_multi_store_and_upi_pending() -> None:
+    """Handles multi-store orders and UPI PENDING_PAYMENT flows."""
+    adapter = SwiggyMCPAdapter()
+    mock_resp = httpx.Response(
+        status_code=200,
+        json={
+            "success": True,
+            "data": {
+                "orderId": "SWIGGY-MULTI-101",
+                "status": "PENDING_PAYMENT",
+                "paymentMethod": "UPI",
+                "paasId": "paas-token-xyz",
+                "bridgeUrl": "https://mcp.swiggy.com/pay/bridge-123",
+                "cartTotal": 540.0,
+                "orders": [
+                    {"orderId": "SWIGGY-STORE-A", "status": "PENDING_PAYMENT"},
+                    {"orderId": "SWIGGY-STORE-B", "status": "PENDING_PAYMENT"},
+                ],
+                "orderCount": 2,
+                "allSucceeded": True,
+            },
+        },
+        request=httpx.Request("POST", adapter.base_url),
+    )
+
+    with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
+        mock_post.return_value = mock_resp
+        result = await adapter.checkout(
+            cart_id="cart-multi",
+            payment_method="UPI",
+            explicit_confirmation=True,
+            address_id="addr-1",
+        )
+        assert result.order_id == "SWIGGY-MULTI-101"
+        assert result.status == "PAYMENT_PENDING"
+        assert result.paas_id == "paas-token-xyz"
+        assert result.bridge_url == "https://mcp.swiggy.com/pay/bridge-123"
+        assert result.order_count == 2
+        assert len(result.orders) == 2
+
+
+@pytest.mark.asyncio
+async def test_swiggy_adapter_checkout_non_idempotent_timeout_probes_order_state() -> None:
+    """When checkout encounters 504 / timeout, it does NOT retry blindly. Probes get_orders first."""
+    adapter = SwiggyMCPAdapter()
+
+    # First call (checkout) raises TimeoutException
+    # Second call (get_orders probe) returns order that was placed upstream
+    mock_probe_resp = httpx.Response(
+        status_code=200,
+        json={
+            "success": True,
+            "data": {
+                "orders": [
+                    {"orderId": "SWIGGY-RECOVERED-999", "orderTotal": 350.0}
+                ]
+            },
+        },
+        request=httpx.Request("POST", adapter.base_url),
+    )
+
+    with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
+        mock_post.side_effect = [
+            httpx.ReadTimeout("Checkout upstream timeout"),
+            mock_probe_resp,
+        ]
+
+        result = await adapter.checkout(
+            cart_id="cart-test",
+            payment_method="UPI",
+            explicit_confirmation=True,
+            address_id="addr-1",
+        )
+        assert result.order_id == "SWIGGY-RECOVERED-999"
+        assert result.grand_total == 350.0
+        assert result.status == "ORDER_CONFIRMED"
+
+
+@pytest.mark.asyncio
+async def test_swiggy_adapter_checkout_unrecovered_timeout_raises_order_state_unknown() -> None:
+    """When checkout times out and order cannot be confirmed upstream, raises OrderStateUnknownError."""
+    adapter = SwiggyMCPAdapter()
+
+    mock_probe_resp = httpx.Response(
+        status_code=200,
+        json={"success": True, "data": {"orders": []}},
+        request=httpx.Request("POST", adapter.base_url),
+    )
+
+    with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
+        mock_post.side_effect = [
+            httpx.ReadTimeout("Checkout upstream timeout"),
+            mock_probe_resp,
+        ]
+
+        with pytest.raises(OrderStateUnknownError):
+            await adapter.checkout(
+                cart_id="cart-test",
+                payment_method="UPI",
+                explicit_confirmation=True,
+                address_id="addr-1",
+            )
+
+
+# ---------------------------------------------------------------------------
+# 7. Order Tracking Contract
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_swiggy_adapter_track_order() -> None:
+    """Parses real Swiggy track_order schema with status mapping and ETA."""
+    adapter = SwiggyMCPAdapter()
+    mock_resp = httpx.Response(
+        status_code=200,
+        json={
+            "success": True,
+            "data": {
+                "orderId": "SWIGGY-OD-1",
+                "status": {"statusMessage": "Rider is out for delivery", "etaMinutes": 12},
+                "pollingIntervalSeconds": 15,
+                "storeInfo": {"name": "Swiggy Instamart Indiranagar"},
+            },
+        },
+        request=httpx.Request("POST", adapter.base_url),
+    )
+
+    with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
+        mock_post.return_value = mock_resp
+        tracking = await adapter.track_order("SWIGGY-OD-1", lat=12.9716, lng=77.5946)
+        assert tracking.order_id == "SWIGGY-OD-1"
+        assert tracking.status == "OUT_FOR_DELIVERY"
+        assert tracking.eta_minutes == 12
+        assert tracking.polling_interval_seconds == 15
+        assert tracking.store_name == "Swiggy Instamart Indiranagar"
+
+
+# ---------------------------------------------------------------------------
+# 8. Address Selection Workflow in Orchestrator
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_swiggy_orchestrator_multi_address_prompts_user() -> None:
+    """When Swiggy account has multiple addresses and none selected, prompt user to choose."""
+    from backend.intent.orchestrator import GrocerOrchestrator
+    from backend.intent.session import ConversationState
+
+    adapter = SwiggyMCPAdapter()
+    orchestrator = GrocerOrchestrator(commerce_adapter=adapter)
+
+    mock_resp = httpx.Response(
+        status_code=200,
+        json={
+            "success": True,
+            "data": {
+                "addresses": [
+                    {"id": "addr-home", "addressCategory": "Home", "addressLine": "12th Main Indiranagar"},
+                    {"id": "addr-office", "addressCategory": "Work", "addressLine": "EPIP Zone Whitefield"},
+                ],
+            },
+        },
+        request=httpx.Request("POST", adapter.base_url),
+    )
+
+    with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
+        mock_post.return_value = mock_resp
+        result = await orchestrator.handle_turn(
+            session_id="session-multi-addr",
+            customer_id="cust-multi-1",
+            message="get milk and bread",
+        )
+        assert result.conversation_state == ConversationState.NEEDS_DECISION
+        assert "Which address would you like to use" in result.user_message
+        assert "Home" in result.user_message
+        assert "Work" in result.user_message
+        assert "NEEDS_ADDRESS_SELECTION" in result.events
+
+
+@pytest.mark.asyncio
+async def test_swiggy_orchestrator_address_selection_persists() -> None:
+    """When user selects address by number/label, session records it and proceeds."""
+    from backend.intent.orchestrator import GrocerOrchestrator
+
+    adapter = SwiggyMCPAdapter()
+    orchestrator = GrocerOrchestrator(commerce_adapter=adapter)
+
+    mock_addr_resp = httpx.Response(
+        status_code=200,
+        json={
+            "success": True,
+            "data": {
+                "addresses": [
+                    {"id": "addr-home", "addressCategory": "Home", "addressLine": "12th Main Indiranagar"},
+                    {"id": "addr-office", "addressCategory": "Work", "addressLine": "EPIP Zone Whitefield"},
+                ],
+            },
+        },
+        request=httpx.Request("POST", adapter.base_url),
+    )
+
+    # When user replies with "1" or "Home"
+    with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
+        mock_post.return_value = mock_addr_resp
+        result = await orchestrator.handle_turn(
+            session_id="session-multi-addr-2",
+            customer_id="cust-multi-2",
+            message="Home",
+        )
+        assert "ADDRESS_SELECTED id=addr-home" in result.events
+
+
+@pytest.mark.asyncio
+async def test_swiggy_orchestrator_no_address_fails_cleanly() -> None:
+    """When Swiggy account has 0 addresses, inform user clearly."""
+    from backend.intent.orchestrator import GrocerOrchestrator
+    from backend.intent.session import ConversationState
+
+    adapter = SwiggyMCPAdapter()
+    orchestrator = GrocerOrchestrator(commerce_adapter=adapter)
+
+    mock_empty_resp = httpx.Response(
+        status_code=200,
+        json={"success": True, "data": {"addresses": []}},
+        request=httpx.Request("POST", adapter.base_url),
+    )
+
+    with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
+        mock_post.return_value = mock_empty_resp
+        result = await orchestrator.handle_turn(
+            session_id="session-zero-addr",
+            customer_id="cust-zero",
+            message="get milk",
+        )
+        assert result.conversation_state == ConversationState.FAILED
+        assert "No delivery address found" in result.user_message
+

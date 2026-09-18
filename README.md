@@ -7,9 +7,9 @@
 
 **Grocer** is the existing WhatsApp grocery replenishment assistant, extended with an **intent-preserving commerce layer**.
 
-> **Readiness:** the audited branch is a locally verified, single-process demo/research system. It is not production-ready; see [CURRENT_STATE.md](CURRENT_STATE.md) for verified gates and explicit blockers.
+> **Readiness:** Local intent, recovery, WhatsApp-route, lint, and build checks are verified. Live WhatsApp, Swiggy OAuth, and checkout verification remain deployment gates. See [CURRENT_STATE.md](CURRENT_STATE.md) for evidence and limits.
 
-The idea is simple: a user tells Grocer what outcome they want, the agent builds the basket through Swiggy Instamart, and then keeps checking whether the live commerce state still matches the original intent. When something changes, Grocer recovers automatically when the decision is safe and asks the user when the choice is genuinely ambiguous.
+The idea is simple: a user tells Grocer what outcome they want, the agent builds the basket through Swiggy Instamart, and then keeps checking whether the live commerce state still matches the original intent. When something changes, Grocer makes only invisible safety retries automatically and asks the user before any product, price, address, payment, or other purchase outcome changes.
 
 > **Grocer does not just build your cart. It tries to keep the cart faithful to what you actually asked for.**
 
@@ -67,8 +67,8 @@ Grocer should:
 2. check the user's substitution policy;
 3. find valid alternatives;
 4. keep hard constraints intact;
-5. apply the repair automatically when it is clearly safe;
-6. ask the user when multiple materially different choices exist;
+5. explain the available repair options;
+6. ask the user before a purchase-facing choice changes;
 7. verify the repaired cart again.
 
 ## Intent Contract
@@ -125,7 +125,7 @@ Intent Contract
   ↓
 Policy / Memory
   ↓
-Customer Commerce Service
+GrocerOrchestrator
   ↓
 CommercePort
   ├── MockCommerceAdapter
@@ -192,6 +192,25 @@ Swiggy-specific MCP calls remain inside `SwiggyMCPAdapter`.
 
 Before changing the integration, read the current Swiggy Builders Club documentation and do not invent tool names, arguments, or retry semantics.
 
+### Live Deployment & Builders Club Architecture
+
+GROCER operates across a multi-surface deployment:
+
+- **Frontend on Vercel (`grocerr.vercel.app`)**:
+  - Dedicated consumer product landing page (`app/page.tsx`) with plain human copy, strict typography (`font-editorial` headlines, `font-sans` body, `font-mono` tokens), fixed `+91` phone input badge, and WhatsApp mobile conversation preview.
+  - Same-origin Next.js API proxy routes (`/api/auth/swiggy/login`, `/api/auth/swiggy/callback`) relaying requests server-side to Render to eliminate browser CORS preflight errors.
+  - Official whitelisted redirect URI for Swiggy OAuth 2.1 PKCE.
+  - Meta WhatsApp Cloud API webhook handler (`app/api/whatsapp/webhook/route.ts`).
+- **Backend on Render**:
+  - Hosts the FastAPI `GrocerOrchestrator`, deterministic verifier, and recovery loop.
+  - Uses a development token cache today; durable encrypted storage is required before live checkout.
+  - Communicates directly with Swiggy Instamart MCP gateway (`https://mcp.swiggy.com/im`).
+- **WhatsApp Cloud API (`+1 555 663-1707`)**:
+  - Delivers native interactive List Messages for saved address selection and pack-size ambiguity resolution.
+  - Requires explicit interactive confirmation buttons before checkout.
+- **Review Checkout Guard (`CHECKOUT_MODE=review`)**:
+  - Uses real cart and verification behavior while truthfully stopping before a chargeable order. `CHECKOUT_MODE=live` is a deliberate deployment setting after durable state and live-provider verification.
+
 ## Safety invariants
 
 1. No checkout without explicit user confirmation.
@@ -225,8 +244,9 @@ npm run build
 py -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r backend/requirements.txt -r backend/requirements-dev.txt
-pytest backend/tests
+pytest backend/tests  # 383 tests passed in the last local verification
 uvicorn backend.main:app --reload --port 8000
+
 ```
 
 On macOS/Linux, activate with source .venv/bin/activate.
@@ -256,9 +276,10 @@ Start with one extremely polished recovery scenario before expanding the failure
 - `GROCER_V2_MASTER_SPEC.md` — authoritative product and engineering specification
 - `CONTEXT.md` — coding-session context and anti-drift rules
 - `ARCHITECTURE.md` — system boundaries and data/control flow
-- `IMPLEMENTATION_PLAN.md` — execution order
+- `docs/archive/IMPLEMENTATION_PLAN.md` — historical execution order (archived)
 - `CURRENT_STATE.md` — latest evidence, readiness, and deferred limits
-- `docs/audit/` — deep-audit mission, findings, and 102-scenario coverage ledger
+- `docs/RESEARCH_WHATSAPP_INSTAMART_SUBMISSION.md` — official platform constraints used by the submission
+- `docs/archive/audit/` — historical deep-audit mission, findings, and coverage ledger
 - `.agents/AGENTS.md` — Antigravity/Gemini repository rules
 - `AGENTS.md` — general coding-agent contract
 

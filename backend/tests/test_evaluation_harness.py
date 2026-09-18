@@ -1,4 +1,4 @@
-"""Tests for the Phase 8 GROCER v2 evaluation framework and 9 core metrics (Spec §16, §20)."""
+"""Tests for the Phase 8 GROCER v2 evaluation framework and 9 core metrics (Spec Section 16, Section 20)."""
 from __future__ import annotations
 
 from dataclasses import replace

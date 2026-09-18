@@ -1,4 +1,4 @@
-"""Deterministic test suite for all 8 canonical failure scenarios (Spec §15 & Phase 7).
+"""Deterministic test suite for all 8 canonical failure scenarios (Spec Section 15 & Phase 7).
 
 Proves the 8 canonical failure recovery behaviors required by GROCER v2:
 1. Unavailable product (OOS) -> auto-substitute compliant variant within budget.

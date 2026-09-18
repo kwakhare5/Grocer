@@ -1,4 +1,4 @@
-"""Unit tests for GROCER Phase 3 Policy Engine and Preference Store (Spec §6, §7).
+"""Unit tests for GROCER Phase 3 Policy Engine and Preference Store (Spec Section 6, Section 7).
 
 Covers 10 test scenarios:
 1.  Checkout always requires confirmation
@@ -70,7 +70,7 @@ def _make_contract(**overrides) -> IntentContract:
 # ---------------------------------------------------------------------------
 
 def test_checkout_always_requires_confirmation(engine: PolicyEngine):
-    """Any checkout proposal must return REQUIRE_CONFIRMATION (Spec §8.3)."""
+    """Any checkout proposal must return REQUIRE_CONFIRMATION (Spec Section 8.3)."""
     contract = _make_contract()
     proposal = ActionProposal(
         action_type="checkout",
@@ -282,7 +282,7 @@ def test_preference_store_rejects_non_storable():
     )
     assert PreferenceStore.should_not_store(one_off) is True
 
-    # Price-type preference (Spec §7.2: don't store old prices)
+    # Price-type preference (Spec Section 7.2: don't store old prices)
     price_pref = StoredPreference(
         customer_id="cust-01",
         preference_type=PreferenceType.PRICE_SENSITIVITY,

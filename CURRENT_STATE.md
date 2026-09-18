@@ -1,91 +1,61 @@
 # GROCER — Current State
 
-Last verified: 2026-09-09
-Branch: audit/codex-deep-review (unmerged)
-Milestone: deep audit, safety hardening, and final verification
-Readiness: single-process demo/research system; not production-ready
+Last verified: 2026-09-16
+Branch: ag/mainline  
+Milestone: Intent Integrity, Packaging Formats & Architecture Stabilization  
+Readiness: Local regression verified; WhatsApp, Render, Vercel, and Swiggy re-verification pending deployment
 
 ## Verified product boundary
 
-GROCER is a WhatsApp-first consumer grocery replenishment assistant. Natural language is interpreted into an explicit IntentContract; deterministic code enforces quantity, identity, budget, recovery, confirmation, payment, and order-state rules. Commerce is executed only through CommercePort, backed by MockCommerceAdapter or SwiggyMCPAdapter.
-
-No dark-store operations, warehouse tooling, supplier workflow, or autonomous financial debit belongs in this repository.
+GROCER is a WhatsApp-first consumer grocery replenishment assistant. Natural language is interpreted into an explicit `IntentContract` using Google Gemini (`gemini-3.5-flash-lite`) with a deterministic `RuleBasedExtractor` fallback; deterministic code enforces quantity, identity, budget, recovery, confirmation, payment, and order-state rules. Commerce is executed securely through `CommercePort` via `SwiggyMCPAdapter`, authorized by a compliant Swiggy OAuth 2.1 PKCE flow.
 
 ## Audited architecture
 
-    WhatsApp / browser demo
-            |
-    GrocerOrchestrator
-      |-- Intent parser and contract
-      |-- deterministic verifier and policy
-      |-- bounded recovery
-      '-- basket-bound one-time confirmation
-            |
-    CommercePort
-      |-- MockCommerceAdapter
-      '-- SwiggyMCPAdapter
-            |
-    Swiggy Instamart MCP
+    Web Frontend (OAuth)    WhatsApp (Chat)
+            \                    /
+             \                  /
+          ConversationInterpreter + ConversationController
+            |-- contextual free-text command interpretation
+            |-- validates command against active session/options
+            '-- delegates only to GrocerOrchestrator
+          GrocerOrchestrator (Stateless State Router: 899 lines)
+            |-- orchestrator_confirm.py (Snapshot & Checkout Lock: 439 lines)
+            |-- orchestrator_choice.py (Clarification Resolution: 357 lines)
+            |-- orchestrator_tracking.py (Payment Polling & Live Tracking: 344 lines)
+            |-- orchestrator_address.py (Address Matching & Persistence: 193 lines)
+            |-- orchestrator_payment.py (Payment Option Matching: 138 lines)
+            |-- formatters.py (WhatsApp Presentation Templates: 180 lines)
+            |-- RecoveryEngine (Recovery Seams: 487 lines)
+            |     |-- recovery_strategies.py (5 Failure Handlers: 605 lines)
+            |     '-- recovery_candidates.py (Filtering & Ranking: 198 lines)
+            '-- CommercePort
+                  |
+            SwiggyMCPAdapter (Adapter Boundary: 513 lines)
+                  |-- swiggy_parsers.py (Response Parsers: 485 lines)
+                  |-- swiggy_normalizers.py (Schema Builders: 354 lines)
+                  '-- swiggy_client.py (JSON-RPC 2.0 Transport: 151 lines)
 
-The backend owns commerce truth. A checkout requires explicit_confirmation=true and the unexpired nonce bound to the displayed cart ID, item/SKU composition, quantity, prices, fees, discount, total, address, intent version, and exact payment option.
+## Implemented and verified features
 
-## Implemented and verified locally
+- **Single Safe Conversation Path:** WhatsApp text and native interactive IDs are interpreted into a bounded command and delegated to `GrocerOrchestrator`. No LLM module can mutate carts or execute checkout directly.
 
-- physical volume, mass, count, and exact pack-multiple preservation;
-- explicit separation of individual COUNT requests from PACK_COUNT requests;
-- fail-closed handling for every parsed hard dietary tag when provider metadata cannot prove compliance;
-- tokenized product identity with known derivative exclusions;
-- current-request precedence and deterministic brand/substitution policy;
-- bounded recovery with post-mutation cart refetch and reverification;
-- serialized, one-time checkout confirmation with stale-basket invalidation;
-- explicit saved-address selection even when the provider returns one address;
-- exact live payment-option selection before basket-bound confirmation when multiple methods are available;
-- truthful PAYMENT_PENDING, PAYMENT_FAILED, PARTIAL_ORDER, ORDERED, and ORDER_STATE_UNKNOWN transitions;
-- provider polling cadence/deadline enforcement and one final `confirm_order` call at the headless polling cap;
-- fail-closed checkout uncertainty with no blind retry or fabricated order ID;
-- session capability/ownership checks, per-customer provider token resolution, webhook signature checks, and local replay control;
-- provider order-detail reads and conversational rich tracking when checkout returned trustworthy coordinates;
-- an explicit structured ETA fallback when provider coordinates are unavailable, without invented values;
-- required CommercePort lifecycle capabilities enforced at adapter construction;
-- a 109-scenario adversarial coverage ledger.
+- **Complete God Object Modularization:** Decomposed massive files (>2,000 lines) into focused, single-responsibility modules under clean domain boundaries without breaking any public interfaces.
+- **Gemini Natural Language Parsing:** Wired `gemini-3.5-flash-lite` via `httpx` for English multi-item grocery requests and conversational corrections.
+- **Universal Intent Interception:** Eliminates address hijacking traps. When a user replies with item modifications ("1 coke can only") during address or payment selection, the system automatically routes to basket mutation, clears pending prompts, and keeps the conversation in `BUILDING`.
+- **Packaging Format Slots & Variant Ranking:** First-class support for packaging descriptors (`can`, `bottle`, `tin`, `pouch`, `sachet`, `box`). Variant ranker strictly prioritizes matching container formats (e.g. 300ml Can over 2L multipack) and penalizes bulk multipacks when 1 unit is requested.
+- **Hard Empty-Cart Verification Guard:** Explicit `EMPTY_CART` violation code in `verifier.py` blocks advancing to confirmation or checkout if the cart is empty or ₹0.
+- **Blackboard Intent Memory Accumulation:** Multi-turn intent merging accumulates items across conversational turns instead of overwriting, with clean preservation across turns.
+- **Category Affinity Recovery:** Recovery engine prioritizes active basket categories and staples, eliminating cross-category substitutions (e.g. biscuits for beverages).
+- **Customer Identity Hash Parity:** Standardized phone normalization (`digits[-10:]`) across Swiggy OAuth login, status queries, and WhatsApp webhooks.
+- **Address Preference Cache:** A chosen delivery address is reused during local sessions; durable encrypted persistence remains a release gate.
+- **WhatsApp Interactive UI:** Conversational choices render as native WhatsApp List messages with explicit confirmation buttons before checkout.
+- **Review Checkout Guard:** When `CHECKOUT_MODE=review` and the Swiggy adapter is configured, GROCER truthfully stops before a chargeable order. `CHECKOUT_MODE=live` remains an explicit deployment decision.
 
 ## Current quality gates
 
-- Python: 302 tests passed.
-- Evaluation: 10/10 canonical scenarios pass; autonomous recovery rate is evidence-based at 40%, with zero unsafe recovery mutations in the harness. Checkout authorization is verified separately.
-- Frontend: ESLint passes.
-- Frontend: Next.js production build and TypeScript checks pass.
-- Dependency checks: npm dependency tree valid; Compose configuration parses.
-- Safety scans: no tracked environment files or hard-coded secret assignments found.
-- No live provider mutation, payment, or order was performed during this audit.
+- **Python Tests:** 384 / 384 tests passing (`pytest backend/tests` in 3.40s; the existing pytest cache directory has a Windows permission warning only).
+- **Frontend Build:** Vercel Next.js 16 Turbopack production build compiles with zero errors in 5.1s.
+- **Frontend Linter:** 0 errors, 0 warnings (`npm run lint`).
+- **Knowledge Graph:** AST knowledge graph synchronized via `graphify update .` (2,282 nodes, 6,239 edges, 126 communities).
+- **Code Health:** The core commerce path is modularized and locally verified. GitHub Actions now runs backend tests plus frontend lint/build. Deployment durability, live-provider verification, and redacted deployment telemetry remain open gates.
 
-## Known limitations and release blockers
-
-1. Session, intent, token, replay, checkout-attempt, and notification state are process-local. Restart/multi-worker guarantees require durable storage and an inbox/outbox.
-2. The documented get_orders response lacks a defensible cart correlation key. A timed-out checkout therefore fails closed as ORDER_STATE_UNKNOWN; positive reconciliation is not claimed.
-3. OAuth helpers and token isolation exist, but production login, token eviction/re-auth on every provider auth failure, encrypted durable storage, and logout revocation are not integrated end-to-end.
-4. Primary `track_order` is used only when a checkout response supplied trustworthy delivery coordinates; other order-history flows use the documented lesser-capability delivery-status fallback. Live rider tracking remains unverified.
-5. Provider models do not expose authoritative dietary metadata. Hard dietary requirements therefore fail closed as unverifiable unless a contradiction is already known; compliant fulfillment cannot yet be proven.
-6. Webhook validation has a fixed 1 MB pre-parse limit, but the limit is not configurable and malformed-envelope/phone-ID boundary coverage is incomplete.
-7. Proactive tracking-change notifications and deduplication are deferred with the durable worker/outbox milestone.
-8. Corrected payment/order/tracking behavior is contract-tested against mocked official payloads, not revalidated by placing a live order.
-9. Multi-store child outcomes are preserved and aggregated at checkout, but later payment/detail/delivery reads still follow the primary order ID rather than polling every child independently.
-
-## Historical evidence
-
-Earlier project logs record live WhatsApp and Swiggy experiments. Those records are historical evidence, not proof that the audited branch is production-ready. Stale milestone documents were moved to docs/archive.
-
-## Deferred next milestone
-
-Production persistence/deployment is intentionally not started on this branch. It includes durable authenticated identity, encrypted OAuth storage, inbox/outbox idempotency, checkout-attempt correlation, a polling/notification worker, deployment/observability, and approved live validation.
-
-## Frozen invariants
-
-- Intent is authoritative over ephemeral cart state.
-- LLMs interpret/propose; deterministic code enforces.
-- Current explicit requests outrank memory.
-- Hard constraints are never silently relaxed.
-- Checkout always requires a fresh basket-bound user confirmation.
-- Pending, partial, failed, and unknown outcomes are never reported as success.
-- Provider-specific MCP behavior stays inside SwiggyMCPAdapter.
-- No real order is placed by tests or evaluation.

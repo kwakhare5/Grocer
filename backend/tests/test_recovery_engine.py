@@ -1,4 +1,4 @@
-"""Unit tests for GROCER Phase 5 Recovery Engine (Spec §10, §16.2).
+"""Unit tests for GROCER Phase 5 Recovery Engine (Spec Section 10, Section 16.2).
 
 Covers 10 core scenarios:
  1. Single clear substitute available → auto-recover (RECOVERED)

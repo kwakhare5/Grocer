@@ -1,4 +1,4 @@
-﻿"""Commerce integration layer for Grocer (Spec §5.1, §28, & §38.9).
+﻿"""Commerce integration layer for Grocer (Spec Section 5.1, Section 28, & Section 38.9).
 
 Provides the CommercePort abstraction decoupling customer replenishment from
 the specific underlying delivery provider (Mock/Simulated vs Swiggy Instamart MCP).

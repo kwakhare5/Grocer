@@ -30,3 +30,7 @@ Thumbs.db
 
 # logs
 *.log
+
+# git bundles / agent artifacts
+*.bundle
+skills-lock.json

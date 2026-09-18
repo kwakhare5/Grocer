@@ -1,4 +1,4 @@
-"""Unit tests for GROCER Phase 2 Intent Parser (Spec §5, §12, IMPLEMENTATION_PLAN §4).
+"""Unit tests for GROCER Phase 2 Intent Parser (Spec Section 5, Section 12, IMPLEMENTATION_PLAN Section 4).
 
 Covers all 9 required test scenarios:
 1. Normal request

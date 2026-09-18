@@ -1,0 +1,35 @@
+{
+  "success": true,
+  "data": {
+    "nextOffset": "",
+    "products": [
+      {
+        "productId": "product-packaged-snack",
+        "displayName": "Plain snack",
+        "brand": "Example Brand",
+        "inStock": true,
+        "isAvail": true,
+        "variations": [
+          {
+            "spinId": "spin-snack-100g",
+            "skuId": "sku-snack-100g",
+            "displayName": "Plain snack 100 g",
+            "quantityDescription": "100 g",
+            "price": {"mrp": 20, "offerPrice": 18},
+            "isInStockAndAvailable": true,
+            "maxQuantity": 1,
+            "maxQuantityMessage": "Limited to 1"
+          },
+          {
+            "spinId": "spin-snack-250g",
+            "skuId": "sku-snack-250g",
+            "displayName": "Plain snack 250 g",
+            "quantityDescription": "250 g",
+            "price": {"mrp": 45, "offerPrice": 40},
+            "isInStockAndAvailable": true
+          }
+        ]
+      }
+    ]
+  }
+}

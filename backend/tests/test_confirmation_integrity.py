@@ -253,3 +253,34 @@ async def test_concurrent_confirmation_reaches_checkout_once() -> None:
     assert adapter.checkout_attempts == 1
     assert first.order_id == second.order_id
     assert first.conversation_state == second.conversation_state == ConversationState.ORDERED
+
+
+@pytest.mark.asyncio
+async def test_review_mode_never_calls_live_swiggy_checkout(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    """Submission review mode is truthful: the live adapter is never charged."""
+    from backend.config import settings
+    from backend.integrations.commerce.swiggy_adapter import SwiggyMCPAdapter
+
+    adapter = CountingCheckoutAdapter()
+    orchestrator, _store, session_id, nonce, method = await _ready_basket(adapter)
+    monkeypatch.setattr(settings, "CHECKOUT_MODE", "review")
+
+    class ReviewSwiggyAdapter(SwiggyMCPAdapter):
+        async def get_cart(self, cart_id=None):  # type: ignore[no-untyped-def]
+            return await adapter.get_cart(cart_id)
+
+        async def checkout(self, **kwargs):  # type: ignore[no-untyped-def]
+            raise AssertionError("Review mode must not call checkout")
+
+    orchestrator._port = ReviewSwiggyAdapter()
+
+    result = await orchestrator.handle_confirm(
+        session_id=session_id,
+        explicit_confirmation=True,
+        confirmation_nonce=nonce,
+        payment_method=method,
+    )
+
+    assert result.conversation_state == ConversationState.REVIEW_COMPLETE
+    assert "did not place" in result.user_message.lower()
+    assert adapter.checkout_attempts == 0

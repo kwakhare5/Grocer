@@ -1,0 +1,25 @@
+{
+  "success": true,
+  "data": {
+    "cartTotalAmount": "18",
+    "items": [
+      {
+        "spinId": "spin-snack-100g",
+        "skuId": "sku-snack-100g",
+        "productId": "product-packaged-snack",
+        "itemName": "Plain snack",
+        "itemVariant": "100 g",
+        "quantity": 1,
+        "isInStockAndAvailable": true,
+        "mrp": 20,
+        "discountedFinalPrice": 18,
+        "maxQuantity": 1,
+        "maxQuantityMessage": "Limited to 1"
+      }
+    ],
+    "billBreakdown": {
+      "lineItems": [{"label": "Item total", "value": "₹18"}],
+      "toPay": {"label": "To pay", "value": "₹18"}
+    }
+  }
+}

@@ -1,4 +1,4 @@
-"""Unit and integration tests for GROCER Phase 1 Intent Contract (Spec §5).
+"""Unit and integration tests for GROCER Phase 1 Intent Contract (Spec Section 5).
 
 Verifies:
 1. Serialization / deserialization round-trip (JSON, dict).
@@ -40,7 +40,7 @@ from backend.intent.storage import IntentSessionStore
 
 
 def test_intent_contract_instantiation_and_serialization():
-    """Verify full instantiation and round-trip JSON serialization (Spec §5.1)."""
+    """Verify full instantiation and round-trip JSON serialization (Spec Section 5.1)."""
     contract = IntentContract(
         session_id="sess-wa-101",
         goal="Weekly family grocery restock",
@@ -94,7 +94,7 @@ def test_intent_contract_instantiation_and_serialization():
 
 
 def test_hard_vs_soft_constraint_semantics():
-    """Verify distinct semantics of hard constraints vs soft preferences (Spec §5.4)."""
+    """Verify distinct semantics of hard constraints vs soft preferences (Spec Section 5.4)."""
     hard = HardConstraint(
         constraint_type=ConstraintType.DIETARY,
         target="dietary",
@@ -123,7 +123,7 @@ def test_hard_vs_soft_constraint_semantics():
 
 
 def test_authorization_scope_invariant():
-    """Verify server-enforced checkout authorization invariant (Spec §6, §8.3).
+    """Verify server-enforced checkout authorization invariant (Spec Section 6, Section 8.3).
     
     Checkout cannot be authorized without explicit user confirmation.
     """
@@ -142,7 +142,7 @@ def test_authorization_scope_invariant():
 
 
 def test_precedence_current_request_overrides_memory():
-    """Verify current explicit request strictly overrides historical memory (Spec §5.3)."""
+    """Verify current explicit request strictly overrides historical memory (Spec Section 5.3)."""
     # User's explicit request in current conversation: "Get Mother Dairy milk"
     contract = IntentContract(
         session_id="sess-precedence",
@@ -184,7 +184,7 @@ def test_precedence_current_request_overrides_memory():
 
 
 def test_brand_preference_hard_lock():
-    """Verify brand lock constraint registers as non-negotiable hard constraint (Spec §5.4)."""
+    """Verify brand lock constraint registers as non-negotiable hard constraint (Spec Section 5.4)."""
     contract = IntentContract(
         session_id="sess-brand-lock",
         goal="Get coffee",
@@ -204,7 +204,7 @@ def test_brand_preference_hard_lock():
 
 
 def test_ambiguity_classification():
-    """Verify ambiguity severity surfaces whether clarification is required (Spec §6)."""
+    """Verify ambiguity severity surfaces whether clarification is required (Spec Section 6)."""
     # Contract with minor ambiguity (default safe)
     contract_low = IntentContract(
         session_id="sess-ambig-1",

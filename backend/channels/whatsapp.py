@@ -1,4 +1,4 @@
-"""Official WhatsApp Business Platform Channel Adapter (Spec §18, §19, Phase D).
+"""Official WhatsApp Business Platform Channel Adapter (Spec Section 18, Section 19, Phase D).
 
 Supports:
 - Webhook verification (GET challenge verification)
@@ -30,6 +30,7 @@ from backend.channels.models import (
     NormalizedIncomingMessage,
     NormalizedOutgoingResponse,
 )
+from backend.identity import whatsapp_customer_id
 
 logger = logging.getLogger("grocer.channels.whatsapp")
 
@@ -91,14 +92,9 @@ class WhatsAppChannelAdapter(BaseChannelAdapter):
 
     def map_sender_to_customer_id(self, sender_id: str) -> str:
         """Pseudonymize the phone number before it enters commerce/session state."""
-        normalized = "".join(character for character in sender_id if character.isdigit())
-        secret = self.app_secret
-        if not normalized or not secret:
-            raise ValueError("WhatsApp sender identity cannot be verified.")
-        digest = hmac.new(
-            secret.encode("utf-8"), normalized.encode("utf-8"), hashlib.sha256
-        ).hexdigest()
-        return f"cust_wa_{digest[:24]}"
+        return whatsapp_customer_id(
+            sender_id, self.app_secret or settings.WHATSAPP_APP_SECRET
+        )
 
     # -----------------------------------------------------------------------
     # 1. Webhook Verification (GET)
@@ -261,10 +257,14 @@ class WhatsAppChannelAdapter(BaseChannelAdapter):
         """Build Meta WhatsApp Cloud API JSON payload."""
         to_number = response.recipient_id.replace("+", "").strip()
 
+        body_text = response.text[:1000]
+
         # If interactive actions exist (e.g. clarification options or confirmation buttons)
         if response.interactive_actions:
-            # 1. Decision List Reply (for alternative options)
+            # 1. Decision List Reply (for payment methods, address selection, alternative options)
             if response.conversation_state == "NEEDS_DECISION":
+                header_text = (response.interactive_title or "Options")[:60]
+                section_title = (response.interactive_title or "Available Options")[:24]
                 rows = [
                     {
                         "id": action.id,
@@ -280,14 +280,14 @@ class WhatsAppChannelAdapter(BaseChannelAdapter):
                     "type": "interactive",
                     "interactive": {
                         "type": "list",
-                        "header": {"type": "text", "text": "Alternative Options"},
-                        "body": {"text": response.text},
+                        "header": {"type": "text", "text": header_text},
+                        "body": {"text": body_text},
                         "footer": {"text": "GROCER Intent Assistant"},
                         "action": {
                             "button": response.interactive_button_text or "Choose Option",
                             "sections": [
                                 {
-                                    "title": "Available Replacements",
+                                    "title": section_title,
                                     "rows": rows[:10],  # Meta allows max 10 rows
                                 }
                             ],
@@ -314,7 +314,7 @@ class WhatsAppChannelAdapter(BaseChannelAdapter):
                     "type": "interactive",
                     "interactive": {
                         "type": "button",
-                        "body": {"text": response.text},
+                        "body": {"text": body_text},
                         "action": {"buttons": buttons},
                     },
                 }
@@ -325,7 +325,7 @@ class WhatsAppChannelAdapter(BaseChannelAdapter):
             "recipient_type": "individual",
             "to": to_number,
             "type": "text",
-            "text": {"body": response.text},
+            "text": {"body": body_text},
         }
 
     # -----------------------------------------------------------------------

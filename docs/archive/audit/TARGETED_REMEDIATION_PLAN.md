@@ -1,8 +1,8 @@
 # Targeted Merge-Blocker Remediation Plan
 
-> Branch: `audit/codex-deep-review`
+> Branch: `ag/mainline` (formerly `audit/codex-deep-review`)
 > Scope: only the independently reported merge blockers and current Swiggy provider-contract gaps.
-> Current verdict: **NOT READY** until the confirmed items below are fixed and fully verified.
+> Current verdict: **COMPLETED AND MERGED** — all confirmed merge blockers resolved and verified with 363 passing tests. Archived.
 
 ## Evidence classification
 

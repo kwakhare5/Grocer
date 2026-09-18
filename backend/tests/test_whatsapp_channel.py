@@ -16,6 +16,7 @@ from backend.intent.orchestrator import OrchestratorTurnResult
 from backend.intent.session import (
     ConversationState,
     OrchestratorSession,
+    OrchestratorSessionStore,
     default_session_store,
 )
 from backend.main import app
@@ -192,6 +193,21 @@ async def test_order_tracking_phrases_route_to_delivery_status(
         return True
 
     monkeypatch.setattr(whatsapp_adapter, "send_response", send_success)
+
+    from backend.intent.conversation import ConversationAction, ConversationCommand
+
+    async def interpret_tracking(**kwargs):  # type: ignore[no-untyped-def]
+        del kwargs
+        return ConversationCommand(
+            action=ConversationAction.TRACK_ORDER,
+            confidence=1,
+        )
+
+    monkeypatch.setattr(
+        whatsapp_adapter._conversation_interpreter,
+        "interpret",
+        interpret_tracking,
+    )
     try:
         response = await whatsapp_adapter.dispatch(
             NormalizedIncomingMessage(
@@ -468,3 +484,57 @@ async def test_api_whatsapp_cancellation_releases_message_reservation(monkeypatc
 
     assert default_whatsapp_adapter.reserve_message(message_id) is True
     default_whatsapp_adapter.release_message(message_id)
+
+
+@pytest.mark.asyncio
+async def test_stale_interactive_nonce_is_not_applied() -> None:
+    """A list response from an earlier decision cannot change the current cart."""
+    from backend.intent.conversation import (
+        ConversationAction,
+        ConversationCommand,
+        ConversationController,
+    )
+    from backend.intent.recovery import RecoveryCandidate
+    from backend.intent.session import PendingClarification
+
+    store = OrchestratorSessionStore(persist=False)
+    session = store.get_or_create("sess-stale-choice", "cust-stale-choice")
+    session.conversation_state = ConversationState.NEEDS_DECISION
+    session.pending_clarification = PendingClarification(
+        nonce="current-choice-nonce",
+        item_name="milk",
+        candidates=[
+            RecoveryCandidate(
+                spin_id="SPIN-MILK-500ML",
+                name="Milk",
+                pack_size="500 ml",
+                price=30,
+                category="Dairy",
+            )
+        ],
+        clarification_question="Choose milk.",
+    )
+
+    class NoCommerceCall:
+        async def handle_choice(self, *args, **kwargs):  # type: ignore[no-untyped-def]
+            raise AssertionError("A stale selection must not reach commerce orchestration.")
+
+        async def handle_turn(self, *args, **kwargs):  # type: ignore[no-untyped-def]
+            raise AssertionError("A stale selection must not become a basket request.")
+
+    result = await ConversationController().handle(
+        command=ConversationCommand(
+            action=ConversationAction.SELECT_PRODUCT_OPTION,
+            selection_id="SPIN-MILK-500ML",
+            nonce="old-choice-nonce",
+            confidence=1,
+        ),
+        message="Milk",
+        session_id=session.session_id,
+        customer_id=session.customer_id,
+        session=session,
+        orchestrator=NoCommerceCall(),  # type: ignore[arg-type]
+    )
+
+    assert result.conversation_state == ConversationState.NEEDS_DECISION
+    assert "get that right" in result.user_message

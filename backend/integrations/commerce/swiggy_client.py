@@ -1,6 +1,7 @@
 """Low-level JSON-RPC 2.0 MCP transport client for Swiggy Instamart."""
 from __future__ import annotations
 
+import json
 import logging
 from typing import Any, Callable, Optional
 
@@ -72,6 +73,46 @@ class SwiggyMcpClient:
             else:
                 raise CommerceError(f"Swiggy error: {msg}")
 
+    @staticmethod
+    def _decode_success_response(response: httpx.Response) -> dict[str, Any]:
+        """Decode a JSON or Streamable HTTP/SSE MCP response safely."""
+        content_type = response.headers.get("content-type", "").casefold()
+        try:
+            if "text/event-stream" not in content_type:
+                data = response.json()
+                if not isinstance(data, dict):
+                    raise TypeError("MCP response must be a JSON object")
+                return data
+
+            decoded_events: list[dict[str, Any]] = []
+            data_lines: list[str] = []
+            for line in response.text.splitlines():
+                if line.startswith("data:"):
+                    data_lines.append(line.removeprefix("data:").lstrip())
+                    continue
+                if not line.strip() and data_lines:
+                    raw_event = "\n".join(data_lines)
+                    data_lines.clear()
+                    if raw_event != "[DONE]":
+                        event = json.loads(raw_event)
+                        if isinstance(event, dict):
+                            decoded_events.append(event)
+            if data_lines:
+                raw_event = "\n".join(data_lines)
+                if raw_event != "[DONE]":
+                    event = json.loads(raw_event)
+                    if isinstance(event, dict):
+                        decoded_events.append(event)
+            if not decoded_events:
+                raise ValueError("SSE response did not contain a JSON object")
+            return decoded_events[-1]
+        except (json.JSONDecodeError, TypeError, ValueError) as exc:
+            raise CommerceError(
+                "Swiggy returned an unexpected response. Please try again.",
+                provider="swiggy",
+                code="INVALID_PROVIDER_RESPONSE",
+            ) from exc
+
     async def call_tool(
         self,
         tool_name: str,
@@ -124,7 +165,7 @@ class SwiggyMcpClient:
                             raise parse_exc
                     raise CommerceError(err_msg)
 
-                data = resp.json()
+                data = self._decode_success_response(resp)
 
                 # Check JSON-RPC protocol error
                 if "error" in data and not data.get("result"):

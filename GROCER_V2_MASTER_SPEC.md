@@ -67,7 +67,7 @@ After any meaningful provider mutation, Grocer observes the live result and comp
 - A provider rejection, partial result, stale cart, changed pack, budget drift, unavailable item, or unknown outcome requires verification and then either a safe repair or a customer decision.
 - A recovery is never described as successful until it has been verified.
 
-The evaluation layer uses the same `CommercePort` contracts as the live path to test unavailable products, ambiguous variants, pack/price drift, stale carts, partial results, and safe retries.
+The active regression suite uses the same `CommercePort` contracts as the live path to test unavailable products, ambiguous variants, pack/price drift, stale carts, partial results, and safe retries.
 
 ## Security and release rules
 
@@ -79,8 +79,8 @@ The evaluation layer uses the same `CommercePort` contracts as the live path to 
 
 ## Current migration status
 
-Implemented: typed task model, reducer, natural-language operation boundary, catalogue resolver, provider-cart adoption guard, private PostgreSQL schema/repository, and acceptance coverage.
+Implemented: typed task model, reducer, natural-language operation boundary, catalogue resolver, provider-cart adoption guard, active durable WhatsApp route, private PostgreSQL schema/repository, encrypted OAuth storage, provider-response validation, and acceptance coverage.
 
-Not yet complete: live WhatsApp wiring for the durable task path, inbox/outbox worker delivery, encrypted migration of OAuth tokens/preferences/idempotency/locks, authenticated replay against Swiggy review mode, and the resulting retirement of legacy in-memory parser/session/orchestrator code.
+Not yet complete: authenticated end-to-end replay of the latest reliability build against Swiggy review mode, restart/concurrency/retry verification, and an optional independent background outbox worker beyond webhook-driven retry.
 
 Do not represent GROCER as live-checkout ready before those gates pass.

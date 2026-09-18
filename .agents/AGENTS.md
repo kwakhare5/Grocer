@@ -223,8 +223,8 @@ If the answer is no, it does not belong in GROCER v2 unless the master spec is d
 
 ## 15. SESSION RESUME
 
-**Last completed:** Permanent commerce-core foundation plus a complete redacted Claude handoff (`CLAUDE_PROJECT_CONTEXT.md`) covering repository structure, current failures, architecture status, and migration gates (2026-09-16).
+**Last completed:** Added durable offered choices and verified stock-recovery decisions to the ShoppingTask route. A tap, ordinal, price reference, or model-returned visible action now resolves to one stored action; quantity caps require Keep available / Choose another / Remove item and a fresh basket approval (2026-09-17).
 
-**Next implementation gate:** Wire the new ShoppingTask path through the WhatsApp runtime, replace legacy parse-to-cart mutation only after transcript replay passes, configure managed encrypted PostgreSQL storage, then re-verify the whitelisted OAuth redirect, Meta test number, Render, Vercel, and real Swiggy review-mode behavior. No direct LLM cart mutation or checkout authority is permitted.
+**Next implementation gate:** Commit and deploy the reliability build, re-authenticate the customer Swiggy session if the hosted token is expired, then replay the authenticated WhatsApp flow through address, catalogue, cart, payment, and final review confirmation. The legacy runtime/evaluation code has been removed; no direct LLM cart mutation or checkout authority is permitted.
 
-**Current status:** Work is on `main`. The new core has deterministic acceptance coverage, but it is not yet a live durable WhatsApp service. Treat every provider interaction as unverified until PostgreSQL, durable inbound/outbound processing, encrypted credentials, transcript replays, and Swiggy review-mode tests complete.
+**Current status:** Work is on `main`. The durable route, Supabase persistence, encrypted credentials, and review-only deployment are active. Cleanup changes are local until committed and deployed. Active-route coverage is green; hosted WhatsApp replay, valid Swiggy OAuth, and restart/retry verification remain open.

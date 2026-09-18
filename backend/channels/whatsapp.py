@@ -260,7 +260,13 @@ class WhatsAppChannelAdapter(BaseChannelAdapter):
         # If interactive actions exist (e.g. clarification options or confirmation buttons)
         if response.interactive_actions:
             # 1. Decision List Reply (for payment methods, address selection, alternative options)
-            if response.conversation_state == "NEEDS_DECISION":
+            if response.conversation_state in {
+                "NEEDS_DECISION",
+                "NEEDS_CART_ADOPTION",
+                "NEEDS_PRODUCT_CHOICE",
+                "NEEDS_ADDRESS",
+                "NEEDS_PAYMENT",
+            }:
                 header_text = (response.interactive_title or "Options")[:60]
                 section_title = (response.interactive_title or "Available Options")[:24]
                 rows = [
@@ -294,7 +300,11 @@ class WhatsAppChannelAdapter(BaseChannelAdapter):
                 }
 
             # 2. Confirmation Quick Reply Buttons (max 3 buttons)
-            elif response.conversation_state == "AWAITING_CONFIRMATION":
+            elif response.conversation_state in {
+                "AWAITING_CONFIRMATION",
+                "AWAITING_BASKET_APPROVAL",
+                "AWAITING_CHECKOUT_CONFIRMATION",
+            }:
                 buttons = [
                     {
                         "type": "reply",

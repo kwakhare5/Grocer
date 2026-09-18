@@ -63,6 +63,27 @@ class CatalogResolver:
         if not candidates:
             return CatalogResolution(item, CatalogResolutionKind.UNAVAILABLE)
 
+        if item.selected_spin_id:
+            selected = next(
+                (
+                    candidate
+                    for candidate in candidates
+                    if candidate.spin_id == item.selected_spin_id
+                ),
+                None,
+            )
+            if selected is not None:
+                return CatalogResolution(
+                    item,
+                    CatalogResolutionKind.EXACT,
+                    selected=selected,
+                )
+            return CatalogResolution(
+                item,
+                CatalogResolutionKind.AMBIGUOUS,
+                candidates=tuple(candidates[:10]),
+            )
+
         exact_candidates = self._exact_quantity_candidates(candidates, item)
         if len(exact_candidates) == 1:
             return CatalogResolution(
@@ -78,6 +99,22 @@ class CatalogResolver:
         return CatalogResolution(
             item, CatalogResolutionKind.AMBIGUOUS, candidates=tuple(options[:10])
         )
+
+    async def candidates_for(
+        self,
+        address_id: str,
+        item: DesiredBasketItem,
+        *,
+        exclude_spin_ids: set[str] | None = None,
+    ) -> list[CatalogCandidate]:
+        """Return live, matching variants for an explicit customer substitution."""
+        products = await self._port.search_products(address_id, item.name)
+        excluded = exclude_spin_ids or set()
+        return [
+            candidate
+            for candidate in self._matching_candidates(products, item)
+            if candidate.spin_id not in excluded
+        ]
 
     def _matching_candidates(
         self, products: list[CommerceProductItem], item: DesiredBasketItem

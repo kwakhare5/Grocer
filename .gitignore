@@ -16,6 +16,8 @@ dist/
 build/
 coverage/
 .pytest_cache/
+.pytest-*/
+tmp-*/
 .mypy_cache/
 .ruff_cache/
 

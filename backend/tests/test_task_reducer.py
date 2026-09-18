@@ -1,4 +1,6 @@
 """Acceptance tests for the durable shopping-task command boundary."""
+import pytest
+
 from backend.intent.task_model import (
     DesiredBasketItem,
     MessageUnderstanding,
@@ -144,10 +146,11 @@ async def test_task_repository_rejects_duplicate_events_and_stale_writes() -> No
         raise AssertionError("A stale task write must not overwrite a newer turn.")
 
 
-def test_natural_language_keep_only_and_ltr_are_understood_without_robotic_input() -> None:
+@pytest.mark.asyncio
+async def test_natural_language_keep_only_and_ltr_are_understood_without_robotic_input() -> None:
     understanding = MessageUnderstandingService()
 
-    keep_only = understanding.interpret("cancel other just have 1 ltr milk and 1 bread")
+    keep_only = await understanding.interpret("cancel other just have 1 ltr milk and 1 bread")
 
     assert keep_only.operation == TaskOperation.KEEP_ONLY_ITEMS
     assert [(item.name.casefold(), item.quantity, item.unit) for item in keep_only.items] == [
@@ -156,7 +159,8 @@ def test_natural_language_keep_only_and_ltr_are_understood_without_robotic_input
     ]
 
 
-def test_human_language_variants_map_to_safe_basket_operations() -> None:
+@pytest.mark.asyncio
+async def test_human_language_variants_map_to_safe_basket_operations() -> None:
     understanding = MessageUnderstandingService()
 
     cases = {
@@ -169,7 +173,7 @@ def test_human_language_variants_map_to_safe_basket_operations() -> None:
     }
 
     for message, operation in cases.items():
-        assert understanding.interpret(message).operation == operation
+        assert (await understanding.interpret(message)).operation == operation
 
 
 def test_add_one_more_increments_a_preview_instead_of_overwriting_quantity() -> None:
@@ -254,6 +258,24 @@ async def test_catalogue_resolution_accepts_a_single_exact_litre_pack() -> None:
     assert result.selected.spin_id == "SPIN-MILK-1L"
 
 
+async def test_catalogue_resolution_honors_a_customer_selected_variant() -> None:
+    resolver = CatalogResolver(MockCommerceAdapter())
+
+    result = await resolver.resolve_item(
+        "addr-bandra-1",
+        DesiredBasketItem(
+            name="Milk",
+            quantity=1,
+            unit="units",
+            selected_spin_id="SPIN-MILK-500ML",
+        ),
+    )
+
+    assert result.kind == CatalogResolutionKind.EXACT
+    assert result.selected is not None
+    assert result.selected.spin_id == "SPIN-MILK-500ML"
+
+
 def test_existing_provider_cart_requires_explicit_adoption_before_use() -> None:
     task = ShoppingTask(task_id="task-7", customer_id="customer-7")
     provider_cart = CommerceCart(
@@ -295,9 +317,10 @@ def test_address_change_invalidates_checkout_confirmation_and_requests_an_addres
     assert not result.confirmation_valid
 
 
-def test_selecting_address_uses_the_same_operation_for_text_and_buttons() -> None:
+@pytest.mark.asyncio
+async def test_selecting_address_uses_the_same_operation_for_text_and_buttons() -> None:
     service = MessageUnderstandingService()
-    typed = service.interpret("use address 2")
+    typed = await service.interpret("use address 2")
     button = service.from_interactive(
         operation=TaskOperation.SELECT_ADDRESS,
         selection_value="address-2",
@@ -425,11 +448,12 @@ def test_cancel_task_is_terminal_while_help_and_tracking_preserve_state() -> Non
     assert not cancelled.confirmation_valid
 
 
-def test_unknown_or_low_confidence_text_clarifies_instead_of_starting_a_task() -> None:
+@pytest.mark.asyncio
+async def test_unknown_or_low_confidence_text_clarifies_instead_of_starting_a_task() -> None:
     service = MessageUnderstandingService()
 
-    unknown = service.interpret("do the usual thing maybe")
-    low_confidence = service.interpret("something for tonight")
+    unknown = await service.interpret("do the usual thing maybe")
+    low_confidence = await service.interpret("something for tonight")
 
     assert unknown.operation == TaskOperation.CLARIFY
     assert unknown.needs_clarification
@@ -437,7 +461,8 @@ def test_unknown_or_low_confidence_text_clarifies_instead_of_starting_a_task() -
     assert low_confidence.needs_clarification
 
 
-def test_common_control_language_maps_to_typed_operations() -> None:
+@pytest.mark.asyncio
+async def test_common_control_language_maps_to_typed_operations() -> None:
     service = MessageUnderstandingService()
 
     cases = {
@@ -451,4 +476,4 @@ def test_common_control_language_maps_to_typed_operations() -> None:
     }
 
     for message, expected in cases.items():
-        assert service.interpret(message).operation == expected
+        assert (await service.interpret(message)).operation == expected

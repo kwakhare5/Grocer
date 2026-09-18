@@ -12,6 +12,7 @@ from backend.config import settings
 from backend.api.health import router as health_router
 from backend.api.intent_chat import router as intent_chat_router
 from backend.api.whatsapp import router as whatsapp_router
+from backend.api.oauth import router as oauth_router
 
 
 def create_app() -> FastAPI:
@@ -29,15 +30,17 @@ def create_app() -> FastAPI:
             for origin in settings.CORS_ALLOWED_ORIGINS.split(",")
             if origin.strip()
         ],
+        allow_origin_regex=r"https://.*\.vercel\.app",
         allow_credentials=True,
         allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
-        allow_headers=["Content-Type", "X-Grocer-Session-Capability"],
+        allow_headers=["*"],
     )
 
     app.include_router(health_router, prefix="/api")
     app.include_router(health_router)
     app.include_router(intent_chat_router)
     app.include_router(whatsapp_router)
+    app.include_router(oauth_router, prefix="/api")
 
     @app.get("/", tags=["health"])
     def root() -> dict[str, str]:

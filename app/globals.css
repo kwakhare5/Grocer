@@ -18,14 +18,10 @@
   --border: #E4E4E7;
   --border-subtle: rgba(228, 228, 231, 0.7);
 
-  /* Primary & Brand Accents (Logistics Cobalt Blue #2563EB) */
-  --primary: #2563EB;
-  --primary-hover: #1D4ED8;
-  --accent-blue: #2563EB;
-  --accent-sky: #0284C7;
-  --accent-red: #DC2626;
+  /* Grocer accents */
+  --primary: #16A34A;
+  --primary-hover: #15803D;
   --accent-orange: #EA580C;
-  --accent-amber: #D97706;
   --accent-emerald: #16A34A;
   
   /* Typography Tokens */
@@ -104,109 +100,21 @@ body {
   font-family: var(--font-display);
 }
 
-/* ── Grocer Design System Reusable Component Tokens ─────────────────── */
-
-/* 1. Primary Cobalt Blue Pill Button */
-.btn-grocer-pill-primary {
-  background-color: #2563EB;
-  color: #FFFFFF;
-  font-weight: 600;
-  font-size: 0.875rem;
-  border-radius: 9999px;
-  padding: 0.65rem 1.40rem;
-  box-shadow: 0 1px 2px rgba(37, 99, 235, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.2);
-  transition: all 200ms var(--ease-out);
-  cursor: pointer;
-  border: 1px solid #1D4ED8;
-}
-.btn-grocer-pill-primary:hover {
-  background-color: #1D4ED8;
-  box-shadow: 0 6px 18px rgba(37, 99, 235, 0.25);
-  transform: translateY(-1px);
-}
-.btn-grocer-pill-primary:active {
-  transform: translateY(0) scale(0.98);
-}
-
-/* 2. Secondary Light Pill Button */
-.btn-grocer-pill-secondary {
-  background-color: #FFFFFF;
-  color: #18181B;
-  font-weight: 600;
-  font-size: 0.875rem;
-  border: 1px solid #E4E4E7;
-  border-radius: 9999px;
-  padding: 0.65rem 1.40rem;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
-  transition: all 200ms var(--ease-out);
-  cursor: pointer;
-}
-.btn-grocer-pill-secondary:hover {
-  background-color: #F4F4F5;
-  border-color: #D4D4D8;
-  transform: translateY(-1px);
-}
-.btn-grocer-pill-secondary:active {
-  transform: translateY(0) scale(0.98);
-}
-
-/* 3. Grocer Surface Card */
-.card-grocer-surface {
-  background-color: #FFFFFF;
-  border: 1px solid #E4E4E7;
-  border-radius: 20px;
-  padding: 1.75rem;
-  box-shadow: var(--shadow-card-surface);
-  transition: all 250ms var(--ease-out);
-}
-.card-grocer-surface:hover {
-  border-color: #D4D4D8;
-  box-shadow: var(--shadow-card-hover);
-  transform: translateY(-2px);
-}
-
-/* 4. Grocer Pill Badge */
-.badge-grocer-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.375rem;
-  padding: 0.35rem 0.85rem;
-  border-radius: 9999px;
-  background-color: #F4F4F5;
-  color: #18181B;
-  font-size: 0.75rem;
-  font-weight: 500;
-  border: 1px solid #E4E4E7;
-}
-
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
 
-/* ── Global Scrollbar Purge (Hide scrollbars everywhere, preserve scrollability) ── */
-::-webkit-scrollbar {
-  display: none !important;
-  width: 0 !important;
-  height: 0 !important;
-}
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
 
-* {
-  -ms-overflow-style: none !important;  /* IE and Edge */
-  scrollbar-width: none !important;  /* Firefox */
-}
-
-/* Hide Next.js Dev Overlay Indicator Badge Permanently */
-[data-nextjs-toast],
-[data-nextjs-portal],
-nextjs-portal,
-#next-logo,
-#__next-build-watcher,
-div[class*="nextjs-toast"],
-div[class*="next-logo"],
-div[class*="dev-overlay"],
-button[aria-label*="Next.js"] {
-  display: none !important;
-  opacity: 0 !important;
-  visibility: hidden !important;
-  pointer-events: none !important;
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

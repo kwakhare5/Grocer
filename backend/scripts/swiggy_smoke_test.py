@@ -1,4 +1,4 @@
-"""Opt-in real integration smoke test for Swiggy Instamart MCP (Spec §16).
+"""Opt-in real integration smoke test for Swiggy Instamart MCP (Spec Section 16).
 
 Usage:
     # 1. Using an existing authenticated Swiggy JWT token:

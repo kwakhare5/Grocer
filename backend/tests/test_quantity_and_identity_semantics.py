@@ -12,7 +12,8 @@ from backend.integrations.commerce.models import (
     ProductVariant,
 )
 from backend.intent.models import IntentContract, IntentItem
-from backend.intent.orchestrator import _search_and_pick
+from backend.intent.models import ResolvedMeaning
+from backend.intent.orchestrator import _search_and_pick, _targeted_recovery_query
 from backend.intent.recovery import RecoveryEngine, RecoveryState
 from backend.intent.semantics import (
     NormalizedQuantity,
@@ -38,9 +39,9 @@ from backend.intent.verifier import (
         (2, "kg", "rice", NormalizedQuantity("mass", 2000)),
         (750, "g", "paneer", NormalizedQuantity("mass", 750)),
         (2, "dozen", "eggs", NormalizedQuantity("count", 24)),
-        (12, "units", "eggs", NormalizedQuantity("count", 12)),
+        (12, "units", "eggs", NormalizedQuantity("catalog_dependent", 12)),
         (6, "pieces", "apples", NormalizedQuantity("count", 6)),
-        (4, "units", "bananas", NormalizedQuantity("count", 4)),
+        (4, "units", "bananas", NormalizedQuantity("catalog_dependent", 4)),
         (3, "packs", "biscuits", NormalizedQuantity("pack_count", 3)),
     ],
 )
@@ -118,6 +119,150 @@ class _CatalogSearchPort:
         self, address_id: str, query: str
     ) -> list[CommerceProductItem]:
         return self._results
+
+
+class _MultiVariantCatalogSearchPort:
+    def __init__(self, pack_sizes: list[str], product_name: str) -> None:
+        self._results = [
+            CommerceProductItem(
+                product_id="product",
+                name=product_name,
+                category="generic",
+                variants=[
+                    ProductVariant(
+                        spin_id=f"spin-{index}",
+                        sku_id=f"sku-{index}",
+                        name=f"{product_name} {pack_size}",
+                        pack_size=pack_size,
+                        price=float(index + 1),
+                        mrp=float(index + 1),
+                        in_stock=True,
+                    )
+                    for index, pack_size in enumerate(pack_sizes)
+                ],
+            )
+        ]
+
+    async def search_products(
+        self, address_id: str, query: str
+    ) -> list[CommerceProductItem]:
+        return self._results
+
+
+@pytest.mark.asyncio
+async def test_bare_quantity_infers_retail_sku_units_from_mass_catalog_evidence() -> None:
+    item = IntentItem(name="plain snack", quantity=3, unit="units", quantity_is_explicit=True)
+
+    update = await _search_and_pick(
+        _MultiVariantCatalogSearchPort(["100 g", "250 g"], "Plain snack"),  # type: ignore[arg-type]
+        "address",
+        item,
+    )
+
+    assert update is not None
+    assert update.quantity == 3
+    assert item.resolved_meaning is not None
+    assert item.resolved_meaning.status == "INFERRED"
+    assert item.resolved_meaning.provider_pack_description == "100 g"
+
+
+@pytest.mark.asyncio
+async def test_bare_quantity_uses_individual_sku_when_catalog_offers_one() -> None:
+    item = IntentItem(name="generic produce", quantity=3, unit="units", quantity_is_explicit=True)
+
+    update = await _search_and_pick(
+        _MultiVariantCatalogSearchPort(["1 pc", "4 pcs"], "Generic produce"),  # type: ignore[arg-type]
+        "address",
+        item,
+    )
+
+    assert update is not None
+    assert update.spin_id == "spin-0"
+    assert update.quantity == 3
+    assert item.resolved_meaning is not None
+    assert item.resolved_meaning.status == "EXACT"
+
+
+@pytest.mark.asyncio
+async def test_bare_quantity_requires_clarification_for_count_pack_only_catalog() -> None:
+    item = IntentItem(name="generic produce", quantity=3, unit="units", quantity_is_explicit=True)
+
+    update = await _search_and_pick(
+        _MultiVariantCatalogSearchPort(["4 pcs", "6 pcs"], "Generic produce"),  # type: ignore[arg-type]
+        "address",
+        item,
+    )
+
+    assert update is None
+    assert item.resolved_meaning is not None
+    assert item.resolved_meaning.status == "AMBIGUOUS"
+    assert item.resolved_meaning.clarification_required is True
+
+
+def test_verifier_uses_resolved_meaning_and_canonical_cart_quantity() -> None:
+    item = IntentItem(
+        name="plain snack",
+        quantity=3,
+        unit="units",
+        quantity_is_explicit=True,
+        resolved_meaning=ResolvedMeaning(
+            original_expression="3 plain snack",
+            requested_quantity=3,
+            requested_dimension="catalog_dependent",
+            interpretation_explicit=False,
+            status="INFERRED",
+            spin_id="spin-snack",
+            provider_pack_description="100 g",
+            cart_quantity=3,
+            expected_dimension="pack_count",
+            expected_amount=3,
+            explanation="Treating this as three retail packs.",
+        ),
+    )
+    contract = IntentContract(session_id="resolved-meaning", goal="groceries", items=[item])
+    cart = CommerceCart(
+        cart_id="cart",
+        is_serviceable=True,
+        items=[
+            CartItem(
+                spin_id="spin-snack",
+                name="Plain snack",
+                pack_size="100 g",
+                unit_price=18,
+                quantity=1,
+                total_price=18,
+                is_available=True,
+            )
+        ],
+    )
+
+    result = IntentVerifier().verify(contract, cart)
+
+    assert result.status == VerificationStatus.FAIL
+    assert item.resolved_meaning is not None
+    assert item.resolved_meaning.actual_cart_quantity == 1
+    assert item.resolved_meaning.status == "PARTIALLY_FULFILLED"
+
+
+def test_targeted_recovery_query_uses_the_failed_intent_item() -> None:
+    contract = IntentContract(
+        session_id="targeted-query",
+        goal="groceries",
+        items=[IntentItem(name="plain snack"), IntentItem(name="shampoo")],
+    )
+    verification = VerificationResult(
+        status=VerificationStatus.FAIL,
+        violations=[
+            ConstraintViolation(
+                violation_code=ViolationCode.WRONG_QUANTITY,
+                target="shampoo",
+                detail="canonical cart shortfall",
+                is_hard=True,
+            )
+        ],
+    )
+
+    assert _targeted_recovery_query(contract, verification) == "shampoo"
 
 
 @pytest.mark.parametrize(
@@ -244,7 +389,7 @@ async def test_selection_uses_cheapest_semantically_complete_option() -> None:
 
 
 @pytest.mark.asyncio
-async def test_selection_converts_requested_egg_count_to_pack_count() -> None:
+async def test_selection_requires_clarification_for_bare_count_pack_only_eggs() -> None:
     adapter = MockCommerceAdapter()
     adapter.inject_out_of_stock("SPIN-EGGS-12")
     update = await _search_and_pick(
@@ -253,9 +398,7 @@ async def test_selection_converts_requested_egg_count_to_pack_count() -> None:
         IntentItem(name="eggs", quantity=12, unit="units", quantity_is_explicit=True),
     )
 
-    assert update is not None
-    assert update.spin_id == "SPIN-EGGS-6"
-    assert update.quantity == 2
+    assert update is None
 
 
 @pytest.mark.asyncio

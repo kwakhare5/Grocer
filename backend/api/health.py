@@ -6,6 +6,7 @@ router = APIRouter()
 
 
 @router.get("/health")
+@router.get("/intent/health")
 async def health_check() -> dict[str, str]:
     """Report API health without depending on the retired operations database."""
     return {

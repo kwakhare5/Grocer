@@ -22,7 +22,7 @@ async def verify_webhook(
     hub_verify_token: str = Query(None, alias="hub.verify_token"),
     hub_challenge: str = Query(None, alias="hub.challenge"),
 ) -> Response:
-    """Meta WhatsApp Webhook verification endpoint (Spec §18)."""
+    """Meta WhatsApp Webhook verification endpoint (Spec Section 18)."""
     is_valid, challenge_or_err = default_whatsapp_adapter.verify_webhook_challenge(
         mode=hub_mode,
         token=hub_verify_token,
@@ -55,8 +55,8 @@ async def receive_webhook(
 
     try:
         payload = json.loads(body_bytes.decode("utf-8")) if body_bytes else {}
-    except Exception as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Malformed JSON: {exc}")
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Malformed JSON.")
 
     if not isinstance(payload, dict) or payload.get("object") != "whatsapp_business_account":
         raise HTTPException(

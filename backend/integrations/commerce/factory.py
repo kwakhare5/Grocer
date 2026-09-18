@@ -1,4 +1,4 @@
-﻿"""Factory for obtaining configured CommercePort adapter."""
+"""Factory for obtaining configured CommercePort adapter."""
 from __future__ import annotations
 
 from backend.config import settings
@@ -29,7 +29,7 @@ def get_commerce_adapter(force_mock: bool = False) -> CommercePort:
             base_url=base_url,
             auth_token=auth_token,
             owner_customer_id=owner_customer_id,
-            token_resolver=(None if auth_token else default_token_vault.get_token),
+            token_resolver=default_token_vault.get_token,
         )
 
     if _cached_mock_adapter is None:

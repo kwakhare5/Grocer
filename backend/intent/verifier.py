@@ -1,4 +1,4 @@
-"""Intent Verifier — deterministic commerce-state-vs-intent comparison (Spec §9).
+"""Intent Verifier — deterministic commerce-state-vs-intent comparison (Spec Section 9).
 
 Answers the question: "Does the live cart still represent what the user intended?"
 
@@ -10,7 +10,7 @@ Rules:
     - Zero LLM dependency; every check is deterministic.
     - Hard constraint violations always produce VerificationStatus.FAIL.
     - Soft preference deviations are recorded but may still produce PASS.
-    - verify_checkout always fails without explicit_confirmation=True (Spec §8.3, §17.1).
+    - verify_checkout always fails without explicit_confirmation=True (Spec Section 8.3, Section 17.1).
     - Re-usable: called after cart mutations, after recovery, and before checkout.
 """
 from __future__ import annotations
@@ -43,7 +43,7 @@ class VerificationStatus(str, Enum):
 
 
 class ViolationCode(str, Enum):
-    """Machine-readable codes for hard-constraint violations (Spec §9.2)."""
+    """Machine-readable codes for hard-constraint violations (Spec Section 9.2)."""
     BUDGET_EXCEEDED = "budget_exceeded"
     DIETARY_VIOLATION = "dietary_violation"
     DIETARY_UNVERIFIABLE = "dietary_unverifiable"
@@ -54,10 +54,11 @@ class ViolationCode(str, Enum):
     ITEM_UNAVAILABLE = "item_unavailable"
     STALE_CART = "stale_cart"
     UNAUTHORIZED_CHECKOUT = "unauthorized_checkout"
+    EMPTY_CART = "empty_cart"
 
 
 # ---------------------------------------------------------------------------
-# Output models (Spec §9.2)
+# Output models (Spec Section 9.2)
 # ---------------------------------------------------------------------------
 
 class ConstraintViolation(BaseModel):
@@ -81,7 +82,7 @@ class PreferenceDeviation(BaseModel):
 
 
 class VerificationResult(BaseModel):
-    """Full output of a verification pass (Spec §9.2)."""
+    """Full output of a verification pass (Spec Section 9.2)."""
     model_config = ConfigDict(extra="ignore")
 
     status: VerificationStatus
@@ -175,6 +176,16 @@ class IntentVerifier:
         unresolved: list[str] = []
         recovery_hints: list[str] = []
 
+        # 0. Empty cart check
+        if contract.items and (not cart or not cart.items or cart.grand_total <= 0):
+            violations.append(ConstraintViolation(
+                violation_code=ViolationCode.EMPTY_CART,
+                target="cart",
+                detail="Cart is empty; cannot verify or checkout with zero items",
+                is_hard=True,
+            ))
+            recovery_hints.append("Add items to your basket before proceeding")
+
         # 1. Stale cart check
         stale_violations = self._check_stale(cart, stale)
         violations.extend(stale_violations)
@@ -260,18 +271,29 @@ class IntentVerifier:
         cart: CommerceCart,
         explicit_confirmation: bool = False,
     ) -> VerificationResult:
-        """Full verification pass with checkout authorization gate (Spec §8.3, §17.1).
+        """Full verification pass with checkout authorization gate (Spec Section 8.3, Section 17.1).
 
         Always fails without explicit_confirmation=True regardless of cart state.
         Runs the full verify() pass and then applies the authorization check.
         """
         result = self.verify(contract, cart)
 
+        if not cart or not cart.items or cart.grand_total <= 0:
+            if not any(v.violation_code == ViolationCode.EMPTY_CART for v in result.violations):
+                result.violations.append(ConstraintViolation(
+                    violation_code=ViolationCode.EMPTY_CART,
+                    target="cart",
+                    detail="Cart is empty; cannot checkout with zero items",
+                    is_hard=True,
+                ))
+            result.status = VerificationStatus.FAIL
+            result.recovery_hints.append("Add items to your basket before proceeding to checkout")
+
         if not explicit_confirmation:
             auth_violation = ConstraintViolation(
                 violation_code=ViolationCode.UNAUTHORIZED_CHECKOUT,
                 target="checkout",
-                detail="Checkout requires explicit user confirmation (Spec §8.3)",
+                detail="Checkout requires explicit user confirmation (Spec Section 8.3)",
                 is_hard=True,
             )
             result.violations.append(auth_violation)
@@ -288,7 +310,7 @@ class IntentVerifier:
         self, cart: CommerceCart, stale_flag: bool
     ) -> list[ConstraintViolation]:
         violations: list[ConstraintViolation] = []
-        if stale_flag or not cart.is_serviceable:
+        if stale_flag or cart.is_serviceable is False:
             violations.append(ConstraintViolation(
                 violation_code=ViolationCode.STALE_CART,
                 target="cart",
@@ -422,7 +444,7 @@ class IntentVerifier:
             matched = any(
                 _matches_intent_item(intent_item, cart_item)
                 for cart_item in cart.items
-                if cart_item.is_available
+                if cart_item.is_available is not False
             )
             if not matched:
                 if intent_item.is_essential:
@@ -451,6 +473,40 @@ class IntentVerifier:
             ]
             if not matched_cart_items:
                 continue  # Already handled by _check_missing_items
+
+            resolved_meaning = intent_item.resolved_meaning
+            # A bare quantity is only meaningful after catalog resolution. Keep
+            # that chosen SKU and its canonical quantity authoritative; explicit
+            # physical quantities remain portable across an equivalent recovery
+            # pack (for example 1 L -> 2 x 500 ml).
+            if (
+                resolved_meaning
+                and resolved_meaning.requested_dimension == "catalog_dependent"
+                and resolved_meaning.cart_quantity is not None
+            ):
+                matched_resolved_items = [
+                    cart_item
+                    for cart_item in cart.items
+                    if cart_item.spin_id == resolved_meaning.spin_id
+                ]
+                actual_quantity = sum(cart_item.quantity for cart_item in matched_resolved_items)
+                resolved_meaning.actual_cart_quantity = actual_quantity
+                if actual_quantity < resolved_meaning.cart_quantity:
+                    resolved_meaning.status = "PARTIALLY_FULFILLED"
+                elif actual_quantity > resolved_meaning.cart_quantity:
+                    resolved_meaning.status = "UNVERIFIABLE"
+                if actual_quantity != resolved_meaning.cart_quantity:
+                    violations.append(ConstraintViolation(
+                        violation_code=ViolationCode.WRONG_QUANTITY,
+                        target=intent_item.name,
+                        detail=(
+                            f"'{intent_item.name}' planned {resolved_meaning.cart_quantity} "
+                            f"× {resolved_meaning.provider_pack_description or 'selected SKU'}, "
+                            f"but the canonical cart contains {actual_quantity}"
+                        ),
+                        is_hard=True,
+                    ))
+                continue
 
             has_exact_constraint = any(
                 hc.constraint_type == ConstraintType.EXACT_QUANTITY

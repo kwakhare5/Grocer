@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from typing import Literal, Optional
 
 
-QuantityDimension = Literal["volume", "mass", "count", "pack_count"]
+QuantityDimension = Literal["volume", "mass", "count", "pack_count", "catalog_dependent"]
 
 
 @dataclass(frozen=True)
@@ -38,6 +38,20 @@ _DERIVATIVE_EXCLUSIONS: dict[str, set[str]] = {
     "butter": {"almond", "cashew", "peanut"},
     "milk": {"milkshake", "powder"},
     "rice": {"flour"},
+}
+
+_PRODUCT_ALIASES: dict[str, set[str]] = {
+    "coke": {"coke", "coca", "cola"},
+    "cola": {"coke", "coca", "cola"},
+    "dahi": {"dahi", "curd", "yogurt"},
+    "curd": {"dahi", "curd", "yogurt"},
+    "yogurt": {"dahi", "curd", "yogurt"},
+    "atta": {"atta", "flour"},
+    "flour": {"atta", "flour"},
+    "chai": {"chai", "tea"},
+    "tea": {"chai", "tea"},
+    "anda": {"anda", "egg", "eggs"},
+    "egg": {"anda", "egg", "eggs"},
 }
 
 
@@ -116,7 +130,7 @@ def normalize_requested_quantity(
     ):
         return NormalizedQuantity("count", quantity)
     if normalized_unit in {"", "unit", "units"} and quantity_is_explicit:
-        return NormalizedQuantity("count", quantity)
+        return NormalizedQuantity("catalog_dependent", quantity)
     if normalized_unit in {
         "pack",
         "packs",
@@ -126,6 +140,22 @@ def normalize_requested_quantity(
         "pcs",
         "piece",
         "pieces",
+        "can",
+        "cans",
+        "tin",
+        "tins",
+        "bottle",
+        "bottles",
+        "pouch",
+        "pouches",
+        "sachet",
+        "sachets",
+        "box",
+        "boxes",
+        "strip",
+        "strips",
+        "bar",
+        "bars",
     }:
         return NormalizedQuantity("pack_count", quantity)
     if normalized_unit in {"", "unit", "units"}:
@@ -173,6 +203,8 @@ def required_pack_count(
     if requested.dimension == "pack_count":
         rounded = round(requested.amount)
         return int(rounded) if math.isclose(requested.amount, rounded) else None
+    if requested.dimension == "catalog_dependent":
+        return None
     if pack is None or pack.dimension != requested.dimension or pack.amount <= 0:
         return None
 
@@ -200,7 +232,8 @@ def product_identity_matches(
         return False
 
     candidate_tokens = {_singular(token) for token in _tokens(candidate_name)}
-    if requested_head not in candidate_tokens:
+    aliases = _PRODUCT_ALIASES.get(requested_head, {requested_head})
+    if not (aliases & candidate_tokens):
         return False
 
     exclusions = _DERIVATIVE_EXCLUSIONS.get(requested_head, set())

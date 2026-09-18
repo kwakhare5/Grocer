@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getBackendUrl } from "../../_lib/backend";
 
-const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN || "grocer_whatsapp_verify_token";
-const BACKEND_URL = process.env.INTENT_BACKEND_URL || "http://127.0.0.1:8000";
+const verifyToken = process.env.WHATSAPP_VERIFY_TOKEN;
 
 export async function GET(req: NextRequest) {
   try {
@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
     const token = searchParams.get("hub.verify_token");
     const challenge = searchParams.get("hub.challenge");
 
-    if (mode === "subscribe" && token === VERIFY_TOKEN) {
+    if (verifyToken && mode === "subscribe" && token === verifyToken) {
       return new NextResponse(challenge || "", {
         status: 200,
         headers: { "Content-Type": "text/plain" },
@@ -18,9 +18,8 @@ export async function GET(req: NextRequest) {
     }
 
     return new NextResponse("Forbidden", { status: 403 });
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : "Verification error";
-    return NextResponse.json({ error: msg }, { status: 500 });
+  } catch {
+    return NextResponse.json({ error: "Webhook verification is unavailable." }, { status: 503 });
   }
 }
 
@@ -28,7 +27,7 @@ export async function POST(req: NextRequest) {
   try {
     const rawBody = await req.text();
     const signature = req.headers.get("x-hub-signature-256") || "";
-    const backendEndpoint = `${BACKEND_URL}/api/whatsapp/webhook`;
+    const backendEndpoint = `${getBackendUrl()}/api/whatsapp/webhook`;
 
     const res = await fetch(backendEndpoint, {
       method: 'POST',
@@ -41,8 +40,7 @@ export async function POST(req: NextRequest) {
 
     const data = await res.json();
     return NextResponse.json(data, { status: res.status });
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : 'Proxy error';
-    return NextResponse.json({ error: msg }, { status: 500 });
+  } catch {
+    return NextResponse.json({ error: "Webhook delivery is unavailable." }, { status: 503 });
   }
 }

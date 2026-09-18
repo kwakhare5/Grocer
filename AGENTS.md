@@ -7,7 +7,7 @@ Before changing code, read:
 1. `GROCER_V2_MASTER_SPEC.md` — product and architecture source of truth.
 2. `CONTEXT.md` — session context, domain language, invariants, anti-drift rules.
 3. `ARCHITECTURE.md` — current system boundaries.
-4. `IMPLEMENTATION_PLAN.md` — current execution order.
+4. `CURRENT_STATE.md` — latest evidence, readiness, and verified gates.
 
 **GROCER is the existing WhatsApp consumer grocery replenishment assistant being extended with an Intent layer.**
 

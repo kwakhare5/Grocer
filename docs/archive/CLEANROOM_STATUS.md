@@ -24,7 +24,7 @@ This document records the completed repository-wide cleanroom and master-spec au
 | **Phase 9** | Isolated Swiggy MCP Unit Tests | ✅ DONE | `backend/tests/test_swiggy_adapter.py` (12/12 isolated adapter tests pass) |
 | **Phase 10** | Golden End-to-End Proof Flow | ✅ DONE | `backend/tests/test_golden_oos_recovery.py` (2/2 flagship end-to-end flows pass) |
 
-## 3. Reliability Evaluation Metrics (Spec §16)
+## 3. Reliability Evaluation Metrics (Spec Section 16)
 
 Executed via `python -m backend.evaluation.harness` across the 8 canonical failure scenarios:
 

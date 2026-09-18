@@ -1,356 +1,288 @@
 # ARCHITECTURE.md — GROCER v2
 
-> **Source of truth:** `GROCER_V2_MASTER_SPEC.md`
-> **Status:** LOCKED consumer-commerce architecture
-> **Updated:** 2026-09-09
+> **Product Authority:** `GROCER_V2_MASTER_SPEC.md`
+> **System Identity:** WhatsApp Consumer Grocery Replenishment Assistant with Intent Preservation
+> **Status:** Consolidated architecture; deployment re-verification pending
+> **Updated:** 2026-09-15
 
-## 1. System identity
+---
 
-GROCER is the **existing WhatsApp consumer grocery replenishment assistant**, extended with an intent-preservation layer.
+## 1. System Identity & Mission
 
-It is not a dark-store operations platform, a generic marketplace assistant, or a second standalone agent infrastructure product.
+**GROCER** is a WhatsApp consumer grocery replenishment assistant designed to preserve user shopping intent across dynamic commerce state (stockouts, pack size variations, price fluctuations, and delivery constraints).
 
-The separate dark-store operations system lives in:
-
-`https://github.com/kwakhare5/Dark-store-operator`
-
-## 2. Core architecture
+* **Core Thesis:** Preserve the user's intended shopping outcome even when live quick-commerce state changes.
+* **Separation of Concerns:** GROCER is exclusively consumer-facing. Dark-store operations, warehouse logistics, and store-level optimization belong to the companion repository (`kwakhare5/Dark-store-operator`).
 
 ```text
-                         WHATSAPP
+               WhatsApp Consumer UX / Mobile
+                             │
+                             ▼
+                 Inbound Webhook & Auth
+                             │
+                             ▼
+                Grocer Orchestration Core
+              (Intent, Verification, Policy)
+                             │
+                             ▼
+                        CommercePort
+                       /            \
+                      ▼              ▼
+              Swiggy MCP Adapter   Mock Adapter (Tests)
+                      │
+                      ▼
+            Live Instamart Commerce
+```
+
+---
+
+## 2. End-to-End System Architecture
+
+```text
+                           USER / WHATSAPP
+                                  │
+                                  ▼
+                   WhatsAppChannelAdapter (Meta Webhook)
+                   • HMAC-SHA256 Signature Verification
+                   • Idempotent Message Reservation
+                   • Sender Pseudonymization (cust_wa_...)
+                                  │
+                                  ▼
+                          FastAPI Routing
+                       (/api/whatsapp/webhook)
+                                  │
+                                  ▼
+                    ConversationInterpreter
+          • contextual free-text interpretation
+          • validated command, never provider authority
+                                  │
+                                  ▼
+                     GrocerOrchestrator (State Router)
+         ┌────────────────────────┼────────────────────────┐
+         ▼                        ▼                        ▼
+  orchestrator_address   items_stage (_resolve)   orchestrator_payment
+  (Serviceable Address)    (Catalog Resolution)     (UPI / Cash / Cards)
+                                  │
+                                  ▼
+                            CommercePort
+                   (SwiggyMCPAdapter / MockAdapter)
+                                  │
+                                  ▼
+                          Canonical Cart
+                                  │
+                                  ▼
+                           IntentVerifier
+            Deterministic verification against IntentContract:
+            • Missing items     • Wrong quantity
+            • Brand locks       • Budget overrun
+            • Dietary tags      • Minimum order threshold
+                                  │
+                    ┌─────────────┴─────────────┐
+                    ▼                           ▼
+                 [ PASS ]                    [ FAIL ]
+                    │                           │
+                    │                           ▼
+                    │                    RecoveryEngine
+                    │              (Bounded replanning passes)
+                    │              • recovery_strategies
+                    │              • recovery_candidates
+                    │                           │
+                    │             ┌─────────────┴─────────────┐
+                    │             ▼                           ▼
+                    │        [ RECOVERED ]           [ NEEDS_DECISION ]
+                    │             │                           │
+                    │             │                           ▼
+                    │             │                  orchestrator_choice
+                    │             │                  (Options to User)
+                    │             │                           │
+                    └─────────────┼───────────────────────────┘
+                                  ▼
+                         AWAITING_CONFIRMATION
+                        (Fingerprinted Snapshot)
+                                  │
+                                  ▼
+                        User Confirmation Reply
+                                  │
+                                  ▼
+                        orchestrator_confirm
+                     (Server-Side Checkout Guard)
+                                  │
+                                  ▼
+                        CommercePort.checkout()
+                                  │
+                    ┌─────────────┴─────────────┐
+                    ▼                           ▼
+            [ UPI_PENDING ]                 [ ORDERED ]
+                    │                           │
+                    ▼                           ▼
+          orchestrator_tracking         Order Complete
+          (Poll UPI / Track Rider)
+```
+
+---
+
+## 3. Core Architectural Principles
+
+### 3.1 LLM Interprets & Proposes; Deterministic Code Enforces & Verifies
+* **LLM Responsibility:** Natural language parsing, conversational slot extraction, category tagging, friendly user messaging.
+* **Deterministic Code Responsibility:** Hard constraint evaluation, budget arithmetic, cart verification, recovery policy enforcement, server-side checkout authorization, state persistence.
+
+### 3.2 Intent is the Immutable Source of Truth
+The live cart may drift due to retailer inventory fluctuations. The `IntentContract` represents what the user actually wants. The system reconciles live commerce back to user intent, never silently modifying requirements without policy authorization.
+
+### 3.3 Rule of Precedence
+When resolving conflicts between preferences:
+```text
+Current Explicit Request > Current Session Choice > Stored Soft Preference > System Default
+```
+Stored memory cannot silently override an explicit instruction in the current conversation turn.
+
+### 3.4 Strict Provider Isolation
+All Swiggy-specific payloads, JSON-RPC envelopes, and vendor quirks are encapsulated behind `CommercePort`. Business orchestration and recovery engines interact solely with canonical domain models (`CommerceCart`, `CartItem`, `PaymentOption`, `CommerceOrderResult`).
+
+### 3.5 Immutable Snapshotting & Server-Side Checkout Safety
+No checkout may execute without:
+1. Deterministic verification pass (all hard constraints green).
+2. Explicit user confirmation matching a time-limited confirmation nonce.
+3. Cryptographic payload fingerprint matching the exact verified cart snapshot.
+4. Non-idempotent one-way transition (preventing duplicate charges or double orders).
+
+---
+
+## 4. Subsystems & Module Breakdown
+
+### 4.1 Inbound Channels (`backend/channels/`)
+* **`whatsapp.py` (`WhatsAppChannelAdapter`):** Handles Meta WhatsApp Business Cloud API webhooks.
+  * Validates webhook verification challenges (`hub.challenge`).
+  * Enforces cryptographic request integrity using HMAC-SHA256 via `x-hub-signature-256`.
+  * De-duplicates inbound webhooks via in-memory TTL reservation (`reserve_message`).
+  * Normalizes outbound responses into WhatsApp interactive buttons or text messages.
+* **`models.py` & `base.py`:** Channel-agnostic envelopes and transport-only dispatch. Native WhatsApp IDs and free text both enter the same conversation controller.
+
+### 4.2 Intent Core (`backend/intent/`)
+* **`conversation.py`:** Converts contextual free text into a bounded `ConversationCommand`; validates command/state/option bindings before delegating to `GrocerOrchestrator`. It never calls `CommercePort` directly.
+* **`parser.py` (`IntentParser`):** Two-stage extractor pipeline:
+  * Primary: `GeminiIntentExtractor` for English multi-item requests and implicit quantities.
+  * Fallback: `RuleBasedExtractor` for offline/zero-API deterministic regex extraction.
+* **`taxonomies.py`:** Centralized packaging descriptors, unit conversion tables, product category keywords, and conversational stop words.
+* **`validator.py` (`DeterministicValidator`):** Validates raw extractor output, clamps confidence scores, normalizes constraints, and generates validated `IntentContract` instances.
+* **`models.py`:** Canonical domain models including `IntentContract`, `IntentItem`, `BudgetConstraint`, `DietaryConstraint`, `BrandPreference`, and `SubstitutionPolicy`.
+* **`semantics.py`:** Quantity normalization, pack size arithmetic, catalog dependency flags, and product head matching.
+
+### 4.3 Orchestration Engine (`backend/intent/`)
+Fully modularized single-responsibility coordinators:
+* **`orchestrator.py` (`GrocerOrchestrator`):** Main conversation state machine. Routes turns, manages session lifecycle, initiates cart updates, and triggers verification/recovery.
+* **`orchestrator_confirm.py`:** Handles the critical checkout transition:
+  * Validates confirmation nonce and cart hash fingerprints.
+  * Re-verifies live cart before initiating consequential payment actions.
+  * Enforces server-side execution locks.
+* **`orchestrator_choice.py`:** Handles user ambiguity decisions:
+  * Translates recovery outcomes into numbered decision options.
+  * Processes user option selections (`handle_choice`).
+  * Handles conversational item swaps and item removal requests.
+* **`orchestrator_tracking.py`:** Post-order delivery tracking:
+  * Polls pending UPI payment confirmations.
+  * Fetches real-time delivery status, ETA, and rider GPS coordinates.
+* **`orchestrator_address.py`:** Address management:
+  * Fetches and matches delivery addresses.
+  * Enforces provider-reported delivery-address serviceability.
+  * Caches customer address selection across turns.
+* **`orchestrator_payment.py`:** Payment method selection:
+  * Discovers available payment options (UPI, Cash, Cards, Wallets).
+  * Selects preferred payment methods based on stored user preferences.
+* **`stages/items_stage.py`:** Item resolution pipeline:
+  * Concurrently searches catalog for requested items via `CommercePort`.
+  * Ranks candidates by pack size alignment, category, and unit economics.
+  * Assigns explicit catalog-dependent `ResolvedMeaning`.
+* **`formatters.py`:** Pure presentation layer formatting WhatsApp conversational messages, interactive decision prompts, and order receipts.
+
+### 4.4 Intent Verifier & Recovery Engine (`backend/intent/`)
+* **`verifier.py` (`IntentVerifier`):** Deterministic audit comparing active cart against `IntentContract`:
+  * Verifies item presence, pack sizes, quantities, and brand restrictions.
+  * Checks total cost against max budget and minimum order thresholds.
+  * Categorizes discrepancies into hard violations and soft deviations.
+* **`recovery.py` (`LoopingRecoveryEngine`):** Bounded replanning engine (max 3 iterations):
+  * Coordinates auto-recovery vs user clarification based on user autonomy policy.
+* **`recovery_strategies.py`:** Concrete recovery handlers:
+  * `handle_transient_error`: Safe exponential backoff for network/provider hiccups.
+  * `handle_min_order_failure`: Automatically appends staple items from user history to cross threshold.
+  * `handle_budget_drift`: Replaces expensive variants with budget-friendly alternatives.
+  * `handle_item_or_brand_unavailable`: Discovers alternative pack sizes or permitted substitute brands.
+* **`recovery_candidates.py`:** Variant scoring, multi-factor ranking, and hard-constraint filtering for candidate replacements.
+
+### 4.5 Commerce Layer (`backend/integrations/commerce/`)
+* **`port.py` (`CommercePort`):** Abstract provider interface defining contracts for:
+  * `get_addresses()`, `search_products()`, `get_go_to_items()`
+  * `get_cart()`, `update_cart()`, `clear_cart()`
+  * `get_payment_options()`, `checkout()`
+  * `get_delivery_tracking()`, `get_order_details()`
+* **`swiggy_adapter.py` (`SwiggyMCPAdapter`):** Production quick-commerce adapter:
+  * Scopes calls to authenticated customer context (`customer_id`).
+  * Enforces non-idempotent checkout guards.
+* **`swiggy_client.py`:** High-performance JSON-RPC 2.0 transport over HTTPX:
+  * Integrates with `SwiggyTokenVault` for bearer token injection.
+  * Normalizes upstream HTTP / JSON-RPC error codes into typed `CommerceError` hierarchy.
+* **`swiggy_parsers.py`:** Provider payload parsing (addresses, items, bills, tracking payloads).
+* **`swiggy_normalizers.py`:** Builds canonical `CommerceCart` and `CommerceOrderResult` instances from provider responses.
+* **`mock_adapter.py`:** Deterministic local adapter supporting controllable failure injection for test suites.
+
+### 4.6 Authentication & Identity (`backend/integrations/commerce/` & `backend/api/`)
+* **OAuth 2.1 with PKCE (`oauth.py`):** Compliant RFC 7636 authorization code flow:
+  * High-entropy `code_verifier` and SHA-256 `code_challenge`.
+  * Secure callback handling and exchange with Swiggy auth servers.
+* **`token_vault.py` (`SwiggyTokenVault`):** Development token cache pending durable encrypted storage:
+  * Masks credentials in memory and logs.
+  * Uses local disk only for development continuity; it is not deployment durability.
+* **Pseudonymous Identity Mapping:** WhatsApp phone numbers are hashed using HMAC-SHA256 with `WHATSAPP_APP_SECRET` to produce stable, privacy-preserving `cust_wa_...` customer keys.
+
+---
+
+## 5. State Model & Conversation Lifecycle
+
+```text
+[ INITIAL / READY ]
+        │
+        ▼ (User sends message: "milk and eggs")
+[ CART_BUILDING ]
+        │
+        ▼ (Items resolved & added to cart)
+[ VERIFYING ]
+        ├── Pass ──► [ AWAITING_CONFIRMATION ]
+        └── Fail ──► [ RECOVERING ]
                             │
-                            ▼
-                 CONVERSATION / AGENT LAYER
-                            │
-                            ▼
-                      INTENT PARSER
-                            │
-                            ▼
-                    INTENT CONTRACT
-                            │
-             ┌──────────────┴──────────────┐
-             │                             │
-             ▼                             ▼
-       POLICY / MEMORY              CLARIFICATION
-             │                             │
-             └──────────────┬──────────────┘
-                            ▼
-                   CUSTOMER COMMERCE SERVICE
-                     (GrocerOrchestrator)
-                            │
-                            ▼
-                      COMMERCE PORT
-                       /          \
-                      /            \
-             MOCK ADAPTER      SWIGGY MCP ADAPTER
-                      \            /
-                       \          /
-                        ▼        ▼
-                         COMMERCE STATE
-                              │
-                              ▼
-                       INTENT VERIFIER
-                              │
-                 ┌────────────┴────────────┐
-                 │                         │
-                PASS                      FAIL
-                 │                         │
-                 ▼                         ▼
-          APPROVAL / CONTINUE       RECOVERY ENGINE
-                 │                         │
-                 │                   REPLAN / SUBSTITUTE /
-                 │                   REPAIR / CLARIFY
-                 │                         │
-                 └──────────────┬──────────┘
-                                ▼
-                           VERIFY AGAIN
-                                │
-                                ▼
-                    EXPLICIT CHECKOUT APPROVAL
-                                │
-                                ▼
-                             CHECKOUT
-                                │
-                                ▼
-                         OUTCOME VERIFICATION
+            ┌───────────────┴───────────────┐
+            ▼                               ▼
+    [ Auto-Recovered ]             [ NEEDS_DECISION ]
+            │                               │
+            ▼ (Verify again)                ▼ (User picks option)
+   [ AWAITING_CONFIRMATION ]◄───────────────┘
+            │
+            ▼ (User confirms: "yes order it")
+   [ CHECKOUT_LOCKED ]
+            │
+            ▼ (Server-side checkout call)
+   [ ORDERED / PAYMENT_PENDING ]
+            │
+            ▼ (Track delivery / Rider)
+   [ COMPLETED ]
 ```
 
-## 3. Architecture principles
+---
 
-### 3.1 Intent is the source of truth for the user's goal
+## 6. Safety & Security Invariants
 
-The live cart can change. The `IntentContract` captures what the user actually asked for.
+1. **Zero Credential Exposure:** Bearer tokens, secrets, and auth headers are never logged or returned to frontend/chat surfaces.
+2. **Server-Side Authorization Boundary:** No LLM prompt or UI action can bypass server-side checkout validation.
+3. **No Unverified Success Claims:** An order is reported as placed only when confirmed by the commerce provider with an authoritative order ID.
+4. **No Empty or Sub-Zero Checkouts:** Zero-item carts and invalid totals are blocked before provider transmission.
+5. **Bounded Execution:** Recovery loops are strictly limited to prevent infinite replanning cycles.
 
-### 3.2 Backend is authoritative
+---
 
-The backend owns session state, intent, policies, commerce operations, verification, recovery state, and checkout authorization.
+## 7. Technology Stack
 
-The frontend is a presentation/conversation surface and must not become a competing authority.
-
-### 3.3 Deterministic enforcement beats LLM confidence
-
-```text
-LLM
-  → interprets language
-  → proposes actions
-  → communicates
-
-Deterministic services
-  → enforce hard constraints
-  → verify cart state
-  → calculate totals
-  → enforce authorization
-  → classify failures
-  → control retries
-  → verify outcomes
-```
-
-### 3.4 Provider isolation
-
-All Swiggy-specific MCP tool calls remain inside `SwiggyMCPAdapter`.
-
-Higher layers depend on `CommercePort` rather than raw provider APIs.
-
-The port carries a provider-neutral payment-option ID and kind. The Swiggy adapter alone maps those values to intentApp or generateUPIQR. Provider response field names remain adapter details.
-
-### 3.5 Consequential lifecycle
-
-    verified basket
-      -> one-time nonce + material fingerprint
-      -> explicit user confirmation
-      -> checkout exactly once in one process
-      -> PAYMENT_PENDING / PARTIAL_ORDER / ORDERED / ORDER_STATE_UNKNOWN
-      -> provider-paced payment observation
-      -> confirm_order only after verified payment success
-
-Unknown checkout outcomes consume the approval and prevent blind retry. This is a single-process safety boundary, not a durable multi-worker idempotency claim.
-
-## 4. Major modules
-
-### Conversation / WhatsApp layer
-
-Responsibilities:
-
-- receive the user's natural-language request;
-- show proactive replenishment messages;
-- present recovery/clarification decisions;
-- show cart and approval state;
-- communicate final outcome.
-
-It must not enforce hard commerce rules by itself.
-
-### Intent layer
-
-Responsibilities:
-
-- parse goal;
-- normalize requested items;
-- distinguish hard constraints from soft preferences;
-- capture budget, quantity, pack size, brand, dietary and substitution requirements;
-- identify ambiguity;
-- maintain intent versioning.
-
-### Policy / memory layer
-
-Responsibilities:
-
-- store durable soft preferences;
-- apply precedence rules;
-- produce permitted substitution/recovery policies.
-
-Precedence:
-
-```text
-current explicit request
-    > current session choice
-    > stored soft preference
-    > default
-```
-
-### Customer Commerce Service (GrocerOrchestrator)
-
-Coordinates the consumer workflow without exposing provider details upward.
-
-*(Resolution A: The legacy v1 `CustomerService` was intentionally collapsed into `GrocerOrchestrator` (`backend/intent/orchestrator.py`) as the sole approved v2 application boundary communicating directly with `CommercePort`.)*
-
-It delegates commerce operations through `CommercePort`.
-
-### CommercePort
-
-Abstract boundary for:
-
-- addresses;
-- product discovery;
-- cart reads/writes;
-- payment/checkout state where supported;
-- order details/tracking where supported.
-
-Implementations currently include:
-
-- `MockCommerceAdapter`;
-- `SwiggyMCPAdapter`.
-
-### Intent Verifier
-
-Compares current commerce state against the intent contract after meaningful mutations and before checkout.
-
-Outputs should distinguish:
-
-- hard violations;
-- soft preference deviations;
-- unresolved items;
-- budget drift;
-- stale state;
-- possible recovery paths.
-
-### Recovery Engine
-
-Consumes verifier failures and attempts a bounded path back to a valid intent state.
-
-Initial recovery classes:
-
-- unavailable product;
-- unavailable preferred brand;
-- changed pack size;
-- budget drift;
-- stale cart;
-- safely retryable transient failure;
-- partial success;
-- basket-validity/minimum-order failure where policy permits repair.
-
-### Evaluation / failure simulation
-
-Lives at the commerce boundary and domain-test layer.
-
-It is an internal reliability capability, not a separate product.
-
-## 5. State model
-
-Minimum useful conceptual state:
-
-```text
-ConversationSession
-IntentContract
-CommerceSnapshot
-ActionAttempt
-RecoveryAttempt
-ApprovalState
-OutcomeEvent
-```
-
-Persist only what is required to reason about the current task, debug failures, evaluate reliability, and preserve useful preferences.
-
-Do not introduce a heavyweight event-sourcing platform without a demonstrated need.
-
-## 6. Safety model
-
-### Checkout
-
-```text
-cart valid
-   ↓
-intent verified
-   ↓
-explicit user confirmation
-   ↓
-backend authorization check
-   ↓
-checkout
-   ↓
-verify result
-```
-
-No agent prompt can bypass the backend checkout guard.
-
-### Recovery
-
-Automatic recovery is allowed only when:
-
-- the action is inside the user's policy/authorization;
-- hard constraints remain satisfied;
-- the outcome can be verified;
-- retry semantics are safe.
-
-Otherwise the agent asks the user or terminates safely.
-
-## 7. Failure handling
-
-The system must distinguish:
-
-```text
-BUSINESS FAILURE
-STALE STATE
-TRANSIENT FAILURE
-PROVIDER REJECTION
-AUTH FAILURE
-PARTIAL SUCCESS
-UNKNOWN OUTCOME
-USER AMBIGUITY
-```
-
-The adapter/domain layer normalizes raw provider behavior into stable internal semantics.
-
-Consequential operations are never blindly retried.
-
-## 8. Frontend architecture
-
-The current WhatsApp/iPhone customer experience remains the primary interface.
-
-The Intent feature should make that experience more intelligent rather than replacing it with an unrelated UI.
-
-Use concise message states such as:
-
-```text
-NORMAL
-RECOVERING
-NEEDS_DECISION
-AWAITING_APPROVAL
-SUCCESS
-FAILED
-```
-
-Do not rebuild the removed dark-store cockpit inside GROCER.
-
-## 9. Repository boundary
-
-### Keep and extend
-
-- `components/customer/`
-- WhatsApp demo/interaction components where they support the customer experience
-- `GrocerOrchestrator` (`backend/intent/orchestrator.py`, collapsing legacy `CustomerService`)
-- `backend/integrations/commerce/`
-- `CommercePort`
-- `MockCommerceAdapter`
-- `SwiggyMCPAdapter`
-- commerce exceptions/models
-- checkout authorization guard
-
-### Clean or isolate
-
-- dark-store-only routes;
-- stale operations services/models;
-- frontend mutations of fake operational inventory caused by customer checkout;
-- documentation that claims both systems belong to GROCER.
-
-Cleanup must be incremental and evidence-driven.
-
-## 10. Technology posture
-
-Use the existing Next.js + React + TypeScript frontend and Python + FastAPI backend.
-
-Use the existing agent framework where useful. Do not introduce microservices or a new orchestration stack merely because the product is being extended.
-
-## 11. Architectural non-goals
-
-Do not optimize for:
-
-- enterprise-scale distributed infrastructure;
-- speculative multi-provider commerce;
-- generic autonomous purchasing;
-- real-world dark-store simulation;
-- UI theatre;
-- a giant ML planner.
-
-The architecture exists to make one thing reliable:
-
-> **preserve the user's intent while commerce state changes.**
+* **Backend Framework:** FastAPI / Python 3.12 (Pydantic v2, HTTPX, Pytest)
+* **Frontend Surface:** Next.js 16 (React 19, Tailwind CSS v4, TypeScript)
+* **Commerce Protocol:** Model Context Protocol (MCP) JSON-RPC 2.0 / HTTP
+* **Messaging Surface:** Meta WhatsApp Business Cloud API Webhooks
+* **AI / Reasoning:** Google Gemini API (Structured Output Extraction)

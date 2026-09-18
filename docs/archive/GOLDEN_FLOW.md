@@ -1,6 +1,6 @@
 # GROCER v2 — Flagship Golden Flow: Intent-Preserving Grocery Replenishment
 
-> **Product Authority:** `GROCER_V2_MASTER_SPEC.md` §11, §12, §15, §17, §20  
+> **Product Authority:** `GROCER_V2_MASTER_SPEC.md` Section 11, Section 12, Section 15, Section 17, Section 20  
 > **Repository:** `kwakhare5/Grocer`  
 > **Branch:** `refactor/intent-cleanroom`  
 > **Date:** 2026-09-06  
@@ -17,7 +17,7 @@ In traditional conversational commerce:
 - When live commerce state drifts from user instructions, the chatbot has no formal concept of an **Intent Contract** or **Deterministic Verification Gate**.
 
 ### The GROCER Solution
-1. **LLM interprets and proposes. Deterministic code enforces and verifies.** (Spec §12.3)
+1. **LLM interprets and proposes. Deterministic code enforces and verifies.** (Spec Section 12.3)
 2. **Intent Contract:** Natural language requests are converted into an immutable machine-readable contract capturing requested items, hard constraints (budget, dietary invariants), and soft preferences (usual brands).
 3. **Intent Verifier:** A deterministic rules engine that audits live `CommercePort` cart state against the Intent Contract before any user approval or checkout.
 4. **Bounded Recovery Engine:** When commerce faults occur (e.g. OOS, price surges, brand drift), a bounded 10-step recovery loop automatically generates, filters, and applies safe substitutions or solicits structured user decisions.
@@ -118,7 +118,7 @@ sequenceDiagram
    - **Step 7 (Isolation):** Unrelated items (`britannia_wheat_400g` and `fresh_hybrid_tomatoes_500g`) are strictly preserved.
 7. **Re-Verification:**  
    `IntentVerifier` re-evaluates the live cart from `CommercePort`. All constraints pass. State transitions to `AWAITING_CONFIRMATION`.
-8. **Explicit Confirmation Double-Gate (Spec §8.3, §17):**  
+8. **Explicit Confirmation Double-Gate (Spec Section 8.3, Section 17):**  
    The user receives a WhatsApp breakdown showing the substitution badge and price comparison.
    - Any attempt to call checkout with `explicit_confirmation=False` returns HTTP 400 (`UnconfirmedCheckoutError`).
    - Any attempt to call checkout when state is not `AWAITING_CONFIRMATION` is rejected.
@@ -130,7 +130,7 @@ sequenceDiagram
 ## 4. Canonical Recovery Loop & Automated Test Verification
 
 ### Canonical Recovery Engine Architecture
-In accordance with Spec §10 and §12, the recovery loop has been consolidated into **ONE single canonical implementation**:
+In accordance with Spec Section 10 and Section 12, the recovery loop has been consolidated into **ONE single canonical implementation**:
 - **Source of Truth:** `LoopingRecoveryEngine.run()` in `backend/intent/recovery_loop.py`.
 - **Delegation:** `execute_recovery()` is a backward-compatible adapter delegating directly to `self.run()`.
 - **Production Orchestrator:** `GrocerOrchestrator` directly invokes `LoopingRecoveryEngine.run()`.

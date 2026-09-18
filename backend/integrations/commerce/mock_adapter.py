@@ -117,6 +117,29 @@ MOCK_PRODUCTS: list[CommerceProductItem] = [
             ),
         ],
     ),
+    CommerceProductItem(
+        product_id="prod-coke",
+        name="Coca-Cola (Coke) Original Taste",
+        category="beverages",
+        variants=[
+            ProductVariant(
+                spin_id="SPIN-COKE-CAN",
+                name="Coca-Cola (Coke) Can (300 ml)",
+                pack_size="300 ml",
+                price=40.0,
+                mrp=40.0,
+                in_stock=True,
+            ),
+            ProductVariant(
+                spin_id="SPIN-COKE-750ML",
+                name="Coca-Cola (Coke) Bottle (750 ml)",
+                pack_size="750 ml",
+                price=45.0,
+                mrp=45.0,
+                in_stock=True,
+            ),
+        ],
+    ),
 ]
 
 MOCK_ADDRESSES = [
@@ -168,7 +191,7 @@ class MockCommerceAdapter(CommercePort):
                 self._catalog_by_spin[variant.spin_id] = (prod, variant)
 
     # -----------------------------------------------------------------------
-    # Deterministic Failure Injection Hooks (Spec §15, §20)
+    # Deterministic Failure Injection Hooks (Spec Section 15, Section 20)
     # -----------------------------------------------------------------------
 
     def inject_out_of_stock(self, spin_id: str) -> None:
@@ -328,7 +351,7 @@ class MockCommerceAdapter(CommercePort):
                 raise ItemOutOfStockError(spin_id=update.spin_id, available_quantity=0)
 
             prod, variant = self._catalog_by_spin[update.spin_id]
-            if not variant.in_stock or update.spin_id in self._injected_oos:
+            if variant.in_stock is False or update.spin_id in self._injected_oos:
                 raise ItemOutOfStockError(spin_id=update.spin_id, available_quantity=0)
 
             price = self._price_overrides.get(variant.spin_id, variant.price)
@@ -336,6 +359,7 @@ class MockCommerceAdapter(CommercePort):
             cart_items.append(
                 CartItem(
                     spin_id=variant.spin_id,
+                    sku_id=update.sku_id or variant.sku_id,
                     name=variant.name,
                     pack_size=variant.pack_size,
                     unit_price=price,

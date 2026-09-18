@@ -1,11 +1,11 @@
-"""Preference Store — durable per-customer memory (Spec §7).
+"""Preference Store — durable per-customer memory (Spec Section 7).
 
 Stores normalized preference information (brands, pack sizes, substitution
 history, recurring patterns) to reduce repetitive conversation. Preferences
 never override an explicit current request — precedence is enforced by
 IntentContract.apply_memory() (Phase 1).
 
-Rules (Spec §7.2):
+Rules (Spec Section 7.2):
     Do not store as permanent preference:
     - old prices
     - stale availability
@@ -46,7 +46,7 @@ class StoredPreference(BaseModel):
         return self.evidence_count >= 2 and self.is_durable
 
 
-# Categories that should NOT be stored as permanent preferences (Spec §7.2)
+# Categories that should NOT be stored as permanent preferences (Spec Section 7.2)
 _NON_STORABLE_TYPES: set[str] = {
     "price",           # old prices
     "availability",    # stale availability
@@ -59,7 +59,7 @@ _NON_STORABLE_TYPES: set[str] = {
 # ---------------------------------------------------------------------------
 
 class PreferenceStore:
-    """Per-customer durable preference memory (Spec §7).
+    """Per-customer durable preference memory (Spec Section 7).
 
     Thread-safe in-memory store. In production this would be backed by a
     database, but the interface remains the same.
@@ -77,7 +77,7 @@ class PreferenceStore:
         """Record or update a customer preference.
 
         If the preference already exists, increments evidence_count and updates
-        last_used_at. Rejects non-storable types (Spec §7.2).
+        last_used_at. Rejects non-storable types (Spec Section 7.2).
 
         Returns the stored preference (may have updated evidence_count).
         """
@@ -139,7 +139,7 @@ class PreferenceStore:
         return result
 
     def clear_stale(self, customer_id: str, max_age_days: int = 90) -> int:
-        """Remove preferences older than the threshold (Spec §7.2).
+        """Remove preferences older than the threshold (Spec Section 7.2).
 
         Returns the number of preferences removed.
         """
@@ -160,7 +160,7 @@ class PreferenceStore:
 
     @staticmethod
     def should_not_store(preference: StoredPreference) -> bool:
-        """Check if a preference should be rejected per Spec §7.2.
+        """Check if a preference should be rejected per Spec Section 7.2.
 
         Rejects:
             - price-type preferences (old prices)

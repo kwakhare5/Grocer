@@ -7,71 +7,6 @@ from typing import Optional
 from pydantic import BaseModel, ConfigDict, Field
 
 
-class CommerceAdapterInfoResponse(BaseModel):
-    adapter_type: str
-    endpoint: str
-    mode: str
-
-
-class CommerceDeliveryAddressResponse(BaseModel):
-    id: str
-    label: str
-    street: str
-    city: str
-    postal_code: str
-    latitude: Optional[float] = None
-    longitude: Optional[float] = None
-    is_serviceable: Optional[bool] = None
-
-
-class CommerceProductVariantResponse(BaseModel):
-    spin_id: str
-    name: str
-    pack_size: str
-    price: float
-    mrp: float
-    in_stock: Optional[bool] = None
-
-
-class CommerceProductItemResponse(BaseModel):
-    product_id: str
-    name: str
-    category: str
-    variants: list[CommerceProductVariantResponse]
-    image_url: Optional[str] = None
-
-
-class CommerceCartItemResponse(BaseModel):
-    spin_id: str
-    name: str
-    pack_size: str
-    unit_price: float
-    quantity: int
-    total_price: float
-
-
-class CommerceCartResponse(BaseModel):
-    cart_id: str
-    address_id: Optional[str] = None
-    items: list[CommerceCartItemResponse] = Field(default_factory=list)
-    item_total: float = 0.0
-    delivery_fee: float = 0.0
-    packaging_fee: float = 0.0
-    discount: float = 0.0
-    grand_total: float = 0.0
-    is_serviceable: Optional[bool] = None
-
-
-class CartItemUpdatePayload(BaseModel):
-    spin_id: str
-    quantity: int = Field(ge=0)
-
-
-class CommerceCartUpdateRequest(BaseModel):
-    items: list[CartItemUpdatePayload]
-    address_id: Optional[str] = None
-
-
 class CommercePaymentOptionResponse(BaseModel):
     method: str
     label: str
@@ -79,33 +14,6 @@ class CommercePaymentOptionResponse(BaseModel):
     description: Optional[str] = None
     id: Optional[str] = None
     kind: Optional[str] = None
-
-
-class CommerceCheckoutRequest(BaseModel):
-    payment_method: str = "UPI"
-    explicit_confirmation: bool = False
-    address_id: Optional[str] = None
-
-
-class CommerceOrderResultResponse(BaseModel):
-    order_id: str
-    cart_id: str
-    status: str
-    items: list[CommerceCartItemResponse] = Field(default_factory=list)
-    payment_method: str
-    grand_total: float
-    delivery_address: CommerceDeliveryAddressResponse
-    placed_at: datetime
-    tracking_url: Optional[str] = None
-
-
-class CommerceTrackingResponse(BaseModel):
-    order_id: str
-    status: str
-    eta_minutes: int
-    driver_name: Optional[str] = None
-    driver_phone: Optional[str] = None
-    last_updated_at: datetime
 
 
 class IntentChatRequest(BaseModel):

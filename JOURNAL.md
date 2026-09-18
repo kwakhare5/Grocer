@@ -15,8 +15,14 @@ During the Session End ritual (called automatically whenever significant changes
 
 ## Log Entries
 
-### [GROCER — Typography Consolidation & Google Font Lora Integration] 2026-09-07
+### [GROCER — Live WhatsApp Cloud API Verification & Typography Consolidation] 2026-09-07
 
+- **Live WhatsApp Cloud API Bidirectional Verification**: Fully wired and verified Meta WhatsApp Cloud API sandbox (`+1 555 663-XXXX`) with the user's registered WhatsApp (`+91 82378 XXXXX`). Verified the entire shopping loop in a live chat on mobile:
+  - User NL message (`Need milk and bread under ₹200`) → `GrocerOrchestrator` intent extraction & live store inventory check.
+  - Interactive WhatsApp Quick Reply confirmation buttons: `[ Confirm Order ]` and `[ Change Items ]`.
+  - Double-gated order checkout returning live confirmation: *"Order placed! ₹119. Your order ID is OD-68355847. Delivering soon. 🛵"*.
+  - Autonomous out-of-stock recovery rendering interactive WhatsApp List Picker (`[ ☰ Select Alternative ]`) with milk variants (Amul Taaza 1L vs 500ml).
+  - Configured local reverse tunnel (`https://grocer-bot-live.loca.lt`) and subscribed `messages` v26.0 on Meta Graph API with valid HMAC-SHA256 signature verification.
 - **Typography Consolidation**: Standardized the application across three deliberate typography layers: `Geist Sans` for conversational bubbles and UI controls, `Geist Mono` for telemetry, prices, and IDs, and Google Font `Lora` for brand and section headlines.
 - **Font Purge & Bundle Cleanup**: Permanently deleted local OTF fonts `TWKLausannePan-800.otf`, `PPEditorialNew-Regular-BF644b214ff145f.otf`, `PPEditorialNew-Ultrabold-BF644b21500840c.otf`, and `PPEditorialNew-Ultralight-BF644b21500d0c0.otf`.
 - **CSS & Token Modernization**: Configured `Lora` via `next/font/google` in `app/layout.tsx` (`--font-lora`), updated `--font-editorial` to point to `var(--font-lora)`, and cleaned `@font-face` rules in `app/globals.css`.

@@ -15,8 +15,13 @@ import hashlib
 import hmac
 import logging
 import time
+import os
+from pathlib import Path
 from typing import Any, Optional
+from dotenv import load_dotenv
 import httpx
+
+load_dotenv(dotenv_path=Path(__file__).resolve().parent.parent.parent / ".env")
 
 from backend.channels.base import BaseChannelAdapter
 from backend.channels.models import (
@@ -35,16 +40,16 @@ class WhatsAppChannelAdapter(BaseChannelAdapter):
 
     def __init__(
         self,
-        verify_token: str = "grocer_whatsapp_verify_token",
+        verify_token: Optional[str] = None,
         app_secret: Optional[str] = None,
         phone_number_id: Optional[str] = None,
         access_token: Optional[str] = None,
         timeout: float = 10.0,
     ) -> None:
         super().__init__(channel_type=ChannelType.WHATSAPP)
-        self.verify_token = verify_token
-        self.app_secret = app_secret
-        self.phone_number_id = phone_number_id
+        self._verify_token = verify_token
+        self._app_secret = app_secret
+        self._phone_number_id = phone_number_id
         self._access_token = access_token
         self.timeout = timeout
 
@@ -53,8 +58,28 @@ class WhatsAppChannelAdapter(BaseChannelAdapter):
         # Record of outbound messages for testing and inspection
         self.outbound_messages: list[dict[str, Any]] = []
 
+    @property
+    def verify_token(self) -> str:
+        return self._verify_token or os.environ.get("WHATSAPP_VERIFY_TOKEN", "grocer_whatsapp_verify_token")
+
+    @verify_token.setter
+    def verify_token(self, val: str) -> None:
+        self._verify_token = val
+
+    @property
+    def app_secret(self) -> Optional[str]:
+        return self._app_secret or os.environ.get("WHATSAPP_APP_SECRET")
+
+    @property
+    def phone_number_id(self) -> Optional[str]:
+        return self._phone_number_id or os.environ.get("WHATSAPP_PHONE_NUMBER_ID")
+
+    @property
+    def access_token(self) -> Optional[str]:
+        return self._access_token or os.environ.get("WHATSAPP_ACCESS_TOKEN")
+
     def __repr__(self) -> str:
-        token_masked = "***" if self._access_token else "none"
+        token_masked = "***" if self.access_token else "none"
         secret_masked = "***" if self.app_secret else "none"
         return f"WhatsAppChannelAdapter(phone_id={self.phone_number_id}, token={token_masked}, secret={secret_masked})"
 
@@ -267,13 +292,13 @@ class WhatsAppChannelAdapter(BaseChannelAdapter):
         payload = self.format_whatsapp_payload(response)
         self.outbound_messages.append(payload)
 
-        if not self.phone_number_id or not self._access_token:
+        if not self.phone_number_id or not self.access_token:
             logger.info("WhatsApp credentials not set; recorded outbound message to test queue.")
             return True
 
         url = f"{META_GRAPH_API_URL}/{self.phone_number_id}/messages"
         headers = {
-            "Authorization": f"Bearer {self._access_token}",
+            "Authorization": f"Bearer {self.access_token}",
             "Content-Type": "application/json",
         }
 

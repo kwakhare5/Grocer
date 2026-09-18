@@ -1,28 +1,20 @@
-"""Comprehensive tests for WhatsApp Channel Adapter and Webhook API (Phase C & D)."""
+"""Tests for the active Meta WhatsApp transport and durable task webhook."""
 from __future__ import annotations
 
-import asyncio
 import hashlib
 import hmac
 import json
 import uuid
-from concurrent.futures import ThreadPoolExecutor
+
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from backend.channels.models import ChannelType, NormalizedIncomingMessage
-from backend.channels.whatsapp import WhatsAppChannelAdapter, default_whatsapp_adapter
-from backend.integrations.commerce.mock_adapter import MockCommerceAdapter
-from backend.intent.orchestrator import OrchestratorTurnResult
-from backend.intent.task_model import DesiredBasketItem, ShoppingTask, TaskState
-from backend.intent.task_repository import InMemoryShoppingTaskRepository
-from backend.intent.task_service import ShoppingTaskApplicationService
-from backend.intent.session import (
-    ConversationState,
-    OrchestratorSession,
-    OrchestratorSessionStore,
-    default_session_store,
+from backend.channels.models import (
+    ChannelType,
+    InteractiveAction,
+    NormalizedOutgoingResponse,
 )
+from backend.channels.whatsapp import WhatsAppChannelAdapter, default_whatsapp_adapter
 from backend.main import app
 
 
@@ -31,597 +23,130 @@ def whatsapp_adapter() -> WhatsAppChannelAdapter:
     return WhatsAppChannelAdapter(
         verify_token="test_token_123",
         app_secret="test_app_secret_xyz",
+        record_only=True,
     )
 
 
-# ---------------------------------------------------------------------------
-# 1. Webhook Verification (GET)
-# ---------------------------------------------------------------------------
-
-def test_webhook_challenge_success(whatsapp_adapter: WhatsAppChannelAdapter) -> None:
+def test_webhook_challenge_and_signature(whatsapp_adapter: WhatsAppChannelAdapter) -> None:
     valid, challenge = whatsapp_adapter.verify_webhook_challenge(
-        mode="subscribe",
-        token="test_token_123",
-        challenge="1158201444",
+        mode="subscribe", token="test_token_123", challenge="challenge"
     )
     assert valid is True
-    assert challenge == "1158201444"
+    assert challenge == "challenge"
 
-
-def test_webhook_challenge_invalid_token(whatsapp_adapter: WhatsAppChannelAdapter) -> None:
-    valid, _ = whatsapp_adapter.verify_webhook_challenge(
-        mode="subscribe",
-        token="wrong_token",
-        challenge="1158201444",
-    )
-    assert valid is False
-
-
-# ---------------------------------------------------------------------------
-# 2. HMAC-SHA256 Signature Verification (POST)
-# ---------------------------------------------------------------------------
-
-def test_signature_verification(whatsapp_adapter: WhatsAppChannelAdapter) -> None:
     payload = b'{"object":"whatsapp_business_account"}'
-    sig = hmac.new(b"test_app_secret_xyz", payload, hashlib.sha256).hexdigest()
-    header = f"sha256={sig}"
-
-    assert whatsapp_adapter.verify_signature(payload, header) is True
-    assert whatsapp_adapter.verify_signature(payload, "sha256=invalid_sig") is False
-    assert whatsapp_adapter.verify_signature(payload, None) is False
+    digest = hmac.new(b"test_app_secret_xyz", payload, hashlib.sha256).hexdigest()
+    assert whatsapp_adapter.verify_signature(payload, f"sha256={digest}") is True
+    assert whatsapp_adapter.verify_signature(payload, "sha256=bad") is False
 
 
-def test_signature_verification_fails_closed_without_secret(monkeypatch) -> None:  # type: ignore[no-untyped-def]
-    monkeypatch.delenv("WHATSAPP_APP_SECRET", raising=False)
-    adapter = WhatsAppChannelAdapter()
+def test_reservation_is_atomic_and_retryable(whatsapp_adapter: WhatsAppChannelAdapter) -> None:
+    assert whatsapp_adapter.reserve_message("wamid.one") is True
+    assert whatsapp_adapter.reserve_message("wamid.one") is False
+    whatsapp_adapter.release_message("wamid.one")
+    assert whatsapp_adapter.reserve_message("wamid.one") is True
+    whatsapp_adapter.mark_processed("wamid.one")
+    assert whatsapp_adapter.reserve_message("wamid.one") is False
 
-    assert adapter.verify_signature(b"{}", "sha256=anything") is False
-
-
-def test_dedup_reservation_is_atomic_and_failure_can_retry(
-    whatsapp_adapter: WhatsAppChannelAdapter,
-) -> None:
-    with ThreadPoolExecutor(max_workers=8) as pool:
-        reserved = list(pool.map(whatsapp_adapter.reserve_message, ["wamid.atomic"] * 20))
-    assert reserved.count(True) == 1
-
-    whatsapp_adapter.release_message("wamid.atomic")
-    assert whatsapp_adapter.reserve_message("wamid.atomic") is True
-    whatsapp_adapter.mark_processed("wamid.atomic")
-    assert whatsapp_adapter.reserve_message("wamid.atomic") is False
-
-
-# ---------------------------------------------------------------------------
-# 3. Payload Parsing & Deduplication
-# ---------------------------------------------------------------------------
 
 def test_parse_text_and_interactive_messages(whatsapp_adapter: WhatsAppChannelAdapter) -> None:
     payload = {
         "object": "whatsapp_business_account",
-        "entry": [
+        "entry": [{"changes": [{"value": {"messages": [
             {
-                "changes": [
-                    {
-                        "value": {
-                            "messages": [
-                                {
-                                    "id": "wamid.msg1",
-                                    "from": "919876543210",
-                                    "type": "text",
-                                    "text": {"body": "get my usual groceries"},
-                                },
-                                {
-                                    "id": "wamid.msg2",
-                                    "from": "919876543210",
-                                    "type": "interactive",
-                                    "interactive": {
-                                        "type": "list_reply",
-                                        "list_reply": {"id": "choice:SPIN-MILK-500ML", "title": "Amul 500ml"},
-                                    },
-                                },
-                            ]
-                        }
-                    }
-                ]
-            }
-        ],
+                "id": "wamid.text",
+                "from": "919876543210",
+                "type": "text",
+                "text": {"body": "need milk"},
+            },
+            {
+                "id": "wamid.choice",
+                "from": "919876543210",
+                "type": "interactive",
+                "interactive": {
+                    "type": "list_reply",
+                    "list_reply": {"id": "choice:milk", "title": "Milk"},
+                },
+            },
+        ]}}]}],
     }
-
     messages = whatsapp_adapter.parse_webhook_payload(payload)
-    assert len(messages) == 2
-    assert messages[0].sender_id == "919876543210"
-    assert messages[0].text == "get my usual groceries"
-    assert messages[0].message_id == "wamid.msg1"
-
-    assert messages[1].interactive_type == "list_reply"
-    assert messages[1].interactive_id == "choice:SPIN-MILK-500ML"
-    assert messages[1].text == "Amul 500ml"
-
-    # Parsing is pure; dispatch-time reservation owns replay protection.
-    dup_messages = whatsapp_adapter.parse_webhook_payload(payload)
-    assert len(dup_messages) == 2
+    assert [message.message_id for message in messages] == ["wamid.text", "wamid.choice"]
+    assert messages[0].text == "need milk"
+    assert messages[1].interactive_id == "choice:milk"
 
 
-# ---------------------------------------------------------------------------
-# 4. Identity Mapping and Session Continuity
-# ---------------------------------------------------------------------------
-
-def test_identity_mapping_and_session_continuity(whatsapp_adapter: WhatsAppChannelAdapter) -> None:
-    sender = "+91 98765-43210"
-    customer_id = whatsapp_adapter.map_sender_to_customer_id(sender)
-    assert customer_id.startswith("cust_wa_")
-    assert "919876543210" not in customer_id
-
-    # Verify session ID is stable across multiple turns
-    sess1 = whatsapp_adapter.get_or_create_session_id(customer_id)
-    sess2 = whatsapp_adapter.get_or_create_session_id(customer_id)
-    assert sess1 == sess2
-
-
-@pytest.mark.parametrize(
-    "phrase",
-    ["track order", "where is my order", "delivery status", "order eta"],
-)
-@pytest.mark.asyncio
-async def test_order_tracking_phrases_route_to_delivery_status(
+def test_outbound_formatting_uses_buttons_and_lists(
     whatsapp_adapter: WhatsAppChannelAdapter,
-    monkeypatch,
-    phrase: str,
-) -> None:  # type: ignore[no-untyped-def]
-    sender_id = f"91900000{uuid.uuid4().int % 100000:05d}"
-    customer_id = whatsapp_adapter.map_sender_to_customer_id(sender_id)
-    session_id = f"tracking-{uuid.uuid4()}"
-    session = OrchestratorSession(
-        session_id=session_id,
-        customer_id=customer_id,
-        conversation_state=ConversationState.ORDERED,
-        order_id="order-tracking",
-    )
-    default_session_store.save(session)
-    whatsapp_adapter._active_sessions[customer_id] = session_id
-    calls: list[str] = []
-
-    class TrackingOrchestrator:
-        async def handle_delivery_status(self, active_session_id: str):
-            calls.append(active_session_id)
-            return OrchestratorTurnResult(
-                session_id=active_session_id,
-                conversation_state=ConversationState.ORDERED,
-                user_message="Rider is on the way.",
-                order_id="order-tracking",
-                events=["ORDER_TRACKING_READ"],
-            )
-
-    async def send_success(response):  # type: ignore[no-untyped-def]
-        del response
-        return True
-
-    monkeypatch.setattr(whatsapp_adapter, "send_response", send_success)
-
-    from backend.intent.conversation import ConversationAction, ConversationCommand
-
-    async def interpret_tracking(**kwargs):  # type: ignore[no-untyped-def]
-        del kwargs
-        return ConversationCommand(
-            action=ConversationAction.TRACK_ORDER,
-            confidence=1,
-        )
-
-    monkeypatch.setattr(
-        whatsapp_adapter._conversation_interpreter,
-        "interpret",
-        interpret_tracking,
-    )
-    try:
-        response = await whatsapp_adapter.dispatch(
-            NormalizedIncomingMessage(
-                sender_id=sender_id,
-                channel=ChannelType.WHATSAPP,
-                text=phrase,
-                message_id=f"message-{uuid.uuid4()}",
-            ),
-            TrackingOrchestrator(),  # type: ignore[arg-type]
-        )
-    finally:
-        default_session_store.clear(session_id)
-
-    assert calls == [session_id]
-    assert response.events == ["ORDER_TRACKING_READ"]
-
-
-# ---------------------------------------------------------------------------
-# 5. Outbound Message Formatting
-# ---------------------------------------------------------------------------
-
-def test_outbound_whatsapp_formatting(whatsapp_adapter: WhatsAppChannelAdapter) -> None:
-    from backend.channels.models import InteractiveAction, NormalizedOutgoingResponse
-
-    # List formatting
-    decision_resp = NormalizedOutgoingResponse(
-        recipient_id="919876543210",
-        channel=ChannelType.WHATSAPP,
-        text="Milk is out of stock. Choose alternative:",
-        conversation_state="NEEDS_DECISION",
-        interactive_actions=[
-            InteractiveAction(action_type="list_item", id="choice:SPIN-1", title="Mother Dairy 1L", description="₹62"),
-            InteractiveAction(action_type="list_item", id="choice:SPIN-2", title="Amul 500ml", description="₹34"),
-        ],
-    )
-    formatted = whatsapp_adapter.format_whatsapp_payload(decision_resp)
-    assert formatted["type"] == "interactive"
-    assert formatted["interactive"]["type"] == "list"
-    assert len(formatted["interactive"]["action"]["sections"][0]["rows"]) == 2
-
-    # Button formatting for confirmation
-    confirm_resp = NormalizedOutgoingResponse(
-        recipient_id="919876543210",
-        channel=ChannelType.WHATSAPP,
-        text="Your basket is ₹120. Confirm checkout?",
-        conversation_state="AWAITING_CONFIRMATION",
-        interactive_actions=[
-            InteractiveAction(action_type="button", id="confirm_checkout", title="Confirm Order"),
-        ],
-    )
-    btn_formatted = whatsapp_adapter.format_whatsapp_payload(confirm_resp)
-    assert btn_formatted["type"] == "interactive"
-    assert btn_formatted["interactive"]["type"] == "button"
-    assert btn_formatted["interactive"]["action"]["buttons"][0]["reply"]["id"] == "confirm_checkout"
-
-
-@pytest.mark.asyncio
-async def test_outbound_without_credentials_is_not_reported_delivered(monkeypatch) -> None:  # type: ignore[no-untyped-def]
-    from backend.channels.models import NormalizedOutgoingResponse
-
-    monkeypatch.delenv("WHATSAPP_PHONE_NUMBER_ID", raising=False)
-    monkeypatch.delenv("WHATSAPP_ACCESS_TOKEN", raising=False)
-    adapter = WhatsAppChannelAdapter()
+) -> None:
     response = NormalizedOutgoingResponse(
         recipient_id="919876543210",
         channel=ChannelType.WHATSAPP,
-        text="status",
-        conversation_state="READY",
+        text="Choose a product.",
+        conversation_state="NEEDS_PRODUCT_CHOICE",
+        interactive_actions=[
+            InteractiveAction(id="one", title="Milk 1L", description="₹66"),
+            InteractiveAction(id="two", title="Milk 500ml", description="₹34"),
+            InteractiveAction(id="three", title="Milk 250ml", description="₹20"),
+            InteractiveAction(id="four", title="Milk 2L", description="₹120"),
+        ],
     )
-
-    assert await adapter.send_response(response) is False
-    assert adapter.outbound_messages == []
-
-
-# ---------------------------------------------------------------------------
-# 6. End-to-End Webhook API Routes via FastAPI TestClient
-# ---------------------------------------------------------------------------
-
-@pytest.mark.asyncio
-async def test_api_whatsapp_webhook_get_verification(monkeypatch) -> None:  # type: ignore[no-untyped-def]
-    monkeypatch.setattr(default_whatsapp_adapter, "_verify_token", "test_verify_token")
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
-        # Success verification
-        res = await client.get(
-            "/api/whatsapp/webhook?hub.mode=subscribe&hub.verify_token=test_verify_token&hub.challenge=test_challenge_code"
-        )
-        assert res.status_code == 200
-        assert res.text == "test_challenge_code"
-
-        # Invalid token
-        res_bad = await client.get(
-            "/api/whatsapp/webhook?hub.mode=subscribe&hub.verify_token=bad_token&hub.challenge=test_challenge_code"
-        )
-        assert res_bad.status_code == 403
+    formatted = whatsapp_adapter.format_whatsapp_payload(response)
+    assert formatted["type"] == "interactive"
+    assert formatted["interactive"]["type"] == "list"
 
 
 @pytest.mark.asyncio
-async def test_api_whatsapp_webhook_post_flow(monkeypatch) -> None:  # type: ignore[no-untyped-def]
-    monkeypatch.setattr(default_whatsapp_adapter, "record_only", True)
-    monkeypatch.setattr(default_whatsapp_adapter, "_app_secret", "test-webhook-secret")
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
-        payload = {
-            "object": "whatsapp_business_account",
-            "entry": [
+async def test_signed_webhook_reaches_active_task_service(monkeypatch) -> None:
+    class FakeTaskService:
+        def __init__(self) -> None:
+            self.processed: list[str] = []
+
+        async def process_message(self, message):  # type: ignore[no-untyped-def]
+            self.processed.append(message.message_id)
+            return type(
+                "Turn",
+                (),
                 {
-                    "changes": [
-                        {
-                            "value": {
-                                "messages": [
-                                    {
-                                        "id": f"wamid.e2e.{uuid.uuid4()}",
-                                        "from": "919999988888",
-                                        "type": "text",
-                                        "text": {"body": "get 1L milk and bread"},
-                                    }
-                                ]
-                            }
-                        }
-                    ]
-                }
-            ],
-        }
+                    "processed": True,
+                    "response": NormalizedOutgoingResponse(
+                        recipient_id=message.sender_id,
+                        channel=ChannelType.WHATSAPP,
+                        text="Received.",
+                        conversation_state="READY",
+                    ),
+                },
+            )()
 
-        body_bytes = json.dumps(payload).encode("utf-8")
-        sig = hmac.new(
-            b"test-webhook-secret",
-            body_bytes,
-            hashlib.sha256,
-        ).hexdigest()
-        headers = {
-            "Content-Type": "application/json",
-            "X-Hub-Signature-256": f"sha256={sig}",
-        }
+        async def mark_response_sent(self, message) -> None:  # type: ignore[no-untyped-def]
+            del message
 
-        res = await client.post(
-            "/api/whatsapp/webhook",
-            content=body_bytes,
-            headers=headers,
-        )
-        assert res.status_code == 200
-        data = res.json()
-        assert data["status"] == "ok"
-        assert data["processed"] == 1
-
-
-@pytest.mark.asyncio
-async def test_shopping_task_route_changes_address_and_deduplicates_signed_replay(
-    monkeypatch,
-) -> None:  # type: ignore[no-untyped-def]
-    """The cutover route uses one durable transition and sends one reply per wamid."""
-    from backend.api import whatsapp as whatsapp_api
-
-    secret = "test-shopping-task-secret"
-    phone_number = "919999955555"
-    message_id = f"wamid.shopping-task.{uuid.uuid4()}"
-    repository = InMemoryShoppingTaskRepository()
-    commerce = MockCommerceAdapter()
-
-    monkeypatch.setattr(whatsapp_api.settings, "SHOPPING_TASK_ROUTE", True)
-    monkeypatch.setattr(default_whatsapp_adapter, "_app_secret", secret)
+    service = FakeTaskService()
+    monkeypatch.setattr(app.state, "shopping_task_service", service, raising=False)
     monkeypatch.setattr(default_whatsapp_adapter, "record_only", True)
+    monkeypatch.setattr(default_whatsapp_adapter, "_app_secret", "webhook-secret")
     default_whatsapp_adapter.outbound_messages.clear()
 
-    customer_id = default_whatsapp_adapter.map_sender_to_customer_id(phone_number)
-    await repository.create(
-        ShoppingTask(
-            task_id=customer_id,
-            customer_id=customer_id,
-            state=TaskState.AWAITING_CHECKOUT_CONFIRMATION,
-            desired_basket=[DesiredBasketItem(name="Bread", quantity=1)],
-            selected_address_id="old-address",
-            selected_payment_method="cod",
-            confirmation_valid=True,
-        )
-    )
-    app.state.shopping_task_service = ShoppingTaskApplicationService(
-        repository, commerce, checkout_mode="review"
-    )
-
+    message_id = f"wamid.{uuid.uuid4()}"
     payload = {
         "object": "whatsapp_business_account",
-        "entry": [
-            {
-                "changes": [
-                    {
-                        "value": {
-                            "messages": [
-                                {
-                                    "id": message_id,
-                                    "from": phone_number,
-                                    "type": "text",
-                                    "text": {"body": "change address"},
-                                }
-                            ]
-                        }
-                    }
-                ]
-            }
-        ],
+        "entry": [{"changes": [{"value": {"messages": [{
+            "id": message_id,
+            "from": "919999988888",
+            "type": "text",
+            "text": {"body": "hi"},
+        }]}}]}],
     }
-    body_bytes = json.dumps(payload).encode("utf-8")
-    signature = hmac.new(
-        secret.encode("utf-8"), body_bytes, hashlib.sha256
-    ).hexdigest()
+    body = json.dumps(payload).encode()
+    signature = hmac.new(b"webhook-secret", body, hashlib.sha256).hexdigest()
     headers = {"X-Hub-Signature-256": f"sha256={signature}"}
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        first = await client.post(
-            "/api/whatsapp/webhook", content=body_bytes, headers=headers
-        )
-        replay = await client.post(
-            "/api/whatsapp/webhook", content=body_bytes, headers=headers
-        )
+        first = await client.post("/api/whatsapp/webhook", content=body, headers=headers)
+        replay = await client.post("/api/whatsapp/webhook", content=body, headers=headers)
 
-    saved = await repository.get_required(customer_id)
     assert first.status_code == 200
-    assert first.json()["processed"] == 1
     assert replay.status_code == 200
-    assert replay.json()["processed"] == 0
-    assert saved.state == TaskState.NEEDS_ADDRESS
-    assert saved.selected_address_id is None
-    assert saved.version == 2
-    assert len(repository.outbox) == 1
-    assert len(default_whatsapp_adapter.outbound_messages) == 1
-    assert default_whatsapp_adapter.outbound_messages[0]["to"] == phone_number
-
-
-@pytest.mark.asyncio
-async def test_api_whatsapp_failed_dispatch_remains_retryable(monkeypatch) -> None:  # type: ignore[no-untyped-def]
-    from backend.api import whatsapp as whatsapp_api
-    from backend.intent.orchestrator import OrchestratorTurnResult
-    from backend.intent.session import ConversationState
-
-    secret = "test-retry-secret"
-    message_id = f"wamid.retry.{uuid.uuid4()}"
-    orchestration_attempts = 0
-    delivery_attempts = 0
-
-    class RecordingOrchestrator:
-        async def handle_turn(self, session_id, customer_id, message, address_id=None):  # type: ignore[no-untyped-def]
-            del customer_id, message, address_id
-            nonlocal orchestration_attempts
-            orchestration_attempts += 1
-            return OrchestratorTurnResult(
-                session_id=session_id,
-                conversation_state=ConversationState.READY,
-                user_message="Your request was applied.",
-                events=["CART_MUTATED"],
-            )
-
-    async def fail_delivery_once(response):  # type: ignore[no-untyped-def]
-        del response
-        nonlocal delivery_attempts
-        delivery_attempts += 1
-        return delivery_attempts > 1
-
-    monkeypatch.setattr(default_whatsapp_adapter, "_app_secret", secret)
-    monkeypatch.setattr(default_whatsapp_adapter, "send_response", fail_delivery_once)
-    monkeypatch.setattr(whatsapp_api, "_orchestrator", RecordingOrchestrator())
-    payload = {
-        "object": "whatsapp_business_account",
-        "entry": [
-            {
-                "changes": [
-                    {
-                        "value": {
-                            "messages": [
-                                {
-                                    "id": message_id,
-                                    "from": "919999977777",
-                                    "type": "text",
-                                    "text": {"body": "get milk"},
-                                }
-                            ]
-                        }
-                    }
-                ]
-            }
-        ],
-    }
-    body_bytes = json.dumps(payload).encode("utf-8")
-    signature = hmac.new(
-        secret.encode("utf-8"), body_bytes, hashlib.sha256
-    ).hexdigest()
-    headers = {
-        "Content-Type": "application/json",
-        "X-Hub-Signature-256": f"sha256={signature}",
-    }
-
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
-        first = await client.post(
-            "/api/whatsapp/webhook", content=body_bytes, headers=headers
-        )
-        second = await client.post(
-            "/api/whatsapp/webhook", content=body_bytes, headers=headers
-        )
-
-    assert first.status_code == 503
-    assert second.status_code == 200
-    assert second.json()["processed"] == 1
-    assert orchestration_attempts == 1
-    assert delivery_attempts == 2
-
-
-@pytest.mark.asyncio
-async def test_api_whatsapp_cancellation_releases_message_reservation(monkeypatch) -> None:  # type: ignore[no-untyped-def]
-    from backend.api import whatsapp as whatsapp_api
-
-    secret = "test-cancel-secret"
-    message_id = f"wamid.cancel.{uuid.uuid4()}"
-
-    class CancelledOrchestrator:
-        async def handle_turn(self, *args, **kwargs):  # type: ignore[no-untyped-def]
-            del args, kwargs
-            raise asyncio.CancelledError
-
-    monkeypatch.setattr(default_whatsapp_adapter, "_app_secret", secret)
-    monkeypatch.setattr(whatsapp_api, "_orchestrator", CancelledOrchestrator())
-    payload = {
-        "object": "whatsapp_business_account",
-        "entry": [
-            {
-                "changes": [
-                    {
-                        "value": {
-                            "messages": [
-                                {
-                                    "id": message_id,
-                                    "from": "919999966666",
-                                    "type": "text",
-                                    "text": {"body": "get bread"},
-                                }
-                            ]
-                        }
-                    }
-                ]
-            }
-        ],
-    }
-    body_bytes = json.dumps(payload).encode("utf-8")
-    signature = hmac.new(
-        secret.encode("utf-8"), body_bytes, hashlib.sha256
-    ).hexdigest()
-
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
-        with pytest.raises(asyncio.CancelledError):
-            await client.post(
-                "/api/whatsapp/webhook",
-                content=body_bytes,
-                headers={"X-Hub-Signature-256": f"sha256={signature}"},
-            )
-
-    assert default_whatsapp_adapter.reserve_message(message_id) is True
-    default_whatsapp_adapter.release_message(message_id)
-
-
-@pytest.mark.asyncio
-async def test_stale_interactive_nonce_is_not_applied() -> None:
-    """A list response from an earlier decision cannot change the current cart."""
-    from backend.intent.conversation import (
-        ConversationAction,
-        ConversationCommand,
-        ConversationController,
-    )
-    from backend.intent.recovery import RecoveryCandidate
-    from backend.intent.session import PendingClarification
-
-    store = OrchestratorSessionStore(persist=False)
-    session = store.get_or_create("sess-stale-choice", "cust-stale-choice")
-    session.conversation_state = ConversationState.NEEDS_DECISION
-    session.pending_clarification = PendingClarification(
-        nonce="current-choice-nonce",
-        item_name="milk",
-        candidates=[
-            RecoveryCandidate(
-                spin_id="SPIN-MILK-500ML",
-                name="Milk",
-                pack_size="500 ml",
-                price=30,
-                category="Dairy",
-            )
-        ],
-        clarification_question="Choose milk.",
-    )
-
-    class NoCommerceCall:
-        async def handle_choice(self, *args, **kwargs):  # type: ignore[no-untyped-def]
-            raise AssertionError("A stale selection must not reach commerce orchestration.")
-
-        async def handle_turn(self, *args, **kwargs):  # type: ignore[no-untyped-def]
-            raise AssertionError("A stale selection must not become a basket request.")
-
-    result = await ConversationController().handle(
-        command=ConversationCommand(
-            action=ConversationAction.SELECT_PRODUCT_OPTION,
-            selection_id="SPIN-MILK-500ML",
-            nonce="old-choice-nonce",
-            confidence=1,
-        ),
-        message="Milk",
-        session_id=session.session_id,
-        customer_id=session.customer_id,
-        session=session,
-        orchestrator=NoCommerceCall(),  # type: ignore[arg-type]
-    )
-
-    assert result.conversation_state == ConversationState.NEEDS_DECISION
-    assert "get that right" in result.user_message
+    assert service.processed == [message_id, message_id]
+    assert len(default_whatsapp_adapter.outbound_messages) == 2

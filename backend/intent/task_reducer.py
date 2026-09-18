@@ -150,6 +150,7 @@ def apply_understanding(task: ShoppingTask, understanding: MessageUnderstanding)
 
     if understanding.operation == TaskOperation.CANCEL_PENDING_STEP:
         task.pending_plan = None
+        task.pending_stock_recovery = None
         task.pending_question = None
         task.state = TaskState.READY if not task.desired_basket else TaskState.NEEDS_DETAILS
         return _advance(task)
@@ -157,6 +158,7 @@ def apply_understanding(task: ShoppingTask, understanding: MessageUnderstanding)
     if understanding.operation == TaskOperation.CANCEL_TASK:
         _invalidate_confirmation(task)
         task.pending_plan = None
+        task.pending_stock_recovery = None
         task.pending_question = None
         task.state = TaskState.CANCELLED
         return _advance(task)
@@ -200,6 +202,7 @@ def _preview(
     cart_strategy: str = "reuse",
 ) -> ShoppingTask:
     _invalidate_confirmation(task)
+    task.pending_stock_recovery = None
     if not items:
         task.state = TaskState.NEEDS_DETAILS
         task.pending_question = "What would you like to keep in your basket?"
@@ -229,8 +232,8 @@ def _add_to_basket(
 
 
 def _effective_basket(task: ShoppingTask) -> list[DesiredBasketItem]:
-    """Use the visible preview when editing it; otherwise use the verified basket."""
-    if task.state == TaskState.AWAITING_BASKET_APPROVAL and task.pending_plan is not None:
+    """Use the outstanding plan until its basket projection has been verified."""
+    if task.pending_plan is not None:
         return [item.model_copy(deep=True) for item in task.pending_plan.items]
     return [item.model_copy(deep=True) for item in task.desired_basket]
 
@@ -243,6 +246,9 @@ def _clarification_question(understanding: MessageUnderstanding) -> str:
 
 
 def _advance(task: ShoppingTask) -> ShoppingTask:
+    # Choices belong only to the question that displayed them. The response
+    # renderer records the next visible set before the task is persisted.
+    task.offered_choices = []
     task.version += 1
     task.updated_at = datetime.now(timezone.utc)
     return task
@@ -250,3 +256,4 @@ def _advance(task: ShoppingTask) -> ShoppingTask:
 
 def _invalidate_confirmation(task: ShoppingTask) -> None:
     task.confirmation_valid = False
+    task.checkout_confirmation = None

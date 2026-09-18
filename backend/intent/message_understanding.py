@@ -7,22 +7,58 @@ catalogue resolution.
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping
+from typing import Any, Protocol
 
-from backend.intent.parser import RuleBasedExtractor
 from backend.intent.task_model import (
     DesiredBasketItem,
     MessageUnderstanding,
     TaskOperation,
 )
 
+_QUANTITY_WORDS = {"a": 1.0, "an": 1.0, "one": 1.0, "two": 2.0, "three": 3.0}
+_UNITS = {
+    "l": "L",
+    "ltr": "L",
+    "litre": "L",
+    "litres": "L",
+    "liter": "L",
+    "liters": "L",
+    "kg": "kg",
+    "g": "g",
+    "gram": "g",
+    "grams": "g",
+    "pack": "pack",
+    "packs": "pack",
+}
+_VAGUE_REQUESTS = {"do the usual thing maybe", "something for tonight"}
+
+
+class UnderstandingModel(Protocol):
+    """Optional model boundary; model output remains a non-authoritative proposal."""
+
+    async def interpret(
+        self, message: str, *, context: Mapping[str, Any] | None = None
+    ) -> MessageUnderstanding | None: ...
+
 
 class MessageUnderstandingService:
     """Interpret English free text without letting it perform commerce actions."""
 
-    def __init__(self) -> None:
-        self._item_extractor = RuleBasedExtractor()
+    def __init__(self, model: UnderstandingModel | None = None) -> None:
+        self._model = model
 
-    def interpret(self, message: str) -> MessageUnderstanding:
+    async def interpret(
+        self, message: str, *, context: Mapping[str, Any] | None = None
+    ) -> MessageUnderstanding:
+        if self._model is not None:
+            proposal = await self._model.interpret(message, context=context)
+            if proposal is not None:
+                return proposal
+        return self._rules_interpret(message)
+
+    def _rules_interpret(self, message: str) -> MessageUnderstanding:
+        """Safe fallback when model understanding is unavailable."""
         normalized = " ".join(message.casefold().split())
         operation, item_text, target_item, quantity, selection_value = (
             self._operation_and_item_text(normalized)
@@ -172,23 +208,53 @@ class MessageUnderstandingService:
             return TaskOperation.ADD_ITEMS, f"1 {add.group(1)}", None, None, None
 
         items = self._items(message)
-        if items and any(item.quantity_is_explicit for item in items):
+        if items:
             return TaskOperation.START_TASK, message, None, None, None
         return TaskOperation.CLARIFY, "", None, None, None
 
     def _items(self, text: str) -> list[DesiredBasketItem]:
-        raw_items = self._item_extractor.extract(text).get("items", [])
-        return [
-            DesiredBasketItem(
-                name=str(item["name"]),
-                quantity=float(item["quantity"]),
-                unit=str(item["unit"]),
-                brand=item.get("brand_preference"),
-                preference_source="explicit",
-                quantity_is_explicit=bool(item.get("quantity_is_explicit", False)),
+        """Conservative fallback extraction used only when the model is unavailable."""
+        if " ".join(text.casefold().split()) in _VAGUE_REQUESTS:
+            return []
+        items: list[DesiredBasketItem] = []
+        for part in re.split(r"\s*(?:,|\band\b)\s*", text.strip(), flags=re.I):
+            candidate = re.sub(
+                r"^(?:i\s+)?(?:need|want|would like|get|buy|please)\s+",
+                "",
+                part.strip(),
+                flags=re.I,
             )
-            for item in raw_items
-        ]
+            if not candidate:
+                continue
+            match = re.fullmatch(
+                r"(?:(\d+(?:\.\d+)?)|(a|an|one|two|three))?\s*"
+                r"(litres|liters|litre|liter|ltr|packs|pack|grams|gram|kg|g|l)?\s*"
+                r"(.+)",
+                candidate,
+                flags=re.I,
+            )
+            if match is None:
+                continue
+            numeric, word, unit_text, name = match.groups()
+            quantity_is_explicit = numeric is not None or word is not None
+            quantity = (
+                float(numeric)
+                if numeric is not None
+                else _QUANTITY_WORDS.get((word or "").casefold(), 1.0)
+            )
+            clean_name = name.strip(" .!?")
+            if not clean_name:
+                continue
+            items.append(
+                DesiredBasketItem(
+                    name=clean_name,
+                    quantity=quantity,
+                    unit=_UNITS.get((unit_text or "").casefold(), "units"),
+                    preference_source="explicit",
+                    quantity_is_explicit=quantity_is_explicit,
+                )
+            )
+        return items
 
 
 def _without_prefixes(message: str) -> str:

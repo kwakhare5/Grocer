@@ -14,13 +14,16 @@ from backend.intent.task_repository import (
     PostgresShoppingTaskRepository,
     create_postgres_pool,
 )
+from backend.intent.task_service import ShoppingTaskApplicationService
+from backend.intent.message_understanding import MessageUnderstandingService
+from backend.intent.model_understanding import GeminiMessageUnderstandingService
+from backend.integrations.commerce.factory import get_commerce_adapter
 from backend.integrations.commerce.swiggy_oauth import (
     PostgresPendingAuthFlowStore,
     default_oauth_manager,
 )
 from backend.integrations.commerce.token_vault import default_token_vault
 from backend.api.health import router as health_router
-from backend.api.intent_chat import router as intent_chat_router
 from backend.api.whatsapp import router as whatsapp_router
 from backend.api.oauth import router as oauth_router
 
@@ -46,6 +49,29 @@ async def _lifespan(app: FastAPI):
             default_oauth_manager.configure_flow_store(
                 PostgresPendingAuthFlowStore(pool, settings.DATA_ENCRYPTION_KEY)
             )
+    if settings.SHOPPING_TASK_ROUTE:
+        if not pool:
+            raise RuntimeError(
+                "DATABASE_URL is required when SHOPPING_TASK_ROUTE is enabled."
+            )
+        if settings.UNDERSTANDING_MODEL_ENABLED and not settings.GEMINI_API_KEY:
+            raise RuntimeError(
+                "GEMINI_API_KEY is required when model understanding is enabled."
+            )
+        model_understanding = (
+            GeminiMessageUnderstandingService(
+                settings.GEMINI_API_KEY,
+                model=settings.GEMINI_MODEL,
+            )
+            if settings.UNDERSTANDING_MODEL_ENABLED
+            else None
+        )
+        app.state.shopping_task_service = ShoppingTaskApplicationService(
+            app.state.shopping_task_repository,
+            get_commerce_adapter(),
+            checkout_mode=settings.CHECKOUT_MODE,
+            understanding=MessageUnderstandingService(model_understanding),
+        )
     try:
         yield
     finally:
@@ -77,7 +103,6 @@ def create_app() -> FastAPI:
 
     app.include_router(health_router, prefix="/api")
     app.include_router(health_router)
-    app.include_router(intent_chat_router)
     app.include_router(whatsapp_router)
     app.include_router(oauth_router, prefix="/api")
 

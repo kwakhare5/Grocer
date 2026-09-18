@@ -15,9 +15,11 @@ GROCER is an English-first WhatsApp grocery agent for Swiggy Instamart. It handl
 | Desired basket | The customer’s intended items before they are projected into Swiggy. |
 | Provider cart | An observed external Swiggy cart, never automatic task state. |
 | Basket plan | A complete proposed desired basket awaiting customer approval. |
-| Message understanding | A typed, non-authoritative interpretation of one English message. |
+| Message understanding | A context-aware Gemini proposal validated into one typed, non-authoritative English operation. |
 | CommercePort | The only provider-neutral commerce interface. |
 | Cart adoption | The explicit Keep / Start fresh / Cancel decision for an existing provider cart. |
+| Offered choice | A durable record of the buttons/list rows shown in the latest Grocer reply. Typed references such as “second one” resolve only against this set. |
+| Stock recovery | A provider-verified quantity shortfall that requires the customer to keep the available amount, choose another live variant, or remove the item. |
 | Confirmed preference | A preference the customer previously approved; it may assist a preview but cannot override current text. |
 
 ## Invariants
@@ -35,12 +37,12 @@ current explicit request
 - A provider result is read back and verified before a success message.
 - Checkout is explicitly confirmed in the backend.
 - Free text stays primary; buttons/lists are for small bounded choices.
+- A model may resolve a reference only to a currently persisted offered choice; it may not invent a product, address, payment, or action ID.
+- A Swiggy quantity cap or removed item never silently changes the desired basket. It creates a bounded customer decision and a new basket approval.
 
 ## Current implementation status
 
-The typed task core, English operation boundary, catalogue resolver, cart-adoption guard, private PostgreSQL schema/repository, and regression tests exist. The old in-memory WhatsApp runtime is still active while the durable inbox/outbox task service is wired and replay-tested.
-
-Do not delete legacy runtime modules early. Do not build further permanent behavior on them.
+The typed task core, context-aware English boundary, durable offered choices, stock recovery, catalogue resolver, cart-adoption guard, private PostgreSQL schema/repository, and active-route regression tests exist. The legacy browser/orchestrator/evaluation runtime has been removed, leaving one conversation path. Hosted replay is still required to prove the deployed release.
 
 ## External rules
 

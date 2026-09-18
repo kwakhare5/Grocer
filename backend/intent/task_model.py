@@ -19,6 +19,7 @@ class TaskState(StrEnum):
     NEEDS_CART_ADOPTION = "NEEDS_CART_ADOPTION"
     NEEDS_DETAILS = "NEEDS_DETAILS"
     NEEDS_PRODUCT_CHOICE = "NEEDS_PRODUCT_CHOICE"
+    NEEDS_STOCK_DECISION = "NEEDS_STOCK_DECISION"
     AWAITING_BASKET_APPROVAL = "AWAITING_BASKET_APPROVAL"
     SYNCHRONIZING_CART = "SYNCHRONIZING_CART"
     NEEDS_ADDRESS = "NEEDS_ADDRESS"
@@ -38,6 +39,8 @@ class TaskOperation(StrEnum):
     REPLACE_ITEM = "REPLACE_ITEM"
     SET_QUANTITY = "SET_QUANTITY"
     SELECT_PRODUCT = "SELECT_PRODUCT"
+    ACCEPT_AVAILABLE_QUANTITY = "ACCEPT_AVAILABLE_QUANTITY"
+    CHOOSE_SUBSTITUTE = "CHOOSE_SUBSTITUTE"
     ADOPT_PROVIDER_CART = "ADOPT_PROVIDER_CART"
     START_FRESH_CART = "START_FRESH_CART"
     CANCEL_PENDING_STEP = "CANCEL_PENDING_STEP"
@@ -124,6 +127,44 @@ class BasketPlan(BaseModel):
     approved_at: datetime | None = None
 
 
+class OfferedChoice(BaseModel):
+    """A bounded action shown to the customer in the most recent reply.
+
+    The action ID is the canonical selection value. Persisting it means a tap,
+    ``2``, and ``the second one`` can all resolve to the same safe action.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    action_id: str = Field(min_length=1)
+    title: str = Field(min_length=1)
+    description: str | None = None
+
+
+class StockRecovery(BaseModel):
+    """One provider-verified quantity shortfall awaiting customer direction."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    item_name: str = Field(min_length=1)
+    requested_quantity: float = Field(gt=0)
+    available_quantity: float = Field(ge=0)
+    spin_id: str
+    sku_id: str | None = None
+
+
+class CheckoutConfirmationSnapshot(BaseModel):
+    """The exact verified order summary that the customer is allowed to confirm."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    cart_id: str | None = None
+    address_id: str
+    payment_method: str
+    grand_total: float = Field(ge=0)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
 class ShoppingTask(BaseModel):
     """Authoritative persisted aggregate for one customer shopping task."""
 
@@ -136,10 +177,13 @@ class ShoppingTask(BaseModel):
     desired_basket: list[DesiredBasketItem] = Field(default_factory=list)
     provider_cart: ProviderCartBinding = Field(default_factory=ProviderCartBinding)
     pending_plan: BasketPlan | None = None
+    offered_choices: list[OfferedChoice] = Field(default_factory=list)
+    pending_stock_recovery: StockRecovery | None = None
     pending_question: str | None = None
     selected_address_id: str | None = None
     selected_payment_method: str | None = None
     confirmation_valid: bool = False
+    checkout_confirmation: CheckoutConfirmationSnapshot | None = None
     requested_action: TaskOperation | None = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

@@ -41,6 +41,16 @@ class ShoppingTaskRepository(ABC):
     ) -> None:
         raise NotImplementedError
 
+    @abstractmethod
+    async def get_pending_outbound_message(
+        self, *, task_id: str, message_id: str
+    ) -> dict[str, Any] | None:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def mark_outbound_sent(self, *, task_id: str, message_id: str) -> None:
+        raise NotImplementedError
+
 
 class InMemoryShoppingTaskRepository(ShoppingTaskRepository):
     """Deterministic test repository; never use it as a deployed state store."""
@@ -86,9 +96,40 @@ class InMemoryShoppingTaskRepository(ShoppingTaskRepository):
     async def enqueue_outbound_message(
         self, *, task_id: str, message_id: str, payload: dict[str, Any]
     ) -> None:
+        if any(
+            row["task_id"] == task_id and row["message_id"] == message_id
+            for row in self.outbox
+        ):
+            return
         self.outbox.append(
-            {"task_id": task_id, "message_id": message_id, "payload": payload}
+            {
+                "task_id": task_id,
+                "message_id": message_id,
+                "payload": payload,
+                "status": "PENDING",
+            }
         )
+
+    async def get_pending_outbound_message(
+        self, *, task_id: str, message_id: str
+    ) -> dict[str, Any] | None:
+        row = next(
+            (
+                candidate
+                for candidate in self.outbox
+                if candidate["task_id"] == task_id
+                and candidate["message_id"] == message_id
+                and candidate["status"] == "PENDING"
+            ),
+            None,
+        )
+        return dict(row["payload"]) if row else None
+
+    async def mark_outbound_sent(self, *, task_id: str, message_id: str) -> None:
+        for row in self.outbox:
+            if row["task_id"] == task_id and row["message_id"] == message_id:
+                row["status"] = "SENT"
+                return
 
 
 class PostgresShoppingTaskRepository(ShoppingTaskRepository):
@@ -180,10 +221,40 @@ class PostgresShoppingTaskRepository(ShoppingTaskRepository):
             INSERT INTO grocer_internal.outbound_messages
                 (task_id, source_message_id, payload, status, attempts, created_at)
             VALUES ($1, $2, $3::jsonb, 'PENDING', 0, $4)
+            ON CONFLICT (task_id, source_message_id) DO NOTHING
             """,
             task_id,
             message_id,
             json.dumps(payload),
+            datetime.now(timezone.utc),
+        )
+
+    async def get_pending_outbound_message(
+        self, *, task_id: str, message_id: str
+    ) -> dict[str, Any] | None:
+        row = await self._pool.fetchrow(
+            """
+            SELECT payload
+            FROM grocer_internal.outbound_messages
+            WHERE task_id = $1 AND source_message_id = $2 AND status = 'PENDING'
+            """,
+            task_id,
+            message_id,
+        )
+        if row is None:
+            return None
+        payload = row["payload"]
+        return json.loads(payload) if isinstance(payload, str) else dict(payload)
+
+    async def mark_outbound_sent(self, *, task_id: str, message_id: str) -> None:
+        await self._pool.execute(
+            """
+            UPDATE grocer_internal.outbound_messages
+            SET status = 'SENT', attempts = attempts + 1, sent_at = $3
+            WHERE task_id = $1 AND source_message_id = $2 AND status = 'PENDING'
+            """,
+            task_id,
+            message_id,
             datetime.now(timezone.utc),
         )
 
@@ -199,6 +270,9 @@ async def create_postgres_pool(database_url: str, *, max_size: int = 5) -> Any:
         dsn=database_url,
         min_size=1,
         max_size=max_size,
-        ssl=True,
+        # Supabase Session Pooler exposes a self-signed intermediate chain.
+        # ``require`` keeps the connection encrypted while matching the
+        # provider's documented ``sslmode=require`` connection URI.
+        ssl="require",
         statement_cache_size=0,
     )

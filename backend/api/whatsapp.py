@@ -8,15 +8,12 @@ from fastapi import APIRouter, Header, HTTPException, Query, Request, Response, 
 from fastapi.responses import PlainTextResponse
 
 from backend.channels.whatsapp import default_whatsapp_adapter
+from backend.channels.models import NormalizedOutgoingResponse
 from backend.config import settings
-from backend.intent.orchestrator import GrocerOrchestrator
 
 logger = logging.getLogger("grocer.api.whatsapp")
 
 router = APIRouter(prefix="/api/whatsapp", tags=["whatsapp"])
-_orchestrator = GrocerOrchestrator()
-
-
 @router.get("/webhook")
 async def verify_webhook(
     hub_mode: str = Query(None, alias="hub.mode"),
@@ -71,49 +68,43 @@ async def receive_webhook(
     processed_count = 0
     failed_count = 0
     for incoming in incoming_messages:
-        if settings.SHOPPING_TASK_ROUTE:
-            try:
-                service = request.app.state.shopping_task_service
-                task_message = incoming.model_copy(
-                    update={
-                        "customer_id": default_whatsapp_adapter.map_sender_to_customer_id(
-                            incoming.sender_id
-                        )
-                    }
-                )
-                result = await service.process_message(task_message)
-                if not result.processed:
-                    continue
-                if not await default_whatsapp_adapter.send_response(result.response):
-                    raise RuntimeError("WhatsApp response delivery failed.")
-                processed_count += 1
-            except asyncio.CancelledError:
-                raise
-            except Exception as exc:
-                logger.error("ShoppingTask dispatch failed: %s", type(exc).__name__)
-                failed_count += 1
-            continue
-
-        if not default_whatsapp_adapter.reserve_message(incoming.message_id):
-            continue
         try:
-            pending_response = default_whatsapp_adapter.pending_delivery(
-                incoming.message_id
+            service = request.app.state.shopping_task_service
+            task_message = incoming.model_copy(
+                update={
+                    "customer_id": default_whatsapp_adapter.map_sender_to_customer_id(
+                        incoming.sender_id
+                    )
+                }
             )
-            if pending_response is not None:
-                if not await default_whatsapp_adapter.send_response(pending_response):
-                    raise RuntimeError("WhatsApp response delivery retry failed.")
-            else:
-                await default_whatsapp_adapter.dispatch(incoming, _orchestrator)
-            default_whatsapp_adapter.mark_processed(incoming.message_id)
+            result = await service.process_message(task_message)
+            if not result.processed:
+                continue
+            if not await default_whatsapp_adapter.send_response(result.response):
+                raise RuntimeError("WhatsApp response delivery failed.")
+            await service.mark_response_sent(task_message)
             processed_count += 1
         except asyncio.CancelledError:
-            default_whatsapp_adapter.release_message(incoming.message_id)
             raise
         except Exception as exc:
-            default_whatsapp_adapter.release_message(incoming.message_id)
-            logger.error("WhatsApp dispatch failed: %s", type(exc).__name__)
-            failed_count += 1
+            logger.error(
+                "ShoppingTask dispatch failed for message_id=%s type=%s",
+                incoming.message_id,
+                type(exc).__name__,
+            )
+            recovery = NormalizedOutgoingResponse(
+                recipient_id=incoming.sender_id,
+                channel=incoming.channel,
+                text=(
+                    "I could not process that safely right now. Nothing was ordered "
+                    "or changed. Please try again."
+                ),
+                conversation_state="NEEDS_DETAILS",
+            )
+            if await default_whatsapp_adapter.send_response(recovery):
+                processed_count += 1
+            else:
+                failed_count += 1
 
     if failed_count:
         raise HTTPException(

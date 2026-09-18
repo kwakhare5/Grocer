@@ -404,3 +404,10 @@ During the Session End ritual (called automatically whenever significant changes
 - **Visuals**: Screenshot of new responsive landing page hero section.
 - **Ask/Roast**: Ask for feedback on whether a free trial or paid from day one is better for pre-launch.
 - **Vibe**: 🔥 Very productive session!
+### [Grocer — Durable WhatsApp route cutover] 2026-09-17
+
+- Added the ShoppingTask route switch and startup service wiring.
+- Added pseudonymous customer identity propagation and duplicate-message suppression.
+- Verified `pytest backend/tests`: 416 passed.
+- Pushed commits `be0c275` and `138fc2b` to GitHub `main`.
+- Remaining gate: configure deployment secrets and complete real review-mode transcript testing before deleting legacy runtime.

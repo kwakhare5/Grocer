@@ -1,7 +1,7 @@
 # GROCER architecture
 
 > Updated: 2026-09-16
-> Status: durable ShoppingTask migration in progress. The legacy WhatsApp route remains active only until the new route passes transcript replay and live review gates.
+> Status: durable ShoppingTask route is the only conversation runtime in this checkout; release remains review-mode until live transcript replay passes.
 
 ## Product boundary
 
@@ -17,14 +17,15 @@ FastAPI webhook: verify signature and persist inbound event
 Durable inbox
         ↓
 ShoppingTask application service
-  ├── MessageUnderstanding: English text → typed proposal
+  ├── MessageUnderstanding: Gemini + task context → typed proposal
+  ├── Durable offered choices: text / button / ordinal → one validated action
   ├── Task reducer: deterministic state transition
   ├── Preference policy: current text > session choice > confirmed preference > default
   ├── Catalogue resolver: exact / ambiguous / unavailable
   ├── Cart-adoption policy: keep existing / start fresh / cancel
   ├── Basket plan: complete preview → customer approval
   ├── CommercePort: provider mutation and read-back
-  └── Verifier / bounded recovery
+  └── Verifier / bounded stock recovery
         ↓
 Durable outbox
         ↓
@@ -50,6 +51,8 @@ Meta WhatsApp Cloud API
 
 Free text is the primary input. Buttons and lists are offered for bounded choices such as Keep / Start fresh / Cancel, product variants, address, payment, basket approval, and checkout confirmation.
 
+Every visible choice is persisted with the `ShoppingTask`. A click, “2”, “the second one”, or “the cheaper one” resolves only to one of those stored actions; an LLM cannot invent an ID. After a Swiggy quantity cap or removal, Grocer offers keep the available quantity, choose another live variant, or remove the item, then requires a fresh basket approval.
+
 - A vague request gets one clear question, not a guess.
 - A confirmed preference can create a preview, never a silent cart update.
 - A change like “only keep milk and bread” replaces the task's desired basket as a preview; it cannot remove unrelated provider-cart items until approved.
@@ -67,6 +70,6 @@ Free text is the primary input. Buttons and lists are offered for bounded choice
 
 ## Migration status
 
-Implemented foundation: task model, reducer, English command boundary, catalogue resolution, provider-cart adoption guard, private PostgreSQL task/inbox/outbox schema, and regression tests.
+Implemented foundation: task model, reducer, Gemini structured English boundary, persisted offered-choice context, verified stock recovery, catalogue resolution, provider-cart adoption guard, private PostgreSQL task/inbox/outbox schema, encrypted OAuth storage, customer-scoped provider calls, durable delivery retry state, and regression tests.
 
-Required before retirement of legacy modules: configure PostgreSQL, migrate OAuth tokens/preferences/idempotency/locks, wire inbox/outbox to the webhook, replay real human conversations, verify Swiggy review mode, then switch the WhatsApp route. `CHECKOUT_MODE=review` remains the only truthful release setting until these gates pass.
+The retired browser/orchestrator/evaluation runtime has been removed. Remaining release gates are deployment, authenticated real WhatsApp replay, provider verification, and restart/retry checks. `CHECKOUT_MODE=review` remains the only truthful release setting until these gates pass.

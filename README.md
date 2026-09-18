@@ -138,9 +138,9 @@ FAILED
 
 A failed or unknown operation must never be reported as success.
 
-## Deterministic evaluation
+## Deterministic regression coverage
 
-Grocer includes an internal failure-simulation/evaluation layer so behavior can be measured without pretending simulated failures are live provider behavior.
+Grocer's active regression suite exercises provider responses through the same `CommercePort` boundary used by the live route. Simulated responses are test evidence, not proof of live provider access.
 
 Core metrics include:
 

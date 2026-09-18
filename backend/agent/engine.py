@@ -193,7 +193,7 @@ class GroceryAgentEngine:
         self._pending_checkout: dict[str, bool] = {}
 
     def _connect_url(self, customer_id: str) -> str:
-        base_url = settings.CONNECT_BASE_URL or "http://localhost:8000"
+        base_url = settings.CONNECT_BASE_URL or "https://grocer-backend-qwk4.onrender.com"
         return f"{base_url.rstrip('/')}/connect?customer_id={quote(customer_id)}"
 
     def _auth_expired_response(

@@ -38,3 +38,6 @@ services:
         sync: false
       - key: DATA_ENCRYPTION_KEY
         sync: false
+      - key: CONNECT_BASE_URL
+        sync: false
+

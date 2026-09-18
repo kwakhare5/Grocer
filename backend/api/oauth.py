@@ -79,7 +79,7 @@ async def connect_page(
     customer_id: Optional[str] = None,
     phone: Optional[str] = None,
 ) -> RedirectResponse:
-    """Browser entrypoint to initiate Swiggy OAuth directly via local ngrok tunnel."""
+    """Browser entrypoint to initiate Swiggy OAuth flow."""
     try:
         if not customer_id and phone:
             customer_id = whatsapp_customer_id(

@@ -1,75 +1,66 @@
 # GROCER architecture
 
-> Updated: 2026-09-16
-> Status: durable ShoppingTask route is the only conversation runtime in this checkout; release remains review-mode until live transcript replay passes.
+> Updated: 2026-09-18
+> Status: Autonomous Gemini ReAct agent engine is the active conversation runtime; verified live with WhatsApp and Swiggy Instamart MCP.
 
 ## Product boundary
 
-GROCER is an English-first WhatsApp grocery agent for Swiggy Instamart. The landing page explains the product and starts OAuth; shopping happens in WhatsApp. GROCER is not an operations platform, marketplace aggregator, or browser-owned cart.
+GROCER is an English-first WhatsApp grocery agent for Swiggy Instamart. The landing page explains the product and facilitates OAuth reconnection; shopping occurs natively inside WhatsApp. GROCER is not an internal dark-store operations platform, inventory management system, or browser-owned cart.
 
-## Permanent architecture
+## Active architecture
 
 ```text
 Meta WhatsApp Cloud API
         ↓
-FastAPI webhook: verify signature and persist inbound event
+FastAPI Webhook (/api/whatsapp/webhook)
         ↓
-Durable inbox
+GroceryAgentEngine (backend/agent/engine.py)
+  ├── Context-aware ReAct reasoning loop (Gemini 3.5 Flash Lite)
+  ├── SwiggyAgentTools (backend/agent/tools.py)
+  │     ├── search_products (live store catalogue inventory search)
+  │     ├── update_cart (adds SKUs, respects stock & budget)
+  │     ├── get_cart (reads back verified totals & fees)
+  │     ├── get_saved_addresses (resolves user delivery addresses)
+  │     ├── clear_cart (empties cart when requested)
+  │     └── checkout (server-side gated, generateUPIQR: True)
+  ├── Deterministic fail-closed guard (blocks hallucinated order success)
+  └── Payment bridge injection (delivers clickable UPI pay links)
         ↓
-ShoppingTask application service
-  ├── MessageUnderstanding: Gemini + task context → typed proposal
-  ├── Durable offered choices: text / button / ordinal → one validated action
-  ├── Task reducer: deterministic state transition
-  ├── Preference policy: current text > session choice > confirmed preference > default
-  ├── Catalogue resolver: exact / ambiguous / unavailable
-  ├── Cart-adoption policy: keep existing / start fresh / cancel
-  ├── Basket plan: complete preview → customer approval
-  ├── CommercePort: provider mutation and read-back
-  └── Verifier / bounded stock recovery
+CommercePort / SwiggyMCPAdapter (backend/integrations/commerce/)
         ↓
-Durable outbox
-        ↓
-Meta WhatsApp Cloud API
+Swiggy Instamart Live MCP Gateway (https://mcp.swiggy.com/im)
 ```
-
-`ShoppingTask.desired_basket` is GROCER's authoritative state. A Swiggy account cart is an external projection, not an automatic source of truth. It is never silently merged, reused, or cleared.
 
 ## Module boundaries
 
-| Boundary | Responsibility |
-|---|---|
-| WhatsApp channel | Verify Meta payloads, normalize inbound messages, send formatted outbound messages. |
-| ShoppingTask service | Load/store the task, de-duplicate events, apply one ordered transition, enqueue replies. |
-| Message understanding | Convert English into a non-authoritative typed proposal. |
-| Task reducer | Enforce safe state transitions without calling a provider. |
-| Catalogue resolver | Resolve every requested item before a cart mutation. |
-| CommercePort | The only provider-neutral commerce interface. |
-| SwiggyMCPAdapter | The only location for Swiggy MCP schemas, OAuth, transport, and error normalization. |
-| PostgreSQL | Private durable state for tasks, inbox/outbox, tokens, preferences, and idempotency. |
+| Boundary | Responsibility | Source Path |
+|---|---|---|
+| **WhatsApp Channel** | Verify Meta webhook HMAC signatures, parse incoming payloads, map sender phone numbers to customer IDs, format and deliver outbound messages. | `backend/channels/whatsapp.py`, `backend/api/whatsapp.py` |
+| **GroceryAgentEngine** | Manage conversational history, coordinate ReAct tool invocations with Gemini function calling, format interactive WhatsApp actions, and enforce fail-closed post-processing guards. | `backend/agent/engine.py` |
+| **SwiggyAgentTools** | High-signal tool registry exposing typed Swiggy operations to Gemini; maps tool parameters to `CommercePort` methods. | `backend/agent/tools.py` |
+| **CommercePort** | The sole provider-neutral commerce contract defining async methods for address resolution, catalog search, cart mutations, and checkout. | `backend/integrations/commerce/port.py` |
+| **SwiggyMCPAdapter** | Encapsulates Swiggy MCP JSON-RPC transport, payload normalization, error classification, and response parsing. | `backend/integrations/commerce/swiggy_adapter.py`, `swiggy_client.py` |
+| **OAuth Bridge** | Direct browser endpoints (`/connect`, `/auth/callback`) enabling customers to re-authenticate with Swiggy from their mobile browser via reverse proxy or web. | `backend/api/oauth.py`, `backend/integrations/commerce/swiggy_oauth.py` |
+| **Token Vault & DB** | AES-GCM encrypted persistence of dynamic Swiggy OAuth tokens at rest in PostgreSQL with connection pooling. | `backend/database.py`, `backend/integrations/commerce/token_vault.py` |
 
 ## Conversation policy
 
-Free text is the primary input. Buttons and lists are offered for bounded choices such as Keep / Start fresh / Cancel, product variants, address, payment, basket approval, and checkout confirmation.
+Free natural English is the primary input. Grocer uses autonomous ReAct reasoning to interpret conversational requests, deduce multi-item recipe kits, and make immediate progress without stalling:
 
-Every visible choice is persisted with the `ShoppingTask`. A click, “2”, “the second one”, or “the cheaper one” resolves only to one of those stored actions; an LLM cannot invent an ID. After a Swiggy quantity cap or removal, Grocer offers keep the available quantity, choose another live variant, or remove the item, then requires a fresh basket approval.
+1. **Smart Defaults for Staples**: When a customer asks for standard goods (e.g., milk, eggs, bread), Grocer searches the live store, selects the standard in-stock variant, and adds it directly to the cart rather than demanding variant clarification.
+2. **Recipe & Multi-Item Kits**: Open-ended requests (e.g., "pasta tonight under ₹1,500") trigger automated ingredient deduction, dark-store inventory checks, and cart compilation within the stated budget in a single turn.
+3. **Explicit Checkout Authorization**: Once the cart is assembled, Grocer presents a complete summary (items, prices, delivery fee, grand total, and delivery address) with interactive WhatsApp buttons (`Confirm Order`, `Change Items`). Checkout tool invocation is server-side gated requiring explicit customer confirmation (`is_user_confirmed: True`).
+4. **Dynamic UPI Payment Completion**: When the order is confirmed, Swiggy generates a dynamic UPI QR / payment intent link (`bridge_url` / `upi_intent_url`). Grocer formats this into a one-tap WhatsApp payment link so the user completes payment securely via UPI.
 
-- A vague request gets one clear question, not a guess.
-- A confirmed preference can create a preview, never a silent cart update.
-- A change like “only keep milk and bread” replaces the task's desired basket as a preview; it cannot remove unrelated provider-cart items until approved.
-- The whole intended basket resolves before mutation. An unavailable or ambiguous essential blocks the plan; partial changes are not applied.
-- Provider results are re-read and verified before the user is told a change succeeded.
-- Unknown, failed, or unsafe outcomes are described plainly, without raw provider error codes or invented success.
+## Safety and deterministic reliability
 
-## Safety and reliability
+Deterministic Python code strictly guarantees that the model cannot violate commerce rules or make false claims:
 
-1. The LLM interprets and proposes; deterministic code validates, computes, transitions, and verifies.
-2. Checkout requires an explicit backend-enforced confirmation of the verified basket.
-3. Consequential mutations are never blindly retried. Unknown outcomes are reconciled before another attempt.
-4. Secrets stay server-side. OAuth credentials and customer state require encrypted durable persistence.
-5. Vercel and React are presentation/OAuth surfaces only; neither owns commerce state.
+1. **Fail-Closed Anti-Hallucination Guard**: When checkout returns a failure or `PAYMENT_PENDING`, the response is verified against 6 strict regex pattern classes (`_ORDER_SUCCESS_PATTERNS`). If the LLM prematurely claims the order was placed or fails to explain provider errors, the deterministic guard overrides the response with an honest explanation and the actual payment link.
+2. **Server-Side Checkout Gating**: `SwiggyAgentTools.checkout` rejects calls where `is_user_confirmed` is not true, preventing unauthorized mutations.
+3. **Verified Provider State**: All totals, item prices, packaging fees, and delivery fees are read back from verified Swiggy Instamart responses, not generated by model inference.
+4. **Credential Security**: OAuth tokens are encrypted at rest using AES-GCM; secrets and tokens are never exposed in logs, API responses, or frontend state.
 
 ## Migration status
 
-Implemented foundation: task model, reducer, Gemini structured English boundary, persisted offered-choice context, verified stock recovery, catalogue resolution, provider-cart adoption guard, private PostgreSQL task/inbox/outbox schema, encrypted OAuth storage, customer-scoped provider calls, durable delivery retry state, and regression tests.
-
-The retired browser/orchestrator/evaluation runtime has been removed. Remaining release gates are deployment, authenticated real WhatsApp replay, provider verification, and restart/retry checks. `CHECKOUT_MODE=review` remains the only truthful release setting until these gates pass.
+The legacy 12-state FSM and ordinal parsing system (`backend/intent/`) have been completely retired. The autonomous Gemini ReAct engine (`backend/agent/`) is the sole active conversation runtime across both local testing and live WhatsApp webhooks. All 258 backend unit and integration tests pass green.

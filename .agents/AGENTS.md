@@ -223,8 +223,9 @@ If the answer is no, it does not belong in GROCER v2 unless the master spec is d
 
 ## 15. SESSION RESUME
 
-**Last completed:** Added durable offered choices and verified stock-recovery decisions to the ShoppingTask route. A tap, ordinal, price reference, or model-returned visible action now resolves to one stored action; quantity caps require Keep available / Choose another / Remove item and a fresh basket approval (2026-09-17).
+**Last completed:** Squashed 22 noisy, fragmented commits down to 5 clean milestone commits on `main` and `dev-live-test`. Fixed GitHub Actions CI failure by making Swiggy authentication expiration handling strictly deterministic in Python (`backend/agent/engine.py` and `backend/agent/tools.py`) without external network or Gemini API key requirements. Stopped all local background processes (`uvicorn`). Added `CONNECT_BASE_URL` to `render.yaml`. Verified 258/258 tests passing, 0 ESLint errors, Next.js 16 build clean, and GitHub Actions `Quality` workflow passing 100% green on GitHub `main` (commit `4efe128`). Safety backup branch preserved at `backup-before-history-squash`.
 
-**Next implementation gate:** Commit and deploy the reliability build, re-authenticate the customer Swiggy session if the hosted token is expired, then replay the authenticated WhatsApp flow through address, catalogue, cart, payment, and final review confirmation. The legacy runtime/evaluation code has been removed; no direct LLM cart mutation or checkout authority is permitted.
+**Next implementation gate:** Deploy `main` to Render backend with environment variables (`AGENT_ROUTE_ENABLED=true`, `COMMERCE_ADAPTER_TYPE=swiggy_mcp`, `CONNECT_BASE_URL`), verify Vercel proxy configuration (`BACKEND_INTERNAL_URL`), and conduct real UPI payment completion test on physical WhatsApp device.
 
-**Current status:** Work is on `main`. The durable route, Supabase persistence, encrypted credentials, and review-only deployment are active. Cleanup changes are local until committed and deployed. Active-route coverage is green; hosted WhatsApp replay, valid Swiggy OAuth, and restart/retry verification remain open.
+**Current status:** Main repository (`D:\Grocer`) on branch `main` is authoritative, synchronized with remote `origin/main`, CI is green, and working tree is 100% clean.
+

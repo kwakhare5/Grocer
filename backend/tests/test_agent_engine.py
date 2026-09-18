@@ -1118,8 +1118,8 @@ async def test_honest_failure_explanation_retains_explanation_and_appends_discla
 
 
 @pytest.mark.asyncio
-async def test_auth_expired_uses_localhost_connect_base_default(agent_engine, mock_commerce):
-    """When CONNECT_BASE_URL is not set, connect link defaults to http://localhost:8000."""
+async def test_auth_expired_uses_default_connect_base(agent_engine, mock_commerce):
+    """When CONNECT_BASE_URL is not set, connect link defaults to production Render URL."""
     from backend import config
     with patch.object(mock_commerce, "get_addresses", side_effect=ProviderAuthError("Token expired")), \
          patch.object(config.settings, "CONNECT_BASE_URL", None):
@@ -1131,7 +1131,7 @@ async def test_auth_expired_uses_localhost_connect_base_default(agent_engine, mo
             text="I need milk",
         )
         response = await agent_engine.handle_message(msg)
-        assert "http://localhost:8000/connect?customer_id=cust_default_base" in response.text
+        assert "https://grocer-backend-qwk4.onrender.com/connect?customer_id=cust_default_base" in response.text
 
 
 

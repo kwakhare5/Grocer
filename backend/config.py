@@ -11,8 +11,8 @@ class Settings(BaseSettings):
     SWIGGY_CUSTOMER_ID: str | None = None
     SWIGGY_CLIENT_ID: str | None = None
     SWIGGY_REDIRECT_URI: str = "https://grocerr.vercel.app/"
-    CONNECT_BASE_URL: str = "http://localhost:8000"
-    CORS_ALLOWED_ORIGINS: str = "http://localhost:3000,http://127.0.0.1:3000,https://grocerr.vercel.app"
+    CONNECT_BASE_URL: str = "https://grocer-backend-qwk4.onrender.com"
+    CORS_ALLOWED_ORIGINS: str = "https://grocerr.vercel.app"
     GEMINI_API_KEY: str | None = None
     GEMINI_MODEL: str = "gemini-3.5-flash-lite"
     WHATSAPP_VERIFY_TOKEN: str | None = None

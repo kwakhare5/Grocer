@@ -231,10 +231,7 @@ These are still import-reachable from the live route. They must not be mass-dele
 | File/folder | Responsibility | State |
 |---|---|---|
 | `evaluation/scenarios.py` | Canonical deterministic failures: unavailable, brand, pack, budget, stale, retry, partial, minimum order | Retain; migrate execution to ShoppingTask |
-| `evaluation/harness.py` | Runs scenarios through CommercePort, verifier, policy, recovery and metrics | Retain as reliability subsystem |
-| `scripts/swiggy_smoke_test.py` | Real/mock Swiggy addresses, catalogue, cart, payment-option smoke test and OAuth URL helper | Retain for controlled provider verification |
-| `tests/conftest.py` | Isolated legacy session/address fixture and HTTP client | Transitional test infrastructure |
-| `tests/support/trace.py` | PII-free test trace helper | Test-only |
+| `tests/conftest.py` | Isolated session/address fixture and HTTP client | Active test infrastructure |
 
 ## 7. Frontend map
 

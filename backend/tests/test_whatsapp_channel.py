@@ -1,14 +1,23 @@
 """Comprehensive tests for WhatsApp Channel Adapter and Webhook API (Phase C & D)."""
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import hmac
 import json
+import uuid
+from concurrent.futures import ThreadPoolExecutor
 import pytest
 from httpx import ASGITransport, AsyncClient
 
 from backend.channels.models import ChannelType, NormalizedIncomingMessage
 from backend.channels.whatsapp import WhatsAppChannelAdapter, default_whatsapp_adapter
+from backend.intent.orchestrator import OrchestratorTurnResult
+from backend.intent.session import (
+    ConversationState,
+    OrchestratorSession,
+    default_session_store,
+)
 from backend.main import app
 
 
@@ -57,6 +66,26 @@ def test_signature_verification(whatsapp_adapter: WhatsAppChannelAdapter) -> Non
     assert whatsapp_adapter.verify_signature(payload, None) is False
 
 
+def test_signature_verification_fails_closed_without_secret(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    monkeypatch.delenv("WHATSAPP_APP_SECRET", raising=False)
+    adapter = WhatsAppChannelAdapter()
+
+    assert adapter.verify_signature(b"{}", "sha256=anything") is False
+
+
+def test_dedup_reservation_is_atomic_and_failure_can_retry(
+    whatsapp_adapter: WhatsAppChannelAdapter,
+) -> None:
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        reserved = list(pool.map(whatsapp_adapter.reserve_message, ["wamid.atomic"] * 20))
+    assert reserved.count(True) == 1
+
+    whatsapp_adapter.release_message("wamid.atomic")
+    assert whatsapp_adapter.reserve_message("wamid.atomic") is True
+    whatsapp_adapter.mark_processed("wamid.atomic")
+    assert whatsapp_adapter.reserve_message("wamid.atomic") is False
+
+
 # ---------------------------------------------------------------------------
 # 3. Payload Parsing & Deduplication
 # ---------------------------------------------------------------------------
@@ -103,9 +132,9 @@ def test_parse_text_and_interactive_messages(whatsapp_adapter: WhatsAppChannelAd
     assert messages[1].interactive_id == "choice:SPIN-MILK-500ML"
     assert messages[1].text == "Amul 500ml"
 
-    # Deduplication test: re-parsing same payload yields 0 messages
+    # Parsing is pure; dispatch-time reservation owns replay protection.
     dup_messages = whatsapp_adapter.parse_webhook_payload(payload)
-    assert len(dup_messages) == 0
+    assert len(dup_messages) == 2
 
 
 # ---------------------------------------------------------------------------
@@ -115,12 +144,69 @@ def test_parse_text_and_interactive_messages(whatsapp_adapter: WhatsAppChannelAd
 def test_identity_mapping_and_session_continuity(whatsapp_adapter: WhatsAppChannelAdapter) -> None:
     sender = "+91 98765-43210"
     customer_id = whatsapp_adapter.map_sender_to_customer_id(sender)
-    assert customer_id == "cust_wa_919876543210"
+    assert customer_id.startswith("cust_wa_")
+    assert "919876543210" not in customer_id
 
     # Verify session ID is stable across multiple turns
     sess1 = whatsapp_adapter.get_or_create_session_id(customer_id)
     sess2 = whatsapp_adapter.get_or_create_session_id(customer_id)
     assert sess1 == sess2
+
+
+@pytest.mark.parametrize(
+    "phrase",
+    ["track order", "where is my order", "delivery status", "order eta"],
+)
+@pytest.mark.asyncio
+async def test_order_tracking_phrases_route_to_delivery_status(
+    whatsapp_adapter: WhatsAppChannelAdapter,
+    monkeypatch,
+    phrase: str,
+) -> None:  # type: ignore[no-untyped-def]
+    sender_id = f"91900000{uuid.uuid4().int % 100000:05d}"
+    customer_id = whatsapp_adapter.map_sender_to_customer_id(sender_id)
+    session_id = f"tracking-{uuid.uuid4()}"
+    session = OrchestratorSession(
+        session_id=session_id,
+        customer_id=customer_id,
+        conversation_state=ConversationState.ORDERED,
+        order_id="order-tracking",
+    )
+    default_session_store.save(session)
+    whatsapp_adapter._active_sessions[customer_id] = session_id
+    calls: list[str] = []
+
+    class TrackingOrchestrator:
+        async def handle_delivery_status(self, active_session_id: str):
+            calls.append(active_session_id)
+            return OrchestratorTurnResult(
+                session_id=active_session_id,
+                conversation_state=ConversationState.ORDERED,
+                user_message="Rider is on the way.",
+                order_id="order-tracking",
+                events=["ORDER_TRACKING_READ"],
+            )
+
+    async def send_success(response):  # type: ignore[no-untyped-def]
+        del response
+        return True
+
+    monkeypatch.setattr(whatsapp_adapter, "send_response", send_success)
+    try:
+        response = await whatsapp_adapter.dispatch(
+            NormalizedIncomingMessage(
+                sender_id=sender_id,
+                channel=ChannelType.WHATSAPP,
+                text=phrase,
+                message_id=f"message-{uuid.uuid4()}",
+            ),
+            TrackingOrchestrator(),  # type: ignore[arg-type]
+        )
+    finally:
+        default_session_store.clear(session_id)
+
+    assert calls == [session_id]
+    assert response.events == ["ORDER_TRACKING_READ"]
 
 
 # ---------------------------------------------------------------------------
@@ -162,17 +248,36 @@ def test_outbound_whatsapp_formatting(whatsapp_adapter: WhatsAppChannelAdapter) 
     assert btn_formatted["interactive"]["action"]["buttons"][0]["reply"]["id"] == "confirm_checkout"
 
 
+@pytest.mark.asyncio
+async def test_outbound_without_credentials_is_not_reported_delivered(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    from backend.channels.models import NormalizedOutgoingResponse
+
+    monkeypatch.delenv("WHATSAPP_PHONE_NUMBER_ID", raising=False)
+    monkeypatch.delenv("WHATSAPP_ACCESS_TOKEN", raising=False)
+    adapter = WhatsAppChannelAdapter()
+    response = NormalizedOutgoingResponse(
+        recipient_id="919876543210",
+        channel=ChannelType.WHATSAPP,
+        text="status",
+        conversation_state="READY",
+    )
+
+    assert await adapter.send_response(response) is False
+    assert adapter.outbound_messages == []
+
+
 # ---------------------------------------------------------------------------
 # 6. End-to-End Webhook API Routes via FastAPI TestClient
 # ---------------------------------------------------------------------------
 
 @pytest.mark.asyncio
-async def test_api_whatsapp_webhook_get_verification() -> None:
+async def test_api_whatsapp_webhook_get_verification(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    monkeypatch.setattr(default_whatsapp_adapter, "_verify_token", "test_verify_token")
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         # Success verification
         res = await client.get(
-            "/api/whatsapp/webhook?hub.mode=subscribe&hub.verify_token=grocer_whatsapp_verify_token&hub.challenge=test_challenge_code"
+            "/api/whatsapp/webhook?hub.mode=subscribe&hub.verify_token=test_verify_token&hub.challenge=test_challenge_code"
         )
         assert res.status_code == 200
         assert res.text == "test_challenge_code"
@@ -185,7 +290,9 @@ async def test_api_whatsapp_webhook_get_verification() -> None:
 
 
 @pytest.mark.asyncio
-async def test_api_whatsapp_webhook_post_flow() -> None:
+async def test_api_whatsapp_webhook_post_flow(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    monkeypatch.setattr(default_whatsapp_adapter, "record_only", True)
+    monkeypatch.setattr(default_whatsapp_adapter, "_app_secret", "test-webhook-secret")
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         payload = {
@@ -197,7 +304,7 @@ async def test_api_whatsapp_webhook_post_flow() -> None:
                             "value": {
                                 "messages": [
                                     {
-                                        "id": "wamid.e2e.test.1",
+                                        "id": f"wamid.e2e.{uuid.uuid4()}",
                                         "from": "919999988888",
                                         "type": "text",
                                         "text": {"body": "get 1L milk and bread"},
@@ -211,14 +318,15 @@ async def test_api_whatsapp_webhook_post_flow() -> None:
         }
 
         body_bytes = json.dumps(payload).encode("utf-8")
-        headers = {"Content-Type": "application/json"}
-        if default_whatsapp_adapter.app_secret:
-            sig = hmac.new(
-                default_whatsapp_adapter.app_secret.encode("utf-8"),
-                body_bytes,
-                hashlib.sha256,
-            ).hexdigest()
-            headers["X-Hub-Signature-256"] = f"sha256={sig}"
+        sig = hmac.new(
+            b"test-webhook-secret",
+            body_bytes,
+            hashlib.sha256,
+        ).hexdigest()
+        headers = {
+            "Content-Type": "application/json",
+            "X-Hub-Signature-256": f"sha256={sig}",
+        }
 
         res = await client.post(
             "/api/whatsapp/webhook",
@@ -229,3 +337,134 @@ async def test_api_whatsapp_webhook_post_flow() -> None:
         data = res.json()
         assert data["status"] == "ok"
         assert data["processed"] == 1
+
+
+@pytest.mark.asyncio
+async def test_api_whatsapp_failed_dispatch_remains_retryable(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    from backend.api import whatsapp as whatsapp_api
+    from backend.intent.orchestrator import OrchestratorTurnResult
+    from backend.intent.session import ConversationState
+
+    secret = "test-retry-secret"
+    message_id = f"wamid.retry.{uuid.uuid4()}"
+    orchestration_attempts = 0
+    delivery_attempts = 0
+
+    class RecordingOrchestrator:
+        async def handle_turn(self, session_id, customer_id, message, address_id=None):  # type: ignore[no-untyped-def]
+            del customer_id, message, address_id
+            nonlocal orchestration_attempts
+            orchestration_attempts += 1
+            return OrchestratorTurnResult(
+                session_id=session_id,
+                conversation_state=ConversationState.READY,
+                user_message="Your request was applied.",
+                events=["CART_MUTATED"],
+            )
+
+    async def fail_delivery_once(response):  # type: ignore[no-untyped-def]
+        del response
+        nonlocal delivery_attempts
+        delivery_attempts += 1
+        return delivery_attempts > 1
+
+    monkeypatch.setattr(default_whatsapp_adapter, "_app_secret", secret)
+    monkeypatch.setattr(default_whatsapp_adapter, "send_response", fail_delivery_once)
+    monkeypatch.setattr(whatsapp_api, "_orchestrator", RecordingOrchestrator())
+    payload = {
+        "object": "whatsapp_business_account",
+        "entry": [
+            {
+                "changes": [
+                    {
+                        "value": {
+                            "messages": [
+                                {
+                                    "id": message_id,
+                                    "from": "919999977777",
+                                    "type": "text",
+                                    "text": {"body": "get milk"},
+                                }
+                            ]
+                        }
+                    }
+                ]
+            }
+        ],
+    }
+    body_bytes = json.dumps(payload).encode("utf-8")
+    signature = hmac.new(
+        secret.encode("utf-8"), body_bytes, hashlib.sha256
+    ).hexdigest()
+    headers = {
+        "Content-Type": "application/json",
+        "X-Hub-Signature-256": f"sha256={signature}",
+    }
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        first = await client.post(
+            "/api/whatsapp/webhook", content=body_bytes, headers=headers
+        )
+        second = await client.post(
+            "/api/whatsapp/webhook", content=body_bytes, headers=headers
+        )
+
+    assert first.status_code == 503
+    assert second.status_code == 200
+    assert second.json()["processed"] == 1
+    assert orchestration_attempts == 1
+    assert delivery_attempts == 2
+
+
+@pytest.mark.asyncio
+async def test_api_whatsapp_cancellation_releases_message_reservation(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    from backend.api import whatsapp as whatsapp_api
+
+    secret = "test-cancel-secret"
+    message_id = f"wamid.cancel.{uuid.uuid4()}"
+
+    class CancelledOrchestrator:
+        async def handle_turn(self, *args, **kwargs):  # type: ignore[no-untyped-def]
+            del args, kwargs
+            raise asyncio.CancelledError
+
+    monkeypatch.setattr(default_whatsapp_adapter, "_app_secret", secret)
+    monkeypatch.setattr(whatsapp_api, "_orchestrator", CancelledOrchestrator())
+    payload = {
+        "object": "whatsapp_business_account",
+        "entry": [
+            {
+                "changes": [
+                    {
+                        "value": {
+                            "messages": [
+                                {
+                                    "id": message_id,
+                                    "from": "919999966666",
+                                    "type": "text",
+                                    "text": {"body": "get bread"},
+                                }
+                            ]
+                        }
+                    }
+                ]
+            }
+        ],
+    }
+    body_bytes = json.dumps(payload).encode("utf-8")
+    signature = hmac.new(
+        secret.encode("utf-8"), body_bytes, hashlib.sha256
+    ).hexdigest()
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        with pytest.raises(asyncio.CancelledError):
+            await client.post(
+                "/api/whatsapp/webhook",
+                content=body_bytes,
+                headers={"X-Hub-Signature-256": f"sha256={signature}"},
+            )
+
+    assert default_whatsapp_adapter.reserve_message(message_id) is True
+    default_whatsapp_adapter.release_message(message_id)

@@ -65,7 +65,7 @@ class SwiggyTokenVault:
         )
         with self._lock:
             self._tokens[customer_id] = entry
-        logger.info("Stored Swiggy token for customer=%s (expires_in=%ds)", customer_id, expires_in)
+        logger.info("Stored a customer-scoped Swiggy token (expires_in=%ds)", expires_in)
         return entry
 
     def get_token(self, customer_id: str) -> Optional[str]:
@@ -75,7 +75,7 @@ class SwiggyTokenVault:
             if not entry:
                 return None
             if entry.is_expired:
-                logger.info("Swiggy token expired for customer=%s", customer_id)
+                logger.info("A customer-scoped Swiggy token expired.")
                 del self._tokens[customer_id]
                 return None
             return entry.access_token

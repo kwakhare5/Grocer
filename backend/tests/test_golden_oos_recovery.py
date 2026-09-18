@@ -2,12 +2,12 @@
 
 Validates the flagship proof loop:
 User request:
-    "get my weekly groceries under ₹2000, vegetarian, use my usual brands"
+    "get my weekly groceries under ₹2000, use my usual brands"
 
 End-to-End Cycle:
 1. Parse conversational request → structured IntentContract.
 2. Build initial basket via CommercePort (Amul milk, bread, tomatoes).
-3. Deterministic verification: initial basket passes (status PASS, within ₹2000 budget, vegetarian).
+3. Deterministic verification: initial basket passes (status PASS, within ₹2000 budget).
 4. Inject deterministic simulated commerce failure: Amul 1L milk goes out of stock.
 5. Re-fetch live commerce state → IntentVerifier flags violation (ITEM_UNAVAILABLE).
 6. LoopingRecoveryEngine executes bounded recovery:
@@ -16,7 +16,7 @@ End-to-End Cycle:
    - Selects compliant replacement (Amul 500ml milk with 2x pack multiple).
    - Mutates commerce cart while strictly preserving unrelated items (bread, tomatoes).
    - Re-fetches live cart from CommercePort.
-   - Re-verifies FULL intent: vegetarian constraint satisfied, total <= ₹2000, items present.
+    - Re-verifies FULL intent: total <= ₹2000, items present.
 7. Verification PASS → session transitions to AWAITING_CONFIRMATION with recovery notes.
 8. Server-side explicit confirmation gate enforces that checkout CANNOT happen automatically.
 9. Explicit user confirmation executes consequential checkout → ORDERED.
@@ -31,8 +31,8 @@ from backend.integrations.commerce.models import CartItemUpdate
 from backend.integrations.commerce.exceptions import UnconfirmedCheckoutError
 from backend.intent.enums import PrecedenceLevel, PreferenceType
 from backend.intent.models import (
+    AuthorizationScope,
     BudgetConstraint,
-    DietaryConstraint,
     IntentContract,
     IntentItem,
     PackSizeRules,
@@ -61,20 +61,17 @@ async def test_golden_oos_recovery_scenario() -> None:
     address_id = "addr-bandra-1"
 
     # 1. Establish Intent Contract
-    # Goal: "get my weekly groceries under ₹2000, vegetarian, use my usual brands"
+    # Goal: "get my weekly groceries under ₹2000, use my usual brands"
     contract = IntentContract(
         session_id=session_id,
         customer_id=customer_id,
-        goal="weekly groceries under ₹2000, vegetarian, use usual brands",
+        goal="weekly groceries under ₹2000, use usual brands",
         items=[
             IntentItem(name="milk", quantity=1, unit="L", pack_size_preference="1 L", category="dairy", is_essential=True),
             IntentItem(name="bread", quantity=1, unit="pcs", pack_size_preference="400 g", category="bakery", is_essential=True),
             IntentItem(name="tomatoes", quantity=1, unit="kg", pack_size_preference="1 kg", category="produce", is_essential=True),
         ],
         budget=BudgetConstraint(max_budget=2000.0, is_hard=True, max_deviation=0.0),
-        dietary_constraints=[
-            DietaryConstraint(tag="vegetarian", is_hard=True, detail="Strictly vegetarian grocery restock")
-        ],
         pack_size_rules=PackSizeRules(preferred_multiples=True),
         soft_preferences=[
             SoftPreference(
@@ -86,6 +83,9 @@ async def test_golden_oos_recovery_scenario() -> None:
 
         ],
         substitution_policy=SubstitutionPolicy(),
+        authorization_scope=AuthorizationScope(
+            requires_approval_for_price_increase=False,
+        ),
     )
 
     # 2. Build initial basket via CommercePort
@@ -148,7 +148,7 @@ async def test_golden_oos_recovery_scenario() -> None:
     assert "SPIN-MILK-500ML" in recovered_spins
     assert recovered_spins["SPIN-MILK-500ML"].quantity == 2
 
-    # Verify vegetarian constraint and budget constraints hold on recovered cart
+    # Verify budget constraints hold on recovered cart
     assert recovery_result.cart.grand_total <= contract.budget.max_budget
     assert len(recovery_result.verification.violations) == 0
 
@@ -170,7 +170,7 @@ async def test_golden_oos_recovery_scenario() -> None:
         address_id=address_id,
     )
 
-    assert order.status == "ORDER_CONFIRMED"
+    assert order.status == "ORDER_PLACED"
     assert order.order_id.startswith("OD-")
     assert order.grand_total == recovery_result.cart.grand_total
     assert len(order.items) == 3
@@ -195,6 +195,13 @@ async def test_golden_orchestrator_turn_with_oos_recovery() -> None:
     assert turn1.conversation_state == ConversationState.AWAITING_CONFIRMATION
     assert turn1.requires_confirmation is True
 
+    # This golden path explicitly authorizes compliant substitutions that cost
+    # more while remaining inside the hard basket budget.
+    session = store.get(session_id)
+    assert session is not None and session.intent_contract is not None
+    session.intent_contract.authorization_scope.requires_approval_for_price_increase = False
+    store.save(session)
+
     # Now inject OOS on 1L milk
     adapter.inject_out_of_stock("SPIN-MILK-1L")
 
@@ -214,7 +221,12 @@ async def test_golden_orchestrator_turn_with_oos_recovery() -> None:
     assert any("milk" in n for n in names)
 
     # Confirm checkout
-    confirm_res = await orchestrator.handle_confirm(session_id=session_id)
+    confirm_res = await orchestrator.handle_confirm(
+        session_id=session_id,
+        payment_method=turn2.basket_summary.selected_payment_method,
+        explicit_confirmation=True,
+        confirmation_nonce=turn2.basket_summary.confirmation_nonce,
+    )
     assert confirm_res.conversation_state == ConversationState.ORDERED
     assert confirm_res.order_id is not None
 

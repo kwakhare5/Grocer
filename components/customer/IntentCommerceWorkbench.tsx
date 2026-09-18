@@ -2,11 +2,12 @@
 
 import React, { FormEvent, useMemo, useState } from "react";
 import { CheckCircle2, Loader2, MessageCircle, RefreshCw, Send, ShieldCheck, ShoppingCart, Sparkles } from "lucide-react";
-import type { CustomerPersona } from "../../lib/types";
 import {
+  checkIntentPaymentStatus,
   chooseIntentAlternative,
   clearIntentSession,
   confirmIntentCheckout,
+  createIntentSession,
   sendIntentTurn,
   type IntentBasketSummary,
   type IntentChoiceOption,
@@ -14,7 +15,6 @@ import {
 } from "../../lib/apiClient";
 
 interface IntentCommerceWorkbenchProps {
-  customer: CustomerPersona;
   isBackendConnected: boolean;
 }
 
@@ -25,10 +25,6 @@ type ChatMessage = {
 };
 
 const STARTER_REQUEST = "get my weekly groceries under ₹2000, vegetarian, use my usual brands";
-
-function newSessionId(customerId: string) {
-  return `wa-${customerId}-${crypto.randomUUID()}`;
-}
 
 function formatMoney(value: number) {
   return `₹${value.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
@@ -48,7 +44,7 @@ function BasketCard({ basket }: { basket: IntentBasketSummary | null }) {
       <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <ShoppingCart className="h-4 w-4 text-emerald-600" />
-          <span className="text-sm font-bold">verified basket</span>
+          <span className="text-sm font-bold">current basket</span>
         </div>
         <span className={`rounded-full px-2 py-1 text-[10px] font-bold ${basket.within_budget ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>
           {basket.within_budget ? "intent preserved" : "needs recovery"}
@@ -74,8 +70,21 @@ function BasketCard({ basket }: { basket: IntentBasketSummary | null }) {
         <div className="mt-1 flex items-center justify-between text-xs text-zinc-500">
           <span>delivery</span><span>{formatMoney(basket.delivery_fee)}</span>
         </div>
+        {basket.packaging_fee > 0 && (
+          <div className="mt-1 flex items-center justify-between text-xs text-zinc-500">
+            <span>packaging</span><span>{formatMoney(basket.packaging_fee)}</span>
+          </div>
+        )}
+        {basket.discount > 0 && (
+          <div className="mt-1 flex items-center justify-between text-xs text-emerald-700">
+            <span>discount</span><span>−{formatMoney(basket.discount)}</span>
+          </div>
+        )}
         <div className="mt-2 flex items-center justify-between text-sm font-bold text-zinc-950">
           <span>total</span><span>{formatMoney(basket.grand_total)}</span>
+        </div>
+        <div className="mt-2 text-[10px] text-zinc-500">
+          delivery to {basket.address_display || basket.address_id || "selected address"}
         </div>
       </div>
 
@@ -91,15 +100,16 @@ function BasketCard({ basket }: { basket: IntentBasketSummary | null }) {
   );
 }
 
-export function IntentCommerceWorkbench({ customer, isBackendConnected }: IntentCommerceWorkbenchProps) {
-  const [sessionId, setSessionId] = useState(() => newSessionId(customer.id));
+export function IntentCommerceWorkbench({ isBackendConnected }: IntentCommerceWorkbenchProps) {
+  const [sessionId, setSessionId] = useState("");
+  const [sessionCapability, setSessionCapability] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [basket, setBasket] = useState<IntentBasketSummary | null>(null);
   const [options, setOptions] = useState<IntentChoiceOption[]>([]);
+  const [choiceNonce, setChoiceNonce] = useState("");
   const [state, setState] = useState("READY");
   const [events, setEvents] = useState<string[]>([]);
-  const [paymentMethod, setPaymentMethod] = useState<"UPI" | "COD">("UPI");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -107,11 +117,25 @@ export function IntentCommerceWorkbench({ customer, isBackendConnected }: Intent
     setState(response.conversation_state);
     setBasket(response.basket_summary);
     setOptions(response.clarification_options || []);
+    setChoiceNonce(response.clarification_nonce || "");
     setEvents(response.events || []);
     setMessages((current) => [
       ...current,
       { id: crypto.randomUUID(), role: "assistant", text: response.user_message },
     ]);
+  };
+
+  const ensureSession = async () => {
+    if (sessionId && sessionCapability) {
+      return { sessionId, sessionCapability };
+    }
+    const created = await createIntentSession();
+    setSessionId(created.session_id);
+    setSessionCapability(created.session_capability);
+    return {
+      sessionId: created.session_id,
+      sessionCapability: created.session_capability,
+    };
   };
 
   const send = async (message: string) => {
@@ -122,9 +146,10 @@ export function IntentCommerceWorkbench({ customer, isBackendConnected }: Intent
     setInput("");
 
     try {
+      const credentials = await ensureSession();
       const response = await sendIntentTurn({
-        sessionId,
-        customerId: customer.id,
+        sessionId: credentials.sessionId,
+        sessionCapability: credentials.sessionCapability,
         message: message.trim(),
       });
       applyResponse(response);
@@ -141,12 +166,17 @@ export function IntentCommerceWorkbench({ customer, isBackendConnected }: Intent
   };
 
   const handleChoice = async (option: IntentChoiceOption) => {
-    if (busy) return;
+    if (busy || !sessionId || !sessionCapability || !choiceNonce) return;
     setBusy(true);
     setError(null);
     setMessages((current) => [...current, { id: crypto.randomUUID(), role: "user", text: `${option.index}` }]);
     try {
-      const response = await chooseIntentAlternative(sessionId, option.spin_id);
+      const response = await chooseIntentAlternative(
+        sessionId,
+        sessionCapability,
+        option.spin_id,
+        choiceNonce,
+      );
       applyResponse(response);
     } catch (err) {
       setError(err instanceof Error ? err.message : "choice failed");
@@ -156,7 +186,7 @@ export function IntentCommerceWorkbench({ customer, isBackendConnected }: Intent
   };
 
   const handleConfirm = async () => {
-    if (busy || state !== "AWAITING_CONFIRMATION") return;
+    if (busy || state !== "AWAITING_CONFIRMATION" || !sessionCapability) return;
     setBusy(true);
     setError(null);
     setMessages((current) => [
@@ -164,7 +194,15 @@ export function IntentCommerceWorkbench({ customer, isBackendConnected }: Intent
       { id: crypto.randomUUID(), role: "user", text: "confirm order" },
     ]);
     try {
-      const response = await confirmIntentCheckout({ sessionId, paymentMethod });
+      if (!basket?.confirmation_nonce) {
+        throw new Error("The basket confirmation expired. Please rebuild the basket.");
+      }
+      const response = await confirmIntentCheckout({
+        sessionId,
+        sessionCapability,
+        paymentMethod: basket.selected_payment_method,
+        confirmationNonce: basket.confirmation_nonce,
+      });
       applyResponse(response);
     } catch (err) {
       setError(err instanceof Error ? err.message : "checkout failed");
@@ -173,16 +211,32 @@ export function IntentCommerceWorkbench({ customer, isBackendConnected }: Intent
     }
   };
 
+  const handlePaymentStatus = async () => {
+    if (busy || state !== "PAYMENT_PENDING" || !sessionCapability) return;
+    setBusy(true);
+    setError(null);
+    try {
+      applyResponse(await checkIntentPaymentStatus(sessionId, sessionCapability));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "payment status check failed");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const reset = async () => {
     setBusy(true);
     try {
-      await clearIntentSession(sessionId).catch(() => undefined);
+      if (sessionId && sessionCapability) {
+        await clearIntentSession(sessionId, sessionCapability).catch(() => undefined);
+      }
     } finally {
-      const next = newSessionId(customer.id);
-      setSessionId(next);
+      setSessionId("");
+      setSessionCapability("");
       setMessages([]);
       setBasket(null);
       setOptions([]);
+      setChoiceNonce("");
       setState("READY");
       setEvents([]);
       setError(null);
@@ -220,7 +274,7 @@ export function IntentCommerceWorkbench({ customer, isBackendConnected }: Intent
               </div>
               <div>
                 <div className="text-sm font-bold">Grocer Assistant</div>
-                <div className="text-[10px] text-emerald-100">{customer.name} • {statusLabel}</div>
+                <div className="text-[10px] text-emerald-100">Demo household • {statusLabel}</div>
               </div>
             </div>
             <button type="button" onClick={() => void reset()} className="rounded-lg p-2 text-white/80 hover:bg-white/10 hover:text-white" title="Reset conversation">
@@ -319,14 +373,10 @@ export function IntentCommerceWorkbench({ customer, isBackendConnected }: Intent
             <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
               <div className="text-xs font-bold text-emerald-950">ready to place order</div>
               <div className="mt-1 text-[11px] leading-relaxed text-emerald-900">
-                the backend re-verified the basket against the original intent. checkout is intentionally blocked until this explicit action.
+                the backend checked this basket against the original intent. checkout is blocked until this basket, address, and payment choice are explicitly approved.
               </div>
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                {(["UPI", "COD"] as const).map((method) => (
-                  <button key={method} type="button" onClick={() => setPaymentMethod(method)} className={`rounded-xl border px-3 py-2 text-xs font-bold ${paymentMethod === method ? "border-emerald-600 bg-white text-emerald-800" : "border-emerald-200 bg-emerald-100/60 text-emerald-700"}`}>
-                    {method}
-                  </button>
-                ))}
+              <div className="mt-3 rounded-xl border border-emerald-200 bg-white px-3 py-2 text-xs text-emerald-900">
+                Payment: <span className="font-bold">{basket.selected_payment_option_label || basket.selected_payment_method}</span>
               </div>
               <button type="button" disabled={busy} onClick={() => void handleConfirm()} className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-[#075E54] px-4 py-3 text-xs font-bold text-white disabled:opacity-50">
                 {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
@@ -338,6 +388,28 @@ export function IntentCommerceWorkbench({ customer, isBackendConnected }: Intent
           {state === "ORDERED" && (
             <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-900">
               order placed successfully. the intent contract made it all the way to checkout.
+            </div>
+          )}
+
+          {state === "PAYMENT_PENDING" && (
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+              <div className="font-semibold">payment pending</div>
+              <div className="mt-1 text-xs">No successful order is shown until the provider confirms payment.</div>
+              <button type="button" disabled={busy} onClick={() => void handlePaymentStatus()} className="mt-3 rounded-xl bg-amber-900 px-4 py-2 text-xs font-bold text-white disabled:opacity-50">
+                {busy ? "checking…" : "check payment status"}
+              </button>
+            </div>
+          )}
+
+          {state === "PARTIAL_ORDER" && (
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-950">
+              only part of the order succeeded. Review the provider order details before continuing.
+            </div>
+          )}
+
+          {(state === "PAYMENT_FAILED" || state === "ORDER_STATE_UNKNOWN") && (
+            <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-900">
+              {state === "PAYMENT_FAILED" ? "payment failed or was cancelled." : "checkout outcome is unknown; GROCER will not retry or claim success."}
             </div>
           )}
 

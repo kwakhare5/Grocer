@@ -14,6 +14,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import logging
+import threading
 import time
 import os
 from pathlib import Path
@@ -45,6 +46,7 @@ class WhatsAppChannelAdapter(BaseChannelAdapter):
         phone_number_id: Optional[str] = None,
         access_token: Optional[str] = None,
         timeout: float = 10.0,
+        record_only: bool = False,
     ) -> None:
         super().__init__(channel_type=ChannelType.WHATSAPP)
         self._verify_token = verify_token
@@ -52,15 +54,19 @@ class WhatsAppChannelAdapter(BaseChannelAdapter):
         self._phone_number_id = phone_number_id
         self._access_token = access_token
         self.timeout = timeout
+        self.record_only = record_only
 
         # Deduplication cache: message_id -> timestamp (1 hour TTL)
         self._processed_message_ids: dict[str, float] = {}
+        self._inflight_message_ids: set[str] = set()
+        self._pending_responses: dict[str, NormalizedOutgoingResponse] = {}
+        self._dedup_lock = threading.Lock()
         # Record of outbound messages for testing and inspection
         self.outbound_messages: list[dict[str, Any]] = []
 
     @property
-    def verify_token(self) -> str:
-        return self._verify_token or os.environ.get("WHATSAPP_VERIFY_TOKEN", "grocer_whatsapp_verify_token")
+    def verify_token(self) -> Optional[str]:
+        return self._verify_token or os.environ.get("WHATSAPP_VERIFY_TOKEN")
 
     @verify_token.setter
     def verify_token(self, val: str) -> None:
@@ -83,6 +89,17 @@ class WhatsAppChannelAdapter(BaseChannelAdapter):
         secret_masked = "***" if self.app_secret else "none"
         return f"WhatsAppChannelAdapter(phone_id={self.phone_number_id}, token={token_masked}, secret={secret_masked})"
 
+    def map_sender_to_customer_id(self, sender_id: str) -> str:
+        """Pseudonymize the phone number before it enters commerce/session state."""
+        normalized = "".join(character for character in sender_id if character.isdigit())
+        secret = self.app_secret
+        if not normalized or not secret:
+            raise ValueError("WhatsApp sender identity cannot be verified.")
+        digest = hmac.new(
+            secret.encode("utf-8"), normalized.encode("utf-8"), hashlib.sha256
+        ).hexdigest()
+        return f"cust_wa_{digest[:24]}"
+
     # -----------------------------------------------------------------------
     # 1. Webhook Verification (GET)
     # -----------------------------------------------------------------------
@@ -94,7 +111,13 @@ class WhatsAppChannelAdapter(BaseChannelAdapter):
         challenge: Optional[str],
     ) -> tuple[bool, str]:
         """Verify Meta webhook registration challenge."""
-        if mode == "subscribe" and token == self.verify_token:
+        expected = self.verify_token
+        if (
+            mode == "subscribe"
+            and expected is not None
+            and token is not None
+            and hmac.compare_digest(token, expected)
+        ):
             logger.info("WhatsApp webhook challenge verified successfully.")
             return True, challenge or ""
         logger.warning("WhatsApp webhook challenge verification failed.")
@@ -110,9 +133,8 @@ class WhatsAppChannelAdapter(BaseChannelAdapter):
         Header format: sha256={hex_digest}
         """
         if not self.app_secret:
-            # If no secret configured in development, log warning and allow
-            logger.warning("WHATSAPP_APP_SECRET not configured; skipping HMAC verification.")
-            return True
+            logger.error("WHATSAPP_APP_SECRET is required for webhook verification.")
+            return False
 
         if not signature_header or not signature_header.startswith("sha256="):
             logger.warning("Missing or malformed X-Hub-Signature-256 header.")
@@ -134,20 +156,48 @@ class WhatsAppChannelAdapter(BaseChannelAdapter):
     # 3. Payload Parsing & Deduplication
     # -----------------------------------------------------------------------
 
-    def is_duplicate(self, message_id: str) -> bool:
-        """Check and record message ID in deduplication cache."""
+    def reserve_message(self, message_id: str) -> bool:
+        """Atomically reserve one event for dispatch; false means duplicate/in-flight."""
         now = time.time()
-        # Prune entries older than 3600s (1 hour)
-        self._processed_message_ids = {
-            mid: ts for mid, ts in self._processed_message_ids.items() if now - ts < 3600.0
-        }
-
-        if message_id in self._processed_message_ids:
-            logger.info("Duplicate WhatsApp event ignored: message_id=%s", message_id)
+        with self._dedup_lock:
+            self._processed_message_ids = {
+                mid: ts
+                for mid, ts in self._processed_message_ids.items()
+                if now - ts < 3600.0
+            }
+            if (
+                message_id in self._processed_message_ids
+                or message_id in self._inflight_message_ids
+            ):
+                return False
+            self._inflight_message_ids.add(message_id)
             return True
 
-        self._processed_message_ids[message_id] = now
-        return False
+    def mark_processed(self, message_id: str) -> None:
+        """Commit a reservation only after dispatch and outbound delivery succeed."""
+        with self._dedup_lock:
+            self._inflight_message_ids.discard(message_id)
+            self._pending_responses.pop(message_id, None)
+            self._processed_message_ids[message_id] = time.time()
+
+    def release_message(self, message_id: str) -> None:
+        """Release a failed reservation so Meta can retry the event."""
+        with self._dedup_lock:
+            self._inflight_message_ids.discard(message_id)
+
+    def pending_delivery(
+        self, message_id: str
+    ) -> Optional[NormalizedOutgoingResponse]:
+        """Return the already-computed outcome for a delivery-only retry."""
+        with self._dedup_lock:
+            return self._pending_responses.get(message_id)
+
+    def stage_delivery(
+        self, message_id: str, response: NormalizedOutgoingResponse
+    ) -> None:
+        """Retain the computed outcome before calling the Meta delivery API."""
+        with self._dedup_lock:
+            self._pending_responses[message_id] = response
 
     def parse_webhook_payload(self, payload: dict[str, Any]) -> list[NormalizedIncomingMessage]:
         """Extract and normalize inbound WhatsApp messages from Meta webhook payload."""
@@ -166,10 +216,6 @@ class WhatsAppChannelAdapter(BaseChannelAdapter):
                     msg_type = msg.get("type", "text")
 
                     if not msg_id or not sender_phone:
-                        continue
-
-                    # Filter out duplicate webhook deliveries
-                    if self.is_duplicate(msg_id):
                         continue
 
                     text_body = ""
@@ -202,7 +248,6 @@ class WhatsAppChannelAdapter(BaseChannelAdapter):
                                 message_id=msg_id,
                                 interactive_type=interactive_type,
                                 interactive_id=interactive_id,
-                                raw_payload=msg,
                             )
                         )
 
@@ -290,11 +335,14 @@ class WhatsAppChannelAdapter(BaseChannelAdapter):
     async def send_response(self, response: NormalizedOutgoingResponse) -> bool:
         """Send formatted response via Meta WhatsApp Cloud API or record for test inspection."""
         payload = self.format_whatsapp_payload(response)
-        self.outbound_messages.append(payload)
+
+        if self.record_only:
+            self.outbound_messages.append(payload)
+            return True
 
         if not self.phone_number_id or not self.access_token:
-            logger.info("WhatsApp credentials not set; recorded outbound message to test queue.")
-            return True
+            logger.error("WhatsApp delivery credentials are not configured.")
+            return False
 
         url = f"{META_GRAPH_API_URL}/{self.phone_number_id}/messages"
         headers = {
@@ -306,12 +354,12 @@ class WhatsAppChannelAdapter(BaseChannelAdapter):
             async with httpx.AsyncClient(timeout=self.timeout) as client:
                 res = await client.post(url, json=payload, headers=headers)
                 if res.status_code in (200, 201):
-                    logger.info("WhatsApp message delivered to %s", response.recipient_id)
+                    logger.info("WhatsApp message delivered.")
                     return True
-                logger.error("WhatsApp API returned error %d: %s", res.status_code, res.text)
+                logger.error("WhatsApp API returned HTTP %d.", res.status_code)
                 return False
         except Exception as exc:
-            logger.error("Failed to deliver WhatsApp message: %s", exc)
+            logger.error("Failed to deliver WhatsApp message: %s", type(exc).__name__)
             return False
 
 

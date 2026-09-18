@@ -1,24 +1,15 @@
 "use client";
 
 import React from "react";
-import { MessageSquare, ShieldCheck, Users } from "lucide-react";
+import { MessageSquare, ShieldCheck } from "lucide-react";
 import { GrocerLogo } from "../ui/GrocerLogo";
-import { CustomerPersona } from "../../lib/types";
-import { SIMULATED_CUSTOMERS } from "../../lib/mockData";
-import { BackendCommerceAdapterInfo } from "../../lib/apiClient";
 
 interface AppGlobalHeaderProps {
-  activeCustomer?: CustomerPersona;
-  onCustomerChange?: (customer: CustomerPersona) => void;
-  isLiveApiConnected?: boolean;
-  adapterInfo?: BackendCommerceAdapterInfo | null;
+  isBackendConnected?: boolean;
 }
 
 export function AppGlobalHeader({
-  activeCustomer,
-  onCustomerChange,
-  isLiveApiConnected = false,
-  adapterInfo,
+  isBackendConnected = false,
 }: AppGlobalHeaderProps) {
   return (
     <header className="sticky top-0 z-50 w-full bg-white/95 backdrop-blur-md border-b border-zinc-200 shadow-2xs">
@@ -39,13 +30,13 @@ export function AppGlobalHeader({
 
           {/* CommercePort Telemetry Pill */}
           <div className="hidden sm:flex items-center gap-2 pl-3 border-l border-zinc-200">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span
+              className={`w-2 h-2 rounded-full ${isBackendConnected ? "bg-emerald-500" : "bg-zinc-400"}`}
+            />
             <span className="text-[11px] font-mono text-zinc-600 font-medium">
-              {adapterInfo
-                ? `${adapterInfo.adapter_type.toUpperCase()} (${adapterInfo.mode})`
-                : "Swiggy CommercePort Active"}
+              {isBackendConnected ? "Backend connected" : "Backend unavailable"}
             </span>
-            {isLiveApiConnected ? (
+            {isBackendConnected ? (
               <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold">
                 FASTAPI LIVE
               </span>
@@ -57,30 +48,8 @@ export function AppGlobalHeader({
           </div>
         </div>
 
-        {/* Center/Right: Household Persona Selector & Safety Guard */}
+        {/* Right: Safety Guard */}
         <div className="flex items-center gap-3">
-          {/* Active Household Switcher */}
-          {onCustomerChange && activeCustomer && (
-            <div className="flex items-center gap-1.5 bg-zinc-50 hover:bg-zinc-100/80 border border-zinc-200/80 px-2.5 py-1 rounded-lg transition-colors">
-              <Users className="w-3.5 h-3.5 text-zinc-500" />
-              <select
-                value={activeCustomer.id}
-                onChange={(e) => {
-                  const target = SIMULATED_CUSTOMERS.find((c) => c.id === e.target.value);
-                  if (target) onCustomerChange(target);
-                }}
-                aria-label="Select Household Persona"
-                className="bg-transparent text-xs font-semibold text-zinc-800 focus:outline-none cursor-pointer pr-1"
-              >
-                {SIMULATED_CUSTOMERS.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name} ({c.homeStoreCode})
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
           {/* Safety Guard Indicator */}
           <div className="hidden lg:flex items-center gap-1 px-2.5 py-1 rounded-md bg-emerald-50/70 border border-emerald-200/80 text-emerald-900 text-xs font-mono">
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />

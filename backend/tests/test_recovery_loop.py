@@ -15,9 +15,11 @@ import pytest
 from httpx import AsyncClient
 
 from backend.integrations.commerce.mock_adapter import MockCommerceAdapter
+from backend.integrations.commerce.exceptions import ProviderAuthError
 from backend.integrations.commerce.models import CartItemUpdate, CommerceCart
 from backend.integrations.commerce.port import CommercePort
 from backend.intent.models import (
+    AuthorizationScope,
     BudgetConstraint,
     IntentContract,
     IntentItem,
@@ -75,13 +77,28 @@ class FakeCommercePort(CommercePort):
     async def clear_cart(self, cart_id=None):
         return True
 
-    async def get_payment_options(self, cart_id=None):
+    async def get_payment_options(self, cart_id=None, address_id=None):
         return []
 
     async def checkout(self, cart_id: str, payment_method="UPI", explicit_confirmation=False, address_id=None):
         raise AssertionError("checkout is not part of recovery-loop test")
 
-    async def track_order(self, order_id: str):
+    async def check_payment_status(self, paas_id: str, order_id=None):
+        raise AssertionError("payment is not part of recovery-loop test")
+
+    async def confirm_order(self, order_id: str, paas_id: str):
+        raise AssertionError("payment is not part of recovery-loop test")
+
+    async def get_orders(self, count: int = 10, active_only: bool = False):
+        raise AssertionError("orders are not part of recovery-loop test")
+
+    async def get_order_details(self, order_id: str):
+        raise AssertionError("orders are not part of recovery-loop test")
+
+    async def get_delivery_status(self, order_id: str, address_id: str):
+        raise AssertionError("tracking is not part of recovery-loop test")
+
+    async def track_order(self, order_id: str, lat=None, lng=None):
         raise AssertionError("tracking is not part of recovery-loop test")
 
 
@@ -123,6 +140,36 @@ class CountingRecoveryEngine(LoopingRecoveryEngine):
         )
 
 
+class AuthFailureAdapter(MockCommerceAdapter):
+    def __init__(self) -> None:
+        super().__init__()
+        self.get_cart_calls = 0
+
+    async def get_cart(self, cart_id=None):  # type: ignore[no-untyped-def]
+        self.get_cart_calls += 1
+        raise ProviderAuthError("reauthentication required")
+
+
+@pytest.mark.asyncio
+async def test_recovery_does_not_retry_provider_auth_failure() -> None:
+    adapter = AuthFailureAdapter()
+    result = await LoopingRecoveryEngine().run(
+        contract=IntentContract(
+            session_id="auth-failure",
+            goal="test auth failure",
+            items=[],
+        ),
+        cart_id="cart",
+        commerce_port=adapter,
+        available_products=[],
+        max_attempts=3,
+    )
+
+    assert result.state == RecoveryState.FAILED
+    assert result.attempts == 1
+    assert adapter.get_cart_calls == 1
+
+
 @pytest.mark.asyncio
 async def test_recovery_retries_after_failed_reverification() -> None:
     port = FakeCommercePort()
@@ -157,18 +204,23 @@ async def test_recovery_retries_after_failed_reverification() -> None:
 
 @pytest.mark.asyncio
 async def test_intent_api_exposes_canonical_chat_surface(client: AsyncClient) -> None:
+    created = await client.post("/api/intent/sessions", json={})
+    credentials = created.json()
+    headers = {
+        "X-Grocer-Session-Capability": credentials["session_capability"]
+    }
     response = await client.post(
         "/api/intent/chat",
         json={
-            "session_id": "api-test-session",
-            "customer_id": "customer-1",
+            "session_id": credentials["session_id"],
             "message": "buy 1L milk",
         },
+        headers=headers,
     )
 
     assert response.status_code == 200
     body = response.json()
-    assert body["session_id"] == "api-test-session"
+    assert body["session_id"] == credentials["session_id"]
     assert body["conversation_state"].lower() in {"awaiting_confirmation", "failed", "needs_decision"}
     assert isinstance(body["events"], list)
 
@@ -177,7 +229,10 @@ async def test_intent_api_exposes_canonical_chat_surface(client: AsyncClient) ->
 async def test_intent_api_rejects_unoffered_choice(client: AsyncClient) -> None:
     response = await client.post(
         "/api/intent/sessions/missing-choice-session/choice",
-        json={"chosen_spin_id": "SPIN-NOT-OFFERED"},
+        json={
+            "chosen_spin_id": "SPIN-NOT-OFFERED",
+            "clarification_nonce": "missing-choice-nonce",
+        },
     )
 
     assert response.status_code == 404
@@ -185,9 +240,14 @@ async def test_intent_api_rejects_unoffered_choice(client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_intent_api_requires_explicit_confirmation(client: AsyncClient) -> None:
+    created = await client.post("/api/intent/sessions", json={})
+    credentials = created.json()
     response = await client.post(
-        "/api/intent/sessions/missing-confirm-session/confirm",
+        f"/api/intent/sessions/{credentials['session_id']}/confirm",
         json={"explicit_confirmation": False, "payment_method": "UPI"},
+        headers={
+            "X-Grocer-Session-Capability": credentials["session_capability"]
+        },
     )
 
     assert response.status_code == 400
@@ -243,6 +303,9 @@ async def test_loop_single_successful_recovery_and_preserves_unrelated() -> None
         IntentItem(name="milk", quantity=1, pack_size_preference="1 L", category="dairy"),
         IntentItem(name="bread", quantity=1, pack_size_preference="400 g", category="bakery"),
     ])
+    contract.authorization_scope = AuthorizationScope(
+        requires_approval_for_price_increase=False,
+    )
 
     # Initial cart has 1L milk and bread
     await adapter.update_cart(

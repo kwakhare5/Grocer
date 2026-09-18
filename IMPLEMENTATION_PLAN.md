@@ -1,5 +1,7 @@
 # GROCER v2 — Implementation Plan
 
+> Audit checkpoint (2026-09-09): deep-audit implementation, final review, and local verification are complete on audit/codex-deep-review. The branch is ready for independent review and remains unmerged. The production persistence/deployment milestone remains deliberately NOT STARTED.
+
 > **Source of truth:** `GROCER_V2_MASTER_SPEC.md`
 > **Status:** ACTIVE IMPLEMENTATION ROADMAP
 > **Updated:** 2026-09-06

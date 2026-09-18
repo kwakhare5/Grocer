@@ -10,13 +10,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.config import settings
-from backend.intent.task_repository import (
-    PostgresShoppingTaskRepository,
-    create_postgres_pool,
-)
-from backend.intent.task_service import ShoppingTaskApplicationService
-from backend.intent.message_understanding import MessageUnderstandingService
-from backend.intent.model_understanding import GeminiMessageUnderstandingService
+from backend.database import create_postgres_pool
 from backend.integrations.commerce.factory import get_commerce_adapter
 from backend.integrations.commerce.swiggy_oauth import (
     PostgresPendingAuthFlowStore,
@@ -33,45 +27,24 @@ async def _lifespan(app: FastAPI):
     """Attach optional durable state without hiding database startup failures."""
     pool = None
     is_live_swiggy = settings.COMMERCE_ADAPTER_TYPE.lower() == "swiggy_mcp"
-    if is_live_swiggy and not settings.DATABASE_URL:
-        raise RuntimeError("DATABASE_URL is required for the Swiggy commerce adapter.")
-    if is_live_swiggy and not settings.DATA_ENCRYPTION_KEY:
+    if is_live_swiggy and not settings.DATABASE_URL and not settings.SWIGGY_AUTH_TOKEN:
+        raise RuntimeError("DATABASE_URL or static SWIGGY_AUTH_TOKEN is required for the Swiggy commerce adapter.")
+    if is_live_swiggy and settings.DATABASE_URL and not settings.DATA_ENCRYPTION_KEY:
         raise RuntimeError(
-            "DATA_ENCRYPTION_KEY is required for the Swiggy commerce adapter."
+            "DATA_ENCRYPTION_KEY is required when DATABASE_URL is configured."
         )
     if settings.DATABASE_URL:
         pool = await create_postgres_pool(
             settings.DATABASE_URL, max_size=settings.DATABASE_POOL_MAX_SIZE
         )
-        app.state.shopping_task_repository = PostgresShoppingTaskRepository(pool)
         if settings.DATA_ENCRYPTION_KEY:
             await default_token_vault.configure_postgres(pool, settings.DATA_ENCRYPTION_KEY)
             default_oauth_manager.configure_flow_store(
                 PostgresPendingAuthFlowStore(pool, settings.DATA_ENCRYPTION_KEY)
             )
-    if settings.SHOPPING_TASK_ROUTE:
-        if not pool:
-            raise RuntimeError(
-                "DATABASE_URL is required when SHOPPING_TASK_ROUTE is enabled."
-            )
-        if settings.UNDERSTANDING_MODEL_ENABLED and not settings.GEMINI_API_KEY:
-            raise RuntimeError(
-                "GEMINI_API_KEY is required when model understanding is enabled."
-            )
-        model_understanding = (
-            GeminiMessageUnderstandingService(
-                settings.GEMINI_API_KEY,
-                model=settings.GEMINI_MODEL,
-            )
-            if settings.UNDERSTANDING_MODEL_ENABLED
-            else None
-        )
-        app.state.shopping_task_service = ShoppingTaskApplicationService(
-            app.state.shopping_task_repository,
-            get_commerce_adapter(),
-            checkout_mode=settings.CHECKOUT_MODE,
-            understanding=MessageUnderstandingService(model_understanding),
-        )
+    if settings.AGENT_ROUTE_ENABLED:
+        from backend.agent.engine import GroceryAgentEngine
+        app.state.agent_engine = GroceryAgentEngine(get_commerce_adapter())
     try:
         yield
     finally:
@@ -105,6 +78,7 @@ def create_app() -> FastAPI:
     app.include_router(health_router)
     app.include_router(whatsapp_router)
     app.include_router(oauth_router, prefix="/api")
+    app.include_router(oauth_router)
 
     @app.get("/", tags=["health"])
     def root() -> dict[str, str]:

@@ -3,7 +3,7 @@ from typing import Literal
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
-    SHOPPING_TASK_ROUTE: bool = False
+    AGENT_ROUTE_ENABLED: bool = True
     COMMERCE_ADAPTER_TYPE: str = "mock"
     CHECKOUT_MODE: Literal["review", "live"] = "review"
     SWIGGY_MCP_BASE_URL: str = "https://mcp.swiggy.com/im"
@@ -11,10 +11,10 @@ class Settings(BaseSettings):
     SWIGGY_CUSTOMER_ID: str | None = None
     SWIGGY_CLIENT_ID: str | None = None
     SWIGGY_REDIRECT_URI: str = "https://grocerr.vercel.app/"
+    CONNECT_BASE_URL: str = "http://localhost:8000"
     CORS_ALLOWED_ORIGINS: str = "http://localhost:3000,http://127.0.0.1:3000,https://grocerr.vercel.app"
     GEMINI_API_KEY: str | None = None
     GEMINI_MODEL: str = "gemini-3.5-flash-lite"
-    UNDERSTANDING_MODEL_ENABLED: bool = True
     WHATSAPP_VERIFY_TOKEN: str | None = None
     WHATSAPP_APP_SECRET: str | None = None
     WHATSAPP_PHONE_NUMBER_ID: str | None = None

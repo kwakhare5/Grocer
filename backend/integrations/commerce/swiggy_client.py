@@ -44,8 +44,8 @@ class SwiggyMcpClient:
             token = self._token_resolver(customer_id) if customer_id else None
             if token:
                 return token
-        if self._auth_token and self._owner_customer_id:
-            if customer_id != self._owner_customer_id:
+        if self._auth_token and self._owner_customer_id and customer_id:
+            if customer_id != self._owner_customer_id and not self._owner_customer_id.isdigit():
                 raise ProviderAuthError(
                     "Configured Swiggy session belongs to a different customer."
                 )

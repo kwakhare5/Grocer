@@ -422,7 +422,7 @@ class MockCommerceAdapter(CommercePort):
         payment_option_id: Optional[str] = None,
         payment_option_kind: Optional[str] = None,
     ) -> CommerceOrderResult:
-        del payment_option_id, payment_option_kind
+        del payment_option_id
         self.call_count += 1
         if not explicit_confirmation:
             raise UnconfirmedCheckoutError(
@@ -440,11 +440,20 @@ class MockCommerceAdapter(CommercePort):
         addr = next((a for a in MOCK_ADDRESSES if a.id == address_id), MOCK_ADDRESSES[0])
 
         order_id = f"OD-{uuid.uuid4().hex[:8].upper()}"
+        is_qr = (payment_option_kind == "qr") or (payment_method.upper() == "UPI")
+        paas_id = f"paas_mock_{uuid.uuid4().hex[:8]}" if is_qr else None
+        bridge_url = f"https://instamart.swiggy.com/pay/bridge/{paas_id}" if is_qr else None
+        upi_intent_url = (
+            f"upi://pay?pa=swiggy@icici&pn=Swiggy&am={cart.grand_total:.2f}&tr={paas_id}"
+            if is_qr else None
+        )
+        status = "PAYMENT_PENDING" if is_qr else "ORDER_PLACED"
+
         order_result = CommerceOrderResult(
             order_id=order_id,
             cart_id=cart_id,
-            status="ORDER_PLACED",
-            raw_status="SIMULATED_ORDER_PLACED",
+            status=status,
+            raw_status="SIMULATED_" + status,
             items=list(cart.items),
             payment_method=payment_method,
             grand_total=cart.grand_total,
@@ -454,6 +463,10 @@ class MockCommerceAdapter(CommercePort):
             order_count=1,
             success_count=1,
             all_succeeded=True,
+            paas_id=paas_id,
+            bridge_url=bridge_url,
+            upi_intent_url=upi_intent_url,
+            is_qr_flow=is_qr,
         )
         self._orders[order_id] = order_result
         # Clear cart on successful order

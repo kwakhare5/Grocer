@@ -363,86 +363,54 @@ export default function Home() {
               {/* User message */}
               <div className="flex justify-end">
                 <div className="bg-[#D9FDD3] text-zinc-900 rounded-2xl rounded-tr-xs px-3.5 py-2.5 max-w-[85%] shadow-xs">
-                  <p>Get my weekly groceries under ₹2,000, vegetarian, use my usual brands.</p>
-                  <span className="block text-[10px] text-zinc-400 text-right mt-1">10:14 AM</span>
+                  <p>I want to make pasta tonight, budget under ₹1,500. Get the ingredients!</p>
+                  <span className="block text-[10px] text-zinc-400 text-right mt-1">8:11 PM</span>
                 </div>
               </div>
 
               {/* Grocer response */}
               <div className="flex justify-start">
-                <div className="bg-white text-zinc-900 rounded-2xl rounded-tl-xs px-3.5 py-2.5 max-w-[90%] shadow-xs space-y-2">
-                  <p>Amul Gold Milk 1L is unavailable right now. I have not changed your cart.</p>
-                  <p className="font-semibold text-zinc-800">Choose a replacement:</p>
-                  <div className="space-y-1 bg-zinc-50 p-2 rounded-xl border border-zinc-100">
-                    <p>1. Nandini Special Milk 1L — <span className="font-mono font-semibold">₹54</span></p>
-                    <p>2. Mother Dairy Full Cream 1L — <span className="font-mono font-semibold">₹66</span></p>
+                <div className="bg-white text-zinc-900 rounded-2xl rounded-tl-xs px-3.5 py-2.5 max-w-[92%] shadow-xs space-y-2">
+                  <p>I&apos;ve picked 7 fresh ingredients from your Swiggy Instamart store (Kingsbury, Pune):</p>
+                  <div className="space-y-1 bg-zinc-50 p-2.5 rounded-xl border border-zinc-100 text-[11px]">
+                    <div className="flex justify-between"><span>• Barilla Penne Rigate (500g)</span><span className="font-mono">₹275</span></div>
+                    <div className="flex justify-between"><span>• Barilla Basilico Sauce (400g)</span><span className="font-mono">₹295</span></div>
+                    <div className="flex justify-between"><span>• Borges Extra Virgin Olive Oil (250ml)</span><span className="font-mono">₹380</span></div>
+                    <div className="flex justify-between"><span>• D&apos;lecta Mozzarella (200g)</span><span className="font-mono">₹195</span></div>
+                    <div className="flex justify-between"><span>• Fresh Garlic (100g)</span><span className="font-mono">₹25</span></div>
+                    <div className="flex justify-between"><span>• Fresh Basil (50g)</span><span className="font-mono">₹30</span></div>
+                    <div className="flex justify-between"><span>• Cherry Tomatoes (250g)</span><span className="font-mono">₹45</span></div>
                   </div>
-                  <p className="text-[11px] text-zinc-500">Choose an option in WhatsApp or reply 1 or 2.</p>
-                  <span className="block text-[10px] text-zinc-400 text-right">10:14 AM</span>
+                  <div className="border-t border-zinc-100 pt-1.5 flex justify-between font-semibold text-zinc-800">
+                    <span>Total (within ₹1,500 budget)</span>
+                    <span className="font-mono text-emerald-700">₹1,245</span>
+                  </div>
+                  <p className="text-[10px] text-zinc-500">Delivering to: Home, Kingsbury Pune</p>
+                  <p className="text-[11px] font-medium text-zinc-800">Would you like me to place this order?</p>
+                  <span className="block text-[10px] text-zinc-400 text-right">8:12 PM</span>
                 </div>
               </div>
 
               {/* User reply */}
               <div className="flex justify-end">
-                <div className="bg-[#D9FDD3] text-zinc-900 rounded-2xl rounded-tr-xs px-3.5 py-2 max-w-[40%] shadow-xs text-center">
-                  <p className="font-mono font-semibold">1</p>
-                  <span className="block text-[10px] text-zinc-400 text-right mt-0.5">10:15 AM</span>
+                <div className="bg-[#D9FDD3] text-zinc-900 rounded-2xl rounded-tr-xs px-3.5 py-2 max-w-[60%] shadow-xs text-center font-medium">
+                  <p>Yes, order it!</p>
+                  <span className="block text-[10px] text-zinc-400 text-right mt-0.5">8:12 PM</span>
                 </div>
               </div>
 
-              {/* Grocer cart confirmation */}
+              {/* Grocer payment link */}
               <div className="flex justify-start">
-                <div className="bg-white text-zinc-900 rounded-2xl rounded-tl-xs px-3.5 py-2.5 max-w-[92%] shadow-xs space-y-2.5">
-                  <p className="text-emerald-700 font-semibold">Added Nandini Special Milk.</p>
-                  <div>
-                    <p className="font-semibold text-zinc-800 mb-1">Cart summary:</p>
-                    <div className="space-y-0.5 text-[11px] text-zinc-600">
-                      <div className="flex justify-between">
-                        <span>• Nandini Special Milk 1L</span>
-                        <span className="font-mono">₹54</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>• Aashirvaad Atta 5kg</span>
-                        <span className="font-mono">₹245</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>• Fortune Sunflower Oil 1L</span>
-                        <span className="font-mono">₹165</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>• Organic Brown Eggs 6pk</span>
-                        <span className="font-mono">₹89</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>• Fresh Spinach 250g</span>
-                        <span className="font-mono">₹32</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>• Tomato 1kg</span>
-                        <span className="font-mono">₹38</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="pt-2 border-t border-zinc-100 flex justify-between items-center font-semibold text-zinc-900">
-                    <span>Total (within ₹2,000 budget):</span>
-                    <span className="font-mono text-emerald-700">₹623</span>
-                  </div>
-
-                  <p className="text-[11px] text-zinc-500">
-                    Delivery to: Home, Green Glen Layout
-                  </p>
-
-                  <div className="pt-1 flex gap-2" aria-hidden="true">
-                    <div className="flex-1 bg-emerald-600 text-white text-center py-2 rounded-xl font-semibold shadow-xs">
-                      Confirm Order
-                    </div>
-                    <div className="px-3 bg-zinc-100 text-zinc-700 text-center py-2 rounded-xl font-medium border border-zinc-200">
-                      Edit
-                    </div>
-                  </div>
-
-                  <span className="block text-[10px] text-zinc-400 text-right">10:15 AM</span>
+                <div className="bg-white text-zinc-900 rounded-2xl rounded-tl-xs px-3.5 py-2.5 max-w-[92%] shadow-xs space-y-2">
+                  <p className="text-emerald-700 font-semibold">Order created!</p>
+                  <p className="text-[11px] text-zinc-600">Tap below to complete payment via UPI:</p>
+                  <a
+                    href="upi://pay?pa=swiggy@icici&pn=SwiggyInstamart&am=1245&cu=INR"
+                    className="block bg-emerald-50 border border-emerald-300 hover:bg-emerald-100 rounded-xl p-2.5 text-center transition-colors"
+                  >
+                    <span className="font-mono text-xs font-semibold text-emerald-800">👉 Pay ₹1,245 via UPI</span>
+                  </a>
+                  <span className="block text-[10px] text-zinc-400 text-right">8:13 PM</span>
                 </div>
               </div>
             </div>

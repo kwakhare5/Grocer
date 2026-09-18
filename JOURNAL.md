@@ -17,6 +17,14 @@ During the Session End ritual (called automatically whenever significant changes
 
 ### [GROCER — Swiggy Submission Safety and Landing-Page Hardening] 2026-09-16
 
+- **In progress**: Began the permanent commerce-core migration: added the durable `ShoppingTask` domain model, deterministic reducer, provider-cart adoption gate, catalogue resolver, repository boundary, PostgreSQL inbox/outbox migration, and human-language regression coverage. The legacy runtime path remains active until the replacement is fully wired and replay-proven.
+- **Verification**: 395/395 backend tests passed; `npm run lint` and `npm run build` passed. Managed PostgreSQL credentials, encrypted token configuration, durable worker wiring, and authenticated WhatsApp/Swiggy gates remain open.
+- **Shipped**: Removed obsolete archived documents and generated graph output, consolidated deployment dependencies to root `requirements.txt`, moved durable customer state into the private `grocer_internal` PostgreSQL schema, and updated the active plan, README, architecture, context, and project rules.
+- **Verification**: 397/397 backend tests passed; `npm run lint` and `npm run build` passed after the cleanup.
+- **Shipped**: Removed generated backend caches, the obsolete terminal simulator, the legacy `DEMO_MODE` checkout override, an unused health alias, and a production-tree test helper. Fixed configured-secret sender pseudonymization in the WhatsApp adapter. The remaining legacy runtime is intentionally retained until durable-route cutover.
+- **Shipped**: Created `CLAUDE_PROJECT_CONTEXT.md`, a redacted, evidence-based handoff covering the product contract, current and target architecture, complete repository map, known failures and root causes, deployment constraints, testing/replay plan, cleanup boundaries, and next implementation gates.
+- **Shipped**: Created `CLAUDE_PROJECT_CONTEXT.md`, a redacted, evidence-based handoff covering the product contract, current and target architecture, complete repository map, known failures and root causes, deployment constraints, testing/replay plan, cleanup boundaries, and next implementation gates.
+
 - **Shipped**: Consolidated GROCER as an English-only, WhatsApp-first Swiggy Instamart submission. Removed the unsafe direct LLM commerce route, public OAuth-status enumeration endpoint, hardcoded frontend URLs/phone number/secrets, and misleading checkout/ETA/tracking claims.
 - **Shipped**: Added a bounded conversation interpreter/controller above `GrocerOrchestrator`; native WhatsApp buttons/lists and free text now use the same validated commerce path. Added `CHECKOUT_MODE=review` so the real Swiggy journey can be demonstrated without falsely reporting or charging a placed order.
 - **Shipped**: Updated landing-page accessibility, user-facing connection errors, English product copy, reduced-motion behavior, environment documentation, architecture/state/README language, and official Swiggy/Meta research evidence.

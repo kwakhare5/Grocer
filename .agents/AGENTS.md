@@ -2,7 +2,7 @@
 
 > Read this file before coding. It is the operational instruction set for Antigravity/Gemini and other repository agents.
 > Product authority: `GROCER_V2_MASTER_SPEC.md`
-> Updated: 2026-09-10
+> Updated: 2026-09-16
 
 ## 1. PROJECT IDENTITY — LOCKED
 
@@ -23,30 +23,25 @@
 ## 2. TARGET FLOW
 
 ```text
-WhatsApp
+Meta WhatsApp webhook
   ↓
-Conversation Agent
+Durable inbox
   ↓
-Intent Parser
-  ↓
-Intent Contract
-  ↓
-Policy / Memory
-  ↓
-Customer Commerce Service (GrocerOrchestrator)
+ShoppingTask application service
+  ├── English message proposal
+  ├── deterministic reducer
+  ├── catalogue resolution
+  ├── provider-cart ownership policy
+  └── verifier / bounded recovery
   ↓
 CommercePort
   ↓
 Swiggy MCP / Mock
   ↓
-Live Commerce State
-  ↓
-Intent Verifier
-  ├── PASS → approval → checkout
-  └── FAIL → Recovery Engine → verify again / ask user
+Durable outbox → WhatsApp
 ```
 
-*(Resolution A: The legacy v1 `CustomerService` was intentionally collapsed into `GrocerOrchestrator` (`backend/intent/orchestrator.py`) as the sole approved v2 application boundary communicating directly with `CommercePort`.)*
+The legacy conversation/orchestrator runtime remains only until the durable ShoppingTask route is wired and replay-tested. Do not delete it first; do not extend it as the future architecture.
 
 ## 3. NEVER BUILD THESE INSIDE GROCER
 
@@ -138,14 +133,12 @@ Recovery must be bounded. Never create infinite loops.
 
 Before broad feature work:
 
-1. clean/remove old dark-store residue from the consumer repository;
-2. remove frontend fake operational inventory mutation from consumer checkout;
-3. verify the customer commerce path remains intact;
-4. retain `CommercePort` and checkout guard;
-5. implement `IntentContract`;
-6. implement deterministic `IntentVerifier`;
-7. implement one polished recovery scenario;
-8. then expand recovery and evaluation.
+1. use one durable ShoppingTask state owner;
+2. ensure all natural language becomes a proposal, not a mutation;
+3. require full-basket approval and explicit provider-cart ownership;
+4. retain `CommercePort` and the checkout guard;
+5. persist inbox, outbox, preferences, OAuth tokens, and idempotency safely;
+6. replay human conversation transcripts before removing legacy code.
 
 ## 9. FLAGSHIP SCENARIO
 
@@ -230,30 +223,8 @@ If the answer is no, it does not belong in GROCER v2 unless the master spec is d
 
 ## 15. SESSION RESUME
 
-**Last completed:** Submission Safety, Reviewer Evidence, and Stale-Choice Guard (2026-09-16).
+**Last completed:** Permanent commerce-core foundation plus a complete redacted Claude handoff (`CLAUDE_PROJECT_CONTEXT.md`) covering repository structure, current failures, architecture status, and migration gates (2026-09-16).
 
-**Next verification gate:** Configure durable encrypted PostgreSQL storage, then re-verify the whitelisted OAuth redirect, Meta test number, Render, Vercel, and real Swiggy review-mode behavior. `ConversationInterpreter` may interpret English text only; `ConversationController` validates each command and delegates to `GrocerOrchestrator`. No direct LLM cart mutation or checkout authority is permitted.
+**Next implementation gate:** Wire the new ShoppingTask path through the WhatsApp runtime, replace legacy parse-to-cart mutation only after transcript replay passes, configure managed encrypted PostgreSQL storage, then re-verify the whitelisted OAuth redirect, Meta test number, Render, Vercel, and real Swiggy review-mode behavior. No direct LLM cart mutation or checkout authority is permitted.
 
-**Status:** Completed exhaustive codebase audit, modular decoupling of oversized God Objects, and WhatsApp replenishment flow hardening:
-1. **Orchestrator Decomposition (`backend/intent/orchestrator.py`):** Reduced from 2,078 lines to 899 lines (-1,179 lines, a 57% reduction) by extracting single-responsibility stage coordinators:
-   - `orchestrator_confirm.py` (439 lines): Immutable basket snapshotting, fingerprint validation, and locked checkout execution.
-   - `orchestrator_choice.py` (357 lines): Ambiguity clarification resolution, user choice gating, and change requests.
-   - `orchestrator_tracking.py` (344 lines): Deferred UPI payment status polling, order details extraction, and rider/coordinate tracking.
-   - `orchestrator_address.py` (193 lines): Address matching, durable customer caching, and post-cart progression.
-   - `orchestrator_payment.py` (138 lines): Payment option grouping, selection matching, and preference caching.
-2. **Recovery Engine Decomposition (`backend/intent/recovery.py`):** Reduced from 968 lines to 487 lines (-481 lines, a 50% reduction) by isolating concrete recovery strategies into `recovery_strategies.py` (605 lines) and candidate ranking into `recovery_candidates.py` (198 lines).
-3. **Swiggy MCP Adapter Decomposition (`backend/integrations/commerce/swiggy_adapter.py`):** Reduced from 1,321 lines to 513 lines (-808 lines, a 61% reduction) by extracting response payloads and schemas into `swiggy_parsers.py` (485 lines), `swiggy_normalizers.py` (354 lines), and JSON-RPC 2.0 transport into `swiggy_client.py` (151 lines).
-4. **Presentation Decoupling (`formatters.py`):** Pure presentation module housing WhatsApp message templates, receipts, address prompts, payment prompts, and order/delivery status strings.
-5. **Parser & Taxonomy Separation (`taxonomies.py`, `validator.py`):** Extracted packaging slots, unit maps, keywords, and stop words into `taxonomies.py` (100 lines) and validator into `validator.py` (127 lines).
-6. **Zero Breaking Changes & 100% Behavioral Invariant Preservation:** Preserved every public method contract across `GrocerOrchestrator`, `RecoveryEngine`, and `SwiggyMCPAdapter`.
-
-**Quality Gates:**
-- `pytest backend/tests`: 383/383 tests passed (100% green in 4.47s).
-- `npm run lint`: 0 errors, 0 warnings.
-- `npm run build`: Next.js Turbopack compiled successfully in 10.8s (TypeScript clean in 3.4s).
-- `graphify update .`: Synchronized 2,282 nodes, 6,239 edges, 126 communities.
-- Zero credential leakage; all safety invariants preserved.
-
-**Branch state:**
-- `ag/mainline` — canonical active development branch.
-- `main` — stable reference branch.
+**Current status:** Work is on `main`. The new core has deterministic acceptance coverage, but it is not yet a live durable WhatsApp service. Treat every provider interaction as unverified until PostgreSQL, durable inbound/outbound processing, encrypted credentials, transcript replays, and Swiggy review-mode tests complete.

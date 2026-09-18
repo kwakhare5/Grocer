@@ -302,7 +302,7 @@ async def test_scenario_4_budget_drift_price_surge() -> None:
 
 @pytest.mark.asyncio
 async def test_scenario_5_stale_cart() -> None:
-    """Scenario 5: Cart expires or dark store becomes unserviceable; verifier and recovery block."""
+    """Scenario 5: Cart expires or the delivery address becomes unserviceable; verifier and recovery block."""
     adapter = MockCommerceAdapter()
     verifier = IntentVerifier()
     recovery_engine = RecoveryEngine()
@@ -319,7 +319,7 @@ async def test_scenario_5_stale_cart() -> None:
         cart_id="s5-cart",
     )
 
-    # Fault: Dark store becomes unserviceable / cart expires
+    # Fault: provider delivery becomes unserviceable / cart expires
     adapter.inject_stale_cart(True)
 
     live_cart = await adapter.get_cart("s5-cart")

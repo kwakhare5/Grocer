@@ -1,8 +1,6 @@
 # GROCER reviewer walkthrough
 
-GROCER is an English-only WhatsApp grocery agent. It uses Swiggy Instamart through
-the `CommercePort` boundary and preserves the user's stated shopping intent when
-commerce conditions change.
+GROCER is an English-only WhatsApp grocery agent. This walkthrough is the release target for the durable ShoppingTask route; that route is implemented but not yet live. It uses Swiggy Instamart through the `CommercePort` boundary and preserves the user's stated shopping intent when commerce conditions change.
 
 ## Before a reviewer starts
 
@@ -20,9 +18,7 @@ before a chargeable order is created.
 
 Send: `Please get 2 litres of milk, one bread, and 12 eggs under ₹500.`
 
-Expected: GROCER builds and verifies a cart, presents the final total, address,
-and payment choice, then shows an explicit confirmation button. It must not
-checkout before the reviewer confirms.
+Expected: GROCER resolves the complete desired basket, shows a basket preview, and waits for approval before changing the provider cart. If the linked Swiggy cart already has items, GROCER first offers Keep it, Start fresh, or Cancel. After an approved, verified cart update, it presents address and payment choices, then shows an explicit checkout confirmation. It must not checkout before the reviewer confirms.
 
 ### 2. Product decision
 

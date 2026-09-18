@@ -237,8 +237,8 @@ def get_canonical_scenarios() -> list[ScenarioDefinition]:
         ),
         ScenarioDefinition(
             id="SCN-05",
-            name="Stale Cart / Store Unserviceable",
-            description="Dark store becomes unserviceable; blocks checkout and demands session refresh.",
+            name="Stale Cart / Address Unserviceable",
+            description="The provider can no longer service the address; blocks checkout and requires a refreshed task.",
             build_contract=_build_s5_contract,
             initial_items=[CartItemUpdate(spin_id="SPIN-MILK-1L", quantity=1)],
             inject_fault=lambda adapter, cart_id: adapter.inject_stale_cart(True),

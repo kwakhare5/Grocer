@@ -8,6 +8,7 @@ from fastapi import APIRouter, Header, HTTPException, Query, Request, Response, 
 from fastapi.responses import PlainTextResponse
 
 from backend.channels.whatsapp import default_whatsapp_adapter
+from backend.config import settings
 from backend.intent.orchestrator import GrocerOrchestrator
 
 logger = logging.getLogger("grocer.api.whatsapp")
@@ -70,6 +71,29 @@ async def receive_webhook(
     processed_count = 0
     failed_count = 0
     for incoming in incoming_messages:
+        if settings.SHOPPING_TASK_ROUTE:
+            try:
+                service = request.app.state.shopping_task_service
+                task_message = incoming.model_copy(
+                    update={
+                        "customer_id": default_whatsapp_adapter.map_sender_to_customer_id(
+                            incoming.sender_id
+                        )
+                    }
+                )
+                result = await service.process_message(task_message)
+                if not result.processed:
+                    continue
+                if not await default_whatsapp_adapter.send_response(result.response):
+                    raise RuntimeError("WhatsApp response delivery failed.")
+                processed_count += 1
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                logger.error("ShoppingTask dispatch failed: %s", type(exc).__name__)
+                failed_count += 1
+            continue
+
         if not default_whatsapp_adapter.reserve_message(incoming.message_id):
             continue
         try:

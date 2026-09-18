@@ -7,7 +7,6 @@ Handles:
 """
 from __future__ import annotations
 
-import os
 from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Any, Optional
 
@@ -399,14 +398,9 @@ async def handle_confirm_locked(
     pending.consumed_at = datetime.now(timezone.utc)
     orchestrator._store.save(session)
 
-    checkout_mode = os.getenv("CHECKOUT_MODE", settings.CHECKOUT_MODE).lower()
-    demo_mode = os.getenv("DEMO_MODE", "false").lower() in ("true", "1")
     review_checkout = (
-        demo_mode
-        or (
-            checkout_mode == "review"
-            and isinstance(orchestrator._port, SwiggyMCPAdapter)
-        )
+        settings.CHECKOUT_MODE == "review"
+        and isinstance(orchestrator._port, SwiggyMCPAdapter)
     )
     
     try:

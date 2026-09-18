@@ -5,11 +5,11 @@
 [![Swiggy Instamart MCP](https://img.shields.io/badge/Swiggy-Instamart%20MCP-FC8019?style=flat)](https://mcp.swiggy.com/builders/llms.txt)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5+-3178C6?style=flat&logo=typescript)](https://www.typescriptlang.org/)
 
-**Grocer** is the existing WhatsApp grocery replenishment assistant, extended with an **intent-preserving commerce layer**.
+**Grocer** is an English-first WhatsApp grocery agent for Swiggy Instamart. It accepts ordinary human messages, turns them into a safe basket proposal, and keeps the user in control of meaningful shopping choices.
 
-> **Readiness:** Local intent, recovery, WhatsApp-route, lint, and build checks are verified. Live WhatsApp, Swiggy OAuth, and checkout verification remain deployment gates. See [CURRENT_STATE.md](CURRENT_STATE.md) for evidence and limits.
+> **Readiness:** The durable task core is under migration. Local tests, lint, and production build pass; live WhatsApp, Swiggy OAuth, durable PostgreSQL, and checkout verification remain release gates. See [CURRENT_STATE.md](CURRENT_STATE.md) for verified evidence and limits.
 
-The idea is simple: a user tells Grocer what outcome they want, the agent builds the basket through Swiggy Instamart, and then keeps checking whether the live commerce state still matches the original intent. When something changes, Grocer makes only invisible safety retries automatically and asks the user before any product, price, address, payment, or other purchase outcome changes.
+The agent does not force robotic commands. It understands a message as a **proposal**, validates it against the current task and live catalogue, shows the complete intended basket, and asks for approval before changing the provider cart. It asks when a human decision is genuinely needed—for example, “3 Coke” could mean cans, bottles, or a multipack.
 
 > **Grocer does not just build your cart. It tries to keep the cart faithful to what you actually asked for.**
 
@@ -23,33 +23,31 @@ The former dark-store operations system has been split into a separate repositor
 
 Do not treat dark-store inventory optimization, warehouse operations, supplier workflows, transfer/reorder decisioning, or an operations cockpit as part of Grocer.
 
-## Core loop
+## How a shopping task works
 
 ```text
-WhatsApp request
+WhatsApp message
       ↓
-Intent extraction
+Durable ShoppingTask
       ↓
-Intent Contract
+Natural-language understanding (proposal only)
       ↓
-Policy / memory
+Deterministic state transition + catalogue resolution
       ↓
-Build cart
+Full basket preview → user approval
       ↓
-Verify cart against intent
+Explicit provider-cart decision: keep / start fresh / cancel
       ↓
-If drift → recover / replan / ask
+CommercePort → Swiggy MCP
       ↓
-Verify again
+Read back and verify
       ↓
-Explicit checkout confirmation
+Address / payment / explicit checkout confirmation
       ↓
-Checkout
-      ↓
-Outcome verification
+Checkout and verified outcome
 ```
 
-The product differentiator is the **closed-loop intent → action → verification → recovery cycle**, not a generic shopping chatbot.
+The product differentiator is the **closed-loop intent → proposal → approval → action → verification → recovery cycle**, not a generic shopping chatbot.
 
 ## Example
 
@@ -71,36 +69,13 @@ Grocer should:
 6. ask the user before a purchase-facing choice changes;
 7. verify the repaired cart again.
 
-## Intent Contract
+## Customer-protection rules
 
-The user goal is modeled explicitly instead of being left only inside an LLM prompt.
-
-```text
-IntentContract
-├── goal
-├── items
-├── hard constraints
-├── soft preferences
-├── budget
-├── quantities / pack sizes
-├── brand preferences
-├── dietary constraints
-├── substitution policy
-├── authorization scope
-├── confidence / ambiguities
-└── version
-```
-
-### Precedence
-
-```text
-current explicit request
-    > session choice
-    > stored soft preference
-    > default
-```
-
-Memory is for convenience. It never silently overrides the current request.
+* Current explicit request beats session choices, confirmed preferences, and defaults.
+* A remembered preference may only form a proposed basket; the user approves it before a cart change.
+* A provider account cart is not silently reused or cleared. Grocer asks the user to keep it, start fresh, or cancel.
+* Every item is resolved against the live catalogue before a provider mutation. Missing or ambiguous essentials stop the whole planned change.
+* Checkout always requires an explicit backend-enforced confirmation.
 
 ## Autonomy model
 
@@ -115,27 +90,22 @@ Checkout is always explicitly confirmed and backend-enforced.
 ## Architecture
 
 ```text
-WhatsApp
+Meta WhatsApp Cloud API
   ↓
-Conversation Agent
+FastAPI webhook → durable inbox
   ↓
-Intent Parser
-  ↓
-Intent Contract
-  ↓
-Policy / Memory
-  ↓
-GrocerOrchestrator
+ShoppingTask application service
+  ├── language proposal
+  ├── deterministic reducer
+  ├── catalogue resolver
+  ├── cart-ownership guard
+  └── verifier / recovery policy
   ↓
 CommercePort
-  ├── MockCommerceAdapter
-  └── SwiggyMCPAdapter
+  ├── MockCommerceAdapter (tests)
+  └── SwiggyMCPAdapter (live provider boundary)
   ↓
-Commerce State
-  ↓
-Intent Verifier
-  ├── PASS → approval / continue
-  └── FAIL → Recovery Engine → verify again / ask
+Durable outbox → Meta WhatsApp Cloud API
 ```
 
 ### Important engineering rule
@@ -202,8 +172,8 @@ GROCER operates across a multi-surface deployment:
   - Official whitelisted redirect URI for Swiggy OAuth 2.1 PKCE.
   - Meta WhatsApp Cloud API webhook handler (`app/api/whatsapp/webhook/route.ts`).
 - **Backend on Render**:
-  - Hosts the FastAPI `GrocerOrchestrator`, deterministic verifier, and recovery loop.
-  - Uses a development token cache today; durable encrypted storage is required before live checkout.
+  - Hosts FastAPI and the current WhatsApp route. The durable ShoppingTask runtime is implemented but is not yet wired live.
+  - Must use managed PostgreSQL and encrypted OAuth-token storage before live checkout.
   - Communicates directly with Swiggy Instamart MCP gateway (`https://mcp.swiggy.com/im`).
 - **WhatsApp Cloud API (`+1 555 663-1707`)**:
   - Delivers native interactive List Messages for saved address selection and pack-size ambiguity resolution.
@@ -243,43 +213,29 @@ npm run build
 ```powershell
 py -m venv .venv
 .\.venv\Scripts\Activate.ps1
-pip install -r backend/requirements.txt -r backend/requirements-dev.txt
-pytest backend/tests  # 383 tests passed in the last local verification
+pip install -r requirements.txt -r backend/requirements-dev.txt
+pytest backend/tests
 uvicorn backend.main:app --reload --port 8000
 
 ```
 
 On macOS/Linux, activate with source .venv/bin/activate.
 
-## Engineering roadmap
+## Release gates
 
-The implementation sequence is intentionally narrow:
-
-```text
-0. Consumer boundary cleanup
-1. Intent Contract
-2. Intent extraction
-3. Policy + memory
-4. Intent verification
-5. First recovery scenario
-6. End-to-end agent loop
-7. Failure simulation
-8. Evaluation
-9. Live Swiggy hardening
-10. Demo hardening
-```
-
-Start with one extremely polished recovery scenario before expanding the failure surface.
+1. Run the private-schema PostgreSQL migration using the exact Supabase session-pooler URL.
+2. Wire the durable inbox/outbox worker to the WhatsApp route and replay real human transcripts.
+3. Move OAuth tokens, preferences, and task state out of memory and `/tmp` into encrypted durable storage.
+4. Verify real Swiggy review-mode cart, address, payment, and order-status flows.
+5. Enable live checkout only after explicit test evidence and review approval.
 
 ## Documentation
 
 - `GROCER_V2_MASTER_SPEC.md` — authoritative product and engineering specification
 - `CONTEXT.md` — coding-session context and anti-drift rules
 - `ARCHITECTURE.md` — system boundaries and data/control flow
-- `docs/archive/IMPLEMENTATION_PLAN.md` — historical execution order (archived)
 - `CURRENT_STATE.md` — latest evidence, readiness, and deferred limits
 - `docs/RESEARCH_WHATSAPP_INSTAMART_SUBMISSION.md` — official platform constraints used by the submission
-- `docs/archive/audit/` — historical deep-audit mission, findings, and coverage ledger
 - `.agents/AGENTS.md` — Antigravity/Gemini repository rules
 - `AGENTS.md` — general coding-agent contract
 

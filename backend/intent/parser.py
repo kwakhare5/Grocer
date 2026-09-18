@@ -135,7 +135,7 @@ class RuleBasedExtractor:
         # Pattern: "2L milk", "1kg rice", "6 eggs", "2 litres of milk", "a dozen eggs", "1 can coke"
         qty_unit_item = re.compile(
             r"(\d+(?:\.\d+)?)\s*"                          # quantity
-            r"(litres?|liters?|l|lt|kg|kgs?|kilos?|g|gms?|grams?|ml|pcs?|pieces?|packs?|packets?|dozen|doz|cans?|tins?|bottles?|pouches?|sachets?|boxes?)?\s*"  # unit
+            r"(litres?|liters?|ltrs?|l|lt|kg|kgs?|kilos?|g|gms?|grams?|ml|pcs?|pieces?|packs?|packets?|dozen|doz|cans?|tins?|bottles?|pouches?|sachets?|boxes?)?\s*"  # unit
             r"(?:of\s+)?"                                   # optional "of"
             r"((?:(?!and\b|or\b|also\b|plus\b|under\b|below\b|within\b|budget\b)[a-zA-Z\s])+)",  # item name
             re.I,
@@ -171,7 +171,7 @@ class RuleBasedExtractor:
         item_qty = re.compile(
             r"\b((?:(?!and\b|or\b|also\b|plus\b|under\b|below\b|within\b|budget\b)[a-zA-Z\s])+?)\s+"
             r"(\d+(?:\.\d+)?)\s*"
-            r"(litres?|liters?|l|kg|kgs?|g|gms?|ml|pcs?|pieces?|packs?|dozen|cans?|tins?|bottles?|pouches?|sachets?|boxes?)?\b",
+            r"(litres?|liters?|ltrs?|l|kg|kgs?|g|gms?|ml|pcs?|pieces?|packs?|dozen|cans?|tins?|bottles?|pouches?|sachets?|boxes?)?\b",
             re.I,
         )
 

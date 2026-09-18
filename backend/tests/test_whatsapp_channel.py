@@ -12,7 +12,11 @@ from httpx import ASGITransport, AsyncClient
 
 from backend.channels.models import ChannelType, NormalizedIncomingMessage
 from backend.channels.whatsapp import WhatsAppChannelAdapter, default_whatsapp_adapter
+from backend.integrations.commerce.mock_adapter import MockCommerceAdapter
 from backend.intent.orchestrator import OrchestratorTurnResult
+from backend.intent.task_model import DesiredBasketItem, ShoppingTask, TaskState
+from backend.intent.task_repository import InMemoryShoppingTaskRepository
+from backend.intent.task_service import ShoppingTaskApplicationService
 from backend.intent.session import (
     ConversationState,
     OrchestratorSession,
@@ -353,6 +357,89 @@ async def test_api_whatsapp_webhook_post_flow(monkeypatch) -> None:  # type: ign
         data = res.json()
         assert data["status"] == "ok"
         assert data["processed"] == 1
+
+
+@pytest.mark.asyncio
+async def test_shopping_task_route_changes_address_and_deduplicates_signed_replay(
+    monkeypatch,
+) -> None:  # type: ignore[no-untyped-def]
+    """The cutover route uses one durable transition and sends one reply per wamid."""
+    from backend.api import whatsapp as whatsapp_api
+
+    secret = "test-shopping-task-secret"
+    phone_number = "919999955555"
+    message_id = f"wamid.shopping-task.{uuid.uuid4()}"
+    repository = InMemoryShoppingTaskRepository()
+    commerce = MockCommerceAdapter()
+
+    monkeypatch.setattr(whatsapp_api.settings, "SHOPPING_TASK_ROUTE", True)
+    monkeypatch.setattr(default_whatsapp_adapter, "_app_secret", secret)
+    monkeypatch.setattr(default_whatsapp_adapter, "record_only", True)
+    default_whatsapp_adapter.outbound_messages.clear()
+
+    customer_id = default_whatsapp_adapter.map_sender_to_customer_id(phone_number)
+    await repository.create(
+        ShoppingTask(
+            task_id=customer_id,
+            customer_id=customer_id,
+            state=TaskState.AWAITING_CHECKOUT_CONFIRMATION,
+            desired_basket=[DesiredBasketItem(name="Bread", quantity=1)],
+            selected_address_id="old-address",
+            selected_payment_method="cod",
+            confirmation_valid=True,
+        )
+    )
+    app.state.shopping_task_service = ShoppingTaskApplicationService(
+        repository, commerce, checkout_mode="review"
+    )
+
+    payload = {
+        "object": "whatsapp_business_account",
+        "entry": [
+            {
+                "changes": [
+                    {
+                        "value": {
+                            "messages": [
+                                {
+                                    "id": message_id,
+                                    "from": phone_number,
+                                    "type": "text",
+                                    "text": {"body": "change address"},
+                                }
+                            ]
+                        }
+                    }
+                ]
+            }
+        ],
+    }
+    body_bytes = json.dumps(payload).encode("utf-8")
+    signature = hmac.new(
+        secret.encode("utf-8"), body_bytes, hashlib.sha256
+    ).hexdigest()
+    headers = {"X-Hub-Signature-256": f"sha256={signature}"}
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        first = await client.post(
+            "/api/whatsapp/webhook", content=body_bytes, headers=headers
+        )
+        replay = await client.post(
+            "/api/whatsapp/webhook", content=body_bytes, headers=headers
+        )
+
+    saved = await repository.get_required(customer_id)
+    assert first.status_code == 200
+    assert first.json()["processed"] == 1
+    assert replay.status_code == 200
+    assert replay.json()["processed"] == 0
+    assert saved.state == TaskState.NEEDS_ADDRESS
+    assert saved.selected_address_id is None
+    assert saved.version == 2
+    assert len(repository.outbox) == 1
+    assert len(default_whatsapp_adapter.outbound_messages) == 1
+    assert default_whatsapp_adapter.outbound_messages[0]["to"] == phone_number
 
 
 @pytest.mark.asyncio

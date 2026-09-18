@@ -28,3 +28,7 @@ services:
         value: https://grocerr.vercel.app/
       - key: SWIGGY_CLIENT_ID
         sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: DATA_ENCRYPTION_KEY
+        sync: false

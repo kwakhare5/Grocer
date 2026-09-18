@@ -14,16 +14,14 @@ from __future__ import annotations
 import hashlib
 import hmac
 import logging
+import os
 import threading
 import time
-import os
-from pathlib import Path
 from typing import Any, Optional
-from dotenv import load_dotenv
+
 import httpx
 
-load_dotenv(dotenv_path=Path(__file__).resolve().parent.parent.parent / ".env")
-
+from backend.config import settings
 from backend.channels.base import BaseChannelAdapter
 from backend.channels.models import (
     ChannelType,

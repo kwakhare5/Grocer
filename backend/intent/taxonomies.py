@@ -8,7 +8,7 @@ import re
 # ---------------------------------------------------------------------------
 
 _UNIT_MAP: dict[str, str] = {
-    "litre": "L", "litres": "L", "liter": "L", "liters": "L", "l": "L", "lt": "L",
+    "litre": "L", "litres": "L", "liter": "L", "liters": "L", "ltr": "L", "ltrs": "L", "l": "L", "lt": "L",
     "kg": "kg", "kgs": "kg", "kilogram": "kg", "kilograms": "kg", "kilo": "kg", "kilos": "kg",
     "g": "g", "gm": "g", "gms": "g", "gram": "g", "grams": "g",
     "ml": "ml", "millilitre": "ml", "millilitres": "ml",

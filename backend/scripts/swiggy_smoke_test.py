@@ -1,29 +1,27 @@
-"""Opt-in real integration smoke test for Swiggy Instamart MCP (Spec Section 16).
+"""Opt-in Swiggy Instamart MCP smoke test.
 
-Usage:
-    # 1. Using an existing authenticated Swiggy JWT token:
-    python backend/scripts/swiggy_smoke_test.py --token <SWIGGY_JWT_TOKEN>
+The default mode is read-only. Live credentials must be supplied through
+``SWIGGY_AUTH_TOKEN``; tokens are never accepted as command-line arguments.
 
-    # 2. Or using environment variable:
-    set SWIGGY_AUTH_TOKEN=<SWIGGY_JWT_TOKEN>
+Examples:
     python backend/scripts/swiggy_smoke_test.py
-
-    # 3. Generating a login URL via PKCE:
-    python backend/scripts/swiggy_smoke_test.py --login
-
-    # 4. Dry-run / mock simulation:
     python backend/scripts/swiggy_smoke_test.py --mock
+    python backend/scripts/swiggy_smoke_test.py --login
+    python backend/scripts/swiggy_smoke_test.py --allow-cart-mutation
 
-Never runs in automated CI; completely opt-in.
+The destructive cart test refuses to run unless the active provider cart is
+empty. It verifies ownership of the exact test item before clearing it. This
+script never calls checkout and cannot prove that checkout works.
 """
+
 from __future__ import annotations
 
 import argparse
 import asyncio
 import os
 import sys
+from collections.abc import Sequence
 
-# Ensure project root is in sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
 if hasattr(sys.stdout, "reconfigure"):
@@ -31,109 +29,200 @@ if hasattr(sys.stdout, "reconfigure"):
 if hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8")
 
-from backend.integrations.commerce.models import CartItemUpdate
-from backend.integrations.commerce.swiggy_adapter import SwiggyMCPAdapter
 from backend.integrations.commerce.mock_adapter import MockCommerceAdapter
-from backend.integrations.commerce.swiggy_oauth import default_oauth_manager
+from backend.integrations.commerce.models import CartItemUpdate, CommerceCart, ProductVariant
+from backend.integrations.commerce.port import CommercePort
 
 
-async def run_smoke_test(token: str | None, is_mock: bool = False, query: str = "milk") -> int:
+def _print_cart(cart: CommerceCart) -> None:
+    """Print a concise, non-secret summary of the active cart."""
+    if not cart.items:
+        print("-> Active cart is empty.")
+        return
+    print(f"-> Active cart contains {len(cart.items)} item(s); total ₹{cart.grand_total:.2f}.")
+    for item in cart.items:
+        print(f"   - {item.name} x{item.quantity}: ₹{item.total_price:.2f}")
+
+
+def _owns_test_cart(cart: CommerceCart, variant: ProductVariant) -> bool:
+    """Return whether the cart contains only the item created by this run."""
+    return (
+        len(cart.items) == 1
+        and cart.items[0].spin_id == variant.spin_id
+        and cart.items[0].quantity == 1
+    )
+
+
+async def _read_current_cart(adapter: CommercePort) -> CommerceCart | None:
+    print("\n[STEP 4] Reading the active cart without changing it...")
+    try:
+        cart = await adapter.get_cart()
+    except Exception as exc:
+        print(f"-> FAILED: get_cart raised {type(exc).__name__}: {exc}")
+        return None
+    _print_cart(cart)
+    return cart
+
+
+async def _run_destructive_cart_check(
+    adapter: CommercePort,
+    *,
+    address_id: str,
+    initial_cart: CommerceCart,
+    target_variant: ProductVariant | None,
+) -> int:
+    """Mutate and restore a cart only when this run can establish ownership."""
+    if initial_cart.items:
+        print("\nREFUSED: The active cart was not empty before this test.")
+        print("No cart changes were made. Empty it yourself only if that is truly intended.")
+        return 2
+    if target_variant is None:
+        print("\nREFUSED: No in-stock catalogue variant was available for the cart test.")
+        return 1
+
+    print(f"\n[STEP 5] DESTRUCTIVE: setting the cart to 1 x {target_variant.name}...")
+    try:
+        await adapter.update_cart(
+            items=[
+                CartItemUpdate(
+                    spin_id=target_variant.spin_id,
+                    quantity=1,
+                    sku_id=target_variant.sku_id,
+                )
+            ],
+            address_id=address_id,
+        )
+        verified_cart = await adapter.get_cart()
+    except Exception as exc:
+        print(f"-> FAILED: cart mutation/read-back raised {type(exc).__name__}: {exc}")
+        print("The provider cart may have changed. Inspect it manually before continuing.")
+        return 1
+
+    if not _owns_test_cart(verified_cart, target_variant):
+        print("-> REFUSED CLEANUP: cart read-back no longer matches the exact test item.")
+        print("The cart was not cleared because this run cannot prove it owns the contents.")
+        _print_cart(verified_cart)
+        return 2
+
+    print("-> Cart mutation verified by read-back.")
+    try:
+        payment_options = await adapter.get_payment_options(address_id=address_id)
+        print(f"-> Read {len(payment_options)} payment option(s); no payment was attempted.")
+    except Exception as exc:
+        print(f"-> Warning: payment-option read raised {type(exc).__name__}: {exc}")
+
+    print("\n[STEP 6] DESTRUCTIVE: clearing the cart created by this test...")
+    try:
+        pre_clear_cart = await adapter.get_cart()
+        if not _owns_test_cart(pre_clear_cart, target_variant):
+            print("-> REFUSED CLEANUP: cart changed after verification; it was not cleared.")
+            return 2
+        await adapter.clear_cart()
+        final_cart = await adapter.get_cart()
+    except Exception as exc:
+        print(f"-> FAILED: cleanup raised {type(exc).__name__}: {exc}")
+        print("Inspect the provider cart manually; cleanup is not confirmed.")
+        return 1
+
+    if final_cart.items:
+        print("-> FAILED: provider cart is not empty after cleanup.")
+        _print_cart(final_cart)
+        return 1
+    print("-> Cleanup verified: the cart is empty.")
+    return 0
+
+
+async def run_smoke_test(
+    token: str | None,
+    *,
+    is_mock: bool = False,
+    query: str = "milk",
+    allow_cart_mutation: bool = False,
+) -> int:
+    """Run read-only provider checks and an optional guarded cart mutation."""
     print("=" * 65)
-    print("GROCER — REAL SWIGGY INSTAMART INTEGRATION SMOKE TEST")
+    print("GROCER — SWIGGY INSTAMART INTEGRATION SMOKE TEST")
     print("=" * 65)
 
+    adapter: CommercePort
     if is_mock:
-        print("Mode: MOCK SIMULATION SEAM (In-Memory)")
+        print("Mode: MOCK ADAPTER")
         adapter = MockCommerceAdapter()
     else:
         if not token:
-            print("ERROR: No Swiggy access token provided.")
-            print("Provide via --token <JWT> or SWIGGY_AUTH_TOKEN env variable.")
-            print("Run with --login to generate an OAuth PKCE authorization URL.")
+            print("ERROR: SWIGGY_AUTH_TOKEN is not set.")
+            print("Set it in the environment, or run with --login to start OAuth.")
             return 1
-        print("Mode: LIVE SWIGGY INSTAMART MCP ADAPTER")
-        # Ensure token is masked
-        masked = token[:6] + "..." + token[-4:] if len(token) > 12 else "***"
-        print(f"Token: {masked} (Strictly masked)")
+        from backend.integrations.commerce.swiggy_adapter import SwiggyMCPAdapter
+
+        print("Mode: LIVE SWIGGY MCP (credentials loaded from environment)")
         adapter = SwiggyMCPAdapter(auth_token=token)
 
-    # Step 1: get_addresses
-    print("\n[STEP 1] Fetching delivery addresses via get_addresses()...")
+    print(
+        "Safety: CART MUTATION ENABLED"
+        if allow_cart_mutation
+        else "Safety: READ-ONLY (default; provider state will not be changed)"
+    )
+
+    print("\n[STEP 1] Reading saved delivery addresses...")
     try:
         addresses = await adapter.get_addresses("smoke-test-customer")
-        print(f"-> Success: Found {len(addresses)} delivery address(es).")
-        for idx, addr in enumerate(addresses, 1):
-            print(f"   [{idx}] ID: {addr.id} | Label: {addr.label} | Street: {addr.street or 'N/A'} | City: {addr.city or 'N/A'}")
+        print(f"-> Success: found {len(addresses)} saved address(es).")
+        for index, address in enumerate(addresses, 1):
+            print(f"   [{index}] {address.label or 'Saved address'} ({address.city or 'city unavailable'})")
         if not addresses:
-            print("-> Warning: No addresses returned. Cannot proceed with address-scoped search.")
+            print("-> FAILED: no saved address is available for address-scoped search.")
             return 1
     except Exception as exc:
         print(f"-> FAILED: get_addresses raised {type(exc).__name__}: {exc}")
         return 1
 
-    # Step 2: Select address
-    selected_addr = addresses[0]
-    print(f"\n[STEP 2] Selected address: {selected_addr.id} ({selected_addr.label})")
+    selected_address = addresses[0]
+    print("\n[STEP 2] Using the first saved address for read-only catalogue search.")
 
-    # Step 3: search_products
-    print(f"\n[STEP 3] Searching products with query={query!r} at address {selected_addr.id}...")
+    print(f"\n[STEP 3] Searching the catalogue for {query!r}...")
+    target_variant: ProductVariant | None = None
     try:
-        products = await adapter.search_products(selected_addr.id, query)
-        print(f"-> Success: Found {len(products)} product(s).")
-        target_variant = None
-        for p in products[:3]:
-            print(f"   Product: {p.name} (Brand: {p.brand or 'General'})")
-            for v in p.variants[:2]:
-                print(f"     - Variant: {v.name} | Pack: {v.pack_size} | Price: ₹{v.price} | InStock: {v.in_stock} | SpinID: {v.spin_id}")
-                if v.in_stock and not target_variant:
-                    target_variant = v
-        if not target_variant:
-            print("-> Warning: No in-stock variant found to test cart creation.")
-            return 0
+        products = await adapter.search_products(selected_address.id, query)
+        print(f"-> Success: found {len(products)} product(s).")
+        for product in products[:3]:
+            print(f"   - {product.name} ({product.brand or 'brand unavailable'})")
+            for variant in product.variants[:2]:
+                print(
+                    f"     {variant.name} | {variant.pack_size} | "
+                    f"₹{variant.price:.2f} | in stock: {variant.in_stock}"
+                )
+                if target_variant is None and variant.in_stock:
+                    target_variant = variant
     except Exception as exc:
         print(f"-> FAILED: search_products raised {type(exc).__name__}: {exc}")
         return 1
 
-    # Step 4: update_cart & get_cart
-    print(f"\n[STEP 4] Updating cart with 1x {target_variant.name} (spinId: {target_variant.spin_id})...")
-    try:
-        cart = await adapter.update_cart(
-            items=[CartItemUpdate(spin_id=target_variant.spin_id, quantity=1, sku_id=target_variant.sku_id)],
-            cart_id="smoke-test-cart",
-            address_id=selected_addr.id,
-        )
-        print(f"-> Success: Cart updated! Items: {len(cart.items)} | Grand Total: ₹{cart.grand_total:.2f}")
-        for item in cart.items:
-            print(f"   - {item.name} x{item.quantity}: ₹{item.total_price:.2f}")
-    except Exception as exc:
-        print(f"-> FAILED: update_cart raised {type(exc).__name__}: {exc}")
+    initial_cart = await _read_current_cart(adapter)
+    if initial_cart is None:
         return 1
 
-    # Step 5: get_payment_options
-    print(f"\n[STEP 5] Fetching live payment options for cart...")
-    try:
-        payment_options = await adapter.get_payment_options(cart_id="smoke-test-cart", address_id=selected_addr.id)
-        print(f"-> Success: Available payment options ({len(payment_options)}):")
-        for opt in payment_options:
-            print(f"   - Method: {opt.method} | Label: {opt.label} | ID: {opt.id or 'N/A'}")
-    except Exception as exc:
-        print(f"-> FAILED: get_payment_options raised {type(exc).__name__}: {exc}")
+    if not allow_cart_mutation:
+        print("\nREAD-ONLY SMOKE TEST COMPLETED.")
+        print("Verified: authentication, addresses, catalogue search, and cart read.")
+        print("NOT VERIFIED: cart mutation, checkout, payment, order placement, or tracking.")
+        return 0
 
-    # Step 6: clear_cart (Clean up)
-    print("\n[STEP 6] Cleaning up: Clearing smoke test cart...")
-    try:
-        await adapter.clear_cart("smoke-test-cart")
-        print("-> Success: Smoke test cart cleared cleanly.")
-    except Exception as exc:
-        print(f"-> Warning: clear_cart raised {exc}")
-
-    print("\n" + "=" * 65)
-    print("LIVE SMOKE TEST COMPLETED: ALL COMMERCEPORT STAGES VERIFIED")
-    print("=" * 65)
-    return 0
+    result = await _run_destructive_cart_check(
+        adapter,
+        address_id=selected_address.id,
+        initial_cart=initial_cart,
+        target_variant=target_variant,
+    )
+    print("\nDESTRUCTIVE CART TEST COMPLETED." if result == 0 else "\nCART TEST DID NOT COMPLETE.")
+    print("CHECKOUT WAS NOT CALLED. Real order placement is NOT verified by this script.")
+    return result
 
 
 async def generate_login_url() -> None:
+    """Generate an OAuth PKCE login URL without accepting credentials on the CLI."""
+    from backend.integrations.commerce.swiggy_oauth import default_oauth_manager
+
     print("=" * 65)
     print("SWIGGY OAUTH 2.1 WITH PKCE — AUTHORIZE URL GENERATOR")
     print("=" * 65)
@@ -141,28 +230,48 @@ async def generate_login_url() -> None:
         customer_id="smoke-test-user",
         redirect_uri="https://grocerr.vercel.app",
     )
-    print("\nOpen the following URL in your browser to authenticate with Swiggy:")
+    print("\nOpen this URL in your browser to authenticate with Swiggy:")
     print(f"\n{auth_url}\n")
     print(f"State token: {state}")
-    print("\nAfter completing phone + OTP login, exchange the code using:")
-    print("python -c \"import asyncio; from backend.integrations.commerce.swiggy_oauth import default_oauth_manager; ...\"")
+    print("Complete the callback through the configured application OAuth route.")
+
+
+def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
+    """Parse smoke-test arguments."""
+    parser = argparse.ArgumentParser(
+        description="Read-only Swiggy Instamart integration smoke test by default."
+    )
+    parser.add_argument("--mock", action="store_true", help="Use the in-memory mock adapter")
+    parser.add_argument("--login", action="store_true", help="Generate a Swiggy OAuth login URL")
+    parser.add_argument("--query", default="milk", help="Read-only catalogue search query")
+    parser.add_argument(
+        "--allow-cart-mutation",
+        action="store_true",
+        help=(
+            "DESTRUCTIVE: replace and clear the active cart only when it starts empty "
+            "and exact test ownership can be verified"
+        ),
+    )
+    return parser.parse_args(argv)
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Swiggy Instamart Integration Smoke Test")
-    parser.add_argument("--token", type=str, help="Authenticated Swiggy access token")
-    parser.add_argument("--mock", action="store_true", help="Run with MockCommerceAdapter simulation")
-    parser.add_argument("--login", action="store_true", help="Generate Swiggy OAuth login URL")
-    parser.add_argument("--query", type=str, default="milk", help="Search query (default: milk)")
-    args = parser.parse_args()
-
+    """Run the selected smoke-test mode."""
+    args = parse_args()
     if args.login:
         asyncio.run(generate_login_url())
         return
 
-    token = args.token or os.environ.get("SWIGGY_AUTH_TOKEN")
-    exit_code = asyncio.run(run_smoke_test(token=token, is_mock=args.mock, query=args.query))
-    sys.exit(exit_code)
+    token = os.environ.get("SWIGGY_AUTH_TOKEN")
+    exit_code = asyncio.run(
+        run_smoke_test(
+            token=token,
+            is_mock=args.mock,
+            query=args.query,
+            allow_cart_mutation=args.allow_cart_mutation,
+        )
+    )
+    raise SystemExit(exit_code)
 
 
 if __name__ == "__main__":

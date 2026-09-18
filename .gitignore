@@ -21,6 +21,7 @@ coverage/
 
 # generated analysis artifacts
 graphify-out/
+.x-growth/
 
 # local IDE / OS
 .DS_Store

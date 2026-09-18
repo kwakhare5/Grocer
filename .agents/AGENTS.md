@@ -230,14 +230,16 @@ If the answer is no, it does not belong in GROCER v2 unless the master spec is d
 
 ## 15. SESSION RESUME
 
-**Last completed:** Typography Consolidation, Lora Integration & Sole SVG Favicon (2026-09-07)
+**Last completed:** Live Meta WhatsApp Cloud API & Swiggy MCP Instamart Autonomous Verification (2026-09-07)
 
-**Status:** ✅ Complete & Verified. Local OTF fonts (TWK Lausanne and PP Editorial New) purged. Replaced with Google Font `Lora` via `next/font/google` (`--font-lora`). `public/logo.svg` locked as sole application icon/favicon. Both frontend (`:3000`) and backend (`:8000`) running live.
+**Status:** ✅ Complete, 100% Live Verified on Mobile & Committed to `main`. Bidirectional WhatsApp messaging operational via Meta Cloud API sandbox (`+1 555 663-XXXX`) linked to user's registered WhatsApp (`+91 82378 XXXXX`). Verified end-to-end: NL intent extraction → inventory check → autonomous out-of-stock recovery with interactive list picker (`[ ☰ Select Alternative ]`) → basket confirmation buttons (`[ Confirm Order ]` / `[ Change Items ]`) → double-gated order placement (`OD-68355847`). Local tunnel active (`https://grocer-bot-live.loca.lt/api/whatsapp/webhook`).
 
 **Quality Gates:**
 - `pytest`: 147/147 tests passed (100% green).
 - `npm run lint`: 0 errors, 0 warnings.
 - `npm run build`: Compiled successfully in Next.js 16 (Turbopack).
+- Meta Graph API Webhook: Active (`messages` v26.0 subscribed).
+- Remote `main`: Up to date on GitHub.
 
 
 

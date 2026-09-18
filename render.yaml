@@ -22,12 +22,12 @@ services:
         sync: false
       - key: GEMINI_MODEL
         value: gemini-3.5-flash-lite
-      - key: UNDERSTANDING_MODEL_ENABLED
+      - key: AGENT_ROUTE_ENABLED
         value: true
+      - key: SHOPPING_TASK_ROUTE
+        value: false
       - key: COMMERCE_ADAPTER_TYPE
         value: swiggy_mcp
-      - key: SHOPPING_TASK_ROUTE
-        value: true
       - key: CHECKOUT_MODE
         value: review
       - key: SWIGGY_REDIRECT_URI

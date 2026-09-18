@@ -364,7 +364,7 @@ class WhatsAppChannelAdapter(BaseChannelAdapter):
                 if res.status_code in (200, 201):
                     logger.info("WhatsApp message delivered.")
                     return True
-                logger.error("WhatsApp API returned HTTP %d.", res.status_code)
+                logger.error("WhatsApp API returned HTTP %d: %s", res.status_code, res.text)
                 return False
         except Exception as exc:
             logger.error("Failed to deliver WhatsApp message: %s", type(exc).__name__)

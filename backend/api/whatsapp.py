@@ -69,7 +69,6 @@ async def receive_webhook(
     failed_count = 0
     for incoming in incoming_messages:
         try:
-            service = request.app.state.shopping_task_service
             task_message = incoming.model_copy(
                 update={
                     "customer_id": default_whatsapp_adapter.map_sender_to_customer_id(
@@ -77,29 +76,30 @@ async def receive_webhook(
                     )
                 }
             )
-            result = await service.process_message(task_message)
-            if not result.processed:
-                continue
-            if not await default_whatsapp_adapter.send_response(result.response):
+            engine = getattr(request.app.state, "agent_engine", None)
+            if not engine:
+                raise RuntimeError("Agent engine is not configured.")
+            response = await engine.handle_message(task_message)
+
+            if not await default_whatsapp_adapter.send_response(response):
                 raise RuntimeError("WhatsApp response delivery failed.")
-            await service.mark_response_sent(task_message)
             processed_count += 1
         except asyncio.CancelledError:
             raise
         except Exception as exc:
-            logger.error(
-                "ShoppingTask dispatch failed for message_id=%s type=%s",
+            logger.exception(
+                "Agent dispatch failed for message_id=%s error=%s",
                 incoming.message_id,
-                type(exc).__name__,
+                exc,
             )
             recovery = NormalizedOutgoingResponse(
                 recipient_id=incoming.sender_id,
                 channel=incoming.channel,
                 text=(
-                    "I could not process that safely right now. Nothing was ordered "
-                    "or changed. Please try again."
+                    "I had a brief glitch processing that. Your basket is unchanged. "
+                    "Please try sending your message again!"
                 ),
-                conversation_state="NEEDS_DETAILS",
+                conversation_state="READY",
             )
             if await default_whatsapp_adapter.send_response(recovery):
                 processed_count += 1

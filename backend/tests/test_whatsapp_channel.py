@@ -98,31 +98,21 @@ def test_outbound_formatting_uses_buttons_and_lists(
 
 @pytest.mark.asyncio
 async def test_signed_webhook_reaches_active_task_service(monkeypatch) -> None:
-    class FakeTaskService:
+    class FakeAgentEngine:
         def __init__(self) -> None:
             self.processed: list[str] = []
 
-        async def process_message(self, message):  # type: ignore[no-untyped-def]
+        async def handle_message(self, message):  # type: ignore[no-untyped-def]
             self.processed.append(message.message_id)
-            return type(
-                "Turn",
-                (),
-                {
-                    "processed": True,
-                    "response": NormalizedOutgoingResponse(
-                        recipient_id=message.sender_id,
-                        channel=ChannelType.WHATSAPP,
-                        text="Received.",
-                        conversation_state="READY",
-                    ),
-                },
-            )()
+            return NormalizedOutgoingResponse(
+                recipient_id=message.sender_id,
+                channel=ChannelType.WHATSAPP,
+                text="Received.",
+                conversation_state="READY",
+            )
 
-        async def mark_response_sent(self, message) -> None:  # type: ignore[no-untyped-def]
-            del message
-
-    service = FakeTaskService()
-    monkeypatch.setattr(app.state, "shopping_task_service", service, raising=False)
+    engine = FakeAgentEngine()
+    monkeypatch.setattr(app.state, "agent_engine", engine, raising=False)
     monkeypatch.setattr(default_whatsapp_adapter, "record_only", True)
     monkeypatch.setattr(default_whatsapp_adapter, "_app_secret", "webhook-secret")
     default_whatsapp_adapter.outbound_messages.clear()
@@ -148,5 +138,5 @@ async def test_signed_webhook_reaches_active_task_service(monkeypatch) -> None:
 
     assert first.status_code == 200
     assert replay.status_code == 200
-    assert service.processed == [message_id, message_id]
+    assert engine.processed == [message_id, message_id]
     assert len(default_whatsapp_adapter.outbound_messages) == 2

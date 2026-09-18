@@ -1,6 +1,8 @@
 import logging
+from typing import Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import HTMLResponse, RedirectResponse
 from pydantic import BaseModel
 
 from backend.integrations.commerce.swiggy_oauth import default_oauth_manager
@@ -69,4 +71,108 @@ async def swiggy_callback(req: CallbackRequest) -> dict[str, bool]:
             status_code=400,
             detail="We could not complete your Swiggy connection. Please start again.",
         ) from exc
+
+
+@router.get("/connect")
+async def connect_page(
+    request: Request,
+    customer_id: Optional[str] = None,
+    phone: Optional[str] = None,
+) -> RedirectResponse:
+    """Browser entrypoint to initiate Swiggy OAuth directly via local ngrok tunnel."""
+    try:
+        if not customer_id and phone:
+            customer_id = whatsapp_customer_id(
+                phone,
+                default_whatsapp_adapter.app_secret or settings.WHATSAPP_APP_SECRET,
+            )
+        if not customer_id:
+            customer_id = getattr(settings, "SWIGGY_CUSTOMER_ID", "default_customer") or "default_customer"
+
+        base_url = str(request.base_url).rstrip("/")
+        redirect_uri = f"{base_url}/auth/callback"
+
+        authorize_url, _state = await default_oauth_manager.initiate_flow(
+            customer_id=customer_id,
+            redirect_uri=redirect_uri,
+        )
+        return RedirectResponse(url=authorize_url, status_code=307)
+    except Exception as exc:
+        logger.error("Could not initiate browser connection: %s", exc)
+        raise HTTPException(
+            status_code=502,
+            detail="We could not initiate the Swiggy connection. Please try again.",
+        ) from exc
+
+
+@router.get("/auth/callback", response_class=HTMLResponse)
+async def swiggy_callback_browser(code: str, state: str) -> HTMLResponse:
+    """Direct browser callback handler from Swiggy Instamart OAuth."""
+    try:
+        token_data = await default_oauth_manager.exchange_code(
+            code=code,
+            state=state,
+        )
+        customer_id = token_data.get("customer_id")
+        access_token = token_data.get("access_token")
+        expires_in = token_data.get("expires_in", 86400 * 5)
+
+        if customer_id and access_token:
+            await default_token_vault.store_token_durable(
+                customer_id=customer_id,
+                access_token=access_token,
+                expires_in=expires_in,
+                token_type=str(token_data.get("token_type", "Bearer")),
+                scope=str(token_data.get("scope", "mcp:tools")),
+                client_id=token_data.get("client_id"),
+            )
+            if settings.SWIGGY_CUSTOMER_ID and settings.SWIGGY_CUSTOMER_ID != customer_id:
+                default_token_vault.store_token(
+                    customer_id=settings.SWIGGY_CUSTOMER_ID,
+                    access_token=access_token,
+                    expires_in=expires_in,
+                )
+
+            settings.SWIGGY_AUTH_TOKEN = access_token
+
+            logger.info("Successfully connected and saved Swiggy token for %s", customer_id)
+
+            return HTMLResponse(
+                """<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Swiggy Instamart Connected</title>
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f8fafc; color: #0f172a; display: flex; align-items: center; justify-content: center; min-height: 90vh; margin: 0; padding: 16px;">
+    <div style="background: white; border: 1px solid #e2e8f0; border-radius: 20px; max-width: 380px; width: 100%; padding: 32px 24px; text-align: center; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.05);">
+        <div style="font-size: 52px; margin-bottom: 16px;">🎉</div>
+        <h2 style="margin: 0 0 8px; font-size: 22px; font-weight: 700; color: #0f172a;">Swiggy Connected!</h2>
+        <p style="color: #64748b; font-size: 15px; line-height: 1.5; margin: 0 0 28px;">
+            Your grocery assistant is now authorized. You can switch back to WhatsApp and continue shopping!
+        </p>
+        <a href="https://wa.me/15556631707" style="display: inline-block; background: #25D366; color: white; text-decoration: none; padding: 14px 28px; border-radius: 9999px; font-weight: 600; font-size: 16px; box-shadow: 0 4px 12px rgba(37,211,102,0.3);">
+            Open WhatsApp
+        </a>
+    </div>
+</body>
+</html>"""
+            )
+        raise ValueError("Missing customer_id or access_token in exchange response")
+    except Exception as exc:
+        logger.error("Browser callback failed: %s", exc)
+        return HTMLResponse(
+            f"""<!DOCTYPE html>
+<html>
+<head><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Connection Error</title></head>
+<body style="font-family: -apple-system, sans-serif; text-align: center; padding: 40px 16px; background: #fff5f5;">
+    <h2 style="color: #e53e3e;">Connection Failed</h2>
+    <p style="color: #4a5568;">{exc}</p>
+    <p>Please try reconnecting again from WhatsApp.</p>
+</body>
+</html>""",
+            status_code=400,
+        )
+
 

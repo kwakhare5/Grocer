@@ -17,6 +17,11 @@ from backend.integrations.commerce.models import (
     PaymentOption,
     CommerceOrderResult,
     DeliveryTrackingStatus,
+    PaymentStatusResult,
+    DeliveryStatusResult,
+    OrderDetails,
+    OrderLineItem,
+    OrderSummary,
 )
 from backend.integrations.commerce.exceptions import (
     CommerceError,
@@ -210,6 +215,20 @@ class MockCommerceAdapter(CommercePort):
     def inject_partial_cart_drop(self, spin_id: str) -> None:
         """Simulate partial cart success where provider drops an item during mutation."""
         self._partial_drop_spins.add(spin_id)
+        for cart in self._carts.values():
+            original_count = len(cart.items)
+            cart.items = [item for item in cart.items if item.spin_id != spin_id]
+            if len(cart.items) == original_count:
+                continue
+            cart.item_total = round(sum(item.total_price for item in cart.items), 2)
+            cart.packaging_fee = 5.0 if cart.items else 0.0
+            cart.delivery_fee = (
+                0.0 if cart.item_total >= 199.0 or not cart.items else 30.0
+            )
+            cart.grand_total = round(
+                cart.item_total + cart.packaging_fee + cart.delivery_fee, 2
+            )
+            cart.cart_warning = "PARTIAL_SUCCESS"
 
     def inject_min_order_threshold(self, min_amount: float) -> None:
         """Set a minimum order threshold for checkout / basket validation."""
@@ -222,6 +241,7 @@ class MockCommerceAdapter(CommercePort):
             for it in self._carts[cid].items:
                 if it.spin_id == spin_id:
                     it.name = substitute_name
+                    it.brand = substitute_name.split(maxsplit=1)[0]
 
     def reset_injections(self) -> None:
         """Restore pristine catalog and clear all simulated faults."""
@@ -296,6 +316,10 @@ class MockCommerceAdapter(CommercePort):
         cid = cart_id or "default-cart"
         cart_items: list[CartItem] = []
         item_total = 0.0
+        partial_drop_detected = any(
+            update.quantity > 0 and update.spin_id in self._partial_drop_spins
+            for update in items
+        )
 
         for update in items:
             if update.quantity <= 0 or update.spin_id in self._partial_drop_spins:
@@ -318,6 +342,9 @@ class MockCommerceAdapter(CommercePort):
                     quantity=update.quantity,
                     total_price=total_price,
                     is_available=True,
+                    product_id=prod.product_id,
+                    category=prod.category,
+                    brand=prod.brand,
                 )
             )
             item_total += total_price
@@ -336,6 +363,7 @@ class MockCommerceAdapter(CommercePort):
             grand_total=grand_total,
             is_serviceable=not self._injected_stale,
             min_order_threshold=self._min_order_threshold if self._min_order_threshold is not None else 0.0,
+            cart_warning="PARTIAL_SUCCESS" if partial_drop_detected else None,
         )
         self._carts[cid] = cart
         self.successful_call_count += 1
@@ -359,12 +387,6 @@ class MockCommerceAdapter(CommercePort):
                 is_available=True,
                 description="Instant authorization via UPI Intent or scan QR",
             ),
-            PaymentOption(
-                method="COD",
-                label="Cash on Delivery",
-                is_available=True,
-                description="Pay in cash or UPI to delivery partner upon arrival",
-            ),
         ]
 
     async def checkout(
@@ -373,7 +395,10 @@ class MockCommerceAdapter(CommercePort):
         payment_method: str = "UPI",
         explicit_confirmation: bool = False,
         address_id: Optional[str] = None,
+        payment_option_id: Optional[str] = None,
+        payment_option_kind: Optional[str] = None,
     ) -> CommerceOrderResult:
+        del payment_option_id, payment_option_kind
         self.call_count += 1
         if not explicit_confirmation:
             raise UnconfirmedCheckoutError(
@@ -394,13 +419,17 @@ class MockCommerceAdapter(CommercePort):
         order_result = CommerceOrderResult(
             order_id=order_id,
             cart_id=cart_id,
-            status="ORDER_CONFIRMED",
+            status="ORDER_PLACED",
+            raw_status="SIMULATED_ORDER_PLACED",
             items=list(cart.items),
             payment_method=payment_method,
             grand_total=cart.grand_total,
             delivery_address=addr,
             placed_at=datetime.now(timezone.utc),
             tracking_url=f"/orders/{order_id}/track",
+            order_count=1,
+            success_count=1,
+            all_succeeded=True,
         )
         self._orders[order_id] = order_result
         # Clear cart on successful order
@@ -408,20 +437,99 @@ class MockCommerceAdapter(CommercePort):
         self.successful_call_count += 1
         return order_result
 
-    async def track_order(self, order_id: str) -> DeliveryTrackingStatus:
-        if order_id not in self._orders:
-            # Generate deterministic fallback for tracking any order
-            return DeliveryTrackingStatus(
-                order_id=order_id,
-                status="PACKING",
-                eta_minutes=14,
-                driver_name="Ramesh Kamble",
-                driver_phone="+91 98201 12345",
+    async def check_payment_status(
+        self, paas_id: str, order_id: Optional[str] = None
+    ) -> PaymentStatusResult:
+        return PaymentStatusResult(
+            paas_id=paas_id,
+            order_id=order_id,
+            status="SIMULATED_SUCCESS",
+            normalized_status="PAYMENT_CONFIRMED",
+            terminal=True,
+            confirmed=True,
+            order_status="ORDER_PLACED",
+        )
+
+    async def confirm_order(self, order_id: str, paas_id: str) -> CommerceOrderResult:
+        order = self._orders.get(order_id)
+        if order is None:
+            raise CommerceError("Simulated order not found", code="ORDER_NOT_FOUND")
+        return order
+
+    async def get_orders(
+        self, count: int = 10, active_only: bool = False
+    ) -> list[OrderSummary]:
+        del active_only
+        recent = list(self._orders.values())[-max(1, count) :]
+        return [
+            OrderSummary(
+                order_id=order.order_id or "",
+                raw_status=order.raw_status,
+                normalized_status=order.status,
+                total_amount=order.grand_total,
+                payment_method=order.payment_method,
+                is_active=order.status == "ORDER_PLACED",
+                item_count=len(order.items),
+                items=[
+                    OrderLineItem(name=item.name, quantity=item.quantity)
+                    for item in order.items
+                ],
             )
+            for order in recent
+            if order.order_id
+        ]
+
+    async def get_order_details(self, order_id: str) -> OrderDetails:
+        order = self._orders.get(order_id)
+        if order is None:
+            raise CommerceError("Simulated order not found", code="ORDER_NOT_FOUND")
+        return OrderDetails(
+            order_id=order_id,
+            raw_status=order.raw_status,
+            normalized_status=order.status,
+            total_bill=order.grand_total,
+            has_refunds=False,
+            items=[
+                OrderLineItem(
+                    name=item.name,
+                    quantity=item.quantity,
+                    final_price=item.total_price,
+                    removed=False,
+                )
+                for item in order.items
+            ],
+        )
+
+    async def get_delivery_status(
+        self, order_id: str, address_id: str
+    ) -> DeliveryStatusResult:
+        if order_id not in self._orders:
+            raise CommerceError("Simulated order not found", code="ORDER_NOT_FOUND")
+        del address_id
+        return DeliveryStatusResult(
+            order_id=order_id,
+            eta_text="12 minutes",
+            cancelled=False,
+            delivered=False,
+            status_text="Simulated packing",
+            poll_interval_sec=10,
+        )
+
+    async def track_order(
+        self,
+        order_id: str,
+        lat: Optional[float] = None,
+        lng: Optional[float] = None,
+    ) -> DeliveryTrackingStatus:
+        del lat, lng
+        if order_id not in self._orders:
+            raise CommerceError("Simulated order not found", code="ORDER_NOT_FOUND")
 
         return DeliveryTrackingStatus(
             order_id=order_id,
             status="PACKING",
+            raw_status="SIMULATED_PACKING",
+            status_message="Simulated packing",
             eta_minutes=12,
             driver_name="Ramesh Kamble",
             driver_phone="+91 98201 12345",

@@ -15,6 +15,7 @@ Principles:
 """
 from __future__ import annotations
 
+import math
 from enum import Enum
 from typing import Any, Literal, Optional
 
@@ -42,6 +43,13 @@ from backend.intent.verifier import (
     VerificationResult,
     VerificationStatus,
     ViolationCode,
+)
+from backend.intent.semantics import (
+    brand_identity_matches,
+    normalize_pack_quantity,
+    normalize_requested_quantity,
+    product_identity_matches,
+    required_pack_count,
 )
 
 
@@ -220,6 +228,8 @@ class RecoveryEngine:
         """Map VerificationResult violations and cart state to a FailureClass."""
         codes = verification_result.violation_codes
 
+        if cart and cart.cart_warning == "PARTIAL_SUCCESS":
+            return FailureClass.PARTIAL_SUCCESS
         if ViolationCode.STALE_CART in codes:
             return FailureClass.STALE_CART
         if ViolationCode.BUDGET_EXCEEDED in codes:
@@ -228,7 +238,10 @@ class RecoveryEngine:
             return FailureClass.ITEM_UNAVAILABLE
         if ViolationCode.WRONG_BRAND in codes:
             return FailureClass.BRAND_UNAVAILABLE
-        if ViolationCode.WRONG_PACK_SIZE in codes:
+        if (
+            ViolationCode.WRONG_PACK_SIZE in codes
+            or ViolationCode.WRONG_QUANTITY in codes
+        ):
             return FailureClass.PACK_SIZE_CHANGED
         if ViolationCode.DIETARY_VIOLATION in codes:
             return FailureClass.ITEM_UNAVAILABLE
@@ -273,33 +286,44 @@ class RecoveryEngine:
         shortfall = cart.min_order_threshold - cart.grand_total
         max_budget = contract.budget.max_budget if contract.budget else float("inf")
 
-        candidates: list[RecoveryCandidate] = []
+        candidates: list[tuple[RecoveryCandidate, int]] = []
         for prod in available_products:
             for variant in prod.variants:
-                if variant.in_stock:
-                    new_total = cart.grand_total + variant.price
+                if variant.in_stock and variant.price > 0:
+                    required_quantity = max(1, math.ceil(shortfall / variant.price))
+                    added_total = variant.price * required_quantity
+                    new_total = cart.grand_total + added_total
                     if new_total <= max_budget:
-                        score = round(max(0.1, 1.0 - abs(variant.price - shortfall) / 100.0), 2)
+                        score = round(
+                            max(0.1, 1.0 - abs(added_total - shortfall) / 100.0),
+                            2,
+                        )
                         candidates.append(
-                            RecoveryCandidate(
+                            (
+                                RecoveryCandidate(
                                 spin_id=variant.spin_id,
                                 name=variant.name,
                                 pack_size=variant.pack_size,
                                 price=variant.price,
                                 category=prod.category,
                                 score=score,
-                                reasons=[f"Adds ₹{variant.price:.0f} to satisfy min order threshold of ₹{cart.min_order_threshold:.0f}"],
+                                reasons=[
+                                    f"Adds {required_quantity} × ₹{variant.price:.0f} "
+                                    f"to satisfy the ₹{cart.min_order_threshold:.0f} minimum"
+                                ],
+                                ),
+                                required_quantity,
                             )
                         )
 
-        candidates.sort(key=lambda c: c.score, reverse=True)
+        candidates.sort(key=lambda entry: entry[0].score, reverse=True)
         if candidates:
-            top = candidates[0]
+            top, top_quantity = candidates[0]
             action = RecoveryAction(
                 action_type="add_item",
                 spin_id=top.spin_id,
                 name=top.name,
-                quantity=1,
+                quantity=top_quantity,
                 price=top.price,
                 reason=f"Add staple item to meet min order threshold (₹{cart.min_order_threshold:.0f})",
             )
@@ -307,8 +331,13 @@ class RecoveryEngine:
                 state=RecoveryState.NEEDS_USER_DECISION,
                 failure_class=FailureClass.MIN_ORDER_FAILURE,
                 recovery_actions=[action],
-                candidates_for_user=candidates[:3],
-                message=f"Cart total (₹{cart.grand_total:.0f}) is below the ₹{cart.min_order_threshold:.0f} minimum order threshold. Add {top.name} (₹{top.price:.0f}) to meet the threshold?",
+                candidates_for_user=[candidate for candidate, _ in candidates[:3]],
+                message=(
+                    f"Cart total (₹{cart.grand_total:.0f}) is below the "
+                    f"₹{cart.min_order_threshold:.0f} minimum order threshold. "
+                    f"Add {top_quantity} × {top.name} "
+                    f"(₹{top.price * top_quantity:.0f}) to meet the threshold?"
+                ),
                 attempt_number=attempt_number,
                 can_auto_apply=False,
             )
@@ -350,14 +379,44 @@ class RecoveryEngine:
         overrun = cart.grand_total - max_budget
 
         # Search for possible cheaper replacements among cart items
-        best_swap: Optional[tuple[CartItem, ProductVariant, float]] = None
+        best_swap: Optional[
+            tuple[CartItem, IntentItem, CommerceProductItem, ProductVariant, int, float]
+        ] = None
 
         for cart_item in cart.items:
+            intent_item = next(
+                (
+                    item
+                    for item in contract.items
+                    if product_identity_matches(
+                        item.name,
+                        cart_item.name,
+                        item.category,
+                        cart_item.category,
+                    )
+                ),
+                None,
+            )
+            if intent_item is None:
+                continue
+            requested = normalize_requested_quantity(
+                intent_item.quantity,
+                intent_item.unit,
+                intent_item.name,
+                quantity_is_explicit=intent_item.quantity_is_explicit,
+                pack_size_preference=intent_item.pack_size_preference,
+            )
+            if requested is None:
+                continue
             # Find candidate products matching this cart item
-            query = cart_item.name.lower()
             matching_products = [
                 p for p in available_products
-                if any(word in p.name.lower() for word in query.split()[:2])
+                if product_identity_matches(
+                    intent_item.name,
+                    p.name,
+                    intent_item.category,
+                    p.category,
+                )
             ]
             for prod in matching_products:
                 for variant in prod.variants:
@@ -365,21 +424,58 @@ class RecoveryEngine:
                         continue
                     if variant.spin_id == cart_item.spin_id:
                         continue
-                    savings = (cart_item.unit_price - variant.price) * cart_item.quantity
-                    if savings >= overrun:
-                        if best_swap is None or savings < best_swap[2]:  # minimal required swap
-                            best_swap = (cart_item, variant, savings)
+                    brand_rule = contract.get_brand_preference(intent_item.name)
+                    required_brand = intent_item.brand_preference or (
+                        brand_rule.preferred_brand
+                        if brand_rule and brand_rule.is_hard
+                        else None
+                    )
+                    if required_brand and not brand_identity_matches(
+                        required_brand,
+                        prod.brand,
+                        prod.name,
+                        variant.name,
+                    ):
+                        continue
+                    pack_count = required_pack_count(
+                        requested,
+                        normalize_pack_quantity(variant.pack_size),
+                    )
+                    if pack_count is None:
+                        continue
+                    replacement_total = variant.price * pack_count
+                    savings = cart_item.total_price - replacement_total
+                    projected_total = cart.grand_total - cart_item.total_price + replacement_total
+                    if savings >= overrun and projected_total <= max_budget:
+                        if best_swap is None or savings < best_swap[5]:  # minimal required swap
+                            best_swap = (
+                                cart_item,
+                                intent_item,
+                                prod,
+                                variant,
+                                pack_count,
+                                savings,
+                            )
 
         if best_swap:
-            old_item, new_variant, savings = best_swap
+            old_item, selected_intent, selected_product, new_variant, pack_count, savings = best_swap
+            brand_rule = contract.get_brand_preference(selected_intent.name)
+            new_brand = selected_product.brand or self._extract_brand(new_variant.name)
+            if brand_rule and brand_identity_matches(
+                brand_rule.preferred_brand,
+                selected_product.brand,
+                selected_product.name,
+                new_variant.name,
+            ):
+                new_brand = brand_rule.preferred_brand
             proposal = ActionProposal(
                 action_type="substitute",
-                target=old_item.name,
+                target=selected_intent.name,
                 details={
                     "item_name": new_variant.name,
                     "replacement": new_variant.name,
                     "price_delta": -savings,
-                    "new_brand": new_variant.name.split()[0],
+                    "new_brand": new_brand,
                 },
                 reason=f"Downsize/swap to bring total within ₹{max_budget:.0f} budget",
             )
@@ -388,7 +484,7 @@ class RecoveryEngine:
                 action_type="replace_item",
                 spin_id=new_variant.spin_id,
                 name=new_variant.name,
-                quantity=old_item.quantity,
+                quantity=pack_count,
                 removes_spin_id=old_item.spin_id,
                 price=new_variant.price,
                 reason=proposal.reason,
@@ -452,6 +548,7 @@ class RecoveryEngine:
                 ViolationCode.MISSING_ITEM,
                 ViolationCode.WRONG_BRAND,
                 ViolationCode.WRONG_PACK_SIZE,
+                ViolationCode.WRONG_QUANTITY,
                 ViolationCode.DIETARY_VIOLATION,
             ):
                 target_name = v.target
@@ -482,8 +579,41 @@ class RecoveryEngine:
 
         # 2. Filter by hard constraints & policy
         filtered_candidates = self._filter_by_hard_constraints(
-            raw_candidates, target_name, contract, cart, removes_spin_id
+            raw_candidates,
+            target_name,
+            contract,
+            cart,
+            removes_spin_id,
+            intent_item,
         )
+
+        if intent_item:
+            requested_quantity = normalize_requested_quantity(
+                intent_item.quantity,
+                intent_item.unit,
+                intent_item.name,
+                quantity_is_explicit=intent_item.quantity_is_explicit,
+                pack_size_preference=intent_item.pack_size_preference,
+            )
+            filtered_candidates = [
+                (product, variant)
+                for product, variant in filtered_candidates
+                if requested_quantity is not None
+                and required_pack_count(
+                    requested_quantity,
+                    normalize_pack_quantity(variant.pack_size),
+                )
+                is not None
+                and (
+                    not intent_item.brand_preference
+                    or brand_identity_matches(
+                        intent_item.brand_preference,
+                        product.brand,
+                        product.name,
+                        variant.name,
+                    )
+                )
+            ]
 
         if not filtered_candidates:
             return RecoveryOutcome(
@@ -504,6 +634,21 @@ class RecoveryEngine:
 
         top_candidate = scored[0]
 
+        # Resolve exact physical quantity before budget and autonomy decisions.
+        multiple = 1
+        if intent_item:
+            multiple = self._calculate_pack_multiple(intent_item, top_candidate.pack_size)
+            if multiple < 1:
+                return RecoveryOutcome(
+                    state=RecoveryState.BLOCKED,
+                    failure_class=failure_class,
+                    message=f"No exact quantity-preserving replacement found for '{target_name}'",
+                    attempt_number=attempt_number,
+                    can_auto_apply=False,
+                    remaining_violations=verification_result.violations,
+                )
+            quantity = multiple
+
         # 4. Check policy on top candidate
         old_pack = (
             matched_cart_item.pack_size
@@ -518,7 +663,11 @@ class RecoveryEngine:
                 "item_name": top_candidate.name,
                 "replacement": top_candidate.name,
                 "category": top_candidate.category,
-                "price_delta": top_candidate.price - (matched_cart_item.unit_price if matched_cart_item else 0.0),
+                "price_delta": (
+                    top_candidate.price * quantity
+                    - (matched_cart_item.total_price if matched_cart_item else 0.0)
+                ),
+                "current_total": cart.grand_total,
                 "new_brand": self._extract_brand(top_candidate.name),
                 "old_pack_size": old_pack,
                 "new_pack_size": new_pack,
@@ -545,12 +694,15 @@ class RecoveryEngine:
                 if score_diff < 0.08:
                     is_ambiguous = True
 
-        # Check if multiple packs can fulfill requested volume
-        multiple = 1
-        if intent_item and contract.pack_size_rules.preferred_multiples:
-            multiple = self._calculate_pack_multiple(intent_item, top_candidate.pack_size)
-            if multiple > 1:
-                quantity = multiple * (matched_cart_item.quantity if matched_cart_item else max(1, int(intent_item.quantity)))
+        # If the selected SKU is already in the cart, recovery is only restoring
+        # its verified quantity. Competing products do not make that adjustment
+        # ambiguous.
+        restores_existing_variant = bool(
+            matched_cart_item
+            and top_candidate.spin_id == matched_cart_item.spin_id
+        )
+        if restores_existing_variant:
+            is_ambiguous = False
 
         action_reason = (
             f"Supplied {multiple}x {top_candidate.pack_size} packs to fulfill requested {intent_item.name}"
@@ -559,11 +711,15 @@ class RecoveryEngine:
         )
 
         action = RecoveryAction(
-            action_type="replace_item" if removes_spin_id else "add_item",
+            action_type=(
+                "adjust_quantity"
+                if restores_existing_variant
+                else ("replace_item" if removes_spin_id else "add_item")
+            ),
             spin_id=top_candidate.spin_id,
             name=top_candidate.name,
             quantity=quantity,
-            removes_spin_id=removes_spin_id,
+            removes_spin_id=None if restores_existing_variant else removes_spin_id,
             price=top_candidate.price,
             reason=action_reason,
         )
@@ -605,18 +761,23 @@ class RecoveryEngine:
     ) -> list[tuple[CommerceProductItem, ProductVariant]]:
         """Find in-stock product variants matching the target's category or name."""
         candidates: list[tuple[CommerceProductItem, ProductVariant]] = []
-        target_tokens = set(target_name.lower().split())
-        target_category = intent_item.category.lower() if (intent_item and intent_item.category) else ""
+        requested_name = intent_item.name if intent_item else target_name
+        requested_category = intent_item.category if intent_item else None
 
         for prod in available_products:
-            prod_tokens = set(prod.name.lower().split())
-            cat_match = bool(target_category and target_category in prod.category.lower())
-            name_overlap = bool(target_tokens & prod_tokens)
-
-            # Match on category or name keyword
-            if cat_match or name_overlap:
+            if product_identity_matches(
+                requested_name,
+                prod.name,
+                requested_category,
+                prod.category,
+            ):
                 for variant in prod.variants:
-                    if variant.in_stock:
+                    if variant.in_stock and product_identity_matches(
+                        requested_name,
+                        variant.name,
+                        requested_category,
+                        prod.category,
+                    ):
                         candidates.append((prod, variant))
 
         return candidates
@@ -628,6 +789,7 @@ class RecoveryEngine:
         contract: IntentContract,
         cart: CommerceCart,
         removes_spin_id: Optional[str] = None,
+        intent_item: Optional[IntentItem] = None,
     ) -> list[tuple[CommerceProductItem, ProductVariant]]:
         """Filter candidate variants using PolicyEngine hard constraint checks."""
         valid: list[tuple[CommerceProductItem, ProductVariant]] = []
@@ -640,7 +802,14 @@ class RecoveryEngine:
                     break
 
         for prod, variant in candidates:
-            price_delta = variant.price - old_price
+            quantity = (
+                self._calculate_pack_multiple(intent_item, variant.pack_size)
+                if intent_item
+                else 1
+            )
+            if quantity < 1:
+                continue
+            price_delta = variant.price * quantity - old_price
             proposal = ActionProposal(
                 action_type="substitute" if removes_spin_id else "add_item",
                 target=target_name,
@@ -732,21 +901,22 @@ class RecoveryEngine:
         return tokens[0] if tokens else ""
 
     def _calculate_pack_multiple(self, intent_item: IntentItem, candidate_pack_size: str) -> int:
-        """Calculate multiple packs if primary pack size is unavailable (Spec §10.2 item 3)."""
-        pref = (intent_item.pack_size_preference or "").lower().replace(" ", "")
-        cand = candidate_pack_size.lower().replace(" ", "")
+        """Return the exact quantity-preserving pack count, or zero if unsafe."""
 
-        # 1L requested vs 500ml candidate
-        if ("1l" in pref or (intent_item.unit.lower() == "l" and intent_item.quantity == 1.0)) and "500ml" in cand:
-            return 2
-        # 2L requested vs 1L candidate
-        if ("2l" in pref or (intent_item.unit.lower() == "l" and intent_item.quantity == 2.0)) and "1l" in cand:
-            return 2
-        # 1kg requested vs 500g candidate
-        if ("1kg" in pref or (intent_item.unit.lower() == "kg" and intent_item.quantity == 1.0)) and "500g" in cand:
-            return 2
-
-        return 1
+        requested = normalize_requested_quantity(
+            intent_item.quantity,
+            intent_item.unit,
+            intent_item.name,
+            quantity_is_explicit=intent_item.quantity_is_explicit,
+            pack_size_preference=intent_item.pack_size_preference,
+        )
+        if requested is None:
+            return 0
+        count = required_pack_count(
+            requested,
+            normalize_pack_quantity(candidate_pack_size),
+        )
+        return count or 0
 
     async def execute_recovery(
         self,

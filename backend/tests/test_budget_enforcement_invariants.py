@@ -14,7 +14,12 @@ import pytest
 from backend.integrations.commerce.mock_adapter import MockCommerceAdapter
 from backend.integrations.commerce.models import CartItemUpdate
 from backend.integrations.commerce.exceptions import UnconfirmedCheckoutError
-from backend.intent.models import BudgetConstraint, IntentContract, IntentItem
+from backend.intent.models import (
+    AuthorizationScope,
+    BudgetConstraint,
+    IntentContract,
+    IntentItem,
+)
 from backend.intent.orchestrator import GrocerOrchestrator
 from backend.intent.policy import PolicyEngine
 from backend.intent.recovery import FailureClass, RecoveryEngine, RecoveryState
@@ -44,6 +49,9 @@ async def test_hard_budget_cannot_result_in_autonomous_cart_overrun() -> None:
             IntentItem(name="bread", quantity=1, pack_size_preference="400 g", category="bakery", is_essential=True),
         ],
         budget=BudgetConstraint(max_budget=budget_cap, is_hard=True, max_deviation=0.0),
+        authorization_scope=AuthorizationScope(
+            requires_approval_for_price_increase=False,
+        ),
     )
 
     cart_id = "cart-budget-1"

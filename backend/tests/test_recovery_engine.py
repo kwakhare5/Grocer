@@ -318,8 +318,8 @@ def test_brand_unavailable_alternative_in_list_auto_recovers(engine: RecoveryEng
     assert outcome.recovery_actions[0].spin_id.startswith("SPIN-AMUL")
 
 
-def test_budget_drift_swap_brings_under_budget_recovers(engine: RecoveryEngine) -> None:
-    """Cart over budget can auto-swap to a cheaper variant (e.g. 500ml) to bring under budget."""
+def test_budget_drift_never_underfills_requested_quantity(engine: RecoveryEngine) -> None:
+    """A nominally cheaper pack cannot be applied if exact quantity would exceed budget."""
     contract = _make_contract(
         budget=BudgetConstraint(max_budget=50.0, is_hard=True, max_deviation=0.0)
     )
@@ -347,15 +347,100 @@ def test_budget_drift_swap_brings_under_budget_recovers(engine: RecoveryEngine) 
         budget_delta=16.0,
     )
 
-    # Catalog contains Amul 500ml at ₹34, which saves ₹32 and brings total to ₹34 <= ₹50
+    # 500 ml needs two packs to preserve 1 L, costing ₹68 and still exceeding budget.
     catalog = _make_catalog()
     outcome = engine.recover(contract, cart, v_res, catalog)
 
-    assert outcome.state == RecoveryState.RECOVERED
+    assert outcome.state == RecoveryState.NEEDS_USER_DECISION
     assert outcome.failure_class == FailureClass.BUDGET_DRIFT
-    assert outcome.can_auto_apply is True
-    assert outcome.recovery_actions[0].spin_id == "SPIN-AMUL-500ML"
-    assert outcome.recovery_actions[0].removes_spin_id == "SPIN-AMUL-1L"
+    assert outcome.can_auto_apply is False
+    assert outcome.recovery_actions == []
+
+
+def test_missing_item_recovery_prices_all_required_packs_before_auto_apply(
+    engine: RecoveryEngine,
+) -> None:
+    contract = _make_contract(
+        budget=BudgetConstraint(max_budget=50.0, is_hard=True, max_deviation=0.0)
+    )
+    cart = _make_cart(items=[], grand_total=0.0)
+    verification = VerificationResult(
+        status=VerificationStatus.FAIL,
+        violations=[
+            ConstraintViolation(
+                violation_code=ViolationCode.MISSING_ITEM,
+                target="milk",
+                detail="Milk missing",
+                is_hard=True,
+            )
+        ],
+        unresolved_items=["milk"],
+    )
+    catalog = [
+        CommerceProductItem(
+            product_id="milk",
+            name="Amul Milk",
+            category="dairy",
+            variants=[
+                ProductVariant(
+                    spin_id="milk-500",
+                    name="Amul Milk 500 ml",
+                    pack_size="500 ml",
+                    price=30.0,
+                    mrp=30.0,
+                )
+            ],
+        )
+    ]
+
+    outcome = engine.recover(contract, cart, verification, catalog)
+
+    assert outcome.can_auto_apply is False
+    assert outcome.recovery_actions == []
+
+
+def test_budget_recovery_respects_hard_multiword_brand_lock(
+    engine: RecoveryEngine,
+) -> None:
+    contract = _make_contract(
+        budget=BudgetConstraint(max_budget=70.0, is_hard=True, max_deviation=0.0),
+        brand_preferences=[
+            BrandPreference(
+                product_or_category="milk",
+                preferred_brand="Mother Dairy",
+                is_hard=True,
+            )
+        ],
+    )
+    current_item = CartItem(
+        spin_id="SPIN-MD-1L",
+        name="Mother Dairy Milk 1L Pouch",
+        pack_size="1 L",
+        unit_price=80.0,
+        quantity=1,
+        total_price=80.0,
+        brand="Mother Dairy",
+    )
+    outcome = engine.recover(
+        contract,
+        _make_cart(items=[current_item], grand_total=80.0),
+        VerificationResult(
+            status=VerificationStatus.FAIL,
+            violations=[
+                ConstraintViolation(
+                    violation_code=ViolationCode.BUDGET_EXCEEDED,
+                    target="total_budget",
+                    detail="Budget exceeded",
+                    is_hard=True,
+                )
+            ],
+            budget_delta=10.0,
+        ),
+        _make_catalog(),
+    )
+
+    assert outcome.state == RecoveryState.NEEDS_USER_DECISION
+    assert outcome.can_auto_apply is False
 
 
 def test_budget_drift_no_swap_possible_needs_user_decision(engine: RecoveryEngine) -> None:
@@ -607,4 +692,3 @@ async def test_execute_recovery_closed_loop(engine: RecoveryEngine) -> None:
     item_names = [i.name for i in updated_cart.items]
     assert any("Amul" in name for name in item_names)
     assert any("Bread" in name for name in item_names)
-

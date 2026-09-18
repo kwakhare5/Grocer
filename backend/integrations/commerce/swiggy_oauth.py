@@ -62,7 +62,7 @@ class PendingAuthFlow(BaseModel):
     expires_at: float
 
     def __repr__(self) -> str:
-        return f"PendingAuthFlow(state={self.state!r}, customer_id={self.customer_id!r}, verifier=***)"
+        return "PendingAuthFlow(state=***, customer=***, verifier=***)"
 
     def __str__(self) -> str:
         return repr(self)
@@ -105,9 +105,8 @@ class SwiggyOAuthManager:
                         logger.info("Successfully registered dynamic client_id with Swiggy")
                         return self._cached_client_id
                 logger.warning(
-                    "Swiggy DCR returned status %d: %s, falling back to standard client",
+                    "Swiggy DCR returned HTTP %d; using the standard client.",
                     res.status_code,
-                    res.text,
                 )
         except Exception as exc:
             logger.warning("Swiggy DCR error: %s. Falling back to default client", exc)
@@ -176,12 +175,12 @@ class SwiggyOAuthManager:
         with self._lock:
             pending_flow = self._pending_flows.pop(state, None)
 
-        effective_verifier = code_verifier or (pending_flow.code_verifier if pending_flow else None)
-        if not effective_verifier:
-            raise ValueError("PKCE code_verifier not found or state has expired.")
+        if pending_flow is None:
+            raise ValueError("OAuth state is invalid or has expired.")
 
-        effective_redirect = redirect_uri or (pending_flow.redirect_uri if pending_flow else self.redirect_uri)
-        client_id = pending_flow.client_id if pending_flow else (self._cached_client_id or "swiggy-mcp")
+        effective_verifier = pending_flow.code_verifier
+        effective_redirect = pending_flow.redirect_uri
+        client_id = pending_flow.client_id
 
         payload = {
             "grant_type": "authorization_code",
@@ -208,7 +207,7 @@ class SwiggyOAuthManager:
             if "access_token" not in token_data:
                 raise ValueError("Swiggy token exchange response missing 'access_token'.")
 
-            token_data["customer_id"] = pending_flow.customer_id if pending_flow else None
+            token_data["customer_id"] = pending_flow.customer_id
             token_data["client_id"] = client_id
             return token_data
 
@@ -229,5 +228,5 @@ class SwiggyOAuthManager:
 
 # Default singleton instance
 default_oauth_manager = SwiggyOAuthManager(
-    client_id_override=settings.SWIGGY_AUTH_TOKEN,  # or custom config
+    client_id_override=settings.SWIGGY_CLIENT_ID,
 )

@@ -122,4 +122,12 @@ async def test_oauth_exchange_code_invalid_state_or_missing_verifier() -> None:
     manager = SwiggyOAuthManager()
     with pytest.raises(ValueError) as exc:
         await manager.exchange_code(code="code", state="unknown-state")
-    assert "code_verifier not found" in str(exc.value)
+    assert "state is invalid" in str(exc.value)
+
+    with pytest.raises(ValueError, match="state is invalid"):
+        await manager.exchange_code(
+            code="code",
+            state="attacker-state",
+            code_verifier="attacker-verifier",
+            redirect_uri="https://attacker.invalid/callback",
+        )

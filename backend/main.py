@@ -8,9 +8,9 @@ load_dotenv(dotenv_path=env_path)
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from backend.config import settings
 from backend.api.health import router as health_router
 from backend.api.intent_chat import router as intent_chat_router
-from backend.api.swiggy_oauth import router as swiggy_oauth_router
 from backend.api.whatsapp import router as whatsapp_router
 
 
@@ -24,16 +24,19 @@ def create_app() -> FastAPI:
 
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
+        allow_origins=[
+            origin.strip()
+            for origin in settings.CORS_ALLOWED_ORIGINS.split(",")
+            if origin.strip()
+        ],
         allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
+        allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
+        allow_headers=["Content-Type", "X-Grocer-Session-Capability"],
     )
 
     app.include_router(health_router, prefix="/api")
     app.include_router(health_router)
     app.include_router(intent_chat_router)
-    app.include_router(swiggy_oauth_router)
     app.include_router(whatsapp_router)
 
     @app.get("/", tags=["health"])

@@ -230,16 +230,17 @@ If the answer is no, it does not belong in GROCER v2 unless the master spec is d
 
 ## 15. SESSION RESUME
 
-**Last completed:** Live Meta WhatsApp Cloud API & Swiggy MCP Instamart Autonomous Verification (2026-09-07)
+**Last completed:** Targeted independent merge-blocker and provider-contract remediation (2026-09-09)
 
-**Status:** ✅ Complete, 100% Live Verified on Mobile & Committed to `main`. Bidirectional WhatsApp messaging operational via Meta Cloud API sandbox (`+1 555 663-XXXX`) linked to user's registered WhatsApp (`+91 82378 XXXXX`). Verified end-to-end: NL intent extraction → inventory check → autonomous out-of-stock recovery with interactive list picker (`[ ☰ Select Alternative ]`) → basket confirmation buttons (`[ Confirm Order ]` / `[ Change Items ]`) → double-gated order placement (`OD-68355847`). Local tunnel active (`https://grocer-bot-live.loca.lt/api/whatsapp/webhook`).
+**Status:** Audit branch `audit/codex-deep-review` is unmerged and ready for one final independent merge review. Confirmed quantity/dietary, address, provider-failure, payment-choice, polling-cap, tracking, and CommercePort contract gaps are resolved and locally green. Production persistence/deployment, per-child lifecycle polling, and approved live lifecycle revalidation remain deferred. No live provider mutation or order occurred.
 
 **Quality Gates:**
-- `pytest`: 147/147 tests passed (100% green).
+- `pytest backend/tests`: 302 tests passed.
+- Evaluation: 10/10 scenarios; 40% evidence-based autonomous recovery; 0 unsafe autonomous actions.
 - `npm run lint`: 0 errors, 0 warnings.
-- `npm run build`: Compiled successfully in Next.js 16 (Turbopack).
-- Meta Graph API Webhook: Active (`messages` v26.0 subscribed).
-- Remote `main`: Up to date on GitHub.
+- `npm run build`: Next.js and TypeScript passed.
+- Adversarial ledger: 58 automated, 24 partial, 26 uncovered, 1 not applicable.
+- Current blockers and evidence: `CURRENT_STATE.md` and `docs/audit/CODEX_AUDIT_REPORT.md`.
 
 
 

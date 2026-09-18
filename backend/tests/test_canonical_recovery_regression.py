@@ -22,6 +22,7 @@ from backend.integrations.commerce.models import (
 )
 from backend.integrations.commerce.port import CommercePort
 from backend.intent.models import (
+    AuthorizationScope,
     BudgetConstraint,
     IntentContract,
     IntentItem,
@@ -114,6 +115,11 @@ async def test_orchestrator_oos_recovery_canonical_path() -> None:
     # 1L milk was selected
     spins1 = {it.spin_id: it for it in turn1.basket_summary.items}
     assert "SPIN-MILK-1L" in spins1
+
+    session = store.get(session_id)
+    assert session is not None and session.intent_contract is not None
+    session.intent_contract.authorization_scope.requires_approval_for_price_increase = False
+    store.save(session)
 
     # Inject failure: Amul 1L milk becomes OOS
     adapter.inject_out_of_stock("SPIN-MILK-1L")
@@ -325,6 +331,9 @@ async def test_unrelated_cart_items_survive_recovery() -> None:
         budget=BudgetConstraint(max_budget=2000.0, is_hard=True),
         substitution_policy=SubstitutionPolicy(),
         pack_size_rules=PackSizeRules(preferred_multiples=True),
+        authorization_scope=AuthorizationScope(
+            requires_approval_for_price_increase=False,
+        ),
     )
 
     cart_id = "unrelated-cart-1"
@@ -390,6 +399,9 @@ async def test_live_cart_refetched_and_reverified_between_iterations() -> None:
         budget=BudgetConstraint(max_budget=2000.0, is_hard=True),
         substitution_policy=SubstitutionPolicy(),
         pack_size_rules=PackSizeRules(preferred_multiples=True),
+        authorization_scope=AuthorizationScope(
+            requires_approval_for_price_increase=False,
+        ),
     )
     cart_id = "cart-refetch-1"
 

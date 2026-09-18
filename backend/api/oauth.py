@@ -53,10 +53,13 @@ async def swiggy_callback(req: CallbackRequest) -> dict[str, bool]:
         expires_in = token_data.get("expires_in", 3600)
         
         if customer_id and access_token:
-            default_token_vault.store_token(
+            await default_token_vault.store_token_durable(
                 customer_id=customer_id,
                 access_token=access_token,
                 expires_in=expires_in,
+                token_type=str(token_data.get("token_type", "Bearer")),
+                scope=str(token_data.get("scope", "mcp:tools")),
+                client_id=token_data.get("client_id"),
             )
             return {"success": True}
         raise ValueError("Missing customer_id or access_token in exchange response")

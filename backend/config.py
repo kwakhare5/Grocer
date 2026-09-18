@@ -3,6 +3,7 @@ from typing import Literal
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
+    SHOPPING_TASK_ROUTE: bool = False
     COMMERCE_ADAPTER_TYPE: str = "mock"
     CHECKOUT_MODE: Literal["review", "live"] = "review"
     SWIGGY_MCP_BASE_URL: str = "https://mcp.swiggy.com/im"
@@ -16,6 +17,9 @@ class Settings(BaseSettings):
     WHATSAPP_APP_SECRET: str | None = None
     WHATSAPP_PHONE_NUMBER_ID: str | None = None
     WHATSAPP_ACCESS_TOKEN: str | None = None
+    DATABASE_URL: str | None = None
+    DATABASE_POOL_MAX_SIZE: int = 5
+    DATA_ENCRYPTION_KEY: str | None = None
 
     model_config = SettingsConfigDict(env_file='.env', env_file_encoding='utf-8', extra='ignore')
 

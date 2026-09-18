@@ -171,7 +171,7 @@ class RecoveryEngine:
             contract: Active intent contract.
             cart: Current commerce cart state.
             verification_result: Output from IntentVerifier.
-            available_products: Catalog items available at current dark store/address.
+            available_products: Catalog items available for the current delivery address.
             attempt_number: Current cycle count (1-indexed).
             max_attempts: Maximum permitted recovery iterations.
 

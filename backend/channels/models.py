@@ -25,6 +25,10 @@ class InteractiveAction(BaseModel):
 class NormalizedIncomingMessage(BaseModel):
     """Channel-agnostic incoming message sent to GrocerOrchestrator."""
     sender_id: str = Field(..., description="Unique sender address, e.g. wa:+919876543210 or cust-web")
+    customer_id: Optional[str] = Field(
+        default=None,
+        description="Pseudonymous durable customer identity when known.",
+    )
     channel: ChannelType = ChannelType.WHATSAPP
     text: str = Field(..., description="Message text or user reply")
     message_id: str = Field(..., description="Unique transport message ID for deduplication")

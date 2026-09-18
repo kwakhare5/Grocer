@@ -1,214 +1,50 @@
-# AGENTS.md — GROCER Coding Agent Contract
+# GROCER engineering contract
 
-## 1. Read this first
+Read `GROCER_V2_MASTER_SPEC.md`, `CONTEXT.md`, `ARCHITECTURE.md`, and `CURRENT_STATE.md` before changing code.
 
-Before changing code, read:
+## Product boundary
 
-1. `GROCER_V2_MASTER_SPEC.md` — product and architecture source of truth.
-2. `CONTEXT.md` — session context, domain language, invariants, anti-drift rules.
-3. `ARCHITECTURE.md` — current system boundaries.
-4. `CURRENT_STATE.md` — latest evidence, readiness, and verified gates.
+GROCER is an English-first WhatsApp consumer grocery agent for Swiggy Instamart. Its job is to preserve a customer's intended basket while commerce state changes.
 
-**GROCER is the existing WhatsApp consumer grocery replenishment assistant being extended with an Intent layer.**
+Do not add operations/inventory/warehouse/supplier features, marketplace aggregation, browser-owned commerce state, raw provider errors, silent substitutions, or autonomous checkout.
 
-Do not reinterpret it as a new project.
-
-## 2. Non-negotiable product boundary
-
-GROCER v2 is:
-
-- WhatsApp consumer grocery replenishment;
-- intent-aware shopping task execution;
-- intent verification and preservation;
-- bounded recovery/replanning;
-- user clarification when needed;
-- Swiggy Instamart commerce through `CommercePort` / MCP;
-- explicit human confirmation before checkout;
-- measurable reliability evaluation.
-
-The dark-store operations platform is a separate repository:
-
-`kwakhare5/Dark-store-operator`
-
-### NEVER bring it back
-
-Do not add the following to GROCER:
-
-- dark-store inventory optimization;
-- store transfer/reorder/discount/hold decisioning;
-- supplier operations;
-- warehouse management;
-- batch-expiry operations dashboards;
-- operations cockpit/map;
-- internal fleet command center.
-
-## 3. Extend, do not replace
-
-Preserve and extend the existing customer architecture:
+## Architecture rules
 
 ```text
-WhatsApp / customer UX
-        ↓
-GrocerOrchestrator (collapsing legacy CustomerService)
-        ↓
-CommercePort
-   ↙          ↘
-Mock       Swiggy MCP
+WhatsApp → durable inbox → ShoppingTask → CommercePort → Swiggy MCP
+                                           ↓
+                                  read-back / verifier → durable outbox → WhatsApp
 ```
 
-*(Resolution A: The legacy v1 `CustomerService` was intentionally collapsed into `GrocerOrchestrator` (`backend/intent/orchestrator.py`) as the sole approved v2 application boundary communicating directly with `CommercePort`.)*
+- `ShoppingTask.desired_basket` is the authoritative customer intent for a task.
+- A Swiggy cart is an external projection. It is only used after the user explicitly chooses Keep, Start fresh, or Cancel.
+- `CommercePort` is the sole provider boundary. Keep all Swiggy-specific code in `SwiggyMCPAdapter`.
+- The existing legacy conversation/orchestrator runtime is temporary. Do not delete it before the durable route has passed replay and live review gates; do not extend it as the permanent design.
 
-New work should add:
+## Language and safety rules
+
+- LLM/model code interprets language and proposes; deterministic code validates, transitions state, resolves products, verifies provider results, and authorizes checkout.
+- Current explicit request > session choice > confirmed preference > default.
+- Confirmed preferences can create a complete basket preview, not a silent cart mutation.
+- Every essential item resolves before a cart mutation. Ambiguous or unavailable essentials stop the plan.
+- Checkout always requires a distinct backend-enforced confirmation.
+- Never claim a failed or unknown provider action succeeded. Never expose provider error codes to the customer.
+
+## Persistence and provider rules
+
+- Persist task, inbox/outbox, idempotency, preferences, and OAuth state in managed private PostgreSQL storage before enabling live checkout.
+- Encrypt sensitive tokens at rest. Do not put secrets in source, logs, or frontend state.
+- Read the current official Swiggy Builders Club documentation before changing MCP tool calls or retry behavior. Do not invent tool names or schemas.
+
+## Engineering rules
+
+- Prefer minimal, tested changes. Keep provider calls behind adapters.
+- Keep React/Vercel as landing/OAuth presentation; it never owns commerce state.
+- Add deterministic tests around hard rules and replay human messages before changing live routing.
+- Run the relevant checks and report results honestly:
 
 ```text
-Intent Contract
-Intent Verifier
-Policy / Memory
-Recovery Engine
-Evaluation
-```
-
-above this foundation.
-
-Do not create a second parallel commerce architecture.
-
-## 4. LLM responsibility
-
-LLM/model code may:
-
-- interpret natural language;
-- extract candidate intent;
-- propose actions/substitutions;
-- summarize options;
-- decide when clarification is useful.
-
-LLM/model code must NOT be the only enforcement mechanism for:
-
-- hard constraints;
-- budget arithmetic;
-- checkout authorization;
-- state transitions;
-- retry safety;
-- cart verification;
-- recovery validity.
-
-**LLM interprets and proposes. Deterministic code enforces and verifies.**
-
-## 5. Intent rules
-
-Represent user intent explicitly.
-
-Precedence:
-
-```text
-current explicit request
-    > current session choice
-    > stored soft preference
-    > default
-```
-
-Never allow memory to silently override the current request.
-
-A hard constraint cannot be relaxed without an explicit user decision or a policy that clearly authorizes the relaxation.
-
-## 6. Recovery rules
-
-When commerce state drifts from intent:
-
-```text
-observe
-→ classify
-→ check policy
-→ generate candidates
-→ filter hard constraints
-→ rank
-→ auto-act OR ask
-→ verify again
-```
-
-Recovery must be bounded. Never create infinite retry loops.
-
-Never report a failed/unknown action as successful.
-
-## 7. Checkout safety
-
-Checkout is always consequential.
-
-The backend must require explicit user confirmation before executing it.
-
-Frontend confirmation UX is not a sufficient security boundary.
-
-Never weaken or remove the existing checkout guard to make demos easier.
-
-## 8. Swiggy MCP
-
-Before changing Swiggy integration, read the current authoritative Builders Club documentation:
-
-- `https://mcp.swiggy.com/builders/llms.txt`
-- `https://mcp.swiggy.com/builders/llms-full.txt`
-- current Instamart reference/error documentation.
-
-Do not invent tool names, parameters, or retry semantics.
-
-Keep all provider-specific details inside `SwiggyMCPAdapter`.
-
-## 9. Simulation/evaluation
-
-Failure simulation is an internal reliability tool for GROCER.
-
-Use the same `CommercePort` contracts as the real integration.
-
-Initial scenarios should focus on:
-
-- unavailable product;
-- preferred brand unavailable;
-- pack-size change;
-- budget drift;
-- stale cart;
-- safe transient retry;
-- partial cart success;
-- minimum-order/basket validity when repairable.
-
-Do not create a separate evaluation product.
-
-## 10. Frontend rules
-
-The frontend is not authoritative for commerce/domain state.
-
-Do not implement a second inventory/state machine in React.
-
-The existing WhatsApp/iPhone customer experience is the primary UI foundation. Improve its intelligence without turning it into an operations dashboard.
-
-## 11. Engineering behavior
-
-- Inspect actual code before making claims about implementation status.
-- Prefer minimal, reversible changes.
-- Reuse working boundaries.
-- Avoid microservices and speculative infrastructure.
-- Add deterministic tests around hard rules.
-- Keep provider calls behind the adapter.
-- Run relevant tests after changes.
-- Do not rewrite functioning code solely for aesthetic architectural preference.
-
-## 12. Quality commands
-
-```bash
 npm run lint
 npm run build
 pytest backend/tests
 ```
-
-Run the commands relevant to the changed area and report failures honestly.
-
-## 13. What to do when requirements appear ambiguous
-
-Do not invent a new product direction.
-
-First ask:
-
-1. Does this directly help preserve user intent?
-2. Does it extend the existing WhatsApp + CommercePort flow?
-3. Is it compatible with the master spec?
-4. Is it actually needed for the current milestone?
-
-If not, do not build it.

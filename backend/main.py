@@ -1,4 +1,5 @@
 from pathlib import Path
+from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 
 # Explicitly load .env file from project root
@@ -9,10 +10,47 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.config import settings
+from backend.intent.task_repository import (
+    PostgresShoppingTaskRepository,
+    create_postgres_pool,
+)
+from backend.integrations.commerce.swiggy_oauth import (
+    PostgresPendingAuthFlowStore,
+    default_oauth_manager,
+)
+from backend.integrations.commerce.token_vault import default_token_vault
 from backend.api.health import router as health_router
 from backend.api.intent_chat import router as intent_chat_router
 from backend.api.whatsapp import router as whatsapp_router
 from backend.api.oauth import router as oauth_router
+
+
+@asynccontextmanager
+async def _lifespan(app: FastAPI):
+    """Attach optional durable state without hiding database startup failures."""
+    pool = None
+    is_live_swiggy = settings.COMMERCE_ADAPTER_TYPE.lower() == "swiggy_mcp"
+    if is_live_swiggy and not settings.DATABASE_URL:
+        raise RuntimeError("DATABASE_URL is required for the Swiggy commerce adapter.")
+    if is_live_swiggy and not settings.DATA_ENCRYPTION_KEY:
+        raise RuntimeError(
+            "DATA_ENCRYPTION_KEY is required for the Swiggy commerce adapter."
+        )
+    if settings.DATABASE_URL:
+        pool = await create_postgres_pool(
+            settings.DATABASE_URL, max_size=settings.DATABASE_POOL_MAX_SIZE
+        )
+        app.state.shopping_task_repository = PostgresShoppingTaskRepository(pool)
+        if settings.DATA_ENCRYPTION_KEY:
+            await default_token_vault.configure_postgres(pool, settings.DATA_ENCRYPTION_KEY)
+            default_oauth_manager.configure_flow_store(
+                PostgresPendingAuthFlowStore(pool, settings.DATA_ENCRYPTION_KEY)
+            )
+    try:
+        yield
+    finally:
+        if pool is not None:
+            await pool.close()
 
 
 def create_app() -> FastAPI:
@@ -21,6 +59,7 @@ def create_app() -> FastAPI:
         title="GROCER",
         description="WhatsApp-first intent-preserving grocery commerce assistant",
         version="2.0.0",
+        lifespan=_lifespan,
     )
 
     app.add_middleware(

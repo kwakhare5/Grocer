@@ -6,12 +6,11 @@ router = APIRouter()
 
 
 @router.get("/health")
-@router.get("/intent/health")
 async def health_check() -> dict[str, str]:
-    """Report API health without depending on the retired operations database."""
+    """Report API availability; it does not prove provider or database readiness."""
     return {
         "status": "healthy",
-        "service": "GROCER v2",
-        "database": "not_required",
+        "service": "GROCER",
+        "database": "not_checked",
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }

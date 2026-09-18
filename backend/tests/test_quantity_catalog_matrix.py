@@ -15,7 +15,7 @@ from backend.intent.semantics import (
     normalize_requested_quantity,
     required_pack_count,
 )
-from backend.intent.trace import build_interpretation_trace
+from backend.tests.support.trace import build_interpretation_trace
 from backend.intent.verifier import IntentVerifier
 from backend.integrations.commerce.models import (
     CartItem,

@@ -16,11 +16,15 @@ import logging
 import secrets
 import threading
 import time
-from typing import Any, Optional
+from typing import Any, Optional, Protocol
 import httpx
 from pydantic import BaseModel, Field
 
 from backend.config import settings
+from backend.integrations.commerce.token_vault import (
+    EncryptedPayloadCodec,
+    opaque_state_hash,
+)
 
 logger = logging.getLogger("grocer.integrations.swiggy_oauth")
 
@@ -67,6 +71,79 @@ class PendingAuthFlow(BaseModel):
         return repr(self)
 
 
+class PendingAuthFlowStore(Protocol):
+    """Single-use persistence boundary for OAuth PKCE state."""
+
+    async def save(self, flow: PendingAuthFlow) -> None: ...
+
+    async def consume(self, state: str) -> PendingAuthFlow | None: ...
+
+
+class InMemoryPendingAuthFlowStore:
+    """Process-local store for tests and local mock mode only."""
+
+    def __init__(self) -> None:
+        self._flows: dict[str, PendingAuthFlow] = {}
+        self._lock = threading.Lock()
+
+    async def save(self, flow: PendingAuthFlow) -> None:
+        with self._lock:
+            now = time.time()
+            self._flows = {
+                key: value
+                for key, value in self._flows.items()
+                if value.expires_at > now
+            }
+            self._flows[flow.state] = flow
+
+    async def consume(self, state: str) -> PendingAuthFlow | None:
+        with self._lock:
+            flow = self._flows.pop(state, None)
+        if flow is None or flow.expires_at <= time.time():
+            return None
+        return flow
+
+
+class PostgresPendingAuthFlowStore:
+    """Encrypted, atomic, restart-safe PKCE flow persistence."""
+
+    def __init__(self, pool: Any, encryption_key: str) -> None:
+        self._pool = pool
+        self._codec = EncryptedPayloadCodec(encryption_key)
+
+    async def save(self, flow: PendingAuthFlow) -> None:
+        ciphertext = self._codec.encrypt(flow.model_dump(mode="json"))
+        await self._pool.execute(
+            "DELETE FROM grocer_internal.oauth_pending_flows WHERE expires_at <= NOW()"
+        )
+        result = await self._pool.execute(
+            """
+            INSERT INTO grocer_internal.oauth_pending_flows
+                (state_hash, ciphertext, expires_at, created_at)
+            VALUES ($1, $2, to_timestamp($3), NOW())
+            ON CONFLICT (state_hash) DO NOTHING
+            """,
+            opaque_state_hash(flow.state),
+            ciphertext,
+            flow.expires_at,
+        )
+        if result != "INSERT 0 1":
+            raise RuntimeError("Could not persist OAuth authorization state.")
+
+    async def consume(self, state: str) -> PendingAuthFlow | None:
+        row = await self._pool.fetchrow(
+            """
+            DELETE FROM grocer_internal.oauth_pending_flows
+            WHERE state_hash = $1 AND expires_at > NOW()
+            RETURNING ciphertext
+            """,
+            opaque_state_hash(state),
+        )
+        if row is None:
+            return None
+        return PendingAuthFlow.model_validate(self._codec.decrypt(row["ciphertext"]))
+
+
 class SwiggyOAuthManager:
     """Manages Swiggy OAuth 2.1 PKCE lifecycle, DCR, and token exchange."""
 
@@ -75,12 +152,16 @@ class SwiggyOAuthManager:
         base_url: str = DEFAULT_AUTH_BASE_URL,
         redirect_uri: str = DEFAULT_REDIRECT_URI,
         client_id_override: Optional[str] = None,
+        flow_store: PendingAuthFlowStore | None = None,
     ) -> None:
         self.base_url = base_url.rstrip("/")
         self.redirect_uri = redirect_uri
         self._cached_client_id: Optional[str] = client_id_override
-        self._pending_flows: dict[str, PendingAuthFlow] = {}
-        self._lock = threading.Lock()
+        self._flow_store: PendingAuthFlowStore = flow_store or InMemoryPendingAuthFlowStore()
+
+    def configure_flow_store(self, flow_store: PendingAuthFlowStore) -> None:
+        """Install durable flow storage during application startup."""
+        self._flow_store = flow_store
 
     async def get_or_register_client_id(self, client_name: str = "GROCER") -> str:
         """Fetch cached client_id or dynamically register via RFC 7591."""
@@ -140,11 +221,7 @@ class SwiggyOAuthManager:
             expires_at=time.time() + 600.0,  # 10 minutes TTL
         )
 
-        with self._lock:
-            # Clean up expired pending flows
-            now = time.time()
-            self._pending_flows = {k: v for k, v in self._pending_flows.items() if v.expires_at > now}
-            self._pending_flows[state] = flow
+        await self._flow_store.save(flow)
 
         query_params = {
             "response_type": "code",
@@ -170,9 +247,7 @@ class SwiggyOAuthManager:
 
         Validates state and PKCE code_verifier.
         """
-        pending_flow: Optional[PendingAuthFlow] = None
-        with self._lock:
-            pending_flow = self._pending_flows.pop(state, None)
+        pending_flow = await self._flow_store.consume(state)
 
         if pending_flow is None:
             raise ValueError("OAuth state is invalid or has expired.")

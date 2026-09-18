@@ -1,12 +1,7 @@
-"""Safe interpretation trace for live provider-semantics debugging (Spec Section 12).
-
-Emits concise structured development evidence without tokens, credentials,
-addresses, or raw private identifiers. Only product names, pack descriptions,
-quantities, and classifications are included.
-"""
+"""PII-free interpretation trace helper for quantity-matrix tests."""
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 from backend.intent.models import IntentItem, ResolvedMeaning
 
@@ -14,13 +9,13 @@ from backend.intent.models import IntentItem, ResolvedMeaning
 def build_interpretation_trace(
     item: IntentItem,
     *,
-    catalog_evidence: Optional[list[str]] = None,
-    actual_cart_quantity: Optional[int] = None,
-    classification: Optional[str] = None,
-    next_action: Optional[str] = None,
+    catalog_evidence: list[str] | None = None,
+    actual_cart_quantity: int | None = None,
+    classification: str | None = None,
+    next_action: str | None = None,
 ) -> dict[str, Any]:
-    """Build a PII-free trace dict for one intent item's resolution lifecycle."""
-    meaning: Optional[ResolvedMeaning] = item.resolved_meaning
+    """Build a PII-free trace dict for one test item's resolution lifecycle."""
+    meaning: ResolvedMeaning | None = item.resolved_meaning
     requested = f"{item.quantity:g} {item.name}"
     semantic_state = (
         f"bare quantity = {item.quantity:g}"

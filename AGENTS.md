@@ -49,12 +49,14 @@ Preserve and extend the existing customer architecture:
 ```text
 WhatsApp / customer UX
         ↓
-Customer service
+GrocerOrchestrator (collapsing legacy CustomerService)
         ↓
 CommercePort
    ↙          ↘
 Mock       Swiggy MCP
 ```
+
+*(Resolution A: The legacy v1 `CustomerService` was intentionally collapsed into `GrocerOrchestrator` (`backend/intent/orchestrator.py`) as the sole approved v2 application boundary communicating directly with `CommercePort`.)*
 
 New work should add:
 

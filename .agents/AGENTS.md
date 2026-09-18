@@ -33,7 +33,7 @@ Intent Contract
   ↓
 Policy / Memory
   ↓
-Customer Commerce Service
+Customer Commerce Service (GrocerOrchestrator)
   ↓
 CommercePort
   ↓
@@ -45,6 +45,8 @@ Intent Verifier
   ├── PASS → approval → checkout
   └── FAIL → Recovery Engine → verify again / ask user
 ```
+
+*(Resolution A: The legacy v1 `CustomerService` was intentionally collapsed into `GrocerOrchestrator` (`backend/intent/orchestrator.py`) as the sole approved v2 application boundary communicating directly with `CommercePort`.)*
 
 ## 3. NEVER BUILD THESE INSIDE GROCER
 
@@ -228,18 +230,17 @@ If the answer is no, it does not belong in GROCER v2 unless the master spec is d
 
 ## 15. SESSION RESUME
 
-**Last completed:** PR #1 Canonical Recovery Loop Unification & Regression Hardening (2026-09-06)
+**Last completed:** GROCER v2 Official Merge to `main` & `v2.0.0` Tag Release (2026-09-06)
 
-**Status:** ✅ Complete & Verified. Resolved PR #1 review finding: eliminated dual recovery paths by making `LoopingRecoveryEngine.run()` the single canonical source of truth, delegating `execute_recovery()` directly to `run()`, and updating `GrocerOrchestrator` to invoke `run()`. Added multi-turn live cart drift observation and existing cart item preservation across turns. Added 7 canonical regression tests in `test_canonical_recovery_regression.py`.
-Build 100% green: 98/98 backend tests passing (including 2 golden OOS flow tests and 7 canonical recovery regression tests), `npm run lint` 0 errors, `npm run build` 100% clean Next.js 16 Turbopack compile.
-PR #1 not merged. Branch `main` completely untouched (`06726f2`).
+**Status:** ✅ Complete, 100% Verified, Merged & Tagged. Merged `cleanup/master-spec-final` (`719a7eb`) into `main` (`48b6e2d`). Tree hash on `main` is identical (`937894d1bcb88d9ea0540ed8025db9a620f23880`). Successfully ran all quality gates on `main`. Formally tagged release as `v2.0.0` and pushed `main` and tags to GitHub `origin`. Cleanroom architecture is frozen.
 
-**Quality Gates:**
-- `pytest`: 98/98 tests passed (100% green).
+**Quality Gates (Verified on `main`):**
+- `pytest`: 125/125 tests passed (100% green in 6.12s).
+- `python -m backend.evaluation.harness`: 100.0% Intent Preservation, 100.0% Hard-Constraint Satisfaction, 0.0% Unsafe Actions, +0.0% Autonomous Budget Overrun, 97.7% Commerce Adapter Efficiency across all 8 canonical scenarios.
 - `npm run lint`: 0 errors, 0 warnings.
-- `npm run build`: Compiled successfully in Next.js 16 (Turbopack).
-- Branch: strictly `refactor/intent-cleanroom`.
-- Remote `main`: `06726f20b3a3aa1f5ea5838cf6f1b23bce5ca56d` (untouched).
+- `npm run build`: Compiled successfully in Next.js 16 (Turbopack: `/`, `/_not-found`, `/api/swiggy/token`).
+- Git Tag: `v2.0.0` pushed to `origin`.
+- Remote `main`: Synchronized (`48b6e2d`).
 
 
 

@@ -1,4 +1,4 @@
-﻿"""Canonical exception taxonomy for CommercePort and Swiggy Instamart integration."""
+"""Canonical exception taxonomy for CommercePort and Swiggy Instamart integration."""
 from __future__ import annotations
 
 
@@ -64,12 +64,25 @@ class CartExpiredError(CommerceError):
 
 
 class ProviderAuthError(CommerceError):
-    """Raised on authentication or token expiration from provider MCP endpoint."""
+    """Raised on authentication or token expiration from provider MCP endpoint (HTTP 401, RPC -32001)."""
     def __init__(self, message: str = "Authentication failed with upstream commerce provider."):
         super().__init__(message=message, code="UNAUTHENTICATED")
+
+
+class ProviderSessionRevokedError(ProviderAuthError):
+    """Raised when the session has been revoked server-side (HTTP 419)."""
+    def __init__(self, message: str = "Swiggy session has been revoked. Full re-authentication required."):
+        super().__init__(message=message)
+        self.code = "SESSION_REVOKED"
 
 
 class UpstreamTimeoutError(CommerceError):
     """Raised on upstream provider 504 gateway timeout."""
     def __init__(self, message: str = "Upstream commerce provider timed out."):
         super().__init__(message=message, code="UPSTREAM_TIMEOUT")
+
+
+class OrderStateUnknownError(CommerceError):
+    """Raised when checkout failed ambiguously (5xx/timeout) and order verification is pending."""
+    def __init__(self, message: str = "Checkout status unknown. Verification required before retrying."):
+        super().__init__(message=message, code="ORDER_STATE_UNKNOWN")

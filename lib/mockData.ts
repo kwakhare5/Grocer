@@ -1,85 +1,4 @@
-﻿import { Milk, Apple, Egg, Wheat, Droplet, LucideIcon } from "lucide-react";
 import { CustomerPersona } from "./types";
-
-
-
-export interface PantryStapleDefinition {
-  id: string;
-  name: string;
-  category: "dairy" | "produce" | "poultry" | "bakery" | "pantry";
-  dailyRate: number; // e.g. 0.48 L/day
-  unit: string;
-  defaultDays: number;
-  defaultFillPct: number;
-  price: number;
-  iconName: "milk" | "apple" | "egg" | "wheat" | "droplet";
-}
-
-export const ICON_MAP: Record<string, LucideIcon> = {
-  milk: Milk,
-  apple: Apple,
-  egg: Egg,
-  wheat: Wheat,
-  droplet: Droplet,
-};
-
-export const DEFAULT_PANTRY_STAPLES: PantryStapleDefinition[] = [
-  {
-    id: "milk",
-    name: "Amul Taaza Milk 1L",
-    category: "dairy",
-    dailyRate: 0.48,
-    unit: "L",
-    defaultDays: 1,
-    defaultFillPct: 15,
-    price: 66,
-    iconName: "milk",
-  },
-  {
-    id: "tomatoes",
-    name: "Fresh Hybrid Tomatoes 500g",
-    category: "produce",
-    dailyRate: 0.14,
-    unit: "kg",
-    defaultDays: 1,
-    defaultFillPct: 14,
-    price: 32,
-    iconName: "apple",
-  },
-  {
-    id: "eggs",
-    name: "Farm Fresh Eggs (12 pcs)",
-    category: "poultry",
-    dailyRate: 2.4,
-    unit: "pcs",
-    defaultDays: 2,
-    defaultFillPct: 35,
-    price: 90,
-    iconName: "egg",
-  },
-  {
-    id: "bread",
-    name: "Whole Wheat Bread 400g",
-    category: "bakery",
-    dailyRate: 0.25,
-    unit: "loaves",
-    defaultDays: 1,
-    defaultFillPct: 10,
-    price: 50,
-    iconName: "wheat",
-  },
-  {
-    id: "oil",
-    name: "Fortune Sunflower Oil 1L",
-    category: "pantry",
-    dailyRate: 0.04,
-    unit: "L",
-    defaultDays: 8,
-    defaultFillPct: 65,
-    price: 50,
-    iconName: "wheat",
-  },
-];
 
 export const SIMULATED_CUSTOMERS: CustomerPersona[] = [
   // Bandra West (St 02)
@@ -371,10 +290,10 @@ export const SIMULATED_CUSTOMERS: CustomerPersona[] = [
 export const DEFAULT_CUSTOMER_PERSONA: CustomerPersona = SIMULATED_CUSTOMERS[0];
 
 // ---------------------------------------------------------------------------
-// OPERATIONS RESIDUE REMOVED â€” Phase 0 boundary cleanup
+// OPERATIONS RESIDUE REMOVED — Phase 0 boundary cleanup
 // INITIAL_STORES (DarkStore[]), INITIAL_RECOMMENDATIONS (RecommendationItem[]),
 // and INITIAL_EVENTS (SimulationEvent[]) were removed.
 // These belong in kwakhare5/Dark-store-operator.
-// Source: GROCER_V2_MASTER_SPEC.md Â§19
+// Source: GROCER_V2_MASTER_SPEC.md §19
 // ---------------------------------------------------------------------------
 

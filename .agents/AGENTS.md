@@ -223,9 +223,10 @@ If the answer is no, it does not belong in GROCER v2 unless the master spec is d
 
 ## 15. SESSION RESUME
 
-**Last completed:** Squashed 22 noisy, fragmented commits down to 5 clean milestone commits on `main` and `dev-live-test`. Fixed GitHub Actions CI failure by making Swiggy authentication expiration handling strictly deterministic in Python (`backend/agent/engine.py` and `backend/agent/tools.py`) without external network or Gemini API key requirements. Stopped all local background processes (`uvicorn`). Added `CONNECT_BASE_URL` to `render.yaml`. Verified 258/258 tests passing, 0 ESLint errors, Next.js 16 build clean, and GitHub Actions `Quality` workflow passing 100% green on GitHub `main` (commit `4efe128`). Safety backup branch preserved at `backup-before-history-squash`.
+**Last completed:** Re-routed Swiggy OAuth reconnect links directly to the whitelisted domain `https://grocerr.vercel.app` with `?phone=` query prefill in `app/page.tsx`, `backend/agent/engine.py`, and `backend/config.py`. Updated `GET /connect` to 307-redirect legacy links to `grocerr.vercel.app`. Hardened `backend/api/oauth.py` to store tokens durably via `await default_token_vault.store_token_durable()` preventing PostgreSQL runtime type errors. Consolidated repository history into 9 clean milestone commits from cleanroom freeze to `HEAD`. Verified 258/258 backend pytest tests passing hermetically, 0 ESLint errors, Next.js 16 build passing with Turbopack, and GitHub Actions `Quality` workflow 100% green on commit `d463d47`.
 
-**Next implementation gate:** Deploy `main` to Render backend with environment variables (`AGENT_ROUTE_ENABLED=true`, `COMMERCE_ADAPTER_TYPE=swiggy_mcp`, `CONNECT_BASE_URL`), verify Vercel proxy configuration (`BACKEND_INTERNAL_URL`), and conduct real UPI payment completion test on physical WhatsApp device.
+**Next implementation gate:** Complete 1-time Swiggy authentication through `https://grocerr.vercel.app/` and conduct live WhatsApp end-to-end grocery cart ordering with UPI payment link on physical WhatsApp device.
 
-**Current status:** Main repository (`D:\Grocer`) on branch `main` is authoritative, synchronized with remote `origin/main`, CI is green, and working tree is 100% clean.
+**Current status:** Main repository (`D:\Grocer`) on branch `main` is authoritative, synchronized with remote `origin/main` (commit `d463d47`), GitHub Actions CI is 100% green, and working tree is clean.
+
 

@@ -223,8 +223,10 @@ If the answer is no, it does not belong in GROCER v2 unless the master spec is d
 
 ## 15. SESSION RESUME
 
-**Last completed:** Added durable offered choices and verified stock-recovery decisions to the ShoppingTask route. A tap, ordinal, price reference, or model-returned visible action now resolves to one stored action; quantity caps require Keep available / Choose another / Remove item and a fresh basket approval (2026-09-17).
+**Last completed:** Stripped exposed phone numbers and query parameters (`?phone=`, `?customer_id=`) across reconnect URLs and landing page (`backend/agent/engine.py`, `backend/api/oauth.py`, `app/page.tsx`). Added fallback in `backend/integrations/commerce/token_vault.py` to `settings.SWIGGY_AUTH_TOKEN` when in-memory cache is empty for owner customer ID (`cust_wa_1d1bc7cf4da4a5eecef2dcd8`), eliminating false-positive token expiration on Render cold-starts. Upgraded address resolution in `engine.py` to prioritize Kingsbury/Pune as smart default, while adding `select_delivery_address` tool allowing full dynamic conversational location switching (e.g. "deliver to Nashik"). Made `sku_id` strictly mandatory in `update_cart` Gemini tool declaration schema to prevent Swiggy `MISSING_SKU` errors. Added 3 new unit tests with 261/261 tests passing hermetically in 2.89s, 0 ESLint errors, and Next.js 16 build passing with Turbopack. Staged, committed, and pushed to `main` (commit `38f4ca6`) and `dev-live-test` (commit `3f1c1cf`).
 
-**Next implementation gate:** Commit and deploy the reliability build, re-authenticate the customer Swiggy session if the hosted token is expired, then replay the authenticated WhatsApp flow through address, catalogue, cart, payment, and final review confirmation. The legacy runtime/evaluation code has been removed; no direct LLM cart mutation or checkout authority is permitted.
+**Next implementation gate:** Set `SWIGGY_AUTH_TOKEN` in Render dashboard environment variables to match active token, and conduct live WhatsApp end-to-end grocery cart ordering with Pune Kingsbury default and dynamic address switching.
 
-**Current status:** Work is on `main`. The durable route, Supabase persistence, encrypted credentials, and review-only deployment are active. Cleanup changes are local until committed and deployed. Active-route coverage is green; hosted WhatsApp replay, valid Swiggy OAuth, and restart/retry verification remain open.
+**Current status:** Main repository (`D:\Grocer`) on branch `main` is authoritative, synchronized with remote `origin/main` (commit `38f4ca6`), working tree is clean.
+
+

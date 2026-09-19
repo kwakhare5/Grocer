@@ -69,7 +69,7 @@ async def test_auth_expired_triggers_reconnect_prompt(agent_engine, mock_commerc
         )
         response = await agent_engine.handle_message(msg)
         assert "expired" in response.text.casefold()
-        assert "/connect" in response.text
+        assert "grocerr.vercel.app" in response.text
 
 
 @pytest.mark.asyncio
@@ -1118,8 +1118,8 @@ async def test_honest_failure_explanation_retains_explanation_and_appends_discla
 
 
 @pytest.mark.asyncio
-async def test_auth_expired_uses_localhost_connect_base_default(agent_engine, mock_commerce):
-    """When CONNECT_BASE_URL is not set, connect link defaults to http://localhost:8000."""
+async def test_auth_expired_uses_default_connect_base(agent_engine, mock_commerce):
+    """When CONNECT_BASE_URL is not set, connect link defaults to production Render URL."""
     from backend import config
     with patch.object(mock_commerce, "get_addresses", side_effect=ProviderAuthError("Token expired")), \
          patch.object(config.settings, "CONNECT_BASE_URL", None):
@@ -1131,7 +1131,65 @@ async def test_auth_expired_uses_localhost_connect_base_default(agent_engine, mo
             text="I need milk",
         )
         response = await agent_engine.handle_message(msg)
-        assert "http://localhost:8000/connect?customer_id=cust_default_base" in response.text
+        assert "https://grocerr.vercel.app/" in response.text
+        assert "?phone=" not in response.text
+
+
+@pytest.mark.asyncio
+async def test_smart_pune_default_address_prioritization(agent_engine, mock_commerce):
+    """Engine should prioritize Pune/Kingsbury address over other addresses as default."""
+    from backend.integrations.commerce.models import DeliveryAddress
+    nashik = DeliveryAddress(id="addr_nashik", label="Home", street="Flat 201, Nashik", city="Nashik")
+    pune = DeliveryAddress(id="addr_pune_kingsbury", label="Pune", street="Flat 1204, Kingsbury, Charholi Budruk, Pune", city="Pune")
+    mock_commerce.get_addresses = AsyncMock(return_value=[nashik, pune])
+
+    msg = NormalizedIncomingMessage(
+        message_id="msg_addr_test_1",
+        channel=ChannelType.WHATSAPP,
+        sender_id="+919876543210",
+        customer_id="cust_pune_pref",
+        text="hi",
+    )
+    with patch.object(agent_engine, "_call_gemini", return_value={"candidates": [{"content": {"parts": [{"text": "Hello!"}]}}]}):
+        await agent_engine.handle_message(msg)
+        assert agent_engine._customer_address.get("cust_pune_pref") == "addr_pune_kingsbury"
+
+
+@pytest.mark.asyncio
+async def test_select_delivery_address_tool(agent_engine, mock_commerce):
+    """Tool can switch delivery address to any valid saved address."""
+    from backend.integrations.commerce.models import DeliveryAddress
+    nashik = DeliveryAddress(id="addr_nashik", label="Home", street="Flat 201, Nashik", city="Nashik")
+    pune = DeliveryAddress(id="addr_pune", label="Pune", street="Kingsbury, Pune", city="Pune")
+    mock_commerce.get_addresses = AsyncMock(return_value=[nashik, pune])
+
+    res = await agent_engine._execute_tool(
+        "select_delivery_address",
+        {"address_id": "addr_nashik"},
+        customer_id="cust_switch_test",
+        address_id="addr_pune",
+    )
+    assert res["success"] is True
+    assert res["address_id"] == "addr_nashik"
+    assert agent_engine._customer_address["cust_switch_test"] == "addr_nashik"
+
+
+def test_token_vault_fallback_to_configured_swiggy_auth_token():
+    """Token vault should fall back to settings.SWIGGY_AUTH_TOKEN if not in cache."""
+    from backend.integrations.commerce.token_vault import default_token_vault
+    from backend import config
+    default_token_vault._tokens.clear()
+    with patch.object(config.settings, "SWIGGY_AUTH_TOKEN", "fallback_token_xyz"), \
+         patch.object(config.settings, "SWIGGY_CUSTOMER_ID", "cust_owner_123"):
+        token = default_token_vault.get_token("cust_owner_123")
+        assert token == "fallback_token_xyz"
+    # Numeric Swiggy customer ID (e.g. 26057200) should match customer
+    with patch.object(config.settings, "SWIGGY_AUTH_TOKEN", "fallback_token_numeric"), \
+         patch.object(config.settings, "SWIGGY_CUSTOMER_ID", "26057200"):
+        token = default_token_vault.get_token("cust_wa_test_owner")
+        assert token == "fallback_token_numeric"
+    default_token_vault._tokens.clear()
+
 
 
 

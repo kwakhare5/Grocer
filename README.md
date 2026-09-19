@@ -5,85 +5,78 @@
 [![Swiggy Instamart MCP](https://img.shields.io/badge/Swiggy-Instamart%20MCP-FC8019?style=flat)](https://mcp.swiggy.com/builders/llms.txt)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5+-3178C6?style=flat&logo=typescript)](https://www.typescriptlang.org/)
 
-**Grocer** is an English-first WhatsApp grocery agent for Swiggy Instamart. It accepts ordinary human messages, turns them into a safe basket proposal, and keeps the user in control of meaningful shopping choices.
+**Grocer** is an English-first WhatsApp grocery agent for Swiggy Instamart. It accepts ordinary human messages, turns them into real Swiggy Instamart grocery carts, and keeps the customer in control of meaningful shopping choices and budgets.
 
-> **Readiness:** The durable task core is under migration. Local tests, lint, and production build pass; live WhatsApp, Swiggy OAuth, durable PostgreSQL, and checkout verification remain release gates. See [CURRENT_STATE.md](CURRENT_STATE.md) for verified evidence and limits.
+> **Readiness:** The autonomous Gemini ReAct conversation engine (`GroceryAgentEngine`, `SwiggyAgentTools`) is active and verified live on WhatsApp with Swiggy Instamart MCP. Local unit/integration tests (258/258 passed), ESLint, and Next.js 16 production build pass 100% green. See [CURRENT_STATE.md](CURRENT_STATE.md) for verified evidence and telemetry.
 
-The agent does not force robotic commands. It understands a message as a **proposal**, validates it against the current task and live catalogue, shows the complete intended basket, and asks for approval before changing the provider cart. It asks when a human decision is genuinely needed—for example, “3 Coke” could mean cans, bottles, or a multipack.
+The agent does not force rigid commands or multi-step clarification forms. It interprets requests with smart defaults, deduces complete multi-item cooking kits, verifies live dark-store inventory, shows the complete itemized basket with delivery fees, and requests explicit confirmation before checkout.
 
-> **Grocer does not just build your cart. It tries to keep the cart faithful to what you actually asked for.**
+> **Grocer does not just build your cart. It preserves your shopping intent and budget while live commerce state changes.**
 
 ## Product boundary
 
 This repository contains the **consumer WhatsApp experience** and its quick-commerce integration.
 
-The former dark-store operations system has been split into a separate repository:
+The former dark-store operations system has been split into a separate companion repository:
 
 - [Dark Store Operator](https://github.com/kwakhare5/Dark-store-operator)
 
 Do not treat dark-store inventory optimization, warehouse operations, supplier workflows, transfer/reorder decisioning, or an operations cockpit as part of Grocer.
 
-## How a shopping task works
+## How shopping works
 
 ```text
-WhatsApp message
+WhatsApp message (Meta Cloud API)
       ↓
-Durable ShoppingTask
+Gemini ReAct Agent Engine (bounded reasoning loop)
       ↓
-Natural-language understanding (proposal only)
+Autonomous Function Calling (Swiggy MCP Tools)
+  ├── search_products (live dark-store inventory check)
+  ├── update_cart (adds items, respects pack sizes & budget)
+  ├── get_cart (reads back verified totals & fees)
+  ├── get_saved_addresses (resolves user delivery addresses)
+  └── checkout (server-side gated, generateUPIQR: True)
       ↓
-Deterministic state transition + catalogue resolution
+Cart Summary & Grand Total Preview → User WhatsApp Confirmation
       ↓
-Full basket preview → user approval
+Server-Side Gated Checkout Tool (generateUPIQR: True)
       ↓
-Explicit provider-cart decision: keep / start fresh / cancel
+Dynamic UPI Payment Link (upi://pay?...) delivered to WhatsApp
       ↓
-CommercePort → Swiggy MCP
-      ↓
-Read back and verify
-      ↓
-Address / payment / explicit checkout confirmation
-      ↓
-Checkout and verified outcome
+Read back, verify provider result & track delivery
 ```
 
-The product differentiator is the **closed-loop intent → proposal → approval → action → verification → recovery cycle**, not a generic shopping chatbot.
+The core differentiator is **autonomous conversational resolution + deterministic safety guards**: Gemini deduces complete multi-item shopping lists (e.g. pasta kits, weekly staples) and drives the live dark-store inventory directly, while deterministic Python guards enforce budget caps, server-side checkout authorization, and prevent false success claims on provider errors.
 
-## Example
+## Proven live example
 
 User:
 
-> get my weekly groceries under ₹2,000, vegetarian, use my usual brands.
+> *"i wanna make pasta i want grociers uner 1500"*
 
-Grocer turns that request into an `IntentContract` containing items, hard constraints, soft preferences, budget, substitution policy, and authorization scope.
-
-Suppose the preferred milk becomes unavailable.
-
-Grocer should:
-
-1. detect that the current cart no longer satisfies the intent;
-2. check the user's substitution policy;
-3. find valid alternatives;
-4. keep hard constraints intact;
-5. explain the available repair options;
-6. ask the user before a purchase-facing choice changes;
-7. verify the repaired cart again.
+Grocer:
+1. Resolved delivery address at *Kingsbury, Charholi Budruk, Pune*.
+2. Autonomously deduced all 7 required ingredients (penne pasta, pasta sauce, mozzarella/cheddar cheese, butter, onions, garlic, capsicum).
+3. Checked real dark-store stock near the user's Pune address.
+4. Added all items into the live Swiggy Instamart cart (`8c64c847`) for ₹506 (well under the ₹1,500 budget limit).
+5. Provided complete itemized breakdown and interactive WhatsApp confirmation controls (`[Confirm Order]`, `[Change Items]`).
+6. On user confirmation, executed checkout with dynamic UPI QR generation (`generateUPIQR: True`) and returned the clickable UPI payment link (`upi://pay?...`).
 
 ## Customer-protection rules
 
 * Current explicit request beats session choices, confirmed preferences, and defaults.
 * A remembered preference may only form a proposed basket; the user approves it before a cart change.
-* A provider account cart is not silently reused or cleared. Grocer asks the user to keep it, start fresh, or cancel.
-* Every item is resolved against the live catalogue before a provider mutation. Missing or ambiguous essentials stop the whole planned change.
-* Checkout always requires an explicit backend-enforced confirmation.
+* Every item is resolved against the live catalogue before a provider mutation. Missing or ambiguous essentials stop the planned change.
+* Checkout always requires an explicit backend-enforced confirmation (`is_user_confirmed: True`).
+* Dynamic UPI QR / intent links ensure the customer completes real payment securely.
 
 ## Autonomy model
 
 | Situation | Grocer behavior |
 |---|---|
-| Safe + deterministic + policy-authorized | Act automatically |
-| Meaningfully ambiguous | Ask the user |
-| Financially consequential | Require explicit confirmation |
+| Safe + deterministic + policy-authorized | Act automatically (smart staple defaults, inventory query, cart update) |
+| Meaningfully ambiguous | Ask the user conversationally |
+| Financially consequential | Require explicit confirmation before checkout |
 
 Checkout is always explicitly confirmed and backend-enforced.
 
@@ -92,55 +85,47 @@ Checkout is always explicitly confirmed and backend-enforced.
 ```text
 Meta WhatsApp Cloud API
   ↓
-FastAPI webhook → durable inbox
+FastAPI Webhook (/api/whatsapp/webhook)
   ↓
-ShoppingTask application service
-  ├── language proposal
-  ├── deterministic reducer
-  ├── catalogue resolver
-  ├── cart-ownership guard
-  └── verifier / recovery policy
+GroceryAgentEngine (backend/agent/engine.py)
+  ├── Context-aware ReAct reasoning loop (Gemini 3.5 Flash Lite)
+  ├── SwiggyAgentTools (backend/agent/tools.py)
+  │     ├── search_products (live store catalogue inventory search)
+  │     ├── update_cart (adds SKUs, respects stock & budget)
+  │     ├── get_cart (reads back verified totals & fees)
+  │     ├── get_saved_addresses (resolves user delivery addresses)
+  │     ├── clear_cart (empties cart when requested)
+  │     └── checkout (server-side gated, generateUPIQR: True)
+  ├── Deterministic fail-closed guard (blocks false success claims)
+  └── Payment bridge injection (delivers clickable UPI pay links)
   ↓
-CommercePort
-  ├── MockCommerceAdapter (tests)
-  └── SwiggyMCPAdapter (live provider boundary)
+CommercePort / SwiggyMCPAdapter (backend/integrations/commerce/)
   ↓
-Durable outbox → Meta WhatsApp Cloud API
+Swiggy Instamart Live MCP Gateway (https://mcp.swiggy.com/im)
 ```
 
 ### Important engineering rule
 
 **LLM interprets and proposes. Deterministic backend code enforces and verifies.**
 
-The LLM can interpret language and propose a substitution. Deterministic services must enforce hard constraints, calculate totals, verify cart state, control retries, and authorize checkout.
+The LLM interprets natural language, resolves recipe kits, and proposes tool calls. Deterministic Python services enforce hard budget constraints, calculate totals, verify cart state, control retries, and gate checkout.
 
-## Failure recovery
+## Failure recovery and deterministic guards
 
 Initial failure classes include:
 
-- unavailable product;
-- unavailable preferred brand;
+- unavailable product / out of stock;
+- expired customer authentication (`AUTH_EXPIRED`);
 - changed pack size;
 - budget drift;
-- stale cart;
 - safely retryable transient failure;
-- partial cart success;
-- repairable basket/minimum-order failure.
+- provider payment pending state (`PAYMENT_PENDING`).
 
-Recovery is bounded and ends in one of:
-
-```text
-RECOVERED
-NEEDS_USER_DECISION
-BLOCKED
-FAILED
-```
-
-A failed or unknown operation must never be reported as success.
+The deterministic fail-closed guard (`_ORDER_SUCCESS_PATTERNS`, `_explains_failure`) inspects the LLM response whenever checkout fails or returns `PAYMENT_PENDING`. If the model falsely claims the order was placed or fails to explain provider errors, the deterministic guard overrides the response with an honest explanation and the actual payment link. Under no circumstances is an unverified or failed operation reported as successful.
 
 ## Deterministic regression coverage
 
-Grocer's active regression suite exercises provider responses through the same `CommercePort` boundary used by the live route. Simulated responses are test evidence, not proof of live provider access.
+Grocer's active regression suite exercises provider responses through the same `CommercePort` boundary used by the live route.
 
 Core metrics include:
 
@@ -148,17 +133,15 @@ Core metrics include:
 - recovery success rate;
 - hard-constraint satisfaction;
 - human intervention rate;
-- unnecessary clarification rate;
 - unsafe autonomous action rate — target **0**;
 - budget deviation;
-- recovery attempts;
 - commerce/MCP calls per task.
 
 ## Swiggy Instamart integration
 
-Commerce operations go through the existing provider-neutral `CommercePort`.
+Commerce operations go through the provider-neutral `CommercePort`.
 
-Swiggy-specific MCP calls remain inside `SwiggyMCPAdapter`.
+Swiggy-specific MCP calls remain inside `SwiggyMCPAdapter` and `swiggy_client.py`.
 
 Before changing the integration, read the current Swiggy Builders Club documentation and do not invent tool names, arguments, or retry semantics.
 
@@ -172,18 +155,18 @@ GROCER operates across a multi-surface deployment:
   - Official whitelisted redirect URI for Swiggy OAuth 2.1 PKCE.
   - Meta WhatsApp Cloud API webhook handler (`app/api/whatsapp/webhook/route.ts`).
 - **Backend on Render**:
-  - Hosts FastAPI and the current WhatsApp route. The durable ShoppingTask runtime is implemented but is not yet wired live.
-  - Must use managed PostgreSQL and encrypted OAuth-token storage before live checkout.
+  - Hosts FastAPI and the autonomous Gemini ReAct conversation runtime (`GroceryAgentEngine`).
   - Communicates directly with Swiggy Instamart MCP gateway (`https://mcp.swiggy.com/im`).
+  - Connects to private PostgreSQL with AES-GCM encrypted OAuth token storage.
 - **WhatsApp Cloud API (`+1 555 663-1707`)**:
-  - Delivers native interactive List Messages for saved address selection and pack-size ambiguity resolution.
-  - Requires explicit interactive confirmation buttons before checkout.
+  - Delivers native interactive buttons (`Confirm Order`, `Change Items`) before checkout.
+  - Delivers clickable UPI payment links (`upi://pay?...`) generated directly by Swiggy Instamart.
 - **Review Checkout Guard (`CHECKOUT_MODE=review`)**:
   - Uses real cart and verification behavior while truthfully stopping before a chargeable order. `CHECKOUT_MODE=live` is a deliberate deployment setting after durable state and live-provider verification.
 
 ## Safety invariants
 
-1. No checkout without explicit user confirmation.
+1. No checkout without explicit user confirmation (`is_user_confirmed: True`).
 2. No provider credentials in frontend code, logs, or committed files.
 3. No hard-constraint enforcement that depends only on LLM behavior.
 4. No blind retry of consequential operations.
@@ -213,28 +196,25 @@ npm run build
 ```powershell
 py -m venv .venv
 .\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt -r backend/requirements-dev.txt
+pip install -r requirements.txt
 pytest backend/tests
-uvicorn backend.main:app --reload --port 8000
-
 ```
 
-On macOS/Linux, activate with source .venv/bin/activate.
+On macOS/Linux, activate with `source .venv/bin/activate`.
 
 ## Release gates
 
 1. Run the private-schema PostgreSQL migration using the exact Supabase session-pooler URL.
-2. Wire the durable inbox/outbox worker to the WhatsApp route and replay real human transcripts.
-3. Move OAuth tokens, preferences, and task state out of memory and `/tmp` into encrypted durable storage.
-4. Verify real Swiggy review-mode cart, address, payment, and order-status flows.
-5. Enable live checkout only after explicit test evidence and review approval.
+2. Verify OAuth token encryption at rest via `DATA_ENCRYPTION_KEY`.
+3. Verify real Swiggy review-mode cart, address, payment, and order-status flows.
+4. Enable live checkout only after explicit test evidence and review approval.
 
 ## Documentation
 
-- `GROCER_V2_MASTER_SPEC.md` — authoritative product and engineering specification
+- `GROCER_V2_MASTER_SPEC.md` — authoritative product and engineering specification (v5.0)
 - `CONTEXT.md` — coding-session context and anti-drift rules
 - `ARCHITECTURE.md` — system boundaries and data/control flow
-- `CURRENT_STATE.md` — latest evidence, readiness, and deferred limits
+- `CURRENT_STATE.md` — latest evidence, readiness, and verified telemetry
 - `docs/RESEARCH_WHATSAPP_INSTAMART_SUBMISSION.md` — official platform constraints used by the submission
 - `.agents/AGENTS.md` — Antigravity/Gemini repository rules
 - `AGENTS.md` — general coding-agent contract

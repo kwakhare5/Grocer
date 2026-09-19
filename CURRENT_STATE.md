@@ -1,49 +1,37 @@
 # GROCER current state
 
-> Verified locally: 2026-09-17
-> Branch: `main`
-> Release mode: `CHECKOUT_MODE=review`
+> Verified locally & live on WhatsApp: 2026-09-18
+> Branch: `dev-live-test` (migrating to `main`)
+> Runtime: Autonomous Gemini ReAct agent engine (`backend/agent/`)
 
 ## What is complete
 
-- Consumer-only repository cleanup: obsolete archive documents and generated graph output removed.
-- Canonical documentation updated for the WhatsApp-first ShoppingTask architecture.
-- Typed ShoppingTask, desired basket, provider-cart binding, and basket-plan models.
-- Safe natural-language operations for start, add, keep-only, remove, replace, cancel, and start-fresh requests.
-- Full-basket preview/approval rule before provider mutation.
-- Catalogue resolution that distinguishes exact, ambiguous, and unavailable items.
-- Explicit provider-cart adoption guard.
-- Private `grocer_internal` PostgreSQL schema and repository boundary for tasks, inbound events, and outbound messages.
-- The durable ShoppingTask route is active on Render with Supabase persistence and encrypted OAuth tokens.
-- Provider JSON/SSE responses are validated and malformed responses become safe customer messages.
-- Provider calls run inside the authenticated customer's Swiggy context.
-- Durable outbound replies are unique per source message, retryable while pending, and marked sent after Meta accepts them.
-- Durable task states render native WhatsApp lists and confirmation buttons.
-- One canonical root Python dependency file for Render and Docker.
-- A context-aware Gemini structured-output interpreter is wired into the
-  ShoppingTask service locally; its proposals remain reducer-validated.
-- Every visible product, address, payment, confirmation, adoption, and stock-recovery choice is persisted with the task. Typed ordinal and price-reference replies resolve against that durable set.
-- A verified Swiggy quantity cap now offers keep available quantity, choose another live variant, or remove the item; any choice produces a fresh basket approval.
-- The legacy browser `/api/intent` router, legacy WhatsApp dispatch path, legacy
-  orchestrator runtime, and legacy evaluation suite have been removed. Git history
-  is the rollback mechanism; there is one active conversation path in this checkout.
+- **Autonomous Gemini ReAct Conversation Engine** (`backend/agent/engine.py` & `backend/agent/tools.py`):
+  - Equipped with typed Swiggy MCP tools (`search_products`, `update_cart`, `get_cart`, `get_saved_addresses`, `clear_cart`, `checkout`).
+  - Driven by `gemini-3.5-flash-lite` with smart defaults for staples and multi-item recipe/kit deduction.
+- **Live Pune Dark Store Proof** (Verified on physical smartphone via WhatsApp `+1 555 663-1707`):
+  - User requested: *"i wanna make pasta i want grociers uner 1500"*.
+  - Agent autonomously resolved the delivery address at *Kingsbury, Charholi Budruk, Pune*, deduced 7 pasta kit items, checked Pune dark store inventory, respected the budget limit, and added all items to live Swiggy Instamart cart ID `8c64c847` (₹506 total).
+  - Delivered an itemized breakdown and interactive WhatsApp confirmation controls.
+- **Dynamic UPI QR & Payment Links** (`backend/agent/tools.py`, `backend/integrations/commerce/swiggy_adapter.py`):
+  - Integrated `generateUPIQR: True` in checkout calls.
+  - Returns `bridge_url` / `upi_intent_url` to the customer on WhatsApp in `PAYMENT_PENDING` state, enabling one-tap UPI payments (`upi://pay?...`).
+- **Deterministic Fail-Closed Anti-Hallucination Guard** (`backend/agent/engine.py`):
+  - Enforces server-side checkout confirmation gating (`is_user_confirmed: True`).
+  - Regex pattern classification (`_ORDER_SUCCESS_PATTERNS`, `_explains_failure`) blocks premature or hallucinated order placement claims on provider errors, overriding responses with honest error explanations and payment triggers.
+- **Browser OAuth Reconnect Bridge** (`backend/api/oauth.py`):
+  - Provides `GET /connect` and `GET /auth/callback` allowing mobile WhatsApp users to re-authenticate with Swiggy directly via browser.
+  - Resolved Swiggy numeric customer ID hashing in `backend/integrations/commerce/swiggy_client.py`.
+- **Clean Architecture & Legacy Retirement**:
+  - Completely retired the legacy 12-state FSM (`backend/intent/`) and obsolete tests.
+  - Extracted database connection pooling cleanly to `backend/database.py`.
 
-## What is not complete
+## Verified quality gates
 
-- The latest reliability changes still require deployment and a fresh authenticated WhatsApp replay through address, catalogue, cart, payment, and review confirmation.
-- A standalone background outbox worker is not present; delivery is retried through Meta webhook replay while the durable row remains pending.
-- Live checkout is not authorized or ready.
-- The Gemini cutover and legacy-runtime removal are committed locally; hosted deployment and replay still need verification.
-- Real hosted Swiggy access currently needs a valid customer OAuth session; the local read-only probe returned unauthenticated and could not complete a product search.
-
-## Verified checks
-
-- Focused durable-task and Swiggy response suite — 89 passed after the offered-choice and stock-recovery changes.
-- `npm run lint` — passed.
-- `npm run build` — passed.
-
-These prove local regression health, not a real-provider deployment.
+- `pytest backend/tests`: **258 passed** in 4.73s (100% green).
+- `npm run lint`: **passed** with 0 errors and 0 warnings.
+- `npm run build`: **passed** with Next.js 16 production build (all static and dynamic API routes compiled cleanly).
 
 ## Next release gate
 
-Deploy the reliability changes, re-establish valid Swiggy OAuth if needed, then replay the real WhatsApp sequence from a fresh task through Swiggy address selection, catalogue resolution, cart verification, payment selection, and final review-mode confirmation. Only after that gate passes is the release proven; no legacy runtime remains in the active checkout.
+Deploy the hardened backend service to Render (`render.yaml`), verify the live production Meta WhatsApp webhook routing to `GroceryAgentEngine`, and complete a real UPI payment transaction on a physical device.

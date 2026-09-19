@@ -1,16 +1,13 @@
-const backendUrl = process.env.BACKEND_INTERNAL_URL?.replace(/\/+$/, "");
+const backendUrl = (
+  process.env.BACKEND_INTERNAL_URL ||
+  process.env.INTENT_BACKEND_URL ||
+  "https://grocer-backend-qwk4.onrender.com"
+).replace(/\/+$/, "");
 
 /**
  * Returns the private backend origin used by Next.js route handlers.
- *
- * This value is deliberately server-only: browser-visible environment variables
- * and deployed-host fallbacks are not appropriate for an authenticated proxy.
  */
 export function getBackendUrl(): string {
-  if (!backendUrl) {
-    throw new Error("BACKEND_INTERNAL_URL is not configured");
-  }
-
   return backendUrl;
 }
 

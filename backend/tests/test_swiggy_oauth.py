@@ -214,3 +214,31 @@ async def test_oauth_exchange_code_invalid_state_or_missing_verifier() -> None:
             code_verifier="attacker-verifier",
             redirect_uri="https://attacker.invalid/callback",
         )
+
+
+@pytest.mark.asyncio
+async def test_token_sync_endpoint_requires_auth_and_persists() -> None:
+    from httpx import ASGITransport, AsyncClient
+    from backend.main import create_app
+    from backend.config import settings
+    from backend.integrations.commerce.token_vault import default_token_vault
+
+    app = create_app()
+    secret = settings.WHATSAPP_APP_SECRET or "grocer-test-secret"
+    settings.WHATSAPP_APP_SECRET = secret
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        res_bad = await client.post(
+            "/api/auth/token/sync",
+            json={"token": "test-tok-abc", "customer_id": "cust_wa_test_sync"},
+        )
+        assert res_bad.status_code == 403
+
+        res_good = await client.post(
+            "/api/auth/token/sync",
+            json={"token": "test-tok-abc", "customer_id": "cust_wa_test_sync", "admin_secret": secret},
+        )
+        assert res_good.status_code == 200
+        assert res_good.json()["success"] is True
+        assert default_token_vault.get_token("cust_wa_test_sync") == "test-tok-abc"
+

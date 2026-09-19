@@ -38,3 +38,5 @@ Thumbs.db
 skills-lock.json
 .vercel
 .env*
+*.tokens.json
+.vault_tokens.json

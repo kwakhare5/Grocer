@@ -21,6 +21,11 @@ from backend.integrations.commerce.exceptions import (
 logger = logging.getLogger("grocer.agent.tools")
 
 
+def _format_inr(amount: float) -> str:
+    """Format numeric price into clean ₹ string without trailing zero decimals."""
+    return f"₹{int(amount)}" if amount.is_integer() else f"₹{amount:.2f}"
+
+
 class SwiggyAgentTools:
     """Wraps CommercePort into clean, high-signal tools for the LLM agent."""
 
@@ -41,7 +46,7 @@ class SwiggyAgentTools:
                 address_id=address_id, query=query
             )
             results = []
-            for p in products[:8]:
+            for p in products[:6]:
                 in_stock_variants = [v for v in p.variants if v.in_stock is not False]
                 if not in_stock_variants:
                     continue
@@ -57,6 +62,8 @@ class SwiggyAgentTools:
                             "pack_size": v.pack_size,
                             "price": v.price,
                             "mrp": v.mrp,
+                            "formatted_price": _format_inr(v.price),
+                            "savings": f"{_format_inr(v.mrp - v.price)} off" if v.mrp and v.mrp > v.price else None,
                             "in_stock": v.in_stock,
                         }
                         for v in in_stock_variants
@@ -125,7 +132,7 @@ class SwiggyAgentTools:
             return {"success": False, "error": str(exc)}
 
     async def get_cart(self) -> dict[str, Any]:
-        """Fetch current Swiggy Instamart cart contents and pricing."""
+        """Fetch current Swiggy Instamart cart contents and pre-computed pricing."""
         try:
             cart: CommerceCart = await self.commerce.get_cart()
             items = [
@@ -137,18 +144,27 @@ class SwiggyAgentTools:
                     "quantity": item.quantity,
                     "unit_price": item.unit_price,
                     "total_price": item.total_price,
+                    "formatted_price": _format_inr(item.total_price),
                 }
                 for item in cart.items
             ]
+            total_fees = cart.delivery_fee + cart.packaging_fee
             return {
                 "success": True,
                 "cart_id": cart.cart_id,
+                "item_count": len(items),
                 "items": items,
                 "item_total": cart.item_total,
                 "delivery_fee": cart.delivery_fee,
                 "packaging_fee": cart.packaging_fee,
+                "total_fees": total_fees,
                 "discount": cart.discount,
                 "grand_total": cart.grand_total,
+                "formatted_item_total": _format_inr(cart.item_total),
+                "formatted_delivery_fee": _format_inr(cart.delivery_fee),
+                "formatted_packaging_fee": _format_inr(cart.packaging_fee),
+                "formatted_total_fees": _format_inr(total_fees),
+                "formatted_grand_total": _format_inr(cart.grand_total),
             }
         except ProviderAuthError as exc:
             return {"success": False, "error": "AUTH_EXPIRED", "detail": str(exc)}
@@ -161,7 +177,7 @@ class SwiggyAgentTools:
         items: list[dict[str, Any]],
         address_id: str,
     ) -> dict[str, Any]:
-        """Update Swiggy Instamart cart with a list of item updates."""
+        """Update Swiggy Instamart cart with item updates and return pre-computed pricing."""
         try:
             cart_updates = [
                 CartItemUpdate(
@@ -178,23 +194,33 @@ class SwiggyAgentTools:
             items_summary = [
                 {
                     "spin_id": item.spin_id,
+                    "sku_id": item.sku_id,
                     "name": item.name,
                     "pack_size": item.pack_size,
                     "quantity": item.quantity,
                     "unit_price": item.unit_price,
                     "total_price": item.total_price,
+                    "formatted_price": _format_inr(item.total_price),
                 }
                 for item in verified.items
             ]
+            total_fees = verified.delivery_fee + verified.packaging_fee
             return {
                 "success": True,
                 "cart_id": verified.cart_id,
+                "item_count": len(items_summary),
                 "items": items_summary,
                 "item_total": verified.item_total,
                 "delivery_fee": verified.delivery_fee,
                 "packaging_fee": verified.packaging_fee,
+                "total_fees": total_fees,
                 "discount": verified.discount,
                 "grand_total": verified.grand_total,
+                "formatted_item_total": _format_inr(verified.item_total),
+                "formatted_delivery_fee": _format_inr(verified.delivery_fee),
+                "formatted_packaging_fee": _format_inr(verified.packaging_fee),
+                "formatted_total_fees": _format_inr(total_fees),
+                "formatted_grand_total": _format_inr(verified.grand_total),
             }
         except ItemOutOfStockError as exc:
             return {
@@ -248,6 +274,7 @@ class SwiggyAgentTools:
                 "order_id": result.order_id,
                 "status": result.status.value if hasattr(result.status, "value") else str(result.status),
                 "grand_total": result.grand_total,
+                "formatted_grand_total": _format_inr(result.grand_total) if result.grand_total else None,
                 "tracking_url": result.tracking_url,
                 "delivery_address": result.delivery_address.street if result.delivery_address else "",
                 "paas_id": result.paas_id,
@@ -259,6 +286,27 @@ class SwiggyAgentTools:
             return {"success": False, "error": "AUTH_EXPIRED", "detail": str(exc)}
         except Exception as exc:
             logger.warning("checkout failed: %s", exc)
+            return {"success": False, "error": str(exc)}
+
+    async def track_order(self, order_id: str) -> dict[str, Any]:
+        """Track the real-time delivery status and ETA of an existing order."""
+        if not order_id:
+            return {"success": False, "error": "order_id is required."}
+        try:
+            status = await self.commerce.track_order(order_id)
+            status_val = status.status.value if hasattr(status.status, "value") else str(status.status)
+            return {
+                "success": True,
+                "order_id": order_id,
+                "status": status_val,
+                "eta_minutes": status.eta_minutes,
+                "eta_text": status.eta_text or (f"~{status.eta_minutes} mins" if status.eta_minutes else None),
+                "driver_name": status.driver_name,
+                "driver_phone": status.driver_phone,
+                "status_message": status.status_message,
+            }
+        except Exception as exc:
+            logger.warning("track_order failed for order_id=%s: %s", order_id, exc)
             return {"success": False, "error": str(exc)}
 
 
@@ -288,7 +336,7 @@ GEMINI_TOOL_DECLARATIONS = [
     },
     {
         "name": "search_products",
-        "description": "Search products in the live Swiggy Instamart store catalogue for the selected delivery address. Returns in-stock variants, pack sizes, prices, spin_id, and sku_id.",
+        "description": "Search products in the live Swiggy Instamart store catalogue for the selected delivery address. Returns in-stock variants, pack sizes, formatted prices, spin_id, and sku_id.",
         "parameters": {
             "type": "object",
             "properties": {
@@ -306,7 +354,7 @@ GEMINI_TOOL_DECLARATIONS = [
     },
     {
         "name": "get_cart",
-        "description": "Fetch the current items, item total, delivery fee, and grand total from the user's active Swiggy Instamart cart.",
+        "description": "Fetch current cart contents, item count, formatted line items, subtotal, delivery & packaging fees, and grand total.",
         "parameters": {
             "type": "object",
             "properties": {},
@@ -376,6 +424,20 @@ GEMINI_TOOL_DECLARATIONS = [
                 "grand_total": {"type": "number", "description": "Verified grand total in rupees."},
             },
             "required": ["cart_id", "address_id", "is_user_confirmed"],
+        },
+    },
+    {
+        "name": "track_order",
+        "description": "Track the real-time delivery status, ETA, and delivery partner info for an existing Swiggy Instamart order.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "order_id": {
+                    "type": "string",
+                    "description": "The Swiggy Instamart order ID to track.",
+                },
+            },
+            "required": ["order_id"],
         },
     },
 ]

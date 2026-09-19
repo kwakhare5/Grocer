@@ -1191,5 +1191,47 @@ def test_token_vault_fallback_to_configured_swiggy_auth_token():
     default_token_vault._tokens.clear()
 
 
+@pytest.mark.asyncio
+async def test_track_order_tool(agent_engine, mock_commerce):
+    """Tool can track order status, driver info, and ETA."""
+    from backend.integrations.commerce.models import DeliveryTrackingStatus
+    mock_status = DeliveryTrackingStatus(
+        order_id="ord_12345",
+        status="OUT_FOR_DELIVERY",
+        eta_minutes=12,
+        eta_text="~12 mins",
+        driver_name="Rahul Sharma",
+        driver_phone="9876543210",
+        status_message="Rider is on the way",
+    )
+    mock_commerce.track_order = AsyncMock(return_value=mock_status)
+
+    res = await agent_engine._execute_tool(
+        "track_order",
+        {"order_id": "ord_12345"},
+        customer_id="cust_track_test",
+        address_id="addr_pune",
+    )
+    assert res["success"] is True
+    assert res["order_id"] == "ord_12345"
+    assert res["status"] == "OUT_FOR_DELIVERY"
+    assert res["eta_minutes"] == 12
+    assert res["driver_name"] == "Rahul Sharma"
 
 
+@pytest.mark.asyncio
+async def test_preformatted_currency_in_cart_tools(mock_commerce):
+    """Verify SwiggyAgentTools returns formatted currency strings for receipt rendering."""
+    tools = SwiggyAgentTools(mock_commerce)
+    search_res = await tools.search_products("milk", address_id="addr_home")
+    assert search_res["success"] is True
+    first_var = search_res["products"][0]["variants"][0]
+    assert "formatted_price" in first_var
+    assert first_var["formatted_price"].startswith("₹")
+
+    cart_res = await tools.get_cart()
+    assert cart_res["success"] is True
+    assert "formatted_item_total" in cart_res
+    assert "formatted_total_fees" in cart_res
+    assert "formatted_grand_total" in cart_res
+    assert cart_res["formatted_grand_total"].startswith("₹")

@@ -223,10 +223,10 @@ If the answer is no, it does not belong in GROCER v2 unless the master spec is d
 
 ## 15. SESSION RESUME
 
-**Last completed:** Fixed recurring WhatsApp Swiggy login expiration loop caused by missing `customer_scope` in the autonomous Gemini agent ReAct loop (`backend/agent/engine.py`) and mock test token contamination in `token_vault.py`. Wrapped turn execution in `with self.commerce.customer_scope(customer_id):`, enhanced `resolve_token()` in `swiggy_client.py` with active vault fallback, added `_is_valid_jwt` verification, and protected genuine JWTs from test suite contamination. Verified end-to-end live on cloud: user messaged "i need bread and eggs" to WhatsApp (`+1 (555) 663-1707`) and received real-time live catalogue items from the Pune Kingsbury dark store without auth errors. All 262 backend tests pass (2.72s), Next.js 16 build passed, 0 lint errors.
+**Last completed:** Executed full codebase deep clean and architectural refactoring: purged 14 obsolete docs and dead migrations (70+ KB bloat), created clean migration `001_init_oauth_vault.sql` and `docs/SWIGGY_MCP_API.md`, overhauled Gemini 2.0 system prompt with zero-redundancy WhatsApp receipt layouts and hybrid staple auto-add vs. multi-variant choice, restructured Swiggy MCP tool returns with pre-computed currency strings (`₹XX`), added live `track_order` tool and interactive WhatsApp button triggers, and synced graphify knowledge graph. All 264 backend unit and contract tests pass green (3.74s), `npm run lint` clean (0 errors), Next.js 16 production build compiles with Turbopack in 5.5s.
 
 **Next implementation gate:** Complete live physical WhatsApp order placement and UPI QR checkout verification on WhatsApp.
 
-**Current status:** Main repository (`D:\Grocer`) on branch `main` is authoritative, synchronized with remote `origin/main` (commit `9ea6f01`), working tree clean.
+**Current status:** Codebase cleaned and refactored; all 264 tests passing, Next.js build green.
 
 

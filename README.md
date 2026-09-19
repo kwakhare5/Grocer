@@ -7,7 +7,7 @@
 
 **Grocer** is an English-first WhatsApp grocery agent for Swiggy Instamart. It accepts ordinary human messages, turns them into real Swiggy Instamart grocery carts, and keeps the customer in control of meaningful shopping choices and budgets.
 
-> **Readiness:** The autonomous Gemini ReAct conversation engine (`GroceryAgentEngine`, `SwiggyAgentTools`) is active and verified live on WhatsApp with Swiggy Instamart MCP. Local unit/integration tests (258/258 passed), ESLint, and Next.js 16 production build pass 100% green. See [CURRENT_STATE.md](CURRENT_STATE.md) for verified evidence and telemetry.
+> **Readiness:** The autonomous Gemini ReAct conversation engine (`GroceryAgentEngine`, `SwiggyAgentTools`) is active and verified live on WhatsApp with Swiggy Instamart MCP. Local unit/integration tests (262+ passed), ESLint, and Next.js 16 production build pass 100% green. See [ARCHITECTURE.md](ARCHITECTURE.md) for verified technical specifications.
 
 The agent does not force rigid commands or multi-step clarification forms. It interprets requests with smart defaults, deduces complete multi-item cooking kits, verifies live dark-store inventory, shows the complete itemized basket with delivery fees, and requests explicit confirmation before checkout.
 
@@ -35,7 +35,10 @@ Autonomous Function Calling (Swiggy MCP Tools)
   ├── update_cart (adds items, respects pack sizes & budget)
   ├── get_cart (reads back verified totals & fees)
   ├── get_saved_addresses (resolves user delivery addresses)
-  └── checkout (server-side gated, generateUPIQR: True)
+  ├── select_delivery_address (switches active delivery destination)
+  ├── clear_cart (empties cart when requested)
+  ├── checkout (server-side gated, generateUPIQR: True)
+  └── track_order (live delivery tracking and ETA)
       ↓
 Cart Summary & Grand Total Preview → User WhatsApp Confirmation
       ↓
@@ -88,14 +91,16 @@ Meta WhatsApp Cloud API
 FastAPI Webhook (/api/whatsapp/webhook)
   ↓
 GroceryAgentEngine (backend/agent/engine.py)
-  ├── Context-aware ReAct reasoning loop (Gemini 3.5 Flash Lite)
+  ├── Context-aware ReAct reasoning loop (Gemini 2.0 / 3.5 Flash Lite)
   ├── SwiggyAgentTools (backend/agent/tools.py)
   │     ├── search_products (live store catalogue inventory search)
   │     ├── update_cart (adds SKUs, respects stock & budget)
   │     ├── get_cart (reads back verified totals & fees)
   │     ├── get_saved_addresses (resolves user delivery addresses)
+  │     ├── select_delivery_address (switches active delivery destination)
   │     ├── clear_cart (empties cart when requested)
-  │     └── checkout (server-side gated, generateUPIQR: True)
+  │     ├── checkout (server-side gated, generateUPIQR: True)
+  │     └── track_order (live delivery status, driver info, and ETA)
   ├── Deterministic fail-closed guard (blocks false success claims)
   └── Payment bridge injection (delivers clickable UPI pay links)
   ↓

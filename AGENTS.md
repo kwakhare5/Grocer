@@ -1,50 +1,63 @@
-# GROCER engineering contract
+# GROCER Engineering Contract
 
-Read `GROCER_V2_MASTER_SPEC.md`, `CONTEXT.md`, `ARCHITECTURE.md`, and `CURRENT_STATE.md` before changing code.
+Read `ARCHITECTURE.md` and `docs/SWIGGY_MCP_API.md` before modifying code.
 
-## Product boundary
+## 1. Product Boundary
 
-GROCER is an English-first WhatsApp consumer grocery agent for Swiggy Instamart. Its job is to preserve a customer's intended basket while commerce state changes.
+GROCER is an English-first WhatsApp grocery replenishment agent for Swiggy Instamart.
+Its job is to help customers order groceries effortlessly from their local dark store directly inside WhatsApp.
 
-Do not add operations/inventory/warehouse/supplier features, marketplace aggregation, browser-owned commerce state, raw provider errors, silent substitutions, or autonomous checkout.
+Never build:
+- Dark-store operator dashboards or inventory management systems;
+- Cross-marketplace aggregators or competitor price comparison engines;
+- Browser-owned commerce state;
+- Silent substitutions or autonomous unconfirmed checkouts.
 
-## Architecture rules
+## 2. Active Architecture
 
 ```text
-WhatsApp → durable inbox → ShoppingTask → CommercePort → Swiggy MCP
-                                           ↓
-                                  read-back / verifier → durable outbox → WhatsApp
+Meta WhatsApp Cloud API
+        ↓
+FastAPI Webhook (/api/whatsapp/webhook)
+        ↓
+GroceryAgentEngine (backend/agent/engine.py)
+  ├── Autonomous ReAct loop (Gemini 2.0 / 3.5 Flash Lite)
+  ├── SwiggyAgentTools (backend/agent/tools.py)
+  │     ├── get_saved_addresses (resolves user delivery addresses)
+  │     ├── select_delivery_address (switches active delivery destination)
+  │     ├── search_products (live store catalogue inventory search)
+  │     ├── get_cart (reads verified totals, fees & line items)
+  │     ├── update_cart (sets variants with mandatory spin_id & sku_id)
+  │     ├── clear_cart (empties cart when requested)
+  │     ├── checkout (server-side gated, generateUPIQR: True)
+  │     └── track_order (live delivery status, driver info, and ETA)
+  ├── Deterministic fail-closed guard (blocks hallucinated order success)
+  └── Interactive quick-reply buttons ([Confirm Order], [Change Items])
+        ↓
+CommercePort / SwiggyMCPAdapter (backend/integrations/commerce/)
+        ↓
+Swiggy Instamart Live MCP Gateway (https://mcp.swiggy.com/im)
 ```
 
-- `ShoppingTask.desired_basket` is the authoritative customer intent for a task.
-- A Swiggy cart is an external projection. It is only used after the user explicitly chooses Keep, Start fresh, or Cancel.
-- `CommercePort` is the sole provider boundary. Keep all Swiggy-specific code in `SwiggyMCPAdapter`.
-- The existing legacy conversation/orchestrator runtime is temporary. Do not delete it before the durable route has passed replay and live review gates; do not extend it as the permanent design.
+## 3. Language & Safety Invariants
 
-## Language and safety rules
+1. **Deterministic Enforcement**:
+   - The LLM interprets customer language and proposes actions; deterministic Python enforces hard constraints, calculates prices, blocks unauthorized mutations, and verifies outcomes.
+2. **Explicit Confirmation Before Checkout**:
+   - Checkout is strictly server-side gated (`is_user_confirmed: True`). The model may only invoke `checkout` after explicit customer approval (e.g. "Confirm", "Yes", or tapping `[Confirm Order]`).
+3. **Fail-Closed Anti-Hallucination Guard**:
+   - If checkout fails or returns `PAYMENT_PENDING`, deterministic regex patterns (`_ORDER_SUCCESS_PATTERNS`) inspect model output. The agent will never falsely claim or imply an order was placed without completed payment.
+4. **Token Security**:
+   - Swiggy customer OAuth tokens are encrypted at rest using Fernet / AES-GCM in PostgreSQL (`grocer_internal.oauth_tokens`). Never expose tokens in logs, URLs, or frontend state.
+5. **Zero-Redundancy Receipts**:
+   - Basket line items must be presented exactly once inside a clean receipt card. Never repeat item names in the lead-in text.
 
-- LLM/model code interprets language and proposes; deterministic code validates, transitions state, resolves products, verifies provider results, and authorizes checkout.
-- Current explicit request > session choice > confirmed preference > default.
-- Confirmed preferences can create a complete basket preview, not a silent cart mutation.
-- Every essential item resolves before a cart mutation. Ambiguous or unavailable essentials stop the plan.
-- Checkout always requires a distinct backend-enforced confirmation.
-- Never claim a failed or unknown provider action succeeded. Never expose provider error codes to the customer.
+## 4. Quality Gate
 
-## Persistence and provider rules
+Always run and verify before committing changes:
 
-- Persist task, inbox/outbox, idempotency, preferences, and OAuth state in managed private PostgreSQL storage before enabling live checkout.
-- Encrypt sensitive tokens at rest. Do not put secrets in source, logs, or frontend state.
-- Read the current official Swiggy Builders Club documentation before changing MCP tool calls or retry behavior. Do not invent tool names or schemas.
-
-## Engineering rules
-
-- Prefer minimal, tested changes. Keep provider calls behind adapters.
-- Keep React/Vercel as landing/OAuth presentation; it never owns commerce state.
-- Add deterministic tests around hard rules and replay human messages before changing live routing.
-- Run the relevant checks and report results honestly:
-
-```text
+```bash
+pytest backend/tests
 npm run lint
 npm run build
-pytest backend/tests
 ```

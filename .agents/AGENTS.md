@@ -223,10 +223,9 @@ If the answer is no, it does not belong in GROCER v2 unless the master spec is d
 
 ## 15. SESSION RESUME
 
-**Last completed:** Executed full codebase deep clean and architectural refactoring: purged 14 obsolete docs and dead migrations (70+ KB bloat), created clean migration `001_init_oauth_vault.sql` and `docs/SWIGGY_MCP_API.md`, overhauled Gemini 2.0 system prompt with zero-redundancy WhatsApp receipt layouts and hybrid staple auto-add vs. multi-variant choice, restructured Swiggy MCP tool returns with pre-computed currency strings (`₹XX`), added live `track_order` tool and interactive WhatsApp button triggers, and synced graphify knowledge graph. All 264 backend unit and contract tests pass green (3.74s), `npm run lint` clean (0 errors), Next.js 16 production build compiles with Turbopack in 5.5s.
+**Last completed:** Executed full codebase deep clean and architectural refactoring: purged 14 obsolete docs and dead migrations (70+ KB bloat), created clean migration `001_init_oauth_vault.sql` and `docs/SWIGGY_MCP_API.md`, overhauled Gemini 2.0 system prompt with zero-redundancy WhatsApp receipt layouts and hybrid staple auto-add vs. multi-variant choice, restructured Swiggy MCP tool returns with pre-computed currency strings (`₹XX`), added live `track_order` tool, consolidated `swiggy_normalizers.py` into `swiggy_parsers.py`, streamlined root `AGENTS.md` into a lean contract pointer, and synced graphify knowledge graph. All 264 backend unit and contract tests pass green (2.88s), `npm run lint` clean (0 errors), Next.js 16 production build compiles with Turbopack in 2.3s.
 
 **Next implementation gate:** Complete live physical WhatsApp order placement and UPI QR checkout verification on WhatsApp.
 
-**Current status:** Live on GitHub `origin/main` at commit `2dfabb0` (87 curated milestone commits), all 264 tests passing, Next.js build green, working tree clean.
-
+**Current status:** Live on GitHub `origin/main` (88 curated milestone commits), all 264 tests passing, Next.js build green, working tree clean.
 

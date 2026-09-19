@@ -34,6 +34,15 @@ During the Session End ritual (called automatically whenever significant changes
 - **Trial-ready flow**: User texts "i need bread and eggs" -> agent auto-adds best-sellers to cart, returns a clean 8-line receipt with pre-computed `₹XX` totals, and attaches interactive `[Confirm Order]` buttons. User texts "track order #1234" -> agent calls `track_order` and reports live rider ETA.
 - **Engineering references**: `backend/agent/engine.py`, `backend/agent/tools.py`, `backend/tests/test_agent_engine.py`, `backend/migrations/001_init_oauth_vault.sql`, `docs/SWIGGY_MCP_API.md`, `ARCHITECTURE.md`, `README.md`.
 
+#### Work Card 3: Normalizer Consolidation and Root Contract Streamlining
+- **Problem / tension**: `swiggy_normalizers.py` and `swiggy_parsers.py` represented split responsibilities for Swiggy payload parsing and conversion with redundant helper boundaries, while root `AGENTS.md` duplicated rules present in `.agents/AGENTS.md`.
+- **Change / decision**: Merged all normalizer functions (`_optional_provider_bool`, `parse_swiggy_products`, `build_commerce_cart`, `normalize_payment_status`, `normalize_order_status`, `parse_child_order`, `parse_order_items`, `normalize_existing_order_status`) directly into `backend/integrations/commerce/swiggy_parsers.py`. Updated `swiggy_adapter.py` imports and deleted `swiggy_normalizers.py`. Streamlined root `AGENTS.md` to a lean contract pointer referencing `.agents/AGENTS.md`, `ARCHITECTURE.md`, and `docs/SWIGGY_MCP_API.md`. Updated knowledge graph via `graphify update .`.
+- **Proof**: 264/264 backend unit and contract tests pass green in 2.88s. ESLint passes with 0 errors. Next.js 16 production build compiles with Turbopack in 2.3s.
+- **Still broken / unproven**: Complete live physical WhatsApp order placement and verify real-time UPI payment link delivery on WhatsApp.
+- **Metric context**: 1 redundant module deleted (-355 lines); 264 tests passing (100% green); 0 lint errors; Turbopack build in 2.3s.
+- **Trial-ready flow**: Full Swiggy Instamart replenishment flow executes identically with unified response parsing and zero redundant module boundaries.
+- **Engineering references**: `backend/integrations/commerce/swiggy_parsers.py`, `backend/integrations/commerce/swiggy_adapter.py`, `AGENTS.md`.
+
 
 ### [GROCER — Autonomous Agent Rebuild, UPI Checkout Bridge, FSM Purge & Mainline Promotion] 2026-09-18
 

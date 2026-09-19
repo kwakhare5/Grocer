@@ -225,6 +225,12 @@ class GroceryAgentEngine:
     ) -> NormalizedOutgoingResponse:
         """Process one WhatsApp turn through the autonomous Gemini agent loop."""
         customer_id = message.customer_id or message.sender_id
+        with self.commerce.customer_scope(customer_id):
+            return await self._process_scoped_message(message, customer_id)
+
+    async def _process_scoped_message(
+        self, message: NormalizedIncomingMessage, customer_id: str
+    ) -> NormalizedOutgoingResponse:
         history = self.get_history(customer_id)
 
         # Handle interactive button callbacks

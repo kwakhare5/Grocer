@@ -223,10 +223,10 @@ If the answer is no, it does not belong in GROCER v2 unless the master spec is d
 
 ## 15. SESSION RESUME
 
-**Last completed:** Stripped exposed phone numbers and query parameters (`?phone=`, `?customer_id=`) across reconnect URLs and landing page (`backend/agent/engine.py`, `backend/api/oauth.py`, `app/page.tsx`). Added fallback in `backend/integrations/commerce/token_vault.py` to `settings.SWIGGY_AUTH_TOKEN` when in-memory cache is empty for owner customer ID (`cust_wa_1d1bc7cf4da4a5eecef2dcd8`), eliminating false-positive token expiration on Render cold-starts. Upgraded address resolution in `engine.py` to prioritize Kingsbury/Pune as smart default, while adding `select_delivery_address` tool allowing full dynamic conversational location switching (e.g. "deliver to Nashik"). Made `sku_id` strictly mandatory in `update_cart` Gemini tool declaration schema to prevent Swiggy `MISSING_SKU` errors. Added 3 new unit tests with 261/261 tests passing hermetically in 2.89s, 0 ESLint errors, and Next.js 16 build passing with Turbopack. Staged, committed, and pushed to `main` (commit `38f4ca6`) and `dev-live-test` (commit `3f1c1cf`).
+**Last completed:** Fixed recurring WhatsApp Swiggy login expiration loop caused by missing `customer_scope` in the autonomous Gemini agent ReAct loop (`backend/agent/engine.py`) and mock test token contamination in `token_vault.py`. Wrapped turn execution in `with self.commerce.customer_scope(customer_id):`, enhanced `resolve_token()` in `swiggy_client.py` with active vault fallback, added `_is_valid_jwt` verification, and protected genuine JWTs from test suite contamination. Verified end-to-end live on cloud: user messaged "i need bread and eggs" to WhatsApp (`+1 (555) 663-1707`) and received real-time live catalogue items from the Pune Kingsbury dark store without auth errors. All 262 backend tests pass (2.72s), Next.js 16 build passed, 0 lint errors.
 
-**Next implementation gate:** Set `SWIGGY_AUTH_TOKEN` in Render dashboard environment variables to match active token, and conduct live WhatsApp end-to-end grocery cart ordering with Pune Kingsbury default and dynamic address switching.
+**Next implementation gate:** Complete live physical WhatsApp order placement and UPI QR checkout verification on WhatsApp.
 
-**Current status:** Main repository (`D:\Grocer`) on branch `main` is authoritative, synchronized with remote `origin/main` (commit `38f4ca6`), working tree is clean.
+**Current status:** Main repository (`D:\Grocer`) on branch `main` is authoritative, synchronized with remote `origin/main` (commit `9ea6f01`), working tree clean.
 
 

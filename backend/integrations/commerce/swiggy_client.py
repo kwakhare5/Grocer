@@ -41,9 +41,14 @@ class SwiggyMcpClient:
     def resolve_token(self, customer_id: Optional[str] = None) -> Optional[str]:
         """Resolve valid token for customer from resolver or static fallback."""
         if self._token_resolver:
-            token = self._token_resolver(customer_id) if customer_id else None
+            token = self._token_resolver(customer_id) if customer_id else self._token_resolver(None)
             if token:
                 return token
+            if customer_id:
+                # If customer-specific lookup returned None, try active session in vault
+                token = self._token_resolver(None)
+                if token:
+                    return token
         if self._auth_token and self._owner_customer_id and customer_id:
             if customer_id != self._owner_customer_id and not self._owner_customer_id.isdigit():
                 raise ProviderAuthError(

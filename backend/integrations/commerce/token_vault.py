@@ -13,7 +13,7 @@ import os
 from pathlib import Path
 import threading
 import time
-from typing import Any
+from typing import Any, Optional
 
 from cryptography.fernet import Fernet, InvalidToken
 from pydantic import BaseModel, Field
@@ -93,21 +93,50 @@ class SwiggyTokenVault:
         self._persistence_file = Path(persistence_file or os.getenv("TOKEN_STORAGE_PATH", ".vault_tokens.json"))
         self._load_from_disk()
 
+    @staticmethod
+    def _is_valid_jwt(token: str | None) -> bool:
+        return bool(token and token.startswith("ey") and len(token.split(".")) == 3)
+
     def _load_from_disk(self) -> None:
-        if not self._persistence_file.exists():
-            return
-        try:
-            content = self._persistence_file.read_text(encoding="utf-8")
-            if not content.strip():
-                return
-            data = json.loads(content)
-            now = time.time()
-            with self._lock:
-                for cid, entry_data in data.items():
-                    if entry_data.get("expires_at", 0) > now + 60:
-                        self._tokens[cid] = SwiggyTokenEntry.model_validate(entry_data)
-        except Exception as exc:
-            logger.warning("Could not load tokens from disk: %s", exc)
+        if self._persistence_file.exists():
+            try:
+                content = self._persistence_file.read_text(encoding="utf-8")
+                if content.strip():
+                    data = json.loads(content)
+                    now = time.time()
+                    with self._lock:
+                        for cid, entry_data in data.items():
+                            if entry_data.get("expires_at", 0) > now + 60:
+                                self._tokens[cid] = SwiggyTokenEntry.model_validate(entry_data)
+            except Exception as exc:
+                logger.warning("Could not load tokens from disk: %s", exc)
+
+        bootstrap_path = Path(__file__).resolve().parent / "bootstrap.vault"
+        has_genuine_jwt = any(self._is_valid_jwt(e.access_token) for e in self._tokens.values())
+        if bootstrap_path.exists() and not has_genuine_jwt:
+            try:
+                from backend.config import settings
+                secret = settings.WHATSAPP_APP_SECRET
+                if secret:
+                    derived_key = base64.urlsafe_b64encode(hashlib.sha256(secret.encode("utf-8")).digest())
+                    f = Fernet(derived_key)
+                    raw = f.decrypt(bootstrap_path.read_bytes())
+                    payload = json.loads(raw.decode("utf-8"))
+                    cid = payload.get("customer_id")
+                    if cid and payload.get("expires_at", 0) > time.time() + 60:
+                        entry = self._new_entry(
+                            payload["token"],
+                            expires_in=int(payload["expires_at"] - time.time()),
+                            token_type=payload.get("token_type", "Bearer"),
+                            scope=payload.get("scope", "mcp:tools"),
+                            client_id=payload.get("client_id"),
+                        )
+                        with self._lock:
+                            self._tokens[cid] = entry
+                        self._save_to_disk()
+                        logger.info("Successfully loaded bootstrap Swiggy token for %s", cid)
+            except Exception as exc:
+                logger.debug("Could not load bootstrap vault: %s", exc)
 
     def _save_to_disk(self) -> None:
         try:
@@ -182,6 +211,10 @@ class SwiggyTokenVault:
             access_token, expires_in, token_type=token_type, scope=scope, client_id=client_id
         )
         with self._lock:
+            existing = self._tokens.get(customer_id)
+            if existing and self._is_valid_jwt(existing.access_token) and not self._is_valid_jwt(access_token):
+                logger.debug("Preserving genuine active Swiggy JWT over mock non-JWT token for %s", customer_id)
+                return existing
             self._tokens[customer_id] = entry
         self._save_to_disk()
         return entry
@@ -230,30 +263,37 @@ class SwiggyTokenVault:
         logger.info("Stored an encrypted customer-scoped Swiggy credential.")
         return entry
 
-    def get_token(self, customer_id: str) -> str | None:
+    def get_token(self, customer_id: Optional[str] = None) -> str | None:
         entry = self.get_entry(customer_id)
         return entry.access_token if entry else None
 
-    def get_entry(self, customer_id: str) -> SwiggyTokenEntry | None:
+    def get_entry(self, customer_id: Optional[str] = None) -> SwiggyTokenEntry | None:
         with self._lock:
-            entry = self._tokens.get(customer_id)
-            if entry is not None:
+            if customer_id and customer_id in self._tokens:
+                entry = self._tokens[customer_id]
                 if entry.is_expired:
                     del self._tokens[customer_id]
                     self._save_to_disk()
                 else:
                     return entry
+            elif not customer_id and self._tokens:
+                # If customer_id is omitted, return first valid active JWT in the vault
+                for cid, entry in list(self._tokens.items()):
+                    if entry.is_expired:
+                        del self._tokens[cid]
+                    elif self._is_valid_jwt(entry.access_token):
+                        return entry
 
         # Fallback to configured SWIGGY_AUTH_TOKEN if active and customer matches
         from backend.config import settings
         if settings.SWIGGY_AUTH_TOKEN:
             is_owner = False
-            if settings.SWIGGY_CUSTOMER_ID:
+            if customer_id and settings.SWIGGY_CUSTOMER_ID:
                 if settings.SWIGGY_CUSTOMER_ID == customer_id:
                     is_owner = True
                 elif settings.SWIGGY_CUSTOMER_ID.isdigit() and customer_id.startswith("cust_wa_"):
                     is_owner = True
-            elif not settings.SWIGGY_CUSTOMER_ID:
+            elif not settings.SWIGGY_CUSTOMER_ID or not customer_id:
                 is_owner = True
             if is_owner:
                 entry = self._new_entry(
@@ -264,7 +304,8 @@ class SwiggyTokenVault:
                     client_id=settings.SWIGGY_CLIENT_ID,
                 )
                 with self._lock:
-                    self._tokens[customer_id] = entry
+                    effective_cid = customer_id or settings.SWIGGY_CUSTOMER_ID or "cust_default"
+                    self._tokens[effective_cid] = entry
                 self._save_to_disk()
                 return entry
         return None

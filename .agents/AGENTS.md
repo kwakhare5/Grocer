@@ -223,10 +223,10 @@ If the answer is no, it does not belong in GROCER v2 unless the master spec is d
 
 ## 15. SESSION RESUME
 
-**Last completed:** Re-routed Swiggy OAuth reconnect links directly to the whitelisted domain `https://grocerr.vercel.app` with `?phone=` query prefill in `app/page.tsx`, `backend/agent/engine.py`, and `backend/config.py`. Updated `GET /connect` to 307-redirect legacy links to `grocerr.vercel.app`. Hardened `backend/api/oauth.py` to store tokens durably via `await default_token_vault.store_token_durable()` preventing PostgreSQL runtime type errors. Consolidated repository history into 9 clean milestone commits from cleanroom freeze to `HEAD`. Verified 258/258 backend pytest tests passing hermetically, 0 ESLint errors, Next.js 16 build passing with Turbopack, and GitHub Actions `Quality` workflow 100% green on commit `d463d47`.
+**Last completed:** Stripped exposed phone numbers and query parameters (`?phone=`, `?customer_id=`) across reconnect URLs and landing page (`backend/agent/engine.py`, `backend/api/oauth.py`, `app/page.tsx`). Added fallback in `backend/integrations/commerce/token_vault.py` to `settings.SWIGGY_AUTH_TOKEN` when in-memory cache is empty for owner customer ID (`cust_wa_1d1bc7cf4da4a5eecef2dcd8`), eliminating false-positive token expiration on Render cold-starts. Upgraded address resolution in `engine.py` to prioritize Kingsbury/Pune as smart default, while adding `select_delivery_address` tool allowing full dynamic conversational location switching (e.g. "deliver to Nashik"). Made `sku_id` strictly mandatory in `update_cart` Gemini tool declaration schema to prevent Swiggy `MISSING_SKU` errors. Added 3 new unit tests with 261/261 tests passing hermetically in 2.89s, 0 ESLint errors, and Next.js 16 build passing with Turbopack. Staged, committed, and pushed to `main` (commit `38f4ca6`) and `dev-live-test` (commit `3f1c1cf`).
 
-**Next implementation gate:** Complete 1-time Swiggy authentication through `https://grocerr.vercel.app/` and conduct live WhatsApp end-to-end grocery cart ordering with UPI payment link on physical WhatsApp device.
+**Next implementation gate:** Set `SWIGGY_AUTH_TOKEN` in Render dashboard environment variables to match active token, and conduct live WhatsApp end-to-end grocery cart ordering with Pune Kingsbury default and dynamic address switching.
 
-**Current status:** Main repository (`D:\Grocer`) on branch `main` is authoritative, synchronized with remote `origin/main` (commit `d463d47`), GitHub Actions CI is 100% green, and working tree is clean.
+**Current status:** Main repository (`D:\Grocer`) on branch `main` is authoritative, synchronized with remote `origin/main` (commit `38f4ca6`), working tree is clean.
 
 

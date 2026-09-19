@@ -223,10 +223,10 @@ If the answer is no, it does not belong in GROCER v2 unless the master spec is d
 
 ## 15. SESSION RESUME
 
-**Last completed:** Fixed Vercel `502 Bad Gateway` by providing production Render default fallback in `app/api/_lib/backend.ts`. Added private authenticated `POST /api/auth/token/sync` endpoint in `backend/api/oauth.py` protected by `WHATSAPP_APP_SECRET`. Synced active Sept 23 Swiggy token to live Render container vault and disk storage (`.vault_tokens.json`). Verified end-to-end live: Vercel `/api/auth/swiggy/login` returns 200 OK; WhatsApp webhook successfully processed "i need bread and eggs", adding NOICE High Protein Eggs to live Swiggy Instamart cart ID `aa07e9e7` for Pune Kingsbury delivery. All 262 backend tests pass (2.58s), Next.js 16 build passed, 0 ESLint errors.
+**Last completed:** Fixed recurring WhatsApp Swiggy login expiration loop caused by missing `customer_scope` in the autonomous Gemini agent ReAct loop (`backend/agent/engine.py`) and mock test token contamination in `token_vault.py`. Wrapped turn execution in `with self.commerce.customer_scope(customer_id):`, enhanced `resolve_token()` in `swiggy_client.py` with active vault fallback, added `_is_valid_jwt` verification, and protected genuine JWTs from test suite contamination. Verified end-to-end live on cloud: user messaged "i need bread and eggs" to WhatsApp (`+1 (555) 663-1707`) and received real-time live catalogue items from the Pune Kingsbury dark store without auth errors. All 262 backend tests pass (2.72s), Next.js 16 build passed, 0 lint errors.
 
-**Next implementation gate:** Add `SWIGGY_AUTH_TOKEN` to Render dashboard environment variables for cold-start boot persistence across future container rebuilds, and complete live physical WhatsApp order placement.
+**Next implementation gate:** Complete live physical WhatsApp order placement and UPI QR checkout verification on WhatsApp.
 
-**Current status:** Main repository (`D:\Grocer`) on branch `main` is authoritative, synchronized with remote `origin/main` (commit `a6085e0`), working tree is clean.
+**Current status:** Main repository (`D:\Grocer`) on branch `main` is authoritative, synchronized with remote `origin/main` (commit `9ea6f01`), working tree clean.
 
 

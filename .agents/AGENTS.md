@@ -227,6 +227,6 @@ If the answer is no, it does not belong in GROCER v2 unless the master spec is d
 
 **Next implementation gate:** Complete live physical WhatsApp order placement and UPI QR checkout verification on WhatsApp.
 
-**Current status:** Codebase cleaned and refactored; all 264 tests passing, Next.js build green.
+**Current status:** Live on GitHub `origin/main` at commit `2dfabb0` (87 curated milestone commits), all 264 tests passing, Next.js build green, working tree clean.
 
 

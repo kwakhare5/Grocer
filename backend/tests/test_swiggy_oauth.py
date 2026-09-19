@@ -241,4 +241,5 @@ async def test_token_sync_endpoint_requires_auth_and_persists() -> None:
         assert res_good.status_code == 200
         assert res_good.json()["success"] is True
         assert default_token_vault.get_token("cust_wa_test_sync") == "test-tok-abc"
+        default_token_vault.revoke_token("cust_wa_test_sync")
 

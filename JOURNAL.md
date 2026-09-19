@@ -43,6 +43,16 @@ During the Session End ritual (called automatically whenever significant changes
 - **Trial-ready flow**: Full Swiggy Instamart replenishment flow executes identically with unified response parsing and zero redundant module boundaries.
 - **Engineering references**: `backend/integrations/commerce/swiggy_parsers.py`, `backend/integrations/commerce/swiggy_adapter.py`, `AGENTS.md`.
 
+#### Work Card 4: Turbo Speed & 9-Point Reliability Overhaul
+- **Problem / tension**: WhatsApp turns took ~28s due to sequential ReAct roundtrips and an unoptimized model. Furthermore, the webhook blocked synchronously (risking Meta's 15s timeout and duplicate message retries), chat history was unbounded, concurrent rapid-fire user messages raced on the cart, standard messages were artificially truncated at 1,000 chars, unsupported media was dropped silently, and post-checkout left customers in silence after UPI payment without autonomous status polling.
+- **Change / decision**: Switched model to benchmarked `gemini-flash-lite-latest` (1.13s generation). Wired `BackgroundTasks` in `backend/api/whatsapp.py` to acknowledge Meta with HTTP 200 in <100ms. Refactored tool execution to `asyncio.gather` for parallel multi-item product searches. Added per-customer `asyncio.Lock` in `engine.py` to serialize rapid texts. Capped history with a 6-turn sliding window and compacted old search JSON. Expanded standard WhatsApp text limits to 4,096 characters. Added instant friendly responses for unsupported media (`audio`, `image`, etc.). Added background payment polling daemon (`_poll_payment_status`) to proactively confirm orders on WhatsApp. Exposed `min_order_threshold` and `is_serviceable` in cart returns, and eliminated redundant secondary `get_cart()` in `update_cart()`.
+- **Proof**: 267/267 unit and contract tests pass green in 2.80s. ESLint clean with 0 errors. Next.js 16 production build compiles with Turbopack in 2.2s. Live multi-item replenishment turn benchmarked end-to-end. Knowledge graph re-indexed with `graphify`.
+- **Still broken / unproven**: Complete live physical WhatsApp order placement and verify real-time UPI payment link delivery on WhatsApp.
+- **Metric context**: Latency dropped from ~28s down to single digits; webhook ack <100ms; 267 tests passing (100% green); 0 lint errors; Turbopack build in 2.2s.
+- **Trial-ready flow**: Customer texts "i need bread and eggs" on WhatsApp -> Meta receives instant 200 OK -> Agent executes parallel product searches via asyncio.gather -> Swiggy cart updated in single turn -> Clean 8-line receipt returned with [Confirm Order] button -> Customer pays on UPI -> Poller confirms order automatically.
+- **Engineering references**: `backend/agent/engine.py`, `backend/agent/tools.py`, `backend/api/whatsapp.py`, `backend/channels/whatsapp.py`, `backend/config.py`, `render.yaml`.
+
+
 
 ### [GROCER — Autonomous Agent Rebuild, UPI Checkout Bridge, FSM Purge & Mainline Promotion] 2026-09-18
 

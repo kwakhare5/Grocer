@@ -233,6 +233,9 @@ class WhatsAppChannelAdapter(BaseChannelAdapter):
                             interactive_id = list_item.get("id")
                             text_body = list_item.get("title", "")
 
+                    elif msg_type in ("audio", "voice", "image", "document", "sticker", "video"):
+                        text_body = "UNSUPPORTED_MEDIA"
+
                     if text_body or interactive_id:
                         incoming_messages.append(
                             NormalizedIncomingMessage(
@@ -255,10 +258,9 @@ class WhatsAppChannelAdapter(BaseChannelAdapter):
         """Build Meta WhatsApp Cloud API JSON payload."""
         to_number = response.recipient_id.replace("+", "").strip()
 
-        body_text = response.text[:1000]
-
-        # If interactive actions exist (e.g. clarification options or confirmation buttons)
+        # If interactive actions exist (Meta limits interactive bodies to 1024 chars)
         if response.interactive_actions:
+            body_text = response.text[:1024]
             # 1. Decision List Reply (for payment methods, address selection, alternative options)
             if response.conversation_state in {
                 "NEEDS_DECISION",
@@ -327,13 +329,13 @@ class WhatsAppChannelAdapter(BaseChannelAdapter):
                     },
                 }
 
-        # 3. Standard Text Message
+        # 3. Standard Text Message (up to 4096 characters)
         return {
             "messaging_product": "whatsapp",
             "recipient_type": "individual",
             "to": to_number,
             "type": "text",
-            "text": {"body": body_text},
+            "text": {"body": response.text[:4096]},
         }
 
     # -----------------------------------------------------------------------

@@ -1,6 +1,7 @@
 """Autonomous Gemini ReAct agent engine for Swiggy Instamart grocery ordering."""
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import re
@@ -82,6 +83,14 @@ Your goal is to get the customer's groceries delivered to their doorstep with ze
   "🛵 *Order Status: {status}*
   ETA: ~{eta_minutes} mins
   Delivery Partner: {rider_name}"
+
+### MULTI-ITEM SEARCH & TURBO BATCHING:
+- When a customer asks for multiple items (e.g. 'brown bread and eggs' or 'milk, butter, curd'):
+  1. Emit `search_products` tool calls for ALL requested items SIMULTANEOUSLY in a single turn.
+  2. Once search results return, pick the top standard variant for each staple and emit a SINGLE `update_cart` tool call containing all items at once.
+  3. Never search one item, wait, search the next item, and wait. Batch your searches and updates!
+- If the cart returns `min_order_threshold` and `grand_total < min_order_threshold`, warn the customer:
+  "This store requires a minimum order of ₹{min_order_threshold}. Please add ₹{difference} more items to proceed."
 """
 
 # ============================================================================
@@ -223,6 +232,8 @@ class GroceryAgentEngine:
         self._customer_address: dict[str, str] = {}
         # Track pending checkout confirmation per customer
         self._pending_checkout: dict[str, bool] = {}
+        # Per-customer concurrency locks to serialize rapid-fire incoming messages
+        self._locks: dict[str, asyncio.Lock] = {}
 
     def _connect_url(self) -> str:
         base_url = (settings.CONNECT_BASE_URL or "https://grocerr.vercel.app").rstrip("/")
@@ -247,13 +258,91 @@ class GroceryAgentEngine:
             self._history[customer_id] = []
         return self._history[customer_id]
 
+    def _prune_history(self, customer_id: str) -> None:
+        """Keep conversation history bounded (6 turns) and compact past search returns."""
+        hist = self._history.get(customer_id, [])
+        if len(hist) > 12:
+            hist = hist[-12:]
+            self._history[customer_id] = hist
+
+        # Compact bulky product search returns from older turns
+        for entry in hist[:-2]:
+            if entry.get("role") == "user" and "parts" in entry:
+                for part in entry["parts"]:
+                    fn_resp = part.get("functionResponse", {})
+                    content = fn_resp.get("response", {}).get("content", {})
+                    if isinstance(content, dict) and "products" in content and len(content.get("products", [])) > 2:
+                        content["products"] = [
+                            {"name": p.get("name"), "spin_id": p.get("spin_id"), "unit_price": p.get("unit_price")}
+                            for p in content["products"][:2]
+                        ]
+
+    async def _poll_payment_status(
+        self,
+        *,
+        order_id: str,
+        recipient_id: str,
+        channel: ChannelType,
+        customer_id: str,
+        max_attempts: int = 12,
+        interval_seconds: float = 5.0,
+    ) -> None:
+        """Poll Swiggy order tracking every 5s for up to 60s to notify customer when payment completes."""
+        logger.info("Starting background payment poller for order_id=%s", order_id)
+        for _ in range(max_attempts):
+            await asyncio.sleep(interval_seconds)
+            try:
+                with self.commerce.customer_scope(customer_id):
+                    tracking = await self.commerce.track_order(order_id)
+                status_val = (
+                    tracking.status.value
+                    if hasattr(tracking.status, "value")
+                    else str(tracking.status)
+                ).upper()
+                if status_val in {"ORDER_PLACED", "CONFIRMED", "PACKING", "OUT_FOR_DELIVERY"}:
+                    logger.info("Payment confirmed by poller for order_id=%s status=%s", order_id, status_val)
+                    eta = f" ETA: ~{tracking.eta_minutes} mins." if tracking.eta_minutes else ""
+                    msg = NormalizedOutgoingResponse(
+                        recipient_id=recipient_id,
+                        channel=channel,
+                        text=(
+                            f"🎉 *Payment Confirmed!*\n\n"
+                            f"Your Swiggy Instamart order *#{order_id}* is placed and being prepared at the dark store.{eta}\n\n"
+                            f"You can message me *\"track order\"* anytime for live updates!"
+                        ),
+                        conversation_state="ORDER_PLACED",
+                        order_id=order_id,
+                    )
+                    from backend.channels.whatsapp import default_whatsapp_adapter
+                    await default_whatsapp_adapter.send_response(msg)
+                    return
+                if status_val in {"FAILED", "CANCELLED", "CANCELED"}:
+                    logger.warning("Order failed according to poller: %s", order_id)
+                    return
+            except Exception as exc:
+                logger.debug("Payment poller poll error for order_id=%s: %s", order_id, exc)
+
     async def handle_message(
         self, message: NormalizedIncomingMessage
     ) -> NormalizedOutgoingResponse:
-        """Process one WhatsApp turn through the autonomous Gemini agent loop."""
+        """Process one WhatsApp turn through the autonomous Gemini agent loop with per-customer serialization."""
+        incoming_text = (message.text or "").strip()
+        if incoming_text == "UNSUPPORTED_MEDIA":
+            return NormalizedOutgoingResponse(
+                recipient_id=message.sender_id,
+                channel=message.channel,
+                text=(
+                    "I can only read text messages right now! Please type your grocery items as text "
+                    "so I can check dark store stock and add them to your cart. 🛒"
+                ),
+                conversation_state="READY",
+            )
+
         customer_id = message.customer_id or message.sender_id
-        with self.commerce.customer_scope(customer_id):
-            return await self._process_scoped_message(message, customer_id)
+        lock = self._locks.setdefault(customer_id, asyncio.Lock())
+        async with lock:
+            with self.commerce.customer_scope(customer_id):
+                return await self._process_scoped_message(message, customer_id)
 
     async def _process_scoped_message(
         self, message: NormalizedIncomingMessage, customer_id: str
@@ -345,11 +434,8 @@ class GroceryAgentEngine:
                 "parts": parts,
             })
 
-            # Execute each function call and collect responses
-            tool_responses = []
-            auth_failed = False
-
-            for call in function_calls:
+            # Execute function calls concurrently and collect responses
+            async def _execute_single_call(call: dict[str, Any]) -> tuple[dict[str, Any], bool, bool, dict[str, Any] | None]:
                 fn_name = call.get("name")
                 fn_args = call.get("args", {})
                 call_id = call.get("id")
@@ -362,12 +448,8 @@ class GroceryAgentEngine:
                     fn_name, fn_args, customer_id=customer_id, address_id=address_id
                 )
 
-                if fn_name == "checkout":
-                    checkout_executed = True
-                    checkout_result = tool_result
-
-                if isinstance(tool_result, dict) and tool_result.get("error") == "AUTH_EXPIRED":
-                    auth_failed = True
+                is_checkout = (fn_name == "checkout")
+                is_auth_failed = isinstance(tool_result, dict) and tool_result.get("error") == "AUTH_EXPIRED"
 
                 tool_response_part = {
                     "functionResponse": {
@@ -381,7 +463,15 @@ class GroceryAgentEngine:
                 if call_id:
                     tool_response_part["functionResponse"]["id"] = call_id
 
-                tool_responses.append(tool_response_part)
+                return tool_response_part, is_auth_failed, is_checkout, (tool_result if is_checkout else None)
+
+            executed_calls = await asyncio.gather(*[_execute_single_call(c) for c in function_calls])
+            tool_responses = [ec[0] for ec in executed_calls]
+            auth_failed = any(ec[1] for ec in executed_calls)
+            for ec in executed_calls:
+                if ec[2]:
+                    checkout_executed = True
+                    checkout_result = ec[3]
 
             if auth_failed:
                 return self._auth_expired_response(message)
@@ -456,6 +546,16 @@ class GroceryAgentEngine:
                             final_text += f"\n\n👉 Complete payment to place your order: {pay_link}"
                         elif not pay_link and not link_present:
                             final_text += "\n\nPlease complete payment in your Swiggy app to finalize your order."
+
+                    if out_order_id:
+                        asyncio.create_task(
+                            self._poll_payment_status(
+                                order_id=out_order_id,
+                                recipient_id=message.sender_id,
+                                channel=message.channel,
+                                customer_id=customer_id,
+                            )
+                        )
                 elif status == "ORDER_PLACED":
                     conv_state = "ORDER_PLACED"
                 else:
@@ -479,6 +579,8 @@ class GroceryAgentEngine:
                     InteractiveAction(action_type="button", id="modify_cart", title="Change Items"),
                 ]
                 conv_state = "AWAITING_CHECKOUT_CONFIRMATION"
+
+        self._prune_history(customer_id)
 
         return NormalizedOutgoingResponse(
             recipient_id=message.sender_id,

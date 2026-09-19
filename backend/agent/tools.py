@@ -160,6 +160,9 @@ class SwiggyAgentTools:
                 "total_fees": total_fees,
                 "discount": cart.discount,
                 "grand_total": cart.grand_total,
+                "is_serviceable": cart.is_serviceable,
+                "min_order_threshold": cart.min_order_threshold,
+                "address_warning": cart.address_warning,
                 "formatted_item_total": _format_inr(cart.item_total),
                 "formatted_delivery_fee": _format_inr(cart.delivery_fee),
                 "formatted_packaging_fee": _format_inr(cart.packaging_fee),
@@ -190,7 +193,11 @@ class SwiggyAgentTools:
             updated: CommerceCart = await self.commerce.update_cart(
                 items=cart_updates, address_id=address_id
             )
-            verified: CommerceCart = await self.commerce.get_cart(updated.cart_id)
+            # Use updated cart directly if populated to save network roundtrip, otherwise fallback to get_cart
+            if updated.items or updated.grand_total > 0:
+                verified = updated
+            else:
+                verified = await self.commerce.get_cart(updated.cart_id)
             items_summary = [
                 {
                     "spin_id": item.spin_id,
@@ -216,6 +223,9 @@ class SwiggyAgentTools:
                 "total_fees": total_fees,
                 "discount": verified.discount,
                 "grand_total": verified.grand_total,
+                "is_serviceable": verified.is_serviceable,
+                "min_order_threshold": verified.min_order_threshold,
+                "address_warning": verified.address_warning,
                 "formatted_item_total": _format_inr(verified.item_total),
                 "formatted_delivery_fee": _format_inr(verified.delivery_fee),
                 "formatted_packaging_fee": _format_inr(verified.packaging_fee),

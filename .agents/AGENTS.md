@@ -223,9 +223,9 @@ If the answer is no, it does not belong in GROCER v2 unless the master spec is d
 
 ## 15. SESSION RESUME
 
-**Last completed:** Executed full codebase deep clean and architectural refactoring: purged 14 obsolete docs and dead migrations (70+ KB bloat), created clean migration `001_init_oauth_vault.sql` and `docs/SWIGGY_MCP_API.md`, overhauled Gemini 2.0 system prompt with zero-redundancy WhatsApp receipt layouts and hybrid staple auto-add vs. multi-variant choice, restructured Swiggy MCP tool returns with pre-computed currency strings (`₹XX`), added live `track_order` tool, consolidated `swiggy_normalizers.py` into `swiggy_parsers.py`, streamlined root `AGENTS.md` into a lean contract pointer, and synced graphify knowledge graph. All 264 backend unit and contract tests pass green (2.88s), `npm run lint` clean (0 errors), Next.js 16 production build compiles with Turbopack in 2.3s.
+**Last completed:** Executed full Turbo Speed & 9-Point Reliability Overhaul: upgraded default model to `gemini-flash-lite-latest` (1.13s generation), wired FastAPI `BackgroundTasks` for instant <100ms WhatsApp webhook acknowledgment (immune to Meta 15s timeouts), parallelized multi-item product searches with `asyncio.gather`, added per-customer `asyncio.Lock` to eliminate cart race conditions, capped conversation history to 6-turn sliding window with payload compaction, expanded standard WhatsApp text limits to 4,096 characters, added instant friendly replies for unsupported media, added autonomous background payment polling daemon (`_poll_payment_status`), and exposed store minimum order thresholds and serviceability. All 267 backend unit and contract tests pass green (2.80s), `npm run lint` clean (0 errors), Next.js 16 production build compiles with Turbopack in 2.2s.
 
 **Next implementation gate:** Complete live physical WhatsApp order placement and UPI QR checkout verification on WhatsApp.
 
-**Current status:** Live on GitHub `origin/main` (88 curated milestone commits), all 264 tests passing, Next.js build green, working tree clean.
+**Current status:** Live on GitHub `origin/main` (88 curated milestone commits), all 267 tests passing, Next.js build green, working tree clean.
 

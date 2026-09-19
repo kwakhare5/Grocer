@@ -1235,3 +1235,94 @@ async def test_preformatted_currency_in_cart_tools(mock_commerce):
     assert "formatted_total_fees" in cart_res
     assert "formatted_grand_total" in cart_res
     assert cart_res["formatted_grand_total"].startswith("₹")
+    assert "min_order_threshold" in cart_res
+    assert "is_serviceable" in cart_res
+
+
+@pytest.mark.asyncio
+async def test_unsupported_media_instant_reply(agent_engine):
+    """Voice notes, audio, and images receive an immediate friendly text response."""
+    msg = NormalizedIncomingMessage(
+        message_id="msg_media_1",
+        channel=ChannelType.WHATSAPP,
+        sender_id="+919876543210",
+        customer_id="cust_media",
+        text="UNSUPPORTED_MEDIA",
+    )
+    response = await agent_engine.handle_message(msg)
+    assert response.conversation_state == "READY"
+    assert "text messages right now" in response.text
+
+
+@pytest.mark.asyncio
+async def test_concurrent_tool_execution_gather(agent_engine):
+    """Verify multiple function calls in a single turn are executed concurrently via asyncio.gather."""
+    gemini_resp = {
+        "candidates": [
+            {
+                "content": {
+                    "parts": [
+                        {
+                            "functionCall": {
+                                "name": "search_products",
+                                "args": {"query": "bread"},
+                                "id": "call_1",
+                            }
+                        },
+                        {
+                            "functionCall": {
+                                "name": "search_products",
+                                "args": {"query": "eggs"},
+                                "id": "call_2",
+                            }
+                        },
+                    ]
+                }
+            }
+        ]
+    }
+    gemini_final = {
+        "candidates": [
+            {
+                "content": {
+                    "parts": [
+                        {"text": "Found bread and eggs."}
+                    ]
+                }
+            }
+        ]
+    }
+
+    with patch.object(agent_engine, "_call_gemini", side_effect=[gemini_resp, gemini_final]):
+        msg = NormalizedIncomingMessage(
+            message_id="msg_concurrent_1",
+            channel=ChannelType.WHATSAPP,
+            sender_id="+919876543210",
+            customer_id="cust_concurrent",
+            text="need bread and eggs",
+        )
+        response = await agent_engine.handle_message(msg)
+        assert response.text == "Found bread and eggs."
+        # History should have tool responses for both function calls
+        history = agent_engine.get_history("cust_concurrent")
+        tool_turn = next(h for h in history if h["role"] == "user" and "functionResponse" in h["parts"][0])
+        assert len(tool_turn["parts"]) == 2
+
+
+@pytest.mark.asyncio
+async def test_history_pruning_sliding_window(agent_engine):
+    """Verify history is capped to 12 entries and older search results are compacted."""
+    cid = "cust_prune_test"
+    # Populate with 14 turns
+    agent_engine._history[cid] = [
+        {"role": "user", "parts": [{"functionResponse": {"response": {"content": {"products": [{"name": f"P{i}"} for i in range(10)]}}}}]}
+        for i in range(14)
+    ]
+    agent_engine._prune_history(cid)
+    # Check sliding window
+    assert len(agent_engine._history[cid]) == 12
+    # Check compaction on older turns
+    older_entry = agent_engine._history[cid][0]
+    older_content = older_entry["parts"][0]["functionResponse"]["response"]["content"]
+    assert len(older_content["products"]) <= 2
+

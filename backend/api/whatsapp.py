@@ -4,16 +4,45 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-from fastapi import APIRouter, Header, HTTPException, Query, Request, Response, status
+from typing import Any
+from fastapi import APIRouter, BackgroundTasks, Header, HTTPException, Query, Request, Response, status
 from fastapi.responses import PlainTextResponse
 
 from backend.channels.whatsapp import default_whatsapp_adapter
-from backend.channels.models import NormalizedOutgoingResponse
+from backend.channels.models import NormalizedIncomingMessage, NormalizedOutgoingResponse
 from backend.config import settings
 
 logger = logging.getLogger("grocer.api.whatsapp")
 
 router = APIRouter(prefix="/api/whatsapp", tags=["whatsapp"])
+
+
+async def _dispatch_task_message(task_message: NormalizedIncomingMessage, engine: Any) -> None:
+    """Asynchronously process agent turn and deliver reply via WhatsApp Cloud API."""
+    try:
+        response = await engine.handle_message(task_message)
+        if not await default_whatsapp_adapter.send_response(response):
+            logger.error("WhatsApp response delivery failed for message_id=%s", task_message.message_id)
+    except asyncio.CancelledError:
+        raise
+    except Exception as exc:
+        logger.exception(
+            "Agent dispatch failed for message_id=%s error=%s",
+            task_message.message_id,
+            exc,
+        )
+        recovery = NormalizedOutgoingResponse(
+            recipient_id=task_message.sender_id,
+            channel=task_message.channel,
+            text=(
+                "I had a brief glitch processing that. Your basket is unchanged. "
+                "Please try sending your message again!"
+            ),
+            conversation_state="READY",
+        )
+        await default_whatsapp_adapter.send_response(recovery)
+
+
 @router.get("/webhook")
 async def verify_webhook(
     hub_mode: str = Query(None, alias="hub.mode"),
@@ -34,9 +63,10 @@ async def verify_webhook(
 @router.post("/webhook")
 async def receive_webhook(
     request: Request,
+    background_tasks: BackgroundTasks,
     x_hub_signature_256: str | None = Header(None, alias="X-Hub-Signature-256"),
 ) -> dict[str, str | int]:
-    """Meta WhatsApp Webhook event receiver with signature validation and duplicate event filtering."""
+    """Meta WhatsApp Webhook event receiver with fast background dispatch and duplicate event filtering."""
     body_bytes = await request.body()
     if len(body_bytes) > 1_000_000:
         raise HTTPException(
@@ -65,51 +95,20 @@ async def receive_webhook(
     incoming_messages = default_whatsapp_adapter.parse_webhook_payload(payload)
     logger.info("Parsed %d incoming message(s) from WhatsApp webhook", len(incoming_messages))
 
+    engine = getattr(request.app.state, "agent_engine", None)
+    if not engine:
+        raise RuntimeError("Agent engine is not configured.")
+
     processed_count = 0
-    failed_count = 0
     for incoming in incoming_messages:
-        try:
-            task_message = incoming.model_copy(
-                update={
-                    "customer_id": default_whatsapp_adapter.map_sender_to_customer_id(
-                        incoming.sender_id
-                    )
-                }
-            )
-            engine = getattr(request.app.state, "agent_engine", None)
-            if not engine:
-                raise RuntimeError("Agent engine is not configured.")
-            response = await engine.handle_message(task_message)
-
-            if not await default_whatsapp_adapter.send_response(response):
-                raise RuntimeError("WhatsApp response delivery failed.")
-            processed_count += 1
-        except asyncio.CancelledError:
-            raise
-        except Exception as exc:
-            logger.exception(
-                "Agent dispatch failed for message_id=%s error=%s",
-                incoming.message_id,
-                exc,
-            )
-            recovery = NormalizedOutgoingResponse(
-                recipient_id=incoming.sender_id,
-                channel=incoming.channel,
-                text=(
-                    "I had a brief glitch processing that. Your basket is unchanged. "
-                    "Please try sending your message again!"
-                ),
-                conversation_state="READY",
-            )
-            if await default_whatsapp_adapter.send_response(recovery):
-                processed_count += 1
-            else:
-                failed_count += 1
-
-    if failed_count:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="One or more messages could not be delivered.",
+        task_message = incoming.model_copy(
+            update={
+                "customer_id": default_whatsapp_adapter.map_sender_to_customer_id(
+                    incoming.sender_id
+                )
+            }
         )
+        background_tasks.add_task(_dispatch_task_message, task_message, engine)
+        processed_count += 1
 
     return {"status": "ok", "processed": processed_count}

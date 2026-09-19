@@ -29,6 +29,22 @@ export default function Home() {
     const params = new URLSearchParams(window.location.search);
     const code = params.get("code");
     const state = params.get("state");
+    const phoneParam = params.get("phone");
+
+    if (phoneParam) {
+      let digits = phoneParam.replace(/\D/g, "");
+      if (digits.startsWith("91") && digits.length > 10) {
+        digits = digits.slice(2);
+      }
+      if (digits.length > 10) {
+        digits = digits.slice(-10);
+      }
+      window.setTimeout(() => {
+        if (mounted) {
+          setPhone(digits);
+        }
+      }, 0);
+    }
 
     if (code && state) {
       window.setTimeout(() => {

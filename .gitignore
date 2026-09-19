@@ -36,3 +36,5 @@ Thumbs.db
 # git bundles / agent artifacts
 *.bundle
 skills-lock.json
+.vercel
+.env*

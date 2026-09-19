@@ -69,7 +69,7 @@ async def test_auth_expired_triggers_reconnect_prompt(agent_engine, mock_commerc
         )
         response = await agent_engine.handle_message(msg)
         assert "expired" in response.text.casefold()
-        assert "/connect" in response.text
+        assert "grocerr.vercel.app" in response.text
 
 
 @pytest.mark.asyncio
@@ -1131,7 +1131,7 @@ async def test_auth_expired_uses_default_connect_base(agent_engine, mock_commerc
             text="I need milk",
         )
         response = await agent_engine.handle_message(msg)
-        assert "https://grocer-backend-qwk4.onrender.com/connect?customer_id=cust_default_base" in response.text
+        assert "https://grocerr.vercel.app/?phone=%2B919876543210" in response.text
 
 
 

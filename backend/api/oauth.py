@@ -63,6 +63,16 @@ async def swiggy_callback(req: CallbackRequest) -> dict[str, bool]:
                 scope=str(token_data.get("scope", "mcp:tools")),
                 client_id=token_data.get("client_id"),
             )
+            if settings.SWIGGY_CUSTOMER_ID and settings.SWIGGY_CUSTOMER_ID != customer_id:
+                await default_token_vault.store_token_durable(
+                    customer_id=settings.SWIGGY_CUSTOMER_ID,
+                    access_token=access_token,
+                    expires_in=expires_in,
+                    token_type=str(token_data.get("token_type", "Bearer")),
+                    scope=str(token_data.get("scope", "mcp:tools")),
+                    client_id=token_data.get("client_id"),
+                )
+            settings.SWIGGY_AUTH_TOKEN = access_token
             return {"success": True}
         raise ValueError("Missing customer_id or access_token in exchange response")
     except Exception as exc:
@@ -79,30 +89,15 @@ async def connect_page(
     customer_id: Optional[str] = None,
     phone: Optional[str] = None,
 ) -> RedirectResponse:
-    """Browser entrypoint to initiate Swiggy OAuth flow."""
-    try:
-        if not customer_id and phone:
-            customer_id = whatsapp_customer_id(
-                phone,
-                default_whatsapp_adapter.app_secret or settings.WHATSAPP_APP_SECRET,
-            )
-        if not customer_id:
-            customer_id = getattr(settings, "SWIGGY_CUSTOMER_ID", "default_customer") or "default_customer"
-
-        base_url = str(request.base_url).rstrip("/")
-        redirect_uri = f"{base_url}/auth/callback"
-
-        authorize_url, _state = await default_oauth_manager.initiate_flow(
-            customer_id=customer_id,
-            redirect_uri=redirect_uri,
-        )
-        return RedirectResponse(url=authorize_url, status_code=307)
-    except Exception as exc:
-        logger.error("Could not initiate browser connection: %s", exc)
-        raise HTTPException(
-            status_code=502,
-            detail="We could not initiate the Swiggy connection. Please try again.",
-        ) from exc
+    """Redirect to the official whitelisted Vercel landing page."""
+    target = (settings.CONNECT_BASE_URL or "https://grocerr.vercel.app").rstrip("/") + "/"
+    if phone:
+        from urllib.parse import quote
+        target = f"{target}?phone={quote(phone)}"
+    elif customer_id:
+        from urllib.parse import quote
+        target = f"{target}?customer_id={quote(customer_id)}"
+    return RedirectResponse(url=target, status_code=307)
 
 
 @router.get("/auth/callback", response_class=HTMLResponse)
@@ -127,10 +122,13 @@ async def swiggy_callback_browser(code: str, state: str) -> HTMLResponse:
                 client_id=token_data.get("client_id"),
             )
             if settings.SWIGGY_CUSTOMER_ID and settings.SWIGGY_CUSTOMER_ID != customer_id:
-                default_token_vault.store_token(
+                await default_token_vault.store_token_durable(
                     customer_id=settings.SWIGGY_CUSTOMER_ID,
                     access_token=access_token,
                     expires_in=expires_in,
+                    token_type=str(token_data.get("token_type", "Bearer")),
+                    scope=str(token_data.get("scope", "mcp:tools")),
+                    client_id=token_data.get("client_id"),
                 )
 
             settings.SWIGGY_AUTH_TOKEN = access_token

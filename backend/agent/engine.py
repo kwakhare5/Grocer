@@ -192,20 +192,23 @@ class GroceryAgentEngine:
         # Track pending checkout confirmation per customer
         self._pending_checkout: dict[str, bool] = {}
 
-    def _connect_url(self, customer_id: str) -> str:
-        base_url = settings.CONNECT_BASE_URL or "https://grocer-backend-qwk4.onrender.com"
-        return f"{base_url.rstrip('/')}/connect?customer_id={quote(customer_id)}"
+    def _connect_url(self, customer_id: str, phone: Optional[str] = None) -> str:
+        base_url = (settings.CONNECT_BASE_URL or "https://grocerr.vercel.app").rstrip("/")
+        if phone:
+            return f"{base_url}/?phone={quote(phone)}"
+        return f"{base_url}/?customer_id={quote(customer_id)}"
 
     def _auth_expired_response(
         self, message: NormalizedIncomingMessage
     ) -> NormalizedOutgoingResponse:
         customer_id = message.customer_id or message.sender_id
+        phone = message.sender_id if message.sender_id and message.sender_id.replace("+", "").isdigit() else None
         return NormalizedOutgoingResponse(
             recipient_id=message.sender_id,
             channel=message.channel,
             text=(
                 "Your Swiggy login has expired. Please tap the link below to reconnect your Swiggy Instamart account so I can manage your groceries:\n\n"
-                f"👉 {self._connect_url(customer_id)}\n\n"
+                f"👉 {self._connect_url(customer_id, phone=phone)}\n\n"
                 "Once connected, message me again and we'll pick right back up!"
             ),
             conversation_state="AUTH_REQUIRED",

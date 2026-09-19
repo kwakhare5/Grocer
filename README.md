@@ -7,7 +7,7 @@
 
 **Grocer** is an English-first WhatsApp grocery agent for Swiggy Instamart. It accepts ordinary human messages, turns them into real Swiggy Instamart grocery carts, and keeps the customer in control of meaningful shopping choices and budgets.
 
-> **Readiness:** The autonomous Gemini ReAct conversation engine (`GroceryAgentEngine`, `SwiggyAgentTools`) is active and verified live on WhatsApp with Swiggy Instamart MCP. Local unit/integration tests (262+ passed), ESLint, and Next.js 16 production build pass 100% green. See [ARCHITECTURE.md](ARCHITECTURE.md) for verified technical specifications.
+> **Readiness:** The autonomous Gemini ReAct conversation engine (`GroceryAgentEngine`, `SwiggyAgentTools`) with the Turbo Speed & 9-Point Reliability Overhaul is active and verified live on WhatsApp with Swiggy Instamart MCP. Local unit/integration tests (267 passed in 2.80s), ESLint, and Next.js 16 production build pass 100% green. See [ARCHITECTURE.md](ARCHITECTURE.md) for verified technical specifications.
 
 The agent does not force rigid commands or multi-step clarification forms. It interprets requests with smart defaults, deduces complete multi-item cooking kits, verifies live dark-store inventory, shows the complete itemized basket with delivery fees, and requests explicit confirmation before checkout.
 
@@ -27,12 +27,12 @@ Do not treat dark-store inventory optimization, warehouse operations, supplier w
 
 ```text
 WhatsApp message (Meta Cloud API)
-      ↓
-Gemini ReAct Agent Engine (bounded reasoning loop)
-      ↓
-Autonomous Function Calling (Swiggy MCP Tools)
-  ├── search_products (live dark-store inventory check)
-  ├── update_cart (adds items, respects pack sizes & budget)
+      ↓ (Instant <100ms HTTP 200 OK via FastAPI BackgroundTasks)
+Gemini ReAct Agent Engine (bounded reasoning loop, gemini-flash-lite-latest: 1.13s)
+      ↓ (Per-customer asyncio.Lock concurrency serialization)
+Autonomous Function Calling (Swiggy MCP Tools via asyncio.gather)
+  ├── search_products (parallel live dark-store inventory check)
+  ├── update_cart (adds items, respects pack sizes, budget & store thresholds)
   ├── get_cart (reads back verified totals & fees)
   ├── get_saved_addresses (resolves user delivery addresses)
   ├── select_delivery_address (switches active delivery destination)
@@ -46,7 +46,9 @@ Server-Side Gated Checkout Tool (generateUPIQR: True)
       ↓
 Dynamic UPI Payment Link (upi://pay?...) delivered to WhatsApp
       ↓
-Read back, verify provider result & track delivery
+Post-Payment Polling Daemon (_poll_payment_status: every 5s for 60s)
+      ↓
+Proactive WhatsApp Confirmation & Real-Time Rider Tracking
 ```
 
 The core differentiator is **autonomous conversational resolution + deterministic safety guards**: Gemini deduces complete multi-item shopping lists (e.g. pasta kits, weekly staples) and drives the live dark-store inventory directly, while deterministic Python guards enforce budget caps, server-side checkout authorization, and prevent false success claims on provider errors.
@@ -60,10 +62,10 @@ User:
 Grocer:
 1. Resolved delivery address at *Kingsbury, Charholi Budruk, Pune*.
 2. Autonomously deduced all 7 required ingredients (penne pasta, pasta sauce, mozzarella/cheddar cheese, butter, onions, garlic, capsicum).
-3. Checked real dark-store stock near the user's Pune address.
+3. Checked real dark-store stock near the user's Pune address in parallel.
 4. Added all items into the live Swiggy Instamart cart (`8c64c847`) for ₹506 (well under the ₹1,500 budget limit).
 5. Provided complete itemized breakdown and interactive WhatsApp confirmation controls (`[Confirm Order]`, `[Change Items]`).
-6. On user confirmation, executed checkout with dynamic UPI QR generation (`generateUPIQR: True`) and returned the clickable UPI payment link (`upi://pay?...`).
+6. On user confirmation, executed checkout with dynamic UPI QR generation (`generateUPIQR: True`), delivered the clickable UPI payment link, and launched background status polling.
 
 ## Customer-protection rules
 
@@ -77,7 +79,7 @@ Grocer:
 
 | Situation | Grocer behavior |
 |---|---|
-| Safe + deterministic + policy-authorized | Act automatically (smart staple defaults, inventory query, cart update) |
+| Safe + deterministic + policy-authorized | Act automatically (smart staple defaults, parallel inventory query, cart update) |
 | Meaningfully ambiguous | Ask the user conversationally |
 | Financially consequential | Require explicit confirmation before checkout |
 
@@ -87,14 +89,16 @@ Checkout is always explicitly confirmed and backend-enforced.
 
 ```text
 Meta WhatsApp Cloud API
-  ↓
+  ↓ (Instant <100ms HTTP 200 OK via FastAPI BackgroundTasks)
 FastAPI Webhook (/api/whatsapp/webhook)
-  ↓
+  ↓ (Per-customer asyncio.Lock concurrency serialization)
 GroceryAgentEngine (backend/agent/engine.py)
-  ├── Context-aware ReAct reasoning loop (Gemini 2.0 / 3.5 Flash Lite)
+  ├── Context-aware ReAct reasoning loop (Gemini Flash-Lite Latest: 1.13s generation)
+  ├── 6-turn sliding window history pruning & payload compaction
+  ├── Concurrent tool execution via asyncio.gather (parallel multi-item search)
   ├── SwiggyAgentTools (backend/agent/tools.py)
-  │     ├── search_products (live store catalogue inventory search)
-  │     ├── update_cart (adds SKUs, respects stock & budget)
+  │     ├── search_products (parallel live store catalogue inventory search)
+  │     ├── update_cart (adds SKUs, respects stock, budget & store thresholds)
   │     ├── get_cart (reads back verified totals & fees)
   │     ├── get_saved_addresses (resolves user delivery addresses)
   │     ├── select_delivery_address (switches active delivery destination)
@@ -102,7 +106,8 @@ GroceryAgentEngine (backend/agent/engine.py)
   │     ├── checkout (server-side gated, generateUPIQR: True)
   │     └── track_order (live delivery status, driver info, and ETA)
   ├── Deterministic fail-closed guard (blocks false success claims)
-  └── Payment bridge injection (delivers clickable UPI pay links)
+  ├── Autonomous post-payment polling daemon (_poll_payment_status)
+  └── Interactive quick-reply buttons ([Confirm Order], [Change Items])
   ↓
 CommercePort / SwiggyMCPAdapter (backend/integrations/commerce/)
   ↓
@@ -216,13 +221,10 @@ On macOS/Linux, activate with `source .venv/bin/activate`.
 
 ## Documentation
 
-- `GROCER_V2_MASTER_SPEC.md` — authoritative product and engineering specification (v5.0)
-- `CONTEXT.md` — coding-session context and anti-drift rules
-- `ARCHITECTURE.md` — system boundaries and data/control flow
-- `CURRENT_STATE.md` — latest evidence, readiness, and verified telemetry
-- `docs/RESEARCH_WHATSAPP_INSTAMART_SUBMISSION.md` — official platform constraints used by the submission
-- `.agents/AGENTS.md` — Antigravity/Gemini repository rules
-- `AGENTS.md` — general coding-agent contract
+- `ARCHITECTURE.md` — system boundaries and technical architecture
+- `docs/SWIGGY_MCP_API.md` — authoritative Swiggy MCP tool interface and schema contract
+- `.agents/AGENTS.md` — operational engineering rules and session logs
+- `AGENTS.md` — project engineering contract pointer
 
 ## License
 

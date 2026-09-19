@@ -1,7 +1,7 @@
 import logging
-from typing import Optional
+from typing import Any, Optional
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Header, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from pydantic import BaseModel
 
@@ -81,6 +81,46 @@ async def swiggy_callback(req: CallbackRequest) -> dict[str, bool]:
             status_code=400,
             detail="We could not complete your Swiggy connection. Please start again.",
         ) from exc
+
+
+class TokenSyncRequest(BaseModel):
+    token: str
+    customer_id: Optional[str] = None
+    admin_secret: Optional[str] = None
+
+
+@router.post("/auth/token/sync")
+async def sync_token(
+    req: TokenSyncRequest,
+    x_admin_secret: Optional[str] = Header(None, alias="X-Admin-Secret"),
+) -> dict[str, Any]:
+    """Securely store an active Swiggy session token into the running vault."""
+    expected_secret = default_whatsapp_adapter.app_secret or settings.WHATSAPP_APP_SECRET
+    provided_secret = x_admin_secret or req.admin_secret
+    if not expected_secret or provided_secret != expected_secret:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    cid = req.customer_id or settings.SWIGGY_CUSTOMER_ID or "cust_wa_1d1bc7cf4da4a5eecef2dcd8"
+    entry = await default_token_vault.store_token_durable(
+        customer_id=cid,
+        access_token=req.token,
+        expires_in=86400 * 5,
+        token_type="Bearer",
+        scope="mcp:tools",
+        client_id=settings.SWIGGY_CLIENT_ID,
+    )
+    if settings.SWIGGY_CUSTOMER_ID and settings.SWIGGY_CUSTOMER_ID != cid:
+        await default_token_vault.store_token_durable(
+            customer_id=settings.SWIGGY_CUSTOMER_ID,
+            access_token=req.token,
+            expires_in=86400 * 5,
+            token_type="Bearer",
+            scope="mcp:tools",
+            client_id=settings.SWIGGY_CLIENT_ID,
+        )
+    settings.SWIGGY_AUTH_TOKEN = req.token
+    logger.info("Successfully synced active Swiggy token for %s", cid)
+    return {"success": True, "customer_id": cid, "expires_at": entry.expires_at}
 
 
 @router.get("/connect")

@@ -223,10 +223,10 @@ If the answer is no, it does not belong in GROCER v2 unless the master spec is d
 
 ## 15. SESSION RESUME
 
-**Last completed:** Stripped exposed phone numbers and query parameters (`?phone=`, `?customer_id=`) across reconnect URLs and landing page (`backend/agent/engine.py`, `backend/api/oauth.py`, `app/page.tsx`). Added fallback in `backend/integrations/commerce/token_vault.py` to `settings.SWIGGY_AUTH_TOKEN` when in-memory cache is empty for owner customer ID (`cust_wa_1d1bc7cf4da4a5eecef2dcd8`), eliminating false-positive token expiration on Render cold-starts. Upgraded address resolution in `engine.py` to prioritize Kingsbury/Pune as smart default, while adding `select_delivery_address` tool allowing full dynamic conversational location switching (e.g. "deliver to Nashik"). Made `sku_id` strictly mandatory in `update_cart` Gemini tool declaration schema to prevent Swiggy `MISSING_SKU` errors. Added 3 new unit tests with 261/261 tests passing hermetically in 2.89s, 0 ESLint errors, and Next.js 16 build passing with Turbopack. Staged, committed, and pushed to `main` (commit `38f4ca6`) and `dev-live-test` (commit `3f1c1cf`).
+**Last completed:** Fixed Vercel `502 Bad Gateway` by providing production Render default fallback in `app/api/_lib/backend.ts`. Added private authenticated `POST /api/auth/token/sync` endpoint in `backend/api/oauth.py` protected by `WHATSAPP_APP_SECRET`. Synced active Sept 23 Swiggy token to live Render container vault and disk storage (`.vault_tokens.json`). Verified end-to-end live: Vercel `/api/auth/swiggy/login` returns 200 OK; WhatsApp webhook successfully processed "i need bread and eggs", adding NOICE High Protein Eggs to live Swiggy Instamart cart ID `aa07e9e7` for Pune Kingsbury delivery. All 262 backend tests pass (2.58s), Next.js 16 build passed, 0 ESLint errors.
 
-**Next implementation gate:** Set `SWIGGY_AUTH_TOKEN` in Render dashboard environment variables to match active token, and conduct live WhatsApp end-to-end grocery cart ordering with Pune Kingsbury default and dynamic address switching.
+**Next implementation gate:** Add `SWIGGY_AUTH_TOKEN` to Render dashboard environment variables for cold-start boot persistence across future container rebuilds, and complete live physical WhatsApp order placement.
 
-**Current status:** Main repository (`D:\Grocer`) on branch `main` is authoritative, synchronized with remote `origin/main` (commit `38f4ca6`), working tree is clean.
+**Current status:** Main repository (`D:\Grocer`) on branch `main` is authoritative, synchronized with remote `origin/main` (commit `a6085e0`), working tree is clean.
 
 

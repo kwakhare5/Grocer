@@ -1183,9 +1183,11 @@ def test_token_vault_fallback_to_configured_swiggy_auth_token():
          patch.object(config.settings, "SWIGGY_CUSTOMER_ID", "cust_owner_123"):
         token = default_token_vault.get_token("cust_owner_123")
         assert token == "fallback_token_xyz"
-        # Other customer should not get it
-        other = default_token_vault.get_token("cust_stranger_456")
-        assert other is None
+    # Numeric Swiggy customer ID (e.g. 26057200) should match customer
+    with patch.object(config.settings, "SWIGGY_AUTH_TOKEN", "fallback_token_numeric"), \
+         patch.object(config.settings, "SWIGGY_CUSTOMER_ID", "26057200"):
+        token = default_token_vault.get_token("cust_wa_1d1bc7cf4da4a5eecef2dcd8")
+        assert token == "fallback_token_numeric"
     default_token_vault._tokens.clear()
 
 

@@ -203,12 +203,27 @@ class SwiggyTokenVault:
     def get_entry(self, customer_id: str) -> SwiggyTokenEntry | None:
         with self._lock:
             entry = self._tokens.get(customer_id)
-            if entry is None:
-                return None
-            if entry.is_expired:
-                del self._tokens[customer_id]
-                return None
-            return entry
+            if entry is not None:
+                if entry.is_expired:
+                    del self._tokens[customer_id]
+                else:
+                    return entry
+
+        # Fallback to configured SWIGGY_AUTH_TOKEN if active and customer matches
+        from backend.config import settings
+        if settings.SWIGGY_AUTH_TOKEN:
+            if not settings.SWIGGY_CUSTOMER_ID or settings.SWIGGY_CUSTOMER_ID == customer_id:
+                entry = self._new_entry(
+                    settings.SWIGGY_AUTH_TOKEN,
+                    expires_in=86400 * 5,
+                    token_type="Bearer",
+                    scope="mcp:tools",
+                    client_id=settings.SWIGGY_CLIENT_ID,
+                )
+                with self._lock:
+                    self._tokens[customer_id] = entry
+                return entry
+        return None
 
     def is_authenticated(self, customer_id: str) -> bool:
         return self.get_token(customer_id) is not None

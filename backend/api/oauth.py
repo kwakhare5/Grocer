@@ -86,17 +86,9 @@ async def swiggy_callback(req: CallbackRequest) -> dict[str, bool]:
 @router.get("/connect")
 async def connect_page(
     request: Request,
-    customer_id: Optional[str] = None,
-    phone: Optional[str] = None,
 ) -> RedirectResponse:
     """Redirect to the official whitelisted Vercel landing page."""
     target = (settings.CONNECT_BASE_URL or "https://grocerr.vercel.app").rstrip("/") + "/"
-    if phone:
-        from urllib.parse import quote
-        target = f"{target}?phone={quote(phone)}"
-    elif customer_id:
-        from urllib.parse import quote
-        target = f"{target}?customer_id={quote(customer_id)}"
     return RedirectResponse(url=target, status_code=307)
 
 

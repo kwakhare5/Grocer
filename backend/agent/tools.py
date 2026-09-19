@@ -97,6 +97,33 @@ class SwiggyAgentTools:
             logger.warning("get_saved_addresses failed for customer=%s: %s", customer_id, exc)
             return {"success": False, "error": str(exc)}
 
+    async def select_delivery_address(
+        self, customer_id: str, address_id: str
+    ) -> dict[str, Any]:
+        """Validate and select an active delivery address from saved addresses."""
+        if not address_id:
+            return {"success": False, "error": "address_id is required."}
+        try:
+            addresses: list[DeliveryAddress] = await self.commerce.get_addresses(customer_id)
+            matched = next((a for a in addresses if str(a.id) == str(address_id)), None)
+            if not matched:
+                return {
+                    "success": False,
+                    "error": f"Address ID '{address_id}' not found in user's saved addresses.",
+                }
+            return {
+                "success": True,
+                "address_id": matched.id,
+                "label": matched.label or matched.street or "Selected Address",
+                "street": matched.street,
+                "city": matched.city,
+            }
+        except ProviderAuthError as exc:
+            return {"success": False, "error": "AUTH_EXPIRED", "detail": str(exc)}
+        except Exception as exc:
+            logger.warning("select_delivery_address failed: %s", exc)
+            return {"success": False, "error": str(exc)}
+
     async def get_cart(self) -> dict[str, Any]:
         """Fetch current Swiggy Instamart cart contents and pricing."""
         try:
@@ -238,11 +265,25 @@ class SwiggyAgentTools:
 GEMINI_TOOL_DECLARATIONS = [
     {
         "name": "get_saved_addresses",
-        "description": "Fetch saved delivery addresses for the user from Swiggy Instamart. Call this first if you don't know the address_id.",
+        "description": "Fetch saved delivery addresses for the user from Swiggy Instamart. Call this first if you don't know the address_id or need to list available locations.",
         "parameters": {
             "type": "object",
             "properties": {},
             "required": [],
+        },
+    },
+    {
+        "name": "select_delivery_address",
+        "description": "Switch the active delivery destination. Call get_saved_addresses first to view address IDs, then call this tool when the user requests delivery to a specific location (e.g. Pune, Nashik, Sangvi).",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "address_id": {
+                    "type": "string",
+                    "description": "The target address_id from get_saved_addresses.",
+                },
+            },
+            "required": ["address_id"],
         },
     },
     {
@@ -274,7 +315,7 @@ GEMINI_TOOL_DECLARATIONS = [
     },
     {
         "name": "update_cart",
-        "description": "Add, modify, or set items in the Swiggy Instamart cart. Pass the spin_id, sku_id, and desired quantity.",
+        "description": "Add, modify, or set items in the Swiggy Instamart cart. Both spin_id and sku_id from search_products are strictly mandatory for every item.",
         "parameters": {
             "type": "object",
             "properties": {
@@ -289,7 +330,7 @@ GEMINI_TOOL_DECLARATIONS = [
                             "quantity": {"type": "integer", "description": "Quantity to set in the cart."},
                             "name": {"type": "string", "description": "Human-readable item name."},
                         },
-                        "required": ["spin_id", "quantity"],
+                        "required": ["spin_id", "sku_id", "quantity"],
                     },
                 },
                 "address_id": {

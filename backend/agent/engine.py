@@ -28,25 +28,30 @@ _SYSTEM_PROMPT = """You are GROCER, an exceptionally smart, friendly, and effici
 Your job is to make ordering groceries completely effortless for the customer:
 1. Tone: Natural, warm, concise, and helpful. Do not sound like a robot. Never give vague or generic non-answers.
 2. Tool Usage: You have direct tools to interact with Swiggy Instamart:
-   - `get_saved_addresses`: Use this to get the customer's delivery address.
+   - `get_saved_addresses`: Fetch user's saved addresses.
+   - `select_delivery_address`: Switch the active delivery destination.
    - `search_products`: Search the live catalogue for an address.
    - `get_cart`: View what is currently in the Swiggy cart.
-   - `update_cart`: Set or update items in the Swiggy cart.
+   - `update_cart`: Set or update items in the Swiggy cart. Always pass both spin_id and sku_id.
    - `clear_cart`: Clear the active cart.
    - `checkout`: Place the final order.
-3. Smart Defaults: When the customer asks for a staple (e.g. "dairy milk", "bread", "eggs", "milk"), search Swiggy, automatically pick the standard, most popular, in-stock variant (e.g. Cadbury Dairy Milk 24g, Britannia Brown Bread, Farm Fresh 6-pack Eggs), and add it directly to their cart. Do NOT stall the customer by asking which pack size or brand they want unless it is genuinely ambiguous or they ask for suggestions.
-4. Intent Preservation:
+3. Delivery Address Handling:
+   - The default delivery address is the user's primary residence in Pune (Kingsbury, Charholi Budruk).
+   - If the user requests delivery to another location (e.g., "deliver to Nashik", "send to Sangvi", "change address"), call `get_saved_addresses`, match their requested destination, call `select_delivery_address` with the matching `address_id`, and inform the user.
+   - Always clearly show the active delivery address street in the final basket confirmation.
+4. Smart Defaults: When the customer asks for a staple (e.g. "dairy milk", "bread", "eggs", "milk"), search Swiggy, automatically pick the standard, most popular, in-stock variant (e.g. Cadbury Dairy Milk 24g, Britannia Brown Bread, Farm Fresh 6-pack Eggs), and add it directly to their cart. Do NOT stall the customer by asking which pack size or brand they want unless it is genuinely ambiguous or they ask for suggestions.
+5. Intent Preservation:
    - If the user specifies constraints (e.g., "vegetarian", "under ₹500"), strictly adhere to them.
    - If an item is out of stock, pick a close in-stock substitute and inform the user conversationally.
    - Always report the items added, quantities, individual prices, and grand total.
-5. Checkout Safety Invariant:
+6. Checkout Safety Invariant:
    - NEVER call `checkout` until the customer has explicitly approved the final order summary (e.g. said "yes", "confirm", "order it", or tapped "Confirm Order").
    - When presenting the completed basket, show:
      • Item list with quantities and prices
      • Grand total in ₹
      • Delivering to (Address)
      Ask: "Would you like me to place this order?"
-6. Checkout & Payment Flow:
+7. Checkout & Payment Flow:
    - When the user approves the order, call `checkout` with `payment_method='UPI'`, `payment_option_kind='qr'`, and `is_user_confirmed=true`.
    - When `checkout` returns `status: PAYMENT_PENDING` with `bridge_url` or `upi_intent_url`, provide the clickable payment link clearly to the customer so they can complete payment. Do NOT claim the order is already placed/delivered until payment is completed.
    - If `checkout` returns `success: false` or an error, explain the issue honestly to the customer. NEVER claim or hallucinate that the order succeeded when checkout failed.
@@ -192,23 +197,19 @@ class GroceryAgentEngine:
         # Track pending checkout confirmation per customer
         self._pending_checkout: dict[str, bool] = {}
 
-    def _connect_url(self, customer_id: str, phone: Optional[str] = None) -> str:
+    def _connect_url(self) -> str:
         base_url = (settings.CONNECT_BASE_URL or "https://grocerr.vercel.app").rstrip("/")
-        if phone:
-            return f"{base_url}/?phone={quote(phone)}"
-        return f"{base_url}/?customer_id={quote(customer_id)}"
+        return f"{base_url}/"
 
     def _auth_expired_response(
         self, message: NormalizedIncomingMessage
     ) -> NormalizedOutgoingResponse:
-        customer_id = message.customer_id or message.sender_id
-        phone = message.sender_id if message.sender_id and message.sender_id.replace("+", "").isdigit() else None
         return NormalizedOutgoingResponse(
             recipient_id=message.sender_id,
             channel=message.channel,
             text=(
                 "Your Swiggy login has expired. Please tap the link below to reconnect your Swiggy Instamart account so I can manage your groceries:\n\n"
-                f"👉 {self._connect_url(customer_id, phone=phone)}\n\n"
+                f"👉 {self._connect_url()}\n\n"
                 "Once connected, message me again and we'll pick right back up!"
             ),
             conversation_state="AUTH_REQUIRED",
@@ -245,7 +246,19 @@ class GroceryAgentEngine:
                     return self._auth_expired_response(message)
                 if addr_res.get("success") and addr_res.get("addresses"):
                     addresses = addr_res["addresses"]
-                    default_addr = next((a for a in addresses if a.get("is_default")), addresses[0])
+                    # Smart Pune Default: prioritize Kingsbury / Pune / Charholi
+                    pune_addr = next(
+                        (
+                            a
+                            for a in addresses
+                            if any(
+                                k in (a.get("label", "") + " " + a.get("street", "") + " " + a.get("city", "")).casefold()
+                                for k in ("kingsbury", "pune", "charholi")
+                            )
+                        ),
+                        None,
+                    )
+                    default_addr = pune_addr or next((a for a in addresses if a.get("is_default")), addresses[0])
                     address_id = default_addr["address_id"]
                     self._customer_address[customer_id] = address_id
             except Exception:
@@ -452,6 +465,11 @@ class GroceryAgentEngine:
         logger.info("Executing agent tool call: %s with args: %s", name, args)
         if name == "get_saved_addresses":
             return await self.tools.get_saved_addresses(customer_id)
+        elif name == "select_delivery_address":
+            res = await self.tools.select_delivery_address(customer_id, args.get("address_id", ""))
+            if res.get("success") and res.get("address_id"):
+                self._customer_address[customer_id] = res["address_id"]
+            return res
         elif name == "search_products":
             addr = args.get("address_id") or address_id
             return await self.tools.search_products(args.get("query", ""), address_id=addr)

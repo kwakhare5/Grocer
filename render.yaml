@@ -40,4 +40,8 @@ services:
         sync: false
       - key: CONNECT_BASE_URL
         sync: false
+      - key: SWIGGY_AUTH_TOKEN
+        sync: false
+      - key: SWIGGY_CUSTOMER_ID
+        sync: false
 

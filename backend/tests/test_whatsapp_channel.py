@@ -138,5 +138,13 @@ async def test_signed_webhook_reaches_active_task_service(monkeypatch) -> None:
 
     assert first.status_code == 200
     assert replay.status_code == 200
-    assert engine.processed == [message_id, message_id]
-    assert len(default_whatsapp_adapter.outbound_messages) == 2
+    # True idempotency invariant: replay of identical message_id MUST NOT duplicate execution or delivery
+    assert engine.processed == [message_id]
+    assert len(default_whatsapp_adapter.outbound_messages) == 1
+
+
+@pytest.mark.asyncio
+async def test_mark_message_read_record_only(whatsapp_adapter: WhatsAppChannelAdapter) -> None:
+    """mark_message_read should exit cleanly when in record_only or unconfigured state."""
+    res = await whatsapp_adapter.mark_message_read("wamid.test_read_1")
+    assert res is False

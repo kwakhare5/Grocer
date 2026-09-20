@@ -32,12 +32,12 @@ def clean_address(street: str, city: Optional[str] = None) -> str:
     if not street:
         return city or "Your Saved Location"
 
-    # Remove user name prefixes like 'Karan Wakhare:'
+    # Remove user name prefixes like 'Customer Name:'
     text = re.sub(r"^[^:]+:\s*", "", street).strip()
     # Strip postal codes, states, and country tags
     text = re.sub(r",?\s*(?:India|Maharashtra|\b\d{6}\b)\s*", "", text, flags=re.IGNORECASE).strip(" ,")
 
-    # Deduplicate repeated words/phrases (e.g. 'Kingsbury, Kingsbury')
+    # Deduplicate repeated words/phrases (e.g. 'Green Park, Green Park')
     parts = [p.strip() for p in text.split(",") if p.strip()]
     seen = set()
     cleaned_parts = []
@@ -55,7 +55,7 @@ def clean_address(street: str, city: Optional[str] = None) -> str:
 
 def format_cart_receipt(
     cart: CommerceCart,
-    delivery_location: str = "Kingsbury, Pune",
+    delivery_location: str = "Home",
 ) -> str:
     """Deterministically format verified cart state into a clean WhatsApp receipt card."""
     if not cart.items:
@@ -158,6 +158,7 @@ class SwiggyAgentTools:
                     "label": a.label or a.street or "Saved Address",
                     "street": a.street,
                     "city": a.city,
+                    "is_default": getattr(a, "is_default", False),
                     "clean_address": clean_address(a.street, a.city),
                 }
                 for a in addresses
@@ -200,7 +201,7 @@ class SwiggyAgentTools:
             logger.warning("select_delivery_address failed: %s", exc)
             return {"success": False, "error": str(exc)}
 
-    async def get_cart(self, delivery_location: str = "Kingsbury, Pune") -> dict[str, Any]:
+    async def get_cart(self, delivery_location: str = "Home") -> dict[str, Any]:
         """Fetch current Swiggy Instamart cart contents and pre-computed pricing."""
         try:
             cart: CommerceCart = await self.commerce.get_cart()
@@ -255,7 +256,7 @@ class SwiggyAgentTools:
         self,
         items: list[dict[str, Any]],
         address_id: str,
-        delivery_location: str = "Kingsbury, Pune",
+        delivery_location: str = "Home",
     ) -> dict[str, Any]:
         """Update Swiggy Instamart cart with item updates and return pre-computed pricing."""
         try:

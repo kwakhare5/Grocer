@@ -1136,42 +1136,42 @@ async def test_auth_expired_uses_default_connect_base(agent_engine, mock_commerc
 
 
 @pytest.mark.asyncio
-async def test_smart_pune_default_address_prioritization(agent_engine, mock_commerce):
-    """Engine should prioritize Pune/Kingsbury address over other addresses as default."""
+async def test_default_address_prioritization(agent_engine, mock_commerce):
+    """Engine should prioritize customer's is_default address over other addresses."""
     from backend.integrations.commerce.models import DeliveryAddress
-    nashik = DeliveryAddress(id="addr_nashik", label="Home", street="Flat 201, Nashik", city="Nashik")
-    pune = DeliveryAddress(id="addr_pune_kingsbury", label="Pune", street="Flat 1204, Kingsbury, Charholi Budruk, Pune", city="Pune")
-    mock_commerce.get_addresses = AsyncMock(return_value=[nashik, pune])
+    secondary = DeliveryAddress(id="addr_secondary", label="Work", street="Tower B, Business Hub", city="Bangalore")
+    primary = DeliveryAddress(id="addr_primary", label="Home", street="Flat 402, Green Park", city="Bangalore", is_default=True)
+    mock_commerce.get_addresses = AsyncMock(return_value=[secondary, primary])
 
     msg = NormalizedIncomingMessage(
         message_id="msg_addr_test_1",
         channel=ChannelType.WHATSAPP,
         sender_id="+919876543210",
-        customer_id="cust_pune_pref",
+        customer_id="cust_addr_pref",
         text="hi",
     )
     with patch.object(agent_engine, "_call_gemini", return_value={"candidates": [{"content": {"parts": [{"text": "Hello!"}]}}]}):
         await agent_engine.handle_message(msg)
-        assert agent_engine._customer_address.get("cust_pune_pref") == "addr_pune_kingsbury"
+        assert agent_engine._customer_address.get("cust_addr_pref") == "addr_primary"
 
 
 @pytest.mark.asyncio
 async def test_select_delivery_address_tool(agent_engine, mock_commerce):
     """Tool can switch delivery address to any valid saved address."""
     from backend.integrations.commerce.models import DeliveryAddress
-    nashik = DeliveryAddress(id="addr_nashik", label="Home", street="Flat 201, Nashik", city="Nashik")
-    pune = DeliveryAddress(id="addr_pune", label="Pune", street="Kingsbury, Pune", city="Pune")
-    mock_commerce.get_addresses = AsyncMock(return_value=[nashik, pune])
+    addr1 = DeliveryAddress(id="addr_home", label="Home", street="Flat 402, Green Park", city="Bangalore")
+    addr2 = DeliveryAddress(id="addr_work", label="Work", street="Tower B, Tech Park", city="Bangalore")
+    mock_commerce.get_addresses = AsyncMock(return_value=[addr1, addr2])
 
     res = await agent_engine._execute_tool(
         "select_delivery_address",
-        {"address_id": "addr_nashik"},
+        {"address_id": "addr_home"},
         customer_id="cust_switch_test",
-        address_id="addr_pune",
+        address_id="addr_work",
     )
     assert res["success"] is True
-    assert res["address_id"] == "addr_nashik"
-    assert agent_engine._customer_address["cust_switch_test"] == "addr_nashik"
+    assert res["address_id"] == "addr_home"
+    assert agent_engine._customer_address["cust_switch_test"] == "addr_home"
 
 
 def test_token_vault_fallback_to_configured_swiggy_auth_token():
@@ -1331,15 +1331,15 @@ def test_clean_address_deduplication_and_formatting():
     """Verify raw repetitive address string is formatted cleanly for WhatsApp."""
     from backend.agent.tools import clean_address
 
-    raw_addr = "Karan Wakhare: flat number 1204, Kingsbury, Kingsbury, DY Patil University Road, Charholi Budruk, Pune, Maharashtra 412105, India"
-    cleaned = clean_address(raw_addr, "Pune")
-    assert "Karan Wakhare:" not in cleaned
+    raw_addr = "John Doe: flat number 1204, Green Park, Green Park, Central Avenue, Sector 5, Bangalore, Karnataka 560001, India"
+    cleaned = clean_address(raw_addr, "Bangalore")
+    assert "John Doe:" not in cleaned
     assert "India" not in cleaned
-    assert "412105" not in cleaned
-    assert "Maharashtra" not in cleaned
-    assert "Kingsbury, Kingsbury" not in cleaned
+    assert "560001" not in cleaned
+    assert "Karnataka" not in cleaned
+    assert "Green Park, Green Park" not in cleaned
     assert "flat number 1204" in cleaned
-    assert "Pune" in cleaned
+    assert "Bangalore" in cleaned
 
 
 def test_format_cart_receipt_mathematical_consistency():
@@ -1376,13 +1376,13 @@ def test_format_cart_receipt_mathematical_consistency():
         grand_total=149.0,
     )
 
-    receipt = format_cart_receipt(cart, "Flat 1204, Kingsbury, Pune")
+    receipt = format_cart_receipt(cart, "Flat 402, Green Park, Bangalore")
     assert "*Subtotal:* ₹128" in receipt
     assert "*Delivery Fee:* FREE (₹0)" in receipt
     assert "*Packaging & Handling:* ₹15" in receipt
     assert "*Taxes (GST):* ₹6" in receipt
     assert "*Grand Total:* ₹149" in receipt
-    assert "📍 *Delivering to:* Flat 1204, Kingsbury, Pune" in receipt
+    assert "📍 *Delivering to:* Flat 402, Green Park, Bangalore" in receipt
 
 
 @pytest.mark.asyncio
@@ -1403,7 +1403,7 @@ async def test_tools_cart_fee_itemization(agent_engine):
         )
     )
 
-    res = await agent_engine.tools.get_cart(delivery_location="Kingsbury, Pune")
+    res = await agent_engine.tools.get_cart(delivery_location="Green Park, Bangalore")
     assert res["success"] is True
     assert res["item_total"] == 128.0
     assert res["packaging_fee"] == 5.0
@@ -1443,6 +1443,45 @@ def test_swiggy_parser_bill_reconciliation():
     assert cart.grand_total == 149.0
     # Strict reconciliation check: 128 + 0 + 15 + 6 == 149
     assert cart.item_total + cart.delivery_fee + cart.packaging_fee + cart.handling_fee + cart.taxes - cart.discount == cart.grand_total
+
+
+@pytest.mark.asyncio
+async def test_self_healing_on_http_400(agent_engine):
+    """Verify that _call_gemini recovers cleanly when multi-turn history returns 400 Bad Request."""
+    import httpx
+
+    call_count = 0
+
+    async def mock_post(url, json=None, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1 and len(json.get("contents", [])) > 1:
+            # Simulate Gemini rejecting corrupted history with 400
+            return httpx.Response(
+                400,
+                text="Function call is missing a thought_signature",
+                request=httpx.Request("POST", url),
+            )
+        # Self-healed turn returns 200
+        return httpx.Response(
+            200,
+            json={"candidates": [{"content": {"parts": [{"text": "Self healed response"}]}}]},
+            request=httpx.Request("POST", url),
+        )
+
+    client = await agent_engine._get_client()
+    agent_engine._client.post = mock_post
+
+    corrupt_history = [
+        {"role": "user", "parts": [{"text": "old message"}]},
+        {"role": "model", "parts": [{"functionCall": {"name": "test", "args": {}}}]},
+        {"role": "user", "parts": [{"text": "bourbon and jim jam"}]},
+    ]
+    res = await agent_engine._call_gemini(corrupt_history)
+    assert res is not None
+    assert call_count == 2
+    assert len(corrupt_history) == 1
+    assert corrupt_history[0]["parts"][0]["text"] == "bourbon and jim jam"
 
 
 

@@ -45,14 +45,27 @@ Your mission is to get the customer's groceries delivered to their doorstep with
      3. Cadbury Bournville Dark (80g) — ₹110
      Which one would you like?"
 3. Composite / Meal / Recipe / Occasion Intent:
-   When the customer asks for a dish, meal, event, or budget bundle (e.g. "pasta groceries under 500", "chai and snacks for 4", "breakfast for two", "weekly essentials under 2000"):
+   When the customer asks for a dish, meal, event, or budget bundle (e.g. "pasta groceries under 500", "chai and snacks for 4", "breakfast for two under 200", "weekly essentials under 2000"):
    - A dish is a complete kit. Proactively infer essential ingredients (Core carbs + Sauce/Body + Dairy/Protein + Aromatics) within the budget.
+   - When a strict budget is given, choose key essential items so the total including delivery/packaging fees stays strictly within the budget.
    - Search products in parallel, add the complete kit to the basket in one `update_cart` call, and ask if they'd like to add any extras.
-4. Conversational Disambiguation & Deltas:
+4. Problem / Symptom / Situational Care Intent:
+   When the customer describes a symptom, ritual, or situation without naming products (e.g. "terrible cold and sore throat", "upset stomach / light food", "midnight study snacks", "pooja samagri"):
+   - Proactively infer what is needed and search concurrently in parallel:
+     * Cold/Headache: search Crocin/Paracetamol, Strepsils, Vicks, and Green/Herbal tea.
+     * Upset stomach: search Dahi/curd, bananas, oats/khichdi.
+     * Study/Midnight snacks: search chips, chocolate, almonds, instant noodles.
+     * Pooja ritual: search agarbatti, camphor/kapoor, ghee.
+   - Add the essential care kit to the basket with `update_cart` and show the receipt.
+5. Conversational Disambiguation & Deltas:
    - If you presented a list of numbered choices and the customer replies with an ambiguous affirmation ("ok", "yes", "sure", "add it"), NEVER guess an arbitrary item. Ask:
      "Which one would you like me to add? Reply 1, 2, or 3 (or name the item)."
    - If the customer uses a relative reference ("the second one", "cheapest", "the 1kg one", "the dark chocolate"), resolve the referenced item and add it.
    - When modifying the cart ("remove the sauce", "make it 2 packs"), pass the cumulative cart items with the change to `update_cart`.
+
+### TOOL CALL EFFICIENCY & PARALLEL EXECUTION:
+- When searching for multiple items or building a meal/bundle, ALWAYS execute all search queries concurrently in a SINGLE turn using parallel tool calls. NEVER search for items one at a time across multiple turns.
+- After receiving search results, immediately call `update_cart` with all matched items.
 
 ### BASKET & RECEIPT RULE:
 - When presenting the customer's basket, output the verified `formatted_receipt` provided by `update_cart` or `get_cart`.
@@ -216,6 +229,28 @@ class GroceryAgentEngine:
         self._pending_checkout: dict[str, bool] = {}
         # Per-customer concurrency locks to serialize rapid-fire incoming messages
         self._locks: dict[str, asyncio.Lock] = {}
+        # Pacing timestamp for rate-limit protection
+        self._last_call_time: float = 0.0
+        # Telemetry for health and debugging
+        self.last_gemini_error: Optional[str] = None
+        self.last_turn_latency_ms: Optional[float] = None
+        # Persistent HTTP client with connection pooling
+        self._client: Optional[httpx.AsyncClient] = None
+
+    async def _get_client(self) -> httpx.AsyncClient:
+        """Get or initialize persistent HTTP/2 client with keep-alive connection pool."""
+        if self._client is None or self._client.is_closed:
+            self._client = httpx.AsyncClient(
+                timeout=self.timeout,
+                limits=httpx.Limits(max_keepalive_connections=10, max_connections=20),
+            )
+        return self._client
+
+    async def close(self) -> None:
+        """Close persistent HTTP connection pool on shutdown."""
+        if self._client and not self._client.is_closed:
+            await self._client.aclose()
+            self._client = None
 
     def _connect_url(self) -> str:
         base_url = (settings.CONNECT_BASE_URL or "https://grocerr.vercel.app").rstrip("/")
@@ -320,11 +355,22 @@ class GroceryAgentEngine:
                 conversation_state="READY",
             )
 
+        start_time = asyncio.get_running_loop().time()
         customer_id = message.customer_id or message.sender_id
         lock = self._locks.setdefault(customer_id, asyncio.Lock())
         async with lock:
             with self.commerce.customer_scope(customer_id):
-                return await self._process_scoped_message(message, customer_id)
+                result = await self._process_scoped_message(message, customer_id)
+                self.last_turn_latency_ms = round(
+                    (asyncio.get_running_loop().time() - start_time) * 1000, 1
+                )
+                logger.info(
+                    "Turn completed for customer=%s in %.1fms (state=%s)",
+                    customer_id,
+                    self.last_turn_latency_ms,
+                    result.conversation_state,
+                )
+                return result
 
     async def _process_scoped_message(
         self, message: NormalizedIncomingMessage, customer_id: str
@@ -350,23 +396,12 @@ class GroceryAgentEngine:
                     return self._auth_expired_response(message)
                 if addr_res.get("success") and addr_res.get("addresses"):
                     addresses = addr_res["addresses"]
-                    # Smart Pune Default: prioritize Kingsbury / Pune / Charholi
-                    pune_addr = next(
-                        (
-                            a
-                            for a in addresses
-                            if any(
-                                k in (a.get("label", "") + " " + a.get("street", "") + " " + a.get("city", "")).casefold()
-                                for k in ("kingsbury", "pune", "charholi")
-                            )
-                        ),
-                        None,
-                    )
-                    default_addr = pune_addr or next((a for a in addresses if a.get("is_default")), addresses[0])
+                    # Prioritize customer's Swiggy default address, fallback to first saved address
+                    default_addr = next((a for a in addresses if a.get("is_default")), addresses[0])
                     address_id = default_addr["address_id"]
                     self._customer_address[customer_id] = address_id
                     self._customer_address_label[customer_id] = (
-                        default_addr.get("clean_address") or default_addr.get("label") or "Kingsbury, Pune"
+                        default_addr.get("clean_address") or default_addr.get("label") or "Home"
                     )
             except Exception:
                 pass
@@ -377,15 +412,20 @@ class GroceryAgentEngine:
             "parts": [{"text": incoming_text}],
         })
 
-        # Bounded ReAct loop (up to 6 function call steps)
-        max_iterations = 6
+        # Bounded ReAct loop (up to 8 function call steps)
+        max_iterations = 8
         final_text = ""
         actions: list[InteractiveAction] = []
         checkout_executed = False
         checkout_result: dict[str, Any] | None = None
+        last_cart_receipt: str | None = None
+        last_cart_total: float | None = None
+        addr_lbl = self._customer_address_label.get(customer_id)
 
         for _ in range(max_iterations):
-            response_data = await self._call_gemini(history, address_id=address_id)
+            response_data = await self._call_gemini(
+                history, address_id=address_id, address_label=addr_lbl
+            )
             if not response_data:
                 final_text = "I'm having a brief connection hiccup. Please try again in a moment."
                 break
@@ -454,6 +494,13 @@ class GroceryAgentEngine:
             tool_responses = [ec[0] for ec in executed_calls]
             auth_failed = any(ec[1] for ec in executed_calls)
             for ec in executed_calls:
+                resp_part = ec[0].get("functionResponse", {})
+                fn_content = resp_part.get("response", {}).get("content", {})
+                if isinstance(fn_content, dict):
+                    if fn_content.get("formatted_receipt"):
+                        last_cart_receipt = fn_content["formatted_receipt"]
+                    if fn_content.get("grand_total") is not None:
+                        last_cart_total = float(fn_content["grand_total"])
                 if ec[2]:
                     checkout_executed = True
                     checkout_result = ec[3]
@@ -565,6 +612,11 @@ class GroceryAgentEngine:
                 ]
                 conv_state = "AWAITING_CHECKOUT_CONFIRMATION"
 
+        if (not final_text.strip() or final_text.strip() == "How can I help with your groceries today?") and last_cart_receipt:
+            final_text = last_cart_receipt
+        if out_order_total is None and last_cart_total is not None:
+            out_order_total = last_cart_total
+
         self._prune_history(customer_id)
 
         return NormalizedOutgoingResponse(
@@ -603,11 +655,11 @@ class GroceryAgentEngine:
             addr = args.get("address_id") or address_id
             return await self.tools.search_products(args.get("query", ""), address_id=addr)
         elif name == "get_cart":
-            loc = self._customer_address_label.get(customer_id, "Kingsbury, Pune")
+            loc = self._customer_address_label.get(customer_id, "Home")
             return await self.tools.get_cart(delivery_location=loc)
         elif name == "update_cart":
             addr = args.get("address_id") or address_id
-            loc = self._customer_address_label.get(customer_id, "Kingsbury, Pune")
+            loc = self._customer_address_label.get(customer_id, "Home")
             return await self.tools.update_cart(
                 args.get("items", []), address_id=addr or "", delivery_location=loc
             )
@@ -626,25 +678,74 @@ class GroceryAgentEngine:
         return {"error": f"Unknown tool: {name}"}
 
     async def _call_gemini(
-        self, contents: list[dict[str, Any]], *, address_id: Optional[str] = None
+        self,
+        contents: list[dict[str, Any]],
+        *,
+        address_id: Optional[str] = None,
+        address_label: Optional[str] = None,
     ) -> Optional[dict[str, Any]]:
-        """Perform one HTTP POST request to Gemini v1beta generateContent."""
+        """Perform one HTTP POST request to Gemini v1beta generateContent using pooled connection."""
+        system_text = _SYSTEM_PROMPT
+        if address_id:
+            loc = address_label or "Saved Delivery Address"
+            system_text += (
+                f"\n\n### ACTIVE DELIVERY CONTEXT (PRE-SELECTED):\n"
+                f"- Active delivery address is already selected: {loc} (ID: `{address_id}`).\n"
+                f"- You do NOT need to call `get_saved_addresses` or `select_delivery_address` unless the customer explicitly requests to change their address."
+            )
+
         url = f"{_API_ROOT}/{self.model}:generateContent?key={self.api_key}"
         payload = {
-            "systemInstruction": {"parts": [{"text": _SYSTEM_PROMPT}]},
+            "systemInstruction": {"parts": [{"text": system_text}]},
             "contents": contents,
             "tools": [{"functionDeclarations": GEMINI_TOOL_DECLARATIONS}],
             "generationConfig": {
                 "temperature": 0.2,
             },
         }
-        try:
-            async with httpx.AsyncClient(timeout=self.timeout) as client:
+        max_retries = 3
+        backoff = 4.0
+        client = await self._get_client()
+
+        for attempt in range(max_retries):
+            try:
                 resp = await client.post(url, json=payload)
+                if resp.status_code == 429:
+                    logger.warning(
+                        "Gemini 429 rate limit encountered. Retrying in %.1fs (attempt %d/%d)...",
+                        backoff,
+                        attempt + 1,
+                        max_retries,
+                    )
+                    await asyncio.sleep(backoff)
+                    backoff *= 2.0
+                    continue
+
+                if resp.status_code == 400 and len(contents) > 1:
+                    logger.warning(
+                        "Gemini 400 invalid argument on multi-turn history (%s). Self-healing by retrying with current turn only.",
+                        resp.text[:200],
+                    )
+                    # Self-healing: update in-place so engine history is cleared of corrupt older turns
+                    last_turn = contents[-1]
+                    contents.clear()
+                    contents.append(last_turn)
+                    payload["contents"] = [last_turn]
+                    resp = await client.post(url, json=payload)
+                    if resp.status_code == 200:
+                        return resp.json()
+
                 if resp.status_code != 200:
-                    logger.error("Gemini API returned status %d: %s", resp.status_code, resp.text[:300])
+                    err_text = f"HTTP {resp.status_code}: {resp.text[:300]}"
+                    logger.error("Gemini API returned %s", err_text)
+                    self.last_gemini_error = err_text
                     return None
                 return resp.json()
-        except Exception as exc:
-            logger.error("Gemini request failed: %s", exc)
-            return None
+            except Exception as exc:
+                err_text = f"Exception: {type(exc).__name__} - {exc}"
+                logger.error("Gemini request failed on attempt %d: %s", attempt + 1, exc)
+                self.last_gemini_error = err_text
+                if attempt == max_retries - 1:
+                    return None
+                await asyncio.sleep(backoff)
+        return None

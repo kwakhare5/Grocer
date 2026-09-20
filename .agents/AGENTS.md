@@ -14,8 +14,6 @@
 
 **Commerce foundation:** `CommercePort` with `MockCommerceAdapter` and `SwiggyMCPAdapter`.
 
-**Companion repository:** `https://github.com/kwakhare5/Dark-store-operator`
-
 ### Critical anti-drift rule
 
 > **GROCER is not a new dark-store project, generic shopping chatbot, or separate Intent product. Intent is an extension of the existing GROCER WhatsApp agent.**
@@ -223,9 +221,9 @@ If the answer is no, it does not belong in GROCER v2 unless the master spec is d
 
 ## 15. SESSION RESUME
 
-**Last completed:** Executed Full 10-Dimension Cognitive Architecture & Radical Prompt Simplification: resolved the mystery ₹21 fee with strict mathematical reconciliation (`handling_fee`, `taxes`, `packaging_fee`, `delivery_fee`, and line items) where $\text{Subtotal} + \text{All Fees} - \text{Discount} \equiv \text{Grand Total}$; added Python-level clean address sanitizer removing duplicate tokens and country tags; added deterministic `format_cart_receipt` card; streamlined Gemini system prompt to 4 universal intent archetypes (Specific Item, Broad Variant, Composite Meal Kits, Disambiguation & Deltas); added Hinglish kitchen vocabulary mapping (`doodh`, `dahi`, `cheeni`, `anda`, `aata`, `tel`); implemented strict affirmation guard on ambiguous confirmations ("ok", "yes" -> prompt for choice). All 271 backend tests pass green (3.05s), `npm run lint` clean (0 errors), Next.js 16 production build compiles with Turbopack in 5.5s.
+**Last completed:** (1) Unified repository onto single authoritative `main` branch, deleting redundant `dev` and `checkpoint-working-cloud` branches locally and remotely; (2) Squashed micro-commits into single clean milestone commit (`bddc61a`); (3) Synchronized deployments with git commits 1:1 by purging 267 stale GitHub deployment records and 267 stale Vercel preview builds; (4) Purged unused Docker artifacts (`docker-compose.yml`, `backend/Dockerfile`, `.dockerignore`) and duplicate root requirements; (5) Overhauled all markdown documentation (`README.md`, `ARCHITECTURE.md`, `docs/REVIEWER_WALKTHROUGH.md`) with latest ultra-low latency benchmarks, self-healing Gemini recovery, and Swiggy Instamart review instructions; (6) 273/273 tests passing green.
 
-**Next implementation gate:** Live WhatsApp end-to-end verification of meal kit expansion, fee breakdown, and UPI QR payment flow.
+**Next implementation gate:** Physical phone WhatsApp verification (`+1 (555) 663-1707`) confirming sub-3.5s response delivery, instant blue ticks, and zero "connection hiccup" errors on follow-up messages.
 
-**Current status:** 271 tests passing, Next.js build green, graphify knowledge graph updated.
+**Current status:** 273 tests passing green (100%), 0 lint errors, Next.js build clean, knowledge graph synchronized, deployments matched 1:1 to commits.
 

@@ -20,6 +20,7 @@ class DeliveryAddress(BaseModel):
     landmark: Optional[str] = None
     address_category: Optional[str] = None
     address_tag: Optional[str] = None
+    is_default: Optional[bool] = False
 
 
 class ProductVariant(BaseModel):

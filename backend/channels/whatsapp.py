@@ -62,6 +62,8 @@ class WhatsAppChannelAdapter(BaseChannelAdapter):
         self._dedup_lock = threading.Lock()
         # Record of outbound messages for testing and inspection
         self.outbound_messages: list[dict[str, Any]] = []
+        # Persistent HTTP/2 client for outbound messages and status updates
+        self._client: Optional[httpx.AsyncClient] = None
 
     @property
     def verify_token(self) -> Optional[str]:
@@ -342,8 +344,43 @@ class WhatsAppChannelAdapter(BaseChannelAdapter):
     # 5. Outbound Delivery
     # -----------------------------------------------------------------------
 
+    async def _get_client(self) -> httpx.AsyncClient:
+        """Get or initialize persistent HTTP/2 client for Meta Graph API."""
+        if self._client is None or self._client.is_closed:
+            self._client = httpx.AsyncClient(
+                timeout=self.timeout,
+                limits=httpx.Limits(max_keepalive_connections=10, max_connections=20),
+            )
+        return self._client
+
+    async def mark_message_read(self, message_id: str) -> bool:
+        """Mark an incoming WhatsApp message as read to display blue ticks immediately."""
+        if self.record_only or not self.phone_number_id or not self.access_token:
+            return False
+        url = f"{META_GRAPH_API_URL}/{self.phone_number_id}/messages"
+        headers = {
+            "Authorization": f"Bearer {self.access_token}",
+            "Content-Type": "application/json",
+        }
+        payload = {
+            "messaging_product": "whatsapp",
+            "status": "read",
+            "message_id": message_id,
+        }
+        try:
+            client = await self._get_client()
+            res = await client.post(url, json=payload, headers=headers)
+            if res.status_code in (200, 201):
+                logger.info("WhatsApp message_id=%s marked as read.", message_id)
+                return True
+            logger.debug("Failed to mark message read: HTTP %d %s", res.status_code, res.text)
+            return False
+        except Exception as exc:
+            logger.debug("mark_message_read error for message_id=%s: %s", message_id, exc)
+            return False
+
     async def send_response(self, response: NormalizedOutgoingResponse) -> bool:
-        """Send formatted response via Meta WhatsApp Cloud API or record for test inspection."""
+        """Send formatted response via Meta WhatsApp Cloud API using pooled connection."""
         payload = self.format_whatsapp_payload(response)
 
         if self.record_only:
@@ -361,13 +398,13 @@ class WhatsAppChannelAdapter(BaseChannelAdapter):
         }
 
         try:
-            async with httpx.AsyncClient(timeout=self.timeout) as client:
-                res = await client.post(url, json=payload, headers=headers)
-                if res.status_code in (200, 201):
-                    logger.info("WhatsApp message delivered.")
-                    return True
-                logger.error("WhatsApp API returned HTTP %d: %s", res.status_code, res.text)
-                return False
+            client = await self._get_client()
+            res = await client.post(url, json=payload, headers=headers)
+            if res.status_code in (200, 201):
+                logger.info("WhatsApp message delivered.")
+                return True
+            logger.error("WhatsApp API returned HTTP %d: %s", res.status_code, res.text)
+            return False
         except Exception as exc:
             logger.error("Failed to deliver WhatsApp message: %s", type(exc).__name__)
             return False

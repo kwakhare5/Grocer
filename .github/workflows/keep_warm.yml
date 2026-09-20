@@ -1,0 +1,16 @@
+name: Keep Render Backend Warm
+
+on:
+  schedule:
+    # Run every 10 minutes to prevent Render free tier from spinning down
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+jobs:
+  keep-warm:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Grocer Backend Health Endpoint
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://grocer-backend-qwk4.onrender.com/health || echo "000")
+          echo "Render health check returned HTTP $STATUS"

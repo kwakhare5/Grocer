@@ -371,7 +371,7 @@ export default function Home() {
               {/* Grocer response */}
               <div className="flex justify-start">
                 <div className="bg-white text-zinc-900 rounded-2xl rounded-tl-xs px-3.5 py-2.5 max-w-[92%] shadow-xs space-y-2">
-                  <p>I&apos;ve picked 7 fresh ingredients from your Swiggy Instamart store (Kingsbury, Pune):</p>
+                  <p>I&apos;ve picked 7 fresh ingredients from your local Swiggy Instamart store:</p>
                   <div className="space-y-1 bg-zinc-50 p-2.5 rounded-xl border border-zinc-100 text-[11px]">
                     <div className="flex justify-between"><span>• Barilla Penne Rigate (500g)</span><span className="font-mono">₹275</span></div>
                     <div className="flex justify-between"><span>• Barilla Basilico Sauce (400g)</span><span className="font-mono">₹295</span></div>
@@ -385,7 +385,7 @@ export default function Home() {
                     <span>Total (within ₹1,500 budget)</span>
                     <span className="font-mono text-emerald-700">₹1,245</span>
                   </div>
-                  <p className="text-[10px] text-zinc-500">Delivering to: Home, Kingsbury Pune</p>
+                  <p className="text-[10px] text-zinc-500">Delivering to: Home (10-15 mins)</p>
                   <p className="text-[11px] font-medium text-zinc-800">Would you like me to place this order?</p>
                   <span className="block text-[10px] text-zinc-400 text-right">8:12 PM</span>
                 </div>

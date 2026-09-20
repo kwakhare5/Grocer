@@ -140,6 +140,675 @@ MOCK_PRODUCTS: list[CommerceProductItem] = [
             ),
         ],
     ),
+    CommerceProductItem(
+        product_id="prod-maggi",
+        name="Nestle Maggi 2-Minute Masala Instant Noodles",
+        category="instant_food",
+        variants=[
+            ProductVariant(
+                spin_id="SPIN-MAGGI-4PACK",
+                name="Maggi 2-Minute Masala Noodles (4-Pack)",
+                pack_size="280 g",
+                price=56.0,
+                mrp=60.0,
+                in_stock=True,
+            ),
+        ],
+    ),
+    CommerceProductItem(
+        product_id="prod-atta",
+        name="Aashirvaad Superior MP Whole Wheat Atta",
+        category="flours",
+        variants=[
+            ProductVariant(
+                spin_id="SPIN-ATTA-1KG",
+                name="Aashirvaad Whole Wheat Atta 1kg",
+                pack_size="1 kg",
+                price=55.0,
+                mrp=60.0,
+                in_stock=True,
+            ),
+            ProductVariant(
+                spin_id="SPIN-ATTA-5KG",
+                name="Aashirvaad Whole Wheat Atta 5kg",
+                pack_size="5 kg",
+                price=245.0,
+                mrp=270.0,
+                in_stock=True,
+            ),
+        ],
+    ),
+    CommerceProductItem(
+        product_id="prod-rice",
+        name="Daawat Rozana Super Basmati Rice",
+        category="rice",
+        variants=[
+            ProductVariant(
+                spin_id="SPIN-RICE-1KG",
+                name="Daawat Rozana Basmati Rice 1kg",
+                pack_size="1 kg",
+                price=95.0,
+                mrp=110.0,
+                in_stock=True,
+            ),
+        ],
+    ),
+    CommerceProductItem(
+        product_id="prod-dal",
+        name="Tata Sampann Unpolished Toor Dal",
+        category="pulses",
+        variants=[
+            ProductVariant(
+                spin_id="SPIN-DAL-1KG",
+                name="Tata Sampann Toor Dal 1kg",
+                pack_size="1 kg",
+                price=165.0,
+                mrp=185.0,
+                in_stock=True,
+            ),
+        ],
+    ),
+    CommerceProductItem(
+        product_id="prod-sugar",
+        name="Madhur Pure & Hygienic Sugar",
+        category="staples",
+        variants=[
+            ProductVariant(
+                spin_id="SPIN-SUGAR-1KG",
+                name="Madhur Pure Sugar (Cheeni) 1kg",
+                pack_size="1 kg",
+                price=52.0,
+                mrp=56.0,
+                in_stock=True,
+            ),
+        ],
+    ),
+    CommerceProductItem(
+        product_id="prod-oil",
+        name="Fortune Sunlite Refined Sunflower Oil",
+        category="edible_oils",
+        variants=[
+            ProductVariant(
+                spin_id="SPIN-OIL-1L",
+                name="Fortune Sunflower Oil 1L Pouch",
+                pack_size="1 L",
+                price=140.0,
+                mrp=160.0,
+                in_stock=True,
+            ),
+        ],
+    ),
+    CommerceProductItem(
+        product_id="prod-butter",
+        name="Amul Pasteurised Salted Butter",
+        category="dairy",
+        variants=[
+            ProductVariant(
+                spin_id="SPIN-BUTTER-100G",
+                name="Amul Salted Butter 100g",
+                pack_size="100 g",
+                price=58.0,
+                mrp=60.0,
+                in_stock=True,
+            ),
+            ProductVariant(
+                spin_id="SPIN-BUTTER-500G",
+                name="Amul Salted Butter 500g",
+                pack_size="500 g",
+                price=275.0,
+                mrp=285.0,
+                in_stock=True,
+            ),
+        ],
+    ),
+    CommerceProductItem(
+        product_id="prod-paneer",
+        name="Amul Fresh Malai Paneer",
+        category="dairy",
+        variants=[
+            ProductVariant(
+                spin_id="SPIN-PANEER-200G",
+                name="Amul Malai Paneer 200g",
+                pack_size="200 g",
+                price=90.0,
+                mrp=95.0,
+                in_stock=True,
+            ),
+        ],
+    ),
+    CommerceProductItem(
+        product_id="prod-dahi",
+        name="Amul Masti Dahi Curd",
+        category="dairy",
+        variants=[
+            ProductVariant(
+                spin_id="SPIN-DAHI-400G",
+                name="Amul Masti Dahi Curd 400g Pouch",
+                pack_size="400 g",
+                price=35.0,
+                mrp=35.0,
+                in_stock=True,
+            ),
+        ],
+    ),
+    CommerceProductItem(
+        product_id="prod-yogurt",
+        name="Epigamia Greek Yogurt Natural",
+        category="dairy",
+        variants=[
+            ProductVariant(
+                spin_id="SPIN-GREEK-YOGURT-100G",
+                name="Epigamia Greek Yogurt 100g",
+                pack_size="100 g",
+                price=50.0,
+                mrp=50.0,
+                in_stock=True,
+            ),
+        ],
+    ),
+    CommerceProductItem(
+        product_id="prod-cheese",
+        name="Amul Diced Mozzarella Blend Cheese",
+        category="dairy",
+        variants=[
+            ProductVariant(
+                spin_id="SPIN-CHEESE-200G",
+                name="Amul Mozzarella Diced Cheese 200g",
+                pack_size="200 g",
+                price=110.0,
+                mrp=120.0,
+                in_stock=True,
+            ),
+        ],
+    ),
+    CommerceProductItem(
+        product_id="prod-pasta",
+        name="Yu Zero Maida Penne Pasta",
+        category="pasta",
+        variants=[
+            ProductVariant(
+                spin_id="SPIN-PASTA-PENNE-500G",
+                name="Yu Zero Maida Penne Pasta 500g",
+                pack_size="500 g",
+                price=49.0,
+                mrp=60.0,
+                in_stock=True,
+            ),
+        ],
+    ),
+    CommerceProductItem(
+        product_id="prod-sauce",
+        name="Veeba Pasta & Pizza Sauce",
+        category="sauces",
+        variants=[
+            ProductVariant(
+                spin_id="SPIN-VEEBA-SAUCE-280G",
+                name="Veeba Pasta & Pizza Sauce 280g",
+                pack_size="280 g",
+                price=79.0,
+                mrp=89.0,
+                in_stock=True,
+            ),
+        ],
+    ),
+    CommerceProductItem(
+        product_id="prod-garlic",
+        name="Fresh Farm Garlic",
+        category="produce",
+        variants=[
+            ProductVariant(
+                spin_id="SPIN-GARLIC-100G",
+                name="Fresh Peeled Garlic 100g",
+                pack_size="100 g",
+                price=25.0,
+                mrp=30.0,
+                in_stock=True,
+            ),
+        ],
+    ),
+    CommerceProductItem(
+        product_id="prod-ginger",
+        name="Fresh Ginger (Adrak)",
+        category="produce",
+        variants=[
+            ProductVariant(
+                spin_id="SPIN-GINGER-100G",
+                name="Fresh Ginger Adrak 100g",
+                pack_size="100 g",
+                price=20.0,
+                mrp=25.0,
+                in_stock=True,
+            ),
+        ],
+    ),
+    CommerceProductItem(
+        product_id="prod-onion",
+        name="Fresh Farm Onions (Pyaz)",
+        category="produce",
+        variants=[
+            ProductVariant(
+                spin_id="SPIN-ONION-1KG",
+                name="Fresh Red Onions 1kg",
+                pack_size="1 kg",
+                price=38.0,
+                mrp=45.0,
+                in_stock=True,
+            ),
+        ],
+    ),
+    CommerceProductItem(
+        product_id="prod-potato",
+        name="Fresh Farm Potatoes (Aloo)",
+        category="produce",
+        variants=[
+            ProductVariant(
+                spin_id="SPIN-POTATO-1KG",
+                name="Fresh Baby Potatoes 1kg",
+                pack_size="1 kg",
+                price=32.0,
+                mrp=40.0,
+                in_stock=True,
+            ),
+        ],
+    ),
+    CommerceProductItem(
+        product_id="prod-banana",
+        name="Fresh Robusta Bananas",
+        category="fruits",
+        variants=[
+            ProductVariant(
+                spin_id="SPIN-BANANA-6PCS",
+                name="Fresh Robusta Bananas (6 pcs)",
+                pack_size="6 pcs",
+                price=42.0,
+                mrp=50.0,
+                in_stock=True,
+            ),
+        ],
+    ),
+    CommerceProductItem(
+        product_id="prod-chocolate-dairymilk",
+        name="Cadbury Dairy Milk Silk Chocolate",
+        category="chocolates",
+        variants=[
+            ProductVariant(
+                spin_id="SPIN-DAIRYMILK-60G",
+                name="Cadbury Dairy Milk Silk 60g",
+                pack_size="60 g",
+                price=90.0,
+                mrp=90.0,
+                in_stock=True,
+            ),
+            ProductVariant(
+                spin_id="SPIN-DAIRYMILK-36G",
+                name="Cadbury Dairy Milk Crackle 36g",
+                pack_size="36 g",
+                price=50.0,
+                mrp=50.0,
+                in_stock=True,
+            ),
+        ],
+    ),
+    CommerceProductItem(
+        product_id="prod-chocolate-kitkat",
+        name="Nestle KitKat Crisp Wafer Chocolate",
+        category="chocolates",
+        variants=[
+            ProductVariant(
+                spin_id="SPIN-KITKAT-38G",
+                name="Nestle KitKat 4 Finger 38g",
+                pack_size="38 g",
+                price=30.0,
+                mrp=30.0,
+                in_stock=True,
+            ),
+        ],
+    ),
+    CommerceProductItem(
+        product_id="prod-chips-lays",
+        name="Lay's India's Magic Masala Potato Chips",
+        category="snacks",
+        variants=[
+            ProductVariant(
+                spin_id="SPIN-LAYS-50G",
+                name="Lay's Magic Masala 50g",
+                pack_size="50 g",
+                price=20.0,
+                mrp=20.0,
+                in_stock=True,
+            ),
+        ],
+    ),
+    CommerceProductItem(
+        product_id="prod-chips-kurkure",
+        name="Kurkure Masala Munch Crisps",
+        category="snacks",
+        variants=[
+            ProductVariant(
+                spin_id="SPIN-KURKURE-85G",
+                name="Kurkure Masala Munch 85g",
+                pack_size="85 g",
+                price=20.0,
+                mrp=20.0,
+                in_stock=True,
+            ),
+        ],
+    ),
+    CommerceProductItem(
+        product_id="prod-drink-thumsup",
+        name="Thums Up Soft Drink",
+        category="beverages",
+        variants=[
+            ProductVariant(
+                spin_id="SPIN-THUMSUP-750ML",
+                name="Thums Up Bottle 750ml",
+                pack_size="750 ml",
+                price=40.0,
+                mrp=40.0,
+                in_stock=True,
+            ),
+        ],
+    ),
+    CommerceProductItem(
+        product_id="prod-tea",
+        name="Brooke Bond Red Label Strong Tea (Chai Patti)",
+        category="tea",
+        variants=[
+            ProductVariant(
+                spin_id="SPIN-TEA-250G",
+                name="Red Label Tea 250g",
+                pack_size="250 g",
+                price=135.0,
+                mrp=150.0,
+                in_stock=True,
+            ),
+        ],
+    ),
+    CommerceProductItem(
+        product_id="prod-coffee",
+        name="Nescafe Classic Instant Coffee",
+        category="coffee",
+        variants=[
+            ProductVariant(
+                spin_id="SPIN-COFFEE-50G",
+                name="Nescafe Classic Coffee Jar 50g",
+                pack_size="50 g",
+                price=185.0,
+                mrp=200.0,
+                in_stock=True,
+            ),
+        ],
+    ),
+    CommerceProductItem(
+        product_id="prod-greentea",
+        name="Tetley Green Tea Lemon & Honey",
+        category="tea",
+        variants=[
+            ProductVariant(
+                spin_id="SPIN-GREENTEA-25BAGS",
+                name="Tetley Lemon Honey Green Tea 25 Tea Bags",
+                pack_size="25 bags",
+                price=160.0,
+                mrp=180.0,
+                in_stock=True,
+            ),
+        ],
+    ),
+    CommerceProductItem(
+        product_id="prod-crocin",
+        name="Crocin Advance Paracetamol Pain & Fever Tablet",
+        category="pharmacy",
+        variants=[
+            ProductVariant(
+                spin_id="SPIN-CROCIN-15TAB",
+                name="Crocin Advance Paracetamol (15 Tablets)",
+                pack_size="15 tabs",
+                price=32.0,
+                mrp=35.0,
+                in_stock=True,
+            ),
+        ],
+    ),
+    CommerceProductItem(
+        product_id="prod-strepsils",
+        name="Strepsils Sore Throat Lozenges Orange",
+        category="pharmacy",
+        variants=[
+            ProductVariant(
+                spin_id="SPIN-STREPSILS-8TAB",
+                name="Strepsils Orange Lozenges (8 Tablets)",
+                pack_size="8 tabs",
+                price=36.0,
+                mrp=40.0,
+                in_stock=True,
+            ),
+        ],
+    ),
+    CommerceProductItem(
+        product_id="prod-vicks",
+        name="Vicks VapoRub Cold Relief Balm",
+        category="pharmacy",
+        variants=[
+            ProductVariant(
+                spin_id="SPIN-VICKS-25ML",
+                name="Vicks VapoRub Relief Balm 25ml",
+                pack_size="25 ml",
+                price=65.0,
+                mrp=70.0,
+                in_stock=True,
+            ),
+        ],
+    ),
+    CommerceProductItem(
+        product_id="prod-bandaid",
+        name="Hansaplast Medicated Band-Aids",
+        category="pharmacy",
+        variants=[
+            ProductVariant(
+                spin_id="SPIN-BANDAID-10STRIPS",
+                name="Hansaplast Band-Aid Strips (10 Strips)",
+                pack_size="10 strips",
+                price=30.0,
+                mrp=35.0,
+                in_stock=True,
+            ),
+        ],
+    ),
+    CommerceProductItem(
+        product_id="prod-colgate",
+        name="Colgate MaxFresh Spicy Fresh Red Gel Toothpaste",
+        category="oral_care",
+        variants=[
+            ProductVariant(
+                spin_id="SPIN-COLGATE-150G",
+                name="Colgate MaxFresh Red Gel 150g",
+                pack_size="150 g",
+                price=110.0,
+                mrp=125.0,
+                in_stock=True,
+            ),
+        ],
+    ),
+    CommerceProductItem(
+        product_id="prod-dettol-handwash",
+        name="Dettol Original Germ Protection Handwash Refill",
+        category="hygiene",
+        variants=[
+            ProductVariant(
+                spin_id="SPIN-DETTOL-HW-175ML",
+                name="Dettol Handwash Refill Pouch 175ml",
+                pack_size="175 ml",
+                price=45.0,
+                mrp=50.0,
+                in_stock=True,
+            ),
+        ],
+    ),
+    CommerceProductItem(
+        product_id="prod-shampoo",
+        name="Dove Daily Shine Gentle Care Shampoo",
+        category="hair_care",
+        variants=[
+            ProductVariant(
+                spin_id="SPIN-DOVE-SHAMPOO-180ML",
+                name="Dove Daily Shine Shampoo 180ml",
+                pack_size="180 ml",
+                price=145.0,
+                mrp=170.0,
+                in_stock=True,
+            ),
+        ],
+    ),
+    CommerceProductItem(
+        product_id="prod-vim",
+        name="Vim Lemon Dishwash Gel Liquid",
+        category="cleaning",
+        variants=[
+            ProductVariant(
+                spin_id="SPIN-VIM-GEL-500ML",
+                name="Vim Lemon Dishwash Liquid Gel 500ml",
+                pack_size="500 ml",
+                price=105.0,
+                mrp=120.0,
+                in_stock=True,
+            ),
+        ],
+    ),
+    CommerceProductItem(
+        product_id="prod-harpic",
+        name="Harpic Power Plus Disinfectant Toilet Cleaner",
+        category="cleaning",
+        variants=[
+            ProductVariant(
+                spin_id="SPIN-HARPIC-500ML",
+                name="Harpic Toilet Cleaner Original 500ml",
+                pack_size="500 ml",
+                price=98.0,
+                mrp=105.0,
+                in_stock=True,
+            ),
+        ],
+    ),
+    CommerceProductItem(
+        product_id="prod-surfexcel",
+        name="Surf Excel Easy Wash Detergent Powder",
+        category="cleaning",
+        variants=[
+            ProductVariant(
+                spin_id="SPIN-SURFEXCEL-1KG",
+                name="Surf Excel Detergent Powder 1kg",
+                pack_size="1 kg",
+                price=140.0,
+                mrp=155.0,
+                in_stock=True,
+            ),
+        ],
+    ),
+    CommerceProductItem(
+        product_id="prod-garbage-bags",
+        name="Shalimar Medium Disposable Garbage Bags",
+        category="household",
+        variants=[
+            ProductVariant(
+                spin_id="SPIN-GARBAGE-BAGS-30PCS",
+                name="Shalimar Black Garbage Bags (30 pcs)",
+                pack_size="30 pcs",
+                price=75.0,
+                mrp=90.0,
+                in_stock=True,
+            ),
+        ],
+    ),
+    CommerceProductItem(
+        product_id="prod-batteries-aa",
+        name="Duracell Ultra AA Alkaline Batteries",
+        category="electronics",
+        variants=[
+            ProductVariant(
+                spin_id="SPIN-DURACELL-AA-4PCS",
+                name="Duracell Ultra AA Batteries (4 pcs)",
+                pack_size="4 pcs",
+                price=160.0,
+                mrp=180.0,
+                in_stock=True,
+            ),
+        ],
+    ),
+    CommerceProductItem(
+        product_id="prod-cable-typec",
+        name="Portronics Fast Charging USB Type-C Cable",
+        category="electronics",
+        variants=[
+            ProductVariant(
+                spin_id="SPIN-TYPEC-CABLE-1M",
+                name="Portronics USB Type-C Cable 1m",
+                pack_size="1 m",
+                price=149.0,
+                mrp=299.0,
+                in_stock=True,
+            ),
+        ],
+    ),
+    CommerceProductItem(
+        product_id="prod-allout",
+        name="All Out Ultra Mosquito Repellent Machine + Refill",
+        category="household",
+        variants=[
+            ProductVariant(
+                spin_id="SPIN-ALLOUT-COMBO",
+                name="All Out Mosquito Repellent Machine with Liquid Refill",
+                pack_size="1 pack",
+                price=110.0,
+                mrp=125.0,
+                in_stock=True,
+            ),
+        ],
+    ),
+    CommerceProductItem(
+        product_id="prod-agarbatti",
+        name="Mangaldeep Sandalwood Agarbatti Incense Sticks",
+        category="pooja",
+        variants=[
+            ProductVariant(
+                spin_id="SPIN-AGARBATTI-1PACK",
+                name="Mangaldeep Sandal Agarbatti (Pack of 80)",
+                pack_size="80 sticks",
+                price=50.0,
+                mrp=60.0,
+                in_stock=True,
+            ),
+        ],
+    ),
+    CommerceProductItem(
+        product_id="prod-camphor",
+        name="Cycle Pure Pure Camphor / Kapoor Tablets",
+        category="pooja",
+        variants=[
+            ProductVariant(
+                spin_id="SPIN-CAMPHOR-50G",
+                name="Cycle Pure Camphor Kapoor 50g",
+                pack_size="50 g",
+                price=65.0,
+                mrp=75.0,
+                in_stock=True,
+            ),
+        ],
+    ),
+    CommerceProductItem(
+        product_id="prod-almonds",
+        name="Rostaa Roasted & Salted California Almonds",
+        category="dry_fruits",
+        variants=[
+            ProductVariant(
+                spin_id="SPIN-ALMONDS-100G",
+                name="Rostaa Roasted Salted Almonds 100g",
+                pack_size="100 g",
+                price=115.0,
+                mrp=130.0,
+                in_stock=True,
+            ),
+        ],
+    ),
 ]
 
 MOCK_ADDRESSES = [

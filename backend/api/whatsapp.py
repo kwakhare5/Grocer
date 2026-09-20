@@ -23,7 +23,9 @@ async def _dispatch_task_message(task_message: NormalizedIncomingMessage, engine
         response = await engine.handle_message(task_message)
         if not await default_whatsapp_adapter.send_response(response):
             logger.error("WhatsApp response delivery failed for message_id=%s", task_message.message_id)
+        default_whatsapp_adapter.mark_processed(task_message.message_id)
     except asyncio.CancelledError:
+        default_whatsapp_adapter.release_message(task_message.message_id)
         raise
     except Exception as exc:
         logger.exception(
@@ -41,6 +43,7 @@ async def _dispatch_task_message(task_message: NormalizedIncomingMessage, engine
             conversation_state="READY",
         )
         await default_whatsapp_adapter.send_response(recovery)
+        default_whatsapp_adapter.mark_processed(task_message.message_id)
 
 
 @router.get("/webhook")
@@ -101,6 +104,14 @@ async def receive_webhook(
 
     processed_count = 0
     for incoming in incoming_messages:
+        # Atomic reservation check: reject duplicate or in-flight Meta webhook retries
+        if not default_whatsapp_adapter.reserve_message(incoming.message_id):
+            logger.info("Dropping duplicate or already in-flight WhatsApp message_id=%s", incoming.message_id)
+            continue
+
+        # Immediately mark incoming message as read (instant blue ticks within 200ms)
+        asyncio.create_task(default_whatsapp_adapter.mark_message_read(incoming.message_id))
+
         task_message = incoming.model_copy(
             update={
                 "customer_id": default_whatsapp_adapter.map_sender_to_customer_id(

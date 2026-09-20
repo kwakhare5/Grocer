@@ -36,11 +36,14 @@ export async function POST(req: NextRequest) {
         'X-Hub-Signature-256': signature,
       },
       body: rawBody,
+      signal: AbortSignal.timeout(10000),
     });
 
     const data = await res.json();
     return NextResponse.json(data, { status: res.status });
-  } catch {
-    return NextResponse.json({ error: "Webhook delivery is unavailable." }, { status: 503 });
+  } catch (error) {
+    console.error("WhatsApp webhook proxy encountered error or timeout:", error);
+    // Return HTTP 200 to Meta so it does not trigger aggressive retry loops during backend cold-starts
+    return NextResponse.json({ status: "acknowledged", error: "Proxy forwarded or timed out" }, { status: 200 });
   }
 }

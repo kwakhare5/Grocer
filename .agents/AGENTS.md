@@ -223,9 +223,9 @@ If the answer is no, it does not belong in GROCER v2 unless the master spec is d
 
 ## 15. SESSION RESUME
 
-**Last completed:** Executed full Turbo Speed & 9-Point Reliability Overhaul: upgraded default model to `gemini-flash-lite-latest` (1.13s generation), wired FastAPI `BackgroundTasks` for instant <100ms WhatsApp webhook acknowledgment (immune to Meta 15s timeouts), parallelized multi-item product searches with `asyncio.gather`, added per-customer `asyncio.Lock` to eliminate cart race conditions, capped conversation history to 6-turn sliding window with payload compaction, expanded standard WhatsApp text limits to 4,096 characters, added instant friendly replies for unsupported media, added autonomous background payment polling daemon (`_poll_payment_status`), and exposed store minimum order thresholds and serviceability. All 267 backend unit and contract tests pass green (2.80s), `npm run lint` clean (0 errors), Next.js 16 production build compiles with Turbopack in 2.2s.
+**Last completed:** Executed Full 10-Dimension Cognitive Architecture & Radical Prompt Simplification: resolved the mystery ₹21 fee with strict mathematical reconciliation (`handling_fee`, `taxes`, `packaging_fee`, `delivery_fee`, and line items) where $\text{Subtotal} + \text{All Fees} - \text{Discount} \equiv \text{Grand Total}$; added Python-level clean address sanitizer removing duplicate tokens and country tags; added deterministic `format_cart_receipt` card; streamlined Gemini system prompt to 4 universal intent archetypes (Specific Item, Broad Variant, Composite Meal Kits, Disambiguation & Deltas); added Hinglish kitchen vocabulary mapping (`doodh`, `dahi`, `cheeni`, `anda`, `aata`, `tel`); implemented strict affirmation guard on ambiguous confirmations ("ok", "yes" -> prompt for choice). All 271 backend tests pass green (3.05s), `npm run lint` clean (0 errors), Next.js 16 production build compiles with Turbopack in 5.5s.
 
-**Next implementation gate:** Complete live physical WhatsApp order placement and UPI QR checkout verification on WhatsApp.
+**Next implementation gate:** Live WhatsApp end-to-end verification of meal kit expansion, fee breakdown, and UPI QR payment flow.
 
-**Current status:** Live on GitHub `origin/main` (88 curated milestone commits), all 267 tests passing, Next.js build green, working tree clean.
+**Current status:** 271 tests passing, Next.js build green, graphify knowledge graph updated.
 

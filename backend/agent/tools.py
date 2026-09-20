@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from typing import Any, Optional
 
 from backend.integrations.commerce.port import CommercePort
@@ -24,6 +25,72 @@ logger = logging.getLogger("grocer.agent.tools")
 def _format_inr(amount: float) -> str:
     """Format numeric price into clean ₹ string without trailing zero decimals."""
     return f"₹{int(amount)}" if amount.is_integer() else f"₹{amount:.2f}"
+
+
+def clean_address(street: str, city: Optional[str] = None) -> str:
+    """Format raw verbose address into a crisp, human-readable WhatsApp destination."""
+    if not street:
+        return city or "Your Saved Location"
+
+    # Remove user name prefixes like 'Karan Wakhare:'
+    text = re.sub(r"^[^:]+:\s*", "", street).strip()
+    # Strip postal codes, states, and country tags
+    text = re.sub(r",?\s*(?:India|Maharashtra|\b\d{6}\b)\s*", "", text, flags=re.IGNORECASE).strip(" ,")
+
+    # Deduplicate repeated words/phrases (e.g. 'Kingsbury, Kingsbury')
+    parts = [p.strip() for p in text.split(",") if p.strip()]
+    seen = set()
+    cleaned_parts = []
+    for p in parts:
+        p_low = p.casefold()
+        if p_low not in seen:
+            seen.add(p_low)
+            cleaned_parts.append(p)
+
+    res = ", ".join(cleaned_parts[:3])
+    if city and city.casefold() not in res.casefold():
+        res = f"{res}, {city}"
+    return res or street
+
+
+def format_cart_receipt(
+    cart: CommerceCart,
+    delivery_location: str = "Kingsbury, Pune",
+) -> str:
+    """Deterministically format verified cart state into a clean WhatsApp receipt card."""
+    if not cart.items:
+        return "🛒 *Your Basket is empty.*"
+
+    clean_loc = clean_address(delivery_location)
+    item_lines = [
+        f"• {it.quantity}x {it.name} ({it.pack_size}) — {_format_inr(it.total_price)}"
+        for it in cart.items
+    ]
+    items_block = "\n".join(item_lines)
+
+    packaging_and_handling = round(cart.packaging_fee + cart.handling_fee, 2)
+    delivery_str = "FREE (₹0)" if cart.delivery_fee == 0.0 else _format_inr(cart.delivery_fee)
+
+    lines = [
+        f"🛒 *Your Basket ({clean_loc})*",
+        items_block,
+        "",
+        f"*Subtotal:* {_format_inr(cart.item_total)}",
+        f"*Delivery Fee:* {delivery_str}",
+    ]
+    if packaging_and_handling > 0:
+        lines.append(f"*Packaging & Handling:* {_format_inr(packaging_and_handling)}")
+    if cart.taxes > 0:
+        lines.append(f"*Taxes (GST):* {_format_inr(cart.taxes)}")
+    if cart.discount > 0:
+        lines.append(f"*Discount:* -{_format_inr(cart.discount)}")
+    lines.append(f"*Grand Total:* {_format_inr(cart.grand_total)}")
+    lines.extend([
+        "",
+        f"📍 *Delivering to:* {clean_loc}",
+        "👉 Reply *Confirm* to place order, or tell me what to change!",
+    ])
+    return "\n".join(lines)
 
 
 class SwiggyAgentTools:
@@ -91,6 +158,7 @@ class SwiggyAgentTools:
                     "label": a.label or a.street or "Saved Address",
                     "street": a.street,
                     "city": a.city,
+                    "clean_address": clean_address(a.street, a.city),
                 }
                 for a in addresses
             ]
@@ -124,6 +192,7 @@ class SwiggyAgentTools:
                 "label": matched.label or matched.street or "Selected Address",
                 "street": matched.street,
                 "city": matched.city,
+                "clean_address": clean_address(matched.street, matched.city),
             }
         except ProviderAuthError as exc:
             return {"success": False, "error": "AUTH_EXPIRED", "detail": str(exc)}
@@ -131,7 +200,7 @@ class SwiggyAgentTools:
             logger.warning("select_delivery_address failed: %s", exc)
             return {"success": False, "error": str(exc)}
 
-    async def get_cart(self) -> dict[str, Any]:
+    async def get_cart(self, delivery_location: str = "Kingsbury, Pune") -> dict[str, Any]:
         """Fetch current Swiggy Instamart cart contents and pre-computed pricing."""
         try:
             cart: CommerceCart = await self.commerce.get_cart()
@@ -148,7 +217,8 @@ class SwiggyAgentTools:
                 }
                 for item in cart.items
             ]
-            total_fees = cart.delivery_fee + cart.packaging_fee
+            packaging_and_handling = round(cart.packaging_fee + cart.handling_fee, 2)
+            total_fees = round(cart.delivery_fee + packaging_and_handling + cart.taxes, 2)
             return {
                 "success": True,
                 "cart_id": cart.cart_id,
@@ -157,6 +227,8 @@ class SwiggyAgentTools:
                 "item_total": cart.item_total,
                 "delivery_fee": cart.delivery_fee,
                 "packaging_fee": cart.packaging_fee,
+                "handling_fee": cart.handling_fee,
+                "taxes": cart.taxes,
                 "total_fees": total_fees,
                 "discount": cart.discount,
                 "grand_total": cart.grand_total,
@@ -164,10 +236,14 @@ class SwiggyAgentTools:
                 "min_order_threshold": cart.min_order_threshold,
                 "address_warning": cart.address_warning,
                 "formatted_item_total": _format_inr(cart.item_total),
-                "formatted_delivery_fee": _format_inr(cart.delivery_fee),
+                "formatted_delivery_fee": _format_inr(cart.delivery_fee) if cart.delivery_fee > 0 else "FREE (₹0)",
                 "formatted_packaging_fee": _format_inr(cart.packaging_fee),
+                "formatted_handling_fee": _format_inr(cart.handling_fee),
+                "formatted_packaging_and_handling": _format_inr(packaging_and_handling),
+                "formatted_taxes": _format_inr(cart.taxes),
                 "formatted_total_fees": _format_inr(total_fees),
                 "formatted_grand_total": _format_inr(cart.grand_total),
+                "formatted_receipt": format_cart_receipt(cart, delivery_location),
             }
         except ProviderAuthError as exc:
             return {"success": False, "error": "AUTH_EXPIRED", "detail": str(exc)}
@@ -179,6 +255,7 @@ class SwiggyAgentTools:
         self,
         items: list[dict[str, Any]],
         address_id: str,
+        delivery_location: str = "Kingsbury, Pune",
     ) -> dict[str, Any]:
         """Update Swiggy Instamart cart with item updates and return pre-computed pricing."""
         try:
@@ -211,7 +288,8 @@ class SwiggyAgentTools:
                 }
                 for item in verified.items
             ]
-            total_fees = verified.delivery_fee + verified.packaging_fee
+            packaging_and_handling = round(verified.packaging_fee + verified.handling_fee, 2)
+            total_fees = round(verified.delivery_fee + packaging_and_handling + verified.taxes, 2)
             return {
                 "success": True,
                 "cart_id": verified.cart_id,
@@ -220,6 +298,8 @@ class SwiggyAgentTools:
                 "item_total": verified.item_total,
                 "delivery_fee": verified.delivery_fee,
                 "packaging_fee": verified.packaging_fee,
+                "handling_fee": verified.handling_fee,
+                "taxes": verified.taxes,
                 "total_fees": total_fees,
                 "discount": verified.discount,
                 "grand_total": verified.grand_total,
@@ -227,10 +307,14 @@ class SwiggyAgentTools:
                 "min_order_threshold": verified.min_order_threshold,
                 "address_warning": verified.address_warning,
                 "formatted_item_total": _format_inr(verified.item_total),
-                "formatted_delivery_fee": _format_inr(verified.delivery_fee),
+                "formatted_delivery_fee": _format_inr(verified.delivery_fee) if verified.delivery_fee > 0 else "FREE (₹0)",
                 "formatted_packaging_fee": _format_inr(verified.packaging_fee),
+                "formatted_handling_fee": _format_inr(verified.handling_fee),
+                "formatted_packaging_and_handling": _format_inr(packaging_and_handling),
+                "formatted_taxes": _format_inr(verified.taxes),
                 "formatted_total_fees": _format_inr(total_fees),
                 "formatted_grand_total": _format_inr(verified.grand_total),
+                "formatted_receipt": format_cart_receipt(verified, delivery_location),
             }
         except ItemOutOfStockError as exc:
             return {

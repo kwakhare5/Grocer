@@ -1326,3 +1326,123 @@ async def test_history_pruning_sliding_window(agent_engine):
     older_content = older_entry["parts"][0]["functionResponse"]["response"]["content"]
     assert len(older_content["products"]) <= 2
 
+
+def test_clean_address_deduplication_and_formatting():
+    """Verify raw repetitive address string is formatted cleanly for WhatsApp."""
+    from backend.agent.tools import clean_address
+
+    raw_addr = "Karan Wakhare: flat number 1204, Kingsbury, Kingsbury, DY Patil University Road, Charholi Budruk, Pune, Maharashtra 412105, India"
+    cleaned = clean_address(raw_addr, "Pune")
+    assert "Karan Wakhare:" not in cleaned
+    assert "India" not in cleaned
+    assert "412105" not in cleaned
+    assert "Maharashtra" not in cleaned
+    assert "Kingsbury, Kingsbury" not in cleaned
+    assert "flat number 1204" in cleaned
+    assert "Pune" in cleaned
+
+
+def test_format_cart_receipt_mathematical_consistency():
+    """Verify format_cart_receipt guarantees exact rupee math without mystery fees."""
+    from backend.agent.tools import format_cart_receipt
+    from backend.integrations.commerce.models import CommerceCart, CartItem
+
+    cart = CommerceCart(
+        cart_id="cart_math_test",
+        items=[
+            CartItem(
+                spin_id="SPIN-PASTA",
+                name="Yu Zero Maida Penne Pasta",
+                pack_size="500g",
+                unit_price=49.0,
+                quantity=1,
+                total_price=49.0,
+            ),
+            CartItem(
+                spin_id="SPIN-SAUCE",
+                name="Veeba Pasta Sauce",
+                pack_size="280g",
+                unit_price=79.0,
+                quantity=1,
+                total_price=79.0,
+            ),
+        ],
+        item_total=128.0,
+        delivery_fee=0.0,
+        packaging_fee=0.0,
+        handling_fee=15.0,
+        taxes=6.0,
+        discount=0.0,
+        grand_total=149.0,
+    )
+
+    receipt = format_cart_receipt(cart, "Flat 1204, Kingsbury, Pune")
+    assert "*Subtotal:* ₹128" in receipt
+    assert "*Delivery Fee:* FREE (₹0)" in receipt
+    assert "*Packaging & Handling:* ₹15" in receipt
+    assert "*Taxes (GST):* ₹6" in receipt
+    assert "*Grand Total:* ₹149" in receipt
+    assert "📍 *Delivering to:* Flat 1204, Kingsbury, Pune" in receipt
+
+
+@pytest.mark.asyncio
+async def test_tools_cart_fee_itemization(agent_engine):
+    """Verify get_cart and update_cart expose complete fee breakdown and verified receipt."""
+    from backend.integrations.commerce.models import CommerceCart
+
+    agent_engine.tools.commerce.get_cart = AsyncMock(
+        return_value=CommerceCart(
+            cart_id="cart_itemized",
+            items=[],
+            item_total=128.0,
+            delivery_fee=0.0,
+            packaging_fee=5.0,
+            handling_fee=10.0,
+            taxes=6.0,
+            grand_total=149.0,
+        )
+    )
+
+    res = await agent_engine.tools.get_cart(delivery_location="Kingsbury, Pune")
+    assert res["success"] is True
+    assert res["item_total"] == 128.0
+    assert res["packaging_fee"] == 5.0
+    assert res["handling_fee"] == 10.0
+    assert res["taxes"] == 6.0
+    assert res["total_fees"] == 21.0
+    assert res["grand_total"] == 149.0
+    assert res["formatted_delivery_fee"] == "FREE (₹0)"
+    assert res["formatted_packaging_and_handling"] == "₹15"
+    assert res["formatted_taxes"] == "₹6"
+    assert "formatted_receipt" in res
+
+
+def test_swiggy_parser_bill_reconciliation():
+    """Verify build_commerce_cart extracts handling fee, taxes, and reconciles sum to grand_total."""
+    from backend.integrations.commerce.swiggy_parsers import build_commerce_cart
+
+    raw_swiggy_data = {
+        "cartId": "swiggy_cart_123",
+        "items": [],
+        "billBreakdown": {
+            "lineItems": [
+                {"label": "Item Total", "value": "₹128"},
+                {"label": "Delivery Partner Fee", "value": "₹0"},
+                {"label": "Packaging & Handling", "value": "₹15"},
+                {"label": "Govt Taxes & Other Charges", "value": "₹6"},
+            ],
+            "toPay": {"value": "₹149"},
+        },
+    }
+
+    cart = build_commerce_cart(raw_swiggy_data)
+    assert cart.item_total == 128.0
+    assert cart.delivery_fee == 0.0
+    assert cart.packaging_fee + cart.handling_fee == 15.0
+    assert cart.taxes == 6.0
+    assert cart.grand_total == 149.0
+    # Strict reconciliation check: 128 + 0 + 15 + 6 == 149
+    assert cart.item_total + cart.delivery_fee + cart.packaging_fee + cart.handling_fee + cart.taxes - cart.discount == cart.grand_total
+
+
+

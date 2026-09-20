@@ -81,8 +81,11 @@ class CommerceCart(BaseModel):
     item_total: float = 0.0
     delivery_fee: float = 0.0
     packaging_fee: float = 0.0
+    handling_fee: float = 0.0
+    taxes: float = 0.0
     discount: float = 0.0
     grand_total: float = 0.0
+    bill_lines: list[dict[str, Any]] = Field(default_factory=list)
     is_serviceable: Optional[bool] = None
     min_order_threshold: float = 99.0
     unserviceable_items: list[CartItem] = Field(default_factory=list)

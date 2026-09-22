@@ -221,9 +221,10 @@ If the answer is no, it does not belong in GROCER v2 unless the master spec is d
 
 ## 15. SESSION RESUME
 
-**Last completed:** (1) Activated WhatsApp typing indicator (`typing_indicator: {type: 'text'}`) in tandem with instant <200ms blue ticks via Meta Cloud API v20.0, backed by 274/274 passing tests; (2) Upgraded `grocerr.vercel.app` (`app/page.tsx`) with the complete Replenishment Engine narrative (Daily Staples, Recipe Kits, Symptom Care), tabbed interactive WhatsApp conversation preview, and Swiggy Instamart safety guarantees while preserving the exact phone connect utility and design aesthetic; (3) Verified zero ESLint errors and clean Turbopack production build; (4) Synchronized git and deployed to production (`f4b722f`).
+**Last completed:** (1) Implemented live basket state injection in `_call_gemini` providing the LLM full item, pricing, and destination visibility on every single turn; (2) Replaced naive length-based history slicing with user turn-boundary pruning in `_prune_history` to prevent orphaned tool pairs and Gemini 400 Bad Request dropouts; (3) Enhanced `select_delivery_address` in `tools.py` to preserve existing baskets and attach updated receipts with anti-amnesia instructions; (4) Added deterministic post-processing guards in `_process_scoped_message` ensuring receipt presentation on address changes, fast-path reset (<20ms), and cart hesitation guards when users reply "no" or "wait"; (5) Added 6 new unit/integration tests in `test_agent_engine.py` (280/280 passing green); (6) Verified clean ESLint (0 errors) and Turbopack production build; (7) Synchronized knowledge graph and pushed commit `0d1c450` to `main`.
 
 **Next implementation gate:** 2-minute video demo recording following the reviewer walkthrough script and official submission to `builders@swiggy.in`.
 
-**Current status:** 274 tests passing green (100%), 0 ESLint warnings, Next.js build clean, knowledge graph synchronized, deployed to production.
+**Current status:** 280 tests passing green (100%), 0 ESLint warnings, Next.js build clean, knowledge graph synchronized, deployed to production.
+
 

@@ -53,6 +53,7 @@ Your mission is to get the customer's groceries delivered to their doorstep with
 3. Composite / Meal / Recipe / Occasion Intent:
    When the customer asks for a dish, meal, event, or budget bundle (e.g. "pasta groceries under 500", "chai and snacks for 4", "breakfast for two under 200", "weekly essentials under 2000"):
    - A dish is a complete kit. Proactively infer essential ingredients (Core carbs + Sauce/Body + Dairy/Protein + Aromatics) within the budget.
+   - When a specific dish/recipe is requested (e.g. pasta, biryani, sandwich, tea), the search MUST prioritize the core dish ingredients (e.g. for pasta: search 'pasta', 'sauce', 'cheese'). NEVER substitute generic kitchen staples (like flour or dal) when a specific dish or recipe is named.
    - When a strict budget is given, choose key essential items so the total including delivery/packaging fees stays strictly within the budget.
    - Search products in parallel, add the complete kit to the basket in one `update_cart` call, and ask if they'd like to add any extras.
 4. Problem / Symptom / Situational Care Intent:
@@ -440,6 +441,21 @@ class GroceryAgentEngine:
                 conversation_state="READY",
             )
 
+        # Explicit Human Confirmation Detection (Server-side safety gate)
+        _EXPLICIT_CONFIRM_PATTERNS = re.compile(
+            r"(?i)\b("
+            r"confirm|confirm order|place order|place this order|order place karo|"
+            r"theek hai order confirm karo|theek hai order confirm|yes please confirm|"
+            r"yes confirm|yes place|proceed to pay|reply confirm|i explicitly confirm|"
+            r"proceed with order|complete order|konfirm order|yes, please confirm and place the order now|"
+            r"order confirm"
+            r")\b"
+        )
+        user_confirmed = (
+            message.interactive_id == "confirm_order"
+            or bool(_EXPLICIT_CONFIRM_PATTERNS.search(incoming_text))
+        )
+
         # Inspect current live cart
         current_cart: Optional[CommerceCart] = None
         try:
@@ -582,7 +598,11 @@ class GroceryAgentEngine:
                     fn_args["address_id"] = address_id
 
                 tool_result = await self._execute_tool(
-                    fn_name, fn_args, customer_id=customer_id, address_id=address_id
+                    fn_name,
+                    fn_args,
+                    customer_id=customer_id,
+                    address_id=address_id,
+                    user_confirmed=user_confirmed,
                 )
 
                 is_checkout = (fn_name == "checkout")
@@ -645,34 +665,46 @@ class GroceryAgentEngine:
 
         if checkout_executed and checkout_result:
             if not checkout_result.get("success"):
-                error_msg = checkout_result.get("error") or checkout_result.get("message") or "Provider checkout error"
-                disclaimer = "Your order has NOT been placed and your account has not been charged."
-                if _claims_order_success(final_text):
-                    logger.warning(
-                        "Fail-closed guard triggered: LLM falsely claimed order success on failed checkout (%s). Overriding response.",
-                        error_msg,
-                    )
+                if checkout_result.get("error") == "CONFIRMATION_REQUIRED":
+                    conv_state = "AWAITING_CHECKOUT_CONFIRMATION"
+                    actions = [
+                        InteractiveAction(action_type="button", id="confirm_order", title="Confirm Order"),
+                        InteractiveAction(action_type="button", id="modify_cart", title="Change Items"),
+                    ]
+                    receipt_str = last_cart_receipt or (format_cart_receipt(current_cart, addr_lbl or "Home") if current_cart else "")
                     final_text = (
-                        f"I could not complete your order: {error_msg}. "
-                        f"{disclaimer} "
-                        "Please check your basket and try again."
-                    )
-                elif not _explains_failure(
-                    final_text, checkout_result.get("error"), checkout_result.get("message")
-                ):
-                    logger.warning(
-                        "Fail-closed guard triggered: LLM failed to explain failure (%s). Overriding response.",
-                        error_msg,
-                    )
-                    final_text = (
-                        f"I could not complete your order: {error_msg}. "
-                        f"{disclaimer} "
-                        "Please check your basket and try again."
-                    )
+                        f"{receipt_str}\n\n"
+                        f"👉 Reply *Confirm* to place order, or let me know if you'd like to change anything!"
+                    ).strip()
                 else:
-                    if disclaimer not in final_text:
-                        final_text = f"{final_text.rstrip()}\n\n{disclaimer}"
-                conv_state = "FAILED"
+                    error_msg = checkout_result.get("error") or checkout_result.get("message") or "Provider checkout error"
+                    disclaimer = "Your order has NOT been placed and your account has not been charged."
+                    if _claims_order_success(final_text):
+                        logger.warning(
+                            "Fail-closed guard triggered: LLM falsely claimed order success on failed checkout (%s). Overriding response.",
+                            error_msg,
+                        )
+                        final_text = (
+                            f"I could not complete your order: {error_msg}. "
+                            f"{disclaimer} "
+                            "Please check your basket and try again."
+                        )
+                    elif not _explains_failure(
+                        final_text, checkout_result.get("error"), checkout_result.get("message")
+                    ):
+                        logger.warning(
+                            "Fail-closed guard triggered: LLM failed to explain failure (%s). Overriding response.",
+                            error_msg,
+                        )
+                        final_text = (
+                            f"I could not complete your order: {error_msg}. "
+                            f"{disclaimer} "
+                            "Please check your basket and try again."
+                        )
+                    else:
+                        if disclaimer not in final_text:
+                            final_text = f"{final_text.rstrip()}\n\n{disclaimer}"
+                    conv_state = "FAILED"
             else:
                 out_order_id = checkout_result.get("order_id")
                 out_order_total = checkout_result.get("grand_total")
@@ -788,6 +820,7 @@ class GroceryAgentEngine:
         *,
         customer_id: str,
         address_id: Optional[str],
+        user_confirmed: Optional[bool] = None,
     ) -> Any:
         """Dispatch a single function call to SwiggyAgentTools."""
         logger.info("Executing agent tool call: %s with args: %s", name, args)
@@ -816,12 +849,19 @@ class GroceryAgentEngine:
         elif name == "clear_cart":
             return await self.tools.clear_cart()
         elif name == "checkout":
+            # Deterministic Server-Side Invariant Gate:
+            # If user_confirmed is provided by message processor, enforce human confirmation.
+            # If None (direct unit test invocation of _execute_tool), respect args is_user_confirmed.
+            if user_confirmed is None:
+                effective_confirmed = bool(args.get("is_user_confirmed", False))
+            else:
+                effective_confirmed = bool(user_confirmed and args.get("is_user_confirmed", False))
             return await self.tools.checkout(
                 cart_id=args.get("cart_id", ""),
                 address_id=args.get("address_id", "") or address_id or "",
                 payment_method=args.get("payment_method", "UPI"),
                 payment_option_kind=args.get("payment_option_kind", "qr"),
-                is_user_confirmed=args.get("is_user_confirmed", False),
+                is_user_confirmed=effective_confirmed,
             )
         elif name == "track_order":
             return await self.tools.track_order(args.get("order_id", ""))
@@ -837,6 +877,13 @@ class GroceryAgentEngine:
         **kwargs: Any,
     ) -> Optional[dict[str, Any]]:
         """Perform one HTTP POST request to Gemini v1beta generateContent using pooled connection."""
+        # Pacing protection against rapid burst rate limits
+        now = asyncio.get_running_loop().time()
+        elapsed = now - self._last_call_time
+        if elapsed < 0.6:
+            await asyncio.sleep(0.6 - elapsed)
+        self._last_call_time = asyncio.get_running_loop().time()
+
         system_text = _SYSTEM_PROMPT
         loc = address_label or "Saved Delivery Address"
         if address_id:
@@ -879,22 +926,24 @@ class GroceryAgentEngine:
                 "temperature": 0.2,
             },
         }
-        max_retries = 3
-        backoff = 4.0
+        max_retries = 6
+        backoff = 5.0
         client = await self._get_client()
 
         for attempt in range(max_retries):
             try:
                 resp = await client.post(url, json=payload)
                 if resp.status_code == 429:
+                    retry_after = resp.headers.get("retry-after")
+                    sleep_time = float(retry_after) if retry_after else backoff
                     logger.warning(
                         "Gemini 429 rate limit encountered. Retrying in %.1fs (attempt %d/%d)...",
-                        backoff,
+                        sleep_time,
                         attempt + 1,
                         max_retries,
                     )
-                    await asyncio.sleep(backoff)
-                    backoff *= 2.0
+                    await asyncio.sleep(sleep_time)
+                    backoff = min(backoff * 1.8, 25.0)
                     continue
 
                 if resp.status_code == 400 and len(contents) > 1:

@@ -809,6 +809,111 @@ MOCK_PRODUCTS: list[CommerceProductItem] = [
             ),
         ],
     ),
+    CommerceProductItem(
+        product_id="prod-garlic",
+        name="Fresh Garlic (Lahsun)",
+        category="produce",
+        variants=[
+            ProductVariant(
+                spin_id="SPIN-GARLIC-100G",
+                name="Fresh Garlic 100g",
+                pack_size="100 g",
+                price=38.0,
+                mrp=45.0,
+                in_stock=True,
+            ),
+        ],
+    ),
+    CommerceProductItem(
+        product_id="prod-ginger",
+        name="Fresh Ginger (Adrak)",
+        category="produce",
+        variants=[
+            ProductVariant(
+                spin_id="SPIN-GINGER-100G",
+                name="Fresh Ginger 100g",
+                pack_size="100 g",
+                price=35.0,
+                mrp=40.0,
+                in_stock=True,
+            ),
+        ],
+    ),
+    CommerceProductItem(
+        product_id="prod-mushroom",
+        name="Fresh Button Mushrooms",
+        category="produce",
+        variants=[
+            ProductVariant(
+                spin_id="SPIN-MUSHROOM-1PACK",
+                name="Fresh Button Mushrooms 1 Pack",
+                pack_size="200 g",
+                price=65.0,
+                mrp=75.0,
+                in_stock=True,
+            ),
+        ],
+    ),
+    CommerceProductItem(
+        product_id="prod-olive-oil",
+        name="Figaro Extra Virgin Olive Oil",
+        category="edible_oils",
+        variants=[
+            ProductVariant(
+                spin_id="SPIN-OLIVEOIL-250ML",
+                name="Figaro Extra Virgin Olive Oil 250ml",
+                pack_size="250 ml",
+                price=345.0,
+                mrp=375.0,
+                in_stock=True,
+            ),
+        ],
+    ),
+    CommerceProductItem(
+        product_id="prod-chips",
+        name="Lay's India's Magic Masala Potato Chips",
+        category="snacks",
+        variants=[
+            ProductVariant(
+                spin_id="SPIN-LAYS-CHIPS-50G",
+                name="Lay's Magic Masala Potato Chips 50g",
+                pack_size="50 g",
+                price=20.0,
+                mrp=20.0,
+                in_stock=True,
+            ),
+        ],
+    ),
+    CommerceProductItem(
+        product_id="prod-pepsi",
+        name="Pepsi Original Taste Cold Drink",
+        category="beverages",
+        variants=[
+            ProductVariant(
+                spin_id="SPIN-PEPSI-CAN-330ML",
+                name="Pepsi Can (330 ml)",
+                pack_size="330 ml",
+                price=40.0,
+                mrp=40.0,
+                in_stock=True,
+            ),
+        ],
+    ),
+    CommerceProductItem(
+        product_id="prod-matchbox",
+        name="Homelite Safety Matchbox",
+        category="household",
+        variants=[
+            ProductVariant(
+                spin_id="SPIN-MATCHBOX-10PK",
+                name="Homelite Safety Matches (Pack of 10)",
+                pack_size="10 pcs",
+                price=10.0,
+                mrp=10.0,
+                in_stock=True,
+            ),
+        ],
+    ),
 ]
 
 MOCK_ADDRESSES = [
@@ -830,6 +935,16 @@ MOCK_ADDRESSES = [
         postal_code="400093",
         latitude=19.1136,
         longitude=72.8697,
+        is_serviceable=True,
+    ),
+    DeliveryAddress(
+        id="addr-pune-1",
+        label="Pune Home",
+        street="Flat No 201, Everest Graciana, Opposite Yash Laxmi Heights, Sangvi",
+        city="Pune",
+        postal_code="411027",
+        latitude=18.5793,
+        longitude=73.8143,
         is_serviceable=True,
     ),
 ]
@@ -964,10 +1079,21 @@ class MockCommerceAdapter(CommercePort):
     async def search_products(self, address_id: str, query: str) -> list[CommerceProductItem]:
         self.call_count += 1
         q = query.strip().lower()
-        res = list(self._products) if not q else [
+        if not q:
+            self.successful_call_count += 1
+            return list(self._products)
+
+        res = [
             p for p in self._products
             if q in p.name.lower() or q in p.category.lower() or any(q in v.name.lower() for v in p.variants)
         ]
+        if not res:
+            tokens = [t for t in q.split() if len(t) > 2]
+            if tokens:
+                res = [
+                    p for p in self._products
+                    if any(t in p.name.lower() or t in p.category.lower() or any(t in v.name.lower() for v in p.variants) for t in tokens)
+                ]
         self.successful_call_count += 1
         return res
 
@@ -1022,6 +1148,8 @@ class MockCommerceAdapter(CommercePort):
             prod, variant = self._catalog_by_spin[update.spin_id]
             if variant.in_stock is False or update.spin_id in self._injected_oos:
                 raise ItemOutOfStockError(spin_id=update.spin_id, available_quantity=0)
+            if update.quantity > 20:
+                raise ItemOutOfStockError(spin_id=update.spin_id, available_quantity=10)
 
             price = self._price_overrides.get(variant.spin_id, variant.price)
             total_price = round(price * update.quantity, 2)

@@ -15,3 +15,13 @@ async def client() -> AsyncGenerator[AsyncClient, None]:
         base_url="http://test",
     ) as ac:
         yield ac
+
+
+import pytest
+from backend.integrations.commerce.mock_adapter import MockCommerceAdapter
+
+
+@pytest.fixture
+def mock_commerce() -> MockCommerceAdapter:
+    """Provide a fresh isolated MockCommerceAdapter instance."""
+    return MockCommerceAdapter()

@@ -85,11 +85,17 @@ def format_cart_receipt(
     if cart.discount > 0:
         lines.append(f"*Discount:* -{_format_inr(cart.discount)}")
     lines.append(f"*Grand Total:* {_format_inr(cart.grand_total)}")
+    if cart.min_order_threshold and cart.grand_total < cart.min_order_threshold:
+        diff = round(cart.min_order_threshold - cart.grand_total, 2)
+        lines.append(f"⚠️ *Store Minimum Order:* {_format_inr(cart.min_order_threshold)} (Add {_format_inr(diff)} more to checkout)")
     lines.extend([
         "",
         f"📍 *Delivering to:* {clean_loc}",
-        "👉 Reply *Confirm* to place order, or tell me what to change!",
     ])
+    if cart.min_order_threshold and cart.grand_total < cart.min_order_threshold:
+        lines.append("👉 Add items to reach the minimum order, or tell me what to add!")
+    else:
+        lines.append("👉 Reply *Confirm* to place order, or tell me what to change!")
     return "\n".join(lines)
 
 

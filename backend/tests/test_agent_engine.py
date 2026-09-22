@@ -1309,22 +1309,6 @@ async def test_concurrent_tool_execution_gather(agent_engine):
         assert len(tool_turn["parts"]) == 2
 
 
-@pytest.mark.asyncio
-async def test_history_pruning_sliding_window(agent_engine):
-    """Verify history is capped to 12 entries and older search results are compacted."""
-    cid = "cust_prune_test"
-    # Populate with 14 turns
-    agent_engine._history[cid] = [
-        {"role": "user", "parts": [{"functionResponse": {"response": {"content": {"products": [{"name": f"P{i}"} for i in range(10)]}}}}]}
-        for i in range(14)
-    ]
-    agent_engine._prune_history(cid)
-    # Check sliding window
-    assert len(agent_engine._history[cid]) == 12
-    # Check compaction on older turns
-    older_entry = agent_engine._history[cid][0]
-    older_content = older_entry["parts"][0]["functionResponse"]["response"]["content"]
-    assert len(older_content["products"]) <= 2
 
 
 def test_clean_address_deduplication_and_formatting():
@@ -1662,7 +1646,7 @@ def test_prune_history_preserves_turn_boundaries(agent_engine):
             "parts": [{
                 "functionResponse": {
                     "name": "search_products",
-                    "response": {"name": "search_products", "content": {"products": [{"name": f"P{turn}"}]}},
+                    "response": {"name": "search_products", "content": {"products": [{"name": f"P{turn}_{i}"} for i in range(10)]}},
                 }
             }],
         })
@@ -1684,6 +1668,9 @@ def test_prune_history_preserves_turn_boundaries(agent_engine):
     assert pruned[0]["parts"][0]["text"] == "Search item 3"
     # Never starts with a functionResponse
     assert "functionResponse" not in pruned[0]["parts"][0]
+    # Older search results in pruned history are compacted to <= 2 items
+    older_content = pruned[2]["parts"][0]["functionResponse"]["response"]["content"]
+    assert len(older_content["products"]) <= 2
 
 
 @pytest.mark.asyncio

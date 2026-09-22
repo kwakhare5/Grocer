@@ -10,7 +10,12 @@ from urllib.parse import quote
 
 import httpx
 
-from backend.agent.tools import GEMINI_TOOL_DECLARATIONS, SwiggyAgentTools
+from backend.agent.tools import (
+    GEMINI_TOOL_DECLARATIONS,
+    SwiggyAgentTools,
+    _format_inr,
+    format_cart_receipt,
+)
 from backend.channels.models import (
     ChannelType,
     InteractiveAction,
@@ -18,6 +23,7 @@ from backend.channels.models import (
     NormalizedOutgoingResponse,
 )
 from backend.config import settings
+from backend.integrations.commerce.models import CommerceCart
 from backend.integrations.commerce.port import CommercePort
 
 logger = logging.getLogger("grocer.agent.engine")
@@ -227,6 +233,8 @@ class GroceryAgentEngine:
         self._customer_address_label: dict[str, str] = {}
         # Track pending checkout confirmation per customer
         self._pending_checkout: dict[str, bool] = {}
+        # Track last interaction timestamp per customer for session inactivity detection
+        self._last_interaction_time: dict[str, float] = {}
         # Per-customer concurrency locks to serialize rapid-fire incoming messages
         self._locks: dict[str, asyncio.Lock] = {}
         # Pacing timestamp for rate-limit protection
@@ -275,10 +283,25 @@ class GroceryAgentEngine:
             self._history[customer_id] = []
         return self._history[customer_id]
 
-    def _prune_history(self, customer_id: str) -> None:
-        """Keep conversation history bounded (6 turns) and compact past search returns."""
+    def _prune_history(self, customer_id: str, max_user_turns: int = 4) -> None:
+        """Keep conversation history bounded by whole user turn boundaries and compact past search returns."""
         hist = self._history.get(customer_id, [])
-        if len(hist) > 12:
+        if not hist:
+            return
+
+        # Identify turn start indices: user messages with user text (not function responses)
+        user_turn_starts = [
+            i
+            for i, entry in enumerate(hist)
+            if entry.get("role") == "user"
+            and any("text" in p for p in entry.get("parts", []))
+        ]
+
+        if len(user_turn_starts) > max_user_turns:
+            cutoff = user_turn_starts[-max_user_turns]
+            hist = hist[cutoff:]
+            self._history[customer_id] = hist
+        elif not user_turn_starts and len(hist) > 12:
             hist = hist[-12:]
             self._history[customer_id] = hist
 
@@ -384,8 +407,93 @@ class GroceryAgentEngine:
                 incoming_text = "Yes, please confirm and place the order now."
             elif message.interactive_id == "modify_cart":
                 incoming_text = "I would like to change something in my cart."
-            elif message.interactive_id == "start_fresh":
+            elif message.interactive_id in ("start_fresh", "clear_cart"):
                 incoming_text = "Please clear my cart and start fresh."
+
+        norm_text = incoming_text.casefold().strip("!.? \t\n")
+
+        # Fast-path 1: Reset / Clear basket command
+        _RESET_COMMANDS = {
+            "start over",
+            "start fresh",
+            "clear cart",
+            "clear my cart",
+            "empty cart",
+            "empty my cart",
+            "clear basket",
+            "clear the cart",
+            "reset",
+            "reset cart",
+            "please clear my cart and start fresh.",
+            "please clear my cart and start fresh",
+        }
+        if norm_text in _RESET_COMMANDS:
+            try:
+                await self.tools.clear_cart()
+            except Exception as exc:
+                logger.warning("Fast-path clear_cart failed: %s", exc)
+            self._history[customer_id] = []
+            return NormalizedOutgoingResponse(
+                recipient_id=message.sender_id,
+                channel=message.channel,
+                text="🗑️ *Basket Cleared!*\n\nYour basket is now completely empty. What groceries can I get for you today?",
+                conversation_state="READY",
+            )
+
+        # Inspect current live cart
+        current_cart: Optional[CommerceCart] = None
+        try:
+            current_cart = await self.commerce.get_cart()
+        except Exception as exc:
+            logger.debug("Failed to fetch initial cart for customer=%s: %s", customer_id, exc)
+
+        # Fast-path 2: Hesitation guard when active basket exists
+        _HESITATION_PHRASES = {
+            "no",
+            "wait",
+            "hold on",
+            "not yet",
+            "stop",
+            "don't place it",
+            "not now",
+            "pause",
+            "wait a minute",
+            "hold",
+            "no thanks",
+            "no not yet",
+            "wait wait",
+            "no wait",
+            "nope",
+        }
+        if norm_text in _HESITATION_PHRASES and current_cart and current_cart.items:
+            loc = self._customer_address_label.get(customer_id) or "Home"
+            receipt = format_cart_receipt(current_cart, delivery_location=loc)
+            return NormalizedOutgoingResponse(
+                recipient_id=message.sender_id,
+                channel=message.channel,
+                text=(
+                    "No problem, I've kept your basket on hold! 🛒\n\n"
+                    "Your groceries are still saved. Whenever you're ready, let me know if you want to add/remove items, switch delivery address, or clear your basket.\n\n"
+                    f"{receipt}"
+                ),
+                interactive_actions=[
+                    InteractiveAction(action_type="button", id="confirm_order", title="Confirm Order"),
+                    InteractiveAction(action_type="button", id="modify_cart", title="Change Items"),
+                    InteractiveAction(action_type="button", id="start_fresh", title="Clear Cart"),
+                ],
+                requires_confirmation=True,
+                conversation_state="AWAITING_CHECKOUT_CONFIRMATION",
+                order_total=current_cart.grand_total,
+            )
+
+        # Inactivity check (idle > 30 mins)
+        current_time = asyncio.get_running_loop().time()
+        last_seen = self._last_interaction_time.get(customer_id)
+        self._last_interaction_time[customer_id] = current_time
+        if last_seen is not None and (current_time - last_seen) > 1800:
+            if not current_cart or not current_cart.items:
+                history = []
+                self._history[customer_id] = history
 
         # Detect address selection from text or context
         address_id = self._customer_address.get(customer_id)
@@ -421,10 +529,14 @@ class GroceryAgentEngine:
         last_cart_receipt: str | None = None
         last_cart_total: float | None = None
         addr_lbl = self._customer_address_label.get(customer_id)
+        address_changed = False
 
         for _ in range(max_iterations):
             response_data = await self._call_gemini(
-                history, address_id=address_id, address_label=addr_lbl
+                history,
+                address_id=address_id,
+                address_label=addr_lbl,
+                cart=current_cart,
             )
             if not response_data:
                 final_text = "I'm having a brief connection hiccup. Please try again in a moment."
@@ -495,7 +607,13 @@ class GroceryAgentEngine:
             auth_failed = any(ec[1] for ec in executed_calls)
             for ec in executed_calls:
                 resp_part = ec[0].get("functionResponse", {})
+                fn_call_name = resp_part.get("name")
                 fn_content = resp_part.get("response", {}).get("content", {})
+                if fn_call_name == "select_delivery_address":
+                    address_changed = True
+                    if isinstance(fn_content, dict) and fn_content.get("success"):
+                        address_id = fn_content.get("address_id") or address_id
+                        addr_lbl = self._customer_address_label.get(customer_id) or addr_lbl
                 if isinstance(fn_content, dict):
                     if fn_content.get("formatted_receipt"):
                         last_cart_receipt = fn_content["formatted_receipt"]
@@ -504,6 +622,12 @@ class GroceryAgentEngine:
                 if ec[2]:
                     checkout_executed = True
                     checkout_result = ec[3]
+
+            if any(ec[0].get("functionResponse", {}).get("name") in ("update_cart", "select_delivery_address", "clear_cart") for ec in executed_calls):
+                try:
+                    current_cart = await self.commerce.get_cart()
+                except Exception:
+                    pass
 
             if auth_failed:
                 return self._auth_expired_response(message)
@@ -594,7 +718,32 @@ class GroceryAgentEngine:
                     conv_state = "READY"
         else:
             # Post-process: Add interactive buttons if cart summary is ready for confirmation
-            if any(
+            if address_changed and last_cart_receipt:
+                amnesiac_phrases = (
+                    "what would you like to order",
+                    "what can i get for you",
+                    "what do you want to order",
+                    "how can i help with your groceries",
+                    "what groceries",
+                    "what would you like",
+                )
+                is_amnesiac = any(p in final_text.casefold() for p in amnesiac_phrases)
+                receipt_missing = "🛒 *your basket" not in final_text.casefold()
+                if is_amnesiac or receipt_missing:
+                    logger.info(
+                        "Deterministic address-change guard triggered: ensuring receipt is presented for %s",
+                        addr_lbl,
+                    )
+                    final_text = (
+                        f"I've updated your delivery address to *{addr_lbl}*! 📍\n\n"
+                        f"{last_cart_receipt}"
+                    )
+                actions = [
+                    InteractiveAction(action_type="button", id="confirm_order", title="Confirm Order"),
+                    InteractiveAction(action_type="button", id="modify_cart", title="Change Items"),
+                ]
+                conv_state = "AWAITING_CHECKOUT_CONFIRMATION"
+            elif any(
                 phrase in final_text.casefold()
                 for phrase in (
                     "place this order",
@@ -604,6 +753,7 @@ class GroceryAgentEngine:
                     "reply *confirm*",
                     "reply confirm",
                     "place order",
+                    "confirm to place order",
                 )
             ):
                 actions = [
@@ -683,15 +833,41 @@ class GroceryAgentEngine:
         *,
         address_id: Optional[str] = None,
         address_label: Optional[str] = None,
+        cart: Optional[CommerceCart] = None,
+        **kwargs: Any,
     ) -> Optional[dict[str, Any]]:
         """Perform one HTTP POST request to Gemini v1beta generateContent using pooled connection."""
         system_text = _SYSTEM_PROMPT
+        loc = address_label or "Saved Delivery Address"
         if address_id:
-            loc = address_label or "Saved Delivery Address"
             system_text += (
                 f"\n\n### ACTIVE DELIVERY CONTEXT (PRE-SELECTED):\n"
                 f"- Active delivery address is already selected: {loc} (ID: `{address_id}`).\n"
                 f"- You do NOT need to call `get_saved_addresses` or `select_delivery_address` unless the customer explicitly requests to change their address."
+            )
+
+        if cart and cart.items:
+            items_summary = ", ".join(
+                f"{it.quantity}x {it.name} ({_format_inr(it.total_price)})"
+                for it in cart.items
+            )
+            delivery_str = "FREE (₹0)" if cart.delivery_fee == 0.0 else _format_inr(cart.delivery_fee)
+            system_text += (
+                f"\n\n### LIVE BASKET STATE (ACTIVE ON SWIGGY INSTAMART):\n"
+                f"- Active Basket Item Count: {len(cart.items)}\n"
+                f"- Basket Contents: {items_summary}\n"
+                f"- Subtotal: {_format_inr(cart.item_total)}\n"
+                f"- Delivery Fee: {delivery_str}\n"
+                f"- Grand Total: {_format_inr(cart.grand_total)}\n"
+                f"- Delivery Destination: {loc} (ID: `{address_id}`)\n"
+                f"- CRITICAL INVARIANT: The customer already has these {len(cart.items)} items in their basket. "
+                f"Never assume the basket is empty. If the delivery address changed, immediately show the updated receipt and ask for confirmation. "
+                f"Never ask 'what would you like to order?' when there are already items in the basket."
+            )
+        else:
+            system_text += (
+                f"\n\n### LIVE BASKET STATE:\n"
+                f"- The basket is currently empty (0 items).\n"
             )
 
         url = f"{_API_ROOT}/{self.model}:generateContent?key={self.api_key}"
@@ -723,14 +899,23 @@ class GroceryAgentEngine:
 
                 if resp.status_code == 400 and len(contents) > 1:
                     logger.warning(
-                        "Gemini 400 invalid argument on multi-turn history (%s). Self-healing by retrying with current turn only.",
+                        "Gemini 400 invalid argument on multi-turn history (%s). Self-healing by retrying from last user turn.",
                         resp.text[:200],
                     )
-                    # Self-healing: update in-place so engine history is cleared of corrupt older turns
-                    last_turn = contents[-1]
+                    # Find last user text message index
+                    last_user_idx = max(
+                        (
+                            i
+                            for i, entry in enumerate(contents)
+                            if entry.get("role") == "user"
+                            and any("text" in p for p in entry.get("parts", []))
+                        ),
+                        default=len(contents) - 1,
+                    )
+                    salvaged = contents[last_user_idx:]
                     contents.clear()
-                    contents.append(last_turn)
-                    payload["contents"] = [last_turn]
+                    contents.extend(salvaged)
+                    payload["contents"] = salvaged
                     resp = await client.post(url, json=payload)
                     if resp.status_code == 200:
                         return resp.json()

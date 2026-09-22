@@ -1484,4 +1484,248 @@ async def test_self_healing_on_http_400(agent_engine):
     assert corrupt_history[0]["parts"][0]["text"] == "bourbon and jim jam"
 
 
+@pytest.mark.asyncio
+async def test_select_delivery_address_returns_active_cart_context(mock_commerce):
+    """select_delivery_address attaches active cart state, receipt, and anti-amnesia instructions."""
+    from backend.integrations.commerce.models import DeliveryAddress, CartItemUpdate
+    addr1 = DeliveryAddress(id="addr_mumbai", label="Mumbai Home", street="Flat 201, Everest Graciana", city="Mumbai")
+    addr2 = DeliveryAddress(id="addr_pune", label="Pune Home", street="Flat 102, Koregaon Park", city="Pune")
+    mock_commerce.get_addresses = AsyncMock(return_value=[addr1, addr2])
+
+    tools = SwiggyAgentTools(mock_commerce)
+    # Populate cart
+    await mock_commerce.update_cart(
+        items=[CartItemUpdate(spin_id="SPIN-MILK-1L", quantity=2, sku_id="sku_1")],
+        address_id="addr_mumbai",
+    )
+
+    res = await tools.select_delivery_address(customer_id="cust_test_cart", address_id="addr_pune")
+    assert res["success"] is True
+    assert res["address_id"] == "addr_pune"
+    assert res["has_active_cart"] is True
+    assert res["item_count"] >= 1
+    assert "🛒 *Your Basket" in res["formatted_receipt"]
+    assert "Koregaon Park" in res["formatted_receipt"]
+    assert "DO NOT ask 'What would you like to order today?'" in res["instruction"]
+
+
+@pytest.mark.asyncio
+async def test_address_switch_preserves_active_cart_and_receipt(agent_engine, mock_commerce):
+    """Deterministic guard strictly prevents LLM amnesia when address is changed mid-shopping."""
+    from backend.integrations.commerce.models import DeliveryAddress, CartItemUpdate
+    addr1 = DeliveryAddress(id="addr_mumbai", label="Mumbai Home", street="Flat 201, Everest Graciana", city="Mumbai")
+    addr2 = DeliveryAddress(id="addr_pune", label="Pune Home", street="Flat 102, Koregaon Park", city="Pune")
+    mock_commerce.get_addresses = AsyncMock(return_value=[addr1, addr2])
+
+    agent_engine._customer_address["cust_addr_switch"] = "addr_mumbai"
+    agent_engine._customer_address_label["cust_addr_switch"] = "Flat 201, Everest Graciana, Mumbai"
+
+    # Put items in cart
+    await mock_commerce.update_cart(
+        items=[CartItemUpdate(spin_id="SPIN-MILK-1L", quantity=2, sku_id="sku_1")],
+        address_id="addr_mumbai",
+    )
+
+    # Gemini attempts to switch address, and outputs amnesiac greeting: "What would you like to order today?"
+    gemini_responses = [
+        {
+            "candidates": [
+                {
+                    "content": {
+                        "parts": [
+                            {
+                                "functionCall": {
+                                    "name": "select_delivery_address",
+                                    "args": {"address_id": "addr_pune"},
+                                }
+                            }
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "candidates": [
+                {
+                    "content": {
+                        "parts": [
+                            {
+                                "text": "I've updated your delivery address to Pune! What would you like to order today?"
+                            }
+                        ]
+                    }
+                }
+            ]
+        },
+    ]
+
+    with patch.object(agent_engine, "_call_gemini", side_effect=gemini_responses):
+        msg = NormalizedIncomingMessage(
+            message_id="msg_addr_switch",
+            channel=ChannelType.WHATSAPP,
+            sender_id="+919876543210",
+            customer_id="cust_addr_switch",
+            text="change address to 2",
+        )
+        response = await agent_engine.handle_message(msg)
+
+        # Address changed to Pune
+        assert agent_engine._customer_address["cust_addr_switch"] == "addr_pune"
+        # Amnesiac text must be overridden
+        assert "What would you like to order today?" not in response.text
+        # Verified receipt must be shown
+        assert "🛒 *Your Basket" in response.text
+        assert "Koregaon Park" in response.text
+        # Confirmation buttons must be present
+        assert response.requires_confirmation is True
+        assert len(response.interactive_actions) >= 2
+        button_ids = [a.id for a in response.interactive_actions]
+        assert "confirm_order" in button_ids
+        assert "modify_cart" in button_ids
+        assert response.conversation_state == "AWAITING_CHECKOUT_CONFIRMATION"
+
+
+@pytest.mark.asyncio
+async def test_cart_hesitation_guard_keeps_basket_on_hold(agent_engine, mock_commerce):
+    """When user replies 'no' or 'wait' with an active cart, the agent does not abandon the order."""
+    from backend.integrations.commerce.models import CartItemUpdate
+    await mock_commerce.update_cart(
+        items=[CartItemUpdate(spin_id="SPIN-MILK-1L", quantity=1, sku_id="sku_1")],
+        address_id="addr_home",
+    )
+    agent_engine._customer_address["cust_hesitate"] = "addr_home"
+    agent_engine._customer_address_label["cust_hesitate"] = "Home"
+
+    for hesitation_input in ["no", "wait", "hold on", "not yet", "no wait"]:
+        msg = NormalizedIncomingMessage(
+            message_id=f"msg_hesitate_{hesitation_input}",
+            channel=ChannelType.WHATSAPP,
+            sender_id="+919876543210",
+            customer_id="cust_hesitate",
+            text=hesitation_input,
+        )
+        response = await agent_engine.handle_message(msg)
+
+        assert "on hold" in response.text.casefold()
+        assert "🛒 *Your Basket" in response.text
+        assert response.requires_confirmation is True
+        action_ids = [a.id for a in response.interactive_actions]
+        assert "confirm_order" in action_ids
+        assert "modify_cart" in action_ids
+        assert "start_fresh" in action_ids
+        assert response.conversation_state == "AWAITING_CHECKOUT_CONFIRMATION"
+
+
+@pytest.mark.asyncio
+async def test_fast_path_reset_commands_clear_basket(agent_engine, mock_commerce):
+    """Reset commands ('start over', 'clear cart') immediately empty basket in <20ms."""
+    from backend.integrations.commerce.models import CartItemUpdate
+    await mock_commerce.update_cart(
+        items=[CartItemUpdate(spin_id="SPIN-MILK-1L", quantity=1, sku_id="sku_1")],
+        address_id="addr_home",
+    )
+    cart = await mock_commerce.get_cart()
+    assert len(cart.items) >= 1
+
+    msg = NormalizedIncomingMessage(
+        message_id="msg_reset_cmd",
+        channel=ChannelType.WHATSAPP,
+        sender_id="+919876543210",
+        customer_id="cust_reset",
+        text="start over",
+    )
+    response = await agent_engine.handle_message(msg)
+
+    assert "Basket Cleared!" in response.text
+    assert response.conversation_state == "READY"
+    cart_after = await mock_commerce.get_cart()
+    assert len(cart_after.items) == 0
+    assert len(agent_engine.get_history("cust_reset")) == 0
+
+
+def test_prune_history_preserves_turn_boundaries(agent_engine):
+    """_prune_history cuts strictly at top-level user turn boundaries, never orphaning tool calls."""
+    cid = "cust_turn_prune"
+    # Build 6 complete conversational turns
+    history = []
+    for turn in range(6):
+        # 1. User message
+        history.append({"role": "user", "parts": [{"text": f"Search item {turn}"}]})
+        # 2. Model tool call
+        history.append({
+            "role": "model",
+            "parts": [{"functionCall": {"name": "search_products", "args": {"query": f"item {turn}"}}}],
+        })
+        # 3. User tool response
+        history.append({
+            "role": "user",
+            "parts": [{
+                "functionResponse": {
+                    "name": "search_products",
+                    "response": {"name": "search_products", "content": {"products": [{"name": f"P{turn}"}]}},
+                }
+            }],
+        })
+        # 4. Model final text
+        history.append({"role": "model", "parts": [{"text": f"Found item {turn}!"}]})
+
+    agent_engine._history[cid] = history
+    assert len(history) == 24  # 6 turns * 4 messages
+
+    # Prune keeping last 3 user turns
+    agent_engine._prune_history(cid, max_user_turns=3)
+    pruned = agent_engine._history[cid]
+
+    # Must retain exactly the last 3 turns = 12 messages
+    assert len(pruned) == 12
+    # The first message in the pruned history MUST be role="user" with text
+    assert pruned[0]["role"] == "user"
+    assert "text" in pruned[0]["parts"][0]
+    assert pruned[0]["parts"][0]["text"] == "Search item 3"
+    # Never starts with a functionResponse
+    assert "functionResponse" not in pruned[0]["parts"][0]
+
+
+@pytest.mark.asyncio
+async def test_live_basket_state_injected_into_gemini_prompt(agent_engine, mock_commerce):
+    """_call_gemini receives live cart state and injects it into systemInstruction."""
+    from backend.integrations.commerce.models import CartItemUpdate
+    await mock_commerce.update_cart(
+        items=[
+            CartItemUpdate(spin_id="SPIN-MILK-1L", quantity=2, sku_id="sku_1"),
+            CartItemUpdate(spin_id="SPIN-BREAD-400G", quantity=1, sku_id="sku_2"),
+        ],
+        address_id="addr_home",
+    )
+    cart = await mock_commerce.get_cart()
+
+    captured_payload = None
+
+    async def capture_post(url, json=None, **kwargs):
+        nonlocal captured_payload
+        captured_payload = json
+        import httpx
+        return httpx.Response(
+            200,
+            json={"candidates": [{"content": {"parts": [{"text": "OK"}]}}]},
+            request=httpx.Request("POST", url),
+        )
+
+    await agent_engine._get_client()
+    with patch.object(agent_engine._client, "post", side_effect=capture_post):
+        await agent_engine._call_gemini(
+            [{"role": "user", "parts": [{"text": "hello"}]}],
+            address_id="addr_home",
+            address_label="Green Park, Bangalore",
+            cart=cart,
+        )
+
+    assert captured_payload is not None
+    system_instruction = captured_payload["systemInstruction"]["parts"][0]["text"]
+    assert "### LIVE BASKET STATE (ACTIVE ON SWIGGY INSTAMART):" in system_instruction
+    assert "Active Basket Item Count: 2" in system_instruction
+    assert "CRITICAL INVARIANT" in system_instruction
+    assert "Green Park, Bangalore" in system_instruction
+
+
 

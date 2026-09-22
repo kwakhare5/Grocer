@@ -187,14 +187,39 @@ class SwiggyAgentTools:
                     "success": False,
                     "error": f"Address ID '{address_id}' not found in user's saved addresses.",
                 }
-            return {
+            clean_loc = clean_address(matched.street, matched.city)
+            res: dict[str, Any] = {
                 "success": True,
                 "address_id": matched.id,
                 "label": matched.label or matched.street or "Selected Address",
                 "street": matched.street,
                 "city": matched.city,
-                "clean_address": clean_address(matched.street, matched.city),
+                "clean_address": clean_loc,
             }
+            # Check if active cart exists for this customer
+            try:
+                cart: CommerceCart = await self.commerce.get_cart()
+                if cart and cart.items:
+                    res["has_active_cart"] = True
+                    res["item_count"] = len(cart.items)
+                    res["grand_total"] = cart.grand_total
+                    receipt = format_cart_receipt(cart, delivery_location=clean_loc)
+                    res["formatted_receipt"] = receipt
+                    res["instruction"] = (
+                        f"Delivery address successfully updated to {clean_loc}. "
+                        f"The customer already has an active basket with {len(cart.items)} items (Grand Total: {_format_inr(cart.grand_total)}). "
+                        f"You MUST immediately display the updated delivery address and the current cart receipt, and ask them to reply 'Confirm' to place the order. "
+                        f"DO NOT ask 'What would you like to order today?'."
+                    )
+                else:
+                    res["has_active_cart"] = False
+                    res["instruction"] = (
+                        f"Delivery address set to {clean_loc}. The basket is currently empty. "
+                        f"Ask the customer what groceries they would like to order."
+                    )
+            except Exception as cart_exc:
+                logger.debug("Failed to inspect cart in select_delivery_address: %s", cart_exc)
+            return res
         except ProviderAuthError as exc:
             return {"success": False, "error": "AUTH_EXPIRED", "detail": str(exc)}
         except Exception as exc:
@@ -417,7 +442,7 @@ GEMINI_TOOL_DECLARATIONS = [
     },
     {
         "name": "select_delivery_address",
-        "description": "Switch the active delivery destination. Call get_saved_addresses first to view address IDs, then call this tool when the user requests delivery to a specific location (e.g. Pune, Nashik, Sangvi).",
+        "description": "Switch the active delivery destination. Call get_saved_addresses first to view address IDs, then call this tool when the user requests delivery to a specific location (e.g. Pune, Mumbai, Sangvi). If an active cart exists, this tool preserves and updates the basket for the new location.",
         "parameters": {
             "type": "object",
             "properties": {

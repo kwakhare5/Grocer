@@ -366,6 +366,9 @@ class WhatsAppChannelAdapter(BaseChannelAdapter):
             "messaging_product": "whatsapp",
             "status": "read",
             "message_id": message_id,
+            "typing_indicator": {
+                "type": "text",
+            },
         }
         try:
             client = await self._get_client()

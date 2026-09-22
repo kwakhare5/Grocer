@@ -7,6 +7,7 @@ import json
 import uuid
 
 import pytest
+import httpx
 from httpx import ASGITransport, AsyncClient
 
 from backend.channels.models import (
@@ -148,3 +149,30 @@ async def test_mark_message_read_record_only(whatsapp_adapter: WhatsAppChannelAd
     """mark_message_read should exit cleanly when in record_only or unconfigured state."""
     res = await whatsapp_adapter.mark_message_read("wamid.test_read_1")
     assert res is False
+
+
+@pytest.mark.asyncio
+async def test_mark_message_read_payload_structure() -> None:
+    """mark_message_read should include status read and typing_indicator."""
+    adapter = WhatsAppChannelAdapter(
+        phone_number_id="123456",
+        access_token="test_token",
+    )
+    captured_requests = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured_requests.append(json.loads(request.content.decode()))
+        return httpx.Response(200, json={"success": True})
+
+    transport = httpx.MockTransport(handler)
+    adapter._client = httpx.AsyncClient(transport=transport)
+
+    res = await adapter.mark_message_read("wamid.test_read_typing")
+    assert res is True
+    assert len(captured_requests) == 1
+    req = captured_requests[0]
+    assert req["messaging_product"] == "whatsapp"
+    assert req["status"] == "read"
+    assert req["message_id"] == "wamid.test_read_typing"
+    assert req["typing_indicator"] == {"type": "text"}
+    await adapter._client.aclose()

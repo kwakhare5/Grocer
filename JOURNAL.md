@@ -15,6 +15,16 @@ During the Session End ritual (called automatically whenever significant changes
 
 ## Log Entries
 
+### [GROCER — Google Plus Code Sanitization, Swiggy Label Prefixing & Address Landmark Clarity] 2026-09-29
+
+- **Problem / tension**: During live WhatsApp order assembly, when presenting the active delivery destination, the bot printed raw strings like `3rd floor flat no 303, Shitole Nagar, HRC8+HWV`. This confused customers because: (1) Google Open Location Plus codes (`HRC8+HWV`) leaked directly into user chat bubbles; (2) The user's Swiggy address label (e.g. `Home` vs `Work`) was stripped and discarded by the formatter; and (3) Naive 3-element slicing (`cleaned_parts[:3]`) chopped off the recognizable locality/landmark (`Sangvi`) and city (`Pune`), making it impossible for users with multiple saved flats to know which destination was active.
+- **Change / decision**: (1) Upgraded `clean_address()` in `backend/agent/tools.py` with regex pattern `\b[A-Z0-9]{4,8}\+[A-Z0-9]{2,6}\b` to strip all algorithmic Google Plus codes; (2) Added explicit state stripping (Maharashtra, Karnataka, etc.) and expanded meaningful chunk retention up to 4 elements before the city; (3) Added `label` parameter to `clean_address()`, automatically attaching friendly Swiggy tags so addresses format crisply as `Home (3rd floor flat no 303, Shitole Nagar, Sangvi, Pune)`; (4) Updated `get_saved_addresses` and `select_delivery_address` to pass labels through; (5) Added regression assertions in `backend/tests/test_agent_engine.py` verifying plus code stripping, state removal, and label retention.
+- **Proof**: 280/280 backend tests passing green in 4.51s (100%). ESLint clean (0 errors, 0 warnings). Knowledge graph updated with `graphify update .` (985 nodes, 1,924 edges, 75 communities).
+- **Still broken / unproven**: Physical screen recording of 2-minute video demo and submission receipt from `builders@swiggy.in`.
+- **Metric context**: 280 backend tests passing green (100%); 0 Google Plus codes in output; 0 lost labels; 0 ESLint errors.
+- **Trial-ready flow**: Customer asks for groceries -> agent displays receipt with `📍 Delivering to: Home (3rd floor flat no 303, Shitole Nagar, Sangvi, Pune)` -> customer immediately recognizes their home flat without ambiguity or raw plus codes.
+- **Engineering references**: `backend/agent/tools.py`, `backend/agent/engine.py`, `backend/tests/test_agent_engine.py`, `JOURNAL.md`.
+
 ### [GROCER — Typing Indicator Integration, Landing Page Replenishment Upgrade & Swiggy Handoff Packaging] 2026-09-22
 
 - **Problem / tension**: Before submitting to the official Swiggy Builders Club, two critical gaps remained: (1) In the live WhatsApp channel, incoming messages received blue ticks but lacked the native animated "typing..." status bubble during the ~2s AI reasoning window; and (2) The consumer website (`grocerr.vercel.app`) lacked comprehensive architectural and replenishment storytelling, leaving reviewers without visibility into how the multi-archetype replenishment engine, parallel catalogue deduction, and Swiggy MCP JSON-RPC integration work under the hood.

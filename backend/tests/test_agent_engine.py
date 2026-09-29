@@ -1325,6 +1325,18 @@ def test_clean_address_deduplication_and_formatting():
     assert "flat number 1204" in cleaned
     assert "Bangalore" in cleaned
 
+    # Test Google Plus Code stripping and friendly label attachment
+    karan_raw = "3rd floor flat no 303, Shitole Nagar, HRC8+HWV, Sangvi, Pimpri-Chinchwad, Pune, Maharashtra 411027"
+    karan_cleaned = clean_address(karan_raw, "Pune", label="Home")
+    assert "HRC8+HWV" not in karan_cleaned
+    assert "Maharashtra" not in karan_cleaned
+    assert "411027" not in karan_cleaned
+    assert "Home (" in karan_cleaned
+    assert "3rd floor flat no 303" in karan_cleaned
+    assert "Shitole Nagar" in karan_cleaned
+    assert "Pune" in karan_cleaned
+
+
 
 def test_format_cart_receipt_mathematical_consistency():
     """Verify format_cart_receipt guarantees exact rupee math without mystery fees."""

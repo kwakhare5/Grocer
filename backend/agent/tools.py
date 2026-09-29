@@ -27,15 +27,22 @@ def _format_inr(amount: float) -> str:
     return f"₹{int(amount)}" if amount.is_integer() else f"₹{amount:.2f}"
 
 
-def clean_address(street: str, city: Optional[str] = None) -> str:
+def clean_address(street: str, city: Optional[str] = None, label: Optional[str] = None) -> str:
     """Format raw verbose address into a crisp, human-readable WhatsApp destination."""
     if not street:
-        return city or "Your Saved Location"
+        return city or (label if label and label.lower() not in ("other", "saved address", "selected address") else "Your Saved Location")
 
     # Remove user name prefixes like 'Customer Name:'
     text = re.sub(r"^[^:]+:\s*", "", street).strip()
-    # Strip postal codes, states, and country tags
-    text = re.sub(r",?\s*(?:India|Maharashtra|\b\d{6}\b)\s*", "", text, flags=re.IGNORECASE).strip(" ,")
+    # Strip Google Plus codes e.g. HRC8+HWV or 7JVW+9V8
+    text = re.sub(r"\b[A-Z0-9]{4,8}\+[A-Z0-9]{2,6}\b", "", text, flags=re.IGNORECASE)
+    # Strip postal codes, state names, and country tags
+    text = re.sub(
+        r",?\s*(?:India|Maharashtra|Karnataka|Delhi|Tamil Nadu|Telangana|Gujarat|West Bengal|Uttar Pradesh|Haryana|\b\d{6}\b)\s*",
+        "",
+        text,
+        flags=re.IGNORECASE,
+    ).strip(" ,")
 
     # Deduplicate repeated words/phrases (e.g. 'Green Park, Green Park')
     parts = [p.strip() for p in text.split(",") if p.strip()]
@@ -43,14 +50,21 @@ def clean_address(street: str, city: Optional[str] = None) -> str:
     cleaned_parts = []
     for p in parts:
         p_low = p.casefold()
-        if p_low not in seen:
+        if p_low not in seen and len(p) > 1:
             seen.add(p_low)
             cleaned_parts.append(p)
 
-    res = ", ".join(cleaned_parts[:3])
+    res = ", ".join(cleaned_parts[:4])
     if city and city.casefold() not in res.casefold():
-        res = f"{res}, {city}"
-    return res or street
+        res = f"{res}, {city}" if res else city
+    if not res:
+        res = street
+
+    if label and label.strip().casefold() not in ("other", "saved address", "selected address", "your saved location"):
+        lbl = label.strip()
+        if lbl.casefold() not in res.casefold():
+            return f"{lbl} ({res})"
+    return res
 
 
 def format_cart_receipt(
@@ -165,7 +179,7 @@ class SwiggyAgentTools:
                     "street": a.street,
                     "city": a.city,
                     "is_default": getattr(a, "is_default", False),
-                    "clean_address": clean_address(a.street, a.city),
+                    "clean_address": clean_address(a.street, a.city, label=a.label),
                 }
                 for a in addresses
             ]
@@ -193,7 +207,7 @@ class SwiggyAgentTools:
                     "success": False,
                     "error": f"Address ID '{address_id}' not found in user's saved addresses.",
                 }
-            clean_loc = clean_address(matched.street, matched.city)
+            clean_loc = clean_address(matched.street, matched.city, label=matched.label)
             res: dict[str, Any] = {
                 "success": True,
                 "address_id": matched.id,

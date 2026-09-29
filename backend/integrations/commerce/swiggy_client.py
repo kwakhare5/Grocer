@@ -29,7 +29,7 @@ class SwiggyMcpClient:
         base_url: str,
         timeout: float = 10.0,
         auth_token: Optional[str] = None,
-        token_resolver: Optional[Callable[[str], Optional[str]]] = None,
+        token_resolver: Optional[Callable[[Optional[str]], Optional[str]]] = None,
         owner_customer_id: Optional[str] = None,
     ) -> None:
         self.base_url = base_url
@@ -37,24 +37,37 @@ class SwiggyMcpClient:
         self._auth_token = auth_token
         self._token_resolver = token_resolver
         self._owner_customer_id = owner_customer_id
+        self._client: Optional[Any] = None
+
+    def _get_client(self) -> Any:
+        """Return persistent HTTP client pool for Swiggy MCP calls."""
+        if self._client is None or getattr(self._client, "is_closed", False):
+            self._client = httpx.AsyncClient(
+                timeout=self.timeout,
+                limits=httpx.Limits(max_keepalive_connections=10, max_connections=20),
+            )
+        return self._client
+
+    async def close(self) -> None:
+        """Close persistent HTTP connection pool."""
+        if self._client is not None and not getattr(self._client, "is_closed", True):
+            await self._client.aclose()
+            self._client = None
 
     def resolve_token(self, customer_id: Optional[str] = None) -> Optional[str]:
-        """Resolve valid token for customer from resolver or static fallback."""
+        """Resolve valid token from vault, live settings, or static fallback."""
         if self._token_resolver:
             token = self._token_resolver(customer_id) if customer_id else self._token_resolver(None)
             if token:
                 return token
             if customer_id:
-                # If customer-specific lookup returned None, try active session in vault
+                # Fallback to most recently authenticated active token in vault (single-user friendly)
                 token = self._token_resolver(None)
                 if token:
                     return token
-        if self._auth_token and self._owner_customer_id and customer_id:
-            if customer_id != self._owner_customer_id and not self._owner_customer_id.isdigit():
-                raise ProviderAuthError(
-                    "Configured Swiggy session belongs to a different customer."
-                )
-        return self._auth_token
+        from backend.config import settings
+        live_token = getattr(settings, "SWIGGY_AUTH_TOKEN", None) or self._auth_token
+        return live_token
 
     def parse_error_if_failed(self, response_data: dict[str, Any]) -> None:
         """Classify errors from Swiggy envelope per official error taxonomy."""
@@ -148,46 +161,46 @@ class SwiggyMcpClient:
         }
 
         try:
-            async with httpx.AsyncClient(timeout=self.timeout) as client:
-                resp = await client.post(self.base_url, json=payload, headers=headers)
+            client = self._get_client()
+            resp = await client.post(self.base_url, json=payload, headers=headers)
 
-                if resp.status_code == 401:
-                    raise ProviderAuthError("Swiggy MCP session unauthenticated or token expired.")
-                elif resp.status_code == 419:
-                    raise ProviderSessionRevokedError("Swiggy MCP session revoked. Re-auth required.")
-                elif resp.status_code == 504:
-                    raise UpstreamTimeoutError("Swiggy MCP upstream gateway timed out.")
-                elif resp.status_code >= 500:
-                    raise UpstreamTimeoutError(f"Swiggy MCP upstream error: HTTP {resp.status_code}")
-                elif resp.status_code >= 400:
-                    err_msg = f"Swiggy MCP bad request: HTTP {resp.status_code}"
-                    try:
-                        err_data = resp.json()
-                        if "error" in err_data:
-                            self.parse_error_if_failed(err_data)
-                    except Exception as parse_exc:
-                        if isinstance(parse_exc, CommerceError):
-                            raise parse_exc
-                    raise CommerceError(err_msg)
+            if resp.status_code == 401:
+                raise ProviderAuthError("Swiggy MCP session unauthenticated or token expired.")
+            elif resp.status_code == 419:
+                raise ProviderSessionRevokedError("Swiggy MCP session revoked. Re-auth required.")
+            elif resp.status_code == 504:
+                raise UpstreamTimeoutError("Swiggy MCP upstream gateway timed out.")
+            elif resp.status_code >= 500:
+                raise UpstreamTimeoutError(f"Swiggy MCP upstream error: HTTP {resp.status_code}")
+            elif resp.status_code >= 400:
+                err_msg = f"Swiggy MCP bad request: HTTP {resp.status_code}"
+                try:
+                    err_data = resp.json()
+                    if "error" in err_data:
+                        self.parse_error_if_failed(err_data)
+                except Exception as parse_exc:
+                    if isinstance(parse_exc, CommerceError):
+                        raise parse_exc
+                raise CommerceError(err_msg)
 
-                data = self._decode_success_response(resp)
+            data = self._decode_success_response(resp)
 
-                # Check JSON-RPC protocol error
-                if "error" in data and not data.get("result"):
-                    rpc_err = data["error"]
-                    code = rpc_err.get("code")
-                    msg = rpc_err.get("message", "Unknown JSON-RPC error")
-                    if code == -32001:
-                        raise ProviderAuthError(msg)
-                    self.parse_error_if_failed({"success": False, "error": rpc_err})
-                    raise CommerceError(f"Swiggy MCP RPC error {code}: {msg}")
+            # Check JSON-RPC protocol error
+            if "error" in data and not data.get("result"):
+                rpc_err = data["error"]
+                code = rpc_err.get("code")
+                msg = rpc_err.get("message", "Unknown JSON-RPC error")
+                if code == -32001:
+                    raise ProviderAuthError(msg)
+                self.parse_error_if_failed({"success": False, "error": rpc_err})
+                raise CommerceError(f"Swiggy MCP RPC error {code}: {msg}")
 
-                result = data.get("result", data)
-                # Official Swiggy MCP returns structuredContent inside result
-                if isinstance(result, dict) and "structuredContent" in result and "data" not in result:
-                    result["data"] = result["structuredContent"]
-                    return result
+            result = data.get("result", data)
+            # Official Swiggy MCP returns structuredContent inside result
+            if isinstance(result, dict) and "structuredContent" in result and "data" not in result:
+                result["data"] = result["structuredContent"]
                 return result
+            return result
 
         except httpx.TimeoutException:
             raise UpstreamTimeoutError("Swiggy MCP request timed out.")

@@ -419,12 +419,15 @@ def parse_delivery_addresses(data: Any) -> list[DeliveryAddress]:
                 or raw.get("label")
                 or ""
             )
-            street = (
-                raw.get("addressLine")
-                or raw.get("formattedAddress")
-                or raw.get("street")
-                or ""
-            )
+            addr_line = (raw.get("addressLine") or "").strip(" ,")
+            fmt_addr = (raw.get("formattedAddress") or "").strip(" ,")
+            if addr_line and fmt_addr:
+                if addr_line.casefold() in fmt_addr.casefold():
+                    street = fmt_addr
+                else:
+                    street = f"{addr_line}, {fmt_addr}"
+            else:
+                street = addr_line or fmt_addr or (raw.get("street") or "").strip(" ,")
             city = raw.get("city")
             postal_code = None
             if "pincode" in raw:

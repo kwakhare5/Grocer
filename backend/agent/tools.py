@@ -28,43 +28,33 @@ def _format_inr(amount: float) -> str:
 
 
 def clean_address(street: str, city: Optional[str] = None, label: Optional[str] = None) -> str:
-    """Format raw verbose address into a crisp, human-readable WhatsApp destination."""
+    """Format address into the full human-readable destination (flat, building, area, city, state)."""
+    del label
     if not street:
-        return city or (label if label and label.lower() not in ("other", "saved address", "selected address") else "Your Saved Location")
+        return city or "Your Saved Location"
 
     # Remove user name prefixes like 'Customer Name:'
     text = re.sub(r"^[^:]+:\s*", "", street).strip()
     # Strip Google Plus codes e.g. HRC8+HWV or 7JVW+9V8
     text = re.sub(r"\b[A-Z0-9]{4,8}\+[A-Z0-9]{2,6}\b", "", text, flags=re.IGNORECASE)
-    # Strip postal codes, state names, and country tags
-    text = re.sub(
-        r",?\s*(?:India|Maharashtra|Karnataka|Delhi|Tamil Nadu|Telangana|Gujarat|West Bengal|Uttar Pradesh|Haryana|\b\d{6}\b)\s*",
-        "",
-        text,
-        flags=re.IGNORECASE,
-    ).strip(" ,")
+    # Strip country tag and 6-digit postal codes while keeping full street, area, city, and state
+    text = re.sub(r",?\s*(?:\bIndia\b|\b\d{6}\b)\s*", "", text, flags=re.IGNORECASE).strip(" ,")
 
-    # Deduplicate repeated words/phrases (e.g. 'Green Park, Green Park')
+    # Deduplicate repeated comma-separated phrases while keeping ALL parts intact
     parts = [p.strip() for p in text.split(",") if p.strip()]
-    seen = set()
-    cleaned_parts = []
+    seen: set[str] = set()
+    cleaned_parts: list[str] = []
     for p in parts:
         p_low = p.casefold()
         if p_low not in seen and len(p) > 1:
             seen.add(p_low)
             cleaned_parts.append(p)
 
-    res = ", ".join(cleaned_parts[:4])
+    res = ", ".join(cleaned_parts)
     if city and city.casefold() not in res.casefold():
         res = f"{res}, {city}" if res else city
-    if not res:
-        res = street
+    return res or street
 
-    if label and label.strip().casefold() not in ("other", "saved address", "selected address", "your saved location"):
-        lbl = label.strip()
-        if lbl.casefold() not in res.casefold():
-            return f"{lbl} ({res})"
-    return res
 
 
 def format_cart_receipt(
@@ -216,10 +206,28 @@ class SwiggyAgentTools:
                 "city": matched.city,
                 "clean_address": clean_loc,
             }
-            # Check if active cart exists for this customer
+            # Check if active cart exists for this customer and migrate it to the new dark store
             try:
                 cart: CommerceCart = await self.commerce.get_cart()
                 if cart and cart.items:
+                    try:
+                        migrate_updates = [
+                            CartItemUpdate(
+                                spin_id=ci.spin_id,
+                                quantity=ci.quantity,
+                                sku_id=ci.sku_id,
+                            )
+                            for ci in cart.items
+                            if ci.quantity > 0
+                        ]
+                        migrated = await self.commerce.update_cart(
+                            items=migrate_updates, address_id=matched.id
+                        )
+                        if migrated and migrated.items:
+                            cart = migrated
+                    except Exception as mig_exc:
+                        logger.debug("Cart dark-store migration skipped/failed: %s", mig_exc)
+
                     res["has_active_cart"] = True
                     res["item_count"] = len(cart.items)
                     res["grand_total"] = cart.grand_total
@@ -303,16 +311,33 @@ class SwiggyAgentTools:
         address_id: str,
         delivery_location: str = "Home",
     ) -> dict[str, Any]:
-        """Update Swiggy Instamart cart with item updates and return pre-computed pricing."""
+        """Update Swiggy Instamart cart by deterministically merging item updates with active cart items."""
         try:
-            cart_updates = [
-                CartItemUpdate(
-                    spin_id=it["spin_id"],
-                    quantity=int(it["quantity"]),
-                    sku_id=it.get("sku_id"),
+            merged_by_spin: dict[str, CartItemUpdate] = {}
+            try:
+                existing_cart: CommerceCart = await self.commerce.get_cart()
+                if existing_cart and existing_cart.items:
+                    for ci in existing_cart.items:
+                        if ci.quantity > 0:
+                            merged_by_spin[ci.spin_id] = CartItemUpdate(
+                                spin_id=ci.spin_id,
+                                quantity=ci.quantity,
+                                sku_id=ci.sku_id,
+                            )
+            except Exception:
+                pass
+
+            for it in items:
+                spin = str(it["spin_id"])
+                qty = int(it["quantity"])
+                sku = it.get("sku_id") or (merged_by_spin[spin].sku_id if spin in merged_by_spin else None)
+                merged_by_spin[spin] = CartItemUpdate(
+                    spin_id=spin,
+                    quantity=qty,
+                    sku_id=sku,
                 )
-                for it in items
-            ]
+
+            cart_updates = list(merged_by_spin.values())
             updated: CommerceCart = await self.commerce.update_cart(
                 items=cart_updates, address_id=address_id
             )
@@ -449,135 +474,45 @@ class SwiggyAgentTools:
             logger.warning("track_order failed for order_id=%s: %s", order_id, exc)
             return {"success": False, "error": str(exc)}
 
+    async def get_go_to_items(self, address_id: Optional[str] = None) -> dict[str, Any]:
+        """Fetch the customer's frequently ordered / usual items from Swiggy Instamart."""
+        try:
+            items: list[CommerceProductItem] = await self.commerce.get_go_to_items(address_id=address_id or "")
+            formatted_products = []
+            for item in items[:12]:
+                in_stock_variants = [
+                    {
+                        "spin_id": v.spin_id,
+                        "sku_id": v.sku_id or v.spin_id,
+                        "name": v.name,
+                        "pack_size": v.pack_size,
+                        "price": v.price,
+                        "formatted_price": _format_inr(v.price),
+                        "mrp": v.mrp,
+                    }
+                    for v in item.variants
+                    if v.in_stock
+                ]
+                if in_stock_variants:
+                    formatted_products.append(
+                        {
+                            "product_id": item.product_id,
+                            "name": item.name,
+                            "brand": item.brand,
+                            "variants": in_stock_variants,
+                        }
+                    )
+            return {
+                "success": True,
+                "count": len(formatted_products),
+                "products": formatted_products,
+            }
+        except ProviderAuthError as exc:
+            return {"success": False, "error": "AUTH_EXPIRED", "detail": str(exc)}
+        except Exception as exc:
+            logger.warning("get_go_to_items failed: %s", exc)
+            return {"success": False, "error": str(exc)}
 
-GEMINI_TOOL_DECLARATIONS = [
-    {
-        "name": "get_saved_addresses",
-        "description": "Fetch saved delivery addresses for the user from Swiggy Instamart. Call this first if you don't know the address_id or need to list available locations.",
-        "parameters": {
-            "type": "object",
-            "properties": {},
-            "required": [],
-        },
-    },
-    {
-        "name": "select_delivery_address",
-        "description": "Switch the active delivery destination. Call get_saved_addresses first to view address IDs, then call this tool when the user requests delivery to a specific location (e.g. Pune, Mumbai, Sangvi). If an active cart exists, this tool preserves and updates the basket for the new location.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "address_id": {
-                    "type": "string",
-                    "description": "The target address_id from get_saved_addresses.",
-                },
-            },
-            "required": ["address_id"],
-        },
-    },
-    {
-        "name": "search_products",
-        "description": "Search products in the live Swiggy Instamart store catalogue for the selected delivery address. Returns in-stock variants, pack sizes, formatted prices, spin_id, and sku_id.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "query": {
-                    "type": "string",
-                    "description": "Item name to search for (e.g. 'dairy milk', 'eggs', 'bread', 'amul milk').",
-                },
-                "address_id": {
-                    "type": "string",
-                    "description": "The user's Swiggy delivery address ID.",
-                },
-            },
-            "required": ["query", "address_id"],
-        },
-    },
-    {
-        "name": "get_cart",
-        "description": "Fetch current cart contents, item count, formatted line items, subtotal, delivery & packaging fees, and grand total.",
-        "parameters": {
-            "type": "object",
-            "properties": {},
-            "required": [],
-        },
-    },
-    {
-        "name": "update_cart",
-        "description": "Add, modify, or set items in the Swiggy Instamart cart. Both spin_id and sku_id from search_products are strictly mandatory for every item.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "items": {
-                    "type": "array",
-                    "description": "List of items to update in the cart.",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "spin_id": {"type": "string", "description": "The variant's spin_id from search results."},
-                            "sku_id": {"type": "string", "description": "The variant's sku_id from search results."},
-                            "quantity": {"type": "integer", "description": "Quantity to set in the cart."},
-                            "name": {"type": "string", "description": "Human-readable item name."},
-                        },
-                        "required": ["spin_id", "sku_id", "quantity"],
-                    },
-                },
-                "address_id": {
-                    "type": "string",
-                    "description": "The user's delivery address ID.",
-                },
-            },
-            "required": ["items", "address_id"],
-        },
-    },
-    {
-        "name": "clear_cart",
-        "description": "Empty all items from the active Swiggy Instamart cart.",
-        "parameters": {
-            "type": "object",
-            "properties": {},
-            "required": [],
-        },
-    },
-    {
-        "name": "checkout",
-        "description": (
-            "Place the final order on Swiggy Instamart. For UPI, generates a dynamic payment link/QR code. "
-            "ONLY call this tool after the user has explicitly confirmed the order summary and grand total."
-        ),
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "cart_id": {"type": "string", "description": "Active cart ID."},
-                "address_id": {"type": "string", "description": "Selected delivery address ID."},
-                "payment_method": {
-                    "type": "string",
-                    "description": "Payment method: 'UPI' or 'cash_on_delivery'. Defaults to 'UPI'.",
-                },
-                "payment_option_kind": {
-                    "type": "string",
-                    "description": "UPI option kind: 'qr' to generate dynamic UPI QR payment link. Defaults to 'qr'.",
-                },
-                "is_user_confirmed": {
-                    "type": "boolean",
-                    "description": "Must be true. Indicates the user gave explicit confirmation to place the order.",
-                },
-                "grand_total": {"type": "number", "description": "Verified grand total in rupees."},
-            },
-            "required": ["cart_id", "address_id", "is_user_confirmed"],
-        },
-    },
-    {
-        "name": "track_order",
-        "description": "Track the real-time delivery status, ETA, and delivery partner info for an existing Swiggy Instamart order.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "order_id": {
-                    "type": "string",
-                    "description": "The Swiggy Instamart order ID to track.",
-                },
-            },
-            "required": ["order_id"],
-        },
-    },
-]
+
+from backend.agent.schemas import GEMINI_TOOL_DECLARATIONS  # noqa: E402, F401
+

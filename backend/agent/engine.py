@@ -30,184 +30,24 @@ logger = logging.getLogger("grocer.agent.engine")
 
 _API_ROOT = "https://generativelanguage.googleapis.com/v1beta/models"
 
-_SYSTEM_PROMPT = """You are GROCER, an exceptionally smart, delightful WhatsApp grocery concierge powered by Swiggy Instamart.
-Your mission is to get the customer's groceries delivered to their doorstep with zero friction and total accuracy.
-
-### COMMUNICATION STYLE:
-- Speak warmly, naturally, and concisely in English formatted for WhatsApp readability.
-- Use clean WhatsApp formatting (*bold* for emphasis). Never use raw JSON, code blocks, or markdown tables.
-- Avoid robotic corporate disclaimers or repetitive pleasantries.
-
-### UNIVERSAL INTENT & SHOPPING ARCHETYPES:
-1. Specific Item / Staple Intent:
-   When the customer asks for a specific item, brand, or everyday staple (e.g. "milk", "eggs", "Amul butter 500g", "Surf Excel 1kg", "Dettol soap"):
-   - Search Swiggy, select the top in-stock variant matching the requested unit/pack size, update the cart, and show the updated basket receipt.
-2. Broad / Variant Choice Intent:
-   When the customer asks for an open-ended category with wide variety (e.g. "chocolates", "chips", "ice cream", "shampoo", "biscuits"):
-   - Search Swiggy and present the top 2-3 in-stock options with number, name, pack size, and price:
-     "I found a few options:
-     1. Cadbury Dairy Milk Silk (60g) — ₹90
-     2. Cadbury Dairy Milk Crackle (36g) — ₹50
-     3. Cadbury Bournville Dark (80g) — ₹110
-     Which one would you like?"
-3. Composite / Meal / Recipe / Occasion Intent:
-   When the customer asks for a dish, meal, event, or budget bundle (e.g. "pasta groceries under 500", "chai and snacks for 4", "breakfast for two under 200", "weekly essentials under 2000"):
-   - A dish is a complete kit. Proactively infer essential ingredients (Core carbs + Sauce/Body + Dairy/Protein + Aromatics) within the budget.
-   - When a specific dish/recipe is requested (e.g. pasta, biryani, sandwich, tea), the search MUST prioritize the core dish ingredients (e.g. for pasta: search 'pasta', 'sauce', 'cheese'). NEVER substitute generic kitchen staples (like flour or dal) when a specific dish or recipe is named.
-   - When a strict budget is given, choose key essential items so the total including delivery/packaging fees stays strictly within the budget.
-   - Search products in parallel, add the complete kit to the basket in one `update_cart` call, and ask if they'd like to add any extras.
-4. Problem / Symptom / Situational Care Intent:
-   When the customer describes a symptom, ritual, or situation without naming products (e.g. "terrible cold and sore throat", "upset stomach / light food", "midnight study snacks", "pooja samagri"):
-   - Proactively infer what is needed and search concurrently in parallel:
-     * Cold/Headache: search Crocin/Paracetamol, Strepsils, Vicks, and Green/Herbal tea.
-     * Upset stomach: search Dahi/curd, bananas, oats/khichdi.
-     * Study/Midnight snacks: search chips, chocolate, almonds, instant noodles.
-     * Pooja ritual: search agarbatti, camphor/kapoor, ghee.
-   - Add the essential care kit to the basket with `update_cart` and show the receipt.
-5. Conversational Disambiguation & Deltas:
-   - If you presented a list of numbered choices and the customer replies with an ambiguous affirmation ("ok", "yes", "sure", "add it"), NEVER guess an arbitrary item. Ask:
-     "Which one would you like me to add? Reply 1, 2, or 3 (or name the item)."
-   - If the customer uses a relative reference ("the second one", "cheapest", "the 1kg one", "the dark chocolate"), resolve the referenced item and add it.
-   - When modifying the cart ("remove the sauce", "make it 2 packs"), pass the cumulative cart items with the change to `update_cart`.
-
-### TOOL CALL EFFICIENCY & PARALLEL EXECUTION:
-- When searching for multiple items or building a meal/bundle, ALWAYS execute all search queries concurrently in a SINGLE turn using parallel tool calls. NEVER search for items one at a time across multiple turns.
-- After receiving search results, immediately call `update_cart` with all matched items.
-
-### BASKET & RECEIPT RULE:
-- When presenting the customer's basket, output the verified `formatted_receipt` provided by `update_cart` or `get_cart`.
-- Never manually recalculate numbers or invent fee lines; rely on the verified receipt so every rupee is mathematically exact.
-
-### HINGLISH & INDIAN GROCERY AWARENESS:
-- Recognize common Indian kitchen terms and map them to catalogue searches:
-  `doodh` -> milk, `dahi` -> curd/yogurt, `cheeni`/`shakkar` -> sugar, `anda` -> eggs, `aata` -> wheat flour, `chawal` -> rice, `tel` -> cooking oil, `adrak` -> ginger, `chai patti` -> tea, `pyaz` -> onions, `aloo` -> potatoes.
-
-### DIETARY & INVENTORY CONSTRAINTS:
-- Strictly respect dietary preferences (pure veg, eggless, sugar-free, whole wheat).
-- If a requested item/brand is out of stock, substitute with the closest in-stock variant and clearly disclose the substitute on the receipt.
-- If the cart is below the store's `min_order_threshold`, proactively inform the customer and suggest quick add-ons (milk, bread, snacks).
-
-### CHECKOUT & PAYMENT:
-- NEVER call `checkout` until the customer has explicitly approved the basket (e.g. said "Confirm", "Yes", "Place order", or tapped Confirm Order).
-- When confirmed, call `checkout` with `payment_method='UPI'`, `payment_option_kind='qr'`, and `is_user_confirmed=true`.
-- Present the UPI payment link clearly.
-- If the customer asks to track an order, call `track_order` and report status, ETA, and delivery partner details.
-"""
-
-# ============================================================================
-# DETERMINISTIC SAFETY GUARDS & REGEX PATTERNS
-# ============================================================================
-
-_ORDER_SUCCESS_PATTERNS = (
-    # 1. Passive / State assertions: [Subject: order/items/groceries/etc] + [copula/auxiliary] + [participle/status]
-    # Matches: "order was placed", "order has been placed", "order placed", "order confirmed",
-    #          "items have been ordered", "order completed", "order is complete", "order accepted",
-    #          "order has been received", "order has been dispatched", "groceries have been ordered",
-    #          "Your purchase has been confirmed.", "Your basket was checked out successfully."
-    # Rejects: "order was not placed", "order could not be placed", "no order has been placed"
-    re.compile(
-        r"(?i)(?:(?:\b(?:your|the|this)\s+)?(?<!no )(?<!not )(?<!n\'t )\b(?:order|groceries|items|basket|delivery|everything|checkout|purchase)\s+)"
-        r"(?:(?:has|have|is|are|was|were|got)\s+(?:now\s+|just\s+|already\s+)?(?:been\s+)?(?:successfully\s+)?)?"
-        r"(?:placed|confirmed|booked|completed|complete|accepted|received|submitted|processed|dispatched|delivered|fulfilled|shipped|sent|ordered|checked\s+out)\b"
-    ),
-
-    # 2. Active voice assertions: [Agent/Subject] + [Verb] + [Object: order/groceries/items]
-    # Matches: "placed your order", "placed an order for you", "confirmed your order", "ordered your items",
-    #          "completed your order", "booked your groceries", "submitted your order to Swiggy", "accepted your order",
-    #          "dispatched your order", "delivered your groceries", "fulfilled your order", "shipped your items"
-    # Rejects: "could not place your order", "have not placed your order", "to place your order", "would you like to place"
-    re.compile(
-        r"(?i)\b(?<!not )(?<!n\'t )(?<!never )"
-        r"(?:placed|confirmed|booked|completed|submitted|processed|dispatched|delivered|fulfilled|shipped|sent|ordered|accepted)"
-        r"\s+(?:an?\s+(?:grocery\s+)?order(?:\s+(?:for\s+you|with\s+\w+))?|"
-        r"(?:your|the|this)\s+(?:grocery\s+)?(?:order|groceries|items|basket|purchase)|"
-        r"everything)\b"
-    ),
-
-    # 3. Order success adjectives / predicates: [order/purchase] + [was/is/has] + [successful/succeeded]
-    # Matches: "order was successful", "order successful", "order has succeeded", "Your order was successful!"
-    # Rejects: "order was not successful", "order wasn't successful"
-    re.compile(
-        r"(?i)\b(?<!no )(?<!not )(?<!n\'t )"
-        r"(?:your|the|this)?\s*(?:order|purchase)\s+"
-        r"(?:(?:has|have|is|was)\s+)?(?:successful|succeeded)\b"
-    ),
-
-    # 4. Idiomatic completion: [order/payment/purchase] + [went/gone through]
-    # Matches: "order went through", "order has gone through", "your order went through"
-    # Rejects: "order failed to go through", "order did not go through", "order didn't go through"
-    re.compile(
-        r"(?i)\b(?<!no )(?<!not )(?<!n\'t )"
-        r"(?:your|the|this)?\s*(?:order|payment|purchase)\s+"
-        r"(?:(?:has|have)\s+)?(?:went|gone)\s+through\b"
-    ),
-
-    # 5. En route / In-transit / In-preparation assertions
-    # Matches: "groceries are on their way", "delivery is on its way", "order is on the way",
-    #          "groceries are en route", "order is being prepared", "Swiggy is preparing your order",
-    #          "Your delivery partner is on the way."
-    # Rejects: "Swiggy is experiencing high demand and cannot take this order"
-    re.compile(
-        r"(?i)\b(?<!no )(?<!not )(?<!n\'t )"
-        r"(?:(?:your|the|this)?\s*(?:order|groceries|items|delivery|basket|delivery partner)\s+"
-        r"(?:are|is|will\s+be|now)\s+"
-        r"(?:(?:on\s+(?:the|its|their)\s+way)|(?:en\s+route)|(?:heading\s+your\s+way)|(?:headed\s+your\s+way)|"
-        r"(?:out\s+for\s+delivery)|(?:being\s+(?:delivered|prepared|packed))|(?:arriving\s+(?:soon|shortly|\w+)))|"
-        r"Swiggy\s+is\s+preparing\s+your\s+order)\b"
-    ),
-
-    # 6. Standalone adverbial confirmations: [successfully] + [participle] or [participle] + [successfully]
-    # Matches: "successfully placed", "order completed successfully", "items have been ordered successfully"
-    # Rejects: "not successfully placed"
-    re.compile(
-        r"(?i)\b(?<!not )(?<!n\'t )(?<!never )"
-        r"(?:successfully\s+(?:placed|ordered|confirmed|booked|completed|processed|submitted|dispatched|delivered|fulfilled|shipped|sent)|"
-        r"(?:placed|ordered|confirmed|booked|completed|processed|submitted|dispatched|delivered|fulfilled|shipped|sent)\s+successfully)\b"
-    ),
+from backend.agent.guards import (  # noqa: E402, F401
+    _CONFIRMATION_PHRASES,
+    _HESITATION_PHRASES,
+    _ORDER_SUCCESS_PATTERNS,
+    _RESET_COMMANDS,
+    _claims_order_success,
+    _explains_failure,
+)
+from backend.agent.prompts import (  # noqa: E402, F401
+    _SYSTEM_PROMPT,
+    build_system_instruction,
 )
 
-
-def _claims_order_success(text: str) -> bool:
-    """Return True if text asserts or implies that an order has been successfully placed, confirmed, or is en route."""
-    if not text or not text.strip():
-        return False
-    return any(pattern.search(text) is not None for pattern in _ORDER_SUCCESS_PATTERNS)
-
-
-def _explains_failure(
-    text: str,
-    error_code: Optional[str] = None,
-    error_message: Optional[str] = None,
-) -> bool:
-    """Return True if text provides an honest explanation of a failure or contains error context."""
-    if not text or not text.strip():
-        return False
-    lowered = text.casefold()
-    if error_code and error_code.casefold() in lowered:
-        return True
-    if error_message and error_message.casefold() in lowered:
-        return True
-    failure_indicators = (
-        "could not",
-        "couldn't",
-        "cannot",
-        "can't",
-        "unable",
-        "failed",
-        "failure",
-        "error",
-        "sorry",
-        "unfortunately",
-        "out of stock",
-        "unavailable",
-        "high demand",
-        "issue",
-        "problem",
-        "unserviceable",
-        "not available",
-        "expired",
-    )
-    return any(ind in lowered for ind in failure_indicators)
+_FALLBACK_MODELS = (
+    "gemini-3.5-flash-lite",
+    "gemini-flash-lite-latest",
+    "gemini-3-flash-preview",
+)
 
 
 
@@ -227,24 +67,44 @@ class GroceryAgentEngine:
         self.api_key = api_key or settings.GEMINI_API_KEY
         self.model = model or settings.GEMINI_MODEL
         self.timeout = timeout
-        # In-memory session history keyed by customer_id
+        # Unified atomic customer session map + compatibility views
+        self._sessions: dict[str, Any] = {}
         self._history: dict[str, list[dict[str, Any]]] = {}
-        # Track selected address per customer
         self._customer_address: dict[str, str] = {}
         self._customer_address_label: dict[str, str] = {}
-        # Track pending checkout confirmation per customer
+        self._order_address_confirmed: dict[str, bool] = {}
+        self._awaiting_address_choice: dict[str, list[dict[str, Any]]] = {}
         self._pending_checkout: dict[str, bool] = {}
-        # Track last interaction timestamp per customer for session inactivity detection
         self._last_interaction_time: dict[str, float] = {}
-        # Per-customer concurrency locks to serialize rapid-fire incoming messages
         self._locks: dict[str, asyncio.Lock] = {}
-        # Pacing timestamp for rate-limit protection
         self._last_call_time: float = 0.0
-        # Telemetry for health and debugging
         self.last_gemini_error: Optional[str] = None
         self.last_turn_latency_ms: Optional[float] = None
-        # Persistent HTTP client with connection pooling
         self._client: Optional[httpx.AsyncClient] = None
+
+    def get_session(self, customer_id: str) -> Any:
+        """Return the atomic CustomerSession for customer_id, synchronized with engine state."""
+        from backend.agent.session import CustomerSession
+        sess = self._sessions.get(customer_id)
+        if sess is None:
+            sess = CustomerSession(customer_id=customer_id)
+            self._sessions[customer_id] = sess
+        sess.history = self.get_history(customer_id)
+        sess.address_id = self._customer_address.get(customer_id)
+        sess.address_label = self._customer_address_label.get(customer_id)
+        sess.order_address_confirmed = bool(self._order_address_confirmed.get(customer_id, False))
+        sess.awaiting_address_choice = self._awaiting_address_choice.get(customer_id)
+        sess.last_active_ts = self._last_interaction_time.get(customer_id, 0.0)
+        return sess
+
+    def reset_customer_order_address(self, customer_id: str) -> None:
+        """Atomically clear order address lock across session and state dictionaries."""
+        self._order_address_confirmed.pop(customer_id, None)
+        self._customer_address.pop(customer_id, None)
+        self._customer_address_label.pop(customer_id, None)
+        self._awaiting_address_choice.pop(customer_id, None)
+        if customer_id in self._sessions:
+            self._sessions[customer_id].reset_order_address()
 
     async def _get_client(self) -> httpx.AsyncClient:
         """Get or initialize persistent HTTP/2 client with keep-alive connection pool."""
@@ -306,17 +166,26 @@ class GroceryAgentEngine:
             hist = hist[-12:]
             self._history[customer_id] = hist
 
-        # Compact bulky product search returns from older turns
+        # Compact bulky product search returns from older turns while preserving variants (spin_id & sku_id)
         for entry in hist[:-2]:
             if entry.get("role") == "user" and "parts" in entry:
                 for part in entry["parts"]:
                     fn_resp = part.get("functionResponse", {})
                     content = fn_resp.get("response", {}).get("content", {})
                     if isinstance(content, dict) and "products" in content and len(content.get("products", [])) > 2:
-                        content["products"] = [
-                            {"name": p.get("name"), "spin_id": p.get("spin_id"), "unit_price": p.get("unit_price")}
-                            for p in content["products"][:2]
-                        ]
+                        compacted_products = []
+                        for p in content["products"][:2]:
+                            variants = p.get("variants") or []
+                            first_var = variants[0] if variants and isinstance(variants[0], dict) else {}
+                            compacted_products.append({
+                                "product_id": p.get("product_id"),
+                                "name": p.get("name") or first_var.get("name"),
+                                "spin_id": p.get("spin_id") or first_var.get("spin_id"),
+                                "sku_id": p.get("sku_id") or first_var.get("sku_id"),
+                                "unit_price": p.get("unit_price") or first_var.get("price"),
+                                "variants": variants[:1],
+                            })
+                        content["products"] = compacted_products
 
     async def _poll_payment_status(
         self,
@@ -434,6 +303,9 @@ class GroceryAgentEngine:
             except Exception as exc:
                 logger.warning("Fast-path clear_cart failed: %s", exc)
             self._history[customer_id] = []
+            self._order_address_confirmed.pop(customer_id, None)
+            self._awaiting_address_choice.pop(customer_id, None)
+            self._customer_address.pop(customer_id, None)
             return NormalizedOutgoingResponse(
                 recipient_id=message.sender_id,
                 channel=message.channel,
@@ -507,9 +379,48 @@ class GroceryAgentEngine:
         last_seen = self._last_interaction_time.get(customer_id)
         self._last_interaction_time[customer_id] = current_time
         if last_seen is not None and (current_time - last_seen) > 1800:
+            self._order_address_confirmed.pop(customer_id, None)
+            self._awaiting_address_choice.pop(customer_id, None)
+            self._customer_address.pop(customer_id, None)
             if not current_cart or not current_cart.items:
                 history = []
                 self._history[customer_id] = history
+
+        # Resolve pending upfront address disambiguation if awaiting user's choice
+        if customer_id in self._awaiting_address_choice:
+            pending_addrs = self._awaiting_address_choice[customer_id]
+            chosen_addr: Optional[dict[str, Any]] = None
+
+            if message.interactive_id and message.interactive_id.startswith("addr_choice_"):
+                idx_str = message.interactive_id.replace("addr_choice_", "")
+                if idx_str.isdigit() and 1 <= int(idx_str) <= len(pending_addrs):
+                    chosen_addr = pending_addrs[int(idx_str) - 1]
+            else:
+                num_match = re.match(r"^\s*(?:option\s+|address\s+)?(\d+)\s*$", norm_text)
+                if num_match:
+                    idx = int(num_match.group(1))
+                    if 1 <= idx <= len(pending_addrs):
+                        chosen_addr = pending_addrs[idx - 1]
+                if not chosen_addr:
+                    for a in pending_addrs:
+                        addr_str = f"{a.get('clean_address', '')} {a.get('label', '')}".casefold()
+                        tokens = [t for t in re.split(r"[^a-z0-9]+", addr_str) if len(t) >= 4]
+                        if any(t in norm_text for t in tokens):
+                            chosen_addr = a
+                            break
+
+            if chosen_addr:
+                self._awaiting_address_choice.pop(customer_id, None)
+                address_id = chosen_addr["address_id"]
+                self._customer_address[customer_id] = address_id
+                self._customer_address_label[customer_id] = (
+                    chosen_addr.get("clean_address") or chosen_addr.get("street") or chosen_addr.get("label") or "Home"
+                )
+                self._order_address_confirmed[customer_id] = True
+                incoming_text = (
+                    f"Use delivery address: {self._customer_address_label[customer_id]} (ID: {address_id}) "
+                    f"and proceed immediately with my grocery order from the previous message."
+                )
 
         # Detect address selection from text or context
         address_id = self._customer_address.get(customer_id)
@@ -520,13 +431,64 @@ class GroceryAgentEngine:
                     return self._auth_expired_response(message)
                 if addr_res.get("success") and addr_res.get("addresses"):
                     addresses = addr_res["addresses"]
-                    # Prioritize customer's Swiggy default address, fallback to first saved address
-                    default_addr = next((a for a in addresses if a.get("is_default")), addresses[0])
-                    address_id = default_addr["address_id"]
-                    self._customer_address[customer_id] = address_id
-                    self._customer_address_label[customer_id] = (
-                        default_addr.get("clean_address") or default_addr.get("label") or "Home"
-                    )
+                    # Check if user's initial message already names one of the addresses
+                    explicit_match = None
+                    for a in addresses:
+                        addr_str = f"{a.get('clean_address', '')} {a.get('label', '')}".casefold()
+                        tokens = [t for t in re.split(r"[^a-z0-9]+", addr_str) if len(t) >= 5 and t not in ("maharashtra", "karnataka", "india", "floor", "number", "nagar", "world")]
+                        if any(t in norm_text for t in tokens):
+                            explicit_match = a
+                            break
+
+                    if explicit_match:
+                        address_id = explicit_match["address_id"]
+                        self._customer_address[customer_id] = address_id
+                        self._customer_address_label[customer_id] = (
+                            explicit_match.get("clean_address") or explicit_match.get("label") or "Home"
+                        )
+                        self._order_address_confirmed[customer_id] = True
+                    elif (
+                        len(addresses) > 1
+                        and not any(a.get("is_default") for a in addresses)
+                        and not (current_cart and current_cart.items)
+                        and not any(k in norm_text for k in ("address", "saved address", "track", "status"))
+                    ):
+                        # Upfront multi-address disambiguation (Option B): save Turn 1 grocery intent & ask address
+                        history.append({"role": "user", "parts": [{"text": incoming_text}]})
+                        self._awaiting_address_choice[customer_id] = addresses
+                        addr_lines = [
+                            f"*{idx}.* {a.get('clean_address') or a.get('street') or a.get('label')}"
+                            for idx, a in enumerate(addresses, 1)
+                        ]
+                        prompt_text = (
+                            "📍 *Which address should I deliver this order to?*\n\n"
+                            + "\n".join(addr_lines)
+                            + f"\n\n👉 Reply *1*–*{len(addresses)}* to select your delivery address!"
+                        )
+                        history.append({"role": "model", "parts": [{"text": prompt_text}]})
+                        addr_buttons = [
+                            InteractiveAction(
+                                action_type="button",
+                                id=f"addr_choice_{idx}",
+                                title=f"Address {idx}",
+                            )
+                            for idx in range(1, min(len(addresses), 3) + 1)
+                        ]
+                        return NormalizedOutgoingResponse(
+                            recipient_id=message.sender_id,
+                            channel=message.channel,
+                            text=prompt_text,
+                            interactive_actions=addr_buttons,
+                            conversation_state="NEEDS_DECISION",
+                        )
+                    else:
+                        default_addr = next((a for a in addresses if a.get("is_default")), addresses[0])
+                        address_id = default_addr["address_id"]
+                        self._customer_address[customer_id] = address_id
+                        self._customer_address_label[customer_id] = (
+                            default_addr.get("clean_address") or default_addr.get("label") or "Home"
+                        )
+                        self._order_address_confirmed[customer_id] = True
             except Exception:
                 pass
 
@@ -553,14 +515,21 @@ class GroceryAgentEngine:
                 address_id=address_id,
                 address_label=addr_lbl,
                 cart=current_cart,
+                fast_fail_on_rate_limit=bool(last_cart_receipt or checkout_executed),
             )
             if not response_data:
-                final_text = "I'm having a brief connection hiccup. Please try again in a moment."
+                if last_cart_receipt or checkout_executed:
+                    final_text = ""
+                else:
+                    final_text = "I'm having a brief connection hiccup. Please try again in a moment."
                 break
 
             candidates = response_data.get("candidates", [])
             if not candidates:
-                final_text = "I couldn't process that request right now. Please tell me what you'd like to do."
+                if last_cart_receipt or checkout_executed:
+                    final_text = ""
+                else:
+                    final_text = "I couldn't process that request right now. Please tell me what you'd like to do."
                 break
 
             candidate = candidates[0]
@@ -714,6 +683,9 @@ class GroceryAgentEngine:
 
                 if status == "PAYMENT_PENDING":
                     conv_state = "AWAITING_PAYMENT"
+                    self._order_address_confirmed.pop(customer_id, None)
+                    self._customer_address.pop(customer_id, None)
+                    self._customer_address_label.pop(customer_id, None)
                     pay_link = out_bridge_url or upi_url
                     link_present = False
                     if out_bridge_url and out_bridge_url in final_text:
@@ -746,11 +718,14 @@ class GroceryAgentEngine:
                         )
                 elif status == "ORDER_PLACED":
                     conv_state = "ORDER_PLACED"
+                    self._order_address_confirmed.pop(customer_id, None)
+                    self._customer_address.pop(customer_id, None)
+                    self._customer_address_label.pop(customer_id, None)
                 else:
                     conv_state = "READY"
         else:
-            # Post-process: Add interactive buttons if cart summary is ready for confirmation
-            if address_changed and last_cart_receipt:
+            # Post-process: Deterministically enforce exact formatted_receipt and interactive buttons
+            if last_cart_receipt:
                 amnesiac_phrases = (
                     "what would you like to order",
                     "what can i get for you",
@@ -760,16 +735,32 @@ class GroceryAgentEngine:
                     "what would you like",
                 )
                 is_amnesiac = any(p in final_text.casefold() for p in amnesiac_phrases)
-                receipt_missing = "🛒 *your basket" not in final_text.casefold()
-                if is_amnesiac or receipt_missing:
+                if address_changed and is_amnesiac:
                     logger.info(
-                        "Deterministic address-change guard triggered: ensuring receipt is presented for %s",
+                        "Deterministic address-change guard triggered: overriding amnesiac text for %s",
                         addr_lbl,
                     )
                     final_text = (
                         f"I've updated your delivery address to *{addr_lbl}*! 📍\n\n"
                         f"{last_cart_receipt}"
                     )
+                elif last_cart_receipt not in final_text:
+                    # Replace any LLM-retyped receipt block or append authoritative receipt
+                    basket_match = re.search(r"🛒\s*\*?Your Basket.*", final_text, flags=re.DOTALL | re.IGNORECASE)
+                    if basket_match:
+                        intro = final_text[: basket_match.start()].strip()
+                        final_text = f"{intro}\n\n{last_cart_receipt}" if intro else last_cart_receipt
+                    elif not final_text.strip() or final_text.strip() == "How can I help with your groceries today?":
+                        if address_changed:
+                            final_text = (
+                                f"I've updated your delivery address to *{addr_lbl}*! 📍\n\n"
+                                f"{last_cart_receipt}"
+                            )
+                        else:
+                            final_text = last_cart_receipt
+                    else:
+                        final_text = f"{final_text.strip()}\n\n{last_cart_receipt}"
+
                 actions = [
                     InteractiveAction(action_type="button", id="confirm_order", title="Confirm Order"),
                     InteractiveAction(action_type="button", id="modify_cart", title="Change Items"),
@@ -833,7 +824,11 @@ class GroceryAgentEngine:
                 self._customer_address_label[customer_id] = (
                     res.get("clean_address") or res.get("label") or "Selected Address"
                 )
+                self._order_address_confirmed[customer_id] = True
             return res
+        elif name == "get_go_to_items":
+            addr = args.get("address_id") or address_id
+            return await self.tools.get_go_to_items(address_id=addr)
         elif name == "search_products":
             addr = args.get("address_id") or address_id
             return await self.tools.search_products(args.get("query", ""), address_id=addr)
@@ -847,6 +842,9 @@ class GroceryAgentEngine:
                 args.get("items", []), address_id=addr or "", delivery_location=loc
             )
         elif name == "clear_cart":
+            self._order_address_confirmed.pop(customer_id, None)
+            self._customer_address.pop(customer_id, None)
+            self._customer_address_label.pop(customer_id, None)
             return await self.tools.clear_cart()
         elif name == "checkout":
             # Deterministic Server-Side Invariant Gate:
@@ -874,76 +872,71 @@ class GroceryAgentEngine:
         address_id: Optional[str] = None,
         address_label: Optional[str] = None,
         cart: Optional[CommerceCart] = None,
+        fast_fail_on_rate_limit: bool = False,
         **kwargs: Any,
     ) -> Optional[dict[str, Any]]:
-        """Perform one HTTP POST request to Gemini v1beta generateContent using pooled connection."""
-        # Pacing protection against rapid burst rate limits
+        """Perform one HTTP POST request to Gemini v1beta generateContent with automatic model fallback."""
         now = asyncio.get_running_loop().time()
         elapsed = now - self._last_call_time
         if elapsed < 0.6:
             await asyncio.sleep(0.6 - elapsed)
         self._last_call_time = asyncio.get_running_loop().time()
 
-        system_text = _SYSTEM_PROMPT
-        loc = address_label or "Saved Delivery Address"
-        if address_id:
-            system_text += (
-                f"\n\n### ACTIVE DELIVERY CONTEXT (PRE-SELECTED):\n"
-                f"- Active delivery address is already selected: {loc} (ID: `{address_id}`).\n"
-                f"- You do NOT need to call `get_saved_addresses` or `select_delivery_address` unless the customer explicitly requests to change their address."
-            )
+        system_text = build_system_instruction(
+            address_id=address_id,
+            address_label=address_label,
+            cart=cart,
+        )
 
-        if cart and cart.items:
-            items_summary = ", ".join(
-                f"{it.quantity}x {it.name} ({_format_inr(it.total_price)})"
-                for it in cart.items
-            )
-            delivery_str = "FREE (₹0)" if cart.delivery_fee == 0.0 else _format_inr(cart.delivery_fee)
-            system_text += (
-                f"\n\n### LIVE BASKET STATE (ACTIVE ON SWIGGY INSTAMART):\n"
-                f"- Active Basket Item Count: {len(cart.items)}\n"
-                f"- Basket Contents: {items_summary}\n"
-                f"- Subtotal: {_format_inr(cart.item_total)}\n"
-                f"- Delivery Fee: {delivery_str}\n"
-                f"- Grand Total: {_format_inr(cart.grand_total)}\n"
-                f"- Delivery Destination: {loc} (ID: `{address_id}`)\n"
-                f"- CRITICAL INVARIANT: The customer already has these {len(cart.items)} items in their basket. "
-                f"Never assume the basket is empty. If the delivery address changed, immediately show the updated receipt and ask for confirmation. "
-                f"Never ask 'what would you like to order?' when there are already items in the basket."
-            )
-        else:
-            system_text += (
-                f"\n\n### LIVE BASKET STATE:\n"
-                f"- The basket is currently empty (0 items).\n"
-            )
-
-        url = f"{_API_ROOT}/{self.model}:generateContent?key={self.api_key}"
+        fallback_chain = [self.model] + [
+            m
+            for m in ("gemini-3.5-flash-lite", "gemini-flash-lite-latest", "gemini-3-flash-preview")
+            if m != self.model
+        ]
         payload = {
             "systemInstruction": {"parts": [{"text": system_text}]},
             "contents": contents,
             "tools": [{"functionDeclarations": GEMINI_TOOL_DECLARATIONS}],
-            "generationConfig": {
-                "temperature": 0.2,
-            },
+            "generationConfig": {"temperature": 0.2},
         }
-        max_retries = 6
-        backoff = 5.0
+        max_retries = 1 if fast_fail_on_rate_limit else 6
+        backoff = 2.0
         client = await self._get_client()
 
         for attempt in range(max_retries):
+            active_model = fallback_chain[min(attempt, len(fallback_chain) - 1)]
+            url = f"{_API_ROOT}/{active_model}:generateContent?key={self.api_key}"
             try:
                 resp = await client.post(url, json=payload)
-                if resp.status_code == 429:
+                if resp.status_code in (429, 503, 404):
+                    if fast_fail_on_rate_limit:
+                        logger.info(
+                            "Post-tool Gemini call encountered %d; fast-returning deterministic receipt/checkout result.",
+                            resp.status_code,
+                        )
+                        return None
+                    if attempt + 1 < len(fallback_chain):
+                        next_model = fallback_chain[attempt + 1]
+                        logger.warning(
+                            "Gemini %s returned %d; pivoting immediately to fallback model '%s'...",
+                            active_model,
+                            resp.status_code,
+                            next_model,
+                        )
+                        await asyncio.sleep(0.2)
+                        continue
                     retry_after = resp.headers.get("retry-after")
                     sleep_time = float(retry_after) if retry_after else backoff
                     logger.warning(
-                        "Gemini 429 rate limit encountered. Retrying in %.1fs (attempt %d/%d)...",
+                        "Gemini %d encountered on %s. Retrying in %.1fs (attempt %d/%d)...",
+                        resp.status_code,
+                        active_model,
                         sleep_time,
                         attempt + 1,
                         max_retries,
                     )
                     await asyncio.sleep(sleep_time)
-                    backoff = min(backoff * 1.8, 25.0)
+                    backoff = min(backoff * 1.8, 15.0)
                     continue
 
                 if resp.status_code == 400 and len(contents) > 1:
@@ -951,7 +944,6 @@ class GroceryAgentEngine:
                         "Gemini 400 invalid argument on multi-turn history (%s). Self-healing by retrying from last user turn.",
                         resp.text[:200],
                     )
-                    # Find last user text message index
                     last_user_idx = max(
                         (
                             i
@@ -981,5 +973,5 @@ class GroceryAgentEngine:
                 self.last_gemini_error = err_text
                 if attempt == max_retries - 1:
                     return None
-                await asyncio.sleep(backoff)
+                await asyncio.sleep(0.5 if attempt + 1 < len(fallback_chain) else backoff)
         return None

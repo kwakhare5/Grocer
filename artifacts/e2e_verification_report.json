@@ -1,0 +1,108 @@
+{
+  "generated_at_utc": "2026-09-29T16:03:25.976848+00:00",
+  "execution_mode": "LIVE_GEMINI_API",
+  "model": "gemini-3.5-flash-lite",
+  "fallback_chain": [
+    "gemini-3.5-flash-lite",
+    "gemini-flash-lite-latest",
+    "gemini-3-flash-preview"
+  ],
+  "total_latency_ms": 14954,
+  "overall_status": "PASSED",
+  "passed_invariants": 6,
+  "total_invariants": 6,
+  "invariants": [
+    {
+      "id": "INV-ADDR-01",
+      "boundary": "Upfront Multi-Address Disambiguation",
+      "description": "Prompts customer with full street + area addresses before building a new cart when >1 addresses exist.",
+      "passed": true
+    },
+    {
+      "id": "INV-ADDR-02",
+      "boundary": "Full Street + Area Preservation",
+      "description": "Preserves complete Flat/Building/Area/City/State in both prompt and receipt header/footer.",
+      "passed": true
+    },
+    {
+      "id": "INV-CART-01",
+      "boundary": "Parallel Recipe Decomposition & Receipt Math",
+      "description": "Decomposes dish into multiple ingredients in parallel and reconciles Subtotal + Fees == Grand Total.",
+      "passed": true
+    },
+    {
+      "id": "INV-CART-02",
+      "boundary": "Delta Cart Merge (No Item Wipe)",
+      "description": "Adding a follow-up item ('also add 1 amul milk 1L') merges onto existing cart items without dropping previous items.",
+      "passed": true
+    },
+    {
+      "id": "INV-GUARD-01",
+      "boundary": "Hesitation Guard ('wait')",
+      "description": "Holds active basket intact when customer expresses hesitation instead of wiping cart or placing order.",
+      "passed": true
+    },
+    {
+      "id": "INV-CHECKOUT-01",
+      "boundary": "Server-Side Checkout Authorization Gate",
+      "description": "Authorizes checkout only on explicit human confirmation ('Confirm') and generates order ID / QR state.",
+      "passed": true
+    }
+  ],
+  "turns": [
+    {
+      "turn": 1,
+      "user_input": "i wanna make pasta under 1500",
+      "conversation_state": "NEEDS_DECISION",
+      "latency_ms": 0,
+      "cart_item_count": 0,
+      "cart_grand_total": 0.0,
+      "agent_response": "📍 *Which address should I deliver this order to?*\n\n*1.* Flat No 201, Everest Graciana, Opposite Yash Laxmi Heights, Sangvi, Pune, Maharashtra\n*2.* D block 704, Tanish Orchid, Charholi Budruk, Pune, Maharashtra\n\n👉 Reply *1*–*2* to select your delivery address!"
+    },
+    {
+      "turn": 2,
+      "user_input": "2",
+      "conversation_state": "AWAITING_CHECKOUT_CONFIRMATION",
+      "latency_ms": 7967,
+      "cart_item_count": 4,
+      "cart_grand_total": 281.0,
+      "agent_response": "🛒 *Your Basket (D block 704, Tanish Orchid, Charholi Budruk, Pune, Maharashtra)*\n• 1x Yu Zero Maida Penne Pasta 500g (500 g) — ₹49\n• 1x Veeba Pasta & Pizza Sauce 280g (280 g) — ₹79\n• 1x Amul Mozzarella Diced Cheese 200g (200 g) — ₹110\n• 1x Fresh Garlic 100g (100 g) — ₹38\n\n*Subtotal:* ₹276\n*Delivery Fee:* FREE (₹0)\n*Packaging & Handling:* ₹5\n*Grand Total:* ₹281\n\n📍 *Delivering to:* D block 704, Tanish Orchid, Charholi Budruk, Pune, Maharashtra\n👉 Reply *Confirm* to place order, or tell me what to change!"
+    },
+    {
+      "turn": 3,
+      "user_input": "also add 1 amul milk 1L",
+      "conversation_state": "AWAITING_CHECKOUT_CONFIRMATION",
+      "latency_ms": 4333,
+      "cart_item_count": 5,
+      "cart_grand_total": 347.0,
+      "agent_response": "🛒 *Your Basket (D block 704, Tanish Orchid, Charholi Budruk, Pune, Maharashtra)*\n• 1x Yu Zero Maida Penne Pasta 500g (500 g) — ₹49\n• 1x Veeba Pasta & Pizza Sauce 280g (280 g) — ₹79\n• 1x Amul Mozzarella Diced Cheese 200g (200 g) — ₹110\n• 1x Fresh Garlic 100g (100 g) — ₹38\n• 1x Amul Taaza Milk 1L Pouch (1 L) — ₹66\n\n*Subtotal:* ₹342\n*Delivery Fee:* FREE (₹0)\n*Packaging & Handling:* ₹5\n*Grand Total:* ₹347\n\n📍 *Delivering to:* D block 704, Tanish Orchid, Charholi Budruk, Pune, Maharashtra\n👉 Reply *Confirm* to place order, or tell me what to change!"
+    },
+    {
+      "turn": 4,
+      "user_input": "wait",
+      "conversation_state": "AWAITING_CHECKOUT_CONFIRMATION",
+      "latency_ms": 0,
+      "cart_item_count": 5,
+      "cart_grand_total": 347.0,
+      "agent_response": "No problem, I've kept your basket on hold! 🛒\n\nYour groceries are still saved. Whenever you're ready, let me know if you want to add/remove items, switch delivery address, or clear your basket.\n\n🛒 *Your Basket (D block 704, Tanish Orchid, Charholi Budruk, Pune, Maharashtra)*\n• 1x Yu Zero Maida Penne Pasta 500g (500 g) — ₹49\n• 1x Veeba Pasta & Pizza Sauce 280g (280 g) — ₹79\n• 1x Amul Mozzarella Diced Cheese 200g (200 g) — ₹110\n• 1x Fresh Garlic 100g (100 g) — ₹38\n• 1x Amul Taaza Milk 1L Pouch (1 L) — ₹66\n\n*Subtotal:* ₹342\n*Delivery Fee:* FREE (₹0)\n*Packaging & Handling:* ₹5\n*Grand Total:* ₹347\n\n📍 *Delivering to:* D block 704, Tanish Orchid, Charholi Budruk, Pune, Maharashtra\n👉 Reply *Confirm* to place order, or tell me what to change!"
+    },
+    {
+      "turn": 5,
+      "user_input": "Confirm",
+      "conversation_state": "AWAITING_PAYMENT",
+      "latency_ms": 2654,
+      "cart_item_count": 0,
+      "cart_grand_total": 0.0,
+      "agent_response": "Your order is ready! Please complete payment to place your order: https://instamart.swiggy.com/pay/bridge/paas_mock_6e555f72"
+    },
+    {
+      "turn": 6,
+      "user_input": "clear cart",
+      "conversation_state": "READY",
+      "latency_ms": 0,
+      "cart_item_count": 0,
+      "cart_grand_total": 0.0,
+      "agent_response": "🗑️ *Basket Cleared!*\n\nYour basket is now completely empty. What groceries can I get for you today?"
+    }
+  ]
+}

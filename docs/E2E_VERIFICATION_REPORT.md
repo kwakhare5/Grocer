@@ -1,10 +1,10 @@
 # GROCER End-to-End (E2E) Verification Report
 
-- **Generated At (UTC):** `2026-09-30T13:55:07.247210+00:00`
+- **Generated At (UTC):** `2026-09-30T14:04:35.468143+00:00`
 - **Execution Mode:** `LIVE_GEMINI_API`
 - **Primary Gemini Model:** `gemini-3.5-flash-lite`
 - **Fallback Cascade:** `gemini-3.5-flash-lite -> gemini-flash-lite-latest -> gemini-3-flash-preview`
-- **Total Multi-Turn E2E Latency:** `12097 ms`
+- **Total Multi-Turn E2E Latency:** `107902 ms`
 - **Overall Verdict:** **`PASSED`** (`6/6` invariants verified)
 
 ---
@@ -40,10 +40,12 @@
 
 ### Turn 2: `2`
 - **State Transition:** `AWAITING_CHECKOUT_CONFIRMATION`
-- **Latency:** `4596 ms`
+- **Latency:** `58216 ms`
 - **Active Basket Items:** `4` (`Grand Total: ₹281`)
 
 ```text
+I've updated your delivery address to *D block 704, Tanish Orchid, Charholi Budruk, Pune, Maharashtra*! 📍
+
 🛒 *Your Basket (D block 704, Tanish Orchid, Charholi Budruk, Pune, Maharashtra)*
 • 1x Yu Zero Maida Penne Pasta 500g (500 g) — ₹49
 • 1x Veeba Pasta & Pizza Sauce 280g (280 g) — ₹79
@@ -61,7 +63,7 @@
 
 ### Turn 3: `also add 1 amul milk 1L`
 - **State Transition:** `AWAITING_CHECKOUT_CONFIRMATION`
-- **Latency:** `4563 ms`
+- **Latency:** `44705 ms`
 - **Active Basket Items:** `5` (`Grand Total: ₹347`)
 
 ```text
@@ -109,11 +111,11 @@ Your groceries are still saved. Whenever you're ready, let me know if you want t
 
 ### Turn 5: `Confirm`
 - **State Transition:** `AWAITING_PAYMENT`
-- **Latency:** `2938 ms`
+- **Latency:** `4981 ms`
 - **Active Basket Items:** `0` (`Grand Total: ₹0`)
 
 ```text
-Your order is ready! Please complete payment to place your order: https://instamart.swiggy.com/pay/bridge/paas_mock_49af52f6
+Your order is ready! Please complete payment to place your order: https://instamart.swiggy.com/pay/bridge/paas_mock_03a37382
 ```
 
 ### Turn 6: `clear cart`

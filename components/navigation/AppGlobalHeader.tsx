@@ -1,6 +1,7 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
+import { ShoppingBag, Menu, X } from "lucide-react";
 import { GrocerLogo } from "../ui/GrocerLogo";
 
 export interface AppGlobalHeaderProps {
@@ -9,6 +10,16 @@ export interface AppGlobalHeaderProps {
 }
 
 export function AppGlobalHeader({ onOpenConnect, isConnected }: AppGlobalHeaderProps = {}) {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const navLinks = [
+    { label: "Why WhatsApp", href: "#why-whatsapp" },
+    { label: "Features", href: "#features" },
+    { label: "Simulator", href: "#simulator" },
+    { label: "Architecture", href: "#architecture" },
+    { label: "FAQ", href: "#faq" },
+  ];
+
   return (
     <header className="sticky top-0 z-40 w-full bg-white/95 backdrop-blur-md border-b border-zinc-200">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
@@ -25,50 +36,17 @@ export function AppGlobalHeader({ onOpenConnect, isConnected }: AppGlobalHeaderP
           </div>
         </a>
 
-        {/* Center Navigation Links */}
-        <nav className="hidden lg:flex items-center gap-5 text-xs font-sans font-medium text-zinc-600">
-          <a
-            href="#how-it-works"
-            className="hover:text-zinc-950 transition-colors"
-          >
-            How It Works
-          </a>
-          <a
-            href="#why-whatsapp"
-            className="hover:text-zinc-950 transition-colors"
-          >
-            Why WhatsApp
-          </a>
-          <a
-            href="#features"
-            className="hover:text-zinc-950 transition-colors"
-          >
-            Features
-          </a>
-          <a
-            href="#demo"
-            className="hover:text-zinc-950 transition-colors"
-          >
-            Simulator
-          </a>
-          <a
-            href="#architecture"
-            className="hover:text-zinc-950 transition-colors"
-          >
-            Architecture
-          </a>
-          <a
-            href="#safety"
-            className="hover:text-zinc-950 transition-colors"
-          >
-            Safety
-          </a>
-          <a
-            href="#faq"
-            className="hover:text-zinc-950 transition-colors"
-          >
-            FAQ
-          </a>
+        {/* Center Navigation Links (Clean 5 items) */}
+        <nav className="hidden md:flex items-center gap-6 text-xs sm:text-sm font-medium text-zinc-600">
+          {navLinks.map((link) => (
+            <a
+              key={link.label}
+              href={link.href}
+              className="hover:text-zinc-950 transition-colors"
+            >
+              {link.label}
+            </a>
+          ))}
         </nav>
 
         {/* Action Buttons */}
@@ -77,7 +55,7 @@ export function AppGlobalHeader({ onOpenConnect, isConnected }: AppGlobalHeaderP
             href="https://github.com/kwakhare5/Grocer"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-700 text-xs font-sans font-medium transition-colors shadow-2xs active:scale-[0.98]"
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-700 text-xs sm:text-sm font-medium transition-colors shadow-2xs active:scale-[0.98]"
           >
             <svg
               className="w-4 h-4 text-zinc-800"
@@ -94,28 +72,44 @@ export function AppGlobalHeader({ onOpenConnect, isConnected }: AppGlobalHeaderP
             <span className="hidden sm:inline">GitHub</span>
           </a>
 
-          <a
-            href="#demo"
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-zinc-100 hover:bg-zinc-200 text-zinc-800 text-xs font-sans font-medium transition-colors shadow-2xs active:scale-[0.98]"
-          >
-            <span>Simulator</span>
-          </a>
-
           {onOpenConnect && (
             <button
               type="button"
               onClick={onOpenConnect}
-              className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-sans font-semibold transition-all shadow-xs active:scale-[0.98] cursor-pointer ${
-                isConnected
-                  ? "bg-emerald-50 text-emerald-800 border border-emerald-300"
-                  : "bg-emerald-600 hover:bg-emerald-500 text-white"
-              }`}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#fc8019] hover:bg-[#e07014] text-white text-xs sm:text-sm font-semibold transition shadow-xs active:scale-[0.98] cursor-pointer"
             >
-              <span>{isConnected ? "Instamart Linked ✓" : "Connect Instamart"}</span>
+              <ShoppingBag className="w-3.5 h-3.5" />
+              <span>{isConnected ? "Linked ✓" : "Connect Instamart"}</span>
             </button>
           )}
+
+          {/* Mobile hamburger button */}
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="md:hidden p-2 rounded-xl text-zinc-600 hover:text-zinc-950 hover:bg-zinc-100 transition cursor-pointer"
+            aria-label="Toggle navigation menu"
+          >
+            {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </button>
         </div>
       </div>
+
+      {/* Mobile Drawer Dropdown */}
+      {mobileMenuOpen && (
+        <div className="md:hidden border-t border-zinc-200 bg-white px-4 py-3 space-y-2">
+          {navLinks.map((link) => (
+            <a
+              key={link.label}
+              href={link.href}
+              onClick={() => setMobileMenuOpen(false)}
+              className="block py-2 text-sm font-medium text-zinc-700 hover:text-emerald-700"
+            >
+              {link.label}
+            </a>
+          ))}
+        </div>
+      )}
     </header>
   );
 }

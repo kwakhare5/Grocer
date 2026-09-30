@@ -1,0 +1,300 @@
+import { PresetScenario, VideoChapter, FaqItem, PipelineNode } from "./types";
+
+export const VIDEO_CHAPTERS: VideoChapter[] = [
+  { time: "0:00", label: "Overview & Multi-Address Upfront Guard" },
+  { time: "0:35", label: "Recipe Deduction & Dark-Store Parallel Search" },
+  { time: "1:05", label: "Delta Cart Merging (Adding Milk Without Wiping)" },
+  { time: "1:35", label: "Server-Side Gated Checkout & Dynamic UPI QR" },
+  { time: "1:55", label: "Background Payment Polling & Auto-Ack" },
+];
+
+export const PRESET_SCENARIOS: PresetScenario[] = [
+  {
+    id: "pasta",
+    label: "🍝 Pasta Meal Kit",
+    tag: "Recipe Deduction",
+    prompt: "I want to make pasta tonight under ₹1500. Get ingredients!",
+    replyLead: "🛒 Here is your Penne Arbiatta kit from the nearest dark store:",
+    items: [
+      { name: "Yu Zero Maida Penne Pasta 500g", price: "₹49" },
+      { name: "Veeba Pasta & Pizza Sauce 280g", price: "₹79" },
+      { name: "Amul Mozzarella Diced Cheese 200g", price: "₹110" },
+      { name: "Fresh Garlic 100g", price: "₹38" },
+    ],
+    subtotal: "₹276",
+    fees: "₹5 (Handling)",
+    total: "₹281",
+    quickReplies: ["Confirm Order", "Also add butter", "Clear Cart"],
+    toolTrace: {
+      tool: "search_products",
+      params: { query: "penne pasta sauce cheese garlic", max_price: 1500 },
+      resultSummary: "Parallel catalog search matched 4 SKUs (in-stock at dark store #2041). Total ₹281.",
+      latencyMs: 1045,
+    },
+  },
+  {
+    id: "delta",
+    label: "➕ Delta Cart Merge",
+    tag: "Cart Memory",
+    prompt: "also add 1 amul milk 1L",
+    replyLead: "Added Amul Taaza Milk 1L. Your updated basket now has 5 items:",
+    items: [
+      { name: "Yu Zero Maida Penne Pasta 500g", price: "₹49" },
+      { name: "Veeba Pasta & Pizza Sauce 280g", price: "₹79" },
+      { name: "Amul Mozzarella Diced Cheese 200g", price: "₹110" },
+      { name: "Fresh Garlic 100g", price: "₹38" },
+      { name: "Amul Taaza Milk 1L Pouch", price: "₹66" },
+    ],
+    subtotal: "₹342",
+    fees: "₹5 (Handling)",
+    total: "₹347",
+    quickReplies: ["Confirm Order", "Remove cheese", "Clear Cart"],
+    toolTrace: {
+      tool: "update_cart",
+      params: { action: "add", items: [{ sku: "amul_taaza_1l", quantity: 1 }] },
+      resultSummary: "Delta-merged milk pouch onto existing 4 items. Verified provider subtotal ₹342.",
+      latencyMs: 820,
+    },
+  },
+  {
+    id: "staples",
+    label: "🥛 Daily Staples",
+    tag: "Quick Restock",
+    prompt: "Get 2L milk, whole wheat bread, and 6 eggs under ₹500",
+    replyLead: "Added your everyday morning essentials to your cart:",
+    items: [
+      { name: "Amul Taaza Fresh Toned Milk 1L (x2)", price: "₹132" },
+      { name: "The Health Factory Zero Maida Bread 350g", price: "₹55" },
+      { name: "Eggoz Farm Fresh White Eggs (Pack of 6)", price: "₹68" },
+    ],
+    subtotal: "₹255",
+    fees: "FREE Delivery",
+    total: "₹255",
+    quickReplies: ["Confirm Order", "Add butter", "Change items"],
+    toolTrace: {
+      tool: "search_products",
+      params: { items: ["toned milk 1L", "wheat bread", "eggs 6-pack"], budget_cap: 500 },
+      resultSummary: "Resolved standard household variants. In-stock at local hub. Cart total ₹255.",
+      latencyMs: 910,
+    },
+  },
+  {
+    id: "care",
+    label: "🤒 Cold & Cough Relief",
+    tag: "Symptom Care",
+    prompt: "Terrible cold and sore throat, my head is pounding",
+    replyLead: "I’ve put together an urgent cold comfort pack from the local pharmacy shelf:",
+    items: [
+      { name: "Strepsils Honey & Lemon Lozenges (8 pcs)", price: "₹45" },
+      { name: "Vicks VapoRub Balm 25ml", price: "₹72" },
+      { name: "Crocin Advance 500mg (Strip of 15)", price: "₹20" },
+      { name: "Tetley Ginger & Mint Green Tea (10 bags)", price: "₹90" },
+    ],
+    subtotal: "₹227",
+    fees: "FREE Delivery",
+    total: "₹227",
+    quickReplies: ["Confirm Order", "Remove Crocin", "Need tissue paper"],
+    toolTrace: {
+      tool: "search_products",
+      params: { condition: "cold sore throat headache", otc_safe: true },
+      resultSummary: "Deduced OTC wellness essentials. Instant 10-minute dispatch queued.",
+      latencyMs: 1120,
+    },
+  },
+  {
+    id: "checkout",
+    label: "🔒 Gated Checkout",
+    tag: "Financial Guard",
+    prompt: "Confirm",
+    replyLead: "Your order is ready! Complete payment via the official secure UPI link to place your order:",
+    items: [],
+    subtotal: "₹342",
+    fees: "₹5",
+    total: "₹347",
+    quickReplies: ["Open UPI App", "Track Delivery Status"],
+    toolTrace: {
+      tool: "checkout",
+      params: { is_user_confirmed: true, generateUPIQR: true },
+      resultSummary: "Server-side confirmation verified. Dynamic UPI QR intent link generated: paas_bridge_49af52f6.",
+      latencyMs: 640,
+    },
+  },
+  {
+    id: "track",
+    label: "🛵 Live Rider Tracking",
+    tag: "Live Status",
+    prompt: "Where is my order?",
+    replyLead: "🛵 Your rider Ramesh (Hero Splendor) has picked up your order and is 4 minutes away!",
+    items: [],
+    subtotal: "",
+    fees: "",
+    total: "",
+    quickReplies: ["Call Rider", "View Delivery Map"],
+    toolTrace: {
+      tool: "track_order",
+      params: { order_id: "ORD_SWG_998124" },
+      resultSummary: "Swiggy Rider live status: ON_THE_WAY. Dark store: Pune Hub #14. ETA: 4 mins.",
+      latencyMs: 380,
+    },
+  },
+];
+
+export const PIPELINE_NODES: PipelineNode[] = [
+  {
+    id: "whatsapp",
+    stepNumber: "01",
+    title: "WhatsApp Cloud API",
+    subtitle: "Channel Ingress",
+    badge: "Fast-Ack Proxy",
+    badgeColor: "emerald",
+    metric: "<200ms Blue Ticks",
+    description: "Receives Meta webhooks, validates HMAC signatures, immediately dispatches mark_message_read to trigger WhatsApp double blue ticks, and forwards message payloads.",
+    technicalDetails: {
+      protocol: "HTTPS Webhook • HMAC-SHA256 Verification",
+      endpointOrFile: "backend/api/whatsapp.py & backend/channels/whatsapp.py",
+      invariants: [
+        "HMAC signature verified before payload parsing",
+        "<200ms ACK returned to Meta Cloud to prevent webhook timeout retries",
+        "Sender phone mapped to isolated per-customer session lock",
+      ],
+      samplePayload: {
+        object: "whatsapp_business_account",
+        entry: [{
+          changes: [{
+            value: {
+              messaging_product: "whatsapp",
+              messages: [{ from: "919876543210", text: { body: "i wanna make pasta under 1500" } }],
+            },
+          }],
+        }],
+      },
+    },
+  },
+  {
+    id: "engine",
+    stepNumber: "02",
+    title: "FastAPI Concurrency & Queue",
+    subtitle: "Backend Orchestration",
+    badge: "asyncio.Lock",
+    badgeColor: "blue",
+    metric: "0 Race Conditions",
+    description: "Maintains a per-customer asyncio.Lock to serialize rapid successive texts. Resolves saved delivery addresses upfront before dark-store catalogue routing.",
+    technicalDetails: {
+      protocol: "Python 3.12 Native Async Web Service (Render)",
+      endpointOrFile: "backend/agent/engine.py & backend/agent/session.py",
+      invariants: [
+        "Concurrent WhatsApp bursts serialized safely per customer phone",
+        "Upfront multi-address disambiguation prompt if >1 saved address exists",
+        "Session memory stores active cart ID and selected store metadata",
+      ],
+      samplePayload: {
+        customer_phone: "919876543210",
+        active_address_id: "ADDR_PUNE_CHARHOLI_704",
+        lock_status: "ACQUIRED",
+        turn_window: "6_TURNS_SLIDING",
+      },
+    },
+  },
+  {
+    id: "gemini",
+    stepNumber: "03",
+    title: "Gemini 3.5 Flash-Lite",
+    subtitle: "Reasoning & Tool Selection",
+    badge: "3-Model Failover",
+    badgeColor: "purple",
+    metric: "1,045ms Latency",
+    description: "Deduces recipe kits and OTC wellness essentials from natural English. Dispatches parallel tool calls concurrently via asyncio.gather with automatic 200ms failover.",
+    technicalDetails: {
+      protocol: "Google Generative AI Function Calling • HTTP/2 Connection Pool",
+      endpointOrFile: "backend/agent/prompts.py & backend/agent/tools.py",
+      invariants: [
+        "Automatic 200ms failover: gemini-3.5-flash-lite -> flash-lite-latest -> 3-flash-preview",
+        "Self-healing multi-turn history reset on thought-signature 400 errors",
+        "Parallel tool calls executed concurrently via asyncio.gather",
+      ],
+      samplePayload: {
+        model: "gemini-3.5-flash-lite",
+        function_call: {
+          name: "search_products",
+          arguments: { query: "penne pasta sauce cheese garlic", budget_cap: 1500 },
+        },
+      },
+    },
+  },
+  {
+    id: "guards",
+    stepNumber: "04",
+    title: "Deterministic Safety Guards",
+    subtitle: "Policy & Billing Enforcer",
+    badge: "Fail-Closed",
+    badgeColor: "emerald",
+    metric: "100% Gated",
+    description: "Pure Python invariant code that prevents hallucinations: blocks premature order success claims, enforces server-side checkout confirmation, and checks dark-store minimums.",
+    technicalDetails: {
+      protocol: "Deterministic Python Runtime Enforcement",
+      endpointOrFile: "backend/agent/guards.py & backend/agent/schemas.py",
+      invariants: [
+        "FM-CHECKOUT-01: Unauthorized checkout calls physically rejected by server guard",
+        "FM-CHECKOUT-02: Fail-closed guard overrides hallucinated success on failed checkout",
+        "FM-CHECKOUT-03: Premature delivery claims blocked during PAYMENT_PENDING status",
+        "Zero model arithmetic: line items, subtotals, and fees calculated by provider API",
+      ],
+      samplePayload: {
+        is_user_confirmed: true,
+        guard_evaluation: "PASSED",
+        cart_total_calculated_by: "PROVIDER_BILLING_ENGINE",
+        order_status: "AWAITING_PAYMENT",
+      },
+    },
+  },
+  {
+    id: "swiggy",
+    stepNumber: "05",
+    title: "Swiggy Instamart Live MCP",
+    subtitle: "CommercePort Reference",
+    badge: "Official MCP",
+    badgeColor: "orange",
+    metric: "5 Live Tools",
+    description: "Communicates over persistent HTTP/2 connection pool with Swiggy Instamart's official Model Context Protocol gateway to query live inventory, mutate carts, and poll dynamic UPI QR links.",
+    technicalDetails: {
+      protocol: "Model Context Protocol (JSON-RPC 2.0 over HTTP/2)",
+      endpointOrFile: "https://mcp.swiggy.com/im • backend/integrations/commerce/swiggy_adapter.py",
+      invariants: [
+        "Persistent HTTP/2 pool eliminates TLS handshake per turn",
+        "Encrypted OAuth token storage with dynamic refresh handling",
+        "Live tools: search_products, update_cart, get_cart, checkout, track_order",
+      ],
+      samplePayload: {
+        jsonrpc: "2.0",
+        method: "tools/call",
+        params: {
+          name: "checkout",
+          arguments: { cart_id: "CART_IM_88291", generateUPIQR: true },
+        },
+      },
+    },
+  },
+];
+
+export const FAQ_ITEMS: FaqItem[] = [
+  {
+    question: "Can Grocer place an order or charge my account without my approval?",
+    answer: "Never. Grocer has a physical server-side lock. The checkout tool is only authorized when you explicitly say or tap 'Confirm Order'. Payment occurs through official secure dark-store UPI links—the bot never accesses or stores your banking credentials.",
+  },
+  {
+    question: "How are prices, item discounts, and delivery fees calculated?",
+    answer: "All monetary calculations are performed deterministically by the live dark-store provider billing engine. The AI model interprets language and deduces items, while the backend billing engine calculates taxes, itemized subtotals, and delivery fees in exact rupees (₹XX).",
+  },
+  {
+    question: "What happens if an ingredient or brand is out of stock?",
+    answer: "Grocer practices intent preservation: if your exact requested brand is out of stock, it checks live dark-store inventory for the closest in-stock match within your budget and asks for your sign-off before modifying your basket.",
+  },
+  {
+    question: "Which quick-commerce platforms are supported?",
+    answer: "Grocer is architected around an extensible CommercePort interface. Swiggy Instamart is currently our live reference adapter via their official Model Context Protocol (MCP). The engine is provider-agnostic and designed to plug into any dark-store API (such as Zepto or Blinkit).",
+  },
+  {
+    question: "Why do I need to connect my Instamart account on this website?",
+    answer: "This website (https://grocerr.vercel.app/) is the whitelisted OAuth redirect URI for Swiggy's official MCP gateway. Entering your phone number securely retrieves your session token so your WhatsApp bot can query your live dark-store cart and saved addresses.",
+  },
+];

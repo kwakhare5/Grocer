@@ -8,6 +8,7 @@ import {
   Check,
   CheckCircle2,
   MapPin,
+  RefreshCw,
 } from "lucide-react";
 import { GrocerLogo } from "../ui/GrocerLogo";
 import { Message, PresetScenario } from "./types";
@@ -18,28 +19,28 @@ export function WhatsAppSimulator() {
     {
       id: "init_1",
       sender: "user",
-      text: "I want to make pasta tonight under ₹1500. Get ingredients!",
+      text: "I want to make pasta tonight under Rs 1500. Get ingredients",
       time: "8:04 PM",
     },
     {
       id: "init_2",
       sender: "assistant",
-      text: "🛒 Here is your Penne Arbiatta kit from the nearest dark store:",
+      text: "Penne Arbiatta ingredients from your local dark store:",
       time: "8:04 PM",
       items: [
-        { name: "Yu Zero Maida Penne Pasta 500g", price: "₹49" },
-        { name: "Veeba Pasta & Pizza Sauce 280g", price: "₹79" },
-        { name: "Amul Mozzarella Diced Cheese 200g", price: "₹110" },
-        { name: "Fresh Garlic 100g", price: "₹38" },
+        { name: "Yu Zero Maida Penne Pasta 500g", price: "Rs 49" },
+        { name: "Veeba Pasta & Pizza Sauce 280g", price: "Rs 79" },
+        { name: "Amul Mozzarella Diced Cheese 200g", price: "Rs 110" },
+        { name: "Fresh Garlic 100g", price: "Rs 38" },
       ],
-      subtotal: "₹276",
-      fees: "₹5 (Handling)",
-      total: "₹281",
+      subtotal: "Rs 276",
+      fees: "Rs 5 (Handling)",
+      total: "Rs 281",
       quickReplies: ["Confirm Order", "Also add butter", "Clear Cart"],
       toolCallPayload: {
         tool: "search_products",
         params: { query: "penne pasta sauce cheese garlic", max_price: 1500 },
-        resultSummary: "Parallel catalog search matched 4 SKUs (in-stock at dark store #2041). Total ₹281.",
+        resultSummary: "Parallel catalog search matched 4 SKUs (in-stock at dark store #2041). Total Rs 281.",
         latencyMs: 1045,
       },
     },
@@ -47,7 +48,6 @@ export function WhatsAppSimulator() {
 
   const [inputText, setInputText] = useState("");
   const [isTyping, setIsTyping] = useState(false);
-  const [showToolTrace, setShowToolTrace] = useState(true);
   const chatScrollRef = useRef<HTMLDivElement>(null);
 
   const handleSendSimulationMessage = (userQuery: string) => {
@@ -81,7 +81,6 @@ export function WhatsAppSimulator() {
     setInputText("");
     setIsTyping(true);
 
-    // Smooth scroll down
     setTimeout(() => {
       chatScrollRef.current?.scrollTo({ top: chatScrollRef.current.scrollHeight, behavior: "smooth" });
     }, 50);
@@ -120,266 +119,255 @@ export function WhatsAppSimulator() {
   const activeToolExecution = messages.filter((m) => m.toolCallPayload).slice(-1)[0];
 
   return (
-    <section id="simulator" className="py-16 sm:py-20 bg-white border-y border-zinc-200 scroll-mt-16">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section id="sandbox" className="py-16 sm:py-20 bg-zinc-100/70 border-y border-zinc-200 scroll-mt-16">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-2xl mx-auto mb-8">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold mb-3">
-            <span>Hands-On Sandbox</span>
+            <span>Replenishment Sandbox</span>
           </div>
           <h2 className="text-3xl sm:text-4xl font-editorial font-bold text-zinc-950">
-            Interactive WhatsApp simulator
+            Interactive replenishment simulator
           </h2>
           <p className="mt-3 text-base sm:text-lg text-zinc-600 leading-relaxed font-normal">
-            Click any preset scenario or type a grocery message below. Inspect real MCP tool calls in real time.
+            Test real scenarios or type your own request. Live MCP tool executions update in real time on the right.
           </p>
         </div>
 
-        {/* Preset Scenario Chips */}
+        {/* Preset Scenario Quick Chips */}
         <div className="flex flex-wrap items-center justify-center gap-2 mb-8">
           {PRESET_SCENARIOS.map((sc) => (
             <button
               key={sc.id}
               type="button"
               onClick={() => handleSendSimulationMessage(sc.prompt)}
-              className="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-zinc-100 hover:bg-zinc-200 text-zinc-800 transition active:scale-[0.98] cursor-pointer border border-zinc-200/80 shadow-2xs"
+              className="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-medium bg-white hover:bg-zinc-50 text-zinc-800 transition active:scale-[0.98] cursor-pointer border border-zinc-200 shadow-2xs"
             >
               <span>{sc.label}</span>
             </button>
           ))}
         </div>
 
-        {/* Simulator Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          {/* Left / Center Phone Mockup (8 cols on lg) */}
-          <div className="lg:col-span-7 flex justify-center">
-            <div className="w-full max-w-[390px] bg-[#111B21] rounded-[48px] p-3 shadow-2xl border-4 border-zinc-300 relative overflow-hidden">
-              {/* Phone Speaker & Notch */}
-              <div className="w-28 h-4 bg-zinc-950 rounded-full mx-auto mb-2" />
-
-              {/* WhatsApp App Container */}
-              <div className="bg-[#0B141A] rounded-[36px] overflow-hidden flex flex-col h-[580px] border border-zinc-800">
-                {/* WhatsApp Top Header Bar */}
-                <div className="bg-[#202C33] px-4 py-3 flex items-center justify-between text-white shrink-0 border-b border-zinc-800">
-                  <div className="flex items-center gap-2.5">
-                    <GrocerLogo size="sm" iconOnly />
-                    <div>
-                      <div className="font-bold text-xs sm:text-sm text-zinc-100 flex items-center gap-1">
-                        <span>Grocer Replenishment</span>
-                        <CheckCircle2 className="w-3.5 h-3.5 text-[#00A884]" />
-                      </div>
-                      <div className="text-[11px] text-[#00A884] font-medium">
-                        {isTyping ? "typing..." : "online • Pune Dark Store #2041"}
-                      </div>
-                    </div>
+        {/* Unified Two-Column Interface Card (No mobile chassis) */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          {/* Left Column: Clean Chat Interface (7 cols) */}
+          <div className="lg:col-span-7 bg-white rounded-3xl border border-zinc-200 shadow-xs overflow-hidden flex flex-col h-[600px]">
+            {/* Chat Header Bar */}
+            <div className="bg-zinc-50/80 px-5 py-3.5 border-b border-zinc-200 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <GrocerLogo size="sm" iconOnly />
+                <div>
+                  <div className="font-bold text-sm text-zinc-950 flex items-center gap-1.5">
+                    <span>Grocer Assistant</span>
+                    <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
                   </div>
-                  <div className="flex items-center gap-2 text-zinc-400">
-                    <button
-                      type="button"
-                      onClick={() => setMessages(messages.slice(0, 2))}
-                      className="p-1 rounded hover:bg-zinc-700/50 text-[11px] font-mono text-zinc-300 cursor-pointer"
-                      title="Reset chat"
-                    >
-                      Reset
-                    </button>
+                  <div className="text-xs text-zinc-500 font-medium">
+                    {isTyping ? "Checking dark store stock..." : "Connected • Pune Dark Store #2041"}
                   </div>
                 </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setMessages(messages.slice(0, 2))}
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white border border-zinc-200 hover:bg-zinc-50 text-xs font-medium text-zinc-600 transition cursor-pointer"
+                title="Reset conversation"
+              >
+                <RefreshCw className="w-3 h-3" />
+                <span>Reset</span>
+              </button>
+            </div>
 
-                {/* WhatsApp Messages Scroll Area */}
+            {/* Chat Message Stream */}
+            <div
+              ref={chatScrollRef}
+              className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3.5 bg-zinc-50/40 text-zinc-900 text-sm font-sans"
+            >
+              {/* Delivery Address Pill */}
+              <div className="mx-auto w-fit px-3 py-1 rounded-full bg-white border border-zinc-200 text-xs text-zinc-600 flex items-center gap-1.5 shadow-2xs">
+                <MapPin className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Delivering to: Charholi Budruk, Pune (12 mins)</span>
+              </div>
+
+              {messages.map((msg) => (
                 <div
-                  ref={chatScrollRef}
-                  className="flex-1 overflow-y-auto p-3 space-y-3 bg-[#0B141A] text-zinc-100 text-xs sm:text-sm font-sans"
-                  style={{
-                    backgroundImage: "radial-gradient(#202C33 1px, transparent 1px)",
-                    backgroundSize: "20px 20px",
-                  }}
+                  key={msg.id}
+                  className={`flex flex-col ${msg.sender === "user" ? "items-end" : "items-start"}`}
                 >
-                  {/* Delivery Location Header Pill */}
-                  <div className="mx-auto w-fit px-3 py-1 rounded-full bg-[#182229] border border-zinc-800 text-[11px] text-zinc-400 flex items-center gap-1.5 shadow-2xs">
-                    <MapPin className="w-3 h-3 text-emerald-400" />
-                    <span>Delivering to: Charholi Budruk, Pune (12 mins)</span>
-                  </div>
+                  <div
+                    className={`max-w-[85%] rounded-2xl p-4 shadow-2xs ${
+                      msg.sender === "user"
+                        ? "bg-emerald-600 text-white rounded-tr-none"
+                        : "bg-white text-zinc-900 rounded-tl-none border border-zinc-200"
+                    }`}
+                  >
+                    {msg.text && (
+                      <p className="leading-relaxed whitespace-pre-wrap text-sm font-normal">
+                        {msg.text}
+                      </p>
+                    )}
 
-                  {messages.map((msg) => (
-                    <div
-                      key={msg.id}
-                      className={`flex flex-col ${msg.sender === "user" ? "items-end" : "items-start"}`}
-                    >
-                      <div
-                        className={`max-w-[85%] rounded-2xl p-3 shadow-md ${
-                          msg.sender === "user"
-                            ? "bg-[#005C4B] text-white rounded-tr-none"
-                            : "bg-[#202C33] text-zinc-100 rounded-tl-none border border-zinc-800/80"
-                        }`}
-                      >
-                        {msg.text && (
-                          <p className="leading-relaxed whitespace-pre-wrap text-xs sm:text-sm">
-                            {msg.text}
-                          </p>
-                        )}
-
-                        {/* WhatsApp Itemized Receipt */}
-                        {msg.items && msg.items.length > 0 && (
-                          <div className="mt-2.5 pt-2.5 border-t border-zinc-700/60 space-y-1.5 text-xs">
-                            {msg.items.map((item, idx) => (
-                              <div key={idx} className="flex justify-between gap-3 text-zinc-200">
-                                <span className="truncate">• {item.name}</span>
-                                <span className="font-mono shrink-0 font-medium text-emerald-400">{item.price}</span>
-                              </div>
-                            ))}
-
-                            <div className="mt-2 pt-2 border-t border-zinc-700/60 text-xs space-y-0.5">
-                              {msg.subtotal && (
-                                <div className="flex justify-between text-zinc-400">
-                                  <span>Subtotal:</span>
-                                  <span className="font-mono">{msg.subtotal}</span>
-                                </div>
-                              )}
-                              {msg.fees && (
-                                <div className="flex justify-between text-zinc-400">
-                                  <span>Delivery &amp; Fees:</span>
-                                  <span className="font-mono">{msg.fees}</span>
-                                </div>
-                              )}
-                              {msg.total && (
-                                <div className="flex justify-between font-bold text-white pt-1 border-t border-zinc-700/60 text-xs sm:text-sm">
-                                  <span>Grand Total:</span>
-                                  <span className="font-mono text-emerald-400">{msg.total}</span>
-                                </div>
-                              )}
-                            </div>
+                    {/* Clean Itemized Receipt */}
+                    {msg.items && msg.items.length > 0 && (
+                      <div className="mt-3 pt-3 border-t border-zinc-200/80 space-y-1.5 text-xs sm:text-sm">
+                        {msg.items.map((item, idx) => (
+                          <div key={idx} className="flex justify-between gap-3 text-zinc-700">
+                            <span className="truncate">• {item.name}</span>
+                            <span className="font-mono shrink-0 font-semibold text-zinc-900">{item.price}</span>
                           </div>
-                        )}
+                        ))}
 
-                        <div className="mt-1 flex items-center justify-end gap-1 text-[10px] text-zinc-400 font-mono">
-                          <span>{msg.time}</span>
-                          {msg.sender === "user" && (
-                            <span className="text-cyan-400 font-bold">✓✓</span>
+                        <div className="mt-2.5 pt-2.5 border-t border-zinc-200 space-y-1 text-xs">
+                          {msg.subtotal && (
+                            <div className="flex justify-between text-zinc-500">
+                              <span>Subtotal:</span>
+                              <span className="font-mono">{msg.subtotal}</span>
+                            </div>
+                          )}
+                          {msg.fees && (
+                            <div className="flex justify-between text-zinc-500">
+                              <span>Delivery &amp; Fees:</span>
+                              <span className="font-mono">{msg.fees}</span>
+                            </div>
+                          )}
+                          {msg.total && (
+                            <div className="flex justify-between font-bold text-zinc-950 pt-1.5 border-t border-zinc-200 text-sm">
+                              <span>Total:</span>
+                              <span className="font-mono text-emerald-700">{msg.total}</span>
+                            </div>
                           )}
                         </div>
                       </div>
+                    )}
 
-                      {/* WhatsApp Interactive Action Buttons */}
-                      {msg.quickReplies && msg.quickReplies.length > 0 && (
-                        <div className="mt-1.5 w-full max-w-[85%] space-y-1">
-                          {msg.quickReplies.map((btnText, idx) => (
-                            <button
-                              key={idx}
-                              type="button"
-                              onClick={() => handleSendSimulationMessage(btnText)}
-                              className="w-full py-2 px-3 text-center text-[#00A884] bg-[#202C33] hover:bg-[#2A3942] rounded-xl font-medium text-xs border border-zinc-800 transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
-                            >
-                              <span>{btnText}</span>
-                            </button>
-                          ))}
-                        </div>
+                    <div className="mt-1.5 flex items-center justify-end gap-1 text-[11px] text-zinc-400 font-mono">
+                      <span>{msg.time}</span>
+                      {msg.sender === "user" && (
+                        <span className="text-emerald-200 font-bold">Read</span>
                       )}
                     </div>
-                  ))}
+                  </div>
 
-                  {/* Animated Typing Bubble */}
-                  {isTyping && (
-                    <div className="flex items-center gap-2 p-2.5 rounded-2xl bg-[#202C33] w-fit text-zinc-300 text-xs border border-zinc-800 animate-pulse">
-                      <Loader2 className="w-3.5 h-3.5 animate-spin text-[#00A884]" />
-                      <span>Grocer is querying dark store inventory...</span>
+                  {/* Interactive Reply Buttons */}
+                  {msg.quickReplies && msg.quickReplies.length > 0 && (
+                    <div className="mt-1.5 w-full max-w-[85%] flex flex-wrap gap-1.5">
+                      {msg.quickReplies.map((btnText, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => handleSendSimulationMessage(btnText)}
+                          className="px-3 py-1.5 bg-white hover:bg-zinc-50 rounded-xl font-medium text-xs text-emerald-800 border border-zinc-200 transition-colors cursor-pointer shadow-2xs"
+                        >
+                          {btnText}
+                        </button>
+                      ))}
                     </div>
                   )}
                 </div>
+              ))}
 
-                {/* WhatsApp Chat Typing Input Bar */}
-                <form
-                  onSubmit={handleInputSubmit}
-                  className="bg-[#202C33] p-2 flex items-center gap-2 border-t border-zinc-800 shrink-0"
-                >
-                  <input
-                    type="text"
-                    value={inputText}
-                    onChange={(e) => setInputText(e.target.value)}
-                    placeholder="Type grocery item or 'Confirm'..."
-                    className="flex-1 bg-[#2A3942] text-white text-xs sm:text-sm px-3.5 py-2.5 rounded-2xl focus:outline-none focus:ring-1 focus:ring-[#00A884] placeholder-zinc-500 font-sans"
-                  />
-                  <button
-                    type="submit"
-                    disabled={!inputText.trim() || isTyping}
-                    className="w-9 h-9 rounded-full bg-[#00A884] hover:bg-[#009475] disabled:opacity-40 text-[#111B21] flex items-center justify-center transition active:scale-95 cursor-pointer shrink-0"
-                    title="Send message"
-                  >
-                    <Send className="w-4 h-4 ml-0.5" />
-                  </button>
-                </form>
-              </div>
+              {/* Typing State Indicator */}
+              {isTyping && (
+                <div className="flex items-center gap-2 p-3 rounded-2xl bg-white w-fit text-zinc-600 text-xs border border-zinc-200 shadow-2xs">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-600" />
+                  <span>Checking dark store stock...</span>
+                </div>
+              )}
             </div>
+
+            {/* Bottom Message Input Bar */}
+            <form
+              onSubmit={handleInputSubmit}
+              className="bg-white p-3 flex items-center gap-2 border-t border-zinc-200 shrink-0"
+            >
+              <input
+                type="text"
+                value={inputText}
+                onChange={(e) => setInputText(e.target.value)}
+                placeholder="Type a grocery item or 'Confirm'..."
+                className="flex-1 bg-zinc-50 text-zinc-900 text-sm px-4 py-2.5 rounded-xl border border-zinc-200 focus:outline-none focus:border-emerald-600 placeholder-zinc-400 font-sans"
+              />
+              <button
+                type="submit"
+                disabled={!inputText.trim() || isTyping}
+                className="h-10 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white font-medium text-sm flex items-center justify-center gap-1.5 transition active:scale-95 cursor-pointer shrink-0"
+              >
+                <span>Send</span>
+                <Send className="w-3.5 h-3.5 ml-0.5" />
+              </button>
+            </form>
           </div>
 
-          {/* Right Live Tool Calls Drawer (5 cols on lg) */}
+          {/* Right Column: Clean Light Tool Execution Inspector (5 cols) */}
           <div className="lg:col-span-5 space-y-4">
-            <div className="bg-zinc-900 rounded-3xl p-5 border border-zinc-800 text-white shadow-xl">
-              <div className="flex items-center justify-between pb-3 border-b border-zinc-800 mb-4">
+            <div className="bg-white rounded-3xl p-5 sm:p-6 border border-zinc-200 shadow-xs">
+              <div className="flex items-center justify-between pb-3.5 border-b border-zinc-100 mb-4">
                 <div className="flex items-center gap-2">
-                  <Terminal className="w-4 h-4 text-emerald-400" />
-                  <h3 className="font-mono text-xs sm:text-sm font-bold text-zinc-100">
-                    Live Swiggy MCP Tool Execution
+                  <Terminal className="w-4 h-4 text-emerald-700" />
+                  <h3 className="font-mono text-sm font-bold text-zinc-950">
+                    Live Swiggy MCP Tool Trace
                   </h3>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setShowToolTrace(!showToolTrace)}
-                  className="px-2.5 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-xs font-mono text-zinc-300 transition cursor-pointer"
-                >
-                  {showToolTrace ? "Collapse" : "Expand"}
-                </button>
+                <span className="px-2 py-0.5 rounded text-[11px] font-mono bg-zinc-100 text-zinc-700 border border-zinc-200">
+                  HTTP/2 Pooled
+                </span>
               </div>
 
-              {showToolTrace && activeToolExecution?.toolCallPayload ? (
-                <div className="space-y-3 font-mono text-xs">
+              {activeToolExecution?.toolCallPayload ? (
+                <div className="space-y-4 font-mono text-xs">
                   <div>
-                    <div className="text-zinc-500 text-[11px] mb-1 uppercase tracking-wider">Active Tool Called</div>
+                    <div className="text-zinc-500 text-[11px] mb-1 uppercase tracking-wider font-semibold">
+                      Executed Tool
+                    </div>
                     <div className="flex items-center gap-2">
-                      <span className="px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800 font-bold">
+                      <span className="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold">
                         {activeToolExecution.toolCallPayload.tool}
                       </span>
-                      <span className="text-zinc-400 text-xs">
-                        ⚡ {activeToolExecution.toolCallPayload.latencyMs} ms
+                      <span className="text-zinc-600 text-xs">
+                        Latency: {activeToolExecution.toolCallPayload.latencyMs} ms
                       </span>
                     </div>
                   </div>
 
                   <div>
-                    <div className="text-zinc-500 text-[11px] mb-1 uppercase tracking-wider">Tool Arguments (JSON)</div>
-                    <pre className="p-3 rounded-xl bg-zinc-950 text-zinc-300 text-[11px] overflow-x-auto border border-zinc-800/80">
+                    <div className="text-zinc-500 text-[11px] mb-1 uppercase tracking-wider font-semibold">
+                      Tool Arguments
+                    </div>
+                    <pre className="p-3 rounded-xl bg-zinc-50 text-zinc-800 text-xs overflow-x-auto border border-zinc-200">
                       {JSON.stringify(activeToolExecution.toolCallPayload.params, null, 2)}
                     </pre>
                   </div>
 
                   <div>
-                    <div className="text-zinc-500 text-[11px] mb-1 uppercase tracking-wider">Deterministic Result</div>
-                    <p className="text-zinc-300 text-xs font-sans bg-zinc-950/60 p-2.5 rounded-xl border border-zinc-800">
+                    <div className="text-zinc-500 text-[11px] mb-1 uppercase tracking-wider font-semibold">
+                      Provider Response Summary
+                    </div>
+                    <p className="text-zinc-700 text-xs font-sans bg-zinc-50 p-3 rounded-xl border border-zinc-200 leading-relaxed">
                       {activeToolExecution.toolCallPayload.resultSummary}
                     </p>
                   </div>
 
-                  <div className="pt-3 border-t border-zinc-800 flex items-center justify-between text-[11px] text-zinc-400">
-                    <span className="flex items-center gap-1.5">
-                      <Check className="w-3.5 h-3.5 text-emerald-400" />
-                      Deterministic Bill Gated
+                  <div className="pt-3 border-t border-zinc-100 flex items-center justify-between text-xs text-zinc-600">
+                    <span className="flex items-center gap-1.5 font-sans">
+                      <Check className="w-3.5 h-3.5 text-emerald-600" />
+                      Verified billing totals
                     </span>
-                    <span>HTTP/2 Persistent Pool</span>
+                    <span className="font-mono">JSON-RPC 2.0</span>
                   </div>
                 </div>
               ) : (
                 <p className="text-xs text-zinc-500 font-sans">
-                  Click a chip or send a message in the simulator to see live MCP tool function execution.
+                  Select a preset chip or send a message to inspect the live MCP tool call payload.
                 </p>
               )}
             </div>
 
-            {/* Quick Helper Explainer Card */}
-            <div className="bg-zinc-50 rounded-2xl p-4 border border-zinc-200 text-xs text-zinc-600 space-y-2">
-              <div className="font-bold text-zinc-900 flex items-center gap-1.5">
+            {/* Zero-Math Assurance Note */}
+            <div className="bg-white rounded-2xl p-4 sm:p-5 border border-zinc-200 text-xs text-zinc-600 space-y-1.5 shadow-2xs">
+              <div className="font-bold text-zinc-950 flex items-center gap-1.5 text-xs sm:text-sm">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                <span>Zero Hallucination Guarantee</span>
+                <span>Deterministic Calculation</span>
               </div>
-              <p className="leading-relaxed">
-                Notice that every item price, packaging fee, and subtotal is verified directly from the dark-store API. The LLM only proposes intent candidates; pure Python calculates numbers.
+              <p className="leading-relaxed font-normal">
+                Item prices, packaging fees, and delivery charges come directly from the Swiggy Instamart billing engine. The language model proposes tools; backend Python enforces totals.
               </p>
             </div>
           </div>

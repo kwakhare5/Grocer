@@ -20,11 +20,11 @@ export function ArchitectureSection() {
     PIPELINE_NODES.find((n) => n.id === selectedNodeId) || PIPELINE_NODES[4];
 
   return (
-    <section id="architecture" className="py-16 sm:py-20 bg-zinc-100/70 border-b border-zinc-200 scroll-mt-16">
+    <section id="architecture" className="py-16 sm:py-20 bg-white border-b border-zinc-200 scroll-mt-16">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
         <div className="text-center max-w-2xl mx-auto mb-12">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-zinc-200 text-zinc-800 text-xs font-semibold mb-3">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-zinc-100 text-zinc-800 text-xs font-semibold mb-3 border border-zinc-200">
             <Layers className="w-3.5 h-3.5" />
             <span>Technical Architecture</span>
           </div>
@@ -32,18 +32,18 @@ export function ArchitectureSection() {
             Decoupled CommercePort &amp; Swiggy MCP pipeline
           </h2>
           <p className="mt-3 text-base sm:text-lg text-zinc-600 leading-relaxed font-normal">
-            A production-tested, provider-agnostic replenishment engine pairing autonomous LLM reasoning with deterministic safety guards.
+            A provider-agnostic replenishment engine pairing autonomous reasoning with deterministic safety guards.
           </p>
         </div>
 
         {/* ─── Interactive Visual Pipeline Flow Diagram ──────────────── */}
-        <div className="bg-white rounded-3xl p-6 sm:p-8 border border-zinc-200 shadow-sm max-w-5xl mx-auto mb-10">
-          <div className="flex items-center justify-between pb-4 border-b border-zinc-100 mb-6">
+        <div className="bg-zinc-50/70 rounded-3xl p-6 sm:p-8 border border-zinc-200 shadow-2xs max-w-5xl mx-auto mb-10">
+          <div className="flex items-center justify-between pb-4 border-b border-zinc-200/80 mb-6">
             <div className="flex items-center gap-2 text-xs font-semibold text-zinc-800">
               <Zap className="w-4 h-4 text-emerald-600" />
-              <span>Interactive Pipeline Diagram • Click any stage to inspect technical specs</span>
+              <span>Interactive Pipeline • Click any stage to inspect technical specs</span>
             </div>
-            <span className="text-xs font-mono text-zinc-500">
+            <span className="text-xs font-mono text-zinc-500 font-medium">
               HTTP/2 Persistent Pool
             </span>
           </div>
@@ -59,40 +59,40 @@ export function ArchitectureSection() {
                   onClick={() => setSelectedNodeId(node.id)}
                   className={`relative p-4 rounded-2xl text-left transition-all cursor-pointer flex flex-col justify-between border ${
                     isSelected
-                      ? "bg-zinc-900 text-white border-zinc-900 shadow-md scale-[1.02] ring-2 ring-emerald-500/50"
-                      : "bg-zinc-50 hover:bg-zinc-100/80 text-zinc-800 border-zinc-200"
+                      ? "bg-white text-zinc-950 border-emerald-600 shadow-md ring-2 ring-emerald-500/20"
+                      : "bg-white hover:bg-zinc-50 text-zinc-800 border-zinc-200 shadow-2xs"
                   }`}
                 >
                   <div>
                     <div className="flex items-center justify-between text-xs mb-2">
-                      <span className={`font-mono font-bold ${isSelected ? "text-emerald-400" : "text-zinc-500"}`}>
+                      <span className={`font-mono font-bold ${isSelected ? "text-emerald-700" : "text-zinc-400"}`}>
                         {node.stepNumber}
                       </span>
                       <span
-                        className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
+                        className={`px-2 py-0.5 rounded text-[11px] font-semibold ${
                           isSelected
-                            ? "bg-zinc-800 text-zinc-300"
-                            : "bg-white text-zinc-700 border border-zinc-200"
+                            ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                            : "bg-zinc-100 text-zinc-700 border border-zinc-200"
                         }`}
                       >
                         {node.badge}
                       </span>
                     </div>
 
-                    <h4 className="font-bold text-xs sm:text-sm leading-tight mb-1">
+                    <h4 className="font-bold text-xs sm:text-sm leading-tight mb-1 text-zinc-950">
                       {node.title}
                     </h4>
-                    <p className={`text-[11px] ${isSelected ? "text-zinc-400" : "text-zinc-500"}`}>
+                    <p className="text-xs text-zinc-500">
                       {node.subtitle}
                     </p>
                   </div>
 
-                  <div className="mt-4 pt-2 border-t border-zinc-200/50 dark:border-zinc-800 flex items-center justify-between text-[11px]">
-                    <span className={`font-mono font-semibold ${isSelected ? "text-emerald-400" : "text-emerald-700"}`}>
+                  <div className="mt-4 pt-2 border-t border-zinc-100 flex items-center justify-between text-xs">
+                    <span className="font-mono font-semibold text-emerald-700">
                       {node.metric}
                     </span>
                     {index < PIPELINE_NODES.length - 1 && (
-                      <ArrowRight className={`w-3 h-3 hidden lg:block ${isSelected ? "text-zinc-500" : "text-zinc-400"}`} />
+                      <ArrowRight className="w-3.5 h-3.5 hidden lg:block text-zinc-400" />
                     )}
                   </div>
                 </button>
@@ -100,37 +100,37 @@ export function ArchitectureSection() {
             })}
           </div>
 
-          {/* ─── Deep-Dive Technical Node Inspector ─────────────────── */}
-          <div className="mt-6 p-5 sm:p-6 rounded-2xl bg-zinc-900 text-white border border-zinc-800">
-            <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-zinc-800 mb-4">
+          {/* ─── Unified Light Technical Inspector (Zero Black Boxes) ─── */}
+          <div className="mt-6 p-5 sm:p-6 rounded-2xl bg-white text-zinc-950 border border-zinc-200 shadow-2xs">
+            <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-zinc-100 mb-4">
               <div className="flex items-center gap-2">
-                <Code className="w-4 h-4 text-emerald-400" />
-                <span className="text-xs sm:text-sm font-bold font-mono text-zinc-100">
+                <Code className="w-4 h-4 text-emerald-700" />
+                <span className="text-xs sm:text-sm font-bold font-mono text-zinc-950">
                   Stage {activeNode.stepNumber}: {activeNode.title}
                 </span>
-                <span className="text-xs px-2 py-0.5 rounded bg-zinc-800 text-zinc-300 font-mono">
+                <span className="text-xs px-2.5 py-0.5 rounded bg-zinc-100 text-zinc-700 font-mono border border-zinc-200">
                   {activeNode.technicalDetails.protocol}
                 </span>
               </div>
-              <span className="text-xs text-zinc-400 font-mono truncate max-w-xs">
+              <span className="text-xs text-zinc-500 font-mono truncate max-w-xs">
                 {activeNode.technicalDetails.endpointOrFile}
               </span>
             </div>
 
-            <p className="text-xs sm:text-sm text-zinc-300 mb-4 leading-relaxed font-sans">
+            <p className="text-xs sm:text-sm text-zinc-600 mb-4 leading-relaxed font-sans">
               {activeNode.description}
             </p>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               {/* Enforced Invariants */}
               <div>
-                <div className="text-[11px] font-mono uppercase tracking-wider text-zinc-400 mb-2">
-                  Key Invariants Enforced
+                <div className="text-xs font-mono uppercase tracking-wider text-zinc-500 mb-2 font-semibold">
+                  Enforced Invariants
                 </div>
-                <ul className="space-y-1.5 text-xs text-zinc-300 font-sans">
+                <ul className="space-y-2 text-xs sm:text-sm text-zinc-700 font-sans">
                   {activeNode.technicalDetails.invariants.map((inv, idx) => (
                     <li key={idx} className="flex items-start gap-2">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
                       <span>{inv}</span>
                     </li>
                   ))}
@@ -139,10 +139,10 @@ export function ArchitectureSection() {
 
               {/* Sample Payload Inspection */}
               <div>
-                <div className="text-[11px] font-mono uppercase tracking-wider text-zinc-400 mb-2">
-                  Runtime Payload / Memory Schema
+                <div className="text-xs font-mono uppercase tracking-wider text-zinc-500 mb-2 font-semibold">
+                  Runtime Payload Schema
                 </div>
-                <pre className="p-3 rounded-xl bg-zinc-950 text-zinc-300 text-[11px] font-mono overflow-x-auto border border-zinc-800 max-h-36">
+                <pre className="p-3 rounded-xl bg-zinc-50 text-zinc-800 text-xs font-mono overflow-x-auto border border-zinc-200 max-h-36">
                   {JSON.stringify(activeNode.technicalDetails.samplePayload, null, 2)}
                 </pre>
               </div>
@@ -150,14 +150,14 @@ export function ArchitectureSection() {
           </div>
 
           {/* Test & Verification Summary Stats */}
-          <div className="mt-6 pt-6 border-t border-zinc-100 grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
+          <div className="mt-6 pt-6 border-t border-zinc-200/80 grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
             <div>
               <div className="text-2xl font-bold text-zinc-950 font-mono">62 / 62</div>
               <div className="text-xs text-zinc-600 mt-1 font-medium">Automated Invariant Tests Passed</div>
             </div>
             <div>
               <div className="text-2xl font-bold text-zinc-950 font-mono">6 / 6</div>
-              <div className="text-xs text-zinc-600 mt-1 font-medium">Failure Invariants Verified Live</div>
+              <div className="text-xs text-zinc-600 mt-1 font-medium">Failure Modes Verified Live</div>
             </div>
             <div>
               <div className="text-2xl font-bold text-zinc-950 font-mono">~1.0s</div>
@@ -167,75 +167,75 @@ export function ArchitectureSection() {
         </div>
 
         {/* ─── Swiggy Instamart Live MCP Tool Contract Grid ──────────── */}
-        <div className="bg-white rounded-3xl p-6 sm:p-8 border border-zinc-200 shadow-sm max-w-5xl mx-auto mb-10">
+        <div className="bg-zinc-50/70 rounded-3xl p-6 sm:p-8 border border-zinc-200 shadow-2xs max-w-5xl mx-auto mb-10">
           <div className="mb-6">
             <h3 className="text-lg sm:text-xl font-bold text-zinc-950">
               Swiggy Instamart Live MCP Tool Contract
             </h3>
-            <p className="text-xs sm:text-sm text-zinc-600 mt-1 leading-relaxed">
-              GROCER implements the official Model Context Protocol tools exposed at <code className="font-mono text-xs bg-zinc-100 px-1.5 py-0.5 rounded text-zinc-800">https://mcp.swiggy.com/im</code>.
+            <p className="text-xs sm:text-sm text-zinc-600 mt-1 leading-relaxed font-normal">
+              Implements official Model Context Protocol tools exposed at <code className="font-mono text-xs bg-white border border-zinc-200 px-1.5 py-0.5 rounded text-zinc-800">https://mcp.swiggy.com/im</code>.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-xs font-sans">
-            <div className="p-4 rounded-2xl bg-zinc-50 border border-zinc-200">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-xs sm:text-sm font-sans">
+            <div className="p-4 rounded-2xl bg-white border border-zinc-200">
               <div className="flex items-center justify-between mb-2">
-                <span className="font-mono font-bold text-zinc-950 text-xs sm:text-sm">search_products</span>
-                <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-mono text-[10px]">Read Tool</span>
+                <span className="font-mono font-bold text-zinc-950 text-sm">search_products</span>
+                <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 font-mono text-xs">Read</span>
               </div>
-              <p className="text-zinc-600 leading-relaxed">
-                Queries real-time dark store stock, prices, variants, and pack sizes. Supports concurrent execution via <code className="font-mono text-zinc-800">asyncio.gather</code>.
+              <p className="text-zinc-600 leading-relaxed text-xs">
+                Queries dark store stock, prices, and pack sizes in parallel using <code className="font-mono text-zinc-800">asyncio.gather</code>.
               </p>
             </div>
 
-            <div className="p-4 rounded-2xl bg-zinc-50 border border-zinc-200">
+            <div className="p-4 rounded-2xl bg-white border border-zinc-200">
               <div className="flex items-center justify-between mb-2">
-                <span className="font-mono font-bold text-zinc-950 text-xs sm:text-sm">update_cart</span>
-                <span className="px-2 py-0.5 rounded bg-blue-100 text-blue-800 font-mono text-[10px]">Delta Mutation</span>
+                <span className="font-mono font-bold text-zinc-950 text-sm">update_cart</span>
+                <span className="px-2 py-0.5 rounded bg-blue-50 text-blue-800 border border-blue-200 font-mono text-xs">Delta</span>
               </div>
-              <p className="text-zinc-600 leading-relaxed">
-                Adds, increments, or decrements dark store SKUs while preserving existing basket items and respecting store minimums.
+              <p className="text-zinc-600 leading-relaxed text-xs">
+                Adds or updates items while keeping existing basket contents intact and respecting store minimums.
               </p>
             </div>
 
-            <div className="p-4 rounded-2xl bg-zinc-50 border border-zinc-200">
+            <div className="p-4 rounded-2xl bg-white border border-zinc-200">
               <div className="flex items-center justify-between mb-2">
-                <span className="font-mono font-bold text-zinc-950 text-xs sm:text-sm">get_cart</span>
-                <span className="px-2 py-0.5 rounded bg-zinc-200 text-zinc-800 font-mono text-[10px]">State Verify</span>
+                <span className="font-mono font-bold text-zinc-950 text-sm">get_cart</span>
+                <span className="px-2 py-0.5 rounded bg-zinc-100 text-zinc-800 border border-zinc-200 font-mono text-xs">Verify</span>
               </div>
-              <p className="text-zinc-600 leading-relaxed">
-                Reads back verified provider totals, item discounts, packaging fees, and delivery charges. Eliminates model arithmetic.
+              <p className="text-zinc-600 leading-relaxed text-xs">
+                Reads verified provider subtotals, packaging, and delivery fees directly from dark-store billing.
               </p>
             </div>
 
-            <div className="p-4 rounded-2xl bg-zinc-50 border border-zinc-200">
+            <div className="p-4 rounded-2xl bg-white border border-zinc-200">
               <div className="flex items-center justify-between mb-2">
-                <span className="font-mono font-bold text-zinc-950 text-xs sm:text-sm">checkout</span>
-                <span className="px-2 py-0.5 rounded bg-purple-100 text-purple-800 font-mono text-[10px]">Gated Mutator</span>
+                <span className="font-mono font-bold text-zinc-950 text-sm">checkout</span>
+                <span className="px-2 py-0.5 rounded bg-purple-50 text-purple-800 border border-purple-200 font-mono text-xs">Gated</span>
               </div>
-              <p className="text-zinc-600 leading-relaxed">
-                Server-side gated: only executes when <code className="font-mono text-zinc-800">is_user_confirmed</code> is true. Generates dynamic UPI payment bridge QR.
+              <p className="text-zinc-600 leading-relaxed text-xs">
+                Requires server-side confirmation before execution. Returns dynamic UPI QR payment link.
               </p>
             </div>
 
-            <div className="p-4 rounded-2xl bg-zinc-50 border border-zinc-200">
+            <div className="p-4 rounded-2xl bg-white border border-zinc-200">
               <div className="flex items-center justify-between mb-2">
-                <span className="font-mono font-bold text-zinc-950 text-xs sm:text-sm">track_order</span>
-                <span className="px-2 py-0.5 rounded bg-orange-100 text-orange-800 font-mono text-[10px]">Fulfillment</span>
+                <span className="font-mono font-bold text-zinc-950 text-sm">track_order</span>
+                <span className="px-2 py-0.5 rounded bg-orange-50 text-orange-800 border border-orange-200 font-mono text-xs">Tracking</span>
               </div>
-              <p className="text-zinc-600 leading-relaxed">
-                Reports live delivery boy status, vehicle details, contact number, and ETA directly into WhatsApp.
+              <p className="text-zinc-600 leading-relaxed text-xs">
+                Reports live delivery boy status, vehicle details, contact number, and ETA directly on WhatsApp.
               </p>
             </div>
 
-            <div className="p-4 rounded-2xl bg-zinc-50 border border-zinc-200 flex flex-col justify-between">
+            <div className="p-4 rounded-2xl bg-white border border-zinc-200 flex flex-col justify-between">
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <span className="font-mono font-bold text-zinc-950 text-xs sm:text-sm">Payment Poller</span>
-                  <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-mono text-[10px]">Daemon</span>
+                  <span className="font-mono font-bold text-zinc-950 text-sm">Payment Poller</span>
+                  <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 font-mono text-xs">Daemon</span>
                 </div>
-                <p className="text-zinc-600 leading-relaxed">
-                  Background daemon checks order status every 5s for 60s following UPI QR generation, sending instant confirmation upon payment completion.
+                <p className="text-zinc-600 leading-relaxed text-xs">
+                  Polls order status every 5s for 60s after UPI link generation, sending instant confirmation upon payment.
                 </p>
               </div>
             </div>
@@ -260,7 +260,7 @@ export function ArchitectureSection() {
               Upfront Address Guard
             </div>
             <p className="text-zinc-600 leading-relaxed">
-              Detects multiple saved addresses and asks for explicit selection upfront so groceries go to the right dark store.
+              Detects multiple saved addresses and asks for explicit selection upfront so groceries route to the right dark store.
             </p>
           </div>
 
@@ -283,7 +283,7 @@ export function ArchitectureSection() {
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 text-xs sm:text-sm font-semibold text-zinc-800 hover:text-emerald-700 transition underline underline-offset-4"
           >
-            <span>Read the official Reviewer Walkthrough Guide on GitHub</span>
+            <span>Reviewer Walkthrough Guide on GitHub</span>
             <ArrowRight className="w-4 h-4" />
           </a>
         </div>

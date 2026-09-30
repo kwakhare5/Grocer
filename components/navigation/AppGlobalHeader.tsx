@@ -13,9 +13,8 @@ export function AppGlobalHeader({ onOpenConnect, isConnected }: AppGlobalHeaderP
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const navLinks = [
-    { label: "Why WhatsApp", href: "#why-whatsapp" },
-    { label: "Features", href: "#features" },
-    { label: "Simulator", href: "#simulator" },
+    { label: "Demo", href: "#demo" },
+    { label: "Sandbox", href: "#sandbox" },
     { label: "Architecture", href: "#architecture" },
     { label: "FAQ", href: "#faq" },
   ];
@@ -23,7 +22,7 @@ export function AppGlobalHeader({ onOpenConnect, isConnected }: AppGlobalHeaderP
   return (
     <header className="sticky top-0 z-40 w-full bg-white/95 backdrop-blur-md border-b border-zinc-200">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
-        {/* Brand identity - Clickable to top */}
+        {/* Brand identity */}
         <a href="#" className="flex items-center gap-3 group">
           <GrocerLogo size="sm" iconOnly />
           <div className="flex flex-col">
@@ -31,13 +30,13 @@ export function AppGlobalHeader({ onOpenConnect, isConnected }: AppGlobalHeaderP
               Grocer
             </span>
             <span className="text-xs text-zinc-500 font-sans">
-              Grocery replenishment on WhatsApp
+              WhatsApp grocery replenishment
             </span>
           </div>
         </a>
 
-        {/* Center Navigation Links (Clean 5 items) */}
-        <nav className="hidden md:flex items-center gap-6 text-xs sm:text-sm font-medium text-zinc-600">
+        {/* Clean 4-Link Navigation */}
+        <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-zinc-600">
           {navLinks.map((link) => (
             <a
               key={link.label}
@@ -79,7 +78,7 @@ export function AppGlobalHeader({ onOpenConnect, isConnected }: AppGlobalHeaderP
               className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#fc8019] hover:bg-[#e07014] text-white text-xs sm:text-sm font-semibold transition shadow-xs active:scale-[0.98] cursor-pointer"
             >
               <ShoppingBag className="w-3.5 h-3.5" />
-              <span>{isConnected ? "Linked ✓" : "Connect Instamart"}</span>
+              <span>{isConnected ? "Linked" : "Connect Instamart"}</span>
             </button>
           )}
 

@@ -3,8 +3,6 @@
 import React, { useEffect, useState } from "react";
 import { AppGlobalHeader } from "../components/navigation/AppGlobalHeader";
 import { HeroSection } from "../components/landing/HeroSection";
-import { WhyWhatsAppSection } from "../components/landing/WhyWhatsAppSection";
-import { CapabilitiesSection } from "../components/landing/CapabilitiesSection";
 import { WhatsAppSimulator } from "../components/landing/WhatsAppSimulator";
 import { ArchitectureSection } from "../components/landing/ArchitectureSection";
 import { FaqSection } from "../components/landing/FaqSection";
@@ -26,7 +24,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-[#FAFAFA] text-zinc-900 flex flex-col font-sans selection:bg-emerald-600 selection:text-white">
-      {/* Global Navigation Header (Clean 5-Link Structure) */}
+      {/* Global Navigation Header (Clean 4-Link Structure) */}
       <AppGlobalHeader
         onOpenConnect={() => setIsConnectModalOpen(true)}
         isConnected={isConnected}
@@ -39,19 +37,13 @@ export default function Home() {
           isConnected={isConnected}
         />
 
-        {/* 2. Problem vs Solution: Why WhatsApp Beats App Scrolling */}
-        <WhyWhatsAppSection />
-
-        {/* 3. Core Capabilities (4 Replenishment Superpowers) */}
-        <CapabilitiesSection />
-
-        {/* 4. Dual-Interactive WhatsApp Simulator & Live MCP Inspector */}
+        {/* 2. Interactive Replenishment Sandbox (Simulator + MCP Trace) */}
         <WhatsAppSimulator />
 
-        {/* 5. Decoupled Architecture & Swiggy MCP Interactive Pipeline */}
+        {/* 3. Decoupled Architecture & Swiggy MCP Interactive Pipeline */}
         <ArchitectureSection />
 
-        {/* 6. Commerce Safety & Frequently Asked Questions */}
+        {/* 4. Commerce Safety & Frequently Asked Questions */}
         <FaqSection />
       </main>
 
@@ -62,15 +54,15 @@ export default function Home() {
         isConnected={isConnected}
       />
 
-      {/* Unified Landing Page Footer */}
-      <footer className="border-t border-zinc-200 py-12 px-4 sm:px-6 lg:px-8 bg-zinc-50 text-xs text-zinc-500 font-sans">
+      {/* Unified Minimal Footer */}
+      <footer className="border-t border-zinc-200 py-10 px-4 sm:px-6 lg:px-8 bg-white text-xs text-zinc-500 font-sans">
         <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4">
+          <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4 text-center sm:text-left">
             <span className="font-bold text-zinc-900 text-sm">Grocer</span>
-            <span>•</span>
-            <span>Official Swiggy Builders Club Submission</span>
-            <span>•</span>
-            <span>Powered by Instamart MCP &amp; Gemini 3.5</span>
+            <span className="hidden sm:inline">•</span>
+            <span>Swiggy Builders Club Submission</span>
+            <span className="hidden sm:inline">•</span>
+            <span>Instamart MCP &amp; Gemini 3.5</span>
           </div>
           <div className="flex items-center gap-4 text-xs font-medium">
             <a
@@ -79,7 +71,7 @@ export default function Home() {
               rel="noopener noreferrer"
               className="hover:text-zinc-950 transition-colors underline"
             >
-              GitHub Repository
+              GitHub
             </a>
             <a
               href="https://github.com/kwakhare5/Grocer/blob/main/docs/REVIEWER_WALKTHROUGH.md"

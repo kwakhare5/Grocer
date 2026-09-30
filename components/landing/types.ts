@@ -3,40 +3,26 @@ export interface MessageItem {
   price: string;
 }
 
-export interface Message {
-  id: string;
-  sender: "user" | "assistant";
-  text?: string;
-  time: string;
+export interface VerifiedJourneyTurn {
+  turn: number;
+  label: string;
+  tag: string;
+  userInput: string;
+  state: string;
+  latencyMs: number;
+  assistantMessage: string;
   items?: MessageItem[];
   subtotal?: string;
   fees?: string;
   total?: string;
-  quickReplies?: string[];
-  toolCallPayload?: {
-    tool: string;
-    params: Record<string, unknown>;
-    resultSummary: string;
-    latencyMs: number;
-  };
-}
-
-export interface PresetScenario {
-  id: string;
-  label: string;
-  tag: string;
-  prompt: string;
-  replyLead: string;
-  items: MessageItem[];
-  subtotal: string;
-  fees: string;
-  total: string;
-  quickReplies: string[];
+  deliveryAddress?: string;
+  paymentLink?: string;
   toolTrace: {
     tool: string;
     params: Record<string, unknown>;
     resultSummary: string;
     latencyMs: number;
+    invariantTested: string;
   };
 }
 

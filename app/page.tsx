@@ -58,7 +58,19 @@ export default function Home() {
       <footer className="border-t border-zinc-200 py-10 px-4 sm:px-6 lg:px-8 bg-white text-xs text-zinc-500 font-sans">
         <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4 text-center sm:text-left">
-            <span className="font-bold text-zinc-900 text-sm">Grocer</span>
+            <span className="font-bold text-zinc-950 text-sm">Grocer</span>
+            <span className="hidden sm:inline">•</span>
+            <span>
+              Built by{" "}
+              <a
+                href="https://github.com/kwakhare5"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-semibold text-zinc-900 hover:text-emerald-700 underline transition-colors"
+              >
+                Karan Wakhare
+              </a>
+            </span>
             <span className="hidden sm:inline">•</span>
             <span>Swiggy Builders Club Submission</span>
             <span className="hidden sm:inline">•</span>

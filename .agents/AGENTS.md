@@ -216,11 +216,11 @@ If the answer is no, it does not belong in GROCER v2 unless the architectural co
 
 ## 15. SESSION RESUME
 
-**Last completed:** (1) Unified the entire landing page on a pure Editorial Light design system (`#FAFAFA` base, `bg-white` cards, `border-zinc-200`, deep `zinc-950` typography, emerald/orange accents), eliminating every pitch-black box across video, simulator, and architecture sections; (2) Removed the fake mobile phone chassis, notch, and speaker from the WhatsApp simulator, replacing it with a clean two-column desktop/mobile card layout (chat timeline on the left, live MCP tool execution inspector on the right); (3) Consolidated page architecture into a tight 4-beat narrative (`Demo`, `Sandbox`, `Architecture`, `FAQ`) and streamlined navigation header accordingly; (4) Purged all AI-slop emojis and marketing buzzwords across titles, buttons, receipts, and scenario chips in favor of blunt, factual engineering prose; (5) Verified quality gate: 0 ESLint errors/warnings, Next.js 16 Turbopack production build clean in 2.1s, 5/5 failure mode invariant tests passing in 0.08s, and knowledge graph updated to 994 nodes and 1,880 edges.
+**Last completed:** (1) Replaced the mock simulator with an Empirical E2E Conversation Showcase in `components/landing/WhatsAppSimulator.tsx` using the exact verified 6-turn transcript from `artifacts/e2e_verification_report.json` (Turn 1: Address Prompt -> Turn 2: Pasta Kit -> Turn 3: Delta Add Milk -> Turn 4: Hesitation Hold -> Turn 5: Server-Side Gated Checkout -> Turn 6: Clear Cart); (2) Displayed side-by-side live Swiggy MCP tool traces (`get_saved_addresses`, `search_products`, `update_cart`, `checkout`, `clear_cart`) with real execution latencies and invariant tags; (3) Added Karan Wakhare attribution with GitHub profile link to the landing page footer (`Built by Karan Wakhare • Swiggy Builders Club Submission`); (4) Verified quality gate: 0 ESLint errors/warnings, Next.js 16 Turbopack production build clean in 2.2s, 5/5 failure mode invariant tests passing in 0.06s, and knowledge graph updated to 994 nodes and 1,879 edges.
 
 **Next implementation gate:** 2-minute video demo recording following the reviewer walkthrough script and official submission to `builders@swiggy.in`.
 
-**Current status:** 0 ESLint errors/warnings, Next.js 16 production build clean (2.1s), 100% invariant tests passing green, knowledge graph synchronized (994 nodes, 1,880 edges).
+**Current status:** 0 ESLint errors/warnings, Next.js 16 production build clean (2.2s), 100% invariant tests passing green, knowledge graph synchronized (994 nodes, 1,879 edges).
 
 
 

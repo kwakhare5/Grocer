@@ -32,7 +32,7 @@ export function ArchitectureSection() {
             Decoupled CommercePort &amp; Swiggy MCP pipeline
           </h2>
           <p className="mt-3 text-base sm:text-lg text-zinc-600 leading-relaxed font-normal">
-            A provider-agnostic replenishment engine pairing autonomous reasoning with deterministic safety guards.
+            How Grocer connects WhatsApp to Swiggy Instamart through natural language understanding and deterministic commerce guards.
           </p>
         </div>
 
@@ -149,21 +149,7 @@ export function ArchitectureSection() {
             </div>
           </div>
 
-          {/* Test & Verification Summary Stats */}
-          <div className="mt-6 pt-6 border-t border-zinc-200/80 grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
-            <div>
-              <div className="text-2xl font-bold text-zinc-950 font-mono">62 / 62</div>
-              <div className="text-xs text-zinc-600 mt-1 font-medium">Automated Invariant Tests Passed</div>
-            </div>
-            <div>
-              <div className="text-2xl font-bold text-zinc-950 font-mono">6 / 6</div>
-              <div className="text-xs text-zinc-600 mt-1 font-medium">Failure Modes Verified Live</div>
-            </div>
-            <div>
-              <div className="text-2xl font-bold text-zinc-950 font-mono">~1.0s</div>
-              <div className="text-xs text-zinc-600 mt-1 font-medium">Gemini HTTP/2 Pooled Generation</div>
-            </div>
-          </div>
+
         </div>
 
         {/* ─── Swiggy Instamart Live MCP Tool Contract Grid ──────────── */}
@@ -224,7 +210,7 @@ export function ArchitectureSection() {
                 <span className="px-2 py-0.5 rounded bg-orange-50 text-orange-800 border border-orange-200 font-mono text-xs">Tracking</span>
               </div>
               <p className="text-zinc-600 leading-relaxed text-xs">
-                Reports live delivery boy status, vehicle details, contact number, and ETA directly on WhatsApp.
+                Reports live delivery partner status, vehicle details, and estimated delivery time directly on WhatsApp.
               </p>
             </div>
 
@@ -232,10 +218,10 @@ export function ArchitectureSection() {
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <span className="font-mono font-bold text-zinc-950 text-sm">Payment Poller</span>
-                  <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 font-mono text-xs">Daemon</span>
+                  <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 font-mono text-xs">Verification</span>
                 </div>
                 <p className="text-zinc-600 leading-relaxed text-xs">
-                  Polls order status every 5s for 60s after UPI link generation, sending instant confirmation upon payment.
+                  Checks payment status automatically after UPI link creation and sends instant order confirmation once paid.
                 </p>
               </div>
             </div>

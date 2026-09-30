@@ -27,13 +27,13 @@ export function WhatsAppSimulator() {
   );
 
   return (
-    <section id="sandbox" className="py-16 sm:py-20 bg-zinc-100/70 border-y border-zinc-200 scroll-mt-16">
+    <section id="conversation" className="py-16 sm:py-20 bg-zinc-100/70 border-y border-zinc-200 scroll-mt-16">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
         <div className="text-center max-w-2xl mx-auto mb-8">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold mb-3">
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-            <span>Empirical E2E Execution Transcript</span>
+            <span>Real WhatsApp Experience</span>
           </div>
           <h2 className="text-3xl sm:text-4xl font-editorial font-bold text-zinc-950">
             Real WhatsApp conversation trajectory
@@ -78,12 +78,12 @@ export function WhatsAppSimulator() {
                     <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
                   </div>
                   <div className="text-xs text-zinc-500 font-medium">
-                    Verified Trajectory • Gemini 3.5 Flash-Lite Live API
+                    Verified Trajectory • Gemini 3.5 Flash-Lite
                   </div>
                 </div>
               </div>
-              <span className="text-xs font-mono px-2.5 py-1 rounded-lg bg-zinc-100 text-zinc-700 border border-zinc-200 font-medium">
-                State: {currentTurn.state}
+              <span className="text-xs font-medium px-2.5 py-1 rounded-lg bg-zinc-100 text-zinc-700 border border-zinc-200">
+                {currentTurn.humanState || currentTurn.state}
               </span>
             </div>
 
@@ -92,7 +92,7 @@ export function WhatsAppSimulator() {
               {/* Delivery Address Pill */}
               <div className="mx-auto w-fit px-3 py-1 rounded-full bg-white border border-zinc-200 text-xs text-zinc-600 flex items-center gap-1.5 shadow-2xs">
                 <MapPin className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Active Store: Baner, Pune Hub #2041</span>
+                <span>Active Store: Baner, Pune Hub</span>
               </div>
 
               {visibleTurns.map((turnData) => (
@@ -207,24 +207,24 @@ export function WhatsAppSimulator() {
                 <div className="flex items-center gap-2">
                   <Terminal className="w-4 h-4 text-emerald-700" />
                   <h3 className="font-mono text-sm font-bold text-zinc-950">
-                    Swiggy MCP Tool Execution
+                    Swiggy MCP Action
                   </h3>
                 </div>
                 <span className="px-2 py-0.5 rounded text-[11px] font-mono bg-zinc-100 text-zinc-700 border border-zinc-200 font-medium">
-                  HTTP/2 Pooled
+                  Verified Trace
                 </span>
               </div>
 
               <div className="space-y-4 font-mono text-xs">
                 <div>
                   <div className="text-zinc-500 text-[11px] mb-1 uppercase tracking-wider font-semibold">
-                    Executed Tool / Guard
+                    Executed Tool
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold">
                       {currentTurn.toolTrace.tool}
                     </span>
-                    <span className="text-zinc-600 text-xs">
+                    <span className="text-zinc-600 text-xs font-sans">
                       Latency: {currentTurn.toolTrace.latencyMs} ms
                     </span>
                   </div>
@@ -232,7 +232,7 @@ export function WhatsAppSimulator() {
 
                 <div>
                   <div className="text-zinc-500 text-[11px] mb-1 uppercase tracking-wider font-semibold">
-                    Verified Invariant
+                    Policy / Action
                   </div>
                   <div className="px-2.5 py-1 rounded-lg bg-zinc-50 text-zinc-800 border border-zinc-200 text-xs font-sans">
                     {currentTurn.toolTrace.invariantTested}
@@ -241,7 +241,7 @@ export function WhatsAppSimulator() {
 
                 <div>
                   <div className="text-zinc-500 text-[11px] mb-1 uppercase tracking-wider font-semibold">
-                    Tool Arguments / State
+                    Tool Arguments
                   </div>
                   <pre className="p-3 rounded-xl bg-zinc-50 text-zinc-800 text-xs overflow-x-auto border border-zinc-200">
                     {JSON.stringify(currentTurn.toolTrace.params, null, 2)}
@@ -250,7 +250,7 @@ export function WhatsAppSimulator() {
 
                 <div>
                   <div className="text-zinc-500 text-[11px] mb-1 uppercase tracking-wider font-semibold">
-                    Runtime Result Summary
+                    Result
                   </div>
                   <p className="text-zinc-700 text-xs font-sans bg-zinc-50 p-3 rounded-xl border border-zinc-200 leading-relaxed">
                     {currentTurn.toolTrace.resultSummary}
@@ -260,21 +260,21 @@ export function WhatsAppSimulator() {
                 <div className="pt-3 border-t border-zinc-100 flex items-center justify-between text-xs text-zinc-600">
                   <span className="flex items-center gap-1.5 font-sans">
                     <Check className="w-3.5 h-3.5 text-emerald-600" />
-                    Verified by test_e2e_pipeline.py
+                    Verified End-to-End
                   </span>
-                  <span className="font-mono">JSON-RPC 2.0</span>
+                  <span className="font-mono text-emerald-700 font-semibold">Passed</span>
                 </div>
               </div>
             </div>
 
-            {/* Zero-Math Assurance Note */}
+            {/* Safety Assurance Note */}
             <div className="bg-white rounded-2xl p-4 sm:p-5 border border-zinc-200 text-xs text-zinc-600 space-y-1.5 shadow-2xs">
               <div className="font-bold text-zinc-950 flex items-center gap-1.5 text-xs sm:text-sm">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                 <span>Deterministic Safety Gate</span>
               </div>
               <p className="leading-relaxed font-normal">
-                Notice Turn 5: the AI model cannot place an order until the customer explicitly replies &ldquo;Confirm&rdquo;. Once confirmed, pure Python executes checkout and verifies payment state.
+                Notice Turn 5: the AI model cannot place an order until the customer explicitly replies &ldquo;Confirm&rdquo;. Once confirmed, pure backend Python executes the checkout and verifies payment state.
               </p>
             </div>
           </div>

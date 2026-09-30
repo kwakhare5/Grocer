@@ -31,19 +31,19 @@ export default function Home() {
       />
 
       <main className="flex-1">
-        {/* 1. Hero & Video Showcase */}
+        {/* 1. Hero */}
         <HeroSection
           onOpenConnect={() => setIsConnectModalOpen(true)}
           isConnected={isConnected}
         />
 
-        {/* 2. Interactive Replenishment Sandbox (Simulator + MCP Trace) */}
+        {/* 2. WhatsApp Conversation Showcase */}
         <WhatsAppSimulator />
 
-        {/* 3. Decoupled Architecture & Swiggy MCP Interactive Pipeline */}
+        {/* 3. Architecture & Swiggy MCP Pipeline */}
         <ArchitectureSection />
 
-        {/* 4. Commerce Safety & Frequently Asked Questions */}
+        {/* 4. Frequently Asked Questions */}
         <FaqSection />
       </main>
 

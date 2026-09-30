@@ -9,6 +9,7 @@ export interface VerifiedJourneyTurn {
   tag: string;
   userInput: string;
   state: string;
+  humanState: string;
   latencyMs: number;
   assistantMessage: string;
   items?: MessageItem[];
@@ -24,11 +25,6 @@ export interface VerifiedJourneyTurn {
     latencyMs: number;
     invariantTested: string;
   };
-}
-
-export interface VideoChapter {
-  time: string;
-  label: string;
 }
 
 export interface FaqItem {

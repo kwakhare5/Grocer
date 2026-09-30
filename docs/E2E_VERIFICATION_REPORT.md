@@ -1,10 +1,10 @@
 # GROCER End-to-End (E2E) Verification Report
 
-- **Generated At (UTC):** `2026-09-30T14:52:18.772679+00:00`
+- **Generated At (UTC):** `2026-09-30T17:51:57.496874+00:00`
 - **Execution Mode:** `LIVE_GEMINI_API`
 - **Primary Gemini Model:** `gemini-3.5-flash-lite`
 - **Fallback Cascade:** `gemini-3.5-flash-lite -> gemini-flash-lite-latest -> gemini-3-flash-preview`
-- **Total Multi-Turn E2E Latency:** `36327 ms`
+- **Total Multi-Turn E2E Latency:** `13469 ms`
 - **Overall Verdict:** **`PASSED`** (`6/6` invariants verified)
 
 ---
@@ -40,19 +40,24 @@
 
 ### Turn 2: `2`
 - **State Transition:** `AWAITING_CHECKOUT_CONFIRMATION`
-- **Latency:** `15094 ms`
-- **Active Basket Items:** `3` (`Grand Total: ₹243`)
+- **Latency:** `4593 ms`
+- **Active Basket Items:** `4` (`Grand Total: ₹293`)
 
 ```text
+Address updated to *Villa 12, Palm Meadows, Pancard Club Road, Baner, Pune, Maharashtra*. 
+
+Here is your delicious pasta kit basket ready to go!
+
 🛒 *Your Basket (Villa 12, Palm Meadows, Pancard Club Road, Baner, Pune, Maharashtra)*
 • 1x Yu Zero Maida Penne Pasta 500g (500 g) — ₹49
 • 1x Veeba Pasta & Pizza Sauce 280g (280 g) — ₹79
 • 1x Amul Mozzarella Diced Cheese 200g (200 g) — ₹110
+• 1x Whole Wheat Bread 400g (400 g) — ₹50
 
-*Subtotal:* ₹238
+*Subtotal:* ₹288
 *Delivery Fee:* FREE (₹0)
 *Packaging & Handling:* ₹5
-*Grand Total:* ₹243
+*Grand Total:* ₹293
 
 📍 *Delivering to:* Villa 12, Palm Meadows, Pancard Club Road, Baner, Pune, Maharashtra
 👉 Reply *Confirm* to place order, or tell me what to change!
@@ -60,20 +65,23 @@
 
 ### Turn 3: `also add 1 amul milk 1L`
 - **State Transition:** `AWAITING_CHECKOUT_CONFIRMATION`
-- **Latency:** `9511 ms`
-- **Active Basket Items:** `4` (`Grand Total: ₹309`)
+- **Latency:** `5355 ms`
+- **Active Basket Items:** `5` (`Grand Total: ₹359`)
 
 ```text
+Done! I've added the Amul Taaza Milk 1L to your basket.
+
 🛒 *Your Basket (Villa 12, Palm Meadows, Pancard Club Road, Baner, Pune, Maharashtra)*
 • 1x Yu Zero Maida Penne Pasta 500g (500 g) — ₹49
 • 1x Veeba Pasta & Pizza Sauce 280g (280 g) — ₹79
 • 1x Amul Mozzarella Diced Cheese 200g (200 g) — ₹110
+• 1x Whole Wheat Bread 400g (400 g) — ₹50
 • 1x Amul Taaza Milk 1L Pouch (1 L) — ₹66
 
-*Subtotal:* ₹304
+*Subtotal:* ₹354
 *Delivery Fee:* FREE (₹0)
 *Packaging & Handling:* ₹5
-*Grand Total:* ₹309
+*Grand Total:* ₹359
 
 📍 *Delivering to:* Villa 12, Palm Meadows, Pancard Club Road, Baner, Pune, Maharashtra
 👉 Reply *Confirm* to place order, or tell me what to change!
@@ -82,7 +90,7 @@
 ### Turn 4: `wait`
 - **State Transition:** `AWAITING_CHECKOUT_CONFIRMATION`
 - **Latency:** `0 ms`
-- **Active Basket Items:** `4` (`Grand Total: ₹309`)
+- **Active Basket Items:** `5` (`Grand Total: ₹359`)
 
 ```text
 No problem, I've kept your basket on hold! 🛒
@@ -93,12 +101,13 @@ Your groceries are still saved. Whenever you're ready, let me know if you want t
 • 1x Yu Zero Maida Penne Pasta 500g (500 g) — ₹49
 • 1x Veeba Pasta & Pizza Sauce 280g (280 g) — ₹79
 • 1x Amul Mozzarella Diced Cheese 200g (200 g) — ₹110
+• 1x Whole Wheat Bread 400g (400 g) — ₹50
 • 1x Amul Taaza Milk 1L Pouch (1 L) — ₹66
 
-*Subtotal:* ₹304
+*Subtotal:* ₹354
 *Delivery Fee:* FREE (₹0)
 *Packaging & Handling:* ₹5
-*Grand Total:* ₹309
+*Grand Total:* ₹359
 
 📍 *Delivering to:* Villa 12, Palm Meadows, Pancard Club Road, Baner, Pune, Maharashtra
 👉 Reply *Confirm* to place order, or tell me what to change!
@@ -106,11 +115,11 @@ Your groceries are still saved. Whenever you're ready, let me know if you want t
 
 ### Turn 5: `Confirm`
 - **State Transition:** `AWAITING_PAYMENT`
-- **Latency:** `11722 ms`
+- **Latency:** `3521 ms`
 - **Active Basket Items:** `0` (`Grand Total: ₹0`)
 
 ```text
-Your order is ready! Please complete payment to place your order: https://instamart.swiggy.com/pay/bridge/paas_mock_b7777ced
+Your order is ready! Please complete payment to place your order: https://instamart.swiggy.com/pay/bridge/paas_mock_25474992
 ```
 
 ### Turn 6: `clear cart`

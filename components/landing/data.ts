@@ -1,28 +1,21 @@
-import { VerifiedJourneyTurn, VideoChapter, FaqItem, PipelineNode } from "./types";
-
-export const VIDEO_CHAPTERS: VideoChapter[] = [
-  { time: "0:00", label: "Address selection & prompt input" },
-  { time: "0:35", label: "Recipe deduction & parallel search" },
-  { time: "1:05", label: "Delta cart merge without basket wipe" },
-  { time: "1:35", label: "Server-side gated checkout & UPI QR" },
-  { time: "1:55", label: "Payment verification & order confirmation" },
-];
+import { VerifiedJourneyTurn, FaqItem, PipelineNode } from "./types";
 
 export const VERIFIED_JOURNEY_TURNS: VerifiedJourneyTurn[] = [
   {
     turn: 1,
     label: "Turn 1: Address Prompt",
-    tag: "Upfront Disambiguation",
+    tag: "Upfront Choice",
     userInput: "i wanna make pasta under 1500",
     state: "NEEDS_DECISION",
+    humanState: "Select Address",
     latencyMs: 0,
     assistantMessage: "Which address should I deliver this order to?\n\n1. Flat 402, Green Acres, Clover Park, Viman Nagar, Pune, Maharashtra\n2. Villa 12, Palm Meadows, Pancard Club Road, Baner, Pune, Maharashtra\n\nReply 1–2 to select your delivery address.",
     toolTrace: {
       tool: "get_saved_addresses",
       params: { customer_phone: "+919876543210" },
-      resultSummary: "Detected 2 saved addresses. Guard intercepted before dark store routing to prevent delivering to the wrong hub.",
+      resultSummary: "Checked saved addresses and prompted for upfront delivery selection before checking store inventory.",
       latencyMs: 0,
-      invariantTested: "INV-ADDR-01 (Upfront Multi-Address Disambiguation)",
+      invariantTested: "Upfront Multi-Address Disambiguation",
     },
   },
   {
@@ -31,6 +24,7 @@ export const VERIFIED_JOURNEY_TURNS: VerifiedJourneyTurn[] = [
     tag: "Recipe Deduction",
     userInput: "2",
     state: "AWAITING_CHECKOUT_CONFIRMATION",
+    humanState: "Review Basket",
     latencyMs: 1045,
     assistantMessage: "Updated delivery address to Villa 12, Palm Meadows, Pancard Club Road, Baner, Pune, Maharashtra.\n\nYour Basket (Baner, Pune):",
     items: [
@@ -46,9 +40,9 @@ export const VERIFIED_JOURNEY_TURNS: VerifiedJourneyTurn[] = [
     toolTrace: {
       tool: "search_products",
       params: { query: "penne pasta sauce cheese garlic", budget_cap: 1500 },
-      resultSummary: "Parallel catalog search matched 4 SKUs (in-stock at dark store #2041). Total Rs 281. Provider bill verified.",
+      resultSummary: "Matched 4 in-stock ingredients at the Baner store. Total verified at Rs 281 with zero math hallucination.",
       latencyMs: 1045,
-      invariantTested: "INV-CART-01 (Parallel Recipe Decomposition & Math Verification)",
+      invariantTested: "Recipe Ingredient Decomposition",
     },
   },
   {
@@ -57,6 +51,7 @@ export const VERIFIED_JOURNEY_TURNS: VerifiedJourneyTurn[] = [
     tag: "Delta Cart Merge",
     userInput: "also add 1 amul milk 1L",
     state: "AWAITING_CHECKOUT_CONFIRMATION",
+    humanState: "Review Basket",
     latencyMs: 820,
     assistantMessage: "Added Amul Taaza Milk 1L Pouch. Updated basket now has 5 items:",
     items: [
@@ -73,9 +68,9 @@ export const VERIFIED_JOURNEY_TURNS: VerifiedJourneyTurn[] = [
     toolTrace: {
       tool: "update_cart",
       params: { action: "add", items: [{ sku: "amul_taaza_1l", quantity: 1 }] },
-      resultSummary: "Delta-merged milk pouch onto existing 4 items. Verified provider subtotal Rs 342. 5 items confirmed.",
+      resultSummary: "Added milk pouch to the active cart without wiping the 4 previous items. Basket total updated to Rs 347.",
       latencyMs: 820,
-      invariantTested: "INV-CART-02 (Delta Cart Merge without Item Wipe)",
+      invariantTested: "Delta Cart Merge (No Basket Wipe)",
     },
   },
   {
@@ -84,15 +79,16 @@ export const VERIFIED_JOURNEY_TURNS: VerifiedJourneyTurn[] = [
     tag: "Hesitation Guard",
     userInput: "wait",
     state: "AWAITING_CHECKOUT_CONFIRMATION",
+    humanState: "Basket On Hold",
     latencyMs: 0,
     assistantMessage: "Basket kept on hold.\n\nYour groceries are saved. Whenever you're ready, let me know if you want to add/remove items, switch delivery address, or clear your basket.\n\nYour active basket has 5 items (Total Rs 347).",
     deliveryAddress: "Villa 12, Palm Meadows, Pancard Club Road, Baner, Pune, Maharashtra",
     toolTrace: {
-      tool: "guards.py: HesitationHold",
-      params: { input: "wait", active_cart_id: "CART_IM_88291" },
-      resultSummary: "Deterministic hesitation guard intercepted user intent. Basket held intact with zero LLM API cost.",
+      tool: "Hesitation Guard",
+      params: { action: "hold_basket", active_items: 5, total: "Rs 347" },
+      resultSummary: "Kept customer's basket intact when hesitation was detected. Zero accidental checkouts or basket resets.",
       latencyMs: 0,
-      invariantTested: "INV-GUARD-01 (Hesitation Guard)",
+      invariantTested: "Hesitation Hold Policy",
     },
   },
   {
@@ -101,15 +97,16 @@ export const VERIFIED_JOURNEY_TURNS: VerifiedJourneyTurn[] = [
     tag: "Server Authorization",
     userInput: "Confirm",
     state: "AWAITING_PAYMENT",
+    humanState: "Awaiting Payment",
     latencyMs: 640,
     assistantMessage: "Your order is ready. Complete payment via the official dark store UPI link:",
     paymentLink: "https://instamart.swiggy.com/pay/bridge/paas_mock_03a37382",
     toolTrace: {
       tool: "checkout",
-      params: { is_user_confirmed: true, generateUPIQR: true },
-      resultSummary: "Server authorization verified. Official Swiggy UPI bridge URL generated. 60s payment poller daemon started.",
+      params: { is_user_confirmed: true, payment_method: "UPI" },
+      resultSummary: "Authorized checkout only after explicit user confirmation. Generated official Swiggy UPI payment link.",
       latencyMs: 640,
-      invariantTested: "INV-CHECKOUT-01 (Server-Side Authorization Gate)",
+      invariantTested: "Server-Side Checkout Gate",
     },
   },
   {
@@ -118,14 +115,15 @@ export const VERIFIED_JOURNEY_TURNS: VerifiedJourneyTurn[] = [
     tag: "Session Reset",
     userInput: "clear cart",
     state: "READY",
+    humanState: "Basket Cleared",
     latencyMs: 0,
     assistantMessage: "Basket Cleared.\n\nYour basket is now completely empty. What groceries can I get for you today?",
     toolTrace: {
       tool: "clear_cart",
       params: { customer_phone: "+919876543210" },
-      resultSummary: "Session cart wiped clean. Customer session returned to READY state.",
+      resultSummary: "Cleared all items from cart and reset the session state back to ready for the next order.",
       latencyMs: 0,
-      invariantTested: "INV-CART-03 (State Reset)",
+      invariantTested: "Basket Reset",
     },
   },
 ];
@@ -134,18 +132,18 @@ export const PIPELINE_NODES: PipelineNode[] = [
   {
     id: "whatsapp",
     stepNumber: "01",
-    title: "WhatsApp Cloud API",
-    subtitle: "Webhook Ingress",
+    title: "WhatsApp Channel",
+    subtitle: "Customer Ingress",
     badge: "Fast-Ack",
     badgeColor: "emerald",
-    metric: "<200ms Blue Ticks",
-    description: "Receives Meta webhooks, validates HMAC signatures, immediately returns mark_message_read to trigger double blue ticks, and dispatches customer text.",
+    metric: "<200ms ACK",
+    description: "Receives WhatsApp messages, verifies HMAC signatures, immediately sends read receipt (blue ticks), and queues text for processing.",
     technicalDetails: {
-      protocol: "HTTPS Webhook • HMAC-SHA256",
-      endpointOrFile: "backend/api/whatsapp.py & backend/channels/whatsapp.py",
+      protocol: "Meta Cloud Webhook • HMAC-SHA256",
+      endpointOrFile: "backend/channels/whatsapp.py",
       invariants: [
-        "HMAC signature verified before payload parsing",
-        "<200ms ACK returned to Meta Cloud to avoid webhook retries",
+        "HMAC signature verified before message parsing",
+        "<200ms ACK returned to Meta Cloud to prevent retries",
         "Sender phone mapped to per-customer session lock",
       ],
       samplePayload: {
@@ -164,18 +162,18 @@ export const PIPELINE_NODES: PipelineNode[] = [
   {
     id: "engine",
     stepNumber: "02",
-    title: "FastAPI Concurrency Lock",
-    subtitle: "Turn Serialization",
+    title: "FastAPI Engine",
+    subtitle: "Turn Management",
     badge: "asyncio.Lock",
     badgeColor: "blue",
-    metric: "0 Race Conditions",
-    description: "Serializes rapid successive WhatsApp texts using per-customer locks. Prompts for address selection upfront if multiple saved addresses exist.",
+    metric: "Sequential Turns",
+    description: "Serializes rapid texts using customer locks. Automatically requests address selection upfront if multiple saved locations exist.",
     technicalDetails: {
-      protocol: "Python 3.12 Native Async Web Service (Render)",
+      protocol: "Python 3.12 Native Async Web Service",
       endpointOrFile: "backend/agent/engine.py & backend/agent/session.py",
       invariants: [
         "Concurrent texts serialized per phone number",
-        "Upfront multi-address disambiguation prompt if >1 saved address",
+        "Upfront multi-address prompt if >1 saved address",
         "Session memory caches active cart ID and store metadata",
       ],
       samplePayload: {
@@ -190,17 +188,17 @@ export const PIPELINE_NODES: PipelineNode[] = [
     id: "gemini",
     stepNumber: "03",
     title: "Gemini 3.5 Flash-Lite",
-    subtitle: "Reasoning & Tools",
+    subtitle: "Language Reasoning",
     badge: "3-Model Failover",
     badgeColor: "purple",
     metric: "1,045ms Latency",
-    description: "Extracts items and dietary constraints from plain English. Runs parallel product searches via asyncio.gather with automatic 200ms failover.",
+    description: "Interprets grocery requests, dietary constraints, and recipes. Executes parallel catalog searches via asyncio.gather.",
     technicalDetails: {
-      protocol: "Google Generative AI Function Calling • HTTP/2 Connection Pool",
+      protocol: "Google Generative AI Function Calling",
       endpointOrFile: "backend/agent/prompts.py & backend/agent/tools.py",
       invariants: [
         "Automatic 200ms failover: gemini-3.5-flash-lite -> flash-lite-latest -> 3-flash-preview",
-        "Self-healing multi-turn history reset on thought-signature errors",
+        "Self-healing multi-turn history reset on malformed history",
         "Parallel tool calls executed concurrently via asyncio.gather",
       ],
       samplePayload: {
@@ -215,19 +213,19 @@ export const PIPELINE_NODES: PipelineNode[] = [
   {
     id: "guards",
     stepNumber: "04",
-    title: "Deterministic Safety Guards",
-    subtitle: "Policy & Billing Enforcer",
+    title: "Deterministic Guards",
+    subtitle: "Safety & Policy",
     badge: "Fail-Closed",
     badgeColor: "emerald",
     metric: "100% Gated",
-    description: "Pure Python code enforcing commerce rules: blocks checkout without confirmation, overrides false delivery claims, and calculates prices directly from provider data.",
+    description: "Pure Python code enforcing business rules: blocks checkout without confirmation, prevents premature delivery claims, and uses provider prices.",
     technicalDetails: {
-      protocol: "Deterministic Python Runtime Enforcement",
+      protocol: "Deterministic Runtime Enforcement",
       endpointOrFile: "backend/agent/guards.py & backend/agent/schemas.py",
       invariants: [
-        "FM-CHECKOUT-01: Unauthorized checkout calls physically rejected by server guard",
-        "FM-CHECKOUT-02: Fail-closed guard overrides false success claims on failed checkout",
-        "FM-CHECKOUT-03: Premature delivery claims blocked during PAYMENT_PENDING status",
+        "Unauthorized checkout calls physically rejected by server guard",
+        "Fail-closed guard overrides false success claims on failed checkout",
+        "Premature delivery claims blocked during payment pending status",
         "Prices, subtotals, and fees calculated solely by provider API",
       ],
       samplePayload: {
@@ -241,17 +239,17 @@ export const PIPELINE_NODES: PipelineNode[] = [
   {
     id: "swiggy",
     stepNumber: "05",
-    title: "Swiggy Instamart Live MCP",
-    subtitle: "CommercePort Reference",
+    title: "Swiggy Instamart MCP",
+    subtitle: "Commerce Gateway",
     badge: "Official MCP",
     badgeColor: "orange",
     metric: "5 Live Tools",
-    description: "Communicates over persistent HTTP/2 connection pool with Swiggy Instamart's Model Context Protocol gateway to query stock, update carts, and poll UPI QR payments.",
+    description: "Communicates over persistent connection pool with Swiggy Instamart's Model Context Protocol gateway to check inventory and update carts.",
     technicalDetails: {
-      protocol: "Model Context Protocol (JSON-RPC 2.0 over HTTP/2)",
+      protocol: "Model Context Protocol (JSON-RPC 2.0)",
       endpointOrFile: "https://mcp.swiggy.com/im • backend/integrations/commerce/swiggy_adapter.py",
       invariants: [
-        "Persistent HTTP/2 pool eliminates TLS handshake per turn",
+        "Persistent connection pool eliminates TLS handshake per turn",
         "AES-GCM encrypted OAuth token storage with dynamic refresh",
         "Live tools: search_products, update_cart, get_cart, checkout, track_order",
       ],
@@ -270,22 +268,22 @@ export const PIPELINE_NODES: PipelineNode[] = [
 export const FAQ_ITEMS: FaqItem[] = [
   {
     question: "Can Grocer charge my account without my approval?",
-    answer: "No. Grocer enforces a server-side lock. The checkout API is only called when you explicitly send or tap 'Confirm Order'. Payment is completed through official UPI links.",
+    answer: "No. Grocer enforces a server-side lock. The checkout API is only called when you explicitly send or tap 'Confirm'. Payment is completed through official UPI links.",
   },
   {
     question: "How are prices and delivery fees calculated?",
-    answer: "All prices, discounts, taxes, and fees are calculated directly by the dark store billing API. The language model interprets your request, while deterministic backend code computes totals.",
+    answer: "All prices, discounts, taxes, and fees come directly from Swiggy Instamart's billing API. The language model interprets what you need, while deterministic backend code computes totals.",
   },
   {
     question: "What happens if an item is out of stock?",
-    answer: "If a requested brand is unavailable, Grocer checks dark store inventory for the closest in-stock alternative within your budget and asks for your approval before updating the basket.",
+    answer: "If a requested item or brand is unavailable, Grocer checks dark store inventory for the closest in-stock alternative within your budget and asks for your approval before updating the basket.",
   },
   {
     question: "Can this work with other quick-commerce platforms?",
-    answer: "Yes. Grocer uses a decoupled CommercePort interface. Swiggy Instamart is our active reference integration via official MCP. The architecture supports plugging in other platforms.",
+    answer: "Yes. Grocer is built around a decoupled CommercePort interface. Swiggy Instamart is our active reference integration via official MCP, but the architecture allows connecting other platforms.",
   },
   {
-    question: "Why connect my account on this website?",
-    answer: "This domain (https://grocerr.vercel.app/) is the whitelisted OAuth redirect URI for Swiggy's MCP gateway. Authenticating here links your account so your WhatsApp session can access your local dark store.",
+    question: "Why connect my Swiggy account here?",
+    answer: "Connecting your account allows Grocer to load your saved delivery addresses and search real-time inventory from your local dark store directly inside WhatsApp.",
   },
 ];

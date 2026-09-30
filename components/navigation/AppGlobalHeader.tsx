@@ -13,8 +13,7 @@ export function AppGlobalHeader({ onOpenConnect, isConnected }: AppGlobalHeaderP
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const navLinks = [
-    { label: "Demo", href: "#demo" },
-    { label: "Sandbox", href: "#sandbox" },
+    { label: "Conversation", href: "#conversation" },
     { label: "Architecture", href: "#architecture" },
     { label: "FAQ", href: "#faq" },
   ];

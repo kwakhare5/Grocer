@@ -13,7 +13,7 @@ GEMINI_TOOL_DECLARATIONS = [
     },
     {
         "name": "select_delivery_address",
-        "description": "Switch the active delivery destination. Call get_saved_addresses first to view address IDs, then call this tool when the user requests delivery to a specific location (e.g. Pune, Mumbai, Sangvi). If an active cart exists, this tool preserves and updates the basket for the new location.",
+        "description": "Switch the active delivery destination. Call get_saved_addresses first to view address IDs, then call this tool when the user requests delivery to a specific location (e.g. Pune, Mumbai, Bangalore). If an active cart exists, this tool preserves and updates the basket for the new location.",
         "parameters": {
             "type": "object",
             "properties": {

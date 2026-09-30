@@ -294,17 +294,17 @@ def test_clean_address_deduplication_and_formatting():
     assert "Bangalore" in cleaned
 
     # Test Google Plus Code stripping while keeping full address (flat, building, area, city, state)
-    karan_raw = "3rd floor flat no 303, Shitole Nagar, HRC8+HWV, Sangvi, Pimpri-Chinchwad, Pune, Maharashtra 411027"
-    karan_cleaned = clean_address(karan_raw, "Pune", label="Home")
-    assert "HRC8+HWV" not in karan_cleaned
-    assert "411027" not in karan_cleaned
-    assert "Home (" not in karan_cleaned
-    assert "3rd floor flat no 303, Shitole Nagar, Sangvi, Pimpri-Chinchwad, Pune, Maharashtra" == karan_cleaned
+    plus_code_raw = "Flat 402, Green Acres, HRC8+HWV, Clover Park, Viman Nagar, Pune, Maharashtra 411014"
+    plus_code_cleaned = clean_address(plus_code_raw, "Pune", label="Home")
+    assert "HRC8+HWV" not in plus_code_cleaned
+    assert "411014" not in plus_code_cleaned
+    assert "Home (" not in plus_code_cleaned
+    assert "Flat 402, Green Acres, Clover Park, Viman Nagar, Pune, Maharashtra" == plus_code_cleaned
 
-    # Test Kingsbury B1 Pride World City Charholi Budruk Pune Maharashtra full address
-    kingsbury_raw = "flat number 1204, Kingsbury B1, Pride World City, DY Patil University Road, Charholi Budruk, Pune, Maharashtra 412105, India"
-    kingsbury_cleaned = clean_address(kingsbury_raw, "")
-    assert "flat number 1204, Kingsbury B1, Pride World City, DY Patil University Road, Charholi Budruk, Pune, Maharashtra" == kingsbury_cleaned
+    # Test full address with India stripping
+    landmark_raw = "Villa 12, Palm Meadows, Pancard Club Road, Baner, Pune, Maharashtra 411045, India"
+    landmark_cleaned = clean_address(landmark_raw, "")
+    assert "Villa 12, Palm Meadows, Pancard Club Road, Baner, Pune, Maharashtra" == landmark_cleaned
 
 
 
@@ -454,7 +454,7 @@ async def test_self_healing_on_http_400(agent_engine):
 async def test_select_delivery_address_returns_active_cart_context(mock_commerce):
     """select_delivery_address attaches active cart state, receipt, and anti-amnesia instructions."""
     from backend.integrations.commerce.models import DeliveryAddress, CartItemUpdate
-    addr1 = DeliveryAddress(id="addr_mumbai", label="Mumbai Home", street="Flat 201, Everest Graciana", city="Mumbai")
+    addr1 = DeliveryAddress(id="addr_mumbai", label="Mumbai Home", street="Flat 201, Sea View Apartments, Bandra West", city="Mumbai")
     addr2 = DeliveryAddress(id="addr_pune", label="Pune Home", street="Flat 102, Koregaon Park", city="Pune")
     mock_commerce.get_addresses = AsyncMock(return_value=[addr1, addr2])
 
@@ -479,12 +479,12 @@ async def test_select_delivery_address_returns_active_cart_context(mock_commerce
 async def test_address_switch_preserves_active_cart_and_receipt(agent_engine, mock_commerce):
     """Deterministic guard strictly prevents LLM amnesia when address is changed mid-shopping."""
     from backend.integrations.commerce.models import DeliveryAddress, CartItemUpdate
-    addr1 = DeliveryAddress(id="addr_mumbai", label="Mumbai Home", street="Flat 201, Everest Graciana", city="Mumbai")
+    addr1 = DeliveryAddress(id="addr_mumbai", label="Mumbai Home", street="Flat 201, Sea View Apartments, Bandra West", city="Mumbai")
     addr2 = DeliveryAddress(id="addr_pune", label="Pune Home", street="Flat 102, Koregaon Park", city="Pune")
     mock_commerce.get_addresses = AsyncMock(return_value=[addr1, addr2])
 
     agent_engine._customer_address["cust_addr_switch"] = "addr_mumbai"
-    agent_engine._customer_address_label["cust_addr_switch"] = "Flat 201, Everest Graciana, Mumbai"
+    agent_engine._customer_address_label["cust_addr_switch"] = "Flat 201, Sea View Apartments, Bandra West, Mumbai"
 
     # Put items in cart
     await mock_commerce.update_cart(
@@ -705,10 +705,10 @@ def test_parse_delivery_addresses_combines_address_line_and_formatted_address():
     raw_mcp_payload = {
         "addresses": [
             {
-                "id": "addr_kingsbury",
+                "id": "addr_baner",
                 "annotation": "Other",
-                "addressLine": "flat number 1204, Kingsbury B1, DY Patil University Road",
-                "formattedAddress": "Pride World City, Charholi Budruk, Pune, Maharashtra 412105, India",
+                "addressLine": "Villa 12, Palm Meadows, Pancard Club Road",
+                "formattedAddress": "Baner, Pune, Maharashtra 411045, India",
                 "city": None,
             }
         ]
@@ -716,10 +716,10 @@ def test_parse_delivery_addresses_combines_address_line_and_formatted_address():
     parsed = parse_delivery_addresses(raw_mcp_payload)
     assert len(parsed) == 1
     cleaned = clean_address(parsed[0].street, parsed[0].city)
-    assert "flat number 1204" in cleaned
-    assert "Kingsbury B1" in cleaned
-    assert "Pride World City" in cleaned
-    assert "Charholi Budruk" in cleaned
+    assert "Villa 12" in cleaned
+    assert "Palm Meadows" in cleaned
+    assert "Pancard Club Road" in cleaned
+    assert "Baner" in cleaned
     assert "Pune" in cleaned
     assert "Maharashtra" in cleaned
 
@@ -730,16 +730,16 @@ async def test_upfront_multi_address_disambiguation_and_resume_on_choice(agent_e
     from backend.integrations.commerce.models import DeliveryAddress
 
     addr1 = DeliveryAddress(
-        id="addr_sangvi",
+        id="addr_viman",
         label="Home",
-        street="3rd floor flat no 303, Shitole Nagar, Sangvi, Pune, Maharashtra",
+        street="Flat 402, Green Acres, Clover Park, Viman Nagar, Pune, Maharashtra",
         city="Pune",
         is_default=False,
     )
     addr2 = DeliveryAddress(
-        id="addr_charholi",
+        id="addr_baner",
         label="Other",
-        street="flat number 1204, Kingsbury B1, Pride World City, Charholi Budruk, Pune, Maharashtra",
+        street="Villa 12, Palm Meadows, Pancard Club Road, Baner, Pune, Maharashtra",
         city="Pune",
         is_default=False,
     )
@@ -755,11 +755,11 @@ async def test_upfront_multi_address_disambiguation_and_resume_on_choice(agent_e
     )
     resp1 = await agent_engine.handle_message(msg1)
     assert "Which address should I deliver this order to?" in resp1.text
-    assert "Shitole Nagar" in resp1.text
-    assert "Kingsbury B1" in resp1.text
+    assert "Green Acres" in resp1.text
+    assert "Palm Meadows" in resp1.text
     assert "cust_multi_addr" in agent_engine._awaiting_address_choice
 
-    # Turn 2: User replies "2" -> selects addr_charholi and immediately processes "i want milk and bread"
+    # Turn 2: User replies "2" -> selects addr_baner and immediately processes "i want milk and bread"
     gemini_turn2_responses = [
         {
             "candidates": [
@@ -771,7 +771,7 @@ async def test_upfront_multi_address_disambiguation_and_resume_on_choice(agent_e
                                     "name": "update_cart",
                                     "args": {
                                         "items": [{"spin_id": "SPIN-MILK-1L", "quantity": 1, "sku_id": "sku_1"}],
-                                        "address_id": "addr_charholi",
+                                        "address_id": "addr_baner",
                                     },
                                 }
                             }
@@ -784,7 +784,7 @@ async def test_upfront_multi_address_disambiguation_and_resume_on_choice(agent_e
             "candidates": [
                 {
                     "content": {
-                        "parts": [{"text": "I have added milk for your Charholi Budruk address!"}]
+                        "parts": [{"text": "I have added milk for your Baner address!"}]
                     }
                 }
             ]
@@ -799,9 +799,9 @@ async def test_upfront_multi_address_disambiguation_and_resume_on_choice(agent_e
             text="2",
         )
         resp2 = await agent_engine.handle_message(msg2)
-        assert agent_engine._customer_address["cust_multi_addr"] == "addr_charholi"
+        assert agent_engine._customer_address["cust_multi_addr"] == "addr_baner"
         assert agent_engine._order_address_confirmed["cust_multi_addr"] is True
-        assert "flat number 1204, Kingsbury B1, Pride World City, Charholi Budruk, Pune, Maharashtra" in resp2.text
+        assert "Villa 12, Palm Meadows, Pancard Club Road, Baner, Pune, Maharashtra" in resp2.text
         assert "🛒 *Your Basket" in resp2.text
         assert mock_gemini.called
 

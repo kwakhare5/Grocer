@@ -58,11 +58,11 @@ MOCK_ADDRESSES = [
     DeliveryAddress(
         id="addr-pune-1",
         label="Pune Home",
-        street="Flat No 201, Everest Graciana, Opposite Yash Laxmi Heights, Sangvi",
+        street="Flat 402, Green Acres, Clover Park, Viman Nagar",
         city="Pune",
-        postal_code="411027",
-        latitude=18.5793,
-        longitude=73.8143,
+        postal_code="411014",
+        latitude=18.5679,
+        longitude=73.9143,
         is_serviceable=True,
     ),
 ]

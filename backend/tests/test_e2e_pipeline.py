@@ -95,23 +95,23 @@ async def test_full_multi_turn_e2e_pipeline_and_generate_artifact() -> None:
     """Run the complete 6-turn GROCER customer journey and emit verifiable E2E artifacts."""
     original_addresses = list(mock_adapter_module.MOCK_ADDRESSES)
     try:
-        # Configure real-world multi-address Pune scenario (Sangvi + Charholi Budruk)
+        # Configure multi-address Pune scenario (Viman Nagar + Baner)
         mock_adapter_module.MOCK_ADDRESSES[:] = [
             DeliveryAddress(
-                id="addr-sangvi",
+                id="addr-viman",
                 label="Home",
-                street="Flat No 201, Everest Graciana, Opposite Yash Laxmi Heights, Sangvi",
+                street="Flat 402, Green Acres, Clover Park, Viman Nagar",
                 city="Pune, Maharashtra",
-                postal_code="411027",
+                postal_code="411014",
                 is_serviceable=True,
                 is_default=False,
             ),
             DeliveryAddress(
-                id="addr-charholi",
+                id="addr-baner",
                 label="Other",
-                street="D block 704, Tanish Orchid, Charholi Budruk",
+                street="Villa 12, Palm Meadows, Pancard Club Road, Baner",
                 city="Pune, Maharashtra",
-                postal_code="412105",
+                postal_code="411045",
                 is_serviceable=True,
                 is_default=False,
             ),
@@ -140,7 +140,7 @@ async def test_full_multi_turn_e2e_pipeline_and_generate_artifact() -> None:
                                         "functionCall": {
                                             "name": "update_cart",
                                             "args": {
-                                                "address_id": "addr-charholi",
+                                                "address_id": "addr-baner",
                                                 "items": [
                                                     {"spin_id": "SPIN-PASTA-PENNE-500G", "sku_id": "SPIN-PASTA-PENNE-500G", "quantity": 1},
                                                     {"spin_id": "SPIN-VEEBA-SAUCE-280G", "sku_id": "SPIN-VEEBA-SAUCE-280G", "quantity": 1},
@@ -167,7 +167,7 @@ async def test_full_multi_turn_e2e_pipeline_and_generate_artifact() -> None:
                                         "functionCall": {
                                             "name": "update_cart",
                                             "args": {
-                                                "address_id": "addr-charholi",
+                                                "address_id": "addr-baner",
                                                 "items": [
                                                     {"spin_id": "SPIN-MILK-1L", "sku_id": "SPIN-MILK-1L", "quantity": 1},
                                                 ],
@@ -192,7 +192,7 @@ async def test_full_multi_turn_e2e_pipeline_and_generate_artifact() -> None:
                                             "name": "checkout",
                                             "args": {
                                                 "cart_id": "default-cart",
-                                                "address_id": "addr-charholi",
+                                                "address_id": "addr-baner",
                                                 "payment_method": "UPI",
                                                 "payment_option_kind": "qr",
                                                 "is_user_confirmed": True,
@@ -239,14 +239,14 @@ async def test_full_multi_turn_e2e_pipeline_and_generate_artifact() -> None:
         # TURN 1: New order with 2 saved addresses -> Upfront address disambiguation
         r1, c1 = await _send(1, "i wanna make pasta under 1500")
         assert r1.conversation_state == "NEEDS_DECISION"
-        assert "Flat No 201, Everest Graciana, Opposite Yash Laxmi Heights, Sangvi, Pune, Maharashtra" in r1.text
-        assert "D block 704, Tanish Orchid, Charholi Budruk, Pune, Maharashtra" in r1.text
+        assert "Flat 402, Green Acres, Clover Park, Viman Nagar, Pune, Maharashtra" in r1.text
+        assert "Villa 12, Palm Meadows, Pancard Club Road, Baner, Pune, Maharashtra" in r1.text
         assert len(c1.items) == 0
 
-        # TURN 2: Select address #2 (Charholi Budruk) -> Live Gemini parallel search + cart build
+        # TURN 2: Select address #2 (Baner) -> Live Gemini parallel search + cart build
         r2, c2 = await _send(2, "2")
         assert r2.conversation_state == "AWAITING_CHECKOUT_CONFIRMATION"
-        assert "D block 704, Tanish Orchid, Charholi Budruk, Pune, Maharashtra" in r2.text
+        assert "Villa 12, Palm Meadows, Pancard Club Road, Baner, Pune, Maharashtra" in r2.text
         assert len(c2.items) >= 2
         assert round(c2.item_total + c2.delivery_fee + c2.packaging_fee, 2) == round(c2.grand_total, 2)
         turn2_count = len(c2.items)
@@ -257,7 +257,7 @@ async def test_full_multi_turn_e2e_pipeline_and_generate_artifact() -> None:
         assert len(c3.items) == turn2_count + 1
         assert any("milk" in it.name.casefold() for it in c3.items)
         assert any("pasta" in it.name.casefold() for it in c3.items)
-        assert "D block 704, Tanish Orchid, Charholi Budruk, Pune, Maharashtra" in r3.text
+        assert "Villa 12, Palm Meadows, Pancard Club Road, Baner, Pune, Maharashtra" in r3.text
 
         # TURN 4: Hesitation guard ("wait") -> Keeps basket on hold without wiping items
         r4, c4 = await _send(4, "wait")
@@ -287,7 +287,7 @@ async def test_full_multi_turn_e2e_pipeline_and_generate_artifact() -> None:
                 "id": "INV-ADDR-02",
                 "boundary": "Full Street + Area Preservation",
                 "description": "Preserves complete Flat/Building/Area/City/State in both prompt and receipt header/footer.",
-                "passed": "D block 704, Tanish Orchid, Charholi Budruk, Pune, Maharashtra" in r2.text,
+                "passed": "Villa 12, Palm Meadows, Pancard Club Road, Baner, Pune, Maharashtra" in r2.text,
             },
             {
                 "id": "INV-CART-01",

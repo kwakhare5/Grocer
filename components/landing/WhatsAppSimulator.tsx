@@ -92,7 +92,7 @@ export function WhatsAppSimulator() {
               {/* Delivery Address Pill */}
               <div className="mx-auto w-fit px-3 py-1 rounded-full bg-white border border-zinc-200 text-xs text-zinc-600 flex items-center gap-1.5 shadow-2xs">
                 <MapPin className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Active Store: Charholi Budruk, Pune Hub #2041</span>
+                <span>Active Store: Baner, Pune Hub #2041</span>
               </div>
 
               {visibleTurns.map((turnData) => (

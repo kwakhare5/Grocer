@@ -16,7 +16,7 @@ export const VERIFIED_JOURNEY_TURNS: VerifiedJourneyTurn[] = [
     userInput: "i wanna make pasta under 1500",
     state: "NEEDS_DECISION",
     latencyMs: 0,
-    assistantMessage: "Which address should I deliver this order to?\n\n1. Flat No 201, Everest Graciana, Opposite Yash Laxmi Heights, Sangvi, Pune, Maharashtra\n2. D block 704, Tanish Orchid, Charholi Budruk, Pune, Maharashtra\n\nReply 1–2 to select your delivery address.",
+    assistantMessage: "Which address should I deliver this order to?\n\n1. Flat 402, Green Acres, Clover Park, Viman Nagar, Pune, Maharashtra\n2. Villa 12, Palm Meadows, Pancard Club Road, Baner, Pune, Maharashtra\n\nReply 1–2 to select your delivery address.",
     toolTrace: {
       tool: "get_saved_addresses",
       params: { customer_phone: "+919876543210" },
@@ -32,7 +32,7 @@ export const VERIFIED_JOURNEY_TURNS: VerifiedJourneyTurn[] = [
     userInput: "2",
     state: "AWAITING_CHECKOUT_CONFIRMATION",
     latencyMs: 1045,
-    assistantMessage: "Updated delivery address to D block 704, Tanish Orchid, Charholi Budruk, Pune, Maharashtra.\n\nYour Basket (Charholi Budruk, Pune):",
+    assistantMessage: "Updated delivery address to Villa 12, Palm Meadows, Pancard Club Road, Baner, Pune, Maharashtra.\n\nYour Basket (Baner, Pune):",
     items: [
       { name: "Yu Zero Maida Penne Pasta 500g", price: "Rs 49" },
       { name: "Veeba Pasta & Pizza Sauce 280g", price: "Rs 79" },
@@ -42,7 +42,7 @@ export const VERIFIED_JOURNEY_TURNS: VerifiedJourneyTurn[] = [
     subtotal: "Rs 276",
     fees: "Rs 5 (Handling)",
     total: "Rs 281",
-    deliveryAddress: "D block 704, Tanish Orchid, Charholi Budruk, Pune, Maharashtra",
+    deliveryAddress: "Villa 12, Palm Meadows, Pancard Club Road, Baner, Pune, Maharashtra",
     toolTrace: {
       tool: "search_products",
       params: { query: "penne pasta sauce cheese garlic", budget_cap: 1500 },
@@ -69,7 +69,7 @@ export const VERIFIED_JOURNEY_TURNS: VerifiedJourneyTurn[] = [
     subtotal: "Rs 342",
     fees: "Rs 5 (Handling)",
     total: "Rs 347",
-    deliveryAddress: "D block 704, Tanish Orchid, Charholi Budruk, Pune, Maharashtra",
+    deliveryAddress: "Villa 12, Palm Meadows, Pancard Club Road, Baner, Pune, Maharashtra",
     toolTrace: {
       tool: "update_cart",
       params: { action: "add", items: [{ sku: "amul_taaza_1l", quantity: 1 }] },
@@ -86,7 +86,7 @@ export const VERIFIED_JOURNEY_TURNS: VerifiedJourneyTurn[] = [
     state: "AWAITING_CHECKOUT_CONFIRMATION",
     latencyMs: 0,
     assistantMessage: "Basket kept on hold.\n\nYour groceries are saved. Whenever you're ready, let me know if you want to add/remove items, switch delivery address, or clear your basket.\n\nYour active basket has 5 items (Total Rs 347).",
-    deliveryAddress: "D block 704, Tanish Orchid, Charholi Budruk, Pune, Maharashtra",
+    deliveryAddress: "Villa 12, Palm Meadows, Pancard Club Road, Baner, Pune, Maharashtra",
     toolTrace: {
       tool: "guards.py: HesitationHold",
       params: { input: "wait", active_cart_id: "CART_IM_88291" },
@@ -180,7 +180,7 @@ export const PIPELINE_NODES: PipelineNode[] = [
       ],
       samplePayload: {
         customer_phone: "919876543210",
-        active_address_id: "ADDR_PUNE_CHARHOLI_704",
+        active_address_id: "ADDR_PUNE_BANER_012",
         lock_status: "ACQUIRED",
         turn_window: "6_TURNS_SLIDING",
       },

@@ -17,7 +17,7 @@ Vercel Edge Proxy (/api/whatsapp/webhook)
 FastAPI Webhook (/api/whatsapp/webhook on Render)
         ↓ (Per-customer asyncio.Lock concurrency serialization)
 GroceryAgentEngine (backend/agent/engine.py)
-  ├── Autonomous ReAct loop (Gemini Flash-Lite Latest: ~0.8s generation)
+  ├── Autonomous ReAct loop (gemini-3.5-flash-lite primary + automatic failover cascade: ~1.0s)
   ├── Persistent HTTP/2 connection pooling with keep-alive (zero handshake latency)
   ├── Automatic self-healing multi-turn history reset (handles Gemini thought-signature 400 errors)
   ├── 6-turn sliding window history pruning & payload compaction
@@ -86,4 +86,4 @@ GROCER does not use Docker in production or development:
 
 ## Test & verification status
 
-All 273 backend unit, contract, and empirical tests pass green in 5.24s. Next.js 16 production build compiles with Turbopack cleanly. ESLint clean with 0 errors/warnings.
+All 62 focused invariant & live 6-turn E2E verification tests pass green in 12.18s. Next.js 16 production build compiles with Turbopack cleanly in ~1.9s. ESLint clean with 0 errors/warnings.

@@ -28,7 +28,7 @@ WhatsApp message (Meta Cloud API)
       ↓ (Instant <200ms Blue Ticks via mark_message_read + HTTP 200 Fast-Ack Proxy)
 FastAPI Webhook (/api/whatsapp/webhook)
       ↓ (Per-customer asyncio.Lock concurrency serialization)
-Gemini ReAct Agent Engine (gemini-flash-lite-latest + persistent HTTP/2 pooling: ~0.8s)
+Gemini ReAct Agent Engine (gemini-3.5-flash-lite primary + automatic failover cascade: ~1.0s)
       ↓ (Automatic self-healing multi-turn history reset on thought-signature errors)
 Autonomous Function Calling (Swiggy MCP Tools via asyncio.gather)
   ├── search_products (parallel live dark-store inventory check)
@@ -93,7 +93,7 @@ Meta WhatsApp Cloud API
 FastAPI Webhook (/api/whatsapp/webhook on Render)
   ↓ (Per-customer asyncio.Lock concurrency serialization)
 GroceryAgentEngine (backend/agent/engine.py)
-  ├── Context-aware ReAct reasoning loop (Gemini Flash-Lite Latest: ~0.8s generation)
+  ├── Context-aware ReAct reasoning loop (gemini-3.5-flash-lite + automatic 200ms failover cascade)
   ├── Persistent HTTP/2 connection pooling with keep-alive across engine & channels
   ├── Automatic self-healing multi-turn history reset (handles Gemini thought-signature 400 errors)
   ├── 6-turn sliding window history pruning & payload compaction

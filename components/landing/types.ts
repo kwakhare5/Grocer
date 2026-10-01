@@ -18,6 +18,11 @@ export interface VerifiedJourneyTurn {
   total?: string;
   deliveryAddress?: string;
   paymentLink?: string;
+  humanExplanation: {
+    customerIntent: string;
+    safetyRule: string;
+    storeOutcome: string;
+  };
   toolTrace: {
     tool: string;
     params: Record<string, unknown>;
@@ -41,10 +46,6 @@ export interface PipelineNode {
   badgeColor: "emerald" | "blue" | "purple" | "orange" | "zinc";
   metric: string;
   description: string;
-  technicalDetails: {
-    protocol: string;
-    endpointOrFile: string;
-    invariants: string[];
-    samplePayload: Record<string, unknown>;
-  };
+  responsibilities: string[];
+  whyItMatters: string;
 }

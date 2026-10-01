@@ -2,49 +2,51 @@
 
 import React, { useState } from "react";
 import {
-  Terminal,
-  Check,
-  CheckCircle2,
-  MapPin,
-  ExternalLink,
-  ChevronRight,
   ShieldCheck,
+  Check,
+  ChevronRight,
+  ChevronDown,
+  Code2,
+  Phone,
+  Video,
+  MoreVertical,
+  ArrowLeft,
+  Smile,
+  Mic,
+  ExternalLink,
 } from "lucide-react";
 import { GrocerLogo } from "../ui/GrocerLogo";
+import { WhatsAppIcon } from "../ui/WhatsAppIcon";
 import { VerifiedJourneyTurn } from "./types";
 import { VERIFIED_JOURNEY_TURNS } from "./data";
 
 export function WhatsAppSimulator() {
-  const [activeTurnNumber, setActiveTurnNumber] = useState<number>(2);
+  const [activeTurnNumber, setActiveTurnNumber] = useState<number>(1);
+  const [showTechnicalDetails, setShowTechnicalDetails] = useState<boolean>(false);
 
   const currentTurn: VerifiedJourneyTurn =
     VERIFIED_JOURNEY_TURNS.find((t) => t.turn === activeTurnNumber) ||
-    VERIFIED_JOURNEY_TURNS[1];
-
-  // Progressive conversation: shows turns up to current selected turn
-  const visibleTurns = VERIFIED_JOURNEY_TURNS.filter(
-    (t) => t.turn <= currentTurn.turn,
-  );
+    VERIFIED_JOURNEY_TURNS[0];
 
   return (
-    <section id="conversation" className="py-16 sm:py-20 bg-zinc-100/70 border-y border-zinc-200 scroll-mt-16">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section id="conversation" className="py-16 sm:py-20 bg-[#FAFAFA] border-b border-zinc-200/80 scroll-mt-16">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
-        <div className="text-center max-w-2xl mx-auto mb-8">
+        <div className="text-center max-w-2xl mx-auto mb-10">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold mb-3">
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-            <span>Real WhatsApp Experience</span>
+            <WhatsAppIcon className="w-3.5 h-3.5" />
+            <span>Verified WhatsApp Conversation Flow</span>
           </div>
-          <h2 className="text-3xl sm:text-4xl font-editorial font-bold text-zinc-950">
-            Real WhatsApp conversation trajectory
+          <h2 className="text-2xl sm:text-3xl font-editorial font-bold text-zinc-950 tracking-tight">
+            Real WhatsApp conversation flow
           </h2>
-          <p className="mt-3 text-base sm:text-lg text-zinc-600 leading-relaxed font-normal">
-            Step through the verified 6-turn customer journey recorded from our live Gemini 3.5 &amp; Swiggy MCP backend pipeline.
+          <p className="mt-2.5 text-sm sm:text-base text-zinc-600 leading-relaxed font-normal">
+            Recorded live from our Gemini 3.5 Flash-Lite &amp; Quick-Commerce engine. Select any turn to inspect the exact message and backend safety rules.
           </p>
         </div>
 
-        {/* 6-Turn Stepper / Tab Switcher */}
-        <div className="flex flex-wrap items-center justify-center gap-2 mb-8">
+        {/* 6-Turn Clean Tab Switcher */}
+        <div className="flex flex-wrap items-center justify-center gap-2 mb-10">
           {VERIFIED_JOURNEY_TURNS.map((t) => {
             const isActive = t.turn === currentTurn.turn;
             return (
@@ -52,10 +54,10 @@ export function WhatsAppSimulator() {
                 key={t.turn}
                 type="button"
                 onClick={() => setActiveTurnNumber(t.turn)}
-                className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer border ${
+                className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-150 active:scale-[0.98] cursor-pointer border ${
                   isActive
-                    ? "bg-white text-zinc-950 border-emerald-600 shadow-sm ring-2 ring-emerald-500/20"
-                    : "bg-white/80 hover:bg-white text-zinc-700 border-zinc-200 shadow-2xs"
+                    ? "bg-white text-zinc-950 border-emerald-600 shadow-xs ring-2 ring-emerald-500/20"
+                    : "bg-white/80 hover:bg-white text-zinc-700 border-zinc-200 shadow-2xs hover:border-zinc-300"
                 }`}
               >
                 <span>{t.label}</span>
@@ -64,98 +66,106 @@ export function WhatsAppSimulator() {
           })}
         </div>
 
-        {/* Unified Two-Column Interface Card */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          {/* Left Column: Full Progressive WhatsApp Conversation (7 cols) */}
-          <div className="lg:col-span-7 bg-white rounded-3xl border border-zinc-200 shadow-xs overflow-hidden flex flex-col h-[580px]">
-            {/* WhatsApp Header Bar */}
-            <div className="bg-zinc-50/90 px-5 py-3.5 border-b border-zinc-200 flex items-center justify-between shrink-0">
-              <div className="flex items-center gap-3">
-                <GrocerLogo size="sm" iconOnly />
-                <div>
-                  <div className="font-bold text-sm text-zinc-950 flex items-center gap-1.5">
-                    <span>Grocer Replenishment</span>
-                    <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+        {/* Two-Column Showcase: Left = Borderless Floating WhatsApp Chassis, Right = Invariant Spec */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+          {/* ─── LEFT: Borderless Floating HTML WhatsApp Chassis (7 cols) ─── */}
+          <div className="lg:col-span-7">
+            <div className="rounded-3xl bg-[#EFEAE2] shadow-xl shadow-zinc-950/10 ring-1 ring-zinc-950/5 overflow-hidden max-w-md mx-auto w-full">
+              {/* WhatsApp Mobile Header Bar */}
+              <div className="bg-[#008069] text-white px-3.5 py-3 flex items-center justify-between shadow-xs">
+                <div className="flex items-center gap-2.5">
+                  <ArrowLeft className="w-4 h-4 cursor-pointer text-white/90" />
+                  <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-emerald-800 shrink-0 shadow-2xs">
+                    <GrocerLogo size="sm" iconOnly />
                   </div>
-                  <div className="text-xs text-zinc-500 font-medium">
-                    Verified Trajectory • Gemini 3.5 Flash-Lite
+                  <div>
+                    <div className="font-semibold text-sm leading-tight flex items-center gap-1.5">
+                      <span>Grocer</span>
+                      <WhatsAppIcon className="w-3.5 h-3.5" />
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-300"></span>
+                    </div>
+                    <div className="text-xs text-white/80 leading-tight">
+                      online • Swiggy Instamart Gateway
+                    </div>
                   </div>
                 </div>
-              </div>
-              <span className="text-xs font-medium px-2.5 py-1 rounded-lg bg-zinc-100 text-zinc-700 border border-zinc-200">
-                {currentTurn.humanState || currentTurn.state}
-              </span>
-            </div>
 
-            {/* Conversation Messages Scroll Stream */}
-            <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 bg-zinc-50/40 text-zinc-900 text-sm font-sans">
-              {/* Delivery Address Pill */}
-              <div className="mx-auto w-fit px-3 py-1 rounded-full bg-white border border-zinc-200 text-xs text-zinc-600 flex items-center gap-1.5 shadow-2xs">
-                <MapPin className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Active Store: Baner, Pune Hub</span>
+                <div className="flex items-center gap-3 text-white/90">
+                  <Video className="w-4 h-4 cursor-pointer" />
+                  <Phone className="w-3.5 h-3.5 cursor-pointer" />
+                  <MoreVertical className="w-4 h-4 cursor-pointer" />
+                </div>
               </div>
 
-              {visibleTurns.map((turnData) => (
-                <div key={turnData.turn} className="space-y-3">
-                  {/* User Turn */}
+              {/* Chat Viewport (Zero Scroll Trapping, Clean Natural Fit) */}
+              <div className="p-4 sm:p-5 space-y-3.5 bg-[#EFEAE2] min-h-[440px] flex flex-col justify-between">
+                <div className="space-y-3">
+                  {/* Delivery Location Pill */}
+                  <div className="mx-auto w-fit px-3 py-1 rounded-full bg-white/90 border border-zinc-200/80 text-xs text-zinc-600 font-medium shadow-2xs">
+                    Baner, Pune Hub • Turn {currentTurn.turn} of 6
+                  </div>
+
+                  {/* 1. Customer Speech Bubble */}
                   <div className="flex flex-col items-end">
-                    <div className="max-w-[85%] rounded-2xl p-3.5 bg-emerald-600 text-white rounded-tr-none shadow-2xs">
-                      <p className="text-sm font-normal">{turnData.userInput}</p>
-                      <div className="mt-1 flex items-center justify-end gap-1 text-[11px] text-emerald-200 font-mono">
-                        <span>Turn {turnData.turn}</span>
-                        <span className="font-bold">Read</span>
+                    <div className="max-w-[85%] rounded-2xl rounded-tr-none p-3 bg-[#D9FDD3] text-zinc-900 shadow-2xs">
+                      <p className="text-xs sm:text-sm font-normal leading-relaxed">{currentTurn.userInput}</p>
+                      <div className="mt-1 flex items-center justify-end gap-1 text-xs text-zinc-500 font-mono">
+                        <span>12:4{currentTurn.turn} PM</span>
+                        <span className="text-[#53BDEB] font-bold">✓✓</span>
                       </div>
                     </div>
                   </div>
 
-                  {/* Assistant Turn */}
+                  {/* 2. Grocer Agent Speech Bubble */}
                   <div className="flex flex-col items-start">
-                    <div className="max-w-[90%] rounded-2xl p-4 bg-white text-zinc-900 rounded-tl-none border border-zinc-200 shadow-2xs space-y-2">
-                      <p className="leading-relaxed whitespace-pre-wrap text-sm font-normal">
-                        {turnData.assistantMessage}
+                    <div className="max-w-[92%] rounded-2xl rounded-tl-none p-3.5 bg-white text-zinc-900 shadow-2xs border border-zinc-200/60 space-y-2.5">
+                      <p className="leading-relaxed whitespace-pre-wrap text-xs sm:text-sm font-normal">
+                        {currentTurn.assistantMessage}
                       </p>
 
-                      {/* Itemized Dark Store Receipt */}
-                      {turnData.items && turnData.items.length > 0 && (
-                        <div className="mt-2.5 pt-2.5 border-t border-zinc-200 space-y-1.5 text-xs sm:text-sm">
-                          {turnData.items.map((item, idx) => (
+                      {/* Itemized Receipt Table (when present) */}
+                      {currentTurn.items && currentTurn.items.length > 0 && (
+                        <div className="pt-2 border-t border-zinc-100 space-y-1.5 text-xs sm:text-sm">
+                          {currentTurn.items.map((item, idx) => (
                             <div key={idx} className="flex justify-between gap-3 text-zinc-700">
                               <span className="truncate">• {item.name}</span>
-                              <span className="font-mono shrink-0 font-semibold text-zinc-900">{item.price}</span>
+                              <span className="font-mono font-semibold text-zinc-900 shrink-0">
+                                {item.price}
+                              </span>
                             </div>
                           ))}
 
-                          <div className="mt-2.5 pt-2.5 border-t border-zinc-200 space-y-1 text-xs">
-                            {turnData.subtotal && (
+                          <div className="pt-2 border-t border-zinc-100 space-y-1 text-xs">
+                            {currentTurn.subtotal && (
                               <div className="flex justify-between text-zinc-500">
                                 <span>Subtotal:</span>
-                                <span className="font-mono">{turnData.subtotal}</span>
+                                <span className="font-mono">{currentTurn.subtotal}</span>
                               </div>
                             )}
-                            {turnData.fees && (
+                            {currentTurn.fees && (
                               <div className="flex justify-between text-zinc-500">
-                                <span>Delivery &amp; Packaging:</span>
-                                <span className="font-mono">{turnData.fees}</span>
+                                <span>Delivery &amp; Handling:</span>
+                                <span className="font-mono">{currentTurn.fees}</span>
                               </div>
                             )}
-                            {turnData.total && (
+                            {currentTurn.total && (
                               <div className="flex justify-between font-bold text-zinc-950 pt-1.5 border-t border-zinc-200 text-sm">
                                 <span>Grand Total:</span>
-                                <span className="font-mono text-emerald-700">{turnData.total}</span>
+                                <span className="font-mono text-emerald-700">{currentTurn.total}</span>
                               </div>
                             )}
                           </div>
                         </div>
                       )}
 
-                      {/* Official Dynamic UPI Payment Link */}
-                      {turnData.paymentLink && (
-                        <div className="mt-3 pt-2.5 border-t border-zinc-200">
+                      {/* Official Payment Link Card */}
+                      {currentTurn.paymentLink && (
+                        <div className="pt-2 border-t border-zinc-100">
                           <a
-                            href={turnData.paymentLink}
+                            href={currentTurn.paymentLink}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="p-3 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 flex items-center justify-between text-xs text-emerald-950 font-medium transition cursor-pointer"
+                            className="p-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 flex items-center justify-between text-xs text-emerald-950 font-semibold transition active:scale-[0.98]"
                           >
                             <span>Official Swiggy UPI Payment Link</span>
                             <ExternalLink className="w-3.5 h-3.5 text-emerald-700" />
@@ -163,119 +173,116 @@ export function WhatsAppSimulator() {
                         </div>
                       )}
 
-                      <div className="mt-1 flex items-center justify-end text-[11px] text-zinc-400 font-mono">
-                        <span>Latency: {turnData.latencyMs} ms</span>
+                      <div className="mt-1 flex items-center justify-end text-xs text-zinc-400 font-mono">
+                        <span>12:4{currentTurn.turn} PM</span>
                       </div>
                     </div>
                   </div>
                 </div>
-              ))}
-            </div>
 
-            {/* Stepper Navigation Footer */}
-            <div className="bg-zinc-50/80 px-4 py-2.5 border-t border-zinc-200 flex items-center justify-between shrink-0 text-xs">
-              <span className="font-mono text-zinc-600">
-                Step {currentTurn.turn} of 6
-              </span>
-              <div className="flex items-center gap-2">
-                {currentTurn.turn < 6 ? (
-                  <button
-                    type="button"
-                    onClick={() => setActiveTurnNumber(currentTurn.turn + 1)}
-                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs shadow-2xs transition cursor-pointer"
-                  >
-                    <span>Next Turn</span>
-                    <ChevronRight className="w-3.5 h-3.5" />
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => setActiveTurnNumber(1)}
-                    className="px-3 py-1.5 rounded-lg bg-zinc-200 hover:bg-zinc-300 text-zinc-800 font-medium text-xs transition cursor-pointer"
-                  >
-                    Restart Journey
-                  </button>
-                )}
+                {/* WhatsApp Chat Bottom Input Bar */}
+                <div className="mt-4 pt-2 border-t border-zinc-300/40 flex items-center gap-2 text-zinc-500">
+                  <div className="flex-1 bg-white rounded-full px-3.5 py-1.5 text-xs text-zinc-400 flex items-center justify-between border border-zinc-200">
+                    <span className="flex items-center gap-2">
+                      <Smile className="w-4 h-4 text-zinc-400" />
+                      <span>Message</span>
+                    </span>
+                  </div>
+                  <div className="w-8 h-8 rounded-full bg-[#008069] flex items-center justify-center text-white shadow-2xs">
+                    <Mic className="w-4 h-4" />
+                  </div>
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Right Column: Live Swiggy MCP Tool Execution Inspector (5 cols) */}
+          {/* ─── RIGHT: Invariant Decision Card (5 cols) ────────────────── */}
           <div className="lg:col-span-5 space-y-4">
-            <div className="bg-white rounded-3xl p-5 sm:p-6 border border-zinc-200 shadow-xs">
-              <div className="flex items-center justify-between pb-3.5 border-b border-zinc-100 mb-4">
-                <div className="flex items-center gap-2">
-                  <Terminal className="w-4 h-4 text-emerald-700" />
-                  <h3 className="font-mono text-sm font-bold text-zinc-950">
-                    Swiggy MCP Action
-                  </h3>
-                </div>
-                <span className="px-2 py-0.5 rounded text-[11px] font-mono bg-zinc-100 text-zinc-700 border border-zinc-200 font-medium">
-                  Verified Trace
+            <div className="bg-white rounded-3xl p-5 sm:p-6 border border-zinc-200 shadow-xs space-y-4">
+              <div className="flex items-center justify-between pb-3.5 border-b border-zinc-100">
+                <span className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
+                  Behind The Scenes
+                </span>
+                <span className="px-2.5 py-0.5 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                  {currentTurn.tag}
                 </span>
               </div>
 
-              <div className="space-y-4 font-mono text-xs">
-                <div>
-                  <div className="text-zinc-500 text-[11px] mb-1 uppercase tracking-wider font-semibold">
-                    Executed Tool
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold">
-                      {currentTurn.toolTrace.tool}
-                    </span>
-                    <span className="text-zinc-600 text-xs font-sans">
-                      Latency: {currentTurn.toolTrace.latencyMs} ms
-                    </span>
-                  </div>
+              {/* 1. Customer Intent */}
+              <div className="p-3.5 rounded-2xl bg-zinc-50 border border-zinc-200/80 space-y-1">
+                <div className="text-xs uppercase tracking-wider font-bold text-zinc-500">
+                  Customer Asked
                 </div>
+                <p className="text-zinc-800 text-xs sm:text-sm font-medium leading-relaxed">
+                  {currentTurn.humanExplanation.customerIntent}
+                </p>
+              </div>
 
-                <div>
-                  <div className="text-zinc-500 text-[11px] mb-1 uppercase tracking-wider font-semibold">
-                    Policy / Action
-                  </div>
-                  <div className="px-2.5 py-1 rounded-lg bg-zinc-50 text-zinc-800 border border-zinc-200 text-xs font-sans">
-                    {currentTurn.toolTrace.invariantTested}
-                  </div>
+              {/* 2. Safety Rule Enforced */}
+              <div className="p-3.5 rounded-2xl bg-emerald-50/60 border border-emerald-200/80 space-y-1">
+                <div className="text-xs uppercase tracking-wider font-bold text-emerald-800 flex items-center gap-1.5">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Safety Rule Enforced</span>
                 </div>
+                <p className="text-emerald-950 text-xs sm:text-sm font-medium leading-relaxed">
+                  {currentTurn.humanExplanation.safetyRule}
+                </p>
+              </div>
 
-                <div>
-                  <div className="text-zinc-500 text-[11px] mb-1 uppercase tracking-wider font-semibold">
-                    Tool Arguments
-                  </div>
-                  <pre className="p-3 rounded-xl bg-zinc-50 text-zinc-800 text-xs overflow-x-auto border border-zinc-200">
-                    {JSON.stringify(currentTurn.toolTrace.params, null, 2)}
-                  </pre>
+              {/* 3. Store Outcome */}
+              <div className="p-3.5 rounded-2xl bg-zinc-50 border border-zinc-200/80 space-y-1">
+                <div className="text-xs uppercase tracking-wider font-bold text-zinc-500">
+                  Store Outcome
                 </div>
+                <p className="text-zinc-800 text-xs sm:text-sm font-medium leading-relaxed">
+                  {currentTurn.humanExplanation.storeOutcome}
+                </p>
+              </div>
 
-                <div>
-                  <div className="text-zinc-500 text-[11px] mb-1 uppercase tracking-wider font-semibold">
-                    Result
-                  </div>
-                  <p className="text-zinc-700 text-xs font-sans bg-zinc-50 p-3 rounded-xl border border-zinc-200 leading-relaxed">
-                    {currentTurn.toolTrace.resultSummary}
-                  </p>
-                </div>
-
-                <div className="pt-3 border-t border-zinc-100 flex items-center justify-between text-xs text-zinc-600">
-                  <span className="flex items-center gap-1.5 font-sans">
-                    <Check className="w-3.5 h-3.5 text-emerald-600" />
-                    Verified End-to-End
+              {/* Collapsible Technical Inspector */}
+              <div className="pt-1">
+                <button
+                  type="button"
+                  onClick={() => setShowTechnicalDetails(!showTechnicalDetails)}
+                  className="w-full flex items-center justify-between p-2.5 rounded-xl border border-zinc-200 hover:bg-zinc-50 text-zinc-700 text-xs font-medium transition active:scale-[0.98] cursor-pointer"
+                >
+                  <span className="flex items-center gap-1.5">
+                    <Code2 className="w-3.5 h-3.5 text-zinc-500" />
+                    <span>{showTechnicalDetails ? "Hide technical payload" : "Inspect technical payload"}</span>
                   </span>
-                  <span className="font-mono text-emerald-700 font-semibold">Passed</span>
-                </div>
-              </div>
-            </div>
+                  {showTechnicalDetails ? (
+                    <ChevronDown className="w-3.5 h-3.5 text-zinc-500" />
+                  ) : (
+                    <ChevronRight className="w-3.5 h-3.5 text-zinc-500" />
+                  )}
+                </button>
 
-            {/* Safety Assurance Note */}
-            <div className="bg-white rounded-2xl p-4 sm:p-5 border border-zinc-200 text-xs text-zinc-600 space-y-1.5 shadow-2xs">
-              <div className="font-bold text-zinc-950 flex items-center gap-1.5 text-xs sm:text-sm">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                <span>Deterministic Safety Gate</span>
+                {showTechnicalDetails && (
+                  <div className="mt-3 p-3.5 rounded-2xl bg-zinc-50 text-zinc-800 font-mono text-xs space-y-2 border border-zinc-200">
+                    <div className="flex items-center justify-between text-zinc-500 pb-1.5 border-b border-zinc-200">
+                      <span>Tool: <strong className="text-emerald-700">{currentTurn.toolTrace.tool}</strong></span>
+                      <span>{currentTurn.toolTrace.latencyMs} ms</span>
+                    </div>
+                    <div>
+                      <div className="text-zinc-500 text-xs uppercase tracking-wider mb-1 font-semibold">
+                        Arguments
+                      </div>
+                      <pre className="p-2.5 rounded-xl bg-white text-zinc-800 border border-zinc-200 overflow-x-auto text-xs">
+                        {JSON.stringify(currentTurn.toolTrace.params, null, 2)}
+                      </pre>
+                    </div>
+                  </div>
+                )}
               </div>
-              <p className="leading-relaxed font-normal">
-                Notice Turn 5: the AI model cannot place an order until the customer explicitly replies &ldquo;Confirm&rdquo;. Once confirmed, pure backend Python executes the checkout and verifies payment state.
-              </p>
+
+              {/* Bottom Invariant Proof */}
+              <div className="pt-2 border-t border-zinc-100 flex items-center justify-between text-xs text-zinc-600">
+                <span className="flex items-center gap-1.5 font-sans">
+                  <Check className="w-3.5 h-3.5 text-emerald-600" />
+                  {currentTurn.toolTrace.invariantTested}
+                </span>
+                <span className="font-mono text-emerald-700 font-semibold">Verified</span>
+              </div>
             </div>
           </div>
         </div>

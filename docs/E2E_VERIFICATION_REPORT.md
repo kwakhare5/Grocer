@@ -1,10 +1,10 @@
 # GROCER End-to-End (E2E) Verification Report
 
-- **Generated At (UTC):** `2026-09-30T17:51:57.496874+00:00`
+- **Generated At (UTC):** `2026-10-01T10:09:39.406880+00:00`
 - **Execution Mode:** `LIVE_GEMINI_API`
 - **Primary Gemini Model:** `gemini-3.5-flash-lite`
 - **Fallback Cascade:** `gemini-3.5-flash-lite -> gemini-flash-lite-latest -> gemini-3-flash-preview`
-- **Total Multi-Turn E2E Latency:** `13469 ms`
+- **Total Multi-Turn E2E Latency:** `16972 ms`
 - **Overall Verdict:** **`PASSED`** (`6/6` invariants verified)
 
 ---
@@ -26,7 +26,7 @@
 
 ### Turn 1: `i wanna make pasta under 1500`
 - **State Transition:** `NEEDS_DECISION`
-- **Latency:** `0 ms`
+- **Latency:** `1 ms`
 - **Active Basket Items:** `0` (`Grand Total: ₹0`)
 
 ```text
@@ -40,24 +40,21 @@
 
 ### Turn 2: `2`
 - **State Transition:** `AWAITING_CHECKOUT_CONFIRMATION`
-- **Latency:** `4593 ms`
-- **Active Basket Items:** `4` (`Grand Total: ₹293`)
+- **Latency:** `9836 ms`
+- **Active Basket Items:** `5` (`Grand Total: ₹331`)
 
 ```text
-Address updated to *Villa 12, Palm Meadows, Pancard Club Road, Baner, Pune, Maharashtra*. 
-
-Here is your delicious pasta kit basket ready to go!
-
 🛒 *Your Basket (Villa 12, Palm Meadows, Pancard Club Road, Baner, Pune, Maharashtra)*
 • 1x Yu Zero Maida Penne Pasta 500g (500 g) — ₹49
 • 1x Veeba Pasta & Pizza Sauce 280g (280 g) — ₹79
 • 1x Amul Mozzarella Diced Cheese 200g (200 g) — ₹110
 • 1x Whole Wheat Bread 400g (400 g) — ₹50
+• 1x Fresh Garlic 100g (100 g) — ₹38
 
-*Subtotal:* ₹288
+*Subtotal:* ₹326
 *Delivery Fee:* FREE (₹0)
 *Packaging & Handling:* ₹5
-*Grand Total:* ₹293
+*Grand Total:* ₹331
 
 📍 *Delivering to:* Villa 12, Palm Meadows, Pancard Club Road, Baner, Pune, Maharashtra
 👉 Reply *Confirm* to place order, or tell me what to change!
@@ -65,23 +62,22 @@ Here is your delicious pasta kit basket ready to go!
 
 ### Turn 3: `also add 1 amul milk 1L`
 - **State Transition:** `AWAITING_CHECKOUT_CONFIRMATION`
-- **Latency:** `5355 ms`
-- **Active Basket Items:** `5` (`Grand Total: ₹359`)
+- **Latency:** `4520 ms`
+- **Active Basket Items:** `6` (`Grand Total: ₹397`)
 
 ```text
-Done! I've added the Amul Taaza Milk 1L to your basket.
-
 🛒 *Your Basket (Villa 12, Palm Meadows, Pancard Club Road, Baner, Pune, Maharashtra)*
 • 1x Yu Zero Maida Penne Pasta 500g (500 g) — ₹49
 • 1x Veeba Pasta & Pizza Sauce 280g (280 g) — ₹79
 • 1x Amul Mozzarella Diced Cheese 200g (200 g) — ₹110
 • 1x Whole Wheat Bread 400g (400 g) — ₹50
+• 1x Fresh Garlic 100g (100 g) — ₹38
 • 1x Amul Taaza Milk 1L Pouch (1 L) — ₹66
 
-*Subtotal:* ₹354
+*Subtotal:* ₹392
 *Delivery Fee:* FREE (₹0)
 *Packaging & Handling:* ₹5
-*Grand Total:* ₹359
+*Grand Total:* ₹397
 
 📍 *Delivering to:* Villa 12, Palm Meadows, Pancard Club Road, Baner, Pune, Maharashtra
 👉 Reply *Confirm* to place order, or tell me what to change!
@@ -90,7 +86,7 @@ Done! I've added the Amul Taaza Milk 1L to your basket.
 ### Turn 4: `wait`
 - **State Transition:** `AWAITING_CHECKOUT_CONFIRMATION`
 - **Latency:** `0 ms`
-- **Active Basket Items:** `5` (`Grand Total: ₹359`)
+- **Active Basket Items:** `6` (`Grand Total: ₹397`)
 
 ```text
 No problem, I've kept your basket on hold! 🛒
@@ -102,12 +98,13 @@ Your groceries are still saved. Whenever you're ready, let me know if you want t
 • 1x Veeba Pasta & Pizza Sauce 280g (280 g) — ₹79
 • 1x Amul Mozzarella Diced Cheese 200g (200 g) — ₹110
 • 1x Whole Wheat Bread 400g (400 g) — ₹50
+• 1x Fresh Garlic 100g (100 g) — ₹38
 • 1x Amul Taaza Milk 1L Pouch (1 L) — ₹66
 
-*Subtotal:* ₹354
+*Subtotal:* ₹392
 *Delivery Fee:* FREE (₹0)
 *Packaging & Handling:* ₹5
-*Grand Total:* ₹359
+*Grand Total:* ₹397
 
 📍 *Delivering to:* Villa 12, Palm Meadows, Pancard Club Road, Baner, Pune, Maharashtra
 👉 Reply *Confirm* to place order, or tell me what to change!
@@ -115,11 +112,11 @@ Your groceries are still saved. Whenever you're ready, let me know if you want t
 
 ### Turn 5: `Confirm`
 - **State Transition:** `AWAITING_PAYMENT`
-- **Latency:** `3521 ms`
+- **Latency:** `2615 ms`
 - **Active Basket Items:** `0` (`Grand Total: ₹0`)
 
 ```text
-Your order is ready! Please complete payment to place your order: https://instamart.swiggy.com/pay/bridge/paas_mock_25474992
+Your order is ready! Please complete payment to place your order: https://instamart.swiggy.com/pay/bridge/paas_mock_9c0d47d7
 ```
 
 ### Turn 6: `clear cart`

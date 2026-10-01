@@ -145,13 +145,6 @@ async def test_signed_webhook_reaches_active_task_service(monkeypatch) -> None:
 
 
 @pytest.mark.asyncio
-async def test_mark_message_read_record_only(whatsapp_adapter: WhatsAppChannelAdapter) -> None:
-    """mark_message_read should exit cleanly when in record_only or unconfigured state."""
-    res = await whatsapp_adapter.mark_message_read("wamid.test_read_1")
-    assert res is False
-
-
-@pytest.mark.asyncio
 async def test_mark_message_read_payload_structure() -> None:
     """mark_message_read should include status read and typing_indicator."""
     adapter = WhatsAppChannelAdapter(

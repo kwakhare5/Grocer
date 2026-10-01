@@ -8,6 +8,7 @@ import {
   Loader2,
   ArrowRight,
 } from "lucide-react";
+import { WhatsAppIcon } from "../ui/WhatsAppIcon";
 
 export interface ConnectInstamartModalProps {
   isOpen: boolean;
@@ -77,15 +78,18 @@ export function ConnectInstamartModal({
         </button>
 
         <div className="flex items-center gap-3 mb-5">
-          <div className="w-11 h-11 rounded-2xl bg-orange-50 flex items-center justify-center text-[#fc8019] shrink-0 border border-orange-200">
+          <div className="w-11 h-11 rounded-2xl bg-emerald-50 flex items-center justify-center text-emerald-700 shrink-0 border border-emerald-200">
             <ShoppingBag className="w-5 h-5" />
           </div>
           <div>
             <h2 className="text-base sm:text-lg font-bold text-zinc-950 leading-tight">
-              Connect Swiggy Instamart
+              Connect Store Account
             </h2>
-            <p className="text-xs text-zinc-500 mt-0.5">
-              Whitelisted OAuth Gateway • Live Dark Store Access
+            <p className="text-xs text-zinc-500 mt-0.5 flex items-center gap-1.5">
+              <span>OAuth 2.1 Gateway</span>
+              <span>•</span>
+              <WhatsAppIcon className="w-3.5 h-3.5 inline shrink-0" />
+              <span>WhatsApp Replenishment</span>
             </p>
           </div>
         </div>
@@ -103,7 +107,7 @@ export function ConnectInstamartModal({
           <div className="space-y-4">
             <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 flex items-center gap-3 text-emerald-800 text-xs sm:text-sm font-semibold">
               <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
-              <span>Your Swiggy Instamart account is successfully linked!</span>
+              <span>Your quick-commerce store account is successfully linked!</span>
             </div>
             <button
               type="button"
@@ -116,7 +120,7 @@ export function ConnectInstamartModal({
         ) : (
           <form onSubmit={handleStartAuth} className="space-y-4">
             <p className="text-xs sm:text-sm text-zinc-600 leading-relaxed font-normal">
-              Enter your registered Swiggy mobile number to link your live dark store account to your WhatsApp session.
+              Enter your registered mobile number to authenticate with the store MCP gateway for WhatsApp ordering.
             </p>
 
             <div>
@@ -146,22 +150,22 @@ export function ConnectInstamartModal({
             <button
               type="submit"
               disabled={busy || phoneNumber.length < 10}
-              className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#fc8019] hover:bg-[#e07014] disabled:opacity-50 px-4 py-3 text-xs sm:text-sm font-semibold text-white shadow-xs transition active:scale-[0.98] cursor-pointer"
+              className="w-full flex items-center justify-center gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 px-4 py-3 text-xs sm:text-sm font-semibold text-white shadow-xs transition active:scale-[0.98] cursor-pointer"
             >
               {busy ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Connecting to Swiggy...</span>
+                  <span>Connecting to gateway...</span>
                 </>
               ) : (
                 <>
-                  <span>Authenticate via Swiggy OAuth</span>
+                  <span>Verify &amp; Connect</span>
                   <ArrowRight className="w-4 h-4" />
                 </>
               )}
             </button>
 
-            <p className="text-[11px] text-zinc-400 text-center leading-normal">
+            <p className="text-xs text-zinc-400 text-center leading-normal">
               Secured with AES-GCM encrypted tokens. We never store banking credentials.
             </p>
           </form>

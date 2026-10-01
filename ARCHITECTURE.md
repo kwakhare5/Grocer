@@ -9,6 +9,44 @@ GROCER is an English-first WhatsApp grocery replenishment agent for Swiggy Insta
 
 ## Active architecture
 
+```mermaid
+flowchart TD
+    subgraph Ingress ["1. Ingress & Fast-ACK"]
+        WA["WhatsApp Customer"] -->|"Meta Cloud Webhook (HMAC-SHA256)"| Vercel["Vercel Edge Proxy"]
+        Vercel -->|"Fast-ACK (<200ms Blue Ticks)"| WA
+        Vercel -->|"Async Forward"| FastAPI["FastAPI Engine (/api/whatsapp/webhook)"]
+    end
+
+    subgraph Concurrency ["2. Turn Concurrency & Address Guard"]
+        FastAPI -->|"Acquire per-customer lock"| Lock["asyncio.Lock(customer_phone)"]
+        Lock -->|"Check address status"| AddrGuard{"Multiple Addresses\n& Unconfirmed?"}
+        AddrGuard -->|"Yes"| AddrPrompt["Prompt Upfront 1-2 Selection"]
+        AddrGuard -->|"No / Confirmed"| Engine["GroceryAgentEngine"]
+    end
+
+    subgraph DualCore ["3. Dual-Core Processing"]
+        Engine -->|"User Intent & Recipe Kit"| Gemini["Gemini 3.5 Flash-Lite\n(Autonomous ReAct Loop)"]
+        Gemini -->|"Proposed Mutations (SKUs)"| Guards["Deterministic Python Guards"]
+        Guards -->|"Delta Cart Merge"| Merge["Preserve Prior Items"]
+        Guards -->|"Hesitation Detection"| Hold["Freeze Session on 'wait'"]
+        Guards -->|"Server-Side Checkout Lock"| Gate{"User Confirmed\nOrder?"}
+        Gate -->|"No"| Block["Block Checkout Tool"]
+        Gate -->|"Yes"| Auth["Authorize Checkout"]
+    end
+
+    subgraph Commerce ["4. Commerce Gateway & Store API"]
+        Auth -->|"JSON-RPC 2.0 via HTTP/2 Pool"| Port["CommercePort / SwiggyMCPAdapter"]
+        Port -->|"tools/call: search, cart, checkout"| MCP["Swiggy Instamart Live MCP Gateway\n(https://mcp.swiggy.com/im)"]
+        MCP -->|"Verified Line Items & Fees"| Bill["Exact Provider Billing (₹XX)"]
+        MCP -->|"Dynamic UPI QR Link"| PayLink["Official Swiggy UPI Bridge"]
+        PayLink -->|"Background Poller (every 5s)"| Poller["_poll_payment_status Daemon"]
+    end
+
+    Bill --> Engine
+    PayLink -->|"Deliver via WhatsApp"| WA
+    Poller -->|"Order Confirmed Alert"| WA
+```
+
 ```text
 Meta WhatsApp Cloud API
         ↓ (Instant <200ms blue ticks via mark_message_read)
@@ -86,4 +124,4 @@ GROCER does not use Docker in production or development:
 
 ## Test & verification status
 
-All 62 focused invariant & live 6-turn E2E verification tests pass green in 12.18s. Next.js 16 production build compiles with Turbopack cleanly in ~1.9s. ESLint clean with 0 errors/warnings.
+All 51 focused invariant & live 6-turn E2E verification tests pass green in ~17s. Next.js 16 production build compiles with Turbopack cleanly in ~1.9s. ESLint clean with 0 errors/warnings.

@@ -4,11 +4,11 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688?style=flat&logo=fastapi)](https://fastapi.tiangolo.com/)
 [![Swiggy Instamart MCP](https://img.shields.io/badge/Swiggy-Instamart%20MCP-FC8019?style=flat)](https://mcp.swiggy.com/builders/llms.txt)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5+-3178C6?style=flat&logo=typescript)](https://www.typescriptlang.org/)
-[![Tests](https://img.shields.io/badge/Tests-273%20Passed-brightgreen?style=flat)](backend/tests/)
+[![Tests](https://img.shields.io/badge/Tests-51%20Passed-brightgreen?style=flat)](backend/tests/)
 
 **Grocer** is an English-first WhatsApp grocery agent for Swiggy Instamart. It accepts ordinary human messages, turns them into real Swiggy Instamart grocery carts, and keeps the customer in control of meaningful shopping choices, pack sizes, and budgets.
 
-> **Production Readiness:** The autonomous Gemini ReAct conversation engine (`GroceryAgentEngine`, `SwiggyAgentTools`) with the Ultra-Low Latency & Multi-Turn Self-Healing Overhaul is active and verified live on WhatsApp with Swiggy Instamart MCP. Local regression suite (273 passed in 5.24s), ESLint (0 errors/warnings), and Next.js 16 production build pass 100% green. See [ARCHITECTURE.md](ARCHITECTURE.md) for verified technical specifications.
+> **Production Readiness:** The autonomous Gemini ReAct conversation engine (`GroceryAgentEngine`, `SwiggyAgentTools`) is active and verified with Swiggy Instamart MCP. Invariant test suite (51 passed 100% green), ESLint (0 errors/warnings), and Next.js 16 production build pass cleanly. See [ARCHITECTURE.md](ARCHITECTURE.md) for verified technical specifications.
 
 The agent does not force rigid commands or multi-step clarification forms. It interprets requests with smart defaults, deduces complete multi-item cooking kits, verifies live dark-store inventory, shows the complete itemized basket with delivery fees, and requests explicit confirmation before checkout.
 
@@ -86,6 +86,44 @@ Grocer:
 Checkout is always explicitly confirmed and backend-enforced.
 
 ## Architecture
+
+```mermaid
+flowchart TD
+    subgraph Ingress ["1. Ingress & Fast-ACK"]
+        WA["WhatsApp Customer"] -->|"Meta Cloud Webhook"| Vercel["Vercel Edge Proxy"]
+        Vercel -->|"Fast-ACK (<200ms Blue Ticks)"| WA
+        Vercel -->|"Forward"| FastAPI["FastAPI Engine (/api/whatsapp/webhook)"]
+    end
+
+    subgraph Concurrency ["2. Turn Concurrency & Address Guard"]
+        FastAPI -->|"Acquire per-customer lock"| Lock["asyncio.Lock(customer_phone)"]
+        Lock -->|"Check address status"| AddrGuard{"Multiple Addresses\n& Unconfirmed?"}
+        AddrGuard -->|"Yes"| AddrPrompt["Prompt Upfront Selection"]
+        AddrGuard -->|"No / Confirmed"| Engine["GroceryAgentEngine"]
+    end
+
+    subgraph DualCore ["3. Dual-Core Processing"]
+        Engine -->|"User Intent & Recipes"| Gemini["Gemini 3.5 Flash-Lite\n(ReAct Loop)"]
+        Gemini -->|"Proposed SKUs"| Guards["Deterministic Python Guards"]
+        Guards -->|"Delta Cart Merge"| Merge["Preserve Basket Items"]
+        Guards -->|"Hesitation Hold"| Hold["Freeze on 'wait'"]
+        Guards -->|"Checkout Gate"| Gate{"User Confirmed\nOrder?"}
+        Gate -->|"No"| Block["Block Checkout Tool"]
+        Gate -->|"Yes"| Auth["Authorize Checkout"]
+    end
+
+    subgraph Commerce ["4. Commerce Gateway & Store API"]
+        Auth -->|"HTTP/2 Connection Pool"| Port["CommercePort / SwiggyMCPAdapter"]
+        Port -->|"tools/call"| MCP["Swiggy Instamart Live MCP Gateway\n(https://mcp.swiggy.com/im)"]
+        MCP -->|"Verified Line Items & Fees"| Bill["Exact Provider Billing (₹XX)"]
+        MCP -->|"Dynamic UPI QR Link"| PayLink["Official Swiggy UPI Bridge"]
+        PayLink -->|"Background Poller (every 5s)"| Poller["_poll_payment_status Daemon"]
+    end
+
+    Bill --> Engine
+    PayLink -->|"Deliver via WhatsApp"| WA
+    Poller -->|"Order Confirmed Alert"| WA
+```
 
 ```text
 Meta WhatsApp Cloud API

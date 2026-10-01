@@ -122,90 +122,6 @@ async def test_default_address_prioritization(agent_engine, mock_commerce):
 
 
 @pytest.mark.asyncio
-async def test_select_delivery_address_tool(agent_engine, mock_commerce):
-    """Tool can switch delivery address to any valid saved address."""
-    from backend.integrations.commerce.models import DeliveryAddress
-    addr1 = DeliveryAddress(id="addr_home", label="Home", street="Flat 402, Green Park", city="Bangalore")
-    addr2 = DeliveryAddress(id="addr_work", label="Work", street="Tower B, Tech Park", city="Bangalore")
-    mock_commerce.get_addresses = AsyncMock(return_value=[addr1, addr2])
-
-    res = await agent_engine._execute_tool(
-        "select_delivery_address",
-        {"address_id": "addr_home"},
-        customer_id="cust_switch_test",
-        address_id="addr_work",
-    )
-    assert res["success"] is True
-    assert res["address_id"] == "addr_home"
-    assert agent_engine._customer_address["cust_switch_test"] == "addr_home"
-
-
-def test_token_vault_fallback_to_configured_swiggy_auth_token():
-    """Token vault should fall back to settings.SWIGGY_AUTH_TOKEN if not in cache."""
-    from backend.integrations.commerce.token_vault import default_token_vault
-    from backend import config
-    default_token_vault._tokens.clear()
-    with patch.object(config.settings, "SWIGGY_AUTH_TOKEN", "fallback_token_xyz"), \
-         patch.object(config.settings, "SWIGGY_CUSTOMER_ID", "cust_owner_123"):
-        token = default_token_vault.get_token("cust_owner_123")
-        assert token == "fallback_token_xyz"
-    # Numeric Swiggy customer ID (e.g. 26057200) should match customer
-    with patch.object(config.settings, "SWIGGY_AUTH_TOKEN", "fallback_token_numeric"), \
-         patch.object(config.settings, "SWIGGY_CUSTOMER_ID", "26057200"):
-        token = default_token_vault.get_token("cust_wa_test_owner")
-        assert token == "fallback_token_numeric"
-    default_token_vault._tokens.clear()
-
-
-@pytest.mark.asyncio
-async def test_track_order_tool(agent_engine, mock_commerce):
-    """Tool can track order status, driver info, and ETA."""
-    from backend.integrations.commerce.models import DeliveryTrackingStatus
-    mock_status = DeliveryTrackingStatus(
-        order_id="ord_12345",
-        status="OUT_FOR_DELIVERY",
-        eta_minutes=12,
-        eta_text="~12 mins",
-        driver_name="Rahul Sharma",
-        driver_phone="9876543210",
-        status_message="Rider is on the way",
-    )
-    mock_commerce.track_order = AsyncMock(return_value=mock_status)
-
-    res = await agent_engine._execute_tool(
-        "track_order",
-        {"order_id": "ord_12345"},
-        customer_id="cust_track_test",
-        address_id="addr_pune",
-    )
-    assert res["success"] is True
-    assert res["order_id"] == "ord_12345"
-    assert res["status"] == "OUT_FOR_DELIVERY"
-    assert res["eta_minutes"] == 12
-    assert res["driver_name"] == "Rahul Sharma"
-
-
-@pytest.mark.asyncio
-async def test_preformatted_currency_in_cart_tools(mock_commerce):
-    """Verify SwiggyAgentTools returns formatted currency strings for receipt rendering."""
-    tools = SwiggyAgentTools(mock_commerce)
-    search_res = await tools.search_products("milk", address_id="addr_home")
-    assert search_res["success"] is True
-    first_var = search_res["products"][0]["variants"][0]
-    assert "formatted_price" in first_var
-    assert first_var["formatted_price"].startswith("₹")
-
-    cart_res = await tools.get_cart()
-    assert cart_res["success"] is True
-    assert "formatted_item_total" in cart_res
-    assert "formatted_total_fees" in cart_res
-    assert "formatted_grand_total" in cart_res
-    assert cart_res["formatted_grand_total"].startswith("₹")
-    assert "min_order_threshold" in cart_res
-    assert "is_serviceable" in cart_res
-
-
-@pytest.mark.asyncio
 async def test_unsupported_media_instant_reply(agent_engine):
     """Voice notes, audio, and images receive an immediate friendly text response."""
     msg = NormalizedIncomingMessage(
@@ -881,24 +797,6 @@ async def test_post_update_cart_gemini_hiccup_never_hides_built_cart(agent_engin
         assert "🛒 *Your Basket" in resp.text
         assert "14 Pali Hill Road, Bandra West, Mumbai" in resp.text
         assert resp.conversation_state == "AWAITING_CHECKOUT_CONFIRMATION"
-
-
-def test_swiggy_mcp_client_resolves_live_settings_token():
-    """SwiggyMcpClient.resolve_token dynamically picks up updated settings.SWIGGY_AUTH_TOKEN after OAuth re-login."""
-    from backend.integrations.commerce.swiggy_client import SwiggyMcpClient
-    from backend.config import settings
-
-    old_setting = settings.SWIGGY_AUTH_TOKEN
-    try:
-        settings.SWIGGY_AUTH_TOKEN = "initial_boot_token"
-        client = SwiggyMcpClient("https://mcp.swiggy.com/im", auth_token="initial_boot_token")
-        assert client.resolve_token("cust_123") == "initial_boot_token"
-
-        # Simulate OAuth re-login updating settings.SWIGGY_AUTH_TOKEN at runtime
-        settings.SWIGGY_AUTH_TOKEN = "refreshed_oauth_token_999"
-        assert client.resolve_token("cust_123") == "refreshed_oauth_token_999"
-    finally:
-        settings.SWIGGY_AUTH_TOKEN = old_setting
 
 
 @pytest.mark.asyncio

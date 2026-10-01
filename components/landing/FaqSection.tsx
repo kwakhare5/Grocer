@@ -6,19 +6,19 @@ import { FAQ_ITEMS } from "./data";
 
 export function FaqSection() {
   return (
-    <section id="faq" className="py-16 sm:py-20 bg-zinc-50/70 border-t border-zinc-200 scroll-mt-16">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section id="faq" className="py-16 sm:py-20 bg-[#FAFAFA] border-b border-zinc-200/80 scroll-mt-16">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
         <div className="text-center max-w-2xl mx-auto mb-10">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold mb-3">
             <HelpCircle className="w-3.5 h-3.5 text-emerald-600" />
             <span>Frequently Asked Questions</span>
           </div>
-          <h2 className="text-3xl sm:text-4xl font-editorial font-bold text-zinc-950">
+          <h2 className="text-2xl sm:text-3xl font-editorial font-bold text-zinc-950 tracking-tight">
             Common questions about Grocer
           </h2>
-          <p className="mt-3 text-base sm:text-lg text-zinc-600 leading-relaxed font-normal">
-            How ordering, store inventory, billing, and Swiggy connection work.
+          <p className="mt-2.5 text-sm sm:text-base text-zinc-600 leading-relaxed font-normal">
+            How ordering, store inventory, billing, and store connections work.
           </p>
         </div>
 

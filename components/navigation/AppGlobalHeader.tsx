@@ -1,26 +1,22 @@
 "use client";
 
 import React, { useState } from "react";
-import { ShoppingBag, Menu, X } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { GrocerLogo } from "../ui/GrocerLogo";
 
-export interface AppGlobalHeaderProps {
-  onOpenConnect?: () => void;
-  isConnected?: boolean;
-}
-
-export function AppGlobalHeader({ onOpenConnect, isConnected }: AppGlobalHeaderProps = {}) {
+export function AppGlobalHeader() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const navLinks = [
-    { label: "Conversation", href: "#conversation" },
+    { label: "Video", href: "#demo" },
+    { label: "Live Chat", href: "#conversation" },
     { label: "Architecture", href: "#architecture" },
     { label: "FAQ", href: "#faq" },
   ];
 
   return (
     <header className="sticky top-0 z-40 w-full bg-white/95 backdrop-blur-md border-b border-zinc-200">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
         {/* Brand identity */}
         <a href="#" className="flex items-center gap-3 group">
           <GrocerLogo size="sm" iconOnly />
@@ -29,7 +25,7 @@ export function AppGlobalHeader({ onOpenConnect, isConnected }: AppGlobalHeaderP
               Grocer
             </span>
             <span className="text-xs text-zinc-500 font-sans">
-              WhatsApp grocery replenishment
+              Conversational grocery replenishment
             </span>
           </div>
         </a>
@@ -69,17 +65,6 @@ export function AppGlobalHeader({ onOpenConnect, isConnected }: AppGlobalHeaderP
             </svg>
             <span className="hidden sm:inline">GitHub</span>
           </a>
-
-          {onOpenConnect && (
-            <button
-              type="button"
-              onClick={onOpenConnect}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#fc8019] hover:bg-[#e07014] text-white text-xs sm:text-sm font-semibold transition shadow-xs active:scale-[0.98] cursor-pointer"
-            >
-              <ShoppingBag className="w-3.5 h-3.5" />
-              <span>{isConnected ? "Linked" : "Connect Instamart"}</span>
-            </button>
-          )}
 
           {/* Mobile hamburger button */}
           <button

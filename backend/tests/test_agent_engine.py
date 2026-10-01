@@ -188,7 +188,7 @@ async def test_fm_checkout_03_payment_pending_blocks_premature_delivery_claim_an
     }
     with patch.object(agent_engine, "_call_gemini", side_effect=gemini_turns), patch.object(
         agent_engine.tools, "checkout", AsyncMock(return_value=checkout_payload)
-    ), patch("asyncio.create_task"):
+    ), patch.object(agent_engine, "_poll_payment_status", new_callable=AsyncMock):
         resp = await agent_engine.handle_message(
             NormalizedIncomingMessage(
                 message_id="m_qr",

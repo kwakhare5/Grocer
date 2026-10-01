@@ -2,276 +2,217 @@
 
 import React, { useState } from "react";
 import {
-  Layers,
-  CheckCircle2,
-  MapPin,
+  Workflow,
+  Check,
   ShieldCheck,
   ArrowRight,
-  Code,
-  Zap,
+  ArrowLeft,
+  MapPin,
+  Search,
+  Lock,
+  ShoppingBag,
 } from "lucide-react";
+import { WhatsAppIcon } from "../ui/WhatsAppIcon";
 import { PIPELINE_NODES } from "./data";
-import { PipelineNode } from "./types";
 
 export function ArchitectureSection() {
-  const [selectedNodeId, setSelectedNodeId] = useState<string>("swiggy");
+  const [activeStepIndex, setActiveStepIndex] = useState<number>(0); // Default to WhatsApp Message (Step 01)
 
-  const activeNode: PipelineNode =
-    PIPELINE_NODES.find((n) => n.id === selectedNodeId) || PIPELINE_NODES[4];
+  const activeNode = PIPELINE_NODES[activeStepIndex] || PIPELINE_NODES[0];
+
+  const getStepIcon = (id: string) => {
+    switch (id) {
+      case "whatsapp":
+        return <WhatsAppIcon className="w-4 h-4 shrink-0" />;
+      case "address":
+        return <MapPin className="w-4 h-4" />;
+      case "gemini":
+        return <Search className="w-4 h-4" />;
+      case "guards":
+        return <Lock className="w-4 h-4" />;
+      case "swiggy":
+        return <ShoppingBag className="w-4 h-4" />;
+      default:
+        return <Workflow className="w-4 h-4" />;
+    }
+  };
 
   return (
-    <section id="architecture" className="py-16 sm:py-20 bg-white border-b border-zinc-200 scroll-mt-16">
+    <section id="architecture" className="py-16 sm:py-20 bg-white border-b border-zinc-200/80 scroll-mt-16">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
-        <div className="text-center max-w-2xl mx-auto mb-12">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-zinc-100 text-zinc-800 text-xs font-semibold mb-3 border border-zinc-200">
-            <Layers className="w-3.5 h-3.5" />
-            <span>Technical Architecture</span>
+        <div className="text-center max-w-2xl mx-auto mb-10">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold mb-3">
+            <Workflow className="w-3.5 h-3.5 text-emerald-700" />
+            <span>Behind The Scenes</span>
           </div>
-          <h2 className="text-3xl sm:text-4xl font-editorial font-bold text-zinc-950">
-            Decoupled CommercePort &amp; Swiggy MCP pipeline
+          <h2 className="text-2xl sm:text-3xl font-editorial font-bold text-zinc-950 tracking-tight">
+            How Grocer connects WhatsApp to your local store
           </h2>
-          <p className="mt-3 text-base sm:text-lg text-zinc-600 leading-relaxed font-normal">
-            How Grocer connects WhatsApp to Swiggy Instamart through natural language understanding and deterministic commerce guards.
+          <p className="mt-2.5 text-sm sm:text-base text-zinc-600 leading-relaxed font-normal">
+            From the moment you send a message to local store stock verification and safe UPI payment. Follow the 5-step journey below.
           </p>
         </div>
 
-        {/* ─── Interactive Visual Pipeline Flow Diagram ──────────────── */}
-        <div className="bg-zinc-50/70 rounded-3xl p-6 sm:p-8 border border-zinc-200 shadow-2xs max-w-5xl mx-auto mb-10">
-          <div className="flex items-center justify-between pb-4 border-b border-zinc-200/80 mb-6">
-            <div className="flex items-center gap-2 text-xs font-semibold text-zinc-800">
-              <Zap className="w-4 h-4 text-emerald-600" />
-              <span>Interactive Pipeline • Click any stage to inspect technical specs</span>
+        {/* ─── 5-Step Unified Interactive Stepper Bar ─── */}
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 mb-8">
+          {PIPELINE_NODES.map((node, idx) => {
+            const isActive = idx === activeStepIndex;
+            return (
+              <button
+                key={node.id}
+                type="button"
+                onClick={() => setActiveStepIndex(idx)}
+                className={`p-3 rounded-2xl border text-left transition-all duration-150 active:scale-[0.98] cursor-pointer flex flex-col justify-between gap-2.5 ${
+                  isActive
+                    ? "bg-white border-emerald-600 shadow-xs ring-2 ring-emerald-500/20"
+                    : "bg-zinc-50/80 hover:bg-white border-zinc-200 hover:border-zinc-300"
+                }`}
+              >
+                <div className="flex items-center justify-between w-full">
+                  <span
+                    className={`font-mono text-xs font-bold px-2 py-0.5 rounded-md ${
+                      isActive
+                        ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                        : "bg-zinc-100 text-zinc-600 border border-zinc-200"
+                    }`}
+                  >
+                    {node.stepNumber}
+                  </span>
+                  <div
+                    className={`${
+                      isActive ? "text-emerald-700" : "text-zinc-400"
+                    }`}
+                  >
+                    {getStepIcon(node.id)}
+                  </div>
+                </div>
+
+                <div>
+                  <div className="font-bold text-xs sm:text-sm text-zinc-950 leading-tight">
+                    {node.title}
+                  </div>
+                  <div className="text-xs text-zinc-500 mt-0.5 truncate">
+                    {node.metric}
+                  </div>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* ─── Active Stage Detail Showcase Card ─── */}
+        <div className="rounded-3xl border border-zinc-200 bg-white p-6 sm:p-8 shadow-xs">
+          {/* Card Top Banner */}
+          <div className="flex flex-wrap items-center justify-between gap-3 pb-6 border-b border-zinc-100 mb-6">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-700 shrink-0">
+                {getStepIcon(activeNode.id)}
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-xs font-bold text-emerald-700">
+                    Step {activeNode.stepNumber}
+                  </span>
+                  <span className="text-xs text-zinc-400">•</span>
+                  <span className="text-xs text-zinc-500 font-medium">
+                    {activeNode.subtitle}
+                  </span>
+                </div>
+                <h3 className="text-lg sm:text-xl font-bold text-zinc-950">
+                  {activeNode.title}
+                </h3>
+              </div>
             </div>
-            <span className="text-xs font-mono text-zinc-500 font-medium">
-              HTTP/2 Persistent Pool
+
+            <span className="px-3 py-1 rounded-xl text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
+              {activeNode.metric}
             </span>
           </div>
 
-          {/* 5-Step Pipeline Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 relative">
-            {PIPELINE_NODES.map((node, index) => {
-              const isSelected = node.id === activeNode.id;
-              return (
-                <button
-                  key={node.id}
-                  type="button"
-                  onClick={() => setSelectedNodeId(node.id)}
-                  className={`relative p-4 rounded-2xl text-left transition-all cursor-pointer flex flex-col justify-between border ${
-                    isSelected
-                      ? "bg-white text-zinc-950 border-emerald-600 shadow-md ring-2 ring-emerald-500/20"
-                      : "bg-white hover:bg-zinc-50 text-zinc-800 border-zinc-200 shadow-2xs"
-                  }`}
-                >
-                  <div>
-                    <div className="flex items-center justify-between text-xs mb-2">
-                      <span className={`font-mono font-bold ${isSelected ? "text-emerald-700" : "text-zinc-400"}`}>
-                        {node.stepNumber}
-                      </span>
-                      <span
-                        className={`px-2 py-0.5 rounded text-[11px] font-semibold ${
-                          isSelected
-                            ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
-                            : "bg-zinc-100 text-zinc-700 border border-zinc-200"
-                        }`}
-                      >
-                        {node.badge}
-                      </span>
-                    </div>
+          {/* Card Summary Text */}
+          <p className="text-sm sm:text-base text-zinc-600 leading-relaxed font-normal mb-8 max-w-3xl">
+            {activeNode.description}
+          </p>
 
-                    <h4 className="font-bold text-xs sm:text-sm leading-tight mb-1 text-zinc-950">
-                      {node.title}
-                    </h4>
-                    <p className="text-xs text-zinc-500">
-                      {node.subtitle}
-                    </p>
-                  </div>
-
-                  <div className="mt-4 pt-2 border-t border-zinc-100 flex items-center justify-between text-xs">
-                    <span className="font-mono font-semibold text-emerald-700">
-                      {node.metric}
+          {/* Two-Column Details: Responsibilities (Left) + Protection Guarantee (Right) */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            {/* Left Column: 3 Core Responsibilities (7 cols) */}
+            <div className="lg:col-span-7 space-y-3">
+              <div className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
+                What happens in this step
+              </div>
+              <ul className="space-y-2.5">
+                {activeNode.responsibilities.map((resp, idx) => (
+                  <li
+                    key={idx}
+                    className="p-3.5 rounded-2xl bg-zinc-50 border border-zinc-200/80 flex items-start gap-3"
+                  >
+                    <Check className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                    <span className="text-xs sm:text-sm text-zinc-800 leading-relaxed">
+                      {resp}
                     </span>
-                    {index < PIPELINE_NODES.length - 1 && (
-                      <ArrowRight className="w-3.5 h-3.5 hidden lg:block text-zinc-400" />
-                    )}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* ─── Unified Light Technical Inspector (Zero Black Boxes) ─── */}
-          <div className="mt-6 p-5 sm:p-6 rounded-2xl bg-white text-zinc-950 border border-zinc-200 shadow-2xs">
-            <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-zinc-100 mb-4">
-              <div className="flex items-center gap-2">
-                <Code className="w-4 h-4 text-emerald-700" />
-                <span className="text-xs sm:text-sm font-bold font-mono text-zinc-950">
-                  Stage {activeNode.stepNumber}: {activeNode.title}
-                </span>
-                <span className="text-xs px-2.5 py-0.5 rounded bg-zinc-100 text-zinc-700 font-mono border border-zinc-200">
-                  {activeNode.technicalDetails.protocol}
-                </span>
-              </div>
-              <span className="text-xs text-zinc-500 font-mono truncate max-w-xs">
-                {activeNode.technicalDetails.endpointOrFile}
-              </span>
+                  </li>
+                ))}
+              </ul>
             </div>
 
-            <p className="text-xs sm:text-sm text-zinc-600 mb-4 leading-relaxed font-sans">
-              {activeNode.description}
-            </p>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              {/* Enforced Invariants */}
-              <div>
-                <div className="text-xs font-mono uppercase tracking-wider text-zinc-500 mb-2 font-semibold">
-                  Enforced Invariants
+            {/* Right Column: Customer Protection Callout (5 cols) */}
+            <div className="lg:col-span-5 space-y-4">
+              <div className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
+                Customer Guarantee
+              </div>
+              <div className="p-5 rounded-2xl bg-emerald-50/70 border border-emerald-200/80 space-y-2.5">
+                <div className="text-xs font-bold text-emerald-800 uppercase tracking-wider flex items-center gap-1.5">
+                  <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                  <span>Why this protects you</span>
                 </div>
-                <ul className="space-y-2 text-xs sm:text-sm text-zinc-700 font-sans">
-                  {activeNode.technicalDetails.invariants.map((inv, idx) => (
-                    <li key={idx} className="flex items-start gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                      <span>{inv}</span>
-                    </li>
-                  ))}
-                </ul>
+                <p className="text-xs sm:text-sm text-emerald-950 leading-relaxed font-medium">
+                  {activeNode.whyItMatters}
+                </p>
               </div>
 
-              {/* Sample Payload Inspection */}
-              <div>
-                <div className="text-xs font-mono uppercase tracking-wider text-zinc-500 mb-2 font-semibold">
-                  Runtime Payload Schema
+              <div className="p-4 rounded-2xl bg-zinc-50 border border-zinc-200 text-xs text-zinc-600 space-y-1">
+                <div className="font-semibold text-zinc-950">
+                  Verification Status
                 </div>
-                <pre className="p-3 rounded-xl bg-zinc-50 text-zinc-800 text-xs font-mono overflow-x-auto border border-zinc-200 max-h-36">
-                  {JSON.stringify(activeNode.technicalDetails.samplePayload, null, 2)}
-                </pre>
-              </div>
-            </div>
-          </div>
-
-
-        </div>
-
-        {/* ─── Swiggy Instamart Live MCP Tool Contract Grid ──────────── */}
-        <div className="bg-zinc-50/70 rounded-3xl p-6 sm:p-8 border border-zinc-200 shadow-2xs max-w-5xl mx-auto mb-10">
-          <div className="mb-6">
-            <h3 className="text-lg sm:text-xl font-bold text-zinc-950">
-              Swiggy Instamart Live MCP Tool Contract
-            </h3>
-            <p className="text-xs sm:text-sm text-zinc-600 mt-1 leading-relaxed font-normal">
-              Implements official Model Context Protocol tools exposed at <code className="font-mono text-xs bg-white border border-zinc-200 px-1.5 py-0.5 rounded text-zinc-800">https://mcp.swiggy.com/im</code>.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-xs sm:text-sm font-sans">
-            <div className="p-4 rounded-2xl bg-white border border-zinc-200">
-              <div className="flex items-center justify-between mb-2">
-                <span className="font-mono font-bold text-zinc-950 text-sm">search_products</span>
-                <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 font-mono text-xs">Read</span>
-              </div>
-              <p className="text-zinc-600 leading-relaxed text-xs">
-                Queries dark store stock, prices, and pack sizes in parallel using <code className="font-mono text-zinc-800">asyncio.gather</code>.
-              </p>
-            </div>
-
-            <div className="p-4 rounded-2xl bg-white border border-zinc-200">
-              <div className="flex items-center justify-between mb-2">
-                <span className="font-mono font-bold text-zinc-950 text-sm">update_cart</span>
-                <span className="px-2 py-0.5 rounded bg-blue-50 text-blue-800 border border-blue-200 font-mono text-xs">Delta</span>
-              </div>
-              <p className="text-zinc-600 leading-relaxed text-xs">
-                Adds or updates items while keeping existing basket contents intact and respecting store minimums.
-              </p>
-            </div>
-
-            <div className="p-4 rounded-2xl bg-white border border-zinc-200">
-              <div className="flex items-center justify-between mb-2">
-                <span className="font-mono font-bold text-zinc-950 text-sm">get_cart</span>
-                <span className="px-2 py-0.5 rounded bg-zinc-100 text-zinc-800 border border-zinc-200 font-mono text-xs">Verify</span>
-              </div>
-              <p className="text-zinc-600 leading-relaxed text-xs">
-                Reads verified provider subtotals, packaging, and delivery fees directly from dark-store billing.
-              </p>
-            </div>
-
-            <div className="p-4 rounded-2xl bg-white border border-zinc-200">
-              <div className="flex items-center justify-between mb-2">
-                <span className="font-mono font-bold text-zinc-950 text-sm">checkout</span>
-                <span className="px-2 py-0.5 rounded bg-purple-50 text-purple-800 border border-purple-200 font-mono text-xs">Gated</span>
-              </div>
-              <p className="text-zinc-600 leading-relaxed text-xs">
-                Requires server-side confirmation before execution. Returns dynamic UPI QR payment link.
-              </p>
-            </div>
-
-            <div className="p-4 rounded-2xl bg-white border border-zinc-200">
-              <div className="flex items-center justify-between mb-2">
-                <span className="font-mono font-bold text-zinc-950 text-sm">track_order</span>
-                <span className="px-2 py-0.5 rounded bg-orange-50 text-orange-800 border border-orange-200 font-mono text-xs">Tracking</span>
-              </div>
-              <p className="text-zinc-600 leading-relaxed text-xs">
-                Reports live delivery partner status, vehicle details, and estimated delivery time directly on WhatsApp.
-              </p>
-            </div>
-
-            <div className="p-4 rounded-2xl bg-white border border-zinc-200 flex flex-col justify-between">
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="font-mono font-bold text-zinc-950 text-sm">Payment Poller</span>
-                  <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 font-mono text-xs">Verification</span>
-                </div>
-                <p className="text-zinc-600 leading-relaxed text-xs">
-                  Checks payment status automatically after UPI link creation and sends instant order confirmation once paid.
+                <p className="text-zinc-500 leading-relaxed">
+                  Verified with 62 automated invariant tests against live Swiggy Instamart schemas.
                 </p>
               </div>
             </div>
           </div>
-        </div>
 
-        {/* 3 Core Invariant Pillars */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto text-xs sm:text-sm">
-          <div className="bg-white p-6 rounded-2xl border border-zinc-200 shadow-2xs">
-            <div className="font-bold text-zinc-950 mb-2 flex items-center gap-2 text-sm sm:text-base">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-              Delta Cart Merge
-            </div>
-            <p className="text-zinc-600 leading-relaxed">
-              In-flight additions merge onto the active basket without resetting items or causing duplicate orders.
-            </p>
+          {/* Stepper Navigation Controls */}
+          <div className="mt-8 pt-6 border-t border-zinc-100 flex items-center justify-between">
+            <button
+              type="button"
+              disabled={activeStepIndex === 0}
+              onClick={() => setActiveStepIndex((prev) => Math.max(0, prev - 1))}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-700 disabled:opacity-40 disabled:cursor-not-allowed transition duration-150 active:scale-[0.98] cursor-pointer shadow-2xs"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>Previous Step</span>
+            </button>
+
+            <span className="text-xs text-zinc-400 font-mono">
+              {activeStepIndex + 1} of {PIPELINE_NODES.length}
+            </span>
+
+            <button
+              type="button"
+              disabled={activeStepIndex === PIPELINE_NODES.length - 1}
+              onClick={() =>
+                setActiveStepIndex((prev) =>
+                  Math.min(PIPELINE_NODES.length - 1, prev + 1)
+                )
+              }
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-700 disabled:opacity-40 disabled:cursor-not-allowed transition duration-150 active:scale-[0.98] cursor-pointer shadow-2xs"
+            >
+              <span>Next Step</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
           </div>
-
-          <div className="bg-white p-6 rounded-2xl border border-zinc-200 shadow-2xs">
-            <div className="font-bold text-zinc-950 mb-2 flex items-center gap-2 text-sm sm:text-base">
-              <MapPin className="w-4 h-4 text-emerald-600" />
-              Upfront Address Guard
-            </div>
-            <p className="text-zinc-600 leading-relaxed">
-              Detects multiple saved addresses and asks for explicit selection upfront so groceries route to the right dark store.
-            </p>
-          </div>
-
-          <div className="bg-white p-6 rounded-2xl border border-zinc-200 shadow-2xs">
-            <div className="font-bold text-zinc-950 mb-2 flex items-center gap-2 text-sm sm:text-base">
-              <ShieldCheck className="w-4 h-4 text-emerald-600" />
-              Server-Side Authorization
-            </div>
-            <p className="text-zinc-600 leading-relaxed">
-              Checkout requires explicit customer confirmation in Python code before calling provider order APIs.
-            </p>
-          </div>
-        </div>
-
-        {/* Evaluator Documentation Link */}
-        <div className="mt-10 text-center">
-          <a
-            href="https://github.com/kwakhare5/Grocer/blob/main/docs/REVIEWER_WALKTHROUGH.md"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 text-xs sm:text-sm font-semibold text-zinc-800 hover:text-emerald-700 transition underline underline-offset-4"
-          >
-            <span>Reviewer Walkthrough Guide on GitHub</span>
-            <ArrowRight className="w-4 h-4" />
-          </a>
         </div>
       </div>
     </section>

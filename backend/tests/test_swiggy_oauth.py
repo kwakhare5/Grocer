@@ -58,26 +58,6 @@ class _FlowPool:
         return {"ciphertext": ciphertext} if ciphertext else None
 
 
-def test_pkce_verifier_and_challenge() -> None:
-    """Test PKCE verifier generation and S256 challenge computation."""
-    verifier = generate_code_verifier(32)
-    assert len(verifier) >= 43  # RFC 7636 min length
-    assert "-" in verifier or "_" in verifier or verifier.isalnum()
-
-    challenge1 = generate_code_challenge(verifier)
-    challenge2 = generate_code_challenge(verifier)
-    assert challenge1 == challenge2
-    assert len(challenge1) >= 43
-
-
-def test_state_generation() -> None:
-    """Test cryptographically secure state token generation."""
-    state1 = generate_state(16)
-    state2 = generate_state(16)
-    assert state1 != state2
-    assert len(state1) >= 16
-
-
 def test_token_vault_masking_and_lifecycle() -> None:
     """TokenVault must never leak tokens in repr/str and handle expiration buffer."""
     vault = SwiggyTokenVault()

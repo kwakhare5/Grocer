@@ -194,7 +194,9 @@ No operations dashboard should be reintroduced into GROCER.
 - No silent hard-constraint violation.
 - Current explicit request always overrides stored memory.
 
-## 13. QUALITY GATE
+## 13. QUALITY GATE, ARCHITECTURE GRAPH & TESTING RULES
+
+- **Graphify First & Auto-Install:** If `graphify-out/graph.json` or `GRAPH_REPORT.md` is missing, automatically run `npx graphify .` to generate the knowledge graph. Always inspect `GRAPH_REPORT.md` / `graphify-out/graph.json` before broad codebase exploration.
 
 Run relevant checks after changes:
 
@@ -206,6 +208,11 @@ pytest backend/tests
 
 Never claim green verification without actually running the relevant command.
 
+### Testing Rules
+- **Never write unit tests after you write code.** Unit tests written post-hoc suffer from confirmation bias and merely echo implementation logic.
+- **Highly prefer E2E tests as the sole testing mechanism.** Use them to verify complex features work across the entire lifecycle. At the end of E2E tests, produce a verifiable and repeatable artifact (`artifacts/e2e_verification_report.json` and `docs/E2E_VERIFICATION_REPORT.md`).
+- **If you must test a system in isolation, first write down all the ways it could fail, then write the code.** Enumerate adversarial failure modes upfront (boundaries, corrupt payloads, network drops, session amnesia, financial leaks), assert those failure modes, and only then implement the code.
+
 ## 14. DECISION RULE FOR NEW IDEAS
 
 Before implementing a proposed feature, ask:
@@ -216,11 +223,12 @@ If the answer is no, it does not belong in GROCER v2 unless the architectural co
 
 ## 15. SESSION RESUME
 
-**Last completed:** (1) Purged all fake and unverified landing page copy, including the mock video player container (`#video-walkthrough`), fake timeline chapter scrubbers, and redundant metric pills (`Zero unapproved charges`, `Strict budget limits`, `10–15 min delivery`, `Pluggable CommercePort`) from `HeroSection.tsx`; (2) Cleaned `AppGlobalHeader.tsx` to 3 clean navigation anchors (`Conversation`, `Architecture`, `FAQ`); (3) Overhauled `WhatsAppSimulator.tsx` and `data.ts` to display clean human state labels (`Select Address`, `Review Basket`, `Basket On Hold`, `Awaiting Payment`) and plain-English tool traces with zero Python code leaks; (4) Removed static CI test scoreboards and updated "delivery boy" to "delivery partner" in `ArchitectureSection.tsx`; (5) Streamlined `FaqSection.tsx` by removing the 4 duplicate guardrail cards; (6) Verified quality gate: 0 ESLint errors/warnings, Next.js 16 Turbopack production build clean in 5.4s, 62/62 backend invariant tests passing in 16.42s, and knowledge graph synchronized (994 nodes, 1,876 edges, 51 communities).
+**Last completed:** (1) Removed the 5px solid dark phone bezel from `WhatsAppSimulator.tsx`, replacing it with a borderless floating app chassis (`rounded-3xl shadow-xl shadow-zinc-950/10 ring-1 ring-zinc-950/5`); (2) Purged all emoji slop (`📍`, `👉`, `🛒`, `🎉`, `🔒`) and academic AI jargon ("Hyperlocal Disambiguation", "Delta Cart Merge Invariant", "Dual-Core Orchestration") across `data.ts` and `ArchitectureSection.tsx`, standardizing to simple, confident, human English; (3) Redesigned the Architecture section into a unified interactive 5-stage stepper (01 Message -> 02 Address -> 03 AI Search -> 04 Safety Rules -> 05 Store Order), completely eliminating the duplicate topology diagram and duplicate accordion cards; (4) Harmonized section dividers and alternating background rhythm (`#FAFAFA` -> `#FFFFFF`) with single `border-b border-zinc-200/80` to remove double borders; (5) Added Emil Kowalski tactile `active:scale-[0.98]` feedback to buttons; (6) Verified quality gate: 0 ESLint errors/warnings, Next.js 16 Turbopack production build clean (2.8s), 62/62 invariant tests passing in 18.81s, and AST knowledge graph synchronized (997 nodes, 1,878 edges, 60 communities).
 
 **Next implementation gate:** 2-minute video demo recording following the reviewer walkthrough script and official submission to `builders@swiggy.in`.
 
-**Current status:** 0 unverified copy/filler elements, 0 ESLint errors/warnings, Next.js 16 production build clean (5.4s), 62/62 invariant tests passing green (100%), knowledge graph synchronized (994 nodes, 1,876 edges).
+**Current status:** 0 unreadable sub-12px text tokens, 0 AI emoji slop, 0 ESLint errors/warnings, Next.js 16 production build clean (2.8s), 62/62 invariant tests passing green (100%), knowledge graph synchronized (997 nodes, 1,878 edges, 60 communities).
+
 
 
 

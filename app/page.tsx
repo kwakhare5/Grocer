@@ -25,11 +25,11 @@ export default function Home() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#FAFAFA] text-zinc-900 flex flex-col font-sans selection:bg-emerald-600 selection:text-white">
+    <div className="relative min-h-screen bg-matte-grain text-zinc-900 flex flex-col font-sans selection:bg-emerald-600 selection:text-white">
       {/* Global Navigation Header (Clean 4-Link Structure) */}
       <AppGlobalHeader />
 
-      <main className="flex-1">
+      <main className="flex-1 relative z-10">
         {/* 1. Hero */}
         <HeroSection
           onOpenConnect={() => setIsConnectModalOpen(true)}
@@ -57,7 +57,9 @@ export default function Home() {
       />
 
       {/* Unified 4-Column Technical Footer */}
-      <Footer />
+      <div className="relative z-10">
+        <Footer />
+      </div>
     </div>
   );
 }

@@ -15,19 +15,14 @@ export function AppGlobalHeader() {
   ];
 
   return (
-    <header className="sticky top-0 z-40 w-full bg-white/95 backdrop-blur-md border-b border-zinc-200">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+    <header className="sticky top-0 z-40 w-full bg-transparent backdrop-blur-sm border-b border-zinc-200/50">
+      <div className="max-w-6xl mx-auto px-3.5 sm:px-5 h-14 flex items-center justify-between gap-4">
         {/* Brand identity */}
-        <a href="#" className="flex items-center gap-3 group">
+        <a href="#" className="flex items-center gap-2.5 group">
           <GrocerLogo size="sm" iconOnly />
-          <div className="flex flex-col">
-            <span className="font-bold text-zinc-950 tracking-tight text-base font-sans leading-tight group-hover:text-emerald-700 transition-colors">
-              Grocer
-            </span>
-            <span className="text-xs text-zinc-500 font-sans">
-              Conversational grocery replenishment
-            </span>
-          </div>
+          <span className="font-bold text-zinc-950 tracking-tight text-base font-sans group-hover:text-emerald-700 transition-colors">
+            Grocer
+          </span>
         </a>
 
         {/* Clean 4-Link Navigation */}

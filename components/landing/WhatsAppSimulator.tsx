@@ -29,8 +29,8 @@ export function WhatsAppSimulator() {
     VERIFIED_JOURNEY_TURNS[0];
 
   return (
-    <section id="conversation" className="py-16 sm:py-20 bg-[#FAFAFA] border-b border-zinc-200/80 scroll-mt-16">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section id="conversation" className="py-16 sm:py-20 bg-transparent border-b border-zinc-200/80 scroll-mt-16">
+      <div className="max-w-6xl mx-auto px-3.5 sm:px-5">
         {/* Section Header */}
         <div className="text-center max-w-2xl mx-auto mb-10">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold mb-3">

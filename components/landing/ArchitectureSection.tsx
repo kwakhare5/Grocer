@@ -38,8 +38,8 @@ export function ArchitectureSection() {
   };
 
   return (
-    <section id="architecture" className="py-16 sm:py-20 bg-white border-b border-zinc-200/80 scroll-mt-16">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section id="architecture" className="py-16 sm:py-20 bg-transparent border-b border-zinc-200/80 scroll-mt-16">
+      <div className="max-w-6xl mx-auto px-3.5 sm:px-5">
         {/* Section Header */}
         <div className="text-center max-w-2xl mx-auto mb-10">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold mb-3">
@@ -54,8 +54,9 @@ export function ArchitectureSection() {
           </p>
         </div>
 
-        {/* ─── 5-Step Unified Interactive Stepper Bar ─── */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 mb-8">
+        {/* ─── 5-Step Unified Interactive Stepper Bar & Showcase Card (max-w-4xl for comfortable margins) ─── */}
+        <div className="max-w-4xl mx-auto">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 mb-8">
           {PIPELINE_NODES.map((node, idx) => {
             const isActive = idx === activeStepIndex;
             return (
@@ -213,6 +214,7 @@ export function ArchitectureSection() {
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>
+        </div>
         </div>
       </div>
     </section>

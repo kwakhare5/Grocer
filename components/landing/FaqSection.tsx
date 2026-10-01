@@ -6,8 +6,8 @@ import { FAQ_ITEMS } from "./data";
 
 export function FaqSection() {
   return (
-    <section id="faq" className="py-16 sm:py-20 bg-[#FAFAFA] border-b border-zinc-200/80 scroll-mt-16">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section id="faq" className="py-16 sm:py-20 bg-transparent border-b border-zinc-200/80 scroll-mt-16">
+      <div className="max-w-6xl mx-auto px-3.5 sm:px-5">
         {/* Section Header */}
         <div className="text-center max-w-2xl mx-auto mb-10">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold mb-3">
@@ -22,8 +22,8 @@ export function FaqSection() {
           </p>
         </div>
 
-        {/* Detailed FAQ List */}
-        <div className="space-y-4">
+        {/* Detailed FAQ List (max-w-3xl for optimal typography reading line length) */}
+        <div className="max-w-3xl mx-auto space-y-4">
           {FAQ_ITEMS.map((item, idx) => (
             <div key={idx} className="p-6 rounded-2xl bg-white border border-zinc-200 shadow-2xs">
               <h3 className="text-sm sm:text-base font-bold text-zinc-950 mb-2">

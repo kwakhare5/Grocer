@@ -1,4 +1,4 @@
-export interface MessageItem {
+interface MessageItem {
   name: string;
   price: string;
 }

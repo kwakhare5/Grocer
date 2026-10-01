@@ -8,7 +8,7 @@ export function VideoSection() {
 
   return (
     <section id="demo" className="py-16 sm:py-20 bg-transparent border-b border-zinc-200/80 scroll-mt-16">
-      <div className="max-w-6xl mx-auto px-3.5 sm:px-5">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6">
         {/* Section Header */}
         <div className="text-center max-w-2xl mx-auto mb-8">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold mb-3">
@@ -24,7 +24,7 @@ export function VideoSection() {
         </div>
 
         {/* Video Player Container */}
-        <div className="relative rounded-2xl overflow-hidden bg-zinc-50 border border-zinc-200 shadow-xs aspect-video max-w-4xl mx-auto flex items-center justify-center">
+        <div className="relative rounded-2xl overflow-hidden bg-zinc-50 border border-zinc-200 shadow-xs aspect-video w-full flex items-center justify-center">
           {!hasVideoError ? (
             <video
               controls

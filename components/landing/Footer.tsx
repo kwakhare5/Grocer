@@ -6,8 +6,8 @@ import { ExternalLink } from "lucide-react";
 
 export function Footer() {
   return (
-    <footer className="bg-transparent border-t border-zinc-200/80 font-sans text-zinc-600">
-      <div className="max-w-6xl mx-auto px-3.5 sm:px-5 py-12 sm:py-16">
+    <footer className="relative z-10 bg-transparent border-t border-zinc-200/80 font-sans text-zinc-600">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
         {/* Top Tier: Brand & Core Navigation */}
         <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-8 pb-8 border-b border-zinc-100">
           {/* Brand & Builder */}

@@ -57,9 +57,7 @@ export default function Home() {
       />
 
       {/* Unified 4-Column Technical Footer */}
-      <div className="relative z-10">
-        <Footer />
-      </div>
+      <Footer />
     </div>
   );
 }

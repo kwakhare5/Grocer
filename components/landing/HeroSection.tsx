@@ -11,17 +11,18 @@ export interface HeroSectionProps {
 
 export function HeroSection({ onOpenConnect, isConnected }: HeroSectionProps) {
   return (
-    <section className="pt-16 sm:pt-24 pb-16 sm:pb-20 px-3.5 sm:px-5 max-w-6xl mx-auto text-center">
-      {/* Universal Quick-Commerce Live Badge */}
-      <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-50/90 border border-emerald-200/80 text-emerald-800 text-xs font-semibold mb-6 shadow-2xs">
-        <WhatsAppIcon className="w-3.5 h-3.5 shrink-0" />
-        <span>WhatsApp Replenishment • Quick Commerce Agent</span>
-      </div>
+    <section className="pt-16 sm:pt-24 pb-16 sm:pb-20 bg-transparent text-center">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6">
+        {/* Universal Quick-Commerce Live Badge */}
+        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-50/90 border border-emerald-200/80 text-emerald-800 text-xs font-semibold mb-6 shadow-2xs">
+          <WhatsAppIcon className="w-3.5 h-3.5 shrink-0" />
+          <span>WhatsApp Replenishment • Quick Commerce Agent</span>
+        </div>
 
-      {/* Main Headline */}
-      <h1 className="text-3xl sm:text-5xl lg:text-[54px] font-editorial font-bold text-zinc-950 tracking-[-0.02em] leading-[1.12] max-w-4xl mx-auto">
-        Turn WhatsApp messages into grocery carts.
-      </h1>
+        {/* Main Headline */}
+        <h1 className="text-3xl sm:text-5xl lg:text-[54px] font-editorial font-bold text-zinc-950 tracking-[-0.02em] leading-[1.12] max-w-3xl mx-auto">
+          Turn WhatsApp messages into grocery carts.
+        </h1>
 
       {/* Clear, simple value prop */}
       <p className="mt-5 text-base sm:text-lg text-zinc-600 leading-relaxed max-w-2xl mx-auto font-normal">
@@ -47,6 +48,7 @@ export function HeroSection({ onOpenConnect, isConnected }: HeroSectionProps) {
           <span>See Live Chat Flow</span>
           <ArrowDown className="w-4 h-4 text-zinc-400" />
         </a>
+      </div>
       </div>
     </section>
   );

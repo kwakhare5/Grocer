@@ -16,7 +16,7 @@ export function AppGlobalHeader() {
 
   return (
     <header className="sticky top-0 z-40 w-full bg-transparent backdrop-blur-sm border-b border-zinc-200/50">
-      <div className="max-w-6xl mx-auto px-3.5 sm:px-5 h-14 flex items-center justify-between gap-4">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
         {/* Brand identity */}
         <a href="#" className="flex items-center gap-2.5 group">
           <GrocerLogo size="sm" iconOnly />

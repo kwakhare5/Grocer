@@ -194,14 +194,12 @@ def build_commerce_cart(data: dict[str, Any], cart_id: Optional[str] = None) -> 
             delivery_fee = val
         elif "packaging" in label:
             packaging_fee = val
-        elif "handling" in label or "platform" in label:
+        elif "handling" in label:
             handling_fee = val
         elif "tax" in label or "gst" in label or "govt" in label:
             taxes = val
         elif "discount" in label or "coupon" in label or "saving" in label:
             discount = abs(val)
-        elif "small" in label or "surge" in label:
-            handling_fee = round(handling_fee + val, 2)
 
     # Fallback to direct bill or subtotal if lineItems was absent
     if item_total == 0.0:
@@ -219,24 +217,23 @@ def build_commerce_cart(data: dict[str, Any], cart_id: Optional[str] = None) -> 
         except ValueError:
             grand_total = 0.0
 
-    if grand_total == 0.0:
-        tot_str = str(data.get("cartTotalAmount", data.get("total", "0"))).replace("₹", "").replace(",", "").strip()
+    if grand_total == 0.0 and (data.get("cartTotalAmount") is not None or data.get("total") is not None):
+        tot_str = str(data.get("cartTotalAmount", data.get("total"))).replace("₹", "").replace(",", "").strip()
         try:
             grand_total = float(tot_str)
         except ValueError:
-            grand_total = item_total + delivery_fee + packaging_fee + handling_fee + taxes - discount
+            grand_total = 0.0
 
-    # Strict mathematical reconciliation:
-    # Subtotal + Delivery + Packaging + Handling + Taxes - Discount == Grand Total
     computed_sum = round(item_total + delivery_fee + packaging_fee + handling_fee + taxes - discount, 2)
     diff = round(grand_total - computed_sum, 2)
-    if abs(diff) > 0.01:
-        if handling_fee == 0.0 and diff > 0:
-            handling_fee = round(handling_fee + diff, 2)
-        elif taxes == 0.0 and diff > 0:
-            taxes = round(taxes + diff, 2)
-        else:
-            handling_fee = round(handling_fee + diff, 2)
+    cart_warning = data.get("cartWarning")
+    currency = str(data.get("currency") or to_pay.get("currency") or "INR").upper()
+    if currency != "INR":
+        cart_warning = "Provider cart currency is not INR."
+    if grand_total <= 0:
+        cart_warning = "Provider payable total is unavailable."
+    elif abs(diff) > 0.01:
+        cart_warning = "Provider bill lines do not explain the payable total."
 
     is_serviceable = _optional_provider_bool(data.get("serviceable"))
     if data.get("addressWarning") or data.get("unserviceableItems"):
@@ -253,7 +250,10 @@ def build_commerce_cart(data: dict[str, Any], cart_id: Optional[str] = None) -> 
         taxes=taxes,
         discount=discount,
         grand_total=grand_total,
+        currency=currency,
+        billing_complete=currency == "INR" and grand_total > 0 and abs(diff) <= 0.01,
         bill_lines=parsed_bill_lines,
+        cart_warning=cart_warning,
         is_serviceable=is_serviceable,
         min_order_threshold=(
             float(data["minimumOrderAmount"])

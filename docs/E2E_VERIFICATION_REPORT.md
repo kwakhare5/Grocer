@@ -1,10 +1,10 @@
 # GROCER End-to-End (E2E) Verification Report
 
-- **Generated At (UTC):** `2026-10-02T08:18:40.096679+00:00`
+- **Generated At (UTC):** `2026-10-02T08:39:11.915937+00:00`
 - **Execution Mode:** `LIVE_GROQ_API`
 - **Primary LLM Model:** `qwen/qwen3.8-27b`
 - **Fallback Cascade:** `qwen/qwen3.8-27b:free`
-- **Total Multi-Turn E2E Latency:** `5 ms`
+- **Total Multi-Turn E2E Latency:** `0 ms`
 - **Overall Verdict:** **`PASSED`** (`6/6` invariants verified)
 
 ---
@@ -26,7 +26,7 @@
 
 ### Turn 1: `i wanna make pasta under 1500`
 - **State Transition:** `NEEDS_DECISION`
-- **Latency:** `3 ms`
+- **Latency:** `0 ms`
 - **Active Basket Items:** `0` (`Grand Total: ₹0`)
 
 ```text
@@ -40,7 +40,7 @@
 
 ### Turn 2: `2`
 - **State Transition:** `AWAITING_CHECKOUT_CONFIRMATION`
-- **Latency:** `1 ms`
+- **Latency:** `0 ms`
 - **Active Basket Items:** `4` (`Grand Total: ₹281`)
 
 ```text
@@ -109,11 +109,11 @@ Your groceries are still saved. Whenever you're ready, let me know if you want t
 
 ### Turn 5: `Confirm`
 - **State Transition:** `AWAITING_PAYMENT`
-- **Latency:** `1 ms`
+- **Latency:** `0 ms`
 - **Active Basket Items:** `0` (`Grand Total: ₹0`)
 
 ```text
-Your order is ready! Please complete payment to place your order: https://instamart.swiggy.com/pay/bridge/paas_mock_cbb2fdda
+Your order is ready! Please complete payment to place your order: https://instamart.swiggy.com/pay/bridge/paas_mock_e10d10cc
 ```
 
 ### Turn 6: `clear cart`

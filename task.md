@@ -1,5 +1,23 @@
 # Task Tracker: Swiggy Builder Club Production Alignment
 
+## Intent-safe repair program (approved 2026-10-02)
+
+- [x] Fail closed on mixed confirmation, stale/changed approval, unknown totals, currency mismatch, and unresolved cart quantity changes in local paths.
+- [x] Remove cross-customer token fallback and bind OAuth start to a verified, single-use WhatsApp ticket.
+- [x] Add PostgreSQL inbox/outbox, encrypted task snapshot, checkout-attempt reservation, deletion request, and reversible schema files.
+- [x] Gate live checkout off by default; keep the first release in review mode.
+- [x] Correct local README/architecture claims and document schema rollout and uncertain-outcome triage.
+- [ ] Inspect and back up deployed PostgreSQL; test fresh install, existing schema migration, rollback, restart, and two-customer isolation.
+- [ ] Build verified legacy identity mapping; migrate only one-to-one records and reconnect ambiguous customers.
+- [ ] Implement a complete requested-item ledger, durable soft preferences, grounded alternatives, and code-enforced diet/allergy restrictions.
+- [x] Make live checkout failures avoid unproven no-charge claims while retaining review-only simulation copy.
+- [x] Keep a payment-confirmed but unplaced checkout attempt on hold for reconciliation.
+- [ ] Reconcile uncertain checkout/payment across restarts before any live checkout.
+- [ ] Verify signed WhatsApp and read-only Swiggy flows on real services without placing an order.
+- [ ] Measure real provider/model quality and latency before making performance claims.
+
+The checklist below records earlier prototype work and its historical test counts. It is not evidence that the new rollout gates passed.
+
 - [x] **Track 1: Financial & Security Defenses (Plan Items E, F, G)**
   - [x] Write failing invariant tests in `backend/tests/test_safety_invariants.py` <!-- id: 0 -->
   - [x] Implement `CHECKOUT_MODE=review` guard in `backend/integrations/commerce/swiggy_adapter.py` <!-- id: 1 -->

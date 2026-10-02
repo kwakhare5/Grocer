@@ -10,12 +10,13 @@ Swiggy Builders Club specifications. Strictly enforces:
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
 from collections.abc import Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar
-from typing import Any, Callable, Optional
+from typing import Any, Awaitable, Callable, Optional
 
 import httpx
 
@@ -70,7 +71,7 @@ class SwiggyMCPAdapter(CommercePort):
         base_url: str = "https://mcp.swiggy.com/im",
         auth_token: Optional[str] = None,
         timeout: float = 15.0,
-        token_resolver: Optional[Callable[[str], Optional[str]]] = None,
+        token_resolver: Optional[Callable[[str], Optional[str] | Awaitable[Optional[str]]]] = None,
         owner_customer_id: Optional[str] = None,
     ) -> None:
         self.base_url = base_url.rstrip("/")
@@ -191,16 +192,6 @@ class SwiggyMCPAdapter(CommercePort):
                 code="MISSING_ADDRESS",
             )
         effective_address = address_id
-        for it in items:
-            if not it.sku_id:
-                try:
-                    current_cart_state = await self.get_cart()
-                    matched = next((ci for ci in current_cart_state.items if ci.spin_id == it.spin_id and ci.sku_id), None)
-                    if matched:
-                        it.sku_id = matched.sku_id
-                except Exception:
-                    pass
-
         payload_items = []
         for it in items:
             if not it.sku_id:
@@ -321,6 +312,7 @@ class SwiggyMCPAdapter(CommercePort):
             self._parse_error_if_failed(res)
         except (UpstreamTimeoutError, httpx.TimeoutException) as exc:
             logger.warning("Checkout upstream timeout/5xx. Checking order state before acting: %s", exc)
+            await asyncio.sleep(2)
             recovered_order = await self._probe_order_status_after_failure(effective_address, cart_id)
             if recovered_order:
                 return recovered_order

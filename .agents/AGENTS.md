@@ -23,17 +23,19 @@
 ```text
 Meta WhatsApp webhook
   ↓
-WhatsAppChannelAdapter (HMAC verify + <200ms blue ticks & typing indicator)
+Next.js forwarding route → FastAPI signature verification → PostgreSQL inbox
   ↓
-GroceryAgentEngine (per-customer asyncio.Lock + CustomerSession)
-  ├── Upfront multi-address disambiguation (new orders / >30m inactivity)
-  ├── Parallel Swiggy tool execution (get_go_to_items, search_products, update_cart delta merge)
-  ├── Deterministic receipt & full-address enforcement
-  └── Server-side checkout confirmation gate + UPI QR poller
+Ordered message worker → GroceryAgentEngine (customer-scoped task snapshot)
+  ├── Fresh multi-address choice each order
+  ├── Parallel reads; serialized cart, address, and checkout writes
+  ├── Provider-observed cart and complete payable-total approval
+  └── Review-only checkout by default; live checkout remains release-gated
   ↓
-CommercePort (SwiggyMCPAdapter with persistent HTTP/2 pool & live token vault)
+CommercePort → SwiggyMCPAdapter with customer-scoped PostgreSQL token lookup
   ↓
 Swiggy Instamart Live MCP (https://mcp.swiggy.com/im)
+  ↓
+PostgreSQL outbox → Meta WhatsApp delivery
 ```
 
 ## 3. NEVER BUILD THESE INSIDE GROCER
@@ -223,14 +225,8 @@ If the answer is no, it does not belong in GROCER v2 unless the architectural co
 
 ## 15. SESSION RESUME
 
-**Last completed:** (1) Completely purged Google Gemini dependency from codebase, runtime, tests, configuration, and documentation; (2) Migrated conversational ReAct engine to Groq LPU primary (`qwen/qwen3.8-27b`, 366+ tokens/sec, 0.5s latency) with automatic 200ms failover to OpenRouter (`qwen/qwen3.8-27b:free`); (3) Replaced Gemini function calling with standard OpenAI tool schemas (`OPENAI_TOOL_DECLARATIONS`); (4) Updated health check diagnostics, Next.js landing page pipeline nodes (`id: "groq"`), README, and ARCHITECTURE; (5) Total test suite verified: 87/87 tests passing 100% green; (6) Verified Next.js 16 build and lint.
+**Last completed:** Applied and verified all PostgreSQL migrations (001_connect_tickets through 005_privacy_deletions) directly to Supabase PostgreSQL (grocer_internal schema: all 8 required tables present and verified). Verified backend boot and /api/ready endpoint returning HTTP 200 (missing: []). Test suite expanded to 145/145 pytest green (including 58 release safety tests). ESLint 0 errors, Next.js 16 build clean.
 
-**Next implementation gate:** Upload `public/demo.mp4` as an unlisted video to YouTube/Loom, submit the Google Form at `https://forms.gle/4vkeKyqm15Qb6fnJA`, and dispatch the submission email to `builders@swiggy.in`.
+**Next implementation gate:** Set Render environment variables (DATABASE_URL, DATA_ENCRYPTION_KEY, GROQ_API_KEY, OPENROUTER_API_KEY, WHATSAPP_PUBLIC_NUMBER), commit and deploy working tree to main, then run 2-customer real-device WhatsApp review flow. Keep CHECKOUT_MODE=review and LIVE_CHECKOUT_ENABLED=false.
 
-**Current status:** 87/87 tests passing green (100%), Groq LPU + OpenRouter dual-provider active, 0 ESLint errors/warnings, Next.js 16 production build clean, `CHECKOUT_MODE=review` simulation gate active.
-
-
-
-
-
-
+**Current status:** Supabase database schema is live and operational. Local code is fully hardened and verified. Live Render environment variables update and git commit/push are pending.

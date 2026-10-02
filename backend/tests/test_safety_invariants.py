@@ -329,6 +329,8 @@ async def test_react_loop_step_limit_honest_recovery() -> None:
         channel=ChannelType.WHATSAPP,
         text="get me huge groceries",
     )
+    engine._customer_address[msg.sender_id] = "addr_1"
+    engine._order_address_confirmed[msg.sender_id] = True
 
     resp = await engine.handle_message(msg)
 
@@ -337,6 +339,4 @@ async def test_react_loop_step_limit_honest_recovery() -> None:
     assert resp.text
     assert "maximum" in resp.text.casefold() or "steps" in resp.text.casefold()
     assert len(resp.interactive_actions) > 0
-    assert any(a.id == "confirm_order" for a in resp.interactive_actions)
-
-
+    assert all(a.id != "confirm_order" for a in resp.interactive_actions)

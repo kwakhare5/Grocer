@@ -9,40 +9,63 @@ from fastapi import APIRouter, BackgroundTasks, Header, HTTPException, Query, Re
 from fastapi.responses import PlainTextResponse
 
 from backend.channels.whatsapp import default_whatsapp_adapter
-from backend.channels.models import NormalizedIncomingMessage, NormalizedOutgoingResponse
+from backend.channels.message_store import PostgresMessageStore
+from backend.channels.models import NormalizedIncomingMessage
+from backend.channels.models import ChannelType, NormalizedOutgoingResponse
+from backend.integrations.commerce.token_vault import default_token_vault
 
 logger = logging.getLogger("grocer.api.whatsapp")
 
 router = APIRouter(prefix="/api/whatsapp", tags=["whatsapp"])
 
 
-async def _dispatch_task_message(task_message: NormalizedIncomingMessage, engine: Any) -> None:
-    """Asynchronously process agent turn and deliver reply via WhatsApp Cloud API."""
-    try:
-        response = await engine.handle_message(task_message)
-        if not await default_whatsapp_adapter.send_response(response):
-            logger.error("WhatsApp response delivery failed for message_id=%s", task_message.message_id)
-        default_whatsapp_adapter.mark_processed(task_message.message_id)
-    except asyncio.CancelledError:
-        default_whatsapp_adapter.release_message(task_message.message_id)
-        raise
-    except Exception as exc:
-        logger.exception(
-            "Agent dispatch failed for message_id=%s error=%s",
-            task_message.message_id,
-            exc,
-        )
-        recovery = NormalizedOutgoingResponse(
-            recipient_id=task_message.sender_id,
-            channel=task_message.channel,
-            text=(
-                "I had a brief glitch processing that. Your basket is unchanged. "
-                "Please try sending your message again!"
-            ),
-            conversation_state="READY",
-        )
-        await default_whatsapp_adapter.send_response(recovery)
-        default_whatsapp_adapter.mark_processed(task_message.message_id)
+async def drain_message_queue(store: PostgresMessageStore, engine: Any) -> None:
+    """Deliver staged responses, then process pending messages in customer order."""
+    while True:
+        outbound = await store.claim_outbound()
+        if outbound is not None:
+            outbound_id, customer_id, response = outbound
+            try:
+                delivered = await default_whatsapp_adapter.send_response(response)
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                logger.exception("WhatsApp delivery outcome is unknown for outbound_id=%s", outbound_id)
+                delivered = False
+            await store.mark_outbound(outbound_id, delivered)
+            if "DELETE_CUSTOMER_DATA" in response.events:
+                await store.purge_customer(customer_id)
+            if not delivered:
+                logger.error("WhatsApp delivery needs review for outbound_id=%s", outbound_id)
+            continue
+
+        claimed = await store.claim_next()
+        if claimed is None:
+            return
+        inbound_id, task_message = claimed
+        try:
+            if task_message.text.casefold().strip() == "delete my data":
+                state_store = getattr(engine, "state_store", None)
+                if state_store is None:
+                    raise RuntimeError("Customer deletion requires durable task storage.")
+                await store.request_deletion(task_message.customer_id)
+                await state_store.delete(task_message.customer_id)
+                await default_token_vault.revoke_token_durable(task_message.customer_id)
+                await engine.forget_customer(task_message.customer_id)
+                response = NormalizedOutgoingResponse(
+                    recipient_id=task_message.sender_id, channel=ChannelType.WHATSAPP,
+                    text=("Your shopping history and Swiggy connection have been deleted. "
+                          "If an order outcome is still unresolved, its minimal record remains until it is resolved."),
+                    conversation_state="READY", events=["DELETE_CUSTOMER_DATA"],
+                )
+            else:
+                response = await engine.handle_message(task_message)
+            await store.stage_response(inbound_id, response)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.exception("Agent turn needs review for inbound_id=%s", inbound_id)
+            await store.mark_processing_failed(inbound_id)
 
 
 @router.get("/webhook")
@@ -98,27 +121,25 @@ async def receive_webhook(
     logger.info("Parsed %d incoming message(s) from WhatsApp webhook", len(incoming_messages))
 
     engine = getattr(request.app.state, "agent_engine", None)
-    if not engine:
-        raise RuntimeError("Agent engine is not configured.")
+    store = getattr(request.app.state, "message_store", None)
+    if engine is None or store is None:
+        raise HTTPException(status_code=503, detail="Durable message intake is unavailable.")
 
-    processed_count = 0
+    durable_messages: list[NormalizedIncomingMessage] = []
     for incoming in incoming_messages:
-        # Atomic reservation check: reject duplicate or in-flight Meta webhook retries
-        if not default_whatsapp_adapter.reserve_message(incoming.message_id):
-            logger.info("Dropping duplicate or already in-flight WhatsApp message_id=%s", incoming.message_id)
+        try:
+            customer_id = default_whatsapp_adapter.map_sender_to_customer_id(incoming.sender_id)
+        except ValueError:
+            logger.info("Ignoring WhatsApp message with unsupported sender identity.")
             continue
-
-        # Immediately mark incoming message as read (instant blue ticks within 200ms)
-        asyncio.create_task(default_whatsapp_adapter.mark_message_read(incoming.message_id))
-
-        task_message = incoming.model_copy(
-            update={
-                "customer_id": default_whatsapp_adapter.map_sender_to_customer_id(
-                    incoming.sender_id
-                )
-            }
-        )
-        background_tasks.add_task(_dispatch_task_message, task_message, engine)
-        processed_count += 1
-
+        durable_messages.append(incoming.model_copy(update={"customer_id": customer_id}))
+    try:
+        processed_count = await store.enqueue_many(durable_messages)
+    except Exception:
+        logger.exception("Could not durably save WhatsApp messages before acknowledgement.")
+        raise HTTPException(status_code=503, detail="Message intake failed.")
+    if processed_count:
+        background_tasks.add_task(drain_message_queue, store, engine)
+        for incoming in durable_messages:
+            asyncio.create_task(default_whatsapp_adapter.mark_message_read(incoming.message_id))
     return {"status": "ok", "processed": processed_count}

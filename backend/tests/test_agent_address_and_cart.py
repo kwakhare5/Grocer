@@ -10,6 +10,7 @@ from backend.agent.tools import SwiggyAgentTools
 from backend.channels.models import ChannelType, NormalizedIncomingMessage
 from backend.integrations.commerce.exceptions import CommerceError, ProviderAuthError
 from backend.integrations.commerce.mock_adapter import MockCommerceAdapter
+from backend.integrations.commerce.models import CartItem, CommerceCart
 from backend.integrations.commerce.swiggy_adapter import SwiggyMCPAdapter
 
 
@@ -32,6 +33,13 @@ async def test_honest_failure_explanation_retains_explanation_and_appends_discla
     """
     customer_id = "cust_honest_fail"
     agent_engine._customer_address[customer_id] = "addr_home"
+    reviewed_cart = CommerceCart(
+        cart_id="cart_123", address_id="addr_home", grand_total=100,
+        items=[CartItem(spin_id="spin_1", sku_id="sku_1", name="Milk", pack_size="1L",
+                        quantity=1, unit_price=100, total_price=100)],
+    )
+    agent_engine.commerce.get_cart = AsyncMock(return_value=reviewed_cart)
+    agent_engine._record_pending_approval(customer_id, reviewed_cart, "addr_home")
 
     honest_text = "I apologize, but Swiggy Instamart is experiencing high demand right now. Please try again in a few minutes."
     llm_responses = [
@@ -102,23 +110,26 @@ async def test_auth_expired_uses_default_connect_base(agent_engine, mock_commerc
 
 
 @pytest.mark.asyncio
-async def test_default_address_prioritization(agent_engine, mock_commerce):
-    """Engine should prioritize customer's is_default address over other addresses."""
+async def test_multiple_addresses_require_customer_choice_even_with_default(agent_engine, mock_commerce):
+    """A saved default does not decide the address for a new order."""
     from backend.integrations.commerce.models import DeliveryAddress
     secondary = DeliveryAddress(id="addr_secondary", label="Work", street="Tower B, Business Hub", city="Bangalore")
     primary = DeliveryAddress(id="addr_primary", label="Home", street="Flat 402, Green Park", city="Bangalore", is_default=True)
     mock_commerce.get_addresses = AsyncMock(return_value=[secondary, primary])
+    mock_commerce.update_cart = AsyncMock()
 
     msg = NormalizedIncomingMessage(
         message_id="msg_addr_test_1",
         channel=ChannelType.WHATSAPP,
         sender_id="+919876543210",
         customer_id="cust_addr_pref",
-        text="hi",
+        text="need milk",
     )
     with patch.object(agent_engine, "_call_llm", return_value={"candidates": [{"content": {"parts": [{"text": "Hello!"}]}}]}):
-        await agent_engine.handle_message(msg)
-        assert agent_engine._customer_address.get("cust_addr_pref") == "addr_primary"
+        response = await agent_engine.handle_message(msg)
+        assert response.conversation_state == "NEEDS_DECISION"
+        assert agent_engine._customer_address.get("cust_addr_pref") is None
+        mock_commerce.update_cart.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -176,6 +187,8 @@ async def test_concurrent_tool_execution_gather(agent_engine):
     }
 
     with patch.object(agent_engine, "_call_llm", side_effect=[llm_resp, llm_final]):
+        agent_engine._customer_address["cust_concurrent"] = "addr-test"
+        agent_engine._order_address_confirmed["cust_concurrent"] = True
         msg = NormalizedIncomingMessage(
             message_id="msg_concurrent_1",
             channel=ChannelType.WHATSAPP,
@@ -201,7 +214,7 @@ def test_clean_address_deduplication_and_formatting():
     cleaned = clean_address(raw_addr, "Bangalore")
     assert "John Doe:" not in cleaned
     assert "India" not in cleaned
-    assert "560001" not in cleaned
+    assert "560001" in cleaned
     assert "Karnataka" in cleaned
     assert "Green Park, Green Park" not in cleaned
     assert "flat number 1204" in cleaned
@@ -209,18 +222,18 @@ def test_clean_address_deduplication_and_formatting():
     assert "Sector 5" in cleaned
     assert "Bangalore" in cleaned
 
-    # Test Google Plus Code stripping while keeping full address (flat, building, area, city, state)
+    # Keep Plus Codes and postal codes because they can identify the delivery location.
     plus_code_raw = "Flat 402, Green Acres, HRC8+HWV, Clover Park, Viman Nagar, Pune, Maharashtra 411014"
     plus_code_cleaned = clean_address(plus_code_raw, "Pune", label="Home")
-    assert "HRC8+HWV" not in plus_code_cleaned
-    assert "411014" not in plus_code_cleaned
+    assert "HRC8+HWV" in plus_code_cleaned
+    assert "411014" in plus_code_cleaned
     assert "Home (" not in plus_code_cleaned
-    assert "Flat 402, Green Acres, Clover Park, Viman Nagar, Pune, Maharashtra" == plus_code_cleaned
+    assert "Flat 402, Green Acres, HRC8+HWV, Clover Park, Viman Nagar, Pune, Maharashtra 411014" == plus_code_cleaned
 
     # Test full address with India stripping
     landmark_raw = "Villa 12, Palm Meadows, Pancard Club Road, Baner, Pune, Maharashtra 411045, India"
     landmark_cleaned = clean_address(landmark_raw, "")
-    assert "Villa 12, Palm Meadows, Pancard Club Road, Baner, Pune, Maharashtra" == landmark_cleaned
+    assert "Villa 12, Palm Meadows, Pancard Club Road, Baner, Pune, Maharashtra 411045" == landmark_cleaned
 
 
 
@@ -331,6 +344,7 @@ def test_swiggy_parser_bill_reconciliation():
 async def test_self_healing_on_http_400(agent_engine):
     """Verify that _call_llm recovers cleanly when multi-turn history returns 400 Bad Request."""
     import httpx
+    agent_engine.groq_api_key = "test-key"
 
     call_count = 0
 
@@ -362,8 +376,9 @@ async def test_self_healing_on_http_400(agent_engine):
     res = await agent_engine._call_llm(corrupt_history)
     assert res is not None
     assert call_count == 2
-    assert len(corrupt_history) == 1
-    assert corrupt_history[0]["parts"][0]["text"] == "bourbon and jim jam"
+    assert len(corrupt_history) == 3
+    assert corrupt_history[0]["parts"][0]["text"] == "old message"
+    assert corrupt_history[2]["parts"][0]["text"] == "bourbon and jim jam"
 
 
 @pytest.mark.asyncio
@@ -673,12 +688,12 @@ async def test_upfront_multi_address_disambiguation_and_resume_on_choice(agent_e
         text="i want milk and bread",
     )
     resp1 = await agent_engine.handle_message(msg1)
-    assert "Which address should I deliver this order to?" in resp1.text
+    assert "Which address should I use?" in resp1.text
     assert "Green Acres" in resp1.text
     assert "Palm Meadows" in resp1.text
     assert "cust_multi_addr" in agent_engine._awaiting_address_choice
 
-    # Turn 2: User replies "2" -> selects addr_baner and immediately processes "i want milk and bread"
+    # Turn 2: User selects the current Baner option and resumes the original request.
     llm_turn2_responses = [
         {
             "candidates": [
@@ -715,7 +730,7 @@ async def test_upfront_multi_address_disambiguation_and_resume_on_choice(agent_e
             channel=ChannelType.WHATSAPP,
             sender_id="+919876543210",
             customer_id="cust_multi_addr",
-            text="2",
+            text=resp1.interactive_actions[1].id.removeprefix("addr_choice_"),
         )
         resp2 = await agent_engine.handle_message(msg2)
         assert agent_engine._customer_address["cust_multi_addr"] == "addr_baner"

@@ -225,8 +225,9 @@ async def test_eval_14_multi_turn_quantity_modification() -> None:
 @pytest.mark.asyncio
 async def test_eval_15_out_of_stock_recovery_disclosure() -> None:
     instruction = build_system_instruction()
-    assert "If a requested item/brand is out of stock" in instruction
-    assert "clearly disclose the substitute on the receipt" in instruction
+    assert "close substitute may be added" in instruction
+    assert "must be disclosed before approval" in instruction
+    assert "allergies, and dietary exclusions are hard constraints" in instruction
 
 
 # 16. Top 10 Catalog Depth
@@ -346,6 +347,8 @@ async def test_eval_21_react_step_limit_honest_recovery() -> None:
         channel=ChannelType.WHATSAPP,
         text="big order",
     )
+    engine._customer_address[msg.sender_id] = "a1"
+    engine._order_address_confirmed[msg.sender_id] = True
     resp = await engine.handle_message(msg)
     assert "maximum" in resp.text.lower() or "steps" in resp.text.lower()
     assert len(resp.interactive_actions) > 0
@@ -359,10 +362,11 @@ async def test_eval_22_auth_expired_reconnect_url() -> None:
     msg = NormalizedIncomingMessage(
         sender_id="wa:+919876543210",
         message_id="msg_auth22",
+        customer_id="cust_auth22",
         channel=ChannelType.WHATSAPP,
         text="hi",
     )
-    resp = engine._auth_expired_response(msg)
+    resp = await engine._auth_expired_response(msg)
     assert "connect" in resp.text.lower()
     assert "https://" in resp.text
 

@@ -3,7 +3,8 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any, Callable, Optional
+import inspect
+from typing import Any, Awaitable, Callable, Optional
 
 import httpx
 
@@ -29,7 +30,7 @@ class SwiggyMcpClient:
         base_url: str,
         timeout: float = 10.0,
         auth_token: Optional[str] = None,
-        token_resolver: Optional[Callable[[Optional[str]], Optional[str]]] = None,
+        token_resolver: Optional[Callable[[Optional[str]], Optional[str] | Awaitable[Optional[str]]]] = None,
         owner_customer_id: Optional[str] = None,
     ) -> None:
         self.base_url = base_url
@@ -55,19 +56,21 @@ class SwiggyMcpClient:
             self._client = None
 
     def resolve_token(self, customer_id: Optional[str] = None) -> Optional[str]:
-        """Resolve valid token from vault, live settings, or static fallback."""
-        if self._token_resolver:
-            token = self._token_resolver(customer_id) if customer_id else self._token_resolver(None)
+        """Resolve only the token belonging to the active customer."""
+        if customer_id and self._token_resolver and not inspect.iscoroutinefunction(self._token_resolver):
+            token = self._token_resolver(customer_id)
+            if inspect.isawaitable(token):
+                if inspect.iscoroutine(token):
+                    token.close()
+                return None
             if token:
                 return token
-            if customer_id:
-                # Fallback to most recently authenticated active token in vault (single-user friendly)
-                token = self._token_resolver(None)
-                if token:
-                    return token
-        from backend.config import settings
-        live_token = getattr(settings, "SWIGGY_AUTH_TOKEN", None) or self._auth_token
-        return live_token
+        if customer_id and customer_id == self._owner_customer_id:
+            return self._auth_token
+        if customer_id or self._token_resolver or self._owner_customer_id:
+            return None
+        # Direct adapter fixtures may provide a token without a customer scope.
+        return self._auth_token
 
     def parse_error_if_failed(self, response_data: dict[str, Any]) -> None:
         """Classify errors from Swiggy envelope per official error taxonomy."""
@@ -138,7 +141,12 @@ class SwiggyMcpClient:
         customer_id: Optional[str] = None,
     ) -> dict[str, Any]:
         """Execute JSON-RPC 2.0 tool call against Swiggy Instamart MCP endpoint."""
-        token = self.resolve_token(customer_id)
+        if customer_id and self._token_resolver:
+            token = self._token_resolver(customer_id)
+            if inspect.isawaitable(token):
+                token = await token
+        else:
+            token = self.resolve_token(customer_id)
         if self._token_resolver is not None and not token:
             raise ProviderAuthError(
                 "No active Swiggy session exists for this customer."
@@ -207,4 +215,4 @@ class SwiggyMcpClient:
         except httpx.RequestError as exc:
             if isinstance(exc, (ProviderAuthError, UpstreamTimeoutError, CommerceError)):
                 raise exc
-            raise CommerceError(f"Swiggy MCP network connection failure: {exc}")
+            raise UpstreamTimeoutError("Swiggy MCP network outcome is uncertain.") from exc

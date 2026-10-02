@@ -43,7 +43,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(data, { status: res.status });
   } catch (error) {
     console.error("WhatsApp webhook proxy encountered error or timeout:", error);
-    // Return HTTP 200 to Meta so it does not trigger aggressive retry loops during backend cold-starts
-    return NextResponse.json({ status: "acknowledged", error: "Proxy forwarded or timed out" }, { status: 200 });
+    return NextResponse.json({ error: "Webhook delivery was not confirmed." }, { status: 503 });
   }
 }

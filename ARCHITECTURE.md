@@ -1,127 +1,40 @@
 # GROCER architecture
 
-> Updated: 2026-10-02
-> Status: Autonomous Groq LPU (Qwen 3.8 27B) ReAct agent engine with Ultra-Low Latency (366+ tok/s), Multi-Turn Self-Healing, and Swiggy Instamart Live MCP integration is active and verified in production.
+Updated 2026-10-02. This describes the **local implementation**, not a verified production deployment. The first release target is review-only checkout. See [the rollout runbook](docs/RELEASE_RUNBOOK.md) for the required database and provider checks.
 
-## Product boundary
-
-GROCER is an English-first WhatsApp grocery replenishment agent for Swiggy Instamart. The landing page (`grocerr.vercel.app`) explains the product and facilitates OAuth reconnection; shopping occurs natively inside WhatsApp (`+1 555 663-1707`). GROCER is not an internal dark-store operations platform, inventory management system, or browser-owned cart.
-
-## Active architecture
-
-```mermaid
-flowchart TD
-    subgraph Ingress ["1. Ingress & Fast-ACK"]
-        WA["WhatsApp Customer"] -->|"Meta Cloud Webhook (HMAC-SHA256)"| Vercel["Vercel Edge Proxy"]
-        Vercel -->|"Fast-ACK (<200ms Blue Ticks)"| WA
-        Vercel -->|"Async Forward"| FastAPI["FastAPI Engine (/api/whatsapp/webhook)"]
-    end
-
-    subgraph Concurrency ["2. Turn Concurrency & Address Guard"]
-        FastAPI -->|"Acquire per-customer lock"| Lock["asyncio.Lock(customer_phone)"]
-        Lock -->|"Check address status"| AddrGuard{"Multiple Addresses\n& Unconfirmed?"}
-        AddrGuard -->|"Yes"| AddrPrompt["Prompt Upfront 1-2 Selection"]
-        AddrGuard -->|"No / Confirmed"| Engine["GroceryAgentEngine"]
-    end
-
-    subgraph DualCore ["3. Dual-Core Processing"]
-        Engine -->|"User Intent & Recipe Kit"| LLM["Groq LPU (Qwen 3.8 27B)\n(Autonomous ReAct Loop)"]
-        LLM -->|"Proposed Mutations (SKUs)"| Guards["Deterministic Python Guards"]
-        Guards -->|"Delta Cart Merge"| Merge["Preserve Prior Items"]
-        Guards -->|"Hesitation Detection"| Hold["Freeze Session on 'wait'"]
-        Guards -->|"Server-Side Checkout Lock"| Gate{"User Confirmed\nOrder?"}
-        Gate -->|"No"| Block["Block Checkout Tool"]
-        Gate -->|"Yes"| Auth["Authorize Checkout"]
-    end
-
-    subgraph Commerce ["4. Commerce Gateway & Store API"]
-        Auth -->|"JSON-RPC 2.0 via HTTP/2 Pool"| Port["CommercePort / SwiggyMCPAdapter"]
-        Port -->|"tools/call: search, cart, checkout"| MCP["Swiggy Instamart Live MCP Gateway\n(https://mcp.swiggy.com/im)"]
-        MCP -->|"Verified Line Items & Fees"| Bill["Exact Provider Billing (₹XX)"]
-        MCP -->|"Dynamic UPI QR Link"| PayLink["Official Swiggy UPI Bridge"]
-        PayLink -->|"Background Poller (every 5s)"| Poller["_poll_payment_status Daemon"]
-    end
-
-    Bill --> Engine
-    PayLink -->|"Deliver via WhatsApp"| WA
-    Poller -->|"Order Confirmed Alert"| WA
-```
+## Request path
 
 ```text
-Meta WhatsApp Cloud API
-        ↓ (Instant <200ms blue ticks via mark_message_read)
-Vercel Edge Proxy (/api/whatsapp/webhook)
-        ↓ (Fast-Ack HTTP 200 OK + Async HMAC-verified forward)
-FastAPI Webhook (/api/whatsapp/webhook on Render)
-        ↓ (Per-customer asyncio.Lock concurrency serialization)
-GroceryAgentEngine (backend/agent/engine.py)
-  ├── Autonomous ReAct loop (Groq LPU Qwen 3.8 27B primary + OpenRouter failover cascade: ~0.5s)
-  ├── Persistent HTTP/2 connection pooling with keep-alive (zero handshake latency)
-  ├── Automatic self-healing multi-turn history reset (handles upstream 400 errors)
-  ├── 6-turn sliding window history pruning & payload compaction
-  ├── Concurrent tool execution via asyncio.gather (parallel multi-item search)
-  ├── SwiggyAgentTools (backend/agent/tools.py)
-  │     ├── search_products (parallel live store catalogue inventory search)
-  │     ├── update_cart (adds SKUs, respects stock, budget & min-order thresholds)
-  │     ├── get_cart (reads back verified totals, fees & line items)
-  │     ├── get_saved_addresses (resolves user delivery addresses)
-  │     ├── select_delivery_address (switches active delivery destination)
-  │     ├── clear_cart (empties cart when requested)
-  │     ├── checkout (server-side gated, generateUPIQR: True)
-  │     └── track_order (live delivery status, driver info, and ETA)
-  ├── Deterministic fail-closed guard (blocks false order success claims)
-  ├── Post-payment polling daemon (_poll_payment_status: checks order every 5s for 60s)
-  └── Interactive quick-reply buttons ([Confirm Order], [Change Items])
-        ↓
-CommercePort / SwiggyMCPAdapter (backend/integrations/commerce/)
-        ↓
-Swiggy Instamart Live MCP Gateway (https://mcp.swiggy.com/im)
+Meta WhatsApp webhook
+  → Next.js forwarding route
+  → FastAPI signature verification
+  → PostgreSQL inbound_messages (commit before HTTP 200)
+  → durable worker, ordered by customer
+  → GroceryAgentEngine (customer-scoped task state)
+  → CommercePort → SwiggyMCPAdapter or MockCommerceAdapter
+  → PostgreSQL outbound_messages → Meta WhatsApp send
 ```
 
-## Module boundaries
+The worker processes a customer's queued messages in order. A `PROCESSING` inbound record or `SENDING` outbound record left by an interruption is held for operator review; automatically replaying either could duplicate a commerce write or a message. This is durable intake with conservative recovery, not guaranteed exactly-once delivery. A multi-process, real-database restart test is still required.
 
-| Boundary | Responsibility | Source Path |
-|---|---|---|
-| **WhatsApp Channel** | Verify Meta webhook HMAC signatures, parse incoming payloads, mark messages read (<200ms blue ticks), map sender phone numbers to customer IDs, format and deliver outbound messages up to 4,096 chars, and handle media fallbacks. | `backend/channels/whatsapp.py`, `backend/api/whatsapp.py` |
-| **GroceryAgentEngine** | Manage conversational history with 6-turn sliding window pruning, coordinate ReAct tool invocations with Groq/OpenRouter function calling concurrently via `asyncio.gather`, serialize rapid texts with per-customer `asyncio.Lock`, run background payment polling, and enforce fail-closed post-processing guards with self-healing recovery. | `backend/agent/engine.py` |
-| **SwiggyAgentTools** | High-signal tool registry exposing typed Swiggy operations to LLM function calling; computes pre-formatted currency (`₹XX`), exposes store minimum order thresholds and serviceability, and maps tool parameters to `CommercePort` methods. | `backend/agent/tools.py` |
-| **CommercePort** | The sole provider-neutral commerce contract defining async methods for address resolution, catalog search, cart mutations, checkout, and tracking. | `backend/integrations/commerce/port.py` |
-| **SwiggyMCPAdapter** | Encapsulates Swiggy MCP JSON-RPC transport, payload normalization, error classification, and response parsing. | `backend/integrations/commerce/swiggy_adapter.py`, `swiggy_parsers.py`, `swiggy_client.py` |
-| **OAuth Bridge** | Direct browser endpoints (`/connect`, `/auth/callback`) enabling customers to re-authenticate with Swiggy from their mobile browser via reverse proxy or web. | `backend/api/oauth.py`, `backend/integrations/commerce/swiggy_oauth.py` |
-| **Token Vault & DB** | Fernet / AES-GCM encrypted persistence of dynamic Swiggy OAuth tokens at rest in PostgreSQL with connection pooling. | `backend/database.py`, `backend/integrations/commerce/token_vault.py` |
-| **Keep-Warm Automation** | Scheduled GitHub Actions workflow pinging backend `/health` every 10 minutes to eliminate cold starts on Render. | `.github/workflows/keep_warm.yml` |
+## Customer identity and account connection
 
-## Conversation policy
+The signed WhatsApp sender supplies an India-only E.164 number. The internal customer ID is derived from the full number. A 10-minute, single-use ticket binds the OAuth start to that sender; the browser cannot choose a customer by typing a phone number. Swiggy tokens are encrypted with Fernet in PostgreSQL and looked up only for the current customer. Existing last-ten-digit IDs require verified migration or reconnect; no automatic legacy mapping has been run.
 
-Free natural English is the primary input. Grocer uses autonomous ReAct reasoning to interpret conversational requests, deduce multi-item recipe kits, and make immediate progress without stalling:
+## Basket and approval
 
-1. **Hybrid Product Resolution**: For basic daily staples (milk, bread, eggs, butter, curd), Grocer selects the standard in-stock variant and adds it directly to the cart. For variant-rich or ambiguous categories (chocolates, biscuits, snacks), Grocer presents 2–3 options with prices and sizes for customer choice.
-2. **Multi-Item Batching & Parallel Search**: When a customer requests multiple staples ("bread and eggs"), Grocer fires parallel `search_products` queries concurrently using `asyncio.gather` and adds all items in a single unified `update_cart` turn, slashing turnaround latency to ~3–4 seconds.
-3. **Instant Blue Ticks**: Upon webhook receipt, Grocer dispatches `mark_message_read()` in <200ms, providing instant visual acknowledgement on WhatsApp.
-4. **Zero-Redundancy Receipts**: Basket summaries are formatted as single, consolidated WhatsApp receipts with line items, subtotal, combined delivery & fees, and grand total. Item names are never repeated in the lead-in text.
-5. **Explicit Checkout Authorization**: Once the cart is assembled, Grocer presents the receipt with interactive WhatsApp buttons (`Confirm Order`, `Change Items`). Checkout invocation is server-side gated requiring explicit customer confirmation (`is_user_confirmed: True`).
-6. **Dynamic UPI Payment & Autonomous Polling**: When the order is confirmed, Swiggy generates a dynamic UPI QR / payment intent link (`bridge_url` / `upi_intent_url`). Grocer formats this into a one-tap WhatsApp payment link and launches a 60-second background polling daemon that automatically messages the customer the moment UPI payment completes.
-7. **Real-Time Order Tracking**: Customers can inquire about in-flight orders ("where is my order?"); Grocer calls `track_order` to report rider status, contact details, and estimated delivery time.
+The agent can propose searches and cart changes. The server checks tool inputs, serializes writes, reads the resulting cart, and compares submitted SKU quantities with the provider response. An approval records a fingerprint of provider items, bill lines, payable total, currency, and address for 15 minutes. Checkout re-reads the cart and refuses unknown or changed totals, unresolved item reductions, unreviewed external cart changes, and budget overages. Provider bill fields are still represented as Python floats; exact minor-unit accounting remains a live-checkout gate.
 
-## Safety and deterministic reliability
+Multiple saved addresses require a fresh selection for each order. Explicit `only` brand and dietary constraints are described in the prompt, but a complete requested-item ledger, ingredient verification, and durable soft preferences are **not yet enforced by code**. The review-only release must not claim those guarantees.
 
-Deterministic Python code strictly guarantees that the model cannot violate commerce rules or make false claims:
+## Checkout and uncertainty
 
-1. **Fail-Closed Anti-Hallucination Guard**: When checkout returns a failure or `PAYMENT_PENDING`, the response is verified against 6 strict regex pattern classes (`_ORDER_SUCCESS_PATTERNS`). If the LLM prematurely claims the order was placed or fails to explain provider errors, the deterministic guard overrides the response with an honest explanation and the actual payment link.
-2. **Server-Side Checkout Gating**: `SwiggyAgentTools.checkout` rejects calls where `is_user_confirmed` is not true, preventing unauthorized mutations.
-3. **Automatic Self-Healing History Reset**: If the model provider returns an HTTP 400 error across multi-turn sessions, `_call_llm` automatically clears stale history and re-calls with the current user turn in <1s.
-4. **Verified Provider State & Pre-Computed Currency**: All totals, item prices, packaging fees, and delivery fees are read back from verified Swiggy Instamart responses and formatted in Python (`₹XX`), eliminating model arithmetic hallucination.
-5. **Store Minimum Order & Serviceability Guard**: If dark store order minimums are not met or if delivery is unserviceable, deterministic status flags are surfaced so the user is warned upfront.
-6. **Credential Security**: OAuth tokens are encrypted at rest using AES-GCM; secrets and tokens are never exposed in logs, API responses, or frontend state.
+`CHECKOUT_MODE=review` is the default and returns a simulated `REVIEW_COMPLETE`; it makes no provider checkout call. Live mode additionally requires `LIVE_CHECKOUT_ENABLED=true`, durable PostgreSQL state, and a reserved checkout attempt before the provider call. Unknown, partial, and payment-pending attempts block another live checkout for that customer. A live checkout failure never asserts that the account was not charged without proof. There is no automated post-restart order/payment reconciliation yet. The existing in-process payment poller is insufficient for live release.
 
-## Zero-Docker Serverless Architecture
+## Data and operations
 
-GROCER does not use Docker in production or development:
-- **Frontend**: Serverless Next.js deployed on Vercel Edge.
-- **Backend**: Native Python 3.12 Web Service on Render with persistent HTTP/2 connection pooling.
-- **Database**: Managed PostgreSQL with AES-GCM encrypted persistence.
-- Eliminating Docker container wrapping shaved 800MB from build footprints and eliminated container cold-start delays.
+`grocer_internal` holds OAuth tokens, pending OAuth flows, connect tickets, inbox, outbox, checkout attempts, encrypted task snapshots, and privacy deletion requests. Task snapshots and completed message history expire after 30 days. The exact signed WhatsApp command `delete my data` removes customer conversation and token data; unresolved financial attempt records are retained until reconciliation. The existing schema must be inspected and backed up before applying migrations. `/health` is liveness; `/ready` checks essential runtime dependencies.
 
-## Test & verification status
+## Verification boundary
 
-All 87 focused invariant & eval tests pass green in ~3s. Next.js 16 production build compiles with Turbopack cleanly in ~2s. ESLint clean with 0 errors/warnings.
+Local Python tests, ESLint, and the Next.js build are the current executable checks. No local PostgreSQL daemon, deployment secrets, chargeable order authorization, or real provider checkout are available in this workspace. Synthetic model tests do not establish live model behavior or production latency.

@@ -86,6 +86,8 @@ class CommerceCart(BaseModel):
     taxes: float = 0.0
     discount: float = 0.0
     grand_total: float = 0.0
+    currency: str = "INR"
+    billing_complete: bool = True
     bill_lines: list[dict[str, Any]] = Field(default_factory=list)
     is_serviceable: Optional[bool] = None
     min_order_threshold: float = 99.0

@@ -99,6 +99,31 @@ def test_outbound_formatting_uses_buttons_and_lists(
 
 @pytest.mark.asyncio
 async def test_signed_webhook_reaches_active_task_service(monkeypatch) -> None:
+    class FakeMessageStore:
+        def __init__(self) -> None:
+            self.seen: set[str] = set()
+            self.pending: list = []
+            self.outbound: list = []
+
+        async def enqueue_many(self, messages):  # type: ignore[no-untyped-def]
+            for message in messages:
+                if message.message_id not in self.seen:
+                    self.seen.add(message.message_id)
+                    self.pending.append(message)
+            return len(self.pending)
+
+        async def claim_next(self):  # type: ignore[no-untyped-def]
+            return (1, self.pending.pop(0)) if self.pending else None
+
+        async def stage_response(self, _inbound_id, response):  # type: ignore[no-untyped-def]
+            self.outbound.append(response)
+
+        async def claim_outbound(self):  # type: ignore[no-untyped-def]
+            return (1, "customer-1", self.outbound.pop(0)) if self.outbound else None
+
+        async def mark_outbound(self, _outbound_id, _delivered):  # type: ignore[no-untyped-def]
+            pass
+
     class FakeAgentEngine:
         def __init__(self) -> None:
             self.processed: list[str] = []
@@ -114,6 +139,7 @@ async def test_signed_webhook_reaches_active_task_service(monkeypatch) -> None:
 
     engine = FakeAgentEngine()
     monkeypatch.setattr(app.state, "agent_engine", engine, raising=False)
+    monkeypatch.setattr(app.state, "message_store", FakeMessageStore(), raising=False)
     monkeypatch.setattr(default_whatsapp_adapter, "record_only", True)
     monkeypatch.setattr(default_whatsapp_adapter, "_app_secret", "webhook-secret")
     default_whatsapp_adapter.outbound_messages.clear()

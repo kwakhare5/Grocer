@@ -13,10 +13,38 @@ import { Footer } from "../components/landing/Footer";
 export default function Home() {
   const [isConnectModalOpen, setIsConnectModalOpen] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
+  const [connectTicket, setConnectTicket] = useState<string | null>(null);
+  const [connectError, setConnectError] = useState<string | null>(null);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
+      const ticket = params.get("connect_ticket");
+      if (ticket) {
+        window.history.replaceState({}, "", window.location.pathname);
+        const timer = setTimeout(() => {
+          setConnectTicket(ticket);
+          setIsConnectModalOpen(true);
+        }, 0);
+        return () => clearTimeout(timer);
+      }
+      const code = params.get("code");
+      const state = params.get("state");
+      if (code && state) {
+        window.history.replaceState({}, "", window.location.pathname);
+        void fetch("/api/auth/swiggy/callback", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ code, state }),
+        }).then((response) => {
+          if (!response.ok) throw new Error("Connection failed");
+          setIsConnected(true);
+        }).catch(() => {
+          setConnectError("Connection failed. Request a fresh link in WhatsApp and try again.");
+          setIsConnectModalOpen(true);
+        });
+        return;
+      }
       if (params.get("connected") === "true") {
         const timer = setTimeout(() => setIsConnected(true), 0);
         return () => clearTimeout(timer);
@@ -54,6 +82,8 @@ export default function Home() {
         isOpen={isConnectModalOpen}
         onClose={() => setIsConnectModalOpen(false)}
         isConnected={isConnected}
+        connectTicket={connectTicket}
+        initialError={connectError}
       />
 
       {/* Unified 4-Column Technical Footer */}

@@ -18,6 +18,7 @@ coverage/
 .pytest_cache/
 .pytest-*/
 tmp-*/
+scratch/
 .mypy_cache/
 .ruff_cache/
 
@@ -40,3 +41,4 @@ skills-lock.json
 .env*
 *.tokens.json
 .vault_tokens.json
+bootstrap.vault

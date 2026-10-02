@@ -10,7 +10,7 @@ Authoritative technical specification for Swiggy Instamart Model Context Protoco
 - **Protocol**: JSON-RPC 2.0 over HTTPS POST
 - **Authentication**: Bearer JWT passed in `Authorization: Bearer <mcp_token>` header
 - **Token Validity**: Issued through Swiggy Builders Club OAuth PKCE flow; valid for 7 days.
-- **Customer Scoping**: All requests are scoped to a verified customer session. Tokens are stored encrypted at rest via Fernet / AES-GCM in PostgreSQL (`grocer_internal.oauth_tokens`).
+- **Customer Scoping**: All requests are scoped to a verified customer session. Tokens are encrypted at rest with Fernet in PostgreSQL (`grocer_internal.oauth_tokens`).
 
 ---
 

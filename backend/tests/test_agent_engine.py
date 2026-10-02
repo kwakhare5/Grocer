@@ -29,6 +29,7 @@ from backend.agent.tools import SwiggyAgentTools
 from backend.channels.models import ChannelType, NormalizedIncomingMessage
 from backend.integrations.commerce.exceptions import CommerceError
 from backend.integrations.commerce.mock_adapter import MockCommerceAdapter
+from backend.integrations.commerce.models import CartItem, CommerceCart
 from backend.integrations.commerce.swiggy_adapter import SwiggyMCPAdapter
 
 
@@ -88,6 +89,14 @@ async def test_fm_checkout_02_fail_closed_guard_blocks_hallucinated_success_on_f
     for phrase in benign_phrases:
         assert _claims_order_success(phrase) is False
 
+    reviewed_cart = CommerceCart(
+        cart_id="c1", address_id="addr-bandra-1", grand_total=281,
+        items=[CartItem(spin_id="spin_1", sku_id="sku_1", name="Milk", pack_size="1L",
+                        quantity=1, unit_price=281, total_price=281)],
+    )
+    agent_engine.commerce.get_cart = AsyncMock(return_value=reviewed_cart)
+    agent_engine._record_pending_approval("cust_fail", reviewed_cart, "addr-bandra-1")
+
     llm_turns = [
         {
             "candidates": [
@@ -146,6 +155,13 @@ async def test_fm_checkout_03_payment_pending_blocks_premature_delivery_claim_an
     agent_engine: GroceryAgentEngine,
 ) -> None:
     """FM-CHECKOUT-03: When status is PAYMENT_PENDING, premature 'Order Placed' claims are replaced with QR instructions."""
+    reviewed_cart = CommerceCart(
+        cart_id="c1", address_id="addr-bandra-1", grand_total=281,
+        items=[CartItem(spin_id="spin_1", sku_id="sku_1", name="Milk", pack_size="1L",
+                        quantity=1, unit_price=281, total_price=281)],
+    )
+    agent_engine.commerce.get_cart = AsyncMock(return_value=reviewed_cart)
+    agent_engine._record_pending_approval("cust_qr", reviewed_cart, "addr-bandra-1")
     llm_turns = [
         {
             "candidates": [

@@ -6,13 +6,15 @@ services:
     plan: free
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn backend.main:app --host 0.0.0.0 --port $PORT
-    healthCheckPath: /api/health
+    healthCheckPath: /api/ready
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.0
       - key: WHATSAPP_VERIFY_TOKEN
         sync: false
       - key: WHATSAPP_PHONE_NUMBER_ID
+        sync: false
+      - key: WHATSAPP_PUBLIC_NUMBER
         sync: false
       - key: WHATSAPP_ACCESS_TOKEN
         sync: false
@@ -30,12 +32,12 @@ services:
         value: qwen/qwen3.8-27b:free
       - key: AGENT_ROUTE_ENABLED
         value: true
-      - key: SHOPPING_TASK_ROUTE
-        value: false
       - key: COMMERCE_ADAPTER_TYPE
         value: swiggy_mcp
       - key: CHECKOUT_MODE
         value: review
+      - key: LIVE_CHECKOUT_ENABLED
+        value: false
       - key: SWIGGY_REDIRECT_URI
         value: https://grocerr.vercel.app/
       - key: SWIGGY_CLIENT_ID
@@ -46,8 +48,6 @@ services:
         sync: false
       - key: CONNECT_BASE_URL
         sync: false
-      - key: SWIGGY_AUTH_TOKEN
-        sync: false
-      - key: SWIGGY_CUSTOMER_ID
-        sync: false
+      - key: CORS_ALLOWED_ORIGINS
+        value: https://grocerr.vercel.app
 

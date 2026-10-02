@@ -17,6 +17,14 @@ During the Session End ritual (called automatically whenever significant changes
 
 ### [GROCER — Swiggy Builder Club Production Alignment, Security & Safety Defenses, Token Vault Hardening & Clean Surgical Audit] 2026-10-02
 
+#### Work Card 5: Intent-safe review implementation and rollout boundary
+
+- **Problem / tension**: The earlier prototype could acknowledge messages before durable intake, mix customer OAuth identity, approve changing baskets, or claim outcomes it could not verify. Earlier documentation also described local or historical behavior as verified production behavior.
+- **Change / decision**: Added full-number customer scoping, single-use OAuth connect tickets, PostgreSQL inbox/outbox and encrypted task state, checkout-attempt holds, deletion support, stricter cart/total approval, and a review-only live gate. Rewrote README and architecture around the actual local implementation and added a release runbook. Preserved the user's existing E2E report artifacts.
+- **Proof**: 145 local Python tests passed after the final safety changes; ESLint, Next.js build, and `git diff --check` passed in this session. No deployed PostgreSQL or real-service validation has been performed.
+- **Still broken / unproven**: Existing database migration, verified old-identity mapping, complete item ledger, dietary substitution checks, durable preferences, post-restart payment reconciliation, and uncertain WhatsApp delivery triage.
+- **Metric context**: No real model latency, live checkout success, or customer outcome metric was measured in this work.
+
 #### Work Card 1: Review Mode Simulation Gate, Token Vault Isolation & Negation-First Confirmation Guards
 - **Problem / tension**: (1) Financial safety: Testing against live Swiggy MCP credentials risked accidental real orders; (2) Security vulnerability: Token vault wrote plaintext credentials to `.vault_tokens.json` on disk and loosely permitted `cust_wa_*` prefix fallback to the store owner's account; (3) Confirmation ambiguity: RegEx matched `order` or `confirm` without negation-first precedence (e.g., "don't confirm" could trigger checkout); (4) WhatsApp truncation: Meta Cloud API truncates messages >1,024 characters when paired with interactive buttons, losing line-item receipts.
 - **Change / decision**: (1) Enforced `CHECKOUT_MODE=review` simulation gate in `swiggy_adapter.py` returning `REVIEW_COMPLETE` / `REVIEW_SIMULATED` with preserved cart totals and 0 live mutations; (2) Hardened `token_vault.py`: removed all plaintext disk persistence, purged legacy vault files on startup, and locked fallback strictly to matching `SWIGGY_CUSTOMER_ID`; (3) Implemented `is_explicit_confirmation()` in `guards.py` evaluating `_NEGATION_CONFIRM_REGEX` before any affirmative pattern; (4) Added dual-message splitting in `whatsapp.py` for long receipts (>1,000 chars); (5) Established `test_safety_invariants.py` (+9 failure-mode tests) asserting all safety boundaries.

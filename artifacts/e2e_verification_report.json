@@ -1,11 +1,11 @@
 {
-  "generated_at_utc": "2026-10-02T08:18:40.096679+00:00",
+  "generated_at_utc": "2026-10-02T08:39:11.915937+00:00",
   "execution_mode": "LIVE_GROQ_API",
   "model": "qwen/qwen3.8-27b",
   "fallback_chain": [
     "qwen/qwen3.8-27b:free"
   ],
-  "total_latency_ms": 5,
+  "total_latency_ms": 0,
   "overall_status": "PASSED",
   "passed_invariants": 6,
   "total_invariants": 6,
@@ -52,7 +52,7 @@
       "turn": 1,
       "user_input": "i wanna make pasta under 1500",
       "conversation_state": "NEEDS_DECISION",
-      "latency_ms": 3,
+      "latency_ms": 0,
       "cart_item_count": 0,
       "cart_grand_total": 0.0,
       "agent_response": "📍 *Which address should I deliver this order to?*\n\n*1.* Flat 402, Green Acres, Clover Park, Viman Nagar, Pune, Maharashtra\n*2.* Villa 12, Palm Meadows, Pancard Club Road, Baner, Pune, Maharashtra\n\n👉 Reply *1*–*2* to select your delivery address!"
@@ -61,7 +61,7 @@
       "turn": 2,
       "user_input": "2",
       "conversation_state": "AWAITING_CHECKOUT_CONFIRMATION",
-      "latency_ms": 1,
+      "latency_ms": 0,
       "cart_item_count": 4,
       "cart_grand_total": 281.0,
       "agent_response": "🛒 *Your Basket (Villa 12, Palm Meadows, Pancard Club Road, Baner, Pune, Maharashtra)*\n• 1x Yu Zero Maida Penne Pasta 500g (500 g) — ₹49\n• 1x Veeba Pasta & Pizza Sauce 280g (280 g) — ₹79\n• 1x Amul Mozzarella Diced Cheese 200g (200 g) — ₹110\n• 1x Fresh Garlic 100g (100 g) — ₹38\n\n*Subtotal:* ₹276\n*Delivery Fee:* FREE (₹0)\n*Packaging & Handling:* ₹5\n*Grand Total:* ₹281\n\n📍 *Delivering to:* Villa 12, Palm Meadows, Pancard Club Road, Baner, Pune, Maharashtra\n👉 Reply *Confirm* to place order, or tell me what to change!"
@@ -88,10 +88,10 @@
       "turn": 5,
       "user_input": "Confirm",
       "conversation_state": "AWAITING_PAYMENT",
-      "latency_ms": 1,
+      "latency_ms": 0,
       "cart_item_count": 0,
       "cart_grand_total": 0.0,
-      "agent_response": "Your order is ready! Please complete payment to place your order: https://instamart.swiggy.com/pay/bridge/paas_mock_cbb2fdda"
+      "agent_response": "Your order is ready! Please complete payment to place your order: https://instamart.swiggy.com/pay/bridge/paas_mock_e10d10cc"
     },
     {
       "turn": 6,

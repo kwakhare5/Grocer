@@ -5,9 +5,8 @@ Testing Philosophy:
 2. Exercise the real pipeline: Incoming WhatsApp Message -> Upfront Multi-Address Disambiguation
    -> Real Groq LPU (Qwen 3.8 27B) Parallel Tool Execution -> Delta Cart Merge -> Receipt Math
    Reconciliation -> Hesitation Guard -> Server-Side Confirmed Checkout Gate -> Fast-Path Reset.
-3. At the end of every E2E run, generate a verifiable, repeatable artifact at:
-   - `artifacts/e2e_verification_report.json`
-   - `docs/E2E_VERIFICATION_REPORT.md`
+3. At the end of every E2E run, generate verifiable artifacts in the pytest
+   temporary directory. Set GROCER_E2E_REPORT_DIR to publish them deliberately.
 """
 from __future__ import annotations
 
@@ -27,17 +26,13 @@ from backend.integrations.commerce.mock_adapter import MockCommerceAdapter
 from backend.integrations.commerce.models import DeliveryAddress
 import backend.integrations.commerce.mock_adapter as mock_adapter_module
 
-REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
-JSON_ARTIFACT_PATH = REPO_ROOT / "artifacts" / "e2e_verification_report.json"
-MD_ARTIFACT_PATH = REPO_ROOT / "docs" / "E2E_VERIFICATION_REPORT.md"
-
-
-def _write_e2e_artifacts(report: dict[str, Any]) -> None:
+def _write_e2e_artifacts(report: dict[str, Any], output_dir: pathlib.Path) -> tuple[pathlib.Path, pathlib.Path]:
     """Write machine-readable JSON and human-readable Markdown E2E verification artifacts."""
-    JSON_ARTIFACT_PATH.parent.mkdir(parents=True, exist_ok=True)
-    MD_ARTIFACT_PATH.parent.mkdir(parents=True, exist_ok=True)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    json_path = output_dir / "e2e_verification_report.json"
+    md_path = output_dir / "E2E_VERIFICATION_REPORT.md"
 
-    JSON_ARTIFACT_PATH.write_text(
+    json_path.write_text(
         json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
     )
 
@@ -88,11 +83,12 @@ def _write_e2e_artifacts(report: dict[str, Any]) -> None:
             ]
         )
 
-    MD_ARTIFACT_PATH.write_text("\n".join(md_lines) + "\n", encoding="utf-8")
+    md_path.write_text("\n".join(md_lines) + "\n", encoding="utf-8")
+    return json_path, md_path
 
 
 @pytest.mark.asyncio
-async def test_full_multi_turn_e2e_pipeline_and_generate_artifact() -> None:
+async def test_full_multi_turn_e2e_pipeline_and_generate_artifact(tmp_path: pathlib.Path) -> None:
     """Run the complete 6-turn GROCER customer journey and emit verifiable E2E artifacts."""
     original_addresses = list(mock_adapter_module.MOCK_ADDRESSES)
     try:
@@ -245,8 +241,9 @@ async def test_full_multi_turn_e2e_pipeline_and_generate_artifact() -> None:
         assert "Villa 12, Palm Meadows, Pancard Club Road, Baner, Pune, Maharashtra" in r1.text
         assert len(c1.items) == 0
 
-        # TURN 2: Select address #2 (Baner) -> Parallel search + cart build
-        r2, c2 = await _send(2, "2")
+        # TURN 2: Select the current Baner choice -> search + cart build
+        choice_code = r1.interactive_actions[1].id.removeprefix("addr_choice_")
+        r2, c2 = await _send(2, choice_code)
         assert r2.conversation_state == "AWAITING_CHECKOUT_CONFIRMATION"
         assert "Villa 12, Palm Meadows, Pancard Club Road, Baner, Pune, Maharashtra" in r2.text
         assert len(c2.items) >= 2
@@ -331,10 +328,11 @@ async def test_full_multi_turn_e2e_pipeline_and_generate_artifact() -> None:
             "invariants": invariants,
             "turns": turns_log,
         }
-        _write_e2e_artifacts(report)
+        output_dir = pathlib.Path(os.environ.get("GROCER_E2E_REPORT_DIR") or tmp_path)
+        json_path, md_path = _write_e2e_artifacts(report, output_dir)
 
-        assert JSON_ARTIFACT_PATH.exists()
-        assert MD_ARTIFACT_PATH.exists()
+        assert json_path.exists()
+        assert md_path.exists()
         await engine.close()
     finally:
         mock_adapter_module.MOCK_ADDRESSES[:] = original_addresses

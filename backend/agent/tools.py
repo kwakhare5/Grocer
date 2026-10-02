@@ -2,9 +2,12 @@
 from __future__ import annotations
 
 import logging
+import math
 import re
+from decimal import Decimal
 from typing import Any, Optional
 
+from backend.agent.approval import cart_fingerprint
 from backend.integrations.commerce.port import CommercePort
 from backend.integrations.commerce.models import (
     CartItemUpdate,
@@ -15,6 +18,7 @@ from backend.integrations.commerce.models import (
 )
 from backend.integrations.commerce.exceptions import (
     ItemOutOfStockError,
+    OrderStateUnknownError,
     ProviderAuthError,
 )
 
@@ -34,10 +38,8 @@ def clean_address(street: str, city: Optional[str] = None, label: Optional[str] 
 
     # Remove user name prefixes like 'Customer Name:'
     text = re.sub(r"^[^:]+:\s*", "", street).strip()
-    # Strip Google Plus codes e.g. HRC8+HWV or 7JVW+9V8
-    text = re.sub(r"\b[A-Z0-9]{4,8}\+[A-Z0-9]{2,6}\b", "", text, flags=re.IGNORECASE)
-    # Strip country tag and 6-digit postal codes while keeping full street, area, city, and state
-    text = re.sub(r",?\s*(?:\bIndia\b|\b\d{6}\b)\s*", "", text, flags=re.IGNORECASE).strip(" ,")
+    # Keep the postal code in the destination the customer reviews.
+    text = re.sub(r",?\s*\bIndia\b\s*", "", text, flags=re.IGNORECASE).strip(" ,")
 
     # Deduplicate repeated comma-separated phrases while keeping ALL parts intact
     parts = [p.strip() for p in text.split(",") if p.strip()]
@@ -59,10 +61,13 @@ def clean_address(street: str, city: Optional[str] = None, label: Optional[str] 
 def format_cart_receipt(
     cart: CommerceCart,
     delivery_location: str = "Home",
+    allow_checkout_prompt: bool = True,
 ) -> str:
     """Deterministically format verified cart state into a clean WhatsApp receipt card."""
     if not cart.items:
         return "🛒 *Your Basket is empty.*"
+    if cart.currency != "INR":
+        return "⚠️ The provider basket is not priced in INR. Checkout is unavailable."
 
     clean_loc = clean_address(delivery_location)
     item_lines = [
@@ -71,33 +76,47 @@ def format_cart_receipt(
     ]
     items_block = "\n".join(item_lines)
 
-    packaging_and_handling = round(cart.packaging_fee + cart.handling_fee, 2)
-    delivery_str = "FREE (₹0)" if cart.delivery_fee == 0.0 else _format_inr(cart.delivery_fee)
-
     lines = [
         f"🛒 *Your Basket ({clean_loc})*",
         items_block,
         "",
-        f"*Subtotal:* {_format_inr(cart.item_total)}",
-        f"*Delivery Fee:* {delivery_str}",
     ]
-    if packaging_and_handling > 0:
-        lines.append(f"*Packaging & Handling:* {_format_inr(packaging_and_handling)}")
-    if cart.taxes > 0:
-        lines.append(f"*Taxes (GST):* {_format_inr(cart.taxes)}")
-    if cart.discount > 0:
-        lines.append(f"*Discount:* -{_format_inr(cart.discount)}")
-    lines.append(f"*Grand Total:* {_format_inr(cart.grand_total)}")
-    if cart.min_order_threshold and cart.grand_total < cart.min_order_threshold:
+    if not cart.billing_complete:
+        lines.append("*Provider bill:* incomplete; fee breakdown and payable amount need verification")
+    elif cart.bill_lines:
+        lines.extend(
+            f"*{line['label']}:* {_format_inr(float(line['value']))}"
+            for line in cart.bill_lines
+        )
+    else:
+        lines.append(f"*Subtotal:* {_format_inr(cart.item_total)}")
+        delivery_text = "FREE (₹0)" if cart.delivery_fee == 0 else _format_inr(cart.delivery_fee)
+        lines.append(f"*Delivery Fee:* {delivery_text}")
+        packaging_and_handling = round(cart.packaging_fee + cart.handling_fee, 2)
+        if packaging_and_handling:
+            lines.append(f"*Packaging & Handling:* {_format_inr(packaging_and_handling)}")
+        if cart.taxes:
+            lines.append(f"*Taxes (GST):* {_format_inr(cart.taxes)}")
+        if cart.discount:
+            lines.append(f"*Discount:* -{_format_inr(cart.discount)}")
+    lines.append(
+        f"*Grand Total:* {_format_inr(cart.grand_total)}"
+        if cart.grand_total > 0 else "*Grand Total:* unavailable"
+    )
+    if not cart.billing_complete:
+        lines.append("⚠️ Provider bill is incomplete. Checkout is unavailable until it can be verified.")
+    elif cart.min_order_threshold and cart.grand_total < cart.min_order_threshold:
         diff = round(cart.min_order_threshold - cart.grand_total, 2)
         lines.append(f"⚠️ *Store Minimum Order:* {_format_inr(cart.min_order_threshold)} (Add {_format_inr(diff)} more to checkout)")
     lines.extend([
         "",
         f"📍 *Delivering to:* {clean_loc}",
     ])
-    if cart.min_order_threshold and cart.grand_total < cart.min_order_threshold:
+    if not cart.billing_complete:
+        lines.append("👉 Please wait while I verify the provider bill.")
+    elif cart.min_order_threshold and cart.grand_total < cart.min_order_threshold:
         lines.append("👉 Add items to reach the minimum order, or tell me what to add!")
-    else:
+    elif allow_checkout_prompt:
         lines.append("👉 Reply *Confirm* to place order, or tell me what to change!")
     return "\n".join(lines)
 
@@ -123,7 +142,7 @@ class SwiggyAgentTools:
                 address_id=address_id, query=query
             )
             results = []
-            for p in products[:10]:
+            for p in products:
                 in_stock_variants = [v for v in p.variants if v.in_stock is not False]
                 if not in_stock_variants:
                     continue
@@ -143,10 +162,24 @@ class SwiggyAgentTools:
                             "formatted_price": _format_inr(v.price),
                             "savings": f"{_format_inr(v.mrp - v.price)} off" if v.mrp and v.mrp > v.price else None,
                             "in_stock": v.in_stock,
+                            "max_quantity": v.max_quantity,
+                            "max_quantity_message": v.max_quantity_message,
                         }
                         for v in in_stock_variants
                     ],
+                    "similar_products": [
+                        {"product_id": similar.product_id, "name": similar.name,
+                         "brand": similar.brand,
+                         "variants": [{"spin_id": variant.spin_id, "sku_id": variant.sku_id,
+                                       "pack_size": variant.pack_size, "price": variant.price,
+                                       "in_stock": variant.in_stock}
+                                      for variant in similar.variants if variant.in_stock is not False]}
+                        for similar in p.similar_products[:3]
+                        if any(variant.in_stock is not False for variant in similar.variants)
+                    ],
                 })
+                if len(results) == 10:
+                    break
             return {
                 "success": True,
                 "query": query,
@@ -211,23 +244,24 @@ class SwiggyAgentTools:
             try:
                 cart: CommerceCart = await self.commerce.get_cart()
                 if cart and cart.items:
+                    migrate_updates = [
+                        CartItemUpdate(spin_id=ci.spin_id, quantity=ci.quantity, sku_id=ci.sku_id)
+                        for ci in cart.items if ci.quantity > 0
+                    ]
                     try:
-                        migrate_updates = [
-                            CartItemUpdate(
-                                spin_id=ci.spin_id,
-                                quantity=ci.quantity,
-                                sku_id=ci.sku_id,
-                            )
-                            for ci in cart.items
-                            if ci.quantity > 0
-                        ]
                         migrated = await self.commerce.update_cart(
                             items=migrate_updates, address_id=matched.id
                         )
-                        if migrated and migrated.items:
-                            cart = migrated
                     except Exception as mig_exc:
-                        logger.debug("Cart dark-store migration skipped/failed: %s", mig_exc)
+                        logger.warning("Cart address migration failed: %s", type(mig_exc).__name__)
+                        return {"success": False, "error": "ADDRESS_CHANGE_FAILED",
+                                "message": "I couldn't move your basket to that address. Your previous destination remains selected."}
+                    requested = {(item.spin_id, item.sku_id): item.quantity for item in migrate_updates}
+                    received = {(item.spin_id, item.sku_id): item.quantity for item in migrated.items}
+                    if requested != received or (migrated.address_id and migrated.address_id != matched.id):
+                        return {"success": False, "error": "ADDRESS_CHANGE_FAILED",
+                                "message": "I couldn't verify every item at that address. Please review your basket again."}
+                    cart = migrated
 
                     res["has_active_cart"] = True
                     res["item_count"] = len(cart.items)
@@ -247,7 +281,9 @@ class SwiggyAgentTools:
                         f"Ask the customer what groceries they would like to order."
                     )
             except Exception as cart_exc:
-                logger.debug("Failed to inspect cart in select_delivery_address: %s", cart_exc)
+                logger.warning("Failed to inspect cart in select_delivery_address: %s", type(cart_exc).__name__)
+                return {"success": False, "error": "CART_UNAVAILABLE",
+                        "message": "I couldn't verify your basket at the new address."}
             return res
         except ProviderAuthError as exc:
             return {"success": False, "error": "AUTH_EXPIRED", "detail": str(exc)}
@@ -313,10 +349,26 @@ class SwiggyAgentTools:
         delivery_location: str = "Home",
     ) -> dict[str, Any]:
         """Update Swiggy Instamart cart by deterministically merging item updates with active cart items."""
+        if not isinstance(address_id, str) or not address_id or not isinstance(items, list) or not 1 <= len(items) <= 30:
+            return {"success": False, "error": "INVALID_CART_PROPOSAL", "retryable": False}
+        seen_spins: set[str] = set()
+        for item in items:
+            if not isinstance(item, dict):
+                return {"success": False, "error": "INVALID_CART_PROPOSAL", "retryable": False}
+            spin = item.get("spin_id")
+            sku = item.get("sku_id")
+            quantity = item.get("quantity")
+            if (not isinstance(spin, str) or not 1 <= len(spin) <= 128
+                    or spin in seen_spins or type(quantity) is not int or not 0 <= quantity <= 99
+                    or (sku is not None and (not isinstance(sku, str) or not 1 <= len(sku) <= 128))):
+                return {"success": False, "error": "INVALID_CART_PROPOSAL", "retryable": False}
+            seen_spins.add(spin)
         try:
             merged_by_spin: dict[str, CartItemUpdate] = {}
             try:
                 existing_cart: CommerceCart = await self.commerce.get_cart()
+                if existing_cart is None:
+                    return {"success": False, "error": "CART_UNAVAILABLE", "retryable": False}
                 if existing_cart and existing_cart.items:
                     for ci in existing_cart.items:
                         if ci.quantity > 0:
@@ -325,8 +377,11 @@ class SwiggyAgentTools:
                                 quantity=ci.quantity,
                                 sku_id=ci.sku_id,
                             )
+            except ProviderAuthError:
+                raise
             except Exception:
-                pass
+                return {"success": False, "error": "CART_UNAVAILABLE", "retryable": False,
+                        "message": "I couldn't read the current basket, so I didn't change it."}
 
             for it in items:
                 spin = str(it["spin_id"])
@@ -347,6 +402,32 @@ class SwiggyAgentTools:
                 verified = updated
             else:
                 verified = await self.commerce.get_cart(updated.cart_id)
+            actual_by_spin = {item.spin_id: item for item in verified.items}
+            unresolved_items = []
+            for requested in cart_updates:
+                actual = actual_by_spin.get(requested.spin_id)
+                actual_quantity = actual.quantity if actual else 0
+                if (actual_quantity != requested.quantity
+                        or (requested.quantity > 0 and requested.sku_id
+                            and (actual is None or actual.sku_id != requested.sku_id))):
+                    unresolved_items.append({
+                        "spin_id": requested.spin_id,
+                        "sku_id": requested.sku_id,
+                        "requested_quantity": requested.quantity,
+                        "actual_quantity": actual_quantity,
+                        "actual_sku_id": actual.sku_id if actual else None,
+                    })
+            if unresolved_items:
+                return {
+                    "success": False,
+                    "error": "CART_ITEMS_UNRESOLVED",
+                    "retryable": False,
+                    "cart_id": verified.cart_id,
+                    "verified_fingerprint": cart_fingerprint(verified, address_id),
+                    "unresolved_items": unresolved_items,
+                    "formatted_receipt": format_cart_receipt(verified, delivery_location),
+                    "message": "Swiggy changed or omitted an item. Please resolve each difference before approval.",
+                }
             items_summary = [
                 {
                     "spin_id": item.spin_id,
@@ -365,6 +446,7 @@ class SwiggyAgentTools:
             return {
                 "success": True,
                 "cart_id": verified.cart_id,
+                "verified_fingerprint": cart_fingerprint(verified, address_id),
                 "item_count": len(items_summary),
                 "items": items_summary,
                 "item_total": verified.item_total,
@@ -417,6 +499,7 @@ class SwiggyAgentTools:
         payment_option_kind: str = "qr",
         is_user_confirmed: bool = False,
         budget_inr: Optional[float] = None,
+        expected_cart_fingerprint: Optional[str] = None,
     ) -> dict[str, Any]:
         """Place the final order on Swiggy Instamart. STRICTLY server-side gated."""
         if not is_user_confirmed:
@@ -430,26 +513,51 @@ class SwiggyAgentTools:
                 ),
             }
 
-        # Deterministic Budget Gate: Block checkout if grand total exceeds budget
-        if budget_inr is not None and budget_inr > 0:
-            try:
-                cart = await self.commerce.get_cart(cart_id)
-                if cart and cart.grand_total and cart.grand_total > budget_inr:
-                    overage = round(cart.grand_total - budget_inr, 2)
-                    return {
-                        "success": False,
-                        "error": "BUDGET_EXCEEDED",
-                        "retryable": False,
-                        "grand_total": cart.grand_total,
-                        "budget_inr": budget_inr,
-                        "message": (
-                            f"Order placement blocked: Current grand total ₹{cart.grand_total:.0f} "
-                            f"exceeds your budget of ₹{budget_inr:.0f} by ₹{overage:.0f}. "
-                            "Please ask the user if they would like to remove an item or increase their budget."
-                        ),
-                    }
-            except Exception as b_exc:
-                logger.debug("Budget pre-check inspection failed: %s", b_exc)
+        try:
+            cart = await self.commerce.get_cart(cart_id)
+        except Exception as exc:
+            logger.warning("Checkout cart verification failed: %s", type(exc).__name__)
+            return {"success": False, "error": "CART_UNAVAILABLE", "retryable": False,
+                    "message": "I couldn't verify your basket. Please review it again before ordering."}
+        if not cart or not math.isfinite(cart.grand_total) or cart.grand_total <= 0:
+            return {"success": False, "error": "TOTAL_UNKNOWN", "retryable": False,
+                    "message": "I couldn't verify the full payable total. No order was attempted."}
+        if cart.currency != "INR":
+            return {"success": False, "error": "CURRENCY_MISMATCH", "retryable": False,
+                    "message": "The basket currency is not INR. No order was attempted."}
+        if not cart.billing_complete:
+            return {"success": False, "error": "BILL_INCOMPLETE", "retryable": False,
+                    "message": "I couldn't verify every charge in the payable total. No order was attempted."}
+        if cart_id and cart.cart_id and cart.cart_id != cart_id:
+            return {"success": False, "error": "CART_CHANGED", "retryable": False,
+                    "message": "Your basket changed. Please review the current basket again."}
+        if address_id and cart.address_id and cart.address_id != address_id:
+            return {"success": False, "error": "ADDRESS_CHANGED", "retryable": False,
+                    "message": "The delivery address changed. Please review the current basket again."}
+        if expected_cart_fingerprint and cart_fingerprint(cart, address_id) != expected_cart_fingerprint:
+            return {"success": False, "error": "CART_CHANGED", "retryable": False,
+                    "message": "Your basket or total changed. Please review it again."}
+        if budget_inr is not None:
+            if not math.isfinite(budget_inr) or budget_inr <= 0:
+                return {"success": False, "error": "INVALID_BUDGET", "retryable": False,
+                        "message": "I couldn't verify your spending limit. Please restate it."}
+            if Decimal(str(cart.grand_total)) > Decimal(str(budget_inr)):
+                overage = float(Decimal(str(cart.grand_total)) - Decimal(str(budget_inr)))
+                return {
+                    "success": False,
+                    "error": "BUDGET_EXCEEDED",
+                    "retryable": False,
+                    "grand_total": cart.grand_total,
+                    "budget_inr": budget_inr,
+                    "message": (
+                        f"Order placement blocked: Current grand total ₹{cart.grand_total:.0f} "
+                        f"exceeds your budget of ₹{budget_inr:.0f} by ₹{overage:.0f}. "
+                        "Please ask the user if they would like to remove an item or increase their budget."
+                    ),
+                }
+        if not cart.items:
+            return {"success": False, "error": "CART_EMPTY", "retryable": False,
+                    "message": "Your basket is empty. No order was attempted."}
 
         try:
             result: CommerceOrderResult = await self.commerce.checkout(
@@ -460,7 +568,7 @@ class SwiggyAgentTools:
                 explicit_confirmation=True,
             )
             return {
-                "success": True,
+                "success": result.status not in ("ORDER_STATE_UNKNOWN", "FAILED"),
                 "order_id": result.order_id,
                 "status": result.status.value if hasattr(result.status, "value") else str(result.status),
                 "grand_total": result.grand_total,
@@ -471,12 +579,21 @@ class SwiggyAgentTools:
                 "bridge_url": result.bridge_url,
                 "upi_intent_url": result.upi_intent_url,
                 "is_qr_flow": result.is_qr_flow,
+                "is_simulated": result.is_simulated,
+                "message": result.message,
+                "orders": [order.model_dump(mode="json") for order in result.orders],
+                "success_count": result.success_count,
+                "failure_count": result.failure_count,
             }
         except ProviderAuthError as exc:
             return {"success": False, "error": "AUTH_EXPIRED", "detail": str(exc)}
+        except OrderStateUnknownError:
+            return {"success": False, "error": "ORDER_STATE_UNKNOWN", "retryable": False,
+                    "message": "I couldn't verify whether checkout completed. Please don't try again yet."}
         except Exception as exc:
-            logger.warning("checkout failed: %s", exc)
-            return {"success": False, "error": str(exc)}
+            logger.warning("checkout outcome unverified after %s", type(exc).__name__)
+            return {"success": False, "error": "ORDER_STATE_UNKNOWN", "retryable": False,
+                    "message": "I couldn't verify whether checkout completed. Please don't try again yet."}
 
     async def track_order(self, order_id: str) -> dict[str, Any]:
         """Track the real-time delivery status and ETA of an existing order."""

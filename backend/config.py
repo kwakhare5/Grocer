@@ -6,6 +6,7 @@ class Settings(BaseSettings):
     AGENT_ROUTE_ENABLED: bool = True
     COMMERCE_ADAPTER_TYPE: str = "mock"
     CHECKOUT_MODE: Literal["review", "live"] = "review"
+    LIVE_CHECKOUT_ENABLED: bool = False
     SWIGGY_MCP_BASE_URL: str = "https://mcp.swiggy.com/im"
     SWIGGY_AUTH_TOKEN: str | None = None
     SWIGGY_CUSTOMER_ID: str | None = None
@@ -21,6 +22,7 @@ class Settings(BaseSettings):
     WHATSAPP_VERIFY_TOKEN: str | None = None
     WHATSAPP_APP_SECRET: str | None = None
     WHATSAPP_PHONE_NUMBER_ID: str | None = None
+    WHATSAPP_PUBLIC_NUMBER: str | None = None
     WHATSAPP_ACCESS_TOKEN: str | None = None
     DATABASE_URL: str | None = None
     DATABASE_POOL_MAX_SIZE: int = 5

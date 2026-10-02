@@ -4,6 +4,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
+from backend.agent.approval import PendingApproval
+
 
 @dataclass
 class CustomerSession:
@@ -17,6 +19,10 @@ class CustomerSession:
     awaiting_address_choice: Optional[list[dict[str, Any]]] = None
     last_active_ts: float = 0.0
     budget_inr: Optional[float] = None
+    pending_approval: Optional[PendingApproval] = None
+    unresolved_items: list[dict[str, Any]] = field(default_factory=list)
+    known_cart_fingerprint: Optional[str] = None
+    external_cart_pending: bool = False
 
     def set_address(self, address_id: str, label: str, confirmed: bool = True) -> None:
         """Atomically lock the active delivery address and label."""
@@ -36,4 +42,9 @@ class CustomerSession:
         """Completely reset session history and address state."""
         self.history.clear()
         self.reset_order_address()
+        self.pending_approval = None
+        self.unresolved_items.clear()
+        self.known_cart_fingerprint = None
+        self.external_cart_pending = False
         self.last_active_ts = 0.0
+        self.budget_inr = None

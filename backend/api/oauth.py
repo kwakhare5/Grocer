@@ -1,37 +1,35 @@
 import logging
-from typing import Any, Optional
+import re
 
-from fastapi import APIRouter, Header, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from pydantic import BaseModel
 
 from backend.integrations.commerce.swiggy_oauth import default_oauth_manager
 from backend.integrations.commerce.token_vault import default_token_vault
-from backend.channels.whatsapp import default_whatsapp_adapter
 from backend.config import settings
-from backend.identity import whatsapp_customer_id
+from backend.integrations.commerce.connect_tickets import default_connect_tickets
 
 logger = logging.getLogger("grocer.api.oauth")
 router = APIRouter()
 
 class LoginRequest(BaseModel):
-    phone_number: str
+    ticket: str | None = None
+    phone_number: str | None = None
 
 @router.post("/auth/swiggy/login")
 async def swiggy_login(req: LoginRequest) -> dict[str, str]:
+    customer_id = await default_connect_tickets.consume(req.ticket or "")
+    if customer_id is None:
+        raise HTTPException(status_code=403, detail="Open a fresh connection link from WhatsApp.")
     try:
-        customer_id = whatsapp_customer_id(
-            req.phone_number,
-            default_whatsapp_adapter.app_secret or settings.WHATSAPP_APP_SECRET,
-        )
-
         authorize_url, state = await default_oauth_manager.initiate_flow(
             customer_id=customer_id,
         )
         return {"authorize_url": authorize_url, "state": state}
     except ValueError as exc:
         logger.info("Swiggy connection request rejected: %s", type(exc).__name__)
-        raise HTTPException(status_code=400, detail="Enter a valid WhatsApp phone number.") from exc
+        raise HTTPException(status_code=400, detail="Request a fresh connection link in WhatsApp.") from exc
     except Exception as exc:
         logger.error("Swiggy connection could not start: %s", type(exc).__name__)
         raise HTTPException(
@@ -63,16 +61,6 @@ async def swiggy_callback(req: CallbackRequest) -> dict[str, bool]:
                 scope=str(token_data.get("scope", "mcp:tools")),
                 client_id=token_data.get("client_id"),
             )
-            if settings.SWIGGY_CUSTOMER_ID and settings.SWIGGY_CUSTOMER_ID != customer_id:
-                await default_token_vault.store_token_durable(
-                    customer_id=settings.SWIGGY_CUSTOMER_ID,
-                    access_token=access_token,
-                    expires_in=expires_in,
-                    token_type=str(token_data.get("token_type", "Bearer")),
-                    scope=str(token_data.get("scope", "mcp:tools")),
-                    client_id=token_data.get("client_id"),
-                )
-            settings.SWIGGY_AUTH_TOKEN = access_token
             return {"success": True}
         raise ValueError("Missing customer_id or access_token in exchange response")
     except Exception as exc:
@@ -83,44 +71,10 @@ async def swiggy_callback(req: CallbackRequest) -> dict[str, bool]:
         ) from exc
 
 
-class TokenSyncRequest(BaseModel):
-    token: str
-    customer_id: Optional[str] = None
-    admin_secret: Optional[str] = None
-
-
 @router.post("/auth/token/sync")
-async def sync_token(
-    req: TokenSyncRequest,
-    x_admin_secret: Optional[str] = Header(None, alias="X-Admin-Secret"),
-) -> dict[str, Any]:
-    """Securely store an active Swiggy session token into the running vault."""
-    expected_secret = default_whatsapp_adapter.app_secret or settings.WHATSAPP_APP_SECRET
-    provided_secret = x_admin_secret or req.admin_secret
-    if not expected_secret or provided_secret != expected_secret:
-        raise HTTPException(status_code=403, detail="Forbidden")
-
-    cid = req.customer_id or settings.SWIGGY_CUSTOMER_ID or "cust_wa_1d1bc7cf4da4a5eecef2dcd8"
-    entry = await default_token_vault.store_token_durable(
-        customer_id=cid,
-        access_token=req.token,
-        expires_in=86400 * 5,
-        token_type="Bearer",
-        scope="mcp:tools",
-        client_id=settings.SWIGGY_CLIENT_ID,
-    )
-    if settings.SWIGGY_CUSTOMER_ID and settings.SWIGGY_CUSTOMER_ID != cid:
-        await default_token_vault.store_token_durable(
-            customer_id=settings.SWIGGY_CUSTOMER_ID,
-            access_token=req.token,
-            expires_in=86400 * 5,
-            token_type="Bearer",
-            scope="mcp:tools",
-            client_id=settings.SWIGGY_CLIENT_ID,
-        )
-    settings.SWIGGY_AUTH_TOKEN = req.token
-    logger.info("Successfully synced active Swiggy token for %s", cid)
-    return {"success": True, "customer_id": cid, "expires_at": entry.expires_at}
+async def sync_token() -> None:
+    """Close the legacy arbitrary-customer token import."""
+    raise HTTPException(status_code=410, detail="Connect your own account through WhatsApp OAuth.")
 
 
 @router.get("/connect")
@@ -153,22 +107,17 @@ async def swiggy_callback_browser(code: str, state: str) -> HTMLResponse:
                 scope=str(token_data.get("scope", "mcp:tools")),
                 client_id=token_data.get("client_id"),
             )
-            if settings.SWIGGY_CUSTOMER_ID and settings.SWIGGY_CUSTOMER_ID != customer_id:
-                await default_token_vault.store_token_durable(
-                    customer_id=settings.SWIGGY_CUSTOMER_ID,
-                    access_token=access_token,
-                    expires_in=expires_in,
-                    token_type=str(token_data.get("token_type", "Bearer")),
-                    scope=str(token_data.get("scope", "mcp:tools")),
-                    client_id=token_data.get("client_id"),
-                )
-
-            settings.SWIGGY_AUTH_TOKEN = access_token
-
             logger.info("Successfully connected and saved Swiggy token for %s", customer_id)
 
+            public_number = (settings.WHATSAPP_PUBLIC_NUMBER or "").removeprefix("+")
+            whatsapp_link = (
+                f'<a href="https://wa.me/{public_number}" style="display: inline-block; background: #25D366; color: white; text-decoration: none; padding: 14px 28px; border-radius: 9999px; font-weight: 600; font-size: 16px;">Open WhatsApp</a>'
+                if re.fullmatch(r"91[6-9][0-9]{9}", public_number)
+                else "<p>Return to your WhatsApp chat to continue.</p>"
+            )
+
             return HTMLResponse(
-                """<!DOCTYPE html>
+                f"""<!DOCTYPE html>
 <html>
 <head>
     <meta charset="utf-8">
@@ -182,23 +131,21 @@ async def swiggy_callback_browser(code: str, state: str) -> HTMLResponse:
         <p style="color: #64748b; font-size: 15px; line-height: 1.5; margin: 0 0 28px;">
             Your grocery assistant is now authorized. You can switch back to WhatsApp and continue shopping!
         </p>
-        <a href="https://wa.me/15556631707" style="display: inline-block; background: #25D366; color: white; text-decoration: none; padding: 14px 28px; border-radius: 9999px; font-weight: 600; font-size: 16px; box-shadow: 0 4px 12px rgba(37,211,102,0.3);">
-            Open WhatsApp
-        </a>
+        {whatsapp_link}
     </div>
 </body>
 </html>"""
             )
         raise ValueError("Missing customer_id or access_token in exchange response")
     except Exception as exc:
-        logger.error("Browser callback failed: %s", exc)
+        logger.error("Browser callback failed: %s", type(exc).__name__)
         return HTMLResponse(
-            f"""<!DOCTYPE html>
+            """<!DOCTYPE html>
 <html>
 <head><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Connection Error</title></head>
 <body style="font-family: -apple-system, sans-serif; text-align: center; padding: 40px 16px; background: #fff5f5;">
     <h2 style="color: #e53e3e;">Connection Failed</h2>
-    <p style="color: #4a5568;">{exc}</p>
+    <p style="color: #4a5568;">We could not complete your Swiggy connection.</p>
     <p>Please try reconnecting again from WhatsApp.</p>
 </body>
 </html>""",

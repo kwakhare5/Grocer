@@ -54,7 +54,6 @@ _RESET_COMMANDS = {
     "empty basket",
     "reset",
     "reset cart",
-    "cancel order",
     "delete cart",
     "please clear my cart and start fresh",
     "please clear my cart and start fresh.",
@@ -108,15 +107,21 @@ _NEGATION_CONFIRM_REGEX = re.compile(
     r"(?i)\b(don'?t|do not|never|stop|wait|hold|cancel|not now|not yet|no|nope|nah|pause|clear cart|start over)\b"
 )
 
-_EXPLICIT_CONFIRM_PATTERNS = re.compile(
-    r"(?i)\b("
-    r"confirm|confirm order|place order|place the order|place this order|order place karo|"
-    r"theek hai order confirm karo|theek hai order confirm|yes please confirm|"
-    r"yes confirm|yes place|proceed to pay|reply confirm|i explicitly confirm|"
-    r"proceed with order|complete order|konfirm order|yes, please confirm and place the order now|"
-    r"order confirm|yes|yes please|proceed|checkout|pay|book it|order it|order now|go ahead|do it|ok|okay|sure"
-    r")\b"
-)
+_EXPLICIT_CONFIRM_PHRASES = _CONFIRMATION_PHRASES | {
+    "theek hai order confirm karo",
+    "theek hai order confirm",
+    "yes please confirm",
+    "yes confirm",
+    "yes place",
+    "proceed to pay",
+    "i explicitly confirm",
+    "proceed with order",
+    "complete order",
+    "konfirm order",
+    "yes, please confirm and place the order now",
+    "order confirm",
+    "order place karo",
+}
 
 
 def is_explicit_confirmation(text: str) -> bool:
@@ -127,10 +132,10 @@ def is_explicit_confirmation(text: str) -> bool:
     """
     if not text or not text.strip():
         return False
-    cleaned = text.strip()
+    cleaned = re.sub(r"\s+", " ", text.casefold()).strip(" \t\r\n.!?")
     if _NEGATION_CONFIRM_REGEX.search(cleaned):
         return False
-    return bool(_EXPLICIT_CONFIRM_PATTERNS.search(cleaned))
+    return cleaned in _EXPLICIT_CONFIRM_PHRASES
 
 
 def _claims_order_success(text: str) -> bool:

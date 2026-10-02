@@ -98,39 +98,10 @@ class SwiggyTokenVault:
         return bool(token and token.startswith("ey") and len(token.split(".")) == 3)
 
     def _load_from_disk(self) -> None:
-        # In-memory only: Plaintext disk caching is strictly disabled for security.
-        # Remove any legacy plaintext vault file if present.
+        # Never load legacy plaintext credentials; leave the file for a private
+        # provenance review rather than deleting historical data on startup.
         if self._persistence_file.exists():
-            try:
-                self._persistence_file.unlink(missing_ok=True)
-            except Exception:
-                pass
-
-        bootstrap_path = Path(__file__).resolve().parent / "bootstrap.vault"
-        has_genuine_jwt = any(self._is_valid_jwt(e.access_token) for e in self._tokens.values())
-        if bootstrap_path.exists() and not has_genuine_jwt:
-            try:
-                from backend.config import settings
-                secret = settings.WHATSAPP_APP_SECRET
-                if secret:
-                    derived_key = base64.urlsafe_b64encode(hashlib.sha256(secret.encode("utf-8")).digest())
-                    f = Fernet(derived_key)
-                    raw = f.decrypt(bootstrap_path.read_bytes())
-                    payload = json.loads(raw.decode("utf-8"))
-                    cid = payload.get("customer_id")
-                    if cid and payload.get("expires_at", 0) > time.time() + 60:
-                        entry = self._new_entry(
-                            payload["token"],
-                            expires_in=int(payload["expires_at"] - time.time()),
-                            token_type=payload.get("token_type", "Bearer"),
-                            scope=payload.get("scope", "mcp:tools"),
-                            client_id=payload.get("client_id"),
-                        )
-                        with self._lock:
-                            self._tokens[cid] = entry
-                        logger.info("Successfully loaded bootstrap Swiggy token for %s", cid)
-            except Exception as exc:
-                logger.debug("Could not load bootstrap vault: %s", exc)
+            logger.warning("A legacy plaintext token file was ignored; review it privately.")
 
     def _save_to_disk(self) -> None:
         """Disabled for security: tokens never touch local disk in plaintext."""
@@ -253,6 +224,25 @@ class SwiggyTokenVault:
         entry = self.get_entry(customer_id)
         return entry.access_token if entry else None
 
+    async def get_token_durable(self, customer_id: str | None) -> str | None:
+        """Read the current customer token on every provider call across app instances."""
+        if not customer_id or not self.is_durable:
+            return None
+        assert self._pool is not None and self._codec is not None
+        row = await self._pool.fetchrow(
+            """SELECT ciphertext FROM grocer_internal.oauth_tokens
+               WHERE customer_id = $1 AND expires_at > NOW() + INTERVAL '60 seconds'""",
+            customer_id,
+        )
+        if row is None:
+            return None
+        try:
+            entry = SwiggyTokenEntry.model_validate(self._codec.decrypt(row["ciphertext"]))
+        except (CredentialDecryptionError, ValueError):
+            logger.error("A stored Swiggy credential could not be loaded safely.")
+            return None
+        return entry.access_token if not entry.is_expired else None
+
     def get_entry(self, customer_id: Optional[str] = None) -> SwiggyTokenEntry | None:
         with self._lock:
             if customer_id and customer_id in self._tokens:
@@ -262,17 +252,9 @@ class SwiggyTokenVault:
                     self._save_to_disk()
                 else:
                     return entry
-            elif not customer_id and self._tokens:
-                # If customer_id is omitted, return first valid active JWT in the vault
-                for cid, entry in list(self._tokens.items()):
-                    if entry.is_expired:
-                        del self._tokens[cid]
-                    elif self._is_valid_jwt(entry.access_token):
-                        return entry
-
         # Fallback to configured SWIGGY_AUTH_TOKEN strictly for matching owner customer
         from backend.config import settings
-        if settings.SWIGGY_AUTH_TOKEN and settings.SWIGGY_CUSTOMER_ID:
+        if not self.is_durable and settings.SWIGGY_AUTH_TOKEN and settings.SWIGGY_CUSTOMER_ID:
             if customer_id and customer_id == settings.SWIGGY_CUSTOMER_ID:
                 entry = self._new_entry(
                     settings.SWIGGY_AUTH_TOKEN,
@@ -284,16 +266,6 @@ class SwiggyTokenVault:
                 with self._lock:
                     self._tokens[customer_id] = entry
                 return entry
-        elif settings.SWIGGY_AUTH_TOKEN and not customer_id and not settings.SWIGGY_CUSTOMER_ID:
-            # Single-tenant local test mode only when no customer_id and no SWIGGY_CUSTOMER_ID
-            entry = self._new_entry(
-                settings.SWIGGY_AUTH_TOKEN,
-                expires_in=86400 * 5,
-                token_type="Bearer",
-                scope="mcp:tools",
-                client_id=settings.SWIGGY_CLIENT_ID,
-            )
-            return entry
         return None
 
     def is_authenticated(self, customer_id: str) -> bool:

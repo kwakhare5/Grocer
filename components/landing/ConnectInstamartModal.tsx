@@ -14,14 +14,17 @@ export interface ConnectInstamartModalProps {
   isOpen: boolean;
   onClose: () => void;
   isConnected: boolean;
+  connectTicket?: string | null;
+  initialError?: string | null;
 }
 
 export function ConnectInstamartModal({
   isOpen,
   onClose,
   isConnected,
+  connectTicket,
+  initialError,
 }: ConnectInstamartModalProps) {
-  const [phoneNumber, setPhoneNumber] = useState("");
   const [authError, setAuthError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -31,9 +34,9 @@ export function ConnectInstamartModal({
     e.preventDefault();
     setAuthError(null);
 
-    const clean = phoneNumber.replace(/\D/g, "");
-    if (clean.length < 10) {
-      setAuthError("Please enter a valid 10-digit Indian mobile number.");
+    const ticket = connectTicket;
+    if (!ticket) {
+      setAuthError("Request a fresh connection link in your WhatsApp chat with Grocer.");
       return;
     }
 
@@ -42,7 +45,7 @@ export function ConnectInstamartModal({
       const res = await fetch("/api/auth/swiggy/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone_number: clean }),
+        body: JSON.stringify({ ticket }),
       });
 
       const data = await res.json();
@@ -50,8 +53,8 @@ export function ConnectInstamartModal({
         throw new Error(data.detail || "Failed to start Swiggy connection");
       }
 
-      if (data.auth_url) {
-        window.location.href = data.auth_url;
+      if (data.authorize_url) {
+        window.location.href = data.authorize_url;
       } else {
         throw new Error("No authentication URL returned from server.");
       }
@@ -94,12 +97,12 @@ export function ConnectInstamartModal({
           </div>
         </div>
 
-        {authError && (
+        {(authError || initialError) && (
           <div
             className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-xs sm:text-sm text-red-800 leading-relaxed"
             role="alert"
           >
-            {authError}
+            {authError || initialError}
           </div>
         )}
 
@@ -120,36 +123,12 @@ export function ConnectInstamartModal({
         ) : (
           <form onSubmit={handleStartAuth} className="space-y-4">
             <p className="text-xs sm:text-sm text-zinc-600 leading-relaxed font-normal">
-              Enter your registered mobile number to authenticate with the store MCP gateway for WhatsApp ordering.
+              Open the one-time link Grocer sent to your WhatsApp chat, then continue here to connect your Swiggy account.
             </p>
-
-            <div>
-              <label
-                htmlFor="modal-phone"
-                className="block text-xs font-semibold text-zinc-700 uppercase tracking-wider mb-1.5"
-              >
-                10-Digit Mobile Number
-              </label>
-              <div className="flex rounded-xl border border-zinc-200 bg-zinc-50 overflow-hidden focus-within:border-emerald-600 focus-within:ring-1 focus-within:ring-emerald-600">
-                <span className="inline-flex items-center px-3.5 border-r border-zinc-200 text-xs sm:text-sm text-zinc-500 font-mono">
-                  +91
-                </span>
-                <input
-                  id="modal-phone"
-                  type="tel"
-                  maxLength={10}
-                  placeholder="9876543210"
-                  value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value)}
-                  disabled={busy}
-                  className="w-full px-3 py-2.5 text-xs sm:text-sm text-zinc-950 bg-white placeholder-zinc-400 focus:outline-none font-mono"
-                />
-              </div>
-            </div>
 
             <button
               type="submit"
-              disabled={busy || phoneNumber.length < 10}
+              disabled={busy}
               className="w-full flex items-center justify-center gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 px-4 py-3 text-xs sm:text-sm font-semibold text-white shadow-xs transition active:scale-[0.98] cursor-pointer"
             >
               {busy ? (
@@ -166,7 +145,7 @@ export function ConnectInstamartModal({
             </button>
 
             <p className="text-xs text-zinc-400 text-center leading-normal">
-              Secured with AES-GCM encrypted tokens. We never store banking credentials.
+              Your Swiggy access token is stored encrypted. We never store banking credentials.
             </p>
           </form>
         )}

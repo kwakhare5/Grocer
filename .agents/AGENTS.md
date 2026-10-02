@@ -225,8 +225,9 @@ If the answer is no, it does not belong in GROCER v2 unless the architectural co
 
 ## 15. SESSION RESUME
 
-**Last completed:** Applied and verified all PostgreSQL migrations (001_connect_tickets through 005_privacy_deletions) directly to Supabase PostgreSQL (grocer_internal schema: all 8 required tables present and verified). Verified backend boot and /api/ready endpoint returning HTTP 200 (missing: []). Test suite expanded to 145/145 pytest green (including 58 release safety tests). ESLint 0 errors, Next.js 16 build clean.
+**Last completed:** Live Render backend deployment (`dep-davro67avr4c73d675d0`) is LIVE and fully operational. Resolved exit code 3 root cause by routing Supabase database connection through the Singapore IPv4 Supavisor pooler (`aws-0-ap-southeast-1.pooler.supabase.com:5432`). Live `/api/ready` confirmed HTTP 200 with `status: "ready"` and `missing: []`. Live `/api/health` confirmed HTTP 200 `alive`. Live `/api/whatsapp/webhook` verified challenge response 200. Test suite 145/145 pytest green, ESLint clean, Next.js build clean.
 
-**Next implementation gate:** Set Render environment variables (DATABASE_URL, DATA_ENCRYPTION_KEY, GROQ_API_KEY, OPENROUTER_API_KEY, WHATSAPP_PUBLIC_NUMBER), commit and deploy working tree to main, then run 2-customer real-device WhatsApp review flow. Keep CHECKOUT_MODE=review and LIVE_CHECKOUT_ENABLED=false.
+**Next implementation gate:** Conduct end-to-end 2-customer real-device WhatsApp test flow. Keep CHECKOUT_MODE=review and LIVE_CHECKOUT_ENABLED=false.
 
-**Current status:** Supabase database schema is live and operational. Local code is fully hardened and verified. Live Render environment variables update and git commit/push are pending.
+**Current status:** Production backend is live, connected to Supabase PostgreSQL, and ready for WhatsApp customer conversations.
+

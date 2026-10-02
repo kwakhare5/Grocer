@@ -192,13 +192,13 @@ export const PIPELINE_NODES: PipelineNode[] = [
     whyItMatters: "Store inventory varies by neighborhood. Confirming address first guarantees 100% accurate pricing and stock.",
   },
   {
-    id: "gemini",
+    id: "groq",
     stepNumber: "03",
     title: "Recipe & Product Search",
-    subtitle: "Gemini Reasoning",
-    badge: "Fast Reasoning",
+    subtitle: "Groq LPU (Qwen 3.8 27B)",
+    badge: "366+ tok/sec",
     badgeColor: "purple",
-    metric: "Fast Inference",
+    metric: "0.5s Latency",
     description: "Interprets conversational requests, converts recipe prompts into individual grocery items, and respects dietary or budget limits.",
     responsibilities: [
       "Decomposes recipe requests (e.g. 'pasta for dinner') into exact grocery items",

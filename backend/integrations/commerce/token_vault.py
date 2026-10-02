@@ -98,18 +98,13 @@ class SwiggyTokenVault:
         return bool(token and token.startswith("ey") and len(token.split(".")) == 3)
 
     def _load_from_disk(self) -> None:
+        # In-memory only: Plaintext disk caching is strictly disabled for security.
+        # Remove any legacy plaintext vault file if present.
         if self._persistence_file.exists():
             try:
-                content = self._persistence_file.read_text(encoding="utf-8")
-                if content.strip():
-                    data = json.loads(content)
-                    now = time.time()
-                    with self._lock:
-                        for cid, entry_data in data.items():
-                            if entry_data.get("expires_at", 0) > now + 60:
-                                self._tokens[cid] = SwiggyTokenEntry.model_validate(entry_data)
-            except Exception as exc:
-                logger.warning("Could not load tokens from disk: %s", exc)
+                self._persistence_file.unlink(missing_ok=True)
+            except Exception:
+                pass
 
         bootstrap_path = Path(__file__).resolve().parent / "bootstrap.vault"
         has_genuine_jwt = any(self._is_valid_jwt(e.access_token) for e in self._tokens.values())
@@ -133,22 +128,13 @@ class SwiggyTokenVault:
                         )
                         with self._lock:
                             self._tokens[cid] = entry
-                        self._save_to_disk()
                         logger.info("Successfully loaded bootstrap Swiggy token for %s", cid)
             except Exception as exc:
                 logger.debug("Could not load bootstrap vault: %s", exc)
 
     def _save_to_disk(self) -> None:
-        try:
-            with self._lock:
-                data = {
-                    cid: entry.model_dump(mode="json")
-                    for cid, entry in self._tokens.items()
-                    if not entry.is_expired
-                }
-            self._persistence_file.write_text(json.dumps(data, indent=2), encoding="utf-8")
-        except Exception as exc:
-            logger.warning("Could not save tokens to disk: %s", exc)
+        """Disabled for security: tokens never touch local disk in plaintext."""
+        return
 
     @property
     def is_durable(self) -> bool:
@@ -284,18 +270,10 @@ class SwiggyTokenVault:
                     elif self._is_valid_jwt(entry.access_token):
                         return entry
 
-        # Fallback to configured SWIGGY_AUTH_TOKEN if active and customer matches
+        # Fallback to configured SWIGGY_AUTH_TOKEN strictly for matching owner customer
         from backend.config import settings
-        if settings.SWIGGY_AUTH_TOKEN:
-            is_owner = False
-            if customer_id and settings.SWIGGY_CUSTOMER_ID:
-                if settings.SWIGGY_CUSTOMER_ID == customer_id:
-                    is_owner = True
-                elif settings.SWIGGY_CUSTOMER_ID.isdigit() and customer_id.startswith("cust_wa_"):
-                    is_owner = True
-            elif not settings.SWIGGY_CUSTOMER_ID or not customer_id:
-                is_owner = True
-            if is_owner:
+        if settings.SWIGGY_AUTH_TOKEN and settings.SWIGGY_CUSTOMER_ID:
+            if customer_id and customer_id == settings.SWIGGY_CUSTOMER_ID:
                 entry = self._new_entry(
                     settings.SWIGGY_AUTH_TOKEN,
                     expires_in=86400 * 5,
@@ -304,10 +282,18 @@ class SwiggyTokenVault:
                     client_id=settings.SWIGGY_CLIENT_ID,
                 )
                 with self._lock:
-                    effective_cid = customer_id or settings.SWIGGY_CUSTOMER_ID or "cust_default"
-                    self._tokens[effective_cid] = entry
-                self._save_to_disk()
+                    self._tokens[customer_id] = entry
                 return entry
+        elif settings.SWIGGY_AUTH_TOKEN and not customer_id and not settings.SWIGGY_CUSTOMER_ID:
+            # Single-tenant local test mode only when no customer_id and no SWIGGY_CUSTOMER_ID
+            entry = self._new_entry(
+                settings.SWIGGY_AUTH_TOKEN,
+                expires_in=86400 * 5,
+                token_type="Bearer",
+                scope="mcp:tools",
+                client_id=settings.SWIGGY_CLIENT_ID,
+            )
+            return entry
         return None
 
     def is_authenticated(self, customer_id: str) -> bool:

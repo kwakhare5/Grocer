@@ -13,8 +13,11 @@ class Settings(BaseSettings):
     SWIGGY_REDIRECT_URI: str = "https://grocerr.vercel.app/"
     CONNECT_BASE_URL: str = "https://grocerr.vercel.app"
     CORS_ALLOWED_ORIGINS: str = "https://grocerr.vercel.app"
-    GEMINI_API_KEY: str | None = None
-    GEMINI_MODEL: str = "gemini-3.5-flash-lite"
+    AI_PROVIDER: Literal["groq", "openrouter"] = "groq"
+    GROQ_API_KEY: str | None = None
+    GROQ_MODEL: str = "qwen/qwen3.8-27b"
+    OPENROUTER_API_KEY: str | None = None
+    OPENROUTER_MODEL: str = "qwen/qwen3.8-27b:free"
     WHATSAPP_VERIFY_TOKEN: str | None = None
     WHATSAPP_APP_SECRET: str | None = None
     WHATSAPP_PHONE_NUMBER_ID: str | None = None

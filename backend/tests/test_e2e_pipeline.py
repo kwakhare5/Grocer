@@ -3,7 +3,7 @@
 Testing Philosophy:
 1. Prefer full End-to-End (E2E) multi-turn verification over shallow mocked unit tests.
 2. Exercise the real pipeline: Incoming WhatsApp Message -> Upfront Multi-Address Disambiguation
-   -> Real Gemini 3.5 Flash-Lite Parallel Tool Execution -> Delta Cart Merge -> Receipt Math
+   -> Real Groq LPU (Qwen 3.8 27B) Parallel Tool Execution -> Delta Cart Merge -> Receipt Math
    Reconciliation -> Hesitation Guard -> Server-Side Confirmed Checkout Gate -> Fast-Path Reset.
 3. At the end of every E2E run, generate a verifiable, repeatable artifact at:
    - `artifacts/e2e_verification_report.json`
@@ -12,6 +12,7 @@ Testing Philosophy:
 from __future__ import annotations
 
 import json
+import os
 import pathlib
 import time
 from datetime import datetime, timezone
@@ -45,7 +46,7 @@ def _write_e2e_artifacts(report: dict[str, Any]) -> None:
         "",
         f"- **Generated At (UTC):** `{report['generated_at_utc']}`",
         f"- **Execution Mode:** `{report['execution_mode']}`",
-        f"- **Primary Gemini Model:** `{report['model']}`",
+        f"- **Primary LLM Model:** `{report['model']}`",
         f"- **Fallback Cascade:** `{' -> '.join(report['fallback_chain'])}`",
         f"- **Total Multi-Turn E2E Latency:** `{report['total_latency_ms']} ms`",
         f"- **Overall Verdict:** **`{report['overall_status']}`** (`{report['passed_invariants']}/{report['total_invariants']}` invariants verified)",
@@ -120,13 +121,14 @@ async def test_full_multi_turn_e2e_pipeline_and_generate_artifact() -> None:
         commerce = MockCommerceAdapter()
         engine = GroceryAgentEngine(
             commerce,
-            api_key=settings.GEMINI_API_KEY or "ci-keyless-replay",
-            model="gemini-3.5-flash-lite",
+            api_key=settings.GROQ_API_KEY or "ci-keyless-replay",
+            model=settings.GROQ_MODEL,
         )
         customer_id = "e2e_verified_customer"
         turns_log: list[dict[str, Any]] = []
 
-        if not settings.GEMINI_API_KEY:
+        run_live = os.environ.get("RUN_LIVE_E2E") == "1"
+        if not run_live:
             from unittest.mock import AsyncMock
 
             replay_turns = [
@@ -207,7 +209,7 @@ async def test_full_multi_turn_e2e_pipeline_and_generate_artifact() -> None:
                 # Turn 5b: post-checkout response
                 None,
             ]
-            engine._call_gemini = AsyncMock(side_effect=replay_turns)  # type: ignore[method-assign]
+            engine._call_llm = AsyncMock(side_effect=replay_turns)  # type: ignore[method-assign]
 
         async def _send(turn_num: int, text: str) -> Any:
             t0 = time.perf_counter()
@@ -243,7 +245,7 @@ async def test_full_multi_turn_e2e_pipeline_and_generate_artifact() -> None:
         assert "Villa 12, Palm Meadows, Pancard Club Road, Baner, Pune, Maharashtra" in r1.text
         assert len(c1.items) == 0
 
-        # TURN 2: Select address #2 (Baner) -> Live Gemini parallel search + cart build
+        # TURN 2: Select address #2 (Baner) -> Parallel search + cart build
         r2, c2 = await _send(2, "2")
         assert r2.conversation_state == "AWAITING_CHECKOUT_CONFIRMATION"
         assert "Villa 12, Palm Meadows, Pancard Club Road, Baner, Pune, Maharashtra" in r2.text
@@ -317,12 +319,10 @@ async def test_full_multi_turn_e2e_pipeline_and_generate_artifact() -> None:
 
         report = {
             "generated_at_utc": datetime.now(timezone.utc).isoformat(),
-            "execution_mode": "LIVE_GEMINI_API" if settings.GEMINI_API_KEY else "DETERMINISTIC_REPLAY",
-            "model": engine.model,
+            "execution_mode": "LIVE_GROQ_API" if settings.GROQ_API_KEY else "DETERMINISTIC_REPLAY",
+            "model": settings.GROQ_MODEL,
             "fallback_chain": [
-                "gemini-3.5-flash-lite",
-                "gemini-flash-lite-latest",
-                "gemini-3-flash-preview",
+                settings.OPENROUTER_MODEL,
             ],
             "total_latency_ms": sum(t["latency_ms"] for t in turns_log),
             "overall_status": "PASSED" if all(i["passed"] for i in invariants) else "FAILED",

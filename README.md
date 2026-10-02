@@ -4,11 +4,11 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688?style=flat&logo=fastapi)](https://fastapi.tiangolo.com/)
 [![Swiggy Instamart MCP](https://img.shields.io/badge/Swiggy-Instamart%20MCP-FC8019?style=flat)](https://mcp.swiggy.com/builders/llms.txt)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5+-3178C6?style=flat&logo=typescript)](https://www.typescriptlang.org/)
-[![Tests](https://img.shields.io/badge/Tests-51%20Passed-brightgreen?style=flat)](backend/tests/)
+[![Tests](https://img.shields.io/badge/Tests-87%20Passed-brightgreen?style=flat)](backend/tests/)
 
 **Grocer** is an English-first WhatsApp grocery agent for Swiggy Instamart. It accepts ordinary human messages, turns them into real Swiggy Instamart grocery carts, and keeps the customer in control of meaningful shopping choices, pack sizes, and budgets.
 
-> **Production Readiness:** The autonomous Gemini ReAct conversation engine (`GroceryAgentEngine`, `SwiggyAgentTools`) is active and verified with Swiggy Instamart MCP. Invariant test suite (51 passed 100% green), ESLint (0 errors/warnings), and Next.js 16 production build pass cleanly. See [ARCHITECTURE.md](ARCHITECTURE.md) for verified technical specifications.
+> **Prototype Status:** Grocer is an active, verified prototype built by Karan Wakhare (4th-year student developer) for the Swiggy Builders Club review. The autonomous Groq LPU ReAct conversation runtime (`GroceryAgentEngine`, `SwiggyAgentTools`) is verified with Swiggy Instamart dark-store patterns and operates under a safe `CHECKOUT_MODE=review` simulation gate. Invariant and evaluation test suite (87 passed 100% green), ESLint (0 errors/warnings), and Next.js 16 production build pass cleanly. See [ARCHITECTURE.md](ARCHITECTURE.md) for verified technical specifications.
 
 The agent does not force rigid commands or multi-step clarification forms. It interprets requests with smart defaults, deduces complete multi-item cooking kits, verifies live dark-store inventory, shows the complete itemized basket with delivery fees, and requests explicit confirmation before checkout.
 
@@ -28,8 +28,8 @@ WhatsApp message (Meta Cloud API)
       ↓ (Instant <200ms Blue Ticks via mark_message_read + HTTP 200 Fast-Ack Proxy)
 FastAPI Webhook (/api/whatsapp/webhook)
       ↓ (Per-customer asyncio.Lock concurrency serialization)
-Gemini ReAct Agent Engine (gemini-3.5-flash-lite primary + automatic failover cascade: ~1.0s)
-      ↓ (Automatic self-healing multi-turn history reset on thought-signature errors)
+Groq ReAct Agent Engine (qwen/qwen3.8-27b on Groq LPU + OpenRouter failover cascade: ~0.5s)
+      ↓ (Automatic self-healing multi-turn history reset on upstream errors)
 Autonomous Function Calling (Swiggy MCP Tools via asyncio.gather)
   ├── search_products (parallel live dark-store inventory check)
   ├── update_cart (adds items, respects pack sizes, budget & store thresholds)
@@ -46,12 +46,12 @@ Server-Side Gated Checkout Tool (generateUPIQR: True)
       ↓
 Dynamic UPI Payment Link (upi://pay?...) delivered to WhatsApp
       ↓
-Post-Payment Polling Daemon (_poll_payment_status: every 5s for 60s)
+Post-Payment Polling Daemon (_poll_payment_status: every 10s for 60s)
       ↓
 Proactive WhatsApp Confirmation & Real-Time Rider Tracking
 ```
 
-The core differentiator is **autonomous conversational resolution + deterministic safety guards**: Gemini deduces complete multi-item shopping lists (e.g. pasta kits, weekly staples) and drives the live dark-store inventory directly, while deterministic Python guards enforce budget caps, server-side checkout authorization, and prevent false success claims on provider errors.
+The core differentiator is **autonomous conversational resolution + deterministic safety guards**: Grocer deduces complete multi-item shopping lists (e.g. pasta kits, weekly staples) and drives the live dark-store inventory directly, while deterministic Python guards enforce budget caps, server-side checkout authorization, and prevent false success claims on provider errors.
 
 ## Proven live example
 
@@ -103,8 +103,8 @@ flowchart TD
     end
 
     subgraph DualCore ["3. Dual-Core Processing"]
-        Engine -->|"User Intent & Recipes"| Gemini["Gemini 3.5 Flash-Lite\n(ReAct Loop)"]
-        Gemini -->|"Proposed SKUs"| Guards["Deterministic Python Guards"]
+        Engine -->|"User Intent & Recipes"| LLM["Groq LPU (Qwen 3.8 27B)\n(ReAct Loop)"]
+        LLM -->|"Proposed SKUs"| Guards["Deterministic Python Guards"]
         Guards -->|"Delta Cart Merge"| Merge["Preserve Basket Items"]
         Guards -->|"Hesitation Hold"| Hold["Freeze on 'wait'"]
         Guards -->|"Checkout Gate"| Gate{"User Confirmed\nOrder?"}
@@ -131,9 +131,9 @@ Meta WhatsApp Cloud API
 FastAPI Webhook (/api/whatsapp/webhook on Render)
   ↓ (Per-customer asyncio.Lock concurrency serialization)
 GroceryAgentEngine (backend/agent/engine.py)
-  ├── Context-aware ReAct reasoning loop (gemini-3.5-flash-lite + automatic 200ms failover cascade)
+  ├── Context-aware ReAct reasoning loop (Groq LPU Qwen 3.8 27B + OpenRouter failover cascade)
   ├── Persistent HTTP/2 connection pooling with keep-alive across engine & channels
-  ├── Automatic self-healing multi-turn history reset (handles Gemini thought-signature 400 errors)
+  ├── Automatic self-healing multi-turn history reset (handles upstream 400 errors)
   ├── 6-turn sliding window history pruning & payload compaction
   ├── Concurrent tool execution via asyncio.gather (parallel multi-item search)
   ├── SwiggyAgentTools (backend/agent/tools.py)
@@ -207,7 +207,7 @@ GROCER operates across a multi-surface deployment:
   - Official whitelisted redirect URI for Swiggy OAuth 2.1 PKCE.
   - Meta WhatsApp Cloud API fast-ack webhook proxy (`app/api/whatsapp/webhook/route.ts`).
 - **Backend on Render (`grocer-backend-qwk4.onrender.com`)**:
-  - Hosts FastAPI and the autonomous Gemini ReAct conversation runtime (`GroceryAgentEngine`).
+  - Hosts FastAPI and the autonomous Groq LPU ReAct conversation runtime (`GroceryAgentEngine`).
   - Native Python deployment with persistent HTTP/2 pooling, eliminating Docker container overhead.
   - Keep-warm GitHub Actions automation (`keep_warm.yml`) pinging `/health` every 10 minutes to eliminate cold starts.
   - Communicates directly with Swiggy Instamart MCP gateway (`https://mcp.swiggy.com/im`).
@@ -251,7 +251,7 @@ npm run build
 ```powershell
 py -m venv .venv
 .\.venv\Scripts\Activate.ps1
-pip install -r backend/requirements.txt
+pip install -r requirements.txt
 pytest backend/tests
 ```
 

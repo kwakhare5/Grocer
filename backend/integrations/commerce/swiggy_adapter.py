@@ -11,6 +11,7 @@ Swiggy Builders Club specifications. Strictly enforces:
 from __future__ import annotations
 
 import logging
+import time
 from collections.abc import Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar
@@ -286,6 +287,33 @@ class SwiggyMCPAdapter(CommercePort):
                 "UPI checkout requires an exact intent-app or QR selection.",
                 provider="swiggy",
                 code="AMBIGUOUS_PAYMENT_OPTION",
+            )
+
+        from backend.config import settings
+        if settings.CHECKOUT_MODE == "review":
+            logger.info(
+                "CHECKOUT_MODE=review active: suppressing live Swiggy MCP checkout and returning simulated order."
+            )
+            current_cart = None
+            try:
+                current_cart = await self.get_cart(cart_id)
+            except Exception:
+                pass
+            cart_items = current_cart.items if current_cart else []
+            total_amt = current_cart.grand_total if current_cart else 0.0
+
+            return CommerceOrderResult(
+                order_id=f"sim_rev_{int(time.time())}",
+                cart_id=cart_id,
+                status="REVIEW_COMPLETE",
+                raw_status="REVIEW_SIMULATED",
+                items=cart_items,
+                grand_total=total_amt,
+                payment_method=payment_method,
+                all_succeeded=True,
+                is_simulated=True,
+                message="[REVIEW MODE] Order simulated safely. No financial charge was made.",
+                provider_message="Review mode simulated checkout successful.",
             )
 
         try:

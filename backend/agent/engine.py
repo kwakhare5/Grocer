@@ -1,4 +1,4 @@
-"""Autonomous Gemini ReAct agent engine for Swiggy Instamart grocery ordering."""
+"""Autonomous ReAct agent engine for Swiggy Instamart grocery ordering powered by Groq and OpenRouter."""
 from __future__ import annotations
 
 import asyncio
@@ -6,14 +6,12 @@ import json
 import logging
 import re
 from typing import Any, Optional
-from urllib.parse import quote
 
 import httpx
 
+from backend.agent.schemas import OPENAI_TOOL_DECLARATIONS
 from backend.agent.tools import (
-    GEMINI_TOOL_DECLARATIONS,
     SwiggyAgentTools,
-    _format_inr,
     format_cart_receipt,
 )
 from backend.channels.models import (
@@ -28,8 +26,6 @@ from backend.integrations.commerce.port import CommercePort
 
 logger = logging.getLogger("grocer.agent.engine")
 
-_API_ROOT = "https://generativelanguage.googleapis.com/v1beta/models"
-
 from backend.agent.guards import (  # noqa: E402, F401
     _CONFIRMATION_PHRASES,
     _HESITATION_PHRASES,
@@ -37,35 +33,38 @@ from backend.agent.guards import (  # noqa: E402, F401
     _RESET_COMMANDS,
     _claims_order_success,
     _explains_failure,
+    is_explicit_confirmation,
 )
 from backend.agent.prompts import (  # noqa: E402, F401
     _SYSTEM_PROMPT,
     build_system_instruction,
 )
 
-_FALLBACK_MODELS = (
-    "gemini-3.5-flash-lite",
-    "gemini-flash-lite-latest",
-    "gemini-3-flash-preview",
-)
-
 
 
 
 class GroceryAgentEngine:
-    """Conversational ReAct agent driving Swiggy Instamart through Gemini function calling."""
+    """Conversational ReAct agent driving Swiggy Instamart through Groq LPU and OpenRouter function calling."""
 
     def __init__(
         self,
         commerce: CommercePort,
         api_key: Optional[str] = None,
         model: Optional[str] = None,
+        groq_api_key: Optional[str] = None,
+        groq_model: Optional[str] = None,
+        openrouter_api_key: Optional[str] = None,
+        openrouter_model: Optional[str] = None,
         timeout: float = 25.0,
     ) -> None:
         self.commerce = commerce
         self.tools = SwiggyAgentTools(commerce)
-        self.api_key = api_key or settings.GEMINI_API_KEY
-        self.model = model or settings.GEMINI_MODEL
+        self.groq_api_key = groq_api_key or settings.GROQ_API_KEY
+        self.groq_model = groq_model or settings.GROQ_MODEL
+        self.openrouter_api_key = openrouter_api_key or settings.OPENROUTER_API_KEY
+        self.openrouter_model = openrouter_model or settings.OPENROUTER_MODEL
+        self.api_key = api_key or self.groq_api_key or self.openrouter_api_key
+        self.model = model or self.groq_model or self.openrouter_model
         self.timeout = timeout
         # Unified atomic customer session map + compatibility views
         self._sessions: dict[str, Any] = {}
@@ -78,7 +77,7 @@ class GroceryAgentEngine:
         self._last_interaction_time: dict[str, float] = {}
         self._locks: dict[str, asyncio.Lock] = {}
         self._last_call_time: float = 0.0
-        self.last_gemini_error: Optional[str] = None
+        self.last_llm_error: Optional[str] = None
         self.last_turn_latency_ms: Optional[float] = None
         self._client: Optional[httpx.AsyncClient] = None
 
@@ -144,7 +143,7 @@ class GroceryAgentEngine:
             self._history[customer_id] = []
         return self._history[customer_id]
 
-    def _prune_history(self, customer_id: str, max_user_turns: int = 4) -> None:
+    def _prune_history(self, customer_id: str, max_user_turns: int = 20) -> None:
         """Keep conversation history bounded by whole user turn boundaries and compact past search returns."""
         hist = self._history.get(customer_id, [])
         if not hist:
@@ -194,11 +193,11 @@ class GroceryAgentEngine:
         recipient_id: str,
         channel: ChannelType,
         customer_id: str,
-        max_attempts: int = 12,
-        interval_seconds: float = 5.0,
+        max_attempts: int = 6,
+        interval_seconds: float = 10.0,
     ) -> None:
-        """Poll Swiggy order tracking every 5s for up to 60s to notify customer when payment completes."""
-        logger.info("Starting background payment poller for order_id=%s", order_id)
+        """Poll Swiggy order tracking every 10s for up to 60s per rate-limit rules."""
+        logger.info("Starting background payment poller for order_id=%s (cadence=%.1fs)", order_id, interval_seconds)
         for _ in range(max_attempts):
             await asyncio.sleep(interval_seconds)
             try:
@@ -235,7 +234,7 @@ class GroceryAgentEngine:
     async def handle_message(
         self, message: NormalizedIncomingMessage
     ) -> NormalizedOutgoingResponse:
-        """Process one WhatsApp turn through the autonomous Gemini agent loop with per-customer serialization."""
+        """Process one WhatsApp turn through the autonomous Groq LPU / OpenRouter agent loop with per-customer serialization."""
         incoming_text = (message.text or "").strip()
         if incoming_text == "UNSUPPORTED_MEDIA":
             return NormalizedOutgoingResponse(
@@ -269,6 +268,7 @@ class GroceryAgentEngine:
         self, message: NormalizedIncomingMessage, customer_id: str
     ) -> NormalizedOutgoingResponse:
         history = self.get_history(customer_id)
+        session = self.get_session(customer_id)
 
         # Handle interactive button callbacks
         incoming_text = message.text.strip()
@@ -280,23 +280,21 @@ class GroceryAgentEngine:
             elif message.interactive_id in ("start_fresh", "clear_cart"):
                 incoming_text = "Please clear my cart and start fresh."
 
+        # Extract explicit spending budget if mentioned by customer
+        budget_match = re.search(
+            r"(?i)\b(?:under|budget(?:\s+of)?|max(?:\s+budget)?)\s*(?:₹|rs\.?|inr)?\s*(\d+(?:,\d+)*(?:\.\d+)?)\b",
+            incoming_text,
+        )
+        if budget_match:
+            try:
+                session.budget_inr = float(budget_match.group(1).replace(",", ""))
+                logger.info("Captured customer budget constraint: ₹%.2f for %s", session.budget_inr, customer_id)
+            except ValueError:
+                pass
+
         norm_text = incoming_text.casefold().strip("!.? \t\n")
 
         # Fast-path 1: Reset / Clear basket command
-        _RESET_COMMANDS = {
-            "start over",
-            "start fresh",
-            "clear cart",
-            "clear my cart",
-            "empty cart",
-            "empty my cart",
-            "clear basket",
-            "clear the cart",
-            "reset",
-            "reset cart",
-            "please clear my cart and start fresh.",
-            "please clear my cart and start fresh",
-        }
         if norm_text in _RESET_COMMANDS:
             try:
                 await self.tools.clear_cart()
@@ -313,19 +311,10 @@ class GroceryAgentEngine:
                 conversation_state="READY",
             )
 
-        # Explicit Human Confirmation Detection (Server-side safety gate)
-        _EXPLICIT_CONFIRM_PATTERNS = re.compile(
-            r"(?i)\b("
-            r"confirm|confirm order|place order|place this order|order place karo|"
-            r"theek hai order confirm karo|theek hai order confirm|yes please confirm|"
-            r"yes confirm|yes place|proceed to pay|reply confirm|i explicitly confirm|"
-            r"proceed with order|complete order|konfirm order|yes, please confirm and place the order now|"
-            r"order confirm"
-            r")\b"
-        )
+        # Explicit Human Confirmation Detection (Server-side safety gate with negation precedence)
         user_confirmed = (
             message.interactive_id == "confirm_order"
-            or bool(_EXPLICIT_CONFIRM_PATTERNS.search(incoming_text))
+            or is_explicit_confirmation(incoming_text)
         )
 
         # Inspect current live cart
@@ -336,23 +325,6 @@ class GroceryAgentEngine:
             logger.debug("Failed to fetch initial cart for customer=%s: %s", customer_id, exc)
 
         # Fast-path 2: Hesitation guard when active basket exists
-        _HESITATION_PHRASES = {
-            "no",
-            "wait",
-            "hold on",
-            "not yet",
-            "stop",
-            "don't place it",
-            "not now",
-            "pause",
-            "wait a minute",
-            "hold",
-            "no thanks",
-            "no not yet",
-            "wait wait",
-            "no wait",
-            "nope",
-        }
         if norm_text in _HESITATION_PHRASES and current_cart and current_cart.items:
             loc = self._customer_address_label.get(customer_id) or "Home"
             receipt = format_cart_receipt(current_cart, delivery_location=loc)
@@ -508,9 +480,10 @@ class GroceryAgentEngine:
         last_cart_total: float | None = None
         addr_lbl = self._customer_address_label.get(customer_id)
         address_changed = False
+        step_limit_reached = False
 
-        for _ in range(max_iterations):
-            response_data = await self._call_gemini(
+        for step_idx in range(1, max_iterations + 1):
+            response_data = await self._call_llm(
                 history,
                 address_id=address_id,
                 address_label=addr_lbl,
@@ -536,7 +509,7 @@ class GroceryAgentEngine:
             content = candidate.get("content", {})
             parts = content.get("parts", [])
 
-            # Check if Gemini invoked function calls
+            # Check if model invoked function calls
             function_calls = [p["functionCall"] for p in parts if "functionCall" in p]
 
             # If no function call, we have the final assistant message
@@ -626,6 +599,8 @@ class GroceryAgentEngine:
                 "role": "user",
                 "parts": tool_responses,
             })
+            if step_idx == max_iterations:
+                step_limit_reached = True
 
         out_order_id: str | None = None
         out_order_total: float | None = None
@@ -725,7 +700,27 @@ class GroceryAgentEngine:
                     conv_state = "READY"
         else:
             # Post-process: Deterministically enforce exact formatted_receipt and interactive buttons
-            if last_cart_receipt:
+            if step_limit_reached and not final_text.strip():
+                receipt_str = last_cart_receipt or (format_cart_receipt(current_cart, addr_lbl or "Home") if current_cart and current_cart.items else "")
+                logger.warning("ReAct step limit reached (%d steps) for customer=%s", max_iterations, customer_id)
+                if receipt_str:
+                    final_text = (
+                        "I've added the available items to your basket, but reached the maximum processing steps for this turn before completing all remaining searches.\n\n"
+                        f"{receipt_str}\n\n"
+                        "👉 Reply to continue adding the remaining items, or confirm to place this order now."
+                    )
+                else:
+                    final_text = (
+                        "I reached the maximum processing steps for this request. "
+                        "Please tell me which specific item you'd like me to add or search next!"
+                    )
+                actions = [
+                    InteractiveAction(action_type="button", id="confirm_order", title="Confirm Order"),
+                    InteractiveAction(action_type="button", id="modify_cart", title="Change Items"),
+                    InteractiveAction(action_type="button", id="start_fresh", title="Clear Cart"),
+                ]
+                conv_state = "AWAITING_CHECKOUT_CONFIRMATION" if (current_cart and current_cart.items) else "NEEDS_DECISION"
+            elif last_cart_receipt:
                 amnesiac_phrases = (
                     "what would you like to order",
                     "what can i get for you",
@@ -854,18 +849,71 @@ class GroceryAgentEngine:
                 effective_confirmed = bool(args.get("is_user_confirmed", False))
             else:
                 effective_confirmed = bool(user_confirmed and args.get("is_user_confirmed", False))
+            sess = self.get_session(customer_id) if customer_id else None
+            budget_val = sess.budget_inr if sess else None
             return await self.tools.checkout(
                 cart_id=args.get("cart_id", ""),
                 address_id=args.get("address_id", "") or address_id or "",
                 payment_method=args.get("payment_method", "UPI"),
                 payment_option_kind=args.get("payment_option_kind", "qr"),
                 is_user_confirmed=effective_confirmed,
+                budget_inr=budget_val,
             )
         elif name == "track_order":
             return await self.tools.track_order(args.get("order_id", ""))
         return {"error": f"Unknown tool: {name}"}
 
-    async def _call_gemini(
+    def _convert_to_openai_messages(
+        self, contents: list[dict[str, Any]], system_text: str
+    ) -> list[dict[str, Any]]:
+        messages: list[dict[str, Any]] = [{"role": "system", "content": system_text}]
+        for entry in contents:
+            role = entry.get("role")
+            parts = entry.get("parts", [])
+            if role == "user":
+                fn_responses = [p["functionResponse"] for p in parts if "functionResponse" in p]
+                if fn_responses:
+                    for fn_resp in fn_responses:
+                        call_id = fn_resp.get("id") or f"call_{fn_resp.get('name')}"
+                        resp_data = fn_resp.get("response", {})
+                        content_str = json.dumps(resp_data) if isinstance(resp_data, (dict, list)) else str(resp_data)
+                        messages.append({
+                            "role": "tool",
+                            "tool_call_id": call_id,
+                            "content": content_str,
+                        })
+                else:
+                    user_text = "\n".join(p.get("text", "") for p in parts if "text" in p)
+                    if user_text:
+                        messages.append({"role": "user", "content": user_text})
+            elif role in ("model", "assistant"):
+                fn_calls = [p["functionCall"] for p in parts if "functionCall" in p]
+                if fn_calls:
+                    tool_calls = []
+                    for i, fn_call in enumerate(fn_calls):
+                        call_id = fn_call.get("id") or f"call_{i}"
+                        fn_name = fn_call.get("name")
+                        fn_args = fn_call.get("args", {})
+                        tool_calls.append({
+                            "id": call_id,
+                            "type": "function",
+                            "function": {
+                                "name": fn_name,
+                                "arguments": json.dumps(fn_args) if isinstance(fn_args, dict) else str(fn_args),
+                            },
+                        })
+                    messages.append({
+                        "role": "assistant",
+                        "content": None,
+                        "tool_calls": tool_calls,
+                    })
+                else:
+                    asst_text = "\n".join(p.get("text", "") for p in parts if "text" in p)
+                    if asst_text:
+                        messages.append({"role": "assistant", "content": asst_text})
+        return messages
+
+    async def _call_llm(
         self,
         contents: list[dict[str, Any]],
         *,
@@ -875,11 +923,11 @@ class GroceryAgentEngine:
         fast_fail_on_rate_limit: bool = False,
         **kwargs: Any,
     ) -> Optional[dict[str, Any]]:
-        """Perform one HTTP POST request to Gemini v1beta generateContent with automatic model fallback."""
+        """Perform request to Groq Cloud primary with OpenRouter automatic fallback."""
         now = asyncio.get_running_loop().time()
         elapsed = now - self._last_call_time
-        if elapsed < 0.6:
-            await asyncio.sleep(0.6 - elapsed)
+        if elapsed < 0.2:
+            await asyncio.sleep(0.2 - elapsed)
         self._last_call_time = asyncio.get_running_loop().time()
 
         system_text = build_system_instruction(
@@ -888,62 +936,100 @@ class GroceryAgentEngine:
             cart=cart,
         )
 
-        fallback_chain = [self.model] + [
-            m
-            for m in ("gemini-3.5-flash-lite", "gemini-flash-lite-latest", "gemini-3-flash-preview")
-            if m != self.model
-        ]
-        payload = {
-            "systemInstruction": {"parts": [{"text": system_text}]},
-            "contents": contents,
-            "tools": [{"functionDeclarations": GEMINI_TOOL_DECLARATIONS}],
-            "generationConfig": {"temperature": 0.2},
-        }
-        max_retries = 1 if fast_fail_on_rate_limit else 6
-        backoff = 2.0
         client = await self._get_client()
 
+        providers: list[dict[str, Any]] = []
+        if self.groq_api_key:
+            providers.append({
+                "name": "groq",
+                "url": "https://api.groq.com/openai/v1/chat/completions",
+                "model": self.groq_model,
+                "headers": {
+                    "Authorization": f"Bearer {self.groq_api_key}",
+                    "Content-Type": "application/json",
+                    "User-Agent": "GrocerApp/1.0 (Windows NT 10.0; Win64; x64)",
+                },
+                "format": "openai",
+            })
+        if self.openrouter_api_key:
+            providers.append({
+                "name": "openrouter",
+                "url": "https://openrouter.ai/api/v1/chat/completions",
+                "model": self.openrouter_model,
+                "headers": {
+                    "Authorization": f"Bearer {self.openrouter_api_key}",
+                    "Content-Type": "application/json",
+                    "HTTP-Referer": "https://grocerr.vercel.app",
+                    "X-Title": "Grocer",
+                },
+                "format": "openai",
+            })
+        if not providers:
+            providers.append({
+                "name": "groq",
+                "url": "https://api.groq.com/openai/v1/chat/completions",
+                "model": self.groq_model or "qwen/qwen3.8-27b",
+                "headers": {
+                    "Authorization": f"Bearer {self.groq_api_key or 'mock_key'}",
+                    "Content-Type": "application/json",
+                },
+                "format": "openai",
+            })
+            if self.openrouter_model:
+                providers.append({
+                    "name": "openrouter",
+                    "url": "https://openrouter.ai/api/v1/chat/completions",
+                    "model": self.openrouter_model,
+                    "headers": {
+                        "Authorization": f"Bearer {self.openrouter_api_key or 'mock_key'}",
+                        "Content-Type": "application/json",
+                    },
+                    "format": "openai",
+                })
+
+        openai_messages = self._convert_to_openai_messages(contents, system_text)
+
+        max_retries = 1 if fast_fail_on_rate_limit else len(providers) * 2
         for attempt in range(max_retries):
-            active_model = fallback_chain[min(attempt, len(fallback_chain) - 1)]
-            url = f"{_API_ROOT}/{active_model}:generateContent?key={self.api_key}"
+            provider = providers[min(attempt, len(providers) - 1)]
+            p_url = provider["url"]
+            p_headers = provider.get("headers", {})
+            p_model = provider.get("model")
+
+            payload = {
+                "model": p_model,
+                "messages": openai_messages,
+                "tools": OPENAI_TOOL_DECLARATIONS,
+                "tool_choice": "auto",
+                "temperature": 0.2,
+            }
+
             try:
-                resp = await client.post(url, json=payload)
+                resp = await client.post(p_url, json=payload, headers=p_headers)
                 if resp.status_code in (429, 503, 404):
                     if fast_fail_on_rate_limit:
-                        logger.info(
-                            "Post-tool Gemini call encountered %d; fast-returning deterministic receipt/checkout result.",
-                            resp.status_code,
-                        )
+                        logger.info("Post-tool call encountered %d; fast-returning receipt result.", resp.status_code)
                         return None
-                    if attempt + 1 < len(fallback_chain):
-                        next_model = fallback_chain[attempt + 1]
+                    if attempt + 1 < len(providers):
+                        next_provider = providers[attempt + 1]
                         logger.warning(
-                            "Gemini %s returned %d; pivoting immediately to fallback model '%s'...",
-                            active_model,
-                            resp.status_code,
-                            next_model,
+                            "Provider %s (%s) returned %d; pivoting immediately to %s (%s)...",
+                            provider["name"], p_model, resp.status_code,
+                            next_provider["name"], next_provider.get("model"),
                         )
                         await asyncio.sleep(0.2)
                         continue
                     retry_after = resp.headers.get("retry-after")
-                    sleep_time = float(retry_after) if retry_after else backoff
+                    sleep_time = float(retry_after) if retry_after else 2.0
                     logger.warning(
-                        "Gemini %d encountered on %s. Retrying in %.1fs (attempt %d/%d)...",
-                        resp.status_code,
-                        active_model,
-                        sleep_time,
-                        attempt + 1,
-                        max_retries,
+                        "HTTP %d on %s (%s). Retrying in %.1fs...",
+                        resp.status_code, provider["name"], p_model, sleep_time,
                     )
                     await asyncio.sleep(sleep_time)
-                    backoff = min(backoff * 1.8, 15.0)
                     continue
 
                 if resp.status_code == 400 and len(contents) > 1:
-                    logger.warning(
-                        "Gemini 400 invalid argument on multi-turn history (%s). Self-healing by retrying from last user turn.",
-                        resp.text[:200],
-                    )
+                    logger.warning("HTTP 400 on multi-turn history. Self-healing by retrying from last user turn.")
                     last_user_idx = max(
                         (
                             i
@@ -956,22 +1042,64 @@ class GroceryAgentEngine:
                     salvaged = contents[last_user_idx:]
                     contents.clear()
                     contents.extend(salvaged)
-                    payload["contents"] = salvaged
-                    resp = await client.post(url, json=payload)
+                    openai_messages = self._convert_to_openai_messages(contents, system_text)
+                    payload["messages"] = openai_messages
+                    resp = await client.post(p_url, json=payload, headers=p_headers)
                     if resp.status_code == 200:
-                        return resp.json()
+                        data = resp.json()
+                        if "candidates" in data:
+                            return data
+                        return self._normalize_openai_response(data)
 
                 if resp.status_code != 200:
                     err_text = f"HTTP {resp.status_code}: {resp.text[:300]}"
-                    logger.error("Gemini API returned %s", err_text)
-                    self.last_gemini_error = err_text
+                    logger.error("LLM Provider returned %s", err_text)
+                    self.last_llm_error = err_text
+                    if attempt + 1 < len(providers):
+                        await asyncio.sleep(0.2)
+                        continue
                     return None
-                return resp.json()
+
+                data = resp.json()
+                if "candidates" in data:
+                    return data
+                return self._normalize_openai_response(data)
+
             except Exception as exc:
                 err_text = f"Exception: {type(exc).__name__} - {exc}"
-                logger.error("Gemini request failed on attempt %d: %s", attempt + 1, exc)
-                self.last_gemini_error = err_text
-                if attempt == max_retries - 1:
-                    return None
-                await asyncio.sleep(0.5 if attempt + 1 < len(fallback_chain) else backoff)
+                logger.error("LLM request failed on attempt %d: %s", attempt + 1, exc)
+                self.last_llm_error = err_text
+                if attempt + 1 < len(providers):
+                    await asyncio.sleep(0.2)
+                    continue
+                return None
         return None
+
+    def _normalize_openai_response(self, data: dict[str, Any]) -> dict[str, Any]:
+        """Convert OpenAI/Groq response format into normalized parts candidate."""
+        choices = data.get("choices", [])
+        if not choices:
+            return {"candidates": []}
+        msg = choices[0].get("message", {})
+        tool_calls = msg.get("tool_calls", [])
+        parts: list[dict[str, Any]] = []
+        if tool_calls:
+            for tc in tool_calls:
+                fn = tc.get("function", {})
+                fn_name = fn.get("name")
+                raw_args = fn.get("arguments", "{}")
+                try:
+                    args = json.loads(raw_args) if isinstance(raw_args, str) else raw_args
+                except Exception:
+                    args = {}
+                parts.append({
+                    "functionCall": {
+                        "name": fn_name,
+                        "args": args,
+                        "id": tc.get("id"),
+                    }
+                })
+        else:
+            text = msg.get("content") or ""
+            parts.append({"text": text})
+        return {"candidates": [{"content": {"parts": parts}}]}

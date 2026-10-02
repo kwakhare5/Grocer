@@ -26,7 +26,6 @@ from backend.integrations.commerce.models import (
 from backend.integrations.commerce.exceptions import (
     CommerceError,
     UnconfirmedCheckoutError,
-    AddressNotServiceableError,
     ItemOutOfStockError,
     MinOrderNotMetError,
 )

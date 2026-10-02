@@ -44,13 +44,20 @@ _ORDER_SUCCESS_PATTERNS = (
 
 _RESET_COMMANDS = {
     "start over",
+    "start fresh",
     "clear cart",
+    "clear my cart",
+    "clear the cart",
     "clear basket",
     "empty cart",
+    "empty my cart",
     "empty basket",
     "reset",
+    "reset cart",
     "cancel order",
     "delete cart",
+    "please clear my cart and start fresh",
+    "please clear my cart and start fresh.",
 }
 
 _HESITATION_PHRASES = {
@@ -58,16 +65,21 @@ _HESITATION_PHRASES = {
     "nope",
     "nah",
     "wait",
+    "wait wait",
     "hold on",
     "not yet",
+    "no not yet",
     "no wait",
     "wait a minute",
     "hold",
     "stop",
+    "pause",
     "dont order",
     "don't order",
     "do not order",
+    "don't place it",
     "not now",
+    "no thanks",
     "cancel",
 }
 
@@ -87,7 +99,38 @@ _CONFIRMATION_PHRASES = {
     "order now",
     "go ahead",
     "do it",
+    "ok",
+    "okay",
+    "sure",
 }
+
+_NEGATION_CONFIRM_REGEX = re.compile(
+    r"(?i)\b(don'?t|do not|never|stop|wait|hold|cancel|not now|not yet|no|nope|nah|pause|clear cart|start over)\b"
+)
+
+_EXPLICIT_CONFIRM_PATTERNS = re.compile(
+    r"(?i)\b("
+    r"confirm|confirm order|place order|place the order|place this order|order place karo|"
+    r"theek hai order confirm karo|theek hai order confirm|yes please confirm|"
+    r"yes confirm|yes place|proceed to pay|reply confirm|i explicitly confirm|"
+    r"proceed with order|complete order|konfirm order|yes, please confirm and place the order now|"
+    r"order confirm|yes|yes please|proceed|checkout|pay|book it|order it|order now|go ahead|do it|ok|okay|sure"
+    r")\b"
+)
+
+
+def is_explicit_confirmation(text: str) -> bool:
+    """Evaluate whether user input expresses explicit human checkout confirmation.
+
+    CRITICAL INVARIANT: Negations ('don't confirm', 'do not order', 'not now') must
+    always take precedence and reject confirmation, even if 'confirm' or 'order' appears.
+    """
+    if not text or not text.strip():
+        return False
+    cleaned = text.strip()
+    if _NEGATION_CONFIRM_REGEX.search(cleaned):
+        return False
+    return bool(_EXPLICIT_CONFIRM_PATTERNS.search(cleaned))
 
 
 def _claims_order_success(text: str) -> bool:

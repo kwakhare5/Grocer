@@ -16,6 +16,7 @@ class CustomerSession:
     order_address_confirmed: bool = False
     awaiting_address_choice: Optional[list[dict[str, Any]]] = None
     last_active_ts: float = 0.0
+    budget_inr: Optional[float] = None
 
     def set_address(self, address_id: str, label: str, confirmed: bool = True) -> None:
         """Atomically lock the active delivery address and label."""

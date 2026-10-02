@@ -29,7 +29,7 @@ export function Footer() {
                 <WhatsAppIcon className="w-3.5 h-3.5 inline shrink-0" />
                 <span>WhatsApp</span>
               </span>
-              <span>grocery replenishment for Swiggy Instamart. Built with Gemini 3.5 Flash-Lite &amp; Model Context Protocol.</span>
+              <span>grocery replenishment for Swiggy Instamart. Built with Groq LPU (Qwen 3.8 27B) &amp; Model Context Protocol.</span>
             </p>
 
             <div className="text-xs text-zinc-500 pt-0.5">

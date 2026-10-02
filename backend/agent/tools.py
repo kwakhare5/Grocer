@@ -1,4 +1,4 @@
-"""Swiggy MCP Tools registry for Gemini Function Calling."""
+"""Swiggy MCP Tools registry for LLM Function Calling."""
 from __future__ import annotations
 
 import logging
@@ -14,7 +14,6 @@ from backend.integrations.commerce.models import (
     CommerceOrderResult,
 )
 from backend.integrations.commerce.exceptions import (
-    CommerceError,
     ItemOutOfStockError,
     ProviderAuthError,
 )
@@ -117,13 +116,14 @@ class SwiggyAgentTools:
             return {
                 "success": False,
                 "error": "Address ID is required to search the local store catalogue.",
+                "retryable": False,
             }
         try:
             products: list[CommerceProductItem] = await self.commerce.search_products(
                 address_id=address_id, query=query
             )
             results = []
-            for p in products[:6]:
+            for p in products[:10]:
                 in_stock_variants = [v for v in p.variants if v.in_stock is not False]
                 if not in_stock_variants:
                     continue
@@ -131,6 +131,7 @@ class SwiggyAgentTools:
                     "product_id": p.product_id,
                     "brand": p.brand,
                     "name": p.name,
+                    "category": getattr(p, "category", None),
                     "variants": [
                         {
                             "spin_id": v.spin_id,
@@ -153,10 +154,10 @@ class SwiggyAgentTools:
                 "products": results,
             }
         except ProviderAuthError as exc:
-            return {"success": False, "error": "AUTH_EXPIRED", "detail": str(exc)}
+            return {"success": False, "error": "AUTH_EXPIRED", "detail": str(exc), "retryable": False}
         except Exception as exc:
             logger.warning("search_products failed for query=%s: %s", query, exc)
-            return {"success": False, "error": str(exc)}
+            return {"success": False, "error": str(exc), "retryable": True}
 
     async def get_saved_addresses(self, customer_id: str) -> dict[str, Any]:
         """Retrieve the user's saved delivery addresses from Swiggy."""
@@ -410,22 +411,46 @@ class SwiggyAgentTools:
 
     async def checkout(
         self,
-        cart_id: str,
-        address_id: str,
+        cart_id: str = "",
+        address_id: str = "",
         payment_method: str = "UPI",
         payment_option_kind: str = "qr",
         is_user_confirmed: bool = False,
+        budget_inr: Optional[float] = None,
     ) -> dict[str, Any]:
         """Place the final order on Swiggy Instamart. STRICTLY server-side gated."""
         if not is_user_confirmed:
             return {
                 "success": False,
                 "error": "CONFIRMATION_REQUIRED",
+                "retryable": False,
                 "message": (
                     "Order placement rejected: User has not provided explicit final confirmation. "
                     "You must ask the user to confirm the order summary and grand total first."
                 ),
             }
+
+        # Deterministic Budget Gate: Block checkout if grand total exceeds budget
+        if budget_inr is not None and budget_inr > 0:
+            try:
+                cart = await self.commerce.get_cart(cart_id)
+                if cart and cart.grand_total and cart.grand_total > budget_inr:
+                    overage = round(cart.grand_total - budget_inr, 2)
+                    return {
+                        "success": False,
+                        "error": "BUDGET_EXCEEDED",
+                        "retryable": False,
+                        "grand_total": cart.grand_total,
+                        "budget_inr": budget_inr,
+                        "message": (
+                            f"Order placement blocked: Current grand total ₹{cart.grand_total:.0f} "
+                            f"exceeds your budget of ₹{budget_inr:.0f} by ₹{overage:.0f}. "
+                            "Please ask the user if they would like to remove an item or increase their budget."
+                        ),
+                    }
+            except Exception as b_exc:
+                logger.debug("Budget pre-check inspection failed: %s", b_exc)
+
         try:
             result: CommerceOrderResult = await self.commerce.checkout(
                 cart_id=cart_id,
@@ -512,7 +537,3 @@ class SwiggyAgentTools:
         except Exception as exc:
             logger.warning("get_go_to_items failed: %s", exc)
             return {"success": False, "error": str(exc)}
-
-
-from backend.agent.schemas import GEMINI_TOOL_DECLARATIONS  # noqa: E402, F401
-

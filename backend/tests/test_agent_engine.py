@@ -46,7 +46,7 @@ def agent_engine(mock_commerce: MockCommerceAdapter) -> GroceryAgentEngine:
 async def test_fm_checkout_01_server_blocks_unconfirmed_checkout(
     agent_engine: GroceryAgentEngine, mock_commerce: MockCommerceAdapter
 ) -> None:
-    """FM-CHECKOUT-01: Even if Gemini passes is_user_confirmed=True, server blocks if user text lacks confirmation."""
+    """FM-CHECKOUT-01: Even if model passes is_user_confirmed=True, server blocks if user text lacks confirmation."""
     tools = SwiggyAgentTools(mock_commerce)
     direct_block = await tools.checkout(
         cart_id="cart_123", address_id="addr_home", is_user_confirmed=False
@@ -88,7 +88,7 @@ async def test_fm_checkout_02_fail_closed_guard_blocks_hallucinated_success_on_f
     for phrase in benign_phrases:
         assert _claims_order_success(phrase) is False
 
-    gemini_turns = [
+    llm_turns = [
         {
             "candidates": [
                 {
@@ -96,32 +96,32 @@ async def test_fm_checkout_02_fail_closed_guard_blocks_hallucinated_success_on_f
                         "parts": [
                             {
                                 "functionCall": {
-                                    "name": "checkout",
-                                    "args": {
-                                        "cart_id": "c1",
-                                        "address_id": "addr-bandra-1",
-                                        "is_user_confirmed": True,
-                                    },
-                                }
+                                "name": "checkout",
+                                "args": {
+                                    "cart_id": "c1",
+                                    "address_id": "addr-bandra-1",
+                                    "is_user_confirmed": True,
+                                },
                             }
-                        ]
-                    }
+                        }
+                    ]
                 }
-            ]
-        },
-        {
-            "candidates": [
-                {
-                    "content": {
-                        "parts": [
-                            {"text": "Awesome! Your order has been placed and will arrive soon!"}
-                        ]
-                    }
+            }
+        ]
+    },
+    {
+        "candidates": [
+            {
+                "content": {
+                    "parts": [
+                        {"text": "Awesome! Your order has been placed and will arrive soon!"}
+                    ]
                 }
-            ]
-        },
-    ]
-    with patch.object(agent_engine, "_call_gemini", side_effect=gemini_turns), patch.object(
+            }
+        ]
+    },
+]
+    with patch.object(agent_engine, "_call_llm", side_effect=llm_turns), patch.object(
         agent_engine.tools,
         "checkout",
         AsyncMock(return_value={"success": False, "error": "PAYMENT_DECLINED"}),
@@ -146,7 +146,7 @@ async def test_fm_checkout_03_payment_pending_blocks_premature_delivery_claim_an
     agent_engine: GroceryAgentEngine,
 ) -> None:
     """FM-CHECKOUT-03: When status is PAYMENT_PENDING, premature 'Order Placed' claims are replaced with QR instructions."""
-    gemini_turns = [
+    llm_turns = [
         {
             "candidates": [
                 {
@@ -186,7 +186,7 @@ async def test_fm_checkout_03_payment_pending_blocks_premature_delivery_claim_an
         "total_amount": 281.0,
         "bridge_url": "https://pay.swiggy.com/qr/ORD-999",
     }
-    with patch.object(agent_engine, "_call_gemini", side_effect=gemini_turns), patch.object(
+    with patch.object(agent_engine, "_call_llm", side_effect=llm_turns), patch.object(
         agent_engine.tools, "checkout", AsyncMock(return_value=checkout_payload)
     ), patch.object(agent_engine, "_poll_payment_status", new_callable=AsyncMock):
         resp = await agent_engine.handle_message(

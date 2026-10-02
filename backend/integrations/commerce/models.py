@@ -146,6 +146,7 @@ class CommerceOrderResult(BaseModel):
         "PARTIAL_ORDER",
         "ORDER_STATE_UNKNOWN",
         "REVIEW_COMPLETE",
+        "REVIEW_SIMULATED",
         "FAILED",
     ] = "ORDER_STATE_UNKNOWN"
     raw_status: Optional[str] = None
@@ -160,6 +161,8 @@ class CommerceOrderResult(BaseModel):
     success_count: int = 0
     failure_count: int = 0
     all_succeeded: bool = False
+    is_simulated: bool = False
+    message: Optional[str] = None
     paas_id: Optional[str] = None
     transaction_id: Optional[str] = None
     bridge_url: Optional[str] = None

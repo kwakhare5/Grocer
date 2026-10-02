@@ -223,11 +223,12 @@ If the answer is no, it does not belong in GROCER v2 unless the architectural co
 
 ## 15. SESSION RESUME
 
-**Last completed:** (1) Removed the 5px solid dark phone bezel from `WhatsAppSimulator.tsx`, replacing it with a borderless floating app chassis (`rounded-3xl shadow-xl shadow-zinc-950/10 ring-1 ring-zinc-950/5`); (2) Purged all emoji slop (`📍`, `👉`, `🛒`, `🎉`, `🔒`) and academic AI jargon ("Hyperlocal Disambiguation", "Delta Cart Merge Invariant", "Dual-Core Orchestration") across `data.ts` and `ArchitectureSection.tsx`, standardizing to simple, confident, human English; (3) Redesigned the Architecture section into a unified interactive 5-stage stepper (01 Message -> 02 Address -> 03 AI Search -> 04 Safety Rules -> 05 Store Order), completely eliminating the duplicate topology diagram and duplicate accordion cards; (4) Harmonized section dividers and alternating background rhythm (`#FAFAFA` -> `#FFFFFF`) with single `border-b border-zinc-200/80` to remove double borders; (5) Added Emil Kowalski tactile `active:scale-[0.98]` feedback to buttons; (6) Verified quality gate: 0 ESLint errors/warnings, Next.js 16 Turbopack production build clean (2.8s), 62/62 invariant tests passing in 18.81s, and AST knowledge graph synchronized (997 nodes, 1,878 edges, 60 communities).
+**Last completed:** (1) Completely purged Google Gemini dependency from codebase, runtime, tests, configuration, and documentation; (2) Migrated conversational ReAct engine to Groq LPU primary (`qwen/qwen3.8-27b`, 366+ tokens/sec, 0.5s latency) with automatic 200ms failover to OpenRouter (`qwen/qwen3.8-27b:free`); (3) Replaced Gemini function calling with standard OpenAI tool schemas (`OPENAI_TOOL_DECLARATIONS`); (4) Updated health check diagnostics, Next.js landing page pipeline nodes (`id: "groq"`), README, and ARCHITECTURE; (5) Total test suite verified: 87/87 tests passing 100% green; (6) Verified Next.js 16 build and lint.
 
-**Next implementation gate:** 2-minute video demo recording following the reviewer walkthrough script and official submission to `builders@swiggy.in`.
+**Next implementation gate:** Upload `public/demo.mp4` as an unlisted video to YouTube/Loom, submit the Google Form at `https://forms.gle/4vkeKyqm15Qb6fnJA`, and dispatch the submission email to `builders@swiggy.in`.
 
-**Current status:** 0 unreadable sub-12px text tokens, 0 AI emoji slop, 0 ESLint errors/warnings, Next.js 16 production build clean (2.8s), 62/62 invariant tests passing green (100%), knowledge graph synchronized (997 nodes, 1,878 edges, 60 communities).
+**Current status:** 87/87 tests passing green (100%), Groq LPU + OpenRouter dual-provider active, 0 ESLint errors/warnings, Next.js 16 production build clean, `CHECKOUT_MODE=review` simulation gate active.
+
 
 
 

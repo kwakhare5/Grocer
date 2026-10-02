@@ -1,7 +1,7 @@
-"""Gemini function-calling tool schema declarations for GROCER."""
+"""OpenAI and Groq-compatible function-calling tool schema declarations for GROCER."""
 from __future__ import annotations
 
-GEMINI_TOOL_DECLARATIONS = [
+RAW_TOOL_DECLARATIONS = [
     {
         "name": "get_saved_addresses",
         "description": "Fetch saved delivery addresses for the user from Swiggy Instamart. Call this first if you don't know the address_id or need to list available locations.",
@@ -147,4 +147,13 @@ GEMINI_TOOL_DECLARATIONS = [
             "required": ["order_id"],
         },
     },
+]
+
+# Standard OpenAI / Groq / OpenRouter tool declarations
+OPENAI_TOOL_DECLARATIONS = [
+    {
+        "type": "function",
+        "function": tool,
+    }
+    for tool in RAW_TOOL_DECLARATIONS
 ]

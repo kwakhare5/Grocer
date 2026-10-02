@@ -26,7 +26,7 @@ export function ArchitectureSection() {
         return <WhatsAppIcon className="w-4 h-4 shrink-0" />;
       case "address":
         return <MapPin className="w-4 h-4" />;
-      case "gemini":
+      case "groq":
         return <Search className="w-4 h-4" />;
       case "guards":
         return <Lock className="w-4 h-4" />;

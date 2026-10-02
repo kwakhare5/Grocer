@@ -340,6 +340,38 @@ class WhatsAppChannelAdapter(BaseChannelAdapter):
             "text": {"body": response.text[:4096]},
         }
 
+    def build_message_payloads(self, response: NormalizedOutgoingResponse) -> list[dict[str, Any]]:
+        """Construct one or more Meta WhatsApp Cloud API JSON payloads.
+
+        When interactive actions are present AND text exceeds 1,000 characters, Meta's
+        1,024-character interactive body limit would slice receipt lines and grand totals.
+        In that scenario, we split delivery:
+        1. Full text message containing the complete, un-truncated receipt.
+        2. Short follow-up interactive message with the action buttons.
+        """
+        to_number = response.recipient_id.replace("+", "").strip()
+        if response.interactive_actions and len(response.text) > 1000:
+            text_payload = {
+                "messaging_product": "whatsapp",
+                "recipient_type": "individual",
+                "to": to_number,
+                "type": "text",
+                "text": {"body": response.text[:4096]},
+            }
+            short_prompt_resp = NormalizedOutgoingResponse(
+                recipient_id=response.recipient_id,
+                channel=response.channel,
+                text="Please review your full basket above. Tap Confirm to place your order:",
+                conversation_state=response.conversation_state,
+                interactive_actions=response.interactive_actions,
+                interactive_title=response.interactive_title,
+                interactive_button_text=response.interactive_button_text,
+            )
+            action_payload = self.format_whatsapp_payload(short_prompt_resp)
+            return [text_payload, action_payload]
+
+        return [self.format_whatsapp_payload(response)]
+
     # -----------------------------------------------------------------------
     # 5. Outbound Delivery
     # -----------------------------------------------------------------------
@@ -384,10 +416,10 @@ class WhatsAppChannelAdapter(BaseChannelAdapter):
 
     async def send_response(self, response: NormalizedOutgoingResponse) -> bool:
         """Send formatted response via Meta WhatsApp Cloud API using pooled connection."""
-        payload = self.format_whatsapp_payload(response)
+        payloads = self.build_message_payloads(response)
 
         if self.record_only:
-            self.outbound_messages.append(payload)
+            self.outbound_messages.extend(payloads)
             return True
 
         if not self.phone_number_id or not self.access_token:
@@ -402,12 +434,15 @@ class WhatsAppChannelAdapter(BaseChannelAdapter):
 
         try:
             client = await self._get_client()
-            res = await client.post(url, json=payload, headers=headers)
-            if res.status_code in (200, 201):
-                logger.info("WhatsApp message delivered.")
-                return True
-            logger.error("WhatsApp API returned HTTP %d: %s", res.status_code, res.text)
-            return False
+            success = True
+            for payload in payloads:
+                res = await client.post(url, json=payload, headers=headers)
+                if res.status_code in (200, 201):
+                    logger.info("WhatsApp message delivered.")
+                else:
+                    logger.error("WhatsApp API returned HTTP %d: %s", res.status_code, res.text)
+                    success = False
+            return success
         except Exception as exc:
             logger.error("Failed to deliver WhatsApp message: %s", type(exc).__name__)
             return False

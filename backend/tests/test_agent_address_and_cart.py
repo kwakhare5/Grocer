@@ -34,7 +34,7 @@ async def test_honest_failure_explanation_retains_explanation_and_appends_discla
     agent_engine._customer_address[customer_id] = "addr_home"
 
     honest_text = "I apologize, but Swiggy Instamart is experiencing high demand right now. Please try again in a few minutes."
-    gemini_responses = [
+    llm_responses = [
         {
             "candidates": [
                 {
@@ -66,7 +66,7 @@ async def test_honest_failure_explanation_retains_explanation_and_appends_discla
         },
     ]
 
-    with patch.object(agent_engine, "_call_gemini", side_effect=gemini_responses), \
+    with patch.object(agent_engine, "_call_llm", side_effect=llm_responses), \
          patch.object(agent_engine.tools, "checkout", AsyncMock(return_value={"success": False, "error": "HIGH_DEMAND"})):
         msg = NormalizedIncomingMessage(
             message_id="msg_honest_fail",
@@ -116,7 +116,7 @@ async def test_default_address_prioritization(agent_engine, mock_commerce):
         customer_id="cust_addr_pref",
         text="hi",
     )
-    with patch.object(agent_engine, "_call_gemini", return_value={"candidates": [{"content": {"parts": [{"text": "Hello!"}]}}]}):
+    with patch.object(agent_engine, "_call_llm", return_value={"candidates": [{"content": {"parts": [{"text": "Hello!"}]}}]}):
         await agent_engine.handle_message(msg)
         assert agent_engine._customer_address.get("cust_addr_pref") == "addr_primary"
 
@@ -139,7 +139,7 @@ async def test_unsupported_media_instant_reply(agent_engine):
 @pytest.mark.asyncio
 async def test_concurrent_tool_execution_gather(agent_engine):
     """Verify multiple function calls in a single turn are executed concurrently via asyncio.gather."""
-    gemini_resp = {
+    llm_resp = {
         "candidates": [
             {
                 "content": {
@@ -163,7 +163,7 @@ async def test_concurrent_tool_execution_gather(agent_engine):
             }
         ]
     }
-    gemini_final = {
+    llm_final = {
         "candidates": [
             {
                 "content": {
@@ -175,7 +175,7 @@ async def test_concurrent_tool_execution_gather(agent_engine):
         ]
     }
 
-    with patch.object(agent_engine, "_call_gemini", side_effect=[gemini_resp, gemini_final]):
+    with patch.object(agent_engine, "_call_llm", side_effect=[llm_resp, llm_final]):
         msg = NormalizedIncomingMessage(
             message_id="msg_concurrent_1",
             channel=ChannelType.WHATSAPP,
@@ -329,7 +329,7 @@ def test_swiggy_parser_bill_reconciliation():
 
 @pytest.mark.asyncio
 async def test_self_healing_on_http_400(agent_engine):
-    """Verify that _call_gemini recovers cleanly when multi-turn history returns 400 Bad Request."""
+    """Verify that _call_llm recovers cleanly when multi-turn history returns 400 Bad Request."""
     import httpx
 
     call_count = 0
@@ -337,8 +337,8 @@ async def test_self_healing_on_http_400(agent_engine):
     async def mock_post(url, json=None, **kwargs):
         nonlocal call_count
         call_count += 1
-        if call_count == 1 and len(json.get("contents", [])) > 1:
-            # Simulate Gemini rejecting corrupted history with 400
+        if call_count == 1 and (len(json.get("contents", [])) > 1 or len(json.get("messages", [])) > 2):
+            # Simulate LLM rejecting corrupted history with 400
             return httpx.Response(
                 400,
                 text="Function call is missing a thought_signature",
@@ -359,7 +359,7 @@ async def test_self_healing_on_http_400(agent_engine):
         {"role": "model", "parts": [{"functionCall": {"name": "test", "args": {}}}]},
         {"role": "user", "parts": [{"text": "bourbon and jim jam"}]},
     ]
-    res = await agent_engine._call_gemini(corrupt_history)
+    res = await agent_engine._call_llm(corrupt_history)
     assert res is not None
     assert call_count == 2
     assert len(corrupt_history) == 1
@@ -408,8 +408,8 @@ async def test_address_switch_preserves_active_cart_and_receipt(agent_engine, mo
         address_id="addr_mumbai",
     )
 
-    # Gemini attempts to switch address, and outputs amnesiac greeting: "What would you like to order today?"
-    gemini_responses = [
+    # LLM attempts to switch address, and outputs amnesiac greeting: "What would you like to order today?"
+    llm_responses = [
         {
             "candidates": [
                 {
@@ -441,7 +441,7 @@ async def test_address_switch_preserves_active_cart_and_receipt(agent_engine, mo
         },
     ]
 
-    with patch.object(agent_engine, "_call_gemini", side_effect=gemini_responses):
+    with patch.object(agent_engine, "_call_llm", side_effect=llm_responses):
         msg = NormalizedIncomingMessage(
             message_id="msg_addr_switch",
             channel=ChannelType.WHATSAPP,
@@ -572,8 +572,8 @@ def test_prune_history_preserves_turn_boundaries(agent_engine):
 
 
 @pytest.mark.asyncio
-async def test_live_basket_state_injected_into_gemini_prompt(agent_engine, mock_commerce):
-    """_call_gemini receives live cart state and injects it into systemInstruction."""
+async def test_live_basket_state_injected_into_prompt(agent_engine, mock_commerce):
+    """_call_llm receives live cart state and injects it into system prompt."""
     from backend.integrations.commerce.models import CartItemUpdate
     await mock_commerce.update_cart(
         items=[
@@ -598,7 +598,7 @@ async def test_live_basket_state_injected_into_gemini_prompt(agent_engine, mock_
 
     await agent_engine._get_client()
     with patch.object(agent_engine._client, "post", side_effect=capture_post):
-        await agent_engine._call_gemini(
+        await agent_engine._call_llm(
             [{"role": "user", "parts": [{"text": "hello"}]}],
             address_id="addr_home",
             address_label="Green Park, Bangalore",
@@ -606,7 +606,10 @@ async def test_live_basket_state_injected_into_gemini_prompt(agent_engine, mock_
         )
 
     assert captured_payload is not None
-    system_instruction = captured_payload["systemInstruction"]["parts"][0]["text"]
+    if "messages" in captured_payload:
+        system_instruction = captured_payload["messages"][0]["content"]
+    else:
+        system_instruction = captured_payload["systemInstruction"]["parts"][0]["text"]
     assert "### LIVE BASKET STATE (ACTIVE ON SWIGGY INSTAMART):" in system_instruction
     assert "Active Basket Item Count: 2" in system_instruction
     assert "CRITICAL INVARIANT" in system_instruction
@@ -676,7 +679,7 @@ async def test_upfront_multi_address_disambiguation_and_resume_on_choice(agent_e
     assert "cust_multi_addr" in agent_engine._awaiting_address_choice
 
     # Turn 2: User replies "2" -> selects addr_baner and immediately processes "i want milk and bread"
-    gemini_turn2_responses = [
+    llm_turn2_responses = [
         {
             "candidates": [
                 {
@@ -706,7 +709,7 @@ async def test_upfront_multi_address_disambiguation_and_resume_on_choice(agent_e
             ]
         },
     ]
-    with patch.object(agent_engine, "_call_gemini", side_effect=gemini_turn2_responses) as mock_gemini:
+    with patch.object(agent_engine, "_call_llm", side_effect=llm_turn2_responses) as mock_llm:
         msg2 = NormalizedIncomingMessage(
             message_id="msg_disambig_2",
             channel=ChannelType.WHATSAPP,
@@ -719,7 +722,7 @@ async def test_upfront_multi_address_disambiguation_and_resume_on_choice(agent_e
         assert agent_engine._order_address_confirmed["cust_multi_addr"] is True
         assert "Villa 12, Palm Meadows, Pancard Club Road, Baner, Pune, Maharashtra" in resp2.text
         assert "🛒 *Your Basket" in resp2.text
-        assert mock_gemini.called
+        assert mock_llm.called
 
 
 @pytest.mark.asyncio
@@ -758,13 +761,13 @@ async def test_update_cart_delta_merge_preserves_existing_items_and_handles_remo
 
 
 @pytest.mark.asyncio
-async def test_post_update_cart_gemini_hiccup_never_hides_built_cart(agent_engine, mock_commerce):
-    """If update_cart succeeds on Step 1 and Gemini rate-limits/returns None on Step 2, the verified receipt is still returned."""
+async def test_post_update_cart_llm_hiccup_never_hides_built_cart(agent_engine, mock_commerce):
+    """If update_cart succeeds on Step 1 and LLM rate-limits/returns None on Step 2, the verified receipt is still returned."""
     agent_engine._customer_address["cust_hiccup"] = "addr-bandra-1"
     agent_engine._customer_address_label["cust_hiccup"] = "14 Pali Hill Road, Bandra West, Mumbai"
     agent_engine._order_address_confirmed["cust_hiccup"] = True
 
-    gemini_step1 = {
+    llm_step1 = {
         "candidates": [
             {
                 "content": {
@@ -783,8 +786,8 @@ async def test_post_update_cart_gemini_hiccup_never_hides_built_cart(agent_engin
             }
         ]
     }
-    # Step 2 returns None (simulating Gemini 429 rate limit after cart was already built)
-    with patch.object(agent_engine, "_call_gemini", side_effect=[gemini_step1, None]):
+    # Step 2 returns None (simulating 429 rate limit after cart was already built)
+    with patch.object(agent_engine, "_call_llm", side_effect=[llm_step1, None]):
         msg = NormalizedIncomingMessage(
             message_id="msg_hiccup_1",
             channel=ChannelType.WHATSAPP,
@@ -800,15 +803,15 @@ async def test_post_update_cart_gemini_hiccup_never_hides_built_cart(agent_engin
 
 
 @pytest.mark.asyncio
-async def test_gemini_multi_model_fallback_on_503(agent_engine):
-    """When the primary Gemini model returns HTTP 503/429, _call_gemini immediately pivots to the next fallback model."""
+async def test_llm_multi_provider_fallback_on_503(agent_engine):
+    """When the primary Groq model returns HTTP 503/429, engine immediately pivots to the fallback OpenRouter provider."""
     import httpx
 
     called_urls: list[str] = []
 
-    async def fake_post(url: str, json=None):
+    async def fake_post(url: str, json=None, **kwargs):
         called_urls.append(url)
-        if "gemini-3.5-flash-lite" in url:
+        if "groq" in url:
             return httpx.Response(503, text='{"error":{"message":"high demand"}}')
         return httpx.Response(
             200,
@@ -819,13 +822,12 @@ async def test_gemini_multi_model_fallback_on_503(agent_engine):
     mock_client.is_closed = False
     mock_client.post = AsyncMock(side_effect=fake_post)
     agent_engine._client = mock_client
-    agent_engine.model = "gemini-3.5-flash-lite"
 
-    res = await agent_engine._call_gemini([{"role": "user", "parts": [{"text": "hi"}]}])
+    res = await agent_engine._call_llm([{"role": "user", "parts": [{"text": "hi"}]}])
     assert res is not None
-    assert len(called_urls) == 2
-    assert "gemini-3.5-flash-lite" in called_urls[0]
-    assert "gemini-flash-lite-latest" in called_urls[1]
+    assert len(called_urls) >= 2
+    assert "groq" in called_urls[0]
+    assert "openrouter" in called_urls[1]
 
 
 

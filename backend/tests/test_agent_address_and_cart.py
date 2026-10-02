@@ -21,7 +21,11 @@ def mock_commerce():
 
 @pytest.fixture
 def agent_engine(mock_commerce):
-    return GroceryAgentEngine(mock_commerce)
+    return GroceryAgentEngine(
+        mock_commerce,
+        groq_api_key="test_groq_key",
+        openrouter_api_key="test_openrouter_key",
+    )
 
 
 

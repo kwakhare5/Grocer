@@ -153,6 +153,35 @@ async def test_show_cart_does_not_demand_an_address(postgres_pool, monkeypatch, 
 
 
 @pytest.mark.asyncio
+async def test_basket_read_without_swiggy_token_sends_reconnect_link(postgres_pool, monkeypatch):
+    class DisconnectedCommerce(MockCommerceAdapter):
+        async def get_cart(self, cart_id=None):
+            raise ProviderAuthError()
+
+    store = PostgresMessageStore(postgres_pool)
+    app = create_app()
+    engine = GroceryAgentEngine(DisconnectedCommerce(), gemini_api_key="local-test")
+
+    async def no_model_needed(_history, **_kwargs):
+        pytest.fail("An unauthenticated basket read must not invoke the model")
+
+    engine._call_llm = no_model_needed
+    app.state.agent_engine = engine
+    app.state.message_store = store
+    monkeypatch.setattr(default_whatsapp_adapter, "_app_secret", "local-e2e-secret")
+    monkeypatch.setattr(default_whatsapp_adapter, "record_only", True)
+    default_whatsapp_adapter.outbound_messages.clear()
+    body, headers = _webhook("wamid.disconnected-basket", "show my basket")
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://local-test") as client:
+        response = await client.post("/api/whatsapp/webhook", content=body, headers=headers)
+    assert response.status_code == 200
+    _, reply = await store.response_for_message("wamid.disconnected-basket")
+    assert reply.conversation_state == "AUTH_REQUIRED"
+    assert "connect_ticket=" in reply.text
+    assert len(default_whatsapp_adapter.outbound_messages) == 1
+
+
+@pytest.mark.asyncio
 async def test_real_mcp_rate_limit_stops_after_one_call_and_tells_customer_to_wait(postgres_pool, monkeypatch):
     store = PostgresMessageStore(postgres_pool)
     monkeypatch.setattr(default_whatsapp_adapter, "_app_secret", "local-e2e-secret")

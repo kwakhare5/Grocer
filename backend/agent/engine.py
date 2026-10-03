@@ -469,6 +469,8 @@ class GroceryAgentEngine:
         current_cart: Optional[CommerceCart] = None
         try:
             current_cart = await self.commerce.get_cart()
+        except ProviderAuthError:
+            return await self._auth_expired_response(message)
         except ProviderRateLimitedError as exc:
             wait_text = (f"Please wait {exc.retry_after_seconds} seconds and try again."
                          if exc.retry_after_seconds is not None else "Please wait and try again later.")

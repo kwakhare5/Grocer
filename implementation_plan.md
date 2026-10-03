@@ -1,5 +1,31 @@
 # GROCER implementation plan — intent-safe commerce
 
+## 2026-10-03 core-system correction plan — awaiting review
+
+This section supersedes the older provider, variant, and test assumptions below. The goal is a reliable GROCER shopping and replenishment engine verified with bounded real Swiggy MCP traffic. WhatsApp remains the delivery surface and gets a final live transport check; local E2E remains failure-mode regression proof rather than a substitute for real-provider outcomes.
+
+**Current evidence:** revision `9dd3cf1` is live on Render and Vercel; review-only checkout is active; the real WhatsApp basket read returned the correct empty basket. A six-call read-only Charholi session through GROCER's customer-scoped OAuth vault and Swiggy adapter returned real addresses, empty cart, and milk/pizza-base/Bournvita/tissue catalog results. See `docs/REAL_MCP_FINDINGS_2026-10-03.md`. The signed-webhook/PostgreSQL/recorded-Meta E2E suite passes 29 cases, including a 429 stop-and-wait regression. No real cart mutation or paid order was attempted.
+
+### Decision gate 1 — Swiggy-originated data and external models
+
+Swiggy's current data rules require a signed DPA and cross-border safeguards if our platform processes MCP responses outside India. The configured backend and database are in Singapore; Groq says retained customer data is stored in the US. No signed Swiggy DPA, regional inference guarantee, or approval for exporting this customer's saved-address/cart data to Groq has been verified. Automatic approval review blocked the proposed live model turn on this basis. Do not retry it indirectly.
+
+Resolve the actual contract and region before continuing model-driven live customer tests. Preferred permanent design if no cross-border agreement exists: host Swiggy-token storage and response processing in India; pass only the customer's own utterance and a minimal, non-Swiggy-derived task vocabulary to the model; select variants, budget, cart, receipt, and error behavior in application code without sending MCP payloads, address text, cart lines, or order history to an external LLM. Keep the model as an intent proposal engine, with server-side validation and bounded recovery. A provider with contractual India-only processing is an alternative only after its region and Swiggy terms are verified. Record the decision and migration path before changing production data location.
+
+### Decision gate 2 — variant-safe cart flow
+
+Swiggy's `search_products` reference explicitly requires showing available variants and asking which exact variant the customer wants before `update_cart`. The current `quick_add_items` path silently takes the first matching result and can make one write per item under a budget. Replace this with a durable two-stage flow: search and assemble a complete proposed basket; show exact brand, pack size, quantity, live price, unavailable items, and scoped/whole-basket budget; let the customer approve or edit the grouped variant choices; then issue one bounded cart update and verify the provider cart and payable total. Preserve the proposal across retry/restart and invalidate it if catalog or cart state changes. A customer who named an exact variant may have already made that choice, but still show the whole basket before checkout.
+
+### Verification and rollout
+
+1. Use only the local isolated PostgreSQL database for adversarial E2E fault injection. Run low/medium/high human requests, corrections, pack ambiguity, unavailable products, provider 429/auth/timeout, restart recovery, budget edges, external cart edits, and consented replenishment through the actual engine and state store. Keep test artifacts and call counts.
+2. Use one chosen real customer account at Charholi for paced, capped real MCP scenarios. Read addresses once per session; count all calls; stop on 429, auth failure, unknown write outcome, or unexpected cart state. Do not place an order. A real add → get_cart → clear → get_cart cycle begins only after the customer chooses a live variant.
+3. For model-driven real scenarios, first satisfy decision gate 1. Save sanitized transcripts and provider-state assertions; do not claim 100% correctness from a finite set. Compare requested-item ledger with the observed cart after every mutation.
+4. Migrate material legacy unit-test behavior into full-path E2E, remove the obsolete unit suite and duplicate code only after coverage is retained, run lint/build/E2E with exit code 0, then deploy and verify the exact revision on Render/Vercel and one real WhatsApp round trip.
+5. Keep paid checkout disabled until its separate Swiggy contract, payment reconciliation, regional data handling, and authorized real-order gate are complete. Reminder sending remains gated until a Meta-approved proactive template exists.
+
+**Open user decisions:** whether a signed Swiggy DPA/cross-border arrangement exists; whether GROCER should proceed with the India-processing/no-MCP-to-external-LLM design if it does not; which exact Charholi product variant to use for one reversible real-cart test.
+
 ## 2026-10-03 full-journey recovery and review-only release
 
 The active full-journey audit and prioritized recovery plan is in

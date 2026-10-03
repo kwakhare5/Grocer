@@ -2,7 +2,7 @@
 
 ## Scope and proof
 
-- Production GitHub/Render/Vercel revision: `1551507`; Render `/api/ready` returned `ready` and `checkout_mode=review`. GitHub Quality workflow passed.
+- Production GitHub/Render/Vercel revision: `9dd3cf1`; Render `/api/ready` returned `ready` and `checkout_mode=review`. GitHub Quality workflow passed.
 - Customer-originated WhatsApp `show my basket` returned “Your basket is empty. What groceries would you like to add?” after deployment. This verifies the reported address-prompt bug no longer appears for that exact request.
 - GROCER's production OAuth vault and `SwiggyMCPAdapter` completed one paced, read-only Charholi session: `get_addresses` (3 saved addresses), `get_cart` (empty, ₹0), and four `search_products` queries. Exit code 0. Sanitized result: `artifacts/real_mcp_charholi_readonly.json`.
 - Search counts: milk 18 products; pizza base 6; Bournvita 12; tissues 20. The six sampled pizza-base variants were unavailable. The Bournvita response included Horlicks products. Counts and prices are time- and address-specific, not guaranteed future stock.
@@ -11,9 +11,9 @@
 ## Confirmed gaps
 
 1. **Variant selection:** The current `quick_add_items` path takes the first matching available search result when no pack size is specified. Swiggy's current `search_products` reference says to show variants and ask the customer which specific variant to add. A grouped variant review should replace silent first-result selection before real cart writes. GROCER must still account for every requested item and show unavailable or similar products separately.
-2. **Rate limiting:** The current MCP HTTP client handles HTTP 429 as a generic commerce error. Swiggy's rate-limit contract says to stop immediately, respect `Retry-After`, and avoid repeated auth/session attempts. This needs an explicit error branch and a bounded end-to-end failure check.
+2. **Rate limiting (fixed in `9dd3cf1`):** The MCP HTTP client previously treated HTTP 429 as a generic commerce error and retried on the next chat turn. The deployed fix honors `Retry-After`, stops repeated calls for that customer, preserves the request, and has signed-webhook/PostgreSQL E2E proof. Other provider failures remain part of the broader stress matrix.
 3. **Credential health:** Vault loading reports one stored Swiggy credential could not be decrypted safely. The current test customer's OAuth credential worked. The other record needs private provenance review; do not merge identities or expose tokens.
-4. **Real model turn:** Automatic approval review rejected the attempted model-driven live test before it ran because it would send saved-address and tool data to Groq without specific authorization. No workaround was attempted. The user must explicitly authorize that data flow before model-driven testing with live customer data.
+4. **Real model turn and data location:** Automatic approval review rejected the attempted model-driven live test before it ran because it would send saved-address and tool data to Groq without specific authorization. No workaround was attempted. Swiggy's published data rules also require a DPA and cross-border safeguards when the platform processes MCP responses outside India. GROCER's Render backend and Supabase database are configured in Singapore, while Groq's published retention location is the US. The required agreement and inference region have not been verified; customer consent alone does not establish the Swiggy contract. See `implementation_plan.md` for the compliant design decision.
 5. **Cart and replenishment:** Real cart mutation/reversal, provider bill and payment-option verification, consented history sync, reminder template delivery, and human-adversarial multi-turn behavior are unproven. Paid checkout remains disabled and unauthorized.
 
 ## Next bounded sequence

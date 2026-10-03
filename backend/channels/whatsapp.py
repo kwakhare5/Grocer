@@ -15,8 +15,6 @@ import hashlib
 import hmac
 import logging
 import os
-import threading
-import time
 from typing import Any, Optional
 
 import httpx
@@ -55,11 +53,6 @@ class WhatsAppChannelAdapter(BaseChannelAdapter):
         self.timeout = timeout
         self.record_only = record_only
 
-        # Deduplication cache: message_id -> timestamp (1 hour TTL)
-        self._processed_message_ids: dict[str, float] = {}
-        self._inflight_message_ids: set[str] = set()
-        self._pending_responses: dict[str, NormalizedOutgoingResponse] = {}
-        self._dedup_lock = threading.Lock()
         # Record of outbound messages for testing and inspection
         self.outbound_messages: list[dict[str, Any]] = []
         # Persistent HTTP/2 client for outbound messages and status updates
@@ -149,51 +142,8 @@ class WhatsAppChannelAdapter(BaseChannelAdapter):
         return is_valid
 
     # -----------------------------------------------------------------------
-    # 3. Payload Parsing & Deduplication
+    # 3. Payload Parsing
     # -----------------------------------------------------------------------
-
-    def reserve_message(self, message_id: str) -> bool:
-        """Atomically reserve one event for dispatch; false means duplicate/in-flight."""
-        now = time.time()
-        with self._dedup_lock:
-            self._processed_message_ids = {
-                mid: ts
-                for mid, ts in self._processed_message_ids.items()
-                if now - ts < 3600.0
-            }
-            if (
-                message_id in self._processed_message_ids
-                or message_id in self._inflight_message_ids
-            ):
-                return False
-            self._inflight_message_ids.add(message_id)
-            return True
-
-    def mark_processed(self, message_id: str) -> None:
-        """Commit a reservation only after dispatch and outbound delivery succeed."""
-        with self._dedup_lock:
-            self._inflight_message_ids.discard(message_id)
-            self._pending_responses.pop(message_id, None)
-            self._processed_message_ids[message_id] = time.time()
-
-    def release_message(self, message_id: str) -> None:
-        """Release a failed reservation so Meta can retry the event."""
-        with self._dedup_lock:
-            self._inflight_message_ids.discard(message_id)
-
-    def pending_delivery(
-        self, message_id: str
-    ) -> Optional[NormalizedOutgoingResponse]:
-        """Return the already-computed outcome for a delivery-only retry."""
-        with self._dedup_lock:
-            return self._pending_responses.get(message_id)
-
-    def stage_delivery(
-        self, message_id: str, response: NormalizedOutgoingResponse
-    ) -> None:
-        """Retain the computed outcome before calling the Meta delivery API."""
-        with self._dedup_lock:
-            self._pending_responses[message_id] = response
 
     def parse_webhook_payload(self, payload: dict[str, Any]) -> list[NormalizedIncomingMessage]:
         """Extract and normalize inbound WhatsApp messages from Meta webhook payload."""

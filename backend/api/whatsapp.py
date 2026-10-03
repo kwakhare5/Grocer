@@ -21,6 +21,10 @@ router = APIRouter(prefix="/api/whatsapp", tags=["whatsapp"])
 
 async def drain_message_queue(store: PostgresMessageStore, engine: Any) -> None:
     """Deliver staged responses, then process pending messages in customer order."""
+    if hasattr(store, "recover_stale_processing"):
+        await store.recover_stale_processing()
+    if hasattr(store, "recover_stale_outbound"):
+        await store.recover_stale_outbound()
     while True:
         outbound = await store.claim_outbound()
         if outbound is not None:
@@ -43,6 +47,13 @@ async def drain_message_queue(store: PostgresMessageStore, engine: Any) -> None:
         if claimed is None:
             return
         inbound_id, task_message = claimed
+        heartbeat = None
+        if hasattr(store, "heartbeat_processing"):
+            async def keep_claim_alive() -> None:
+                while True:
+                    await asyncio.sleep(15)
+                    await store.heartbeat_processing(inbound_id)
+            heartbeat = asyncio.create_task(keep_claim_alive())
         try:
             if task_message.text.casefold().strip() == "delete my data":
                 state_store = getattr(engine, "state_store", None)
@@ -50,6 +61,9 @@ async def drain_message_queue(store: PostgresMessageStore, engine: Any) -> None:
                     raise RuntimeError("Customer deletion requires durable task storage.")
                 await store.request_deletion(task_message.customer_id)
                 await state_store.delete(task_message.customer_id)
+                replenishment_store = getattr(engine, "replenishment_store", None)
+                if replenishment_store is not None:
+                    await replenishment_store.delete(task_message.customer_id)
                 await default_token_vault.revoke_token_durable(task_message.customer_id)
                 await engine.forget_customer(task_message.customer_id)
                 response = NormalizedOutgoingResponse(
@@ -59,13 +73,20 @@ async def drain_message_queue(store: PostgresMessageStore, engine: Any) -> None:
                     conversation_state="READY", events=["DELETE_CUSTOMER_DATA"],
                 )
             else:
-                response = await engine.handle_message(task_message)
+                response = await asyncio.wait_for(engine.handle_message(task_message), timeout=180)
             await store.stage_response(inbound_id, response)
         except asyncio.CancelledError:
             raise
         except Exception:
             logger.exception("Agent turn needs review for inbound_id=%s", inbound_id)
             await store.mark_processing_failed(inbound_id)
+        finally:
+            if heartbeat is not None:
+                heartbeat.cancel()
+                try:
+                    await heartbeat
+                except asyncio.CancelledError:
+                    pass
 
 
 @router.get("/webhook")

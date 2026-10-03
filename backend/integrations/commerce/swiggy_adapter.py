@@ -212,6 +212,8 @@ class SwiggyMCPAdapter(CommercePort):
         data = res.get("data", {})
         reduced_quantity_items = data.get("reducedQuantityItems", []) if isinstance(data, dict) else []
         canonical_cart = await self.get_cart()
+        if not canonical_cart.address_id and effective_address:
+            canonical_cart.address_id = effective_address
         if isinstance(reduced_quantity_items, list):
             canonical_cart.reduced_quantity_items = [
                 item for item in reduced_quantity_items if isinstance(item, dict)

@@ -4,6 +4,17 @@ from __future__ import annotations
 import re
 from typing import Optional
 
+
+def missing_recipe_staples(request: str, proposed_queries: list[str]) -> list[str]:
+    """Keep a known recipe's indispensable base from disappearing from a model proposal."""
+    if not re.search(r"(?i)\b(?:make|making|prepare|cook)\b.{0,50}\bpizza\b|\bpizza\s+ingredients\b", request):
+        return []
+    if re.search(r"(?i)\b(?:already\s+have|have|got)\b.{0,25}\b(?:pizza\s+)?(?:base|dough|crust)\b", request):
+        return []
+    if any(re.search(r"(?i)\b(?:base|dough|crust)\b", query) for query in proposed_queries):
+        return []
+    return ["pizza base"]
+
 _ORDER_SUCCESS_PATTERNS = (
     re.compile(
         r"(?i)(?:(?:\b(?:your|the|this)\s+)?(?<!no )(?<!not )(?<!n\'t )\b(?:order|groceries|items|basket|delivery|everything|checkout|purchase)(?:\s+#?[\w-]+)?\s+)"
@@ -55,6 +66,15 @@ _RESET_COMMANDS = {
     "reset",
     "reset cart",
     "delete cart",
+    "delete all",
+    "delete everything",
+    "clear all",
+    "empty all",
+    "remove all",
+    "scrap cart",
+    "cancel cart",
+    "wipe cart",
+    "clear everything",
     "please clear my cart and start fresh",
     "please clear my cart and start fresh.",
 }
@@ -81,6 +101,21 @@ _HESITATION_PHRASES = {
     "no thanks",
     "cancel",
 }
+
+_HESITATION_REGEX = re.compile(
+    r"(?i)\b(wait|hold on|hold up|pause|stop|not yet|give me a (min|minute|sec|second)|wait a (sec|second|minute))\b"
+)
+
+
+def is_hesitation(text: str) -> bool:
+    """Return True if text expresses hesitation, pause, or hold request."""
+    if not text or not text.strip():
+        return False
+    cleaned = re.sub(r"\s+", " ", text.casefold()).strip(" \t\r\n.!?")
+    if cleaned in _HESITATION_PHRASES or _HESITATION_REGEX.search(cleaned):
+        return True
+    return False
+
 
 _CONFIRMATION_PHRASES = {
     "confirm",

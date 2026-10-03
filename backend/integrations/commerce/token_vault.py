@@ -226,8 +226,10 @@ class SwiggyTokenVault:
 
     async def get_token_durable(self, customer_id: str | None) -> str | None:
         """Read the current customer token on every provider call across app instances."""
-        if not customer_id or not self.is_durable:
+        if not customer_id:
             return None
+        if not self.is_durable:
+            return self.get_token(customer_id)
         assert self._pool is not None and self._codec is not None
         row = await self._pool.fetchrow(
             """SELECT ciphertext FROM grocer_internal.oauth_tokens

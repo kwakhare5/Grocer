@@ -58,6 +58,52 @@ RAW_TOOL_DECLARATIONS = [
         },
     },
     {
+        "name": "batch_search_products",
+        "description": "Search multiple grocery items concurrently in the Swiggy Instamart catalogue (e.g. for recipes, multi-item shopping lists, or bundles). Always prefer this over repeated single-item searches.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "queries": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "List of search queries (e.g. ['pizza base', 'mozzarella cheese', 'pizza sauce']).",
+                },
+                "address_id": {
+                    "type": "string",
+                    "description": "The user's Swiggy delivery address ID.",
+                },
+            },
+            "required": ["queries", "address_id"],
+        },
+    },
+    {
+        "name": "quick_add_items",
+        "description": "Directly search, resolve in-stock variants, and add grocery items to the Swiggy Instamart basket in a single step. Ideal for natural language requests (e.g. 'add milk and bread', 'need eggs', 'make pizza under 1000'). Detects out-of-stock items, respects budget limits, and updates the cart immediately.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "description": "List of grocery items to search and add.",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "query": {"type": "string", "description": "Item name to search for (e.g. 'amul milk', 'eggs', 'bread')."},
+                            "quantity": {"type": "integer", "description": "Quantity to add (default 1)."},
+                            "preferred_pack_size": {"type": "string", "description": "Optional pack size preference (e.g. '500ml', '1L', '6 pcs', '12 pcs')."},
+                        },
+                        "required": ["query"],
+                    },
+                },
+                "budget_cap_inr": {
+                    "type": "number",
+                    "description": "Optional total spending budget cap in INR (e.g. 200, 500, 1000).",
+                },
+            },
+            "required": ["items"],
+        },
+    },
+    {
         "name": "get_cart",
         "description": "Fetch current cart contents, item count, formatted line items, subtotal, delivery & packaging fees, and grand total.",
         "parameters": {
@@ -105,7 +151,7 @@ RAW_TOOL_DECLARATIONS = [
     },
     {
         "name": "checkout",
-        "description": "Place the Swiggy Instamart order and generate a UPI QR / payment link. NEVER call this unless the user has explicitly confirmed the basket.",
+        "description": "Place the Swiggy Instamart order using a payment option the user selected from get_payment_options. NEVER call this unless the user has explicitly confirmed the basket and address.",
         "parameters": {
             "type": "object",
             "properties": {
@@ -123,7 +169,11 @@ RAW_TOOL_DECLARATIONS = [
                 },
                 "payment_option_kind": {
                     "type": "string",
-                    "description": "Payment option kind, default 'qr'.",
+                    "description": "Exact kind of the selected, currently available provider option.",
+                },
+                "payment_option_id": {
+                    "type": "string",
+                    "description": "Exact ID of the payment option selected by the user from get_payment_options.",
                 },
                 "is_user_confirmed": {
                     "type": "boolean",

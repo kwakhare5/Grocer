@@ -19,10 +19,19 @@ class CustomerSession:
     awaiting_address_choice: Optional[list[dict[str, Any]]] = None
     last_active_ts: float = 0.0
     budget_inr: Optional[float] = None
+    ingredient_budget_inr: Optional[float] = None
+    ingredient_extras_text: Optional[str] = None
+    ingredient_spin_ids: list[str] = field(default_factory=list)
     pending_approval: Optional[PendingApproval] = None
     unresolved_items: list[dict[str, Any]] = field(default_factory=list)
+    budget_blocked_items: list[str] = field(default_factory=list)
     known_cart_fingerprint: Optional[str] = None
     external_cart_pending: bool = False
+    pending_request_text: Optional[str] = None
+    selected_payment_id: Optional[str] = None
+    selected_payment_kind: Optional[str] = None
+    selected_payment_method: Optional[str] = None
+    selected_payment_label: Optional[str] = None
 
     def set_address(self, address_id: str, label: str, confirmed: bool = True) -> None:
         """Atomically lock the active delivery address and label."""
@@ -44,7 +53,16 @@ class CustomerSession:
         self.reset_order_address()
         self.pending_approval = None
         self.unresolved_items.clear()
+        self.budget_blocked_items.clear()
         self.known_cart_fingerprint = None
         self.external_cart_pending = False
+        self.pending_request_text = None
+        self.selected_payment_id = None
+        self.selected_payment_kind = None
+        self.selected_payment_method = None
+        self.selected_payment_label = None
         self.last_active_ts = 0.0
         self.budget_inr = None
+        self.ingredient_budget_inr = None
+        self.ingredient_extras_text = None
+        self.ingredient_spin_ids.clear()

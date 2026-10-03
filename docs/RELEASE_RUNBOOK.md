@@ -22,20 +22,20 @@ The existing `oauth_tokens` table must have `customer_id`, `ciphertext`, `expire
 
 ## 2. Apply migrations in order
 
-For a genuinely empty database, run `migrations/bootstrap_fresh.sql` first. Apply `001` through `005` in numeric order with `psql -v ON_ERROR_STOP=1 -1 -f <file>`; each file runs in a transaction. Use your normal secure connection method and do not put passwords in command history. The files create connect tickets, inbox/outbox, checkout attempts, task snapshots, and privacy deletion requests.
+For a genuinely empty database, run `migrations/bootstrap_fresh.sql` first. Apply `001` through `009` in numeric order in a transaction. On an existing database, inspect the schema and apply only missing migrations in numeric order. Use your normal secure connection method and do not put passwords in command history. The files create connect tickets, inbox/outbox, checkout attempts, task snapshots, privacy deletion requests, recovery timestamps, payment follow-ups, and consented replenishment state.
 
-Verify all eight required tables exist before starting the backend:
+Verify all nine required tables exist before starting the backend:
 
 ```sql
 SELECT name, to_regclass('grocer_internal.' || name) AS relation
 FROM unnest(ARRAY[
   'oauth_tokens', 'oauth_pending_flows', 'connect_tickets',
   'inbound_messages', 'outbound_messages', 'checkout_attempts',
-  'task_state', 'privacy_deletions'
+  'task_state', 'privacy_deletions', 'replenishment'
 ]) AS name;
 ```
 
-All `relation` values must be non-null. Table presence alone does not validate all columns or data; run the read-only flow below after startup. Down migrations **drop stored data**. Use the pre-migration backup to restore a populated database; do not run the down files in production as a casual rollback.
+All `relation` values must be non-null. Also verify `inbound_messages.claimed_at`, `outbound_messages.sending_started_at` and `payment_attempt_id`, `checkout_attempts.next_payment_check_at` and `payment_deadline_at`, and `replenishment.next_sync_at` and `paused`. Table presence alone does not validate all columns or data; run the read-only flow below after startup. Down migrations **drop stored data**. Use the pre-migration backup to restore a populated database; do not run the down files in production as a casual rollback.
 
 ## 3. Handle old identities and secrets
 
@@ -49,7 +49,7 @@ With two distinct verified India WhatsApp numbers and separate Swiggy accounts, 
 
 ## 5. Triage uncertain work
 
-Inspect `inbound_messages` with `PROCESSING`/`NEEDS_REVIEW`, `outbound_messages` with `SENDING`/`UNKNOWN`, and checkout attempts with `IN_FLIGHT`/`UNKNOWN`/`PAYMENT_PENDING`/`PARTIAL`. Confirm the actual Swiggy/Meta outcome before changing a status or sending a message. Do not replay a shopping action or message merely because the process timed out. Record the provider evidence, customer impact, and final status in the incident record. The current code has no automatic order/payment reconciliation; live checkout remains blocked.
+Inspect `inbound_messages` with `PROCESSING`/`NEEDS_REVIEW`, `outbound_messages` with `SENDING`/`UNKNOWN`, and checkout attempts with `IN_FLIGHT`/`UNKNOWN`/`PAYMENT_PENDING`/`PARTIAL`. Confirm the actual Swiggy/Meta outcome before changing a status or sending a message. Do not replay a shopping action or message merely because the process timed out. Record the provider evidence, customer impact, and final status in the incident record. The current code has bounded payment-status reconciliation, but live checkout remains blocked until its real provider behavior is verified.
 
 ## 6. Live-checkout gate
 

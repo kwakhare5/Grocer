@@ -11,6 +11,20 @@ permissions:
 jobs:
   backend:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: grocer_test
+          POSTGRES_PASSWORD: grocer_test_local_only
+          POSTGRES_DB: grocer_test
+        ports:
+          - 55432:5432
+        options: >-
+          --health-cmd "pg_isready -U grocer_test -d grocer_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -19,10 +33,14 @@ jobs:
           cache: pip
           cache-dependency-path: requirements.txt
       - run: pip install -r requirements.txt pytest pytest-asyncio
-      - run: pytest backend/tests
+      - run: pytest backend/tests/test_whatsapp_postgres_e2e.py --junitxml=artifacts/whatsapp_e2e.xml
         env:
-          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY || 'ci_test_groq_key' }}
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY || 'ci_test_openrouter_key' }}
+          GROCER_E2E_DATABASE_URL: postgresql://grocer_test:grocer_test_local_only@127.0.0.1:55432/grocer_test
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: whatsapp-e2e-report
+          path: artifacts/whatsapp_e2e.xml
 
   frontend:
     runs-on: ubuntu-latest

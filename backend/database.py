@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from typing import Any
+from urllib.parse import urlparse
 
 
 async def create_postgres_pool(database_url: str, *, max_size: int = 5) -> Any:
@@ -11,10 +12,11 @@ async def create_postgres_pool(database_url: str, *, max_size: int = 5) -> Any:
     except ImportError as exc:
         raise RuntimeError("Install asyncpg before enabling DATABASE_URL.") from exc
 
+    local_database = (urlparse(database_url).hostname or "") in {"127.0.0.1", "localhost", "::1"}
     return await asyncpg.create_pool(
         dsn=database_url,
         min_size=1,
         max_size=max_size,
-        ssl="require",
+        ssl=False if local_database else "require",
         statement_cache_size=0,
     )

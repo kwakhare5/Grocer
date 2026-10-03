@@ -1,58 +1,41 @@
-# Task Tracker: Swiggy Builder Club Production Alignment
+# Task Tracker: Architectural Overhaul & Radical Codebase Prune
 
-## Intent-safe repair program (approved 2026-10-02)
+## Full WhatsApp Journey Recovery (Approved 2026-10-03)
 
-- [x] Fail closed on mixed confirmation, stale/changed approval, unknown totals, currency mismatch, and unresolved cart quantity changes in local paths.
-- [x] Remove cross-customer token fallback and bind OAuth start to a verified, single-use WhatsApp ticket.
-- [x] Add PostgreSQL inbox/outbox, encrypted task snapshot, checkout-attempt reservation, deletion request, and reversible schema files.
-- [x] Gate live checkout off by default; keep the first release in review mode.
-- [x] Correct local README/architecture claims and document schema rollout and uncertain-outcome triage.
-- [ ] Inspect and back up deployed PostgreSQL; test fresh install, existing schema migration, rollback, restart, and two-customer isolation.
-- [ ] Build verified legacy identity mapping; migrate only one-to-one records and reconnect ambiguous customers.
-- [ ] Implement a complete requested-item ledger, durable soft preferences, grounded alternatives, and code-enforced diet/allergy restrictions.
-- [x] Make live checkout failures avoid unproven no-charge claims while retaining review-only simulation copy.
-- [x] Keep a payment-confirmed but unplaced checkout attempt on hold for reconciliation.
-- [ ] Reconcile uncertain checkout/payment across restarts before any live checkout.
-- [ ] Verify signed WhatsApp and read-only Swiggy flows on real services without placing an order.
-- [ ] Measure real provider/model quality and latency before making performance claims.
+Verification policy (confirmed 2026-10-03): only full-path E2E tests count as release proof. The old unit suite is being retired after its customer and security behaviors are carried into E2E coverage. Docker PostgreSQL is local test isolation; production Supabase is not the test database.
 
-The checklist below records earlier prototype work and its historical test counts. It is not evidence that the new rollout gates passed.
+Current local proof (2026-10-03): signed WhatsApp webhook → PostgreSQL inbox → agent → outbox → recorded Meta delivery: **27 passed**, JUnit `artifacts/whatsapp_e2e.xml`, exit 0. A CLI-only real-model/mock-commerce replay now reports missing pizza base and other unavailable extras as a partial basket, and keeps ingredient-only ₹1,000 separate from extras and fees. ESLint, TypeScript, and Next.js build pass. Meta accepted an approved `hello_world` test template to the authorized recipient; a customer reply and deployed-path verification are still pending. Live Swiggy MCP remains unauthenticated locally. None of this proves the complete release gate.
 
-- [x] **Track 1: Financial & Security Defenses (Plan Items E, F, G)**
-  - [x] Write failing invariant tests in `backend/tests/test_safety_invariants.py` <!-- id: 0 -->
-  - [x] Implement `CHECKOUT_MODE=review` guard in `backend/integrations/commerce/swiggy_adapter.py` <!-- id: 1 -->
-  - [x] Remove plaintext `.vault_tokens.json` writes & enforce strict customer isolation in `token_vault.py` <!-- id: 2 -->
-  - [x] Fix confirmation regex (negations first, plain "yes/ok" support, cart snapshot binding) in `guards.py` & `engine.py` <!-- id: 3 -->
-  - [x] Set 10-second payment tracking cadence in `engine.py` <!-- id: 4 -->
-  - [x] Handle WhatsApp receipt splitting for >1024 char messages in `whatsapp.py` <!-- id: 5 -->
-  - [x] Verify Track 1 tests pass green <!-- id: 6 -->
+- [ ] Capture a red, repeatable signed-webhook → PostgreSQL inbox → worker → agent → outbox → synthetic Meta-delivery replay of the reported failures, with a test report and exit code.
+- [ ] Make customer shopping intent durable across address selection, model/provider failures, retry, and worker restart; account for every requested item, including budget-blocked items.
+- [ ] Verify provider cart, complete payable total, selected address, and payment choice at customer approval; reconcile unknown commerce outcomes and preserve truthful order results.
+- [ ] Secure the simulator and make it exercise the full WhatsApp path; verify real customer-scoped Swiggy MCP non-order calls without chargeable checkout.
+- [ ] Implement consent-based one-customer household replenishment with chosen reminder time/frequency, estimated timing, corrections, opt-out/delete, and durable WhatsApp delivery.
+- [ ] Verify grocery-only symptom suggestions, customer support escalation, all failure and restart paths, and current Swiggy/Meta policy gates.
+- [ ] Resolve the existing test/build baseline, review proven dead-code candidates, prune surgically, and rerun full journey checks.
+- [ ] Inventory exposed credentials and prepare controlled rotation, including a data-key re-encryption migration; obtain separate go-ahead for production changes.
 
-- [x] **Track 2: Domain Constraints & Catalog Depth (Plan Items C, D)**
-  - [x] Add `budget_inr` to `CustomerSession` & enforce code-level checkout rejection if total > budget <!-- id: 7 -->
-  - [x] Expand catalog search in `tools.py` to 10 items with pack size and savings metadata <!-- id: 8 -->
-  - [x] Add structured failure error objects to `tools.py` <!-- id: 9 -->
+The detailed evidence and acceptance gates are in `docs/SYSTEM_AUDIT_AND_RECOVERY_PLAN.md`. The older tracker below is historical work and its checked boxes are not release proof.
 
-- [x] **Track 3: Memory Resilience & Media Routes (Plan Items B, Asset Routes)**
-  - [x] Increase conversation history window to 20 user turns in `engine.py` <!-- id: 10 -->
-  - [x] Replace amnesiac history deletion on Gemini 400 with non-destructive tool response compaction <!-- id: 11 -->
-  - [x] Copy `Demo video with audio.mp4` to `public/demo.mp4` to resolve video player 404 <!-- id: 12 -->
-  - [x] Clean 6 unused imports and deduplicate phrase sets <!-- id: 13 -->
+## Active Overhaul Plan (Approved 2026-10-02)
 
-- [x] **Track 4: Procedural Protocol & Step-Limit Recovery (Plan Items B, D)**
-  - [x] Write invariant tests in `backend/tests/test_safety_invariants.py` asserting prompt procedure and step-limit recovery <!-- id: 14 -->
-  - [x] Embed 8-step procedural shopping protocol in `backend/agent/prompts.py` <!-- id: 15 -->
-  - [x] Embed 4 worked examples (budget cap, dietary exclusion, brand fidelity, quantity correction) in `prompts.py` <!-- id: 16 -->
-  - [x] Implement honest 8-step ReAct limit recovery + live basket receipt + action buttons in `backend/agent/engine.py` <!-- id: 17 -->
-  - [x] Verify 62/62 tests passing green (100%) <!-- id: 18 -->
+- [x] **Phase 1: Radical Codebase Pruning & Engine Streamlining (Ponytail / YAGNI)** <!-- id: 101 -->
+  - [x] Delete obsolete root planning files (`Grocer-BuilderClub-Plan.md`, `Grocer-Complete-Plan.md`) <!-- id: 102 -->
+  - [x] Add atomic 1-turn `quick_add_items` tool in `backend/agent/tools.py` & `engine.py` (66% roundtrip reduction) <!-- id: 103 -->
+  - [x] Replace brittle hesitation set matching with regex `is_hesitation()` in `guards.py` <!-- id: 104 -->
+  - [x] Streamline `backend/agent/prompts.py` to Ultra-Crisp Transactional Persona (down to ~350 tokens) <!-- id: 105 -->
+  - [x] Fix receipt duplication and guarantee out-of-stock item explanation preservation in `engine.py` <!-- id: 106 -->
 
-- [x] **Track 5: Live Model Benchmarking & Thinking Config (Plan Item A)**
-  - [x] Test `gemini-3.8-flash` with thinking level vs `gemini-3.5-flash-lite` on live API key <!-- id: 19 -->
-  - [x] Lock the optimal, lowest-latency model configuration (`gemini-3.5-flash-lite` at 1.69s vs 8.09s for 3.8-flash) <!-- id: 20 -->
+- [x] **Phase 2: Simulator Transparency & Swiggy OAuth Connect** <!-- id: 107 -->
+  - [x] Add dynamic visual status badge in `app/simulator/page.tsx` (🟢 LIVE SWIGGY MCP vs 🟡 LOCAL MOCK SIMULATOR) <!-- id: 108 -->
+  - [x] Add 1-click "Connect Real Swiggy (OTP)" action button linking to `/api/auth/swiggy/login` <!-- id: 109 -->
 
-- [x] **Track 6: 25-Case Synthetic Model Evaluation Suite (Plan Item H)**
-  - [x] Author `backend/tests/test_eval_suite.py` with 25 synthetic shopping cases <!-- id: 21 -->
-  - [x] Verify constraint satisfaction: budget, diet, brand fidelity, recovery (87/87 tests green) <!-- id: 22 -->
+- [ ] **Phase 3: Adversarial Verification Loop to 100% Pass Rate** <!-- id: 110 -->
+  - [x] Isolate test state with per-test `clear_cart()` in `scripts/eval_adversarial_matrix.py` <!-- id: 111 -->
+  - [x] Expand matrix from 10 to 15 real-world human scenarios (pack sizes, chai kits, mid-order edits, item removal) <!-- id: 112 -->
+  - [ ] Execute 15-scenario adversarial run with isolated pacing to verify 100% pass rate <!-- id: 113 -->
 
-- [x] **Track 7: Swiggy Builder Club Application Package & Demo Walkthrough (Plan Part 5)**
-  - [x] Fill all verified application fields for Google Form `https://forms.gle/4vkeKyqm15Qb6fnJA` in `docs/SWIGGY_BUILDER_CLUB_APPLICATION.md` <!-- id: 23 -->
-  - [x] Finalize reviewer demo video script & official email to `builders@swiggy.in` <!-- id: 24 -->
+- [ ] **Phase 4: Full System Verification & Live Auth** <!-- id: 114 -->
+  - [x] Verified single-turn grocery add (2x Milk + 1x Bread in 1.2s with single clean receipt) <!-- id: 115 -->
+  - [x] Verified out-of-stock preservation (Vicks added + Pencils unavailable note preserved with exit code 0) <!-- id: 116 -->
+  - [ ] Connect real Swiggy account with phone number OTP to replace expired JWT <!-- id: 117 -->

@@ -1,5 +1,15 @@
 # GROCER implementation plan — intent-safe commerce
 
+## 2026-10-03 full-journey recovery and review-only release
+
+The active full-journey audit and prioritized recovery plan is in
+[`docs/SYSTEM_AUDIT_AND_RECOVERY_PLAN.md`](docs/SYSTEM_AUDIT_AND_RECOVERY_PLAN.md).
+It records the current failing verification baseline, a replay of the customer's
+address-selection/model-outage transcript, Swiggy contract conflicts, and the
+required signed WhatsApp-to-outbox acceptance gate. The 2026-10-02 plan below
+remains historical context; security-boundary and durable-state changes in the
+revision await review of the open decisions in the audit plan.
+
 Status: approved and partially implemented locally on 2026-10-02 against baseline HEAD `5476988` and `Grocer-Complete-Plan.md`. The review-only release is not yet verified against the deployed database or real services. See `docs/RELEASE_RUNBOOK.md` for the release gates and `task.md` for open work.
 
 ## Objective and release rule

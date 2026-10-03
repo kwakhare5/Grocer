@@ -1,6 +1,7 @@
 """Swiggy MCP Tools registry for LLM Function Calling."""
 from __future__ import annotations
 
+import asyncio
 import logging
 import math
 import re
@@ -8,6 +9,8 @@ from decimal import Decimal
 from typing import Any, Optional
 
 from backend.agent.approval import cart_fingerprint
+from backend.agent.budget import is_explicit_extra
+from backend.agent.product_policy import is_restricted_medical_product
 from backend.integrations.commerce.port import CommercePort
 from backend.integrations.commerce.models import (
     CartItemUpdate,
@@ -28,6 +31,14 @@ logger = logging.getLogger("grocer.agent.tools")
 def _format_inr(amount: float) -> str:
     """Format numeric price into clean ₹ string without trailing zero decimals."""
     return f"₹{int(amount)}" if amount.is_integer() else f"₹{amount:.2f}"
+
+
+def _matches_requested_product(query: str, product: dict[str, Any]) -> bool:
+    """Reject loose provider search hits that do not contain the requested product words."""
+    words = [word for word in re.findall(r"[\w]+", query.casefold())
+             if word not in {"a", "an", "the", "of", "for"}]
+    name = " ".join(str(product.get(field) or "") for field in ("name", "pack_size")).casefold()
+    return bool(words) and all(word in name for word in words)
 
 
 def clean_address(street: str, city: Optional[str] = None, label: Optional[str] = None) -> str:
@@ -192,6 +203,54 @@ class SwiggyAgentTools:
             logger.warning("search_products failed for query=%s: %s", query, exc)
             return {"success": False, "error": str(exc), "retryable": True}
 
+    async def batch_search_products(
+        self, queries: list[str], address_id: Optional[str] = None
+    ) -> dict[str, Any]:
+        """Search multiple grocery items concurrently against Swiggy Instamart."""
+        if not address_id:
+            return {
+                "success": False,
+                "error": "Address ID is required to search the local store catalogue.",
+                "retryable": False,
+            }
+        clean_queries = [q.strip() for q in queries if isinstance(q, str) and q.strip()]
+        if not clean_queries:
+            return {"success": False, "error": "No valid search queries provided."}
+        if len(clean_queries) > 30:
+            return {"success": False, "error": "TOO_MANY_QUERIES", "retryable": False}
+
+        semaphore = asyncio.Semaphore(3)
+
+        async def _search_one(q: str) -> dict[str, Any]:
+            async with semaphore:
+                try:
+                    res = await self.search_products(q, address_id)
+                    if not res.get("success"):
+                        return {"query": q, "products": [], "error": res.get("error") or "SEARCH_UNAVAILABLE"}
+                    prods = res.get("products", [])[:2]
+                    compact_prods = []
+                    for p in prods:
+                        v = p.get("variants", [{}])[0] if p.get("variants") else {}
+                        compact_prods.append({
+                            "name": p.get("name"),
+                            "category": p.get("category"),
+                            "brand": p.get("brand"),
+                            "spin_id": v.get("spin_id"),
+                            "sku_id": v.get("sku_id"),
+                            "pack_size": v.get("pack_size"),
+                            "price": v.get("price"),
+                            "formatted_price": v.get("formatted_price"),
+                        })
+                    return {"query": q, "products": compact_prods}
+                except Exception as exc:
+                    return {"query": q, "products": [], "error": str(exc)}
+
+        batch_results = await asyncio.gather(*[_search_one(q) for q in clean_queries])
+        return {
+            "success": True,
+            "results": batch_results,
+        }
+
     async def get_saved_addresses(self, customer_id: str) -> dict[str, Any]:
         """Retrieve the user's saved delivery addresses from Swiggy."""
         try:
@@ -347,6 +406,8 @@ class SwiggyAgentTools:
         items: list[dict[str, Any]],
         address_id: str,
         delivery_location: str = "Home",
+        ingredient_budget_inr: Optional[float] = None,
+        ingredient_spin_ids: list[str] | None = None,
     ) -> dict[str, Any]:
         """Update Swiggy Instamart cart by deterministically merging item updates with active cart items."""
         if not isinstance(address_id, str) or not address_id or not isinstance(items, list) or not 1 <= len(items) <= 30:
@@ -383,6 +444,12 @@ class SwiggyAgentTools:
                 return {"success": False, "error": "CART_UNAVAILABLE", "retryable": False,
                         "message": "I couldn't read the current basket, so I didn't change it."}
 
+            if ingredient_budget_inr is not None:
+                existing_spins = {item.spin_id for item in existing_cart.items}
+                if any(item["quantity"] > 0 and item["spin_id"] not in existing_spins for item in items):
+                    return {"success": False, "error": "SCOPED_BUDGET_USE_SEARCH", "retryable": False,
+                            "message": "I need to search new items so I can keep the ingredient limit accurate."}
+
             for it in items:
                 spin = str(it["spin_id"])
                 qty = int(it["quantity"])
@@ -402,6 +469,15 @@ class SwiggyAgentTools:
                 verified = updated
             else:
                 verified = await self.commerce.get_cart(updated.cart_id)
+            if ingredient_budget_inr is not None and sum(
+                Decimal(str(item.total_price)) for item in verified.items
+                if item.spin_id in (ingredient_spin_ids or [])
+            ) > Decimal(str(ingredient_budget_inr)):
+                if not await self._restore_cart(existing_cart, verified, address_id):
+                    return {"success": False, "error": "BUDGET_ROLLBACK_UNVERIFIED", "retryable": False,
+                            "message": "I couldn't verify the basket after a budget check. Please review it before ordering."}
+                return {"success": False, "error": "INGREDIENT_BUDGET_EXCEEDED", "retryable": False,
+                        "message": "That change exceeds your ingredient-price limit. I kept the previous basket."}
             actual_by_spin = {item.spin_id: item for item in verified.items}
             unresolved_items = []
             for requested in cart_updates:
@@ -483,6 +559,215 @@ class SwiggyAgentTools:
             logger.warning("update_cart failed: %s", exc)
             return {"success": False, "error": str(exc)}
 
+    async def _restore_cart(self, before: CommerceCart, after: CommerceCart, address_id: str) -> bool:
+        restore = [CartItemUpdate(spin_id=item.spin_id, sku_id=item.sku_id, quantity=item.quantity)
+                   for item in before.items]
+        before_spins = {item.spin_id for item in before.items}
+        restore.extend(CartItemUpdate(spin_id=item.spin_id, sku_id=item.sku_id, quantity=0)
+                       for item in after.items if item.spin_id not in before_spins)
+        try:
+            await self.commerce.update_cart(restore, address_id=address_id)
+            restored = await self.commerce.get_cart()
+        except Exception:
+            return False
+        before_items = sorted((item.spin_id, item.sku_id, item.quantity) for item in before.items)
+        restored_items = sorted((item.spin_id, item.sku_id, item.quantity) for item in restored.items)
+        return (before_items == restored_items
+                and Decimal(str(before.grand_total)) == Decimal(str(restored.grand_total)))
+
+    async def quick_add_items(
+        self,
+        items: list[dict[str, Any]],
+        address_id: str,
+        budget_cap_inr: Optional[float] = None,
+        delivery_location: str = "Home",
+        ingredient_budget_inr: Optional[float] = None,
+        ingredient_extras_text: str = "",
+        ingredient_spin_ids: list[str] | None = None,
+    ) -> dict[str, Any]:
+        """Search products, resolve in-stock variants, respect budget, and update cart in a single atomic pass."""
+        if not items or not address_id:
+            return {"success": False, "error": "MISSING_ARGUMENTS"}
+
+        added_descriptions: list[str] = []
+        unavailable_items: list[str] = []
+        restricted_items: list[str] = []
+        budget_blocked_items: list[str] = []
+        cart_updates: list[dict[str, Any]] = []
+        query_by_spin: dict[str, str] = {}
+        last_update_result: dict[str, Any] | None = None
+        scoped_ids = list(ingredient_spin_ids or [])
+        has_budget = budget_cap_inr is not None or ingredient_budget_inr is not None
+
+        queries = [item.get("query", "").strip() for item in items if item.get("query")]
+        search_res = await self.batch_search_products(queries, address_id)
+        if not search_res.get("success"):
+            return {"success": False, "error": search_res.get("error") or "SEARCH_UNAVAILABLE",
+                    "retryable": bool(search_res.get("retryable", True)),
+                    "message": "I couldn't check every requested item, so I left the basket unchanged."}
+        search_errors = {
+            item["query"]: item["error"]
+            for item in search_res.get("results", [])
+            if item.get("error")
+        }
+        if any(error == "AUTH_EXPIRED" for error in search_errors.values()):
+            return {"success": False, "error": "AUTH_EXPIRED", "retryable": False}
+        search_failed_items = list(search_errors)
+        results_by_query = {
+            item["query"]: item.get("products", [])
+            for item in (search_res.get("results", []) if search_res.get("success") else [])
+        }
+
+        for it in items:
+            q = it.get("query", "").strip()
+            if q in search_errors:
+                continue
+            qty = max(1, int(it.get("quantity", 1)))
+            pref_size = (it.get("preferred_pack_size") or "").lower()
+
+            products = [product for product in results_by_query.get(q, [])
+                        if _matches_requested_product(q, product)]
+            selected_variant = None
+            if pref_size:
+                for p in products:
+                    if pref_size in str(p.get("name", "")).lower() or pref_size in str(p.get("pack_size", "")).lower():
+                        selected_variant = p
+                        break
+            if not selected_variant and products:
+                selected_variant = products[0]
+
+            if not selected_variant:
+                unavailable_items.append(q)
+                continue
+
+            if is_restricted_medical_product(
+                str(selected_variant.get("name") or ""),
+                str(selected_variant.get("category") or ""),
+            ):
+                restricted_items.append(q)
+                continue
+
+            proposal = {
+                "spin_id": selected_variant["spin_id"],
+                "sku_id": selected_variant["sku_id"],
+                "quantity": qty,
+                "name": selected_variant["name"],
+            }
+            query_by_spin[proposal["spin_id"]] = q
+            if has_budget:
+                try:
+                    before = await self.commerce.get_cart()
+                except Exception:
+                    return {"success": False, "error": "CART_UNAVAILABLE", "retryable": True,
+                            "message": "I couldn't verify the basket before applying your budget."}
+                if ingredient_budget_inr is not None and before.items and not scoped_ids:
+                    return {"success": False, "error": "SCOPED_BUDGET_EXISTING_CART", "retryable": False,
+                            "message": "Your basket already has items. Please clarify which existing items count as pizza ingredients."}
+                if (budget_cap_inr is not None and before.items
+                        and Decimal(str(before.grand_total)) > Decimal(str(budget_cap_inr))):
+                    budget_blocked_items.append(q)
+                    continue
+                candidate = await self.update_cart([proposal], address_id, delivery_location)
+                if not candidate.get("success"):
+                    if candidate.get("error") == "CART_ITEMS_UNRESOLVED":
+                        candidate["unavailable_items"] = [q]
+                    return candidate
+                is_ingredient = ingredient_budget_inr is not None and not is_explicit_extra(
+                    q, ingredient_extras_text,
+                )
+                proposed_scope = set(scoped_ids)
+                if is_ingredient:
+                    proposed_scope.add(proposal["spin_id"])
+                ingredient_total = sum(
+                    Decimal(str(item["total_price"])) for item in candidate["items"]
+                    if item["spin_id"] in proposed_scope
+                )
+                cap_exceeded = (
+                    ingredient_total > Decimal(str(ingredient_budget_inr))
+                    if ingredient_budget_inr is not None else
+                    Decimal(str(candidate["grand_total"])) > Decimal(str(budget_cap_inr))
+                )
+                if cap_exceeded:
+                    after = await self.commerce.get_cart()
+                    if not await self._restore_cart(before, after, address_id):
+                        return {"success": False, "error": "BUDGET_ROLLBACK_UNVERIFIED", "retryable": False,
+                                "message": "The basket changed during a budget check. Please review it before ordering."}
+                    budget_blocked_items.append(q)
+                    continue
+                if is_ingredient:
+                    scoped_ids = list(proposed_scope)
+                last_update_result = candidate
+            cart_updates.append(proposal)
+            added_descriptions.append(f"{qty}x {selected_variant['name']}")
+
+        if not cart_updates:
+            if search_failed_items and not unavailable_items and not restricted_items:
+                return {
+                    "success": False, "error": "SEARCH_UNAVAILABLE", "retryable": True,
+                    "search_failed_items": search_failed_items,
+                    "message": "I couldn't check those items right now. Please try again.",
+                }
+            return {
+                "success": False,
+                "error": "NO_ITEMS_AVAILABLE",
+                "unavailable_items": unavailable_items,
+                "restricted_items": restricted_items,
+                "budget_blocked_items": budget_blocked_items,
+                "search_failed_items": search_failed_items,
+                "message": "No requested grocery item could be added."
+            }
+
+        update_result = last_update_result if has_budget else await self.update_cart(
+            items=cart_updates, address_id=address_id, delivery_location=delivery_location,
+        )
+
+        if not update_result.get("success"):
+            if update_result.get("error") == "CART_ITEMS_UNRESOLVED":
+                missing = update_result.get("unresolved_items", [])
+                update_result["unavailable_items"] = [
+                    query_by_spin.get(item.get("spin_id"), str(item.get("spin_id")))
+                    for item in missing if item.get("actual_quantity", 0) == 0
+                ]
+                update_result["reduced_items"] = [
+                    f"{query_by_spin.get(item.get('spin_id'), item.get('spin_id'))} "
+                    f"({item.get('actual_quantity', 0)} of {item.get('requested_quantity', 0)})"
+                    for item in missing if item.get("actual_quantity", 0) > 0
+                ]
+            return update_result
+
+        update_result["added_items"] = added_descriptions
+        update_result["unavailable_items"] = unavailable_items
+        update_result["restricted_items"] = restricted_items
+        update_result["budget_blocked_items"] = budget_blocked_items
+        update_result["search_failed_items"] = search_failed_items
+        if ingredient_budget_inr is not None:
+            update_result["ingredient_spin_ids"] = scoped_ids
+            update_result["ingredient_item_total"] = sum(
+                item["total_price"] for item in update_result["items"]
+                if item["spin_id"] in scoped_ids
+            )
+        return update_result
+
+    async def suggest_grocery_items(
+        self, items: list[dict[str, Any]], address_id: str,
+    ) -> dict[str, Any]:
+        """Ground optional suggestions in the catalogue without changing the basket."""
+        queries = [str(item.get("query", "")).strip() for item in items if isinstance(item, dict)]
+        search = await self.batch_search_products(queries, address_id)
+        suggestions: list[str] = []
+        restricted: list[str] = []
+        for result in search.get("results", []):
+            query = str(result.get("query", ""))
+            products = result.get("products") or []
+            if not products:
+                continue
+            product = products[0]
+            if is_restricted_medical_product(str(product.get("name") or ""), product.get("category")):
+                restricted.append(query)
+            else:
+                suggestions.append(str(product.get("name") or query))
+        return {"success": True, "suggestions": suggestions, "restricted_items": restricted}
+
     async def clear_cart(self) -> dict[str, Any]:
         """Empty the active Swiggy Instamart cart."""
         try:
@@ -496,7 +781,8 @@ class SwiggyAgentTools:
         cart_id: str = "",
         address_id: str = "",
         payment_method: str = "UPI",
-        payment_option_kind: str = "qr",
+        payment_option_kind: Optional[str] = None,
+        payment_option_id: Optional[str] = None,
         is_user_confirmed: bool = False,
         budget_inr: Optional[float] = None,
         expected_cart_fingerprint: Optional[str] = None,
@@ -558,6 +844,43 @@ class SwiggyAgentTools:
         if not cart.items:
             return {"success": False, "error": "CART_EMPTY", "retryable": False,
                     "message": "Your basket is empty. No order was attempted."}
+        medical_items = [
+            item.name for item in cart.items
+            if is_restricted_medical_product(item.name, item.category)
+        ]
+        if medical_items:
+            return {
+                "success": False, "error": "MEDICAL_PRODUCT_RESTRICTED", "retryable": False,
+                "items": medical_items,
+                "message": "Medical products cannot be ordered through this WhatsApp shopping flow.",
+            }
+
+        from backend.config import settings
+        if settings.CHECKOUT_MODE == "live":
+            try:
+                options = await self.commerce.get_payment_options(cart_id, address_id)
+            except ProviderAuthError:
+                return {"success": False, "error": "AUTH_EXPIRED", "retryable": False,
+                        "message": "Please reconnect Swiggy before choosing a payment option."}
+            except Exception:
+                logger.warning("Payment options could not be verified before checkout.")
+                return {"success": False, "error": "PAYMENT_OPTIONS_UNAVAILABLE", "retryable": True,
+                        "message": "I couldn't verify the current payment options. No order was attempted."}
+            available = [option for option in options if option.id and option.is_available
+                         and ((option.method == "UPI" and option.kind == "intent")
+                              or option.method in ("Cash", "COD", "SwiggyPay"))]
+            if not payment_option_id:
+                return {"success": False, "error": "PAYMENT_CHOICE_REQUIRED", "retryable": False,
+                        "payment_options": [option.model_dump() for option in available[:10]],
+                        "message": "Please choose an available payment option before placing the order."}
+            selected = next((option for option in options if option.id == payment_option_id
+                             and option.kind == payment_option_kind and option.is_available), None)
+            if selected is None or selected.method.casefold() != payment_method.casefold():
+                return {"success": False, "error": "PAYMENT_OPTION_UNAVAILABLE", "retryable": False,
+                        "message": "That payment option is no longer available. Please choose from the current options."}
+            if selected.kind == "qr":
+                return {"success": False, "error": "QR_ELIGIBILITY_UNVERIFIED", "retryable": False,
+                        "message": "Scan-QR eligibility could not be verified for this basket. Please choose another available option."}
 
         try:
             result: CommerceOrderResult = await self.commerce.checkout(
@@ -565,8 +888,19 @@ class SwiggyAgentTools:
                 address_id=address_id,
                 payment_method=payment_method,
                 payment_option_kind=payment_option_kind,
+                payment_option_id=payment_option_id,
                 explicit_confirmation=True,
             )
+            if result.status == "PAYMENT_PENDING" and not (
+                result.order_id and result.paas_id and result.bridge_url
+                and result.polling_interval_ms and result.polling_interval_ms > 0
+                and result.max_time_to_poll_ms and result.max_time_to_poll_ms > 0
+            ):
+                return {
+                    "success": False, "error": "ORDER_STATE_UNKNOWN", "retryable": False,
+                    "order_id": result.order_id, "paas_id": result.paas_id,
+                    "message": "Swiggy started a payment, but I couldn't verify the details needed to track it. Check Swiggy before trying again.",
+                }
             return {
                 "success": result.status not in ("ORDER_STATE_UNKNOWN", "FAILED"),
                 "order_id": result.order_id,
@@ -576,6 +910,8 @@ class SwiggyAgentTools:
                 "tracking_url": result.tracking_url,
                 "delivery_address": result.delivery_address.street if result.delivery_address else "",
                 "paas_id": result.paas_id,
+                "polling_interval_ms": result.polling_interval_ms,
+                "max_time_to_poll_ms": result.max_time_to_poll_ms,
                 "bridge_url": result.bridge_url,
                 "upi_intent_url": result.upi_intent_url,
                 "is_qr_flow": result.is_qr_flow,

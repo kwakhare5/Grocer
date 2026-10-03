@@ -205,14 +205,14 @@ Run relevant checks after changes:
 ```bash
 npm run lint
 npm run build
-pytest backend/tests
+pytest backend/tests/test_whatsapp_postgres_e2e.py
 ```
 
 Never claim green verification without actually running the relevant command.
 
 ### Testing Rules
 - **Never write unit tests after you write code.** Unit tests written post-hoc suffer from confirmation bias and merely echo implementation logic.
-- **Highly prefer E2E tests as the sole testing mechanism.** Use them to verify complex features work across the entire lifecycle. At the end of E2E tests, produce a verifiable and repeatable artifact (`artifacts/e2e_verification_report.json` and `docs/E2E_VERIFICATION_REPORT.md`).
+- **Use E2E tests as the sole release test mechanism.** Run the signed WhatsApp webhook through PostgreSQL, agent, and recorded Meta delivery. Record exit code and a repeatable JUnit report under `artifacts/`.
 - **If you must test a system in isolation, first write down all the ways it could fail, then write the code.** Enumerate adversarial failure modes upfront (boundaries, corrupt payloads, network drops, session amnesia, financial leaks), assert those failure modes, and only then implement the code.
 
 ## 14. DECISION RULE FOR NEW IDEAS
@@ -225,9 +225,8 @@ If the answer is no, it does not belong in GROCER v2 unless the architectural co
 
 ## 15. SESSION RESUME
 
-**Last completed:** Live Render backend deployment (`dep-davro67avr4c73d675d0`) is LIVE and fully operational. Resolved exit code 3 root cause by routing Supabase database connection through the Singapore IPv4 Supavisor pooler (`aws-0-ap-southeast-1.pooler.supabase.com:5432`). Live `/api/ready` confirmed HTTP 200 with `status: "ready"` and `missing: []`. Live `/api/health` confirmed HTTP 200 `alive`. Live `/api/whatsapp/webhook` verified challenge response 200. Test suite 145/145 pytest green, ESLint clean, Next.js build clean.
+**Last completed:** Continued the signed WhatsApp/PostgreSQL/recorded-Meta E2E recovery suite. It now covers ingredient-only pizza budgets with extras, direct quantity changes over cap, catalogue mismatch, recipe base omission, unavailable items, and provider-dropped cart items. The current full-path suite passed 27 cases with exit code 0; ESLint, TypeScript, and Next.js build passed. A CLI-only real-model/mock-commerce replay identified the pizza base as unavailable and required partial-basket review. Meta accepted an authorized approved test template, but no customer reply has yet been verified. Live Swiggy MCP remains unauthenticated and checkout stays review-gated.
 
-**Next implementation gate:** Conduct end-to-end 2-customer real-device WhatsApp test flow. Keep CHECKOUT_MODE=review and LIVE_CHECKOUT_ENABLED=false.
+**Next implementation gate:** Verify the real WhatsApp inbound reply on the deployed path, reconnect a customer-scoped Swiggy session for non-order MCP checks, migrate remaining critical old tests to full-path E2E before deleting the old unit suite, and audit the remaining release gates (privacy/regions, operational recovery, reminder template approval, production migrations and credential rotation). Follow `docs/SYSTEM_AUDIT_AND_RECOVERY_PLAN.md` and `task.md`.
 
-**Current status:** Production backend is live, connected to Supabase PostgreSQL, and ready for WhatsApp customer conversations.
-
+**Current status:** Local Docker PostgreSQL test database is temporary; no FastAPI or Next.js server is assumed running. The live backend readiness endpoint reports review mode at the original HEAD revision; local uncommitted fixes are not deployed. No production deployment has been made in this recovery work.

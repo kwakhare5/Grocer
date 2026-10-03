@@ -13,20 +13,21 @@ import httpx
 
 from backend.agent.schemas import OPENAI_TOOL_DECLARATIONS
 from backend.agent.approval import PendingApproval, cart_fingerprint
-from backend.agent.budget import extract_total_budget
+from backend.agent.budget import extract_total_budget, extract_ingredient_budget
+from backend.agent.product_policy import is_symptom_suggestion_request
 from backend.agent.tool_scheduler import execute_tool_calls
 from backend.agent.tools import (
     SwiggyAgentTools,
     format_cart_receipt,
 )
 from backend.channels.models import (
-    ChannelType,
     InteractiveAction,
     NormalizedIncomingMessage,
     NormalizedOutgoingResponse,
 )
 from backend.config import settings
 from backend.integrations.commerce.models import CommerceCart
+from backend.integrations.commerce.exceptions import ProviderAuthError
 from backend.integrations.commerce.port import CommercePort
 
 logger = logging.getLogger("grocer.agent.engine")
@@ -39,6 +40,8 @@ from backend.agent.guards import (  # noqa: E402, F401
     _claims_order_success,
     _explains_failure,
     is_explicit_confirmation,
+    is_hesitation,
+    missing_recipe_staples,
 )
 from backend.agent.prompts import (  # noqa: E402, F401
     _SYSTEM_PROMPT,
@@ -60,20 +63,34 @@ class GroceryAgentEngine:
         groq_model: Optional[str] = None,
         openrouter_api_key: Optional[str] = None,
         openrouter_model: Optional[str] = None,
+        gemini_api_key: Optional[str] = None,
+        gemini_model: Optional[str] = None,
+        gemini_fallback_model: Optional[str] = None,
         timeout: float = 25.0,
         attempt_store: Any | None = None,
         state_store: Any | None = None,
+        replenishment_store: Any | None = None,
     ) -> None:
         self.commerce = commerce
         self.tools = SwiggyAgentTools(commerce)
         self.attempt_store = attempt_store
         self.state_store = state_store
+        self.replenishment_store = replenishment_store
+        self._gemini_explicitly_passed = gemini_api_key is not None
+        if gemini_api_key is not None:
+            self.gemini_api_key = gemini_api_key
+        elif groq_api_key is not None or openrouter_api_key is not None:
+            self.gemini_api_key = None
+        else:
+            self.gemini_api_key = getattr(settings, "GEMINI_API_KEY", None)
+        self.gemini_model = gemini_model or getattr(settings, "GEMINI_MODEL", "gemini-3.6-flash")
+        self.gemini_fallback_model = gemini_fallback_model or getattr(settings, "GEMINI_FALLBACK_MODEL", "gemini-3.5-flash")
         self.groq_api_key = groq_api_key or settings.GROQ_API_KEY
         self.groq_model = groq_model or settings.GROQ_MODEL
         self.openrouter_api_key = openrouter_api_key or settings.OPENROUTER_API_KEY
         self.openrouter_model = openrouter_model or settings.OPENROUTER_MODEL
-        self.api_key = api_key or self.groq_api_key or self.openrouter_api_key
-        self.model = model or self.groq_model or self.openrouter_model
+        self.api_key = api_key or self.gemini_api_key or self.groq_api_key or self.openrouter_api_key
+        self.model = model or self.gemini_model or self.groq_model or self.openrouter_model
         self.timeout = timeout
         # Unified atomic customer session map + compatibility views
         self._sessions: dict[str, Any] = {}
@@ -135,10 +152,19 @@ class GroceryAgentEngine:
             customer_id=customer_id,
             history=self._history[customer_id],
             budget_inr=state.get("budget_inr"),
+            ingredient_budget_inr=state.get("ingredient_budget_inr"),
+            ingredient_extras_text=state.get("ingredient_extras_text"),
+            ingredient_spin_ids=state.get("ingredient_spin_ids") or [],
             pending_approval=PendingApproval(**approval) if approval else None,
             unresolved_items=state.get("unresolved_items") or [],
+            budget_blocked_items=state.get("budget_blocked_items") or [],
             known_cart_fingerprint=state.get("known_cart_fingerprint"),
             external_cart_pending=bool(state.get("external_cart_pending", False)),
+            pending_request_text=state.get("pending_request_text"),
+            selected_payment_id=state.get("selected_payment_id"),
+            selected_payment_kind=state.get("selected_payment_kind"),
+            selected_payment_method=state.get("selected_payment_method"),
+            selected_payment_label=state.get("selected_payment_label"),
         )
 
     def _task_state_snapshot(self, customer_id: str) -> dict[str, Any]:
@@ -152,32 +178,42 @@ class GroceryAgentEngine:
             "awaiting_address_choice": self._awaiting_address_choice.get(customer_id),
             "last_active_ts": self._last_interaction_time.get(customer_id),
             "budget_inr": session.budget_inr,
+            "ingredient_budget_inr": session.ingredient_budget_inr,
+            "ingredient_extras_text": session.ingredient_extras_text,
+            "ingredient_spin_ids": session.ingredient_spin_ids,
             "pending_approval": (
                 {"fingerprint": approval.fingerprint, "expires_at": approval.expires_at}
                 if approval else None
             ),
             "unresolved_items": session.unresolved_items,
+            "budget_blocked_items": session.budget_blocked_items,
             "known_cart_fingerprint": session.known_cart_fingerprint,
             "external_cart_pending": session.external_cart_pending,
+            "pending_request_text": session.pending_request_text,
+            "selected_payment_id": session.selected_payment_id,
+            "selected_payment_kind": session.selected_payment_kind,
+            "selected_payment_method": session.selected_payment_method,
+            "selected_payment_label": session.selected_payment_label,
         }
 
     def _address_choice_response(
         self, message: NormalizedIncomingMessage, addresses: list[dict[str, Any]]
     ) -> NormalizedOutgoingResponse:
-        lines = [
-            f"*{address.get('_choice_code')}* — {address.get('clean_address') or address.get('street') or address.get('label')}"
-            for address in addresses
-        ]
+        lines = []
+        for index, address in enumerate(addresses, 1):
+            lbl = address.get("label") or f"Address {index}"
+            details = address.get("clean_address") or address.get("street") or lbl
+            lines.append(f"*{index}. {lbl}* — {details}")
         prompt = "📍 *Which address should I use?*\n\n" + "\n".join(lines)
-        prompt += "\n\nReply with the code beside your address, or tap a button."
+        prompt += "\n\nReply with the number (e.g. 1), label (e.g. Home), or tap a button."
         return NormalizedOutgoingResponse(
             recipient_id=message.sender_id,
             channel=message.channel,
             text=prompt,
             interactive_actions=[
                 InteractiveAction(
-                    action_type="button", id=f"addr_choice_{address['_choice_code']}",
-                    title=str(address.get("label") or f"Address {index}")[:20],
+                    action_type="button", id=f"addr_choice_{address.get('_choice_code') or address.get('address_id')}",
+                    title=f"{index}. {str(address.get('label') or f'Address {index}')}"[:20],
                 )
                 for index, address in enumerate(addresses[:3], 1)
             ],
@@ -302,51 +338,6 @@ class GroceryAgentEngine:
                             })
                         content["products"] = compacted_products
 
-    async def _poll_payment_status(
-        self,
-        *,
-        order_id: str,
-        recipient_id: str,
-        channel: ChannelType,
-        customer_id: str,
-        max_attempts: int = 6,
-        interval_seconds: float = 10.0,
-    ) -> None:
-        """Poll Swiggy order tracking every 10s for up to 60s per rate-limit rules."""
-        logger.info("Starting background payment poller for order_id=%s (cadence=%.1fs)", order_id, interval_seconds)
-        for _ in range(max_attempts):
-            await asyncio.sleep(interval_seconds)
-            try:
-                with self.commerce.customer_scope(customer_id):
-                    tracking = await self.commerce.track_order(order_id)
-                status_val = (
-                    tracking.status.value
-                    if hasattr(tracking.status, "value")
-                    else str(tracking.status)
-                ).upper()
-                if status_val in {"ORDER_PLACED", "CONFIRMED", "PACKING", "OUT_FOR_DELIVERY"}:
-                    logger.info("Payment confirmed by poller for order_id=%s status=%s", order_id, status_val)
-                    eta = f" ETA: ~{tracking.eta_minutes} mins." if tracking.eta_minutes else ""
-                    msg = NormalizedOutgoingResponse(
-                        recipient_id=recipient_id,
-                        channel=channel,
-                        text=(
-                            f"🎉 *Payment Confirmed!*\n\n"
-                            f"Your Swiggy Instamart order *#{order_id}* is placed and being prepared at the dark store.{eta}\n\n"
-                            f"You can message me *\"track order\"* anytime for live updates!"
-                        ),
-                        conversation_state="ORDER_PLACED",
-                        order_id=order_id,
-                    )
-                    from backend.channels.whatsapp import default_whatsapp_adapter
-                    await default_whatsapp_adapter.send_response(msg)
-                    return
-                if status_val in {"FAILED", "CANCELLED", "CANCELED"}:
-                    logger.warning("Order failed according to poller: %s", order_id)
-                    return
-            except Exception as exc:
-                logger.debug("Payment poller poll error for order_id=%s: %s", order_id, exc)
-
     async def handle_message(
         self, message: NormalizedIncomingMessage
     ) -> NormalizedOutgoingResponse:
@@ -397,18 +388,41 @@ class GroceryAgentEngine:
         if message.interactive_id:
             if message.interactive_id == "confirm_order":
                 incoming_text = "Yes, please confirm and place the order now."
+            elif message.interactive_id == "proceed_checkout":
+                incoming_text = "Proceed to checkout and review my order."
             elif message.interactive_id == "modify_cart":
                 incoming_text = "I would like to change something in my cart."
             elif message.interactive_id in ("start_fresh", "clear_cart"):
                 incoming_text = "Please clear my cart and start fresh."
 
         # Extract explicit spending budget if mentioned by customer
-        budget = extract_total_budget(incoming_text)
-        if budget is not None:
+        ingredient_budget = extract_ingredient_budget(incoming_text)
+        budget = extract_total_budget(incoming_text) if ingredient_budget is None else None
+        if ingredient_budget is not None:
+            session.ingredient_budget_inr, session.ingredient_extras_text = ingredient_budget
+            session.ingredient_spin_ids.clear()
+            session.budget_inr = None
+        elif budget is not None:
             session.budget_inr = budget
+            session.ingredient_budget_inr = None
+            session.ingredient_extras_text = None
+            session.ingredient_spin_ids.clear()
             logger.info("Captured customer budget constraint: ₹%.2f for %s", budget, customer_id)
 
         norm_text = incoming_text.casefold().strip("!.? \t\n")
+
+        if self.replenishment_store is not None:
+            try:
+                reminder_reply = await self.replenishment_store.reply(
+                    customer_id, incoming_text, self.commerce,
+                )
+            except ProviderAuthError:
+                return await self._auth_expired_response(message)
+            if reminder_reply is not None:
+                return NormalizedOutgoingResponse(
+                    recipient_id=message.sender_id, channel=message.channel,
+                    text=reminder_reply, conversation_state="NEEDS_DECISION",
+                )
 
         if norm_text == "cancel order":
             return NormalizedOutgoingResponse(
@@ -466,6 +480,7 @@ class GroceryAgentEngine:
             if observed_fingerprint != session.known_cart_fingerprint:
                 session.external_cart_pending = True
                 session.pending_approval = None
+                session.selected_payment_id = None
         if session.external_cart_pending:
             if norm_text == "use changes" and current_cart:
                 observed_fingerprint = cart_fingerprint(
@@ -493,8 +508,104 @@ class GroceryAgentEngine:
                 conversation_state="NEEDS_DECISION",
             )
 
+        cart_read = norm_text in {"cart", "basket"} or bool(re.fullmatch(
+            r"(?:(?:please|can you|could you)\s+)?(?:show|view|see|list)(?:\s+me)?\s+"
+            r"(?:(?:my|the|your|current)\s+)?(?:cart|basket)(?:\s+(?:right\s+)?now)?"
+            r"|what(?:'s| is)\s+in\s+(?:my|the|your)\s+(?:cart|basket)(?:\s+right\s+now)?",
+            norm_text,
+        ))
+        if cart_read:
+            if current_cart is None:
+                text = "I couldn't read your current basket. Please try again shortly."
+                state = "FAILED"
+            elif not current_cart.items:
+                text = "Your basket is empty. What groceries would you like to add?"
+                state = "READY"
+            else:
+                text = format_cart_receipt(
+                    current_cart, session.address_label or "Saved Address",
+                    allow_checkout_prompt=False,
+                )
+                state = "NEEDS_DECISION"
+            return NormalizedOutgoingResponse(
+                recipient_id=message.sender_id, channel=message.channel,
+                text=text, conversation_state=state,
+            )
+
+        if message.interactive_id and message.interactive_id.startswith("payment_choice:"):
+            selected_id = message.interactive_id.removeprefix("payment_choice:")
+            approval = session.pending_approval
+            approved_address = session.address_id or (current_cart.address_id if current_cart else "") or ""
+            if (not approval or approval.expires_at <= time.time() or not current_cart
+                    or cart_fingerprint(current_cart, approved_address) != approval.fingerprint):
+                session.pending_approval = None
+                return NormalizedOutgoingResponse(
+                    recipient_id=message.sender_id, channel=message.channel,
+                    text="Your basket changed or the review expired. Please review it again before choosing payment.",
+                    conversation_state="NEEDS_DECISION",
+                )
+            try:
+                options = await self.commerce.get_payment_options(current_cart.cart_id, approved_address)
+            except Exception:
+                options = []
+            selected = next((option for option in options if option.id == selected_id
+                             and option.is_available and (
+                                 (option.method == "UPI" and option.kind == "intent")
+                                 or option.method in ("Cash", "COD", "SwiggyPay")
+                             )), None)
+            if selected is None:
+                return NormalizedOutgoingResponse(
+                    recipient_id=message.sender_id, channel=message.channel,
+                    text="That payment option is no longer available. Please ask me to show the current payment options.",
+                    conversation_state="NEEDS_DECISION",
+                )
+            session.selected_payment_id = selected.id
+            session.selected_payment_kind = selected.kind
+            session.selected_payment_method = selected.method
+            session.selected_payment_label = selected.label
+            return NormalizedOutgoingResponse(
+                recipient_id=message.sender_id, channel=message.channel,
+                text=(format_cart_receipt(current_cart, session.address_label or approved_address)
+                      + f"\n\nPayment: {selected.label}. Do you want to place this order to this address?"),
+                interactive_actions=[
+                    InteractiveAction(action_type="button", id="confirm_order", title="Confirm Order"),
+                    InteractiveAction(action_type="button", id="modify_cart", title="Change Items"),
+                ],
+                conversation_state="AWAITING_CHECKOUT_CONFIRMATION",
+                order_total=current_cart.grand_total,
+            )
+
+        if message.interactive_id == "accept_partial_basket" or norm_text in {
+            "keep the partial basket", "keep these items", "accept partial basket",
+        }:
+            if not session.budget_blocked_items or not current_cart:
+                return NormalizedOutgoingResponse(
+                    recipient_id=message.sender_id, channel=message.channel,
+                    text="I couldn't verify a partial basket to keep. Please ask me to show your cart.",
+                    conversation_state="NEEDS_DECISION",
+                )
+            approved_address = session.address_id or current_cart.address_id or ""
+            if not self._record_pending_approval(customer_id, current_cart, approved_address):
+                return NormalizedOutgoingResponse(
+                    recipient_id=message.sender_id, channel=message.channel,
+                    text="I couldn't verify the current basket and delivery address. Please review the basket again.",
+                    conversation_state="NEEDS_DECISION",
+                )
+            session.budget_blocked_items.clear()
+            return NormalizedOutgoingResponse(
+                recipient_id=message.sender_id, channel=message.channel,
+                text="Okay, I'll keep only these items. Please review the basket before placing an order.\n\n"
+                     + format_cart_receipt(current_cart, session.address_label or "Home"),
+                interactive_actions=[
+                    InteractiveAction(action_type="button", id="confirm_order", title="Confirm Order"),
+                    InteractiveAction(action_type="button", id="modify_cart", title="Change Items"),
+                ],
+                conversation_state="AWAITING_CHECKOUT_CONFIRMATION",
+                order_total=current_cart.grand_total,
+            )
+
         # Fast-path 2: Hesitation guard when active basket exists
-        if norm_text in _HESITATION_PHRASES and current_cart and current_cart.items:
+        if is_hesitation(norm_text) and current_cart and current_cart.items:
             loc = self._customer_address_label.get(customer_id) or "Home"
             receipt = format_cart_receipt(current_cart, delivery_location=loc)
             return NormalizedOutgoingResponse(
@@ -534,15 +645,37 @@ class GroceryAgentEngine:
 
             if message.interactive_id and message.interactive_id.startswith("addr_choice_"):
                 choice_code = message.interactive_id.removeprefix("addr_choice_")
-                chosen_addr = next((a for a in pending_addrs if a.get("_choice_code") == choice_code), None)
+                chosen_addr = next(
+                    (a for a in pending_addrs if str(a.get("_choice_code")) == choice_code or str(a.get("address_id")) == choice_code or str(a.get("_choice_index")) == choice_code),
+                    None,
+                )
             else:
-                matches = [a for a in pending_addrs if norm_text in {
+                clean_num = norm_text.split(".")[0].strip() if norm_text and norm_text[0].isdigit() else norm_text
+                matches = [a for a in pending_addrs if clean_num in {
+                    str(a.get("_choice_index", "")),
+                    str(a.get("_choice_code", "")).casefold(),
+                    str(a.get("label", "")).casefold(),
+                    str(a.get("clean_address", "")).casefold(),
+                } or norm_text in {
+                    str(a.get("_choice_index", "")),
                     str(a.get("_choice_code", "")).casefold(),
                     str(a.get("label", "")).casefold(),
                     str(a.get("clean_address", "")).casefold(),
                 }]
                 if len(matches) == 1:
                     chosen_addr = matches[0]
+
+                if not chosen_addr:
+                    tokens = [t for t in re.split(r"\W+", norm_text) if len(t) > 2]
+                    for token in tokens:
+                        token_matches = [
+                            a for a in pending_addrs
+                            if token in str(a.get("clean_address", "")).casefold()
+                            or token in str(a.get("label", "")).casefold()
+                        ]
+                        if len(token_matches) == 1:
+                            chosen_addr = token_matches[0]
+                            break
 
             if not chosen_addr:
                 return self._address_choice_response(message, pending_addrs)
@@ -555,10 +688,11 @@ class GroceryAgentEngine:
                     chosen_addr.get("clean_address") or chosen_addr.get("street") or chosen_addr.get("label") or "Home"
                 )
                 self._order_address_confirmed[customer_id] = True
-                incoming_text = (
-                    f"Use delivery address: {self._customer_address_label[customer_id]} (ID: {address_id}) "
-                    f"and proceed immediately with my grocery order from the previous message."
-                )
+                if session.pending_request_text:
+                    incoming_text = (
+                        f"{session.pending_request_text}\n"
+                        f"Use delivery address: {self._customer_address_label[customer_id]} (ID: {address_id})."
+                    )
 
         # Detect address selection from text or context
         address_id = self._customer_address.get(customer_id)
@@ -588,8 +722,9 @@ class GroceryAgentEngine:
                         and not any(k in norm_text for k in ("address", "saved address", "track", "status"))
                     ):
                         # Upfront multi-address disambiguation (Option B): save Turn 1 grocery intent & ask address
+                        session.pending_request_text = incoming_text
                         history.append({"role": "user", "parts": [{"text": incoming_text}], "recorded_at": time.time()})
-                        choices = [{**a, "_choice_code": secrets.token_hex(3)} for a in addresses]
+                        choices = [{**a, "_choice_code": secrets.token_hex(3), "_choice_index": str(idx)} for idx, a in enumerate(addresses, 1)]
                         self._awaiting_address_choice[customer_id] = choices
                         response = self._address_choice_response(message, choices)
                         history.append({"role": "model", "parts": [{"text": response.text}], "recorded_at": time.time()})
@@ -605,6 +740,13 @@ class GroceryAgentEngine:
             except Exception:
                 pass
 
+        if session.pending_request_text and norm_text in {"try again", "retry"}:
+            incoming_text = (
+                f"{session.pending_request_text}\n"
+                f"Use delivery address: {self._customer_address_label.get(customer_id, 'selected address')} "
+                f"(ID: {address_id})."
+            )
+
         # Append user message
         history.append({
             "role": "user",
@@ -612,8 +754,8 @@ class GroceryAgentEngine:
             "recorded_at": time.time(),
         })
 
-        # Bounded ReAct loop (up to 8 function call steps)
-        max_iterations = 8
+        # Bounded ReAct loop (capped at 3 steps for sub-2s execution)
+        max_iterations = 3
         final_text = ""
         actions: list[InteractiveAction] = []
         checkout_executed = False
@@ -623,6 +765,15 @@ class GroceryAgentEngine:
         addr_lbl = self._customer_address_label.get(customer_id)
         address_changed = False
         step_limit_reached = False
+        pending_request_needs_retry = False
+        suggestion_only = is_symptom_suggestion_request(incoming_text)
+        suggested_items: list[str] = []
+        restricted_items: list[str] = []
+        search_failed_items: list[str] = []
+        budget_blocked_items: list[str] = []
+        unavailable_items: list[str] = []
+        reduced_items: list[str] = []
+        guarded_change_message: str | None = None
 
         for step_idx in range(1, max_iterations + 1):
             response_data = await self._call_llm(
@@ -635,6 +786,13 @@ class GroceryAgentEngine:
             if not response_data:
                 if last_cart_receipt or checkout_executed:
                     final_text = ""
+                elif session.pending_request_text:
+                    pending_request_needs_retry = True
+                    final_text = (
+                        f"I saved your request: {session.pending_request_text}. "
+                        "I couldn't finish building the basket right now. "
+                        "Reply *try again* and I'll check the basket before continuing."
+                    )
                 else:
                     final_text = "I'm having a brief connection hiccup. Please try again in a moment."
                 break
@@ -681,10 +839,23 @@ class GroceryAgentEngine:
 
                 if not isinstance(fn_args, dict):
                     tool_result = {"success": False, "error": "INVALID_TOOL_ARGUMENTS"}
+                elif suggestion_only and fn_name == "quick_add_items":
+                    tool_result = await self.tools.suggest_grocery_items(
+                        fn_args.get("items", []), address_id or "",
+                    )
+                elif suggestion_only and fn_name in {"update_cart", "clear_cart", "checkout"}:
+                    tool_result = {"success": False, "error": "SUGGESTION_ONLY"}
                 else:
                     # Inject default address_id if omitted by the model
                     if "address_id" in fn_args and not fn_args["address_id"] and address_id:
                         fn_args["address_id"] = address_id
+
+                    if fn_name == "quick_add_items" and isinstance(fn_args.get("items"), list):
+                        proposed = fn_args["items"]
+                        queries = [str(item.get("query", "")) for item in proposed if isinstance(item, dict)]
+                        staples = missing_recipe_staples(incoming_text, queries)
+                        if staples:
+                            fn_args = {**fn_args, "items": [{"query": query} for query in staples] + proposed}
 
                     tool_result = await self._execute_tool(
                         fn_name,
@@ -724,6 +895,28 @@ class GroceryAgentEngine:
                         address_id = fn_content.get("address_id") or address_id
                         addr_lbl = self._customer_address_label.get(customer_id) or addr_lbl
                 if isinstance(fn_content, dict):
+                    if fn_content.get("error") in {"INGREDIENT_BUDGET_EXCEEDED", "SCOPED_BUDGET_USE_SEARCH"}:
+                        guarded_change_message = str(fn_content.get("message") or "That change needs another review.")
+                    if fn_content.get("error") == "BUDGET_ROLLBACK_UNVERIFIED":
+                        session.external_cart_pending = True
+                    if fn_call_name == "quick_add_items":
+                        unavailable_items.extend(
+                            str(item) for item in fn_content.get("unavailable_items", [])
+                        )
+                        reduced_items.extend(
+                            str(item) for item in fn_content.get("reduced_items", [])
+                        )
+                        restricted_items.extend(
+                            str(item) for item in fn_content.get("restricted_items", [])
+                        )
+                        search_failed_items.extend(
+                            str(item) for item in fn_content.get("search_failed_items", [])
+                        )
+                        budget_blocked_items.extend(
+                            str(item) for item in fn_content.get("budget_blocked_items", [])
+                        )
+                    if suggestion_only and fn_content.get("suggestions") is not None:
+                        suggested_items.extend(str(item) for item in fn_content["suggestions"])
                     if fn_content.get("formatted_receipt"):
                         last_cart_receipt = fn_content["formatted_receipt"]
                     if fn_content.get("grand_total") is not None:
@@ -732,7 +925,7 @@ class GroceryAgentEngine:
                     checkout_executed = True
                     checkout_result = ec[3]
 
-            if any(ec[0].get("functionResponse", {}).get("name") in ("update_cart", "select_delivery_address", "clear_cart") for ec in executed_calls):
+            if any(ec[0].get("functionResponse", {}).get("name") in ("update_cart", "quick_add_items", "select_delivery_address", "clear_cart") for ec in executed_calls):
                 try:
                     current_cart = await self.commerce.get_cart()
                 except Exception:
@@ -754,6 +947,8 @@ class GroceryAgentEngine:
         out_order_total: float | None = None
         out_bridge_url: str | None = None
         conv_state = "READY"
+        if pending_request_needs_retry:
+            conv_state = "NEEDS_DECISION"
 
         if checkout_executed and checkout_result:
             if not checkout_result.get("success"):
@@ -776,6 +971,18 @@ class GroceryAgentEngine:
                         "Please check the order status in Swiggy or contact support before trying again. "
                         "Further checkout is on hold until this is resolved."
                     )
+                elif checkout_result.get("error") == "PAYMENT_CHOICE_REQUIRED":
+                    available = checkout_result.get("payment_options") or []
+                    if available:
+                        actions = [InteractiveAction(
+                            action_type="list_row", id=f"payment_choice:{option['id']}",
+                            title=str(option["label"])[:24],
+                        ) for option in available[:10]]
+                        final_text = "Please choose how you want to pay. I'll show the final basket again before placing an order."
+                        conv_state = "NEEDS_PAYMENT"
+                    else:
+                        final_text = "I couldn't verify an available payment option. Please try again later."
+                        conv_state = "NEEDS_DECISION"
                 else:
                     error_msg = checkout_result.get("error") or checkout_result.get("message") or "Provider checkout error"
                     if settings.CHECKOUT_MODE == "live":
@@ -861,15 +1068,6 @@ class GroceryAgentEngine:
                         elif not pay_link and not link_present:
                             final_text += "\n\nPlease complete payment in your Swiggy app to finalize your order."
 
-                    if out_order_id:
-                        asyncio.create_task(
-                            self._poll_payment_status(
-                                order_id=out_order_id,
-                                recipient_id=message.sender_id,
-                                channel=message.channel,
-                                customer_id=customer_id,
-                            )
-                        )
                 elif status == "ORDER_PLACED":
                     conv_state = "ORDER_PLACED"
                     self._order_address_confirmed.pop(customer_id, None)
@@ -939,6 +1137,7 @@ class GroceryAgentEngine:
                     InteractiveAction(action_type="button", id="modify_cart", title="Change Items"),
                 ]
                 conv_state = "AWAITING_CHECKOUT_CONFIRMATION"
+
             elif any(
                 phrase in final_text.casefold()
                 for phrase in (
@@ -958,12 +1157,115 @@ class GroceryAgentEngine:
                 ]
                 conv_state = "AWAITING_CHECKOUT_CONFIRMATION"
 
+        if suggestion_only:
+            if not suggested_items:
+                suggested_items = (
+                    ["ginger", "lemon", "honey", "tea"]
+                    if any(word in incoming_text.casefold() for word in ("cold", "cough", "throat"))
+                    else ["water", "tea", "a light snack"]
+                )
+            options = ", ".join(suggested_items[:5])
+            final_text = (
+                "I can suggest groceries, but I can't add medical products here. "
+                f"You could choose from: {options}. Which would you like me to add?"
+            )
+            actions = []
+            conv_state = "NEEDS_DECISION"
+            session.pending_request_text = None
+        elif restricted_items:
+            restricted = ", ".join(dict.fromkeys(restricted_items))
+            receipt = (
+                format_cart_receipt(current_cart, addr_lbl or "Home", allow_checkout_prompt=False)
+                if current_cart and current_cart.items else ""
+            )
+            final_text = (
+                f"I can't add medical products through this WhatsApp shopping flow: {restricted}. "
+                "I can help you choose groceries instead."
+            )
+            if receipt:
+                final_text += f"\n\n{receipt}"
+            actions = []
+            conv_state = "NEEDS_DECISION"
+        elif search_failed_items:
+            unchecked = ", ".join(dict.fromkeys(search_failed_items))
+            receipt = (
+                format_cart_receipt(current_cart, addr_lbl or "Home", allow_checkout_prompt=False)
+                if current_cart and current_cart.items else ""
+            )
+            final_text = (
+                f"I couldn't check {unchecked} with Swiggy right now, so I don't know whether "
+                "those items are available. I saved your request. Reply *try again* to continue."
+            )
+            if receipt:
+                final_text += f"\n\n{receipt}"
+            session.pending_request_text = session.pending_request_text or message.text.strip()
+            actions = []
+            conv_state = "NEEDS_DECISION"
+
+        if guarded_change_message:
+            final_text = guarded_change_message
+            actions = []
+            conv_state = "NEEDS_DECISION"
+
+        if budget_blocked_items or unavailable_items or reduced_items:
+            blocked = list(dict.fromkeys(budget_blocked_items))
+            unavailable = list(dict.fromkeys(unavailable_items))
+            reduced = list(dict.fromkeys(reduced_items))
+            session.budget_blocked_items = blocked + unavailable + reduced
+            session.pending_approval = None
+            receipt = (format_cart_receipt(current_cart, addr_lbl or "Home", allow_checkout_prompt=False)
+                       if current_cart and current_cart.items else "Your basket is empty.")
+            scoped_note = ""
+            if session.ingredient_budget_inr is not None and current_cart:
+                ingredient_total = sum(
+                    item.total_price for item in current_cart.items
+                    if item.spin_id in session.ingredient_spin_ids
+                )
+                scoped_note = (
+                    f"Pizza ingredient items: ₹{ingredient_total:,.2f} of "
+                    f"₹{session.ingredient_budget_inr:,.2f}. "
+                    "Extras and shared fees are outside that limit; the full payable total is below. "
+                )
+            final_text = (
+                (("These pizza ingredients did not fit your ingredient-price limit: "
+                  if session.ingredient_budget_inr is not None else
+                  "These requested items did not fit your budget: ") + ", ".join(blocked) + ". "
+                 if blocked else "")
+                + ("These requested items were unavailable: " + ", ".join(unavailable) + ". "
+                   if unavailable else "")
+                + ("Swiggy reduced these quantities: " + ", ".join(reduced) + ". "
+                   if reduced else "")
+                + scoped_note + "I kept the items that fit in the order you listed them. "
+                "Would you like to keep this partial basket or change something?\n\n" + receipt
+            )
+            actions = [
+                InteractiveAction(action_type="button", id="accept_partial_basket", title="Keep These Items"),
+                InteractiveAction(action_type="button", id="modify_cart", title="Change Items"),
+            ]
+            conv_state = "NEEDS_DECISION"
+
         if (not final_text.strip() or final_text.strip() == "How can I help with your groceries today?") and last_cart_receipt:
             final_text = last_cart_receipt
         if out_order_total is None and last_cart_total is not None:
             out_order_total = last_cart_total
 
         if any(action.id == "confirm_order" for action in actions):
+            if session.budget_blocked_items:
+                session.pending_approval = None
+                actions = [action for action in actions if action.id != "confirm_order"]
+                conv_state = "NEEDS_DECISION"
+                final_text = (
+                    "Some requested items were left out: "
+                    + ", ".join(session.budget_blocked_items)
+                    + ". Please review this partial basket and choose Keep These Items or tell me what to change."
+                )
+                return NormalizedOutgoingResponse(
+                    recipient_id=message.sender_id, channel=message.channel,
+                    text=final_text,
+                    interactive_actions=[InteractiveAction(action_type="button", id="accept_partial_basket", title="Keep These Items"),
+                                         InteractiveAction(action_type="button", id="modify_cart", title="Change Items")],
+                    conversation_state=conv_state,
+                )
             unresolved = self.get_session(customer_id).unresolved_items
             if unresolved:
                 self.get_session(customer_id).pending_approval = None
@@ -984,21 +1286,46 @@ class GroceryAgentEngine:
             approved_address = self._customer_address.get(customer_id) or (
                 reviewed_cart.address_id if reviewed_cart else None
             )
-            if not reviewed_cart or not approved_address or not self._record_pending_approval(
-                customer_id, reviewed_cart, approved_address
-            ):
+            if reviewed_cart and not reviewed_cart.address_id and approved_address:
+                reviewed_cart.address_id = approved_address
+
+            approval_ok = bool(
+                reviewed_cart
+                and approved_address
+                and self._record_pending_approval(customer_id, reviewed_cart, approved_address)
+            )
+
+            if not approval_ok:
                 self.get_session(customer_id).pending_approval = None
                 actions = [action for action in actions if action.id != "confirm_order"]
-                conv_state = "NEEDS_DECISION"
-                final_text = "I couldn't verify the complete basket and delivery address. Please review them before ordering."
+                if user_confirmed:
+                    conv_state = "NEEDS_DECISION"
+                    final_text = "I couldn't verify the complete basket and delivery address. Please review them before ordering."
+                else:
+                    actions = [
+                        InteractiveAction(action_type="button", id="proceed_checkout", title="Proceed to Checkout"),
+                        InteractiveAction(action_type="button", id="modify_cart", title="Change Items"),
+                    ]
             else:
-                final_text = format_cart_receipt(
+                receipt = format_cart_receipt(
                     reviewed_cart, self._customer_address_label.get(customer_id) or approved_address
                 )
+                basket_pattern = r"🛒\s*\*?Your Basket.*"
+                if re.search(basket_pattern, final_text, flags=re.DOTALL | re.IGNORECASE):
+                    intro = re.sub(basket_pattern, "", final_text, flags=re.DOTALL | re.IGNORECASE).strip()
+                    final_text = f"{intro}\n\n{receipt}" if intro else receipt
+                elif final_text and final_text.strip():
+                    final_text = f"{final_text.strip()}\n\n{receipt}"
+                else:
+                    final_text = receipt
                 out_order_total = reviewed_cart.grand_total
                 conv_state = "AWAITING_CHECKOUT_CONFIRMATION"
         elif not checkout_executed:
             self.get_session(customer_id).pending_approval = None
+
+        if (last_cart_receipt and not session.unresolved_items
+                and not pending_request_needs_retry and not search_failed_items):
+            session.pending_request_text = None
 
         self._prune_history(customer_id)
 
@@ -1043,16 +1370,43 @@ class GroceryAgentEngine:
         elif name == "search_products":
             addr = args.get("address_id") or address_id
             return await self.tools.search_products(args.get("query", ""), address_id=addr)
+        elif name == "batch_search_products":
+            addr = args.get("address_id") or address_id
+            return await self.tools.batch_search_products(args.get("queries", []), address_id=addr)
         elif name == "get_cart":
             loc = self._customer_address_label.get(customer_id, "Home")
             return await self.tools.get_cart(delivery_location=loc)
+        elif name == "quick_add_items":
+            session = self.get_session(customer_id)
+            session.pending_approval = None
+            addr = args.get("address_id") or address_id
+            loc = self._customer_address_label.get(customer_id, "Home")
+            cap = session.budget_inr if session.ingredient_budget_inr is not None else (
+                args.get("budget_cap_inr") or session.budget_inr
+            )
+            result = await self.tools.quick_add_items(
+                items=args.get("items", []),
+                address_id=addr or "",
+                budget_cap_inr=cap,
+                delivery_location=loc,
+                ingredient_budget_inr=session.ingredient_budget_inr,
+                ingredient_extras_text=session.ingredient_extras_text or "",
+                ingredient_spin_ids=session.ingredient_spin_ids,
+            )
+            if result.get("ingredient_spin_ids") is not None:
+                session.ingredient_spin_ids = result["ingredient_spin_ids"]
+            if result.get("verified_fingerprint"):
+                session.known_cart_fingerprint = result["verified_fingerprint"]
+            return result
         elif name == "update_cart":
             session = self.get_session(customer_id)
             session.pending_approval = None
             addr = args.get("address_id") or address_id
             loc = self._customer_address_label.get(customer_id, "Home")
             result = await self.tools.update_cart(
-                args.get("items", []), address_id=addr or "", delivery_location=loc
+                args.get("items", []), address_id=addr or "", delivery_location=loc,
+                ingredient_budget_inr=session.ingredient_budget_inr,
+                ingredient_spin_ids=session.ingredient_spin_ids,
             )
             unresolved_by_spin = {
                 item["spin_id"]: item for item in session.unresolved_items if item.get("spin_id")
@@ -1080,6 +1434,10 @@ class GroceryAgentEngine:
                 self.get_session(customer_id).unresolved_items.clear()
                 self.get_session(customer_id).known_cart_fingerprint = None
                 self.get_session(customer_id).external_cart_pending = False
+                self.get_session(customer_id).budget_inr = None
+                self.get_session(customer_id).ingredient_budget_inr = None
+                self.get_session(customer_id).ingredient_extras_text = None
+                self.get_session(customer_id).ingredient_spin_ids.clear()
                 self.reset_customer_order_address(customer_id)
             return result
         elif name == "checkout":
@@ -1103,6 +1461,14 @@ class GroceryAgentEngine:
                 sess.pending_approval = None
                 return {"success": False, "error": "CART_CHANGED", "retryable": False,
                         "message": "Your basket or total changed. Please review it again."}
+            if sess.ingredient_budget_inr is not None:
+                ingredient_total = sum(
+                    item.total_price for item in cart.items
+                    if item.spin_id in sess.ingredient_spin_ids
+                )
+                if ingredient_total > sess.ingredient_budget_inr:
+                    return {"success": False, "error": "INGREDIENT_BUDGET_EXCEEDED", "retryable": False,
+                            "message": "Pizza ingredients exceed the agreed price limit. Please review the basket."}
             attempt_id = None
             if settings.CHECKOUT_MODE == "live":
                 if self.attempt_store is None:
@@ -1124,14 +1490,20 @@ class GroceryAgentEngine:
                 result = await self.tools.checkout(
                     cart_id=args.get("cart_id", ""),
                     address_id=checkout_address,
-                    payment_method=args.get("payment_method", "UPI"),
-                    payment_option_kind=args.get("payment_option_kind", "qr"),
+                    payment_method=sess.selected_payment_method or "UPI",
+                    payment_option_kind=sess.selected_payment_kind,
+                    payment_option_id=sess.selected_payment_id,
                     is_user_confirmed=True,
                     budget_inr=sess.budget_inr,
                     expected_cart_fingerprint=approval.fingerprint,
                 )
                 if attempt_id is not None:
                     await self.attempt_store.finish(attempt_id, result)
+                if result.get("error") in {
+                    "PAYMENT_CHOICE_REQUIRED", "PAYMENT_OPTION_UNAVAILABLE",
+                    "PAYMENT_OPTIONS_UNAVAILABLE", "QR_ELIGIBILITY_UNVERIFIED",
+                }:
+                    sess.pending_approval = approval
                 return result
             except Exception:
                 logger.exception("Checkout outcome could not be verified.")
@@ -1150,8 +1522,8 @@ class GroceryAgentEngine:
             if role == "user":
                 fn_responses = [p["functionResponse"] for p in parts if "functionResponse" in p]
                 if fn_responses:
-                    for fn_resp in fn_responses:
-                        call_id = fn_resp.get("id") or f"call_{fn_resp.get('name')}"
+                    for i, fn_resp in enumerate(fn_responses):
+                        call_id = fn_resp.get("id") or f"call_{i}"
                         resp_data = fn_resp.get("response", {})
                         content_str = json.dumps(resp_data) if isinstance(resp_data, (dict, list)) else str(resp_data)
                         messages.append({
@@ -1171,14 +1543,17 @@ class GroceryAgentEngine:
                         call_id = fn_call.get("id") or f"call_{i}"
                         fn_name = fn_call.get("name")
                         fn_args = fn_call.get("args", {})
-                        tool_calls.append({
+                        tc_obj = {
                             "id": call_id,
                             "type": "function",
                             "function": {
                                 "name": fn_name,
                                 "arguments": json.dumps(fn_args) if isinstance(fn_args, dict) else str(fn_args),
                             },
-                        })
+                        }
+                        if fn_call.get("extra_content"):
+                            tc_obj["extra_content"] = fn_call["extra_content"]
+                        tool_calls.append(tc_obj)
                     messages.append({
                         "role": "assistant",
                         "content": None,
@@ -1214,6 +1589,27 @@ class GroceryAgentEngine:
         )
 
         providers: list[dict[str, Any]] = []
+        if self.gemini_api_key and (self._gemini_explicitly_passed or self.groq_api_key or self.openrouter_api_key):
+            providers.append({
+                "name": "gemini",
+                "url": "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+                "model": self.gemini_model,
+                "headers": {
+                    "Authorization": f"Bearer {self.gemini_api_key}",
+                    "Content-Type": "application/json",
+                },
+                "format": "openai",
+            })
+            providers.append({
+                "name": "gemini-fallback",
+                "url": "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+                "model": self.gemini_fallback_model,
+                "headers": {
+                    "Authorization": f"Bearer {self.gemini_api_key}",
+                    "Content-Type": "application/json",
+                },
+                "format": "openai",
+            })
         if self.groq_api_key:
             providers.append({
                 "name": "groq",
@@ -1268,6 +1664,22 @@ class GroceryAgentEngine:
                     if fast_fail_on_rate_limit:
                         logger.info("Post-tool call encountered %d; fast-returning receipt result.", resp.status_code)
                         return None
+
+                    # Parse reset duration if provided by provider (e.g. Groq '3.817s' or standard Retry-After)
+                    reset_header = resp.headers.get("x-ratelimit-reset-tokens") or resp.headers.get("retry-after")
+                    sleep_time = 2.0
+                    if reset_header:
+                        try:
+                            sleep_time = float(str(reset_header).rstrip("s").strip())
+                        except (ValueError, TypeError):
+                            sleep_time = 2.0
+
+                    # If provider explicitly gave a fast reset window (<= 4.0s, e.g. Groq token bucket), wait and retry once
+                    if resp.status_code == 429 and reset_header is not None and sleep_time <= 4.0 and attempt == 0:
+                        logger.warning("Provider %s rate-limited; resetting in %.1fs. Waiting to retry...", provider["name"], sleep_time)
+                        await asyncio.sleep(sleep_time + 0.2)
+                        continue
+
                     if attempt + 1 < len(providers):
                         next_provider = providers[attempt + 1]
                         logger.warning(
@@ -1277,8 +1689,7 @@ class GroceryAgentEngine:
                         )
                         await asyncio.sleep(0.2)
                         continue
-                    retry_after = resp.headers.get("retry-after")
-                    sleep_time = float(retry_after) if retry_after else 2.0
+
                     logger.warning(
                         "HTTP %d on %s (%s). Retrying in %.1fs...",
                         resp.status_code, provider["name"], p_model, sleep_time,
@@ -1339,7 +1750,7 @@ class GroceryAgentEngine:
         tool_calls = msg.get("tool_calls", [])
         parts: list[dict[str, Any]] = []
         if tool_calls:
-            for tc in tool_calls:
+            for i, tc in enumerate(tool_calls):
                 fn = tc.get("function", {})
                 fn_name = fn.get("name")
                 raw_args = fn.get("arguments", "{}")
@@ -1347,12 +1758,16 @@ class GroceryAgentEngine:
                     args = json.loads(raw_args) if isinstance(raw_args, str) else raw_args
                 except (ValueError, TypeError):
                     args = None
+                tc_id = tc.get("id") or f"call_{i}"
+                fc_dict: dict[str, Any] = {
+                    "name": fn_name,
+                    "args": args,
+                    "id": tc_id,
+                }
+                if tc.get("extra_content"):
+                    fc_dict["extra_content"] = tc["extra_content"]
                 parts.append({
-                    "functionCall": {
-                        "name": fn_name,
-                        "args": args,
-                        "id": tc.get("id"),
-                    }
+                    "functionCall": fc_dict
                 })
         else:
             text = msg.get("content") or ""

@@ -241,7 +241,11 @@ def build_commerce_cart(data: dict[str, Any], cart_id: Optional[str] = None) -> 
 
     return CommerceCart(
         cart_id=str(data["cartId"]) if data.get("cartId") is not None else None,
-        address_id=data.get("selectedAddress"),
+        address_id=(
+            (data.get("selectedAddress", {}).get("id") or data.get("selectedAddress", {}).get("addressId"))
+            if isinstance(data.get("selectedAddress"), dict)
+            else (data.get("selectedAddress") or data.get("selectedAddressId") or data.get("addressId"))
+        ),
         items=cart_items,
         item_total=item_total,
         delivery_fee=delivery_fee,

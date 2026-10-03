@@ -1,19 +1,44 @@
 """PostgreSQL inbox and outbox for signed WhatsApp messages.
 
-An interrupted agent turn remains PROCESSING for review. Replaying it could repeat
-an external cart write, so only PENDING input is processed automatically.
+Interrupted turns receive an uncertainty notice; their agent work is never replayed.
 """
 from __future__ import annotations
 
 import json
 from typing import Any
 
-from backend.channels.models import NormalizedIncomingMessage, NormalizedOutgoingResponse
+from backend.channels.models import ChannelType, NormalizedIncomingMessage, NormalizedOutgoingResponse
+
+
+def _uncertain_turn_response(payload: dict[str, Any]) -> NormalizedOutgoingResponse:
+    message = NormalizedIncomingMessage.model_validate(payload)
+    return NormalizedOutgoingResponse(
+        recipient_id=message.sender_id,
+        channel=ChannelType.WHATSAPP,
+        text=("I couldn't verify what happened to your last request. "
+              "Please review your current basket before making more changes or placing an order. "
+              "Reply 'show cart' and I'll check it."),
+        conversation_state="READY",
+        events=["UNCERTAIN_ACTION"],
+    )
 
 
 class PostgresMessageStore:
     def __init__(self, pool: Any) -> None:
         self.pool = pool
+
+    @staticmethod
+    async def _complete_uncertain(connection: Any, inbound_id: int, payload: Any) -> None:
+        response = _uncertain_turn_response(json.loads(payload) if isinstance(payload, str) else payload)
+        await connection.execute(
+            "UPDATE grocer_internal.inbound_messages SET status='PROCESSED', processed_at=now() WHERE id=$1",
+            inbound_id,
+        )
+        await connection.execute(
+            """INSERT INTO grocer_internal.outbound_messages (inbound_id, customer_id, payload)
+               SELECT id, customer_id, $2::jsonb FROM grocer_internal.inbound_messages WHERE id=$1""",
+            inbound_id, response.model_dump_json(),
+        )
 
     async def enqueue_many(self, messages: list[NormalizedIncomingMessage]) -> int:
         inserted = 0
@@ -43,13 +68,14 @@ class PostgresMessageStore:
                      AND NOT EXISTS (
                        SELECT 1 FROM grocer_internal.outbound_messages o
                        WHERE o.customer_id = i.customer_id
-                         AND o.status IN ('QUEUED', 'SENDING', 'UNKNOWN'))
+                         AND o.status IN ('QUEUED', 'SENDING'))
                      AND NOT EXISTS (
                        SELECT 1 FROM grocer_internal.privacy_deletions d
                        WHERE d.customer_id = i.customer_id)
                    ORDER BY i.id LIMIT 1 FOR UPDATE SKIP LOCKED
                )
-               UPDATE grocer_internal.inbound_messages i SET status = 'PROCESSING'
+               UPDATE grocer_internal.inbound_messages i
+               SET status = 'PROCESSING', claimed_at = now()
                FROM candidate WHERE i.id = candidate.id
                RETURNING i.id, i.payload"""
         )
@@ -79,11 +105,38 @@ class PostgresMessageStore:
                 )
 
     async def mark_processing_failed(self, inbound_id: int) -> None:
+        """Surface an uncertain action without rerunning it or blocking later input."""
+        async with self.pool.acquire() as connection:
+            async with connection.transaction():
+                row = await connection.fetchrow(
+                    """SELECT payload FROM grocer_internal.inbound_messages
+                       WHERE id = $1 AND status = 'PROCESSING' FOR UPDATE""",
+                    inbound_id,
+                )
+                if row is None:
+                    return
+                await self._complete_uncertain(connection, inbound_id, row["payload"])
+
+    async def heartbeat_processing(self, inbound_id: int) -> None:
         await self.pool.execute(
-            """UPDATE grocer_internal.inbound_messages SET status = 'NEEDS_REVIEW'
-               WHERE id = $1 AND status = 'PROCESSING'""",
+            "UPDATE grocer_internal.inbound_messages SET claimed_at=now() WHERE id=$1 AND status='PROCESSING'",
             inbound_id,
         )
+
+    async def recover_stale_processing(self) -> int:
+        """Resolve abandoned claims after their worker lease expires."""
+        recovered = 0
+        async with self.pool.acquire() as connection:
+            async with connection.transaction():
+                rows = await connection.fetch(
+                    """SELECT id, payload FROM grocer_internal.inbound_messages
+                       WHERE status='PROCESSING' AND claimed_at < now()-interval '2 minutes'
+                       ORDER BY claimed_at LIMIT 20 FOR UPDATE SKIP LOCKED"""
+                )
+                for row in rows:
+                    await self._complete_uncertain(connection, row["id"], row["payload"])
+                    recovered += 1
+        return recovered
 
     async def claim_outbound(self) -> tuple[int, str, NormalizedOutgoingResponse] | None:
         row = await self.pool.fetchrow(
@@ -91,7 +144,8 @@ class PostgresMessageStore:
                    SELECT id FROM grocer_internal.outbound_messages
                    WHERE status = 'QUEUED' ORDER BY id LIMIT 1 FOR UPDATE SKIP LOCKED
                )
-               UPDATE grocer_internal.outbound_messages o SET status = 'SENDING'
+               UPDATE grocer_internal.outbound_messages o
+               SET status = 'SENDING', sending_started_at = now()
                FROM candidate WHERE o.id = candidate.id
                RETURNING o.id, o.customer_id, o.payload"""
         )
@@ -110,6 +164,14 @@ class PostgresMessageStore:
             outbound_id, "SENT" if delivered else "UNKNOWN",
         )
 
+    async def recover_stale_outbound(self) -> int:
+        """Record an abandoned Meta send as uncertain; never resend it blindly."""
+        result = await self.pool.execute(
+            """UPDATE grocer_internal.outbound_messages SET status='UNKNOWN'
+               WHERE status='SENDING' AND sending_started_at < now()-interval '2 minutes'"""
+        )
+        return int(result.removeprefix("UPDATE "))
+
     async def counts(self) -> dict[str, int]:
         row = await self.pool.fetchrow(
             """SELECT
@@ -119,6 +181,20 @@ class PostgresMessageStore:
                    WHERE status IN ('SENDING', 'UNKNOWN')) AS unsettled_outbound"""
         )
         return {key: int(row[key]) for key in ("unsettled_inbound", "unsettled_outbound")}
+
+    async def response_for_message(self, message_id: str) -> tuple[str, NormalizedOutgoingResponse] | None:
+        row = await self.pool.fetchrow(
+            """SELECT o.status, o.payload FROM grocer_internal.inbound_messages i
+               JOIN grocer_internal.outbound_messages o ON o.inbound_id=i.id
+               WHERE i.message_id=$1""",
+            message_id,
+        )
+        if row is None:
+            return None
+        payload = row["payload"]
+        return row["status"], NormalizedOutgoingResponse.model_validate(
+            json.loads(payload) if isinstance(payload, str) else payload
+        )
 
     async def purge_customer(self, customer_id: str) -> None:
         async with self.pool.acquire() as connection:
@@ -134,6 +210,9 @@ class PostgresMessageStore:
                 )
                 await connection.execute(
                     "DELETE FROM grocer_internal.task_state WHERE customer_id = $1", customer_id
+                )
+                await connection.execute(
+                    "DELETE FROM grocer_internal.replenishment WHERE customer_id = $1", customer_id
                 )
                 await connection.execute(
                     "DELETE FROM grocer_internal.oauth_tokens WHERE customer_id = $1", customer_id

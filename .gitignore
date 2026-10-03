@@ -11,6 +11,7 @@ __pycache__/
 
 # build / test output
 .next/
+*.tsbuildinfo
 out/
 dist/
 build/
@@ -19,6 +20,7 @@ coverage/
 .pytest-*/
 tmp-*/
 scratch/
+artifacts/
 .mypy_cache/
 .ruff_cache/
 

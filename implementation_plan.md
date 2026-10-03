@@ -1,5 +1,7 @@
 # GROCER implementation plan — intent-safe commerce
 
+> **Current proposed plan (2026-10-04):** [`docs/GROCER_RECOVERY_PLAN_2026-10-04.md`](docs/GROCER_RECOVERY_PLAN_2026-10-04.md). It supersedes conflicting assumptions below. The sections below are historical implementation context; their claims and open decisions are not current release proof.
+
 ## 2026-10-03 core-system correction plan — awaiting review
 
 This section supersedes the older provider, variant, and test assumptions below. The goal is a reliable GROCER shopping and replenishment engine verified with bounded real Swiggy MCP traffic. WhatsApp remains the delivery surface and gets a final live transport check; local E2E remains failure-mode regression proof rather than a substitute for real-provider outcomes.

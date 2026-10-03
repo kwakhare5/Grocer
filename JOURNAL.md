@@ -15,6 +15,24 @@ During the Session End ritual (called automatically whenever significant changes
 
 ## Log Entries
 
+### [GROCER — Mumbai database recovery] 2026-10-04
+
+#### Work Card: Restore service after old Supabase deletion
+
+- **Problem / tension**: The previous Singapore Supabase project was deleted before GROCER state could be migrated. Render still pointed to that database, while the new Mumbai project had no GROCER tables.
+- **Change / decision**: Applied the existing ten schema scripts to the empty Mumbai project, changed only Render's database connection, and redeployed its existing build. Kept checkout in review mode and local shopping changes unpublished.
+- **Proof**: Migration command exited 0 with nine tables; follow-up queries found zero rows and no `anon` or `authenticated` usage of `grocer_internal`. Render deploy `dep-db0lvv0u01pc73av3020` became `live`; `/api/ready` returned HTTP 200 with no missing dependencies at revision `9dd3cf1`.
+- **Still broken / unproven**: Supabase cannot restore the deleted project. An independent dump was not found in the workspace; old GROCER token, chat, and reminder state is absent. The customer must reconnect Swiggy if no dump exists. A new exact-variant full-path E2E is red, so the local shopping code is not deployed. Real MCP shopping, load, payment, and reminder delivery remain unverified.
+- **Metric context**: Ten schema scripts, nine empty private tables, one live Render cutover, zero paid orders. A healthy readiness check is not a shopping-quality score.
+
+#### Work Card: Recover the first basket read after Swiggy token loss
+
+- **Problem / tension**: With the fresh database and no saved OAuth token, “show my basket” returned a generic failure instead of a one-time reconnection link.
+- **Change / decision**: Treat an authentication error on the initial cart read as an auth-required conversation state. Published the isolated fix at GitHub revision `2eb23aa` and verified the same revision live on Render; the unresolved exact-variant shopping change remains local.
+- **Proof**: New signed-webhook/PostgreSQL/agent/outbox E2E reproduced the original `FAILED` state, then passed after the fix. The existing full-path suite plus this case passed 30 cases, exit code 0, with `artifacts/whatsapp_e2e_auth_recovery.xml`; the separate variant-choice case remains red and excluded from this release.
+- **Still broken / unproven**: The exact-variant and single-write cart change is still unfinished; no real MCP cart mutation or paid order was attempted after the database cutover. The old database has no independent backup, according to the customer.
+- **Metric context**: 30 passing E2E cases for this released slice; one known failing variant-choice E2E retained as a work item. After the customer reconnected, GROCER made three read-only real MCP calls: `get_cart` returned zero items, `get_addresses` returned three addresses, and an agent-level “show my basket” turn returned the correct empty-basket state without calling a model. No rate-limit error, cart write, or order occurred.
+
 ### [GROCER — Architectural Overhaul, Swiggy Builders Club Alignment, 1-Turn Quick Add Engine & Ponytail Codebase Pruning] 2026-10-03
 
 #### Work Card 8: Full-path recovery evidence and scoped recipe-basket correction

@@ -153,6 +153,77 @@ async def test_show_cart_does_not_demand_an_address(postgres_pool, monkeypatch, 
 
 
 @pytest.mark.asyncio
+async def test_customer_selects_exact_variants_before_one_cart_write_after_restart(postgres_pool, monkeypatch):
+    class CountingCommerce(MockCommerceAdapter):
+        def __init__(self):
+            super().__init__()
+            self.cart_writes = 0
+
+        async def update_cart(self, items, cart_id=None, address_id=None):
+            self.cart_writes += 1
+            return await super().update_cart(items, cart_id=cart_id, address_id=address_id)
+
+    commerce = CountingCommerce()
+    state_store = PostgresTaskStateStore(postgres_pool, Fernet.generate_key().decode())
+    engine = GroceryAgentEngine(commerce, gemini_api_key="local-test", state_store=state_store)
+    model_calls = 0
+
+    async def model_reply(_history, **_kwargs):
+        nonlocal model_calls
+        model_calls += 1
+        if model_calls == 1:
+            return {"candidates": [{"content": {"parts": [{"functionCall": {
+                "name": "quick_add_items", "args": {"items": [
+                    {"query": "milk"}, {"query": "bread"},
+                ]},
+            }}]}}]}
+        return None
+
+    engine._call_llm = model_reply
+    app = create_app()
+    app.state.agent_engine = engine
+    store = PostgresMessageStore(postgres_pool)
+    app.state.message_store = store
+    monkeypatch.setattr(default_whatsapp_adapter, "_app_secret", "local-e2e-secret")
+    monkeypatch.setattr(default_whatsapp_adapter, "record_only", True)
+    default_whatsapp_adapter.outbound_messages.clear()
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://local-test") as client:
+        body, headers = _webhook("wamid.variant-start", "Add milk and bread")
+        assert (await client.post("/api/whatsapp/webhook", content=body, headers=headers)).status_code == 200
+        _, address_reply = await store.response_for_message("wamid.variant-start")
+        choice = address_reply.interactive_actions[0]
+        body, headers = _interactive_webhook("wamid.variant-address", choice.id, choice.title)
+        assert (await client.post("/api/whatsapp/webhook", content=body, headers=headers)).status_code == 200
+
+    _, variant_reply = await store.response_for_message("wamid.variant-address")
+    assert variant_reply.conversation_state == "NEEDS_DECISION"
+    assert "1A" in variant_reply.text and "1B" in variant_reply.text and "2A" in variant_reply.text
+    assert "500 ml" in variant_reply.text and "1 L" in variant_reply.text
+    assert commerce.cart_writes == 0
+
+    restarted = GroceryAgentEngine(commerce, gemini_api_key="local-test", state_store=state_store)
+
+    async def unexpected_model_call(_history, **_kwargs):
+        pytest.fail("Exact variant selection must use the saved proposal, not ask the model again")
+
+    restarted._call_llm = unexpected_model_call
+    app.state.agent_engine = restarted
+    body, headers = _webhook("wamid.variant-choice", "1B 2A")
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://local-test") as client:
+        assert (await client.post("/api/whatsapp/webhook", content=body, headers=headers)).status_code == 200
+    _, final_reply = await store.response_for_message("wamid.variant-choice")
+    customer_id = default_whatsapp_adapter.map_sender_to_customer_id("919999988888")
+    with commerce.customer_scope(customer_id):
+        cart = await commerce.get_cart()
+    assert {(item.spin_id, item.quantity) for item in cart.items} == {
+        ("SPIN-MILK-500ML", 1), ("SPIN-BREAD-400G", 1),
+    }
+    assert commerce.cart_writes == 1
+    assert "500" in final_reply.text and "bread" in final_reply.text.casefold()
+
+
+@pytest.mark.asyncio
 async def test_basket_read_without_swiggy_token_sends_reconnect_link(postgres_pool, monkeypatch):
     class DisconnectedCommerce(MockCommerceAdapter):
         async def get_cart(self, cart_id=None):

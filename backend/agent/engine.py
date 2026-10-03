@@ -27,7 +27,7 @@ from backend.channels.models import (
 )
 from backend.config import settings
 from backend.integrations.commerce.models import CommerceCart
-from backend.integrations.commerce.exceptions import ProviderAuthError
+from backend.integrations.commerce.exceptions import ProviderAuthError, ProviderRateLimitedError
 from backend.integrations.commerce.port import CommercePort
 
 logger = logging.getLogger("grocer.agent.engine")
@@ -469,6 +469,14 @@ class GroceryAgentEngine:
         current_cart: Optional[CommerceCart] = None
         try:
             current_cart = await self.commerce.get_cart()
+        except ProviderRateLimitedError as exc:
+            wait_text = (f"Please wait {exc.retry_after_seconds} seconds and try again."
+                         if exc.retry_after_seconds is not None else "Please wait and try again later.")
+            return NormalizedOutgoingResponse(
+                recipient_id=message.sender_id, channel=message.channel,
+                text=f"Swiggy is limiting requests right now. {wait_text}",
+                conversation_state="RECOVERING",
+            )
         except Exception as exc:
             logger.debug("Failed to fetch initial cart for customer=%s: %s", customer_id, exc)
 
@@ -885,6 +893,22 @@ class GroceryAgentEngine:
             executed_calls = await execute_tool_calls(function_calls, _execute_single_call)
             tool_responses = [ec[0] for ec in executed_calls]
             auth_failed = any(ec[1] for ec in executed_calls)
+            limited_results = [
+                ec[0].get("functionResponse", {}).get("response", {}).get("content", {})
+                for ec in executed_calls
+            ]
+            limited_results = [result for result in limited_results
+                               if isinstance(result, dict) and result.get("error") == "RATE_LIMITED"]
+            if limited_results:
+                session.pending_request_text = session.pending_request_text or incoming_text
+                seconds = limited_results[0].get("retry_after_seconds")
+                wait_text = (f"Please wait {seconds} seconds, then reply *try again*."
+                             if isinstance(seconds, int) else "Please wait, then reply *try again*.")
+                return NormalizedOutgoingResponse(
+                    recipient_id=message.sender_id, channel=message.channel,
+                    text=f"Swiggy is limiting requests right now. {wait_text} I'll keep your request.",
+                    conversation_state="RECOVERING",
+                )
             for ec in executed_calls:
                 resp_part = ec[0].get("functionResponse", {})
                 fn_call_name = resp_part.get("name")

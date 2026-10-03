@@ -82,6 +82,14 @@ class UpstreamTimeoutError(CommerceError):
         super().__init__(message=message, code="UPSTREAM_TIMEOUT")
 
 
+class ProviderRateLimitedError(CommerceError):
+    """Raised when the provider asks this customer to stop sending requests."""
+
+    def __init__(self, retry_after_seconds: int | None = None):
+        super().__init__("Swiggy is temporarily limiting requests.", provider="swiggy", code="RATE_LIMITED")
+        self.retry_after_seconds = retry_after_seconds
+
+
 class OrderStateUnknownError(CommerceError):
     """Raised when checkout failed ambiguously (5xx/timeout) and order verification is pending."""
     def __init__(self, message: str = "Checkout status unknown. Verification required before retrying."):

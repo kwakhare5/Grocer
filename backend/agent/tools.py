@@ -23,6 +23,7 @@ from backend.integrations.commerce.exceptions import (
     ItemOutOfStockError,
     OrderStateUnknownError,
     ProviderAuthError,
+    ProviderRateLimitedError,
 )
 
 logger = logging.getLogger("grocer.agent.tools")
@@ -199,6 +200,9 @@ class SwiggyAgentTools:
             }
         except ProviderAuthError as exc:
             return {"success": False, "error": "AUTH_EXPIRED", "detail": str(exc), "retryable": False}
+        except ProviderRateLimitedError as exc:
+            return {"success": False, "error": "RATE_LIMITED", "retryable": False,
+                    "retry_after_seconds": exc.retry_after_seconds}
         except Exception as exc:
             logger.warning("search_products failed for query=%s: %s", query, exc)
             return {"success": False, "error": str(exc), "retryable": True}
@@ -226,7 +230,8 @@ class SwiggyAgentTools:
                 try:
                     res = await self.search_products(q, address_id)
                     if not res.get("success"):
-                        return {"query": q, "products": [], "error": res.get("error") or "SEARCH_UNAVAILABLE"}
+                        return {"query": q, "products": [], "error": res.get("error") or "SEARCH_UNAVAILABLE",
+                                "retry_after_seconds": res.get("retry_after_seconds")}
                     prods = res.get("products", [])[:2]
                     compact_prods = []
                     for p in prods:
@@ -246,6 +251,10 @@ class SwiggyAgentTools:
                     return {"query": q, "products": [], "error": str(exc)}
 
         batch_results = await asyncio.gather(*[_search_one(q) for q in clean_queries])
+        limited = [item for item in batch_results if item.get("error") == "RATE_LIMITED"]
+        if limited:
+            return {"success": False, "error": "RATE_LIMITED", "retryable": False,
+                    "retry_after_seconds": limited[0].get("retry_after_seconds")}
         return {
             "success": True,
             "results": batch_results,
@@ -604,6 +613,7 @@ class SwiggyAgentTools:
         if not search_res.get("success"):
             return {"success": False, "error": search_res.get("error") or "SEARCH_UNAVAILABLE",
                     "retryable": bool(search_res.get("retryable", True)),
+                    "retry_after_seconds": search_res.get("retry_after_seconds"),
                     "message": "I couldn't check every requested item, so I left the basket unchanged."}
         search_errors = {
             item["query"]: item["error"]

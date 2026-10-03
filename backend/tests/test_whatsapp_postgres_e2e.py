@@ -11,7 +11,7 @@ from datetime import datetime, timedelta, timezone
 import asyncpg
 import pytest
 from cryptography.fernet import Fernet
-from httpx import ASGITransport, AsyncClient
+from httpx import ASGITransport, AsyncClient, MockTransport, Response
 
 from backend.agent.engine import GroceryAgentEngine
 from backend.agent.checkout_attempts import PostgresCheckoutAttemptStore
@@ -22,6 +22,7 @@ from backend.channels.message_store import PostgresMessageStore
 from backend.channels.models import ChannelType, NormalizedIncomingMessage, NormalizedOutgoingResponse
 from backend.channels.whatsapp import default_whatsapp_adapter
 from backend.integrations.commerce.mock_adapter import MockCommerceAdapter
+from backend.integrations.commerce.swiggy_adapter import SwiggyMCPAdapter
 from backend.integrations.commerce.exceptions import ProviderAuthError
 from backend.integrations.commerce.models import (
     PaymentStatusResult, CommerceOrderResult, PaymentOption, CartItemUpdate, OrderSummary, OrderLineItem,
@@ -149,6 +150,102 @@ async def test_show_cart_does_not_demand_an_address(postgres_pool, monkeypatch, 
     assert "which address" not in reply.text.casefold()
     assert not reply.interactive_actions
     assert len(default_whatsapp_adapter.outbound_messages) == 1
+
+
+@pytest.mark.asyncio
+async def test_real_mcp_rate_limit_stops_after_one_call_and_tells_customer_to_wait(postgres_pool, monkeypatch):
+    store = PostgresMessageStore(postgres_pool)
+    monkeypatch.setattr(default_whatsapp_adapter, "_app_secret", "local-e2e-secret")
+    monkeypatch.setattr(default_whatsapp_adapter, "record_only", True)
+    customer_id = default_whatsapp_adapter.map_sender_to_customer_id("919999988888")
+    commerce = SwiggyMCPAdapter(auth_token="external-boundary-test", owner_customer_id=customer_id)
+    calls = []
+
+    def swiggy_boundary(request):
+        calls.append(request)
+        return Response(429, headers={"Retry-After": "23"}, json={
+            "success": False, "error": {"message": "Too many requests"},
+        })
+
+    commerce._client._client = AsyncClient(transport=MockTransport(swiggy_boundary))
+    engine = GroceryAgentEngine(commerce, gemini_api_key="local-test")
+
+    async def no_model_needed(_history, **_kwargs):
+        raise AssertionError("A rate-limited basket read should not invoke the model")
+
+    engine._call_llm = no_model_needed
+    app = create_app()
+    app.state.agent_engine = engine
+    app.state.message_store = store
+    default_whatsapp_adapter.outbound_messages.clear()
+    body, headers = _webhook("wamid.rate-limited-cart", "show my basket")
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://local-test") as client:
+        response = await client.post("/api/whatsapp/webhook", content=body, headers=headers)
+        second_body, second_headers = _webhook("wamid.rate-limited-again", "show my basket")
+        second = await client.post("/api/whatsapp/webhook", content=second_body, headers=second_headers)
+    assert response.status_code == 200
+    assert second.status_code == 200
+    _, reply = await store.response_for_message("wamid.rate-limited-cart")
+    _, second_reply = await store.response_for_message("wamid.rate-limited-again")
+    assert "23 seconds" in reply.text
+    assert "wait" in second_reply.text.casefold()
+    assert "empty" not in reply.text.casefold()
+    assert len(calls) == 1
+    assert len(default_whatsapp_adapter.outbound_messages) == 2
+    await commerce._client.close()
+
+
+@pytest.mark.asyncio
+async def test_search_rate_limit_stops_model_loop_without_retrying_mcp(postgres_pool, monkeypatch):
+    store = PostgresMessageStore(postgres_pool)
+    monkeypatch.setattr(default_whatsapp_adapter, "_app_secret", "local-e2e-secret")
+    monkeypatch.setattr(default_whatsapp_adapter, "record_only", True)
+    default_whatsapp_adapter.outbound_messages.clear()
+    customer_id = default_whatsapp_adapter.map_sender_to_customer_id("919999988888")
+    commerce = SwiggyMCPAdapter(auth_token="external-boundary-test", owner_customer_id=customer_id)
+    tool_names = []
+
+    def swiggy_boundary(request):
+        name = json.loads(request.content)["params"]["name"]
+        tool_names.append(name)
+        if name == "get_cart":
+            return Response(200, json={"result": {"success": True, "data": {
+                "items": [], "cartTotalAmount": 0,
+            }}})
+        assert name == "search_products"
+        return Response(429, headers={"Retry-After": "23"}, json={
+            "success": False, "error": {"message": "Too many requests"},
+        })
+
+    commerce._client._client = AsyncClient(transport=MockTransport(swiggy_boundary))
+    engine = GroceryAgentEngine(commerce, gemini_api_key="local-test")
+    engine._customer_address[customer_id] = "addr-selected"
+    engine._customer_address_label[customer_id] = "Selected address"
+    engine._order_address_confirmed[customer_id] = True
+    model_calls = 0
+
+    async def one_search(_history, **_kwargs):
+        nonlocal model_calls
+        model_calls += 1
+        if model_calls > 1:
+            raise AssertionError("Rate limit must stop the model loop")
+        return {"candidates": [{"content": {"parts": [{"functionCall": {
+            "name": "search_products", "args": {"query": "milk"},
+        }}]}}]}
+
+    engine._call_llm = one_search
+    app = create_app()
+    app.state.agent_engine = engine
+    app.state.message_store = store
+    body, headers = _webhook("wamid.search-rate-limited", "Find milk at my selected address")
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://local-test") as client:
+        response = await client.post("/api/whatsapp/webhook", content=body, headers=headers)
+    assert response.status_code == 200
+    _, reply = await store.response_for_message("wamid.search-rate-limited")
+    assert "23 seconds" in reply.text
+    assert tool_names == ["get_cart", "search_products"]
+    assert model_calls == 1
+    await commerce._client.close()
 
 
 @pytest.mark.asyncio

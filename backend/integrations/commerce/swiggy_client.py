@@ -4,6 +4,8 @@ from __future__ import annotations
 import json
 import logging
 import inspect
+import math
+import time
 from typing import Any, Awaitable, Callable, Optional
 
 import httpx
@@ -15,6 +17,7 @@ from backend.integrations.commerce.exceptions import (
     ItemOutOfStockError,
     MinOrderNotMetError,
     ProviderAuthError,
+    ProviderRateLimitedError,
     ProviderSessionRevokedError,
     UpstreamTimeoutError,
 )
@@ -39,6 +42,7 @@ class SwiggyMcpClient:
         self._token_resolver = token_resolver
         self._owner_customer_id = owner_customer_id
         self._client: Optional[Any] = None
+        self._rate_limited_until: dict[str, float] = {}
 
     def _get_client(self) -> Any:
         """Return persistent HTTP client pool for Swiggy MCP calls."""
@@ -141,6 +145,10 @@ class SwiggyMcpClient:
         customer_id: Optional[str] = None,
     ) -> dict[str, Any]:
         """Execute JSON-RPC 2.0 tool call against Swiggy Instamart MCP endpoint."""
+        rate_key = customer_id or self._owner_customer_id or "anonymous"
+        remaining = self._rate_limited_until.get(rate_key, 0.0) - time.monotonic()
+        if remaining > 0:
+            raise ProviderRateLimitedError(math.ceil(remaining))
         if customer_id and self._token_resolver:
             token = self._token_resolver(customer_id)
             if inspect.isawaitable(token):
@@ -174,6 +182,11 @@ class SwiggyMcpClient:
 
             if resp.status_code == 401:
                 raise ProviderAuthError("Swiggy MCP session unauthenticated or token expired.")
+            elif resp.status_code == 429:
+                retry_after = resp.headers.get("Retry-After", "")
+                seconds = int(retry_after) if retry_after.isdecimal() else None
+                self._rate_limited_until[rate_key] = time.monotonic() + max(1, seconds or 60)
+                raise ProviderRateLimitedError(seconds)
             elif resp.status_code == 419:
                 raise ProviderSessionRevokedError("Swiggy MCP session revoked. Re-auth required.")
             elif resp.status_code == 504:

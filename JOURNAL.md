@@ -17,6 +17,13 @@ During the Session End ritual (called automatically whenever significant changes
 
 ### [GROCER — Mumbai database recovery] 2026-10-04
 
+#### Work Card: Keep full-list choices and rate-limit recovery reliable
+
+- **Problem**: Longer lists stopped after ten products; a mixed search failure could hide a Swiggy 429 and trigger extra searches; the real model used a valid sauce query that an overly exact E2E assertion rejected.
+- **Change**: Posed up to thirty choices in paced search waves, removed the ignored model budget field, accepted a redundant selected-address call, prioritized 429/auth errors, and checked the actual sauce product choice.
+- **Proof**: Signed-webhook/PostgreSQL/agent/recorded-Meta E2E with three real-Gemini journeys: 47 passed, exit 0; lint, build, Python compilation, and diff check passed. No Swiggy MCP or order call was made in this slice.
+- **Still broken**: Lists beyond thirty items, a deterministic full requested-item ledger, verified payable-budget wording, live cart writes, deployment to Render, and the cross-border data-processing release gate remain open.
+
 #### Work Card: Keep long shopping requests and model history intact
 
 - **Problem**: A pizza-plus-extras request used three serial searches and hit the agent step limit; parallel choice calls and a later user turn could also trigger a retry or model HTTP 400.

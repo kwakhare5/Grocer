@@ -58,10 +58,6 @@ RAW_TOOL_DECLARATIONS = [
                         "required": ["query"],
                     },
                 },
-                "budget_cap_inr": {
-                    "type": "number",
-                    "description": "Optional total spending budget cap in INR (e.g. 200, 500, 1000).",
-                },
             },
             "required": ["items"],
         },

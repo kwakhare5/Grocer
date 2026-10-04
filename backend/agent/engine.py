@@ -1039,13 +1039,20 @@ class GroceryAgentEngine:
             if len(function_calls) > 1 and any(
                 call.get("name") == "quick_add_items" for call in function_calls
             ):
-                if all(call.get("name") in {"quick_add_items", "get_cart"} for call in function_calls):
+                redundant_addresses = all(
+                    isinstance(call.get("args"), dict) and call["args"].get("address_id") == address_id
+                    for call in function_calls if call.get("name") == "select_delivery_address"
+                )
+                if redundant_addresses and all(
+                    call.get("name") in {"quick_add_items", "get_cart", "select_delivery_address"}
+                    for call in function_calls
+                ):
                     include_cart_in_choices = any(call.get("name") == "get_cart" for call in function_calls)
                     batches = [call["args"].get("items") if isinstance(call.get("args"), dict) else None
                                for call in function_calls if call.get("name") == "quick_add_items"]
                     if all(isinstance(batch, list) for batch in batches):
                         merged = [item for batch in batches for item in batch]
-                        if 1 <= len(merged) <= 10:
+                        if 1 <= len(merged) <= 30:
                             first_add = next(call for call in function_calls if call.get("name") == "quick_add_items")
                             function_calls = [{**first_add, "args": {"items": merged}}]
                             parts = [part for part in parts if "functionCall" not in part]

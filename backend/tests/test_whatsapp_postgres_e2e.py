@@ -6,6 +6,7 @@ import hmac
 import json
 import os
 import copy
+import time
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
 
@@ -24,7 +25,7 @@ from backend.channels.models import ChannelType, NormalizedIncomingMessage, Norm
 from backend.channels.whatsapp import default_whatsapp_adapter
 from backend.integrations.commerce.mock_adapter import MockCommerceAdapter
 from backend.integrations.commerce.swiggy_adapter import SwiggyMCPAdapter
-from backend.integrations.commerce.exceptions import ProviderAuthError
+from backend.integrations.commerce.exceptions import ProviderAuthError, ProviderRateLimitedError
 from backend.integrations.commerce.models import (
     PaymentStatusResult, CommerceOrderResult, PaymentOption, CartItemUpdate, OrderSummary, OrderLineItem,
 )
@@ -678,7 +679,7 @@ async def test_address_choice_model_outage_then_retry_resumes_original_whatsapp_
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("parallel_calls", ["single", "split", "with_cart"])
+@pytest.mark.parametrize("parallel_calls", ["single", "split", "with_cart", "same_address"])
 async def test_long_recipe_request_uses_one_product_choice_batch(postgres_pool, monkeypatch, parallel_calls):
     commerce = MockCommerceAdapter()
     engine = GroceryAgentEngine(commerce, gemini_api_key="local-test")
@@ -708,6 +709,9 @@ async def test_long_recipe_request_uses_one_product_choice_batch(postgres_pool, 
                 },
             }]}}]})
         offered = {tool["function"]["name"] for tool in payload["tools"]}
+        choice_tool = next(tool["function"] for tool in payload["tools"]
+                           if tool["function"]["name"] == "quick_add_items")
+        assert "budget_cap_inr" not in choice_tool["parameters"]["properties"]
         if "search_products" in offered:
             call = {"name": "search_products", "arguments": json.dumps({
                 "query": ["pizza base", "pizza sauce", "mozzarella"][min(model_calls - 1, 2)],
@@ -731,6 +735,10 @@ async def test_long_recipe_request_uses_one_product_choice_batch(postgres_pool, 
             ]
         if parallel_calls == "with_cart" and call["name"] == "quick_add_items":
             calls = [{"name": "get_cart", "arguments": "{}"}, call]
+        if parallel_calls == "same_address" and call["name"] == "quick_add_items":
+            calls = [{"name": "select_delivery_address", "arguments": json.dumps({
+                "address_id": "addr-bandra-1",
+            })}, call]
         return Response(200, json={"choices": [{"message": {"tool_calls": [
             {"id": f"call_{model_calls}_{index}", "type": "function", "function": function}
             for index, function in enumerate(calls)
@@ -790,6 +798,101 @@ async def test_long_recipe_request_uses_one_product_choice_batch(postgres_pool, 
 
 
 @pytest.mark.asyncio
+async def test_long_list_checks_every_item_in_paced_batches(postgres_pool, monkeypatch):
+    class TrackingCommerce(MockCommerceAdapter):
+        def __init__(self):
+            super().__init__()
+            self.search_started = []
+
+        async def search_products(self, address_id, query):
+            self.search_started.append(time.monotonic())
+            return await super().search_products(address_id, query)
+
+    queries = ["milk", "bread", "eggs", "tomato", "coke", "maggi", "atta",
+               "rice", "dal", "sugar", "oil"]
+    commerce = TrackingCommerce()
+    engine = GroceryAgentEngine(commerce, gemini_api_key="local-test")
+
+    async def model_reply(_history, **_kwargs):
+        return {"candidates": [{"content": {"parts": [{"functionCall": {
+            "name": "quick_add_items", "args": {"items": [{"query": query} for query in queries]},
+        }}]}}]}
+
+    engine._call_llm = model_reply  # external model boundary
+    store = PostgresMessageStore(postgres_pool)
+    app = create_app()
+    app.state.agent_engine = engine
+    app.state.message_store = store
+    monkeypatch.setattr(default_whatsapp_adapter, "_app_secret", "local-e2e-secret")
+    monkeypatch.setattr(default_whatsapp_adapter, "record_only", True)
+    default_whatsapp_adapter.outbound_messages.clear()
+    customer_id = default_whatsapp_adapter.map_sender_to_customer_id("919999988888")
+    body, headers = _webhook("wamid.long-list", "Add milk, bread, eggs, tomato, coke, maggi, atta, rice, dal, sugar and oil")
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://local-test") as client:
+        assert (await client.post("/api/whatsapp/webhook", content=body, headers=headers)).status_code == 200
+        _, address_reply = await store.response_for_message("wamid.long-list")
+        choice = address_reply.interactive_actions[0]
+        choice_body, choice_headers = _interactive_webhook("wamid.long-list-address", choice.id, choice.title)
+        assert (await client.post("/api/whatsapp/webhook", content=choice_body, headers=choice_headers)).status_code == 200
+    _, reply = await store.response_for_message("wamid.long-list-address")
+    proposal = engine.get_session(customer_id).pending_variant_selection
+    assert proposal is not None, reply.text
+    accounted = [group["query"] for group in proposal["groups"]] + proposal.get("unavailable_items", [])
+    assert accounted == queries
+    assert len(commerce.search_started) == 11
+    assert commerce.search_started[8] - commerce.search_started[0] >= 5.5
+    await engine.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("generic_error_first", [False, True])
+async def test_catalog_rate_limit_stops_remaining_search_waves(postgres_pool, monkeypatch, generic_error_first):
+    class RateLimitedCommerce(MockCommerceAdapter):
+        def __init__(self):
+            super().__init__()
+            self.search_calls = 0
+
+        async def search_products(self, address_id, query):
+            self.search_calls += 1
+            if generic_error_first and self.search_calls == 1:
+                raise RuntimeError("temporary catalogue fault")
+            if self.search_calls == (2 if generic_error_first else 1):
+                raise ProviderRateLimitedError(30)
+            return await super().search_products(address_id, query)
+
+    commerce = RateLimitedCommerce()
+    engine = GroceryAgentEngine(commerce, gemini_api_key="local-test")
+
+    async def model_reply(_history, **_kwargs):
+        return {"candidates": [{"content": {"parts": [{"functionCall": {
+            "name": "quick_add_items", "args": {"items": [{"query": query} for query in (
+                "milk", "bread", "eggs", "tomato", "coke", "maggi", "atta", "rice",
+            )]},
+        }}]}}]}
+
+    engine._call_llm = model_reply  # external model boundary
+    store = PostgresMessageStore(postgres_pool)
+    app = create_app()
+    app.state.agent_engine = engine
+    app.state.message_store = store
+    monkeypatch.setattr(default_whatsapp_adapter, "_app_secret", "local-e2e-secret")
+    monkeypatch.setattr(default_whatsapp_adapter, "record_only", True)
+    default_whatsapp_adapter.outbound_messages.clear()
+    body, headers = _webhook("wamid.search-rate-limit", "Add milk, bread, eggs, tomato, coke, maggi, atta and rice")
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://local-test") as client:
+        assert (await client.post("/api/whatsapp/webhook", content=body, headers=headers)).status_code == 200
+        _, address_reply = await store.response_for_message("wamid.search-rate-limit")
+        choice = address_reply.interactive_actions[0]
+        choice_body, choice_headers = _interactive_webhook("wamid.search-rate-limit-address", choice.id, choice.title)
+        assert (await client.post("/api/whatsapp/webhook", content=choice_body, headers=choice_headers)).status_code == 200
+    _, reply = await store.response_for_message("wamid.search-rate-limit-address")
+    assert commerce.search_calls <= 3
+    assert "limiting requests" in reply.text.casefold()
+    assert engine.get_session(default_whatsapp_adapter.map_sender_to_customer_id("919999988888")).pending_request_text
+    await engine.close()
+
+
+@pytest.mark.asyncio
 @pytest.mark.skipif(os.environ.get("GROCER_REAL_MODEL_E2E") != "1", reason="Opt-in real model call")
 @pytest.mark.parametrize("request_text, required_items", [
     ("Make pizza ingredients under ₹1,000 and also add bread, Bournvita, tissues and a pencil",
@@ -807,6 +910,18 @@ async def test_real_model_presents_recipe_and_extras_choices_over_whatsapp_path(
     engine = GroceryAgentEngine(commerce, gemini_api_key=settings.GEMINI_API_KEY)
     engine.groq_api_key = None
     engine.openrouter_api_key = None
+    real_call = engine._call_llm
+    raw_tool_calls = []
+
+    async def record_model_call(*args, **kwargs):
+        response = await real_call(*args, **kwargs)
+        if response:
+            raw_tool_calls.extend(part["functionCall"] for candidate in response.get("candidates", [])
+                                  for part in candidate.get("content", {}).get("parts", [])
+                                  if "functionCall" in part)
+        return response
+
+    engine._call_llm = record_model_call
     store = PostgresMessageStore(postgres_pool)
     app = create_app()
     app.state.agent_engine = engine
@@ -831,14 +946,29 @@ async def test_real_model_presents_recipe_and_extras_choices_over_whatsapp_path(
         reply.text, [(call.get("name"), len(call.get("args", {}).get("items", []))) for call in tool_calls]
     )
     for item in required_items:
-        assert item in reply.text.casefold(), (item, reply.text)
+        assert item in reply.text.casefold(), (
+            item, reply.text, [(call.get("name"), call.get("args", {}).get("address_id"),
+                                len(call.get("args", {}).get("items", []))) for call in raw_tool_calls]
+        )
     proposal = engine.get_session(customer_id).pending_variant_selection
     assert proposal is not None
     accounted = [str(group["query"]).casefold() for group in proposal["groups"]]
     accounted += [str(item).casefold() for item in proposal.get("unavailable_items", [])]
     accounted += [str(item).casefold() for item in proposal.get("restricted_items", [])]
     for item in required_items:
-        assert any(item in query for query in accounted), (item, accounted)
+        if item == "pizza sauce":
+            assert any(
+                "pizza" in group["query"].casefold()
+                and "sauce" in group["query"].casefold()
+                and any(
+                    "pizza" in option["name"].casefold()
+                    and "sauce" in option["name"].casefold()
+                    for option in group["options"]
+                )
+                for group in proposal["groups"]
+            ), (item, proposal["groups"])
+        else:
+            assert any(item in query for query in accounted), (item, accounted)
     if "500 ml milk" in request_text:
         milk_groups = [group for group in proposal["groups"] if "milk" in group["query"].casefold()]
         assert len(milk_groups) == 1 and milk_groups[0]["quantity"] == 2

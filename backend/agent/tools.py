@@ -227,39 +227,43 @@ class SwiggyAgentTools:
         if len(clean_queries) > 30:
             return {"success": False, "error": "TOO_MANY_QUERIES", "retryable": False}
 
-        semaphore = asyncio.Semaphore(3)
-
         async def _search_one(q: str) -> dict[str, Any]:
-            async with semaphore:
-                try:
-                    res = await self.search_products(q, address_id)
-                    if not res.get("success"):
-                        return {"query": q, "products": [], "error": res.get("error") or "SEARCH_UNAVAILABLE",
-                                "retry_after_seconds": res.get("retry_after_seconds")}
-                    compact_prods = []
-                    for p in res.get("products", [])[:5]:
-                        for v in p.get("variants", []):
-                            compact_prods.append({
-                                "name": v.get("name") or p.get("name"),
-                                "product_name": p.get("name"),
-                                "category": p.get("category"),
-                                "brand": p.get("brand"),
-                                "spin_id": v.get("spin_id"),
-                                "sku_id": v.get("sku_id"),
-                                "pack_size": v.get("pack_size"),
-                                "price": v.get("price"),
-                                "formatted_price": v.get("formatted_price"),
-                                "max_quantity": v.get("max_quantity"),
-                            })
-                    return {"query": q, "products": compact_prods}
-                except Exception as exc:
-                    return {"query": q, "products": [], "error": str(exc)}
+            try:
+                res = await self.search_products(q, address_id)
+                if not res.get("success"):
+                    return {"query": q, "products": [], "error": res.get("error") or "SEARCH_UNAVAILABLE",
+                            "retry_after_seconds": res.get("retry_after_seconds")}
+                compact_prods = []
+                for p in res.get("products", [])[:5]:
+                    for v in p.get("variants", []):
+                        compact_prods.append({
+                            "name": v.get("name") or p.get("name"),
+                            "product_name": p.get("name"),
+                            "category": p.get("category"),
+                            "brand": p.get("brand"),
+                            "spin_id": v.get("spin_id"),
+                            "sku_id": v.get("sku_id"),
+                            "pack_size": v.get("pack_size"),
+                            "price": v.get("price"),
+                            "formatted_price": v.get("formatted_price"),
+                            "max_quantity": v.get("max_quantity"),
+                        })
+                return {"query": q, "products": compact_prods}
+            except Exception as exc:
+                return {"query": q, "products": [], "error": str(exc)}
 
-        batch_results = await asyncio.gather(*[_search_one(q) for q in clean_queries])
-        limited = [item for item in batch_results if item.get("error") == "RATE_LIMITED"]
-        if limited:
-            return {"success": False, "error": "RATE_LIMITED", "retryable": False,
-                    "retry_after_seconds": limited[0].get("retry_after_seconds")}
+        batch_results: list[dict[str, Any]] = []
+        for start in range(0, len(clean_queries), 3):
+            if start:
+                await asyncio.sleep(3)
+            wave = await asyncio.gather(*[_search_one(q) for q in clean_queries[start:start + 3]])
+            failed = (next((item for item in wave if item.get("error") == "RATE_LIMITED"), None)
+                      or next((item for item in wave if item.get("error") == "AUTH_EXPIRED"), None)
+                      or next((item for item in wave if item.get("error")), None))
+            if failed:
+                return {"success": False, "error": failed["error"], "retryable": False,
+                        "retry_after_seconds": failed.get("retry_after_seconds")}
+            batch_results.extend(wave)
         return {
             "success": True,
             "results": batch_results,
@@ -269,7 +273,7 @@ class SwiggyAgentTools:
         self, items: list[dict[str, Any]], address_id: str,
     ) -> dict[str, Any]:
         """Resolve every requested item to customer-visible SKU choices without writing the cart."""
-        if not address_id or not isinstance(items, list) or not 1 <= len(items) <= 10:
+        if not address_id or not isinstance(items, list) or not 1 <= len(items) <= 30:
             return {"success": False, "error": "INVALID_CART_PROPOSAL"}
         normalized = []
         for item in items:

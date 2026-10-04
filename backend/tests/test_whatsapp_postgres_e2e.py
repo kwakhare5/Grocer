@@ -286,6 +286,45 @@ async def test_customer_selects_exact_variants_before_one_cart_write_after_resta
 
 
 @pytest.mark.asyncio
+async def test_product_name_used_as_model_pack_hint_does_not_hide_valid_bread(postgres_pool, monkeypatch):
+    commerce = MockCommerceAdapter()
+    engine = GroceryAgentEngine(commerce, gemini_api_key="local-test")
+    customer_id = default_whatsapp_adapter.map_sender_to_customer_id("919999988888")
+    engine._customer_address[customer_id] = "addr-bandra-1"
+    engine._customer_address_label[customer_id] = "Home"
+    engine._order_address_confirmed[customer_id] = True
+
+    async def model_reply(_history, **_kwargs):
+        return {"candidates": [{"content": {"parts": [{"functionCall": {
+            "name": "quick_add_items", "args": {"items": [
+                {"query": "doodh milk", "quantity": 2, "preferred_pack_size": "500ml"},
+                {"query": "brown bread", "quantity": 1, "preferred_pack_size": "brown bread"},
+            ]},
+        }}]}}]}
+
+    engine._call_llm = model_reply
+    store = PostgresMessageStore(postgres_pool)
+    app = create_app()
+    app.state.agent_engine = engine
+    app.state.message_store = store
+    monkeypatch.setattr(default_whatsapp_adapter, "_app_secret", "local-e2e-secret")
+    monkeypatch.setattr(default_whatsapp_adapter, "record_only", True)
+    body, headers = _webhook("wamid.descriptive-pack", "2 doodh half litre and brown bread, no white bread")
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://local-test") as client:
+        assert (await client.post("/api/whatsapp/webhook", content=body, headers=headers)).status_code == 200
+        _, address_reply = await store.response_for_message("wamid.descriptive-pack")
+        choice = address_reply.interactive_actions[0]
+        body, headers = _interactive_webhook("wamid.descriptive-address", choice.id, choice.title)
+        assert (await client.post("/api/whatsapp/webhook", content=body, headers=headers)).status_code == 200
+    _, reply = await store.response_for_message("wamid.descriptive-address")
+    assert reply.conversation_state == "NEEDS_DECISION"
+    assert "1A" in reply.text and "500 ml" in reply.text
+    assert "2A" in reply.text and "brown bread" in reply.text.casefold()
+    with commerce.customer_scope(customer_id):
+        assert not (await commerce.get_cart()).items
+
+
+@pytest.mark.asyncio
 async def test_cart_write_with_failed_readback_never_claims_success_or_retries(postgres_pool, monkeypatch):
     class UncertainCommerce(MockCommerceAdapter):
         def __init__(self):

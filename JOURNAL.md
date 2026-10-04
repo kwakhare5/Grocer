@@ -17,6 +17,14 @@ During the Session End ritual (called automatically whenever significant changes
 
 ### [GROCER — Mumbai database recovery] 2026-10-04
 
+#### Work Card: Real-model probe, grounded Hinglish matching, and Mumbai plan
+
+- **Problem / tension**: In a six-case signed-webhook probe using the configured real model and synthetic commerce, GROCER failed a Hinglish milk/bread request, hit its step limit on a pizza request, and described item prices under a ₹130 budget without verifying payable fees. This is not 10/10 human handling.
+- **Change / decision**: Reproduced the milk/bread defect with the model's actual `quick_add_items` arguments. Matched product-family names and common Hinglish terms while still requiring exact variant choice; accepted a descriptive product name mistakenly placed in `preferred_pack_size`. Drafted `implementation_plan.md` for a Mumbai backend in the existing Vercel/Supabase stack, with a preview feasibility gate.
+- **Proof**: The previously red signed-webhook/PostgreSQL brown-bread hint case passed after the fix; the full E2E suite passed 37 cases, exit 0. A follow-up real-model/synthetic-commerce turn showed the correct 500 ml milk choice but still hid brown bread, which led to the second red repro and fix. No further real MCP calls or cart writes were made for the model probe.
+- **Still broken / unproven**: The pizza step-limit and payable-fee claim need an intent-to-proposal redesign and fresh E2E. Mumbai Python function, queue wake, regional execution, and free-tier feasibility remain unproven. The rollout still needs a region-compliant backend or Swiggy's required DPA/transfer safeguards.
+- **Metric context**: Six exploratory real-model prompts: two failed shopping flows, one unverified budget claim, one successful exact-choice prompt, and two suggestion/avoidance replies. This is a small diagnostic sample, not a reliable accuracy rate.
+
 #### Work Card: Exact product choice and live catalogue verification
 
 - **Problem / tension**: GROCER silently chose the first search variant; broad real queries such as “milk” could then dead-end when more than six variants existed. A model could bypass the proposed choice by calling `update_cart` directly, and a provider write with failed read-back could be mistaken for success.

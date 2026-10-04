@@ -36,9 +36,13 @@ def _format_inr(amount: float) -> str:
 
 def _matches_requested_product(query: str, product: dict[str, Any]) -> bool:
     """Reject loose provider search hits that do not contain the requested product words."""
-    words = [word for word in re.findall(r"[\w]+", query.casefold())
+    aliases = {"doodh": "milk", "anda": "egg", "ande": "egg", "aata": "atta",
+               "chawal": "rice", "adrak": "ginger", "pyaz": "onion", "aloo": "potato",
+               "dahi": "curd"}
+    words = [aliases.get(word, word) for word in re.findall(r"[\w]+", query.casefold())
              if word not in {"a", "an", "the", "of", "for"}]
-    name = " ".join(str(product.get(field) or "") for field in ("brand", "name", "pack_size")).casefold()
+    name = " ".join(str(product.get(field) or "") for field in
+                    ("brand", "product_name", "name", "pack_size")).casefold()
     return bool(words) and all(word in name for word in words)
 
 
@@ -237,6 +241,7 @@ class SwiggyAgentTools:
                         for v in p.get("variants", []):
                             compact_prods.append({
                                 "name": v.get("name") or p.get("name"),
+                                "product_name": p.get("name"),
                                 "category": p.get("category"),
                                 "brand": p.get("brand"),
                                 "spin_id": v.get("spin_id"),
@@ -300,7 +305,10 @@ class SwiggyAgentTools:
                     continue
                 pack = str(product.get("pack_size") or "")
                 preferred = item["preferred_pack_size"].casefold()
-                if preferred and preferred not in (pack + " " + str(product.get("name") or "")).casefold():
+                if preferred and preferred not in (
+                    pack + " " + str(product.get("name") or "")
+                    + " " + str(product.get("product_name") or "")
+                ).casefold():
                     continue
                 price = product.get("price")
                 if not isinstance(price, (int, float)) or isinstance(price, bool) or not math.isfinite(price) or price < 0:

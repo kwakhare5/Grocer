@@ -1,0 +1,8 @@
+.env*
+.venv/
+.git/
+.next/
+node_modules/
+artifacts/
+graphify-out/
+backend/tests/

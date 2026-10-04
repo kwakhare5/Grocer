@@ -678,6 +678,178 @@ async def test_address_choice_model_outage_then_retry_resumes_original_whatsapp_
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("parallel_calls", ["single", "split", "with_cart"])
+async def test_long_recipe_request_uses_one_product_choice_batch(postgres_pool, monkeypatch, parallel_calls):
+    commerce = MockCommerceAdapter()
+    engine = GroceryAgentEngine(commerce, gemini_api_key="local-test")
+    model_calls = 0
+    invalid_protocol_calls = 0
+
+    def model_boundary(request):
+        nonlocal model_calls, invalid_protocol_calls
+        model_calls += 1
+        payload = json.loads(request.content)
+        if model_calls > 1:
+            awaiting = set()
+            for message in payload["messages"]:
+                if message["role"] == "assistant":
+                    awaiting.update(call["id"] for call in message.get("tool_calls", []))
+                elif message["role"] == "tool":
+                    awaiting.discard(message["tool_call_id"])
+                elif awaiting:
+                    invalid_protocol_calls += 1
+                    return Response(400, json={"error": "Missing tool response before next message"})
+            if awaiting:
+                invalid_protocol_calls += 1
+                return Response(400, json={"error": "Missing tool response"})
+            return Response(200, json={"choices": [{"message": {"tool_calls": [{
+                "id": "call_eggs", "type": "function", "function": {
+                    "name": "quick_add_items", "arguments": json.dumps({"items": [{"query": "eggs"}]}),
+                },
+            }]}}]})
+        offered = {tool["function"]["name"] for tool in payload["tools"]}
+        if "search_products" in offered:
+            call = {"name": "search_products", "arguments": json.dumps({
+                "query": ["pizza base", "pizza sauce", "mozzarella"][min(model_calls - 1, 2)],
+            })}
+        else:
+            call = {"name": "quick_add_items", "arguments": json.dumps({"items": [
+                {"query": "pizza base"}, {"query": "pizza sauce"},
+                {"query": "mozzarella"}, {"query": "bread"},
+                {"query": "Bournvita"}, {"query": "tissues"}, {"query": "pencil"},
+            ]})}
+        calls = [call]
+        if parallel_calls == "split" and call["name"] == "quick_add_items":
+            calls = [
+                {"name": "quick_add_items", "arguments": json.dumps({"items": [
+                    {"query": "pizza base"}, {"query": "pizza sauce"}, {"query": "mozzarella"},
+                ]})},
+                {"name": "quick_add_items", "arguments": json.dumps({"items": [
+                    {"query": "bread"}, {"query": "Bournvita"},
+                    {"query": "tissues"}, {"query": "pencil"},
+                ]})},
+            ]
+        if parallel_calls == "with_cart" and call["name"] == "quick_add_items":
+            calls = [{"name": "get_cart", "arguments": "{}"}, call]
+        return Response(200, json={"choices": [{"message": {"tool_calls": [
+            {"id": f"call_{model_calls}_{index}", "type": "function", "function": function}
+            for index, function in enumerate(calls)
+        ]}}]})
+
+    engine._client = AsyncClient(transport=MockTransport(model_boundary))
+    store = PostgresMessageStore(postgres_pool)
+    app = create_app()
+    app.state.agent_engine = engine
+    app.state.message_store = store
+    monkeypatch.setattr(default_whatsapp_adapter, "_app_secret", "local-e2e-secret")
+    monkeypatch.setattr(default_whatsapp_adapter, "record_only", True)
+    customer_id = default_whatsapp_adapter.map_sender_to_customer_id("919999988888")
+    default_whatsapp_adapter.outbound_messages.clear()
+    body, headers = _webhook(
+        "wamid.long-recipe", "Make pizza ingredients under ₹1,000 and also add bread, Bournvita, tissues and a pencil",
+    )
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://local-test") as client:
+        result = await client.post("/api/whatsapp/webhook", content=body, headers=headers)
+        _, address_reply = await store.response_for_message("wamid.long-recipe")
+        choice = address_reply.interactive_actions[0]
+        if parallel_calls == "with_cart":
+            with commerce.customer_scope(customer_id):
+                await commerce.update_cart(
+                    [CartItemUpdate(spin_id="SPIN-MILK-1L", sku_id="SPIN-MILK-1L", quantity=1)],
+                    address_id="addr-bandra-1",
+                )
+        choice_body, choice_headers = _interactive_webhook(
+            "wamid.long-recipe-address", choice.id, choice.title,
+        )
+        selected = await client.post(
+            "/api/whatsapp/webhook", content=choice_body, headers=choice_headers,
+        )
+    _, reply = await store.response_for_message("wamid.long-recipe-address")
+    assert result.status_code == 200
+    assert selected.status_code == 200
+    assert model_calls == 1
+    assert engine.get_session(customer_id).pending_variant_selection is not None
+    assert "pizza base" in reply.text.casefold()
+    for item in ("pizza sauce", "mozzarella", "bread", "bournvita", "tissues", "pencil"):
+        assert item in reply.text.casefold()
+    if parallel_calls == "with_cart":
+        assert "milk" in reply.text.casefold()
+    assert "maximum processing steps" not in reply.text.casefold()
+    assert len(default_whatsapp_adapter.outbound_messages) == 2
+    cancel_body, cancel_headers = _webhook("wamid.long-recipe-cancel", "cancel")
+    eggs_body, eggs_headers = _webhook("wamid.long-recipe-eggs", "add eggs")
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://local-test") as client:
+        assert (await client.post("/api/whatsapp/webhook", content=cancel_body, headers=cancel_headers)).status_code == 200
+        assert (await client.post("/api/whatsapp/webhook", content=eggs_body, headers=eggs_headers)).status_code == 200
+    _, eggs_reply = await store.response_for_message("wamid.long-recipe-eggs")
+    assert "eggs" in eggs_reply.text.casefold()
+    assert invalid_protocol_calls == 0
+    assert model_calls == 2
+    assert engine.get_session(customer_id).pending_variant_selection is not None
+    await engine.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(os.environ.get("GROCER_REAL_MODEL_E2E") != "1", reason="Opt-in real model call")
+@pytest.mark.parametrize("request_text, required_items", [
+    ("Make pizza ingredients under ₹1,000 and also add bread, Bournvita, tissues and a pencil",
+     ("pizza base", "pizza sauce", "mozzarella", "bread", "bournvita", "tissues", "pencil")),
+    ("I need 2 packets of 500 ml milk and one brown bread, under ₹130. No eggs.",
+     ("milk", "bread")),
+    ("Pasta tonight for two. Please get pasta, sauce and cheese, plus tissues for the house.",
+     ("pasta", "sauce", "cheese", "tissues")),
+])
+async def test_real_model_presents_recipe_and_extras_choices_over_whatsapp_path(
+    postgres_pool, monkeypatch, request_text, required_items,
+):
+    assert settings.GEMINI_API_KEY, "Real model E2E needs a configured Gemini key"
+    commerce = MockCommerceAdapter()
+    engine = GroceryAgentEngine(commerce, gemini_api_key=settings.GEMINI_API_KEY)
+    engine.groq_api_key = None
+    engine.openrouter_api_key = None
+    store = PostgresMessageStore(postgres_pool)
+    app = create_app()
+    app.state.agent_engine = engine
+    app.state.message_store = store
+    monkeypatch.setattr(default_whatsapp_adapter, "_app_secret", "local-e2e-secret")
+    monkeypatch.setattr(default_whatsapp_adapter, "record_only", True)
+    default_whatsapp_adapter.outbound_messages.clear()
+    body, headers = _webhook("wamid.real-recipe", request_text)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://local-test") as client:
+        assert (await client.post("/api/whatsapp/webhook", content=body, headers=headers)).status_code == 200
+        _, address_reply = await store.response_for_message("wamid.real-recipe")
+        choice = address_reply.interactive_actions[0]
+        choice_body, choice_headers = _interactive_webhook(
+            "wamid.real-recipe-address", choice.id, choice.title,
+        )
+        assert (await client.post("/api/whatsapp/webhook", content=choice_body, headers=choice_headers)).status_code == 200
+    _, reply = await store.response_for_message("wamid.real-recipe-address")
+    customer_id = default_whatsapp_adapter.map_sender_to_customer_id("919999988888")
+    tool_calls = [part["functionCall"] for entry in engine.get_history(customer_id)
+                  for part in entry.get("parts", []) if "functionCall" in part]
+    assert reply.conversation_state == "NEEDS_DECISION", (
+        reply.text, [(call.get("name"), len(call.get("args", {}).get("items", []))) for call in tool_calls]
+    )
+    for item in required_items:
+        assert item in reply.text.casefold(), (item, reply.text)
+    proposal = engine.get_session(customer_id).pending_variant_selection
+    assert proposal is not None
+    accounted = [str(group["query"]).casefold() for group in proposal["groups"]]
+    accounted += [str(item).casefold() for item in proposal.get("unavailable_items", [])]
+    accounted += [str(item).casefold() for item in proposal.get("restricted_items", [])]
+    for item in required_items:
+        assert any(item in query for query in accounted), (item, accounted)
+    if "500 ml milk" in request_text:
+        milk_groups = [group for group in proposal["groups"] if "milk" in group["query"].casefold()]
+        assert len(milk_groups) == 1 and milk_groups[0]["quantity"] == 2
+        assert all("500" in option["pack_size"] for option in milk_groups[0]["options"])
+        assert not any("egg" in query for query in accounted)
+    assert "nothing has been added" in reply.text.casefold(), reply.text
+    assert len(default_whatsapp_adapter.outbound_messages) == 2
+    await engine.close()
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize("request_text", [
     "Make pizza ingredients under ₹1,000 and also add bread, Bournvita, tissues and a pencil",
     "I want to make pizza. Keep the ingredients under ₹1,000, and add bread, Bournvita, tissues, and a pencil.",

@@ -40,43 +40,6 @@ RAW_TOOL_DECLARATIONS = [
         },
     },
     {
-        "name": "search_products",
-        "description": "Search products in the live Swiggy Instamart store catalogue for the selected delivery address. Returns in-stock variants, pack sizes, formatted prices, spin_id, and sku_id.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "query": {
-                    "type": "string",
-                    "description": "Item name to search for (e.g. 'dairy milk', 'eggs', 'bread', 'amul milk').",
-                },
-                "address_id": {
-                    "type": "string",
-                    "description": "The user's Swiggy delivery address ID.",
-                },
-            },
-            "required": ["query", "address_id"],
-        },
-    },
-    {
-        "name": "batch_search_products",
-        "description": "Search multiple grocery items concurrently in the Swiggy Instamart catalogue (e.g. for recipes, multi-item shopping lists, or bundles). Always prefer this over repeated single-item searches.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "queries": {
-                    "type": "array",
-                    "items": {"type": "string"},
-                    "description": "List of search queries (e.g. ['pizza base', 'mozzarella cheese', 'pizza sauce']).",
-                },
-                "address_id": {
-                    "type": "string",
-                    "description": "The user's Swiggy delivery address ID.",
-                },
-            },
-            "required": ["queries", "address_id"],
-        },
-    },
-    {
         "name": "quick_add_items",
         "description": "Search for grocery items and prepare exact product, pack-size and price choices for the customer. Does not change the basket; the customer must choose one listed variant per item first.",
         "parameters": {

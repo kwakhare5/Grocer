@@ -1035,21 +1035,35 @@ class GroceryAgentEngine:
                 })
                 break
 
+            include_cart_in_choices = False
+            if len(function_calls) > 1 and any(
+                call.get("name") == "quick_add_items" for call in function_calls
+            ):
+                if all(call.get("name") in {"quick_add_items", "get_cart"} for call in function_calls):
+                    include_cart_in_choices = any(call.get("name") == "get_cart" for call in function_calls)
+                    batches = [call["args"].get("items") if isinstance(call.get("args"), dict) else None
+                               for call in function_calls if call.get("name") == "quick_add_items"]
+                    if all(isinstance(batch, list) for batch in batches):
+                        merged = [item for batch in batches for item in batch]
+                        if 1 <= len(merged) <= 10:
+                            first_add = next(call for call in function_calls if call.get("name") == "quick_add_items")
+                            function_calls = [{**first_add, "args": {"items": merged}}]
+                            parts = [part for part in parts if "functionCall" not in part]
+                            parts.append({"functionCall": function_calls[0]})
+                if len(function_calls) > 1:
+                    session.pending_request_text = session.pending_request_text or incoming_text
+                    return NormalizedOutgoingResponse(
+                        recipient_id=message.sender_id, channel=message.channel,
+                        text="I couldn't safely check all those products together. I kept your request. Please tell me which items to check first; no items were added.",
+                        conversation_state="NEEDS_DECISION",
+                    )
+
             # Append model's thought / function calls to history
             history.append({
                 "role": "model",
                 "parts": parts,
                 "recorded_at": time.time(),
             })
-
-            if len(function_calls) > 1 and any(
-                call.get("name") == "quick_add_items" for call in function_calls
-            ):
-                return NormalizedOutgoingResponse(
-                    recipient_id=message.sender_id, channel=message.channel,
-                    text="I need to check those product choices together. Please reply *try again*. No items were added.",
-                    conversation_state="RECOVERING",
-                )
 
             # Execute function calls concurrently and collect responses
             async def _execute_single_call(call: dict[str, Any]) -> tuple[dict[str, Any], bool, bool, dict[str, Any] | None]:
@@ -1104,6 +1118,11 @@ class GroceryAgentEngine:
 
             executed_calls = await execute_tool_calls(function_calls, _execute_single_call)
             tool_responses = [ec[0] for ec in executed_calls]
+            history.append({
+                "role": "user",
+                "parts": tool_responses,
+                "recorded_at": time.time(),
+            })
             auth_failed = any(ec[1] for ec in executed_calls)
             limited_results = [
                 ec[0].get("functionResponse", {}).get("response", {}).get("content", {})
@@ -1140,7 +1159,9 @@ class GroceryAgentEngine:
                         "cart_state": self._cart_proposal_state(current_cart),
                     }
                     session.pending_variant_selection = proposal
-                    return self._variant_choice_response(message, proposal)
+                    prefix = (format_cart_receipt(current_cart, addr_lbl or "Home", allow_checkout_prompt=False)
+                              if include_cart_in_choices and current_cart else "")
+                    return self._variant_choice_response(message, proposal, prefix)
                 if not suggestion_only and result.get("success") and not result.get("groups"):
                     missing = result.get("unavailable_items", []) + result.get("restricted_items", [])
                     session.pending_request_text = None
@@ -1199,12 +1220,6 @@ class GroceryAgentEngine:
             if auth_failed:
                 return await self._auth_expired_response(message)
 
-            # Send tool responses back to model in the next turn
-            history.append({
-                "role": "user",
-                "parts": tool_responses,
-                "recorded_at": time.time(),
-            })
             if step_idx == max_iterations:
                 step_limit_reached = True
 

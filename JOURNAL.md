@@ -17,6 +17,13 @@ During the Session End ritual (called automatically whenever significant changes
 
 ### [GROCER — Mumbai database recovery] 2026-10-04
 
+#### Work Card: Keep long shopping requests and model history intact
+
+- **Problem**: A pizza-plus-extras request used three serial searches and hit the agent step limit; parallel choice calls and a later user turn could also trigger a retry or model HTTP 400.
+- **Change**: Removed duplicate model-facing search tools, merged safe parallel product-choice calls, included the existing basket when requested, and recorded tool responses before returning a choice prompt.
+- **Proof**: Signed-webhook/PostgreSQL/agent/recorded-Meta E2E: 40 passed, 3 opt-in skipped, exit 0; three opt-in real-Gemini journeys passed, exit 0; lint and Python compile passed. No Swiggy calls or cart writes were made in this slice.
+- **Still broken**: The live Render deployment has not received this branch; lists over ten items, deterministic checking of separately named extras, verified payable-budget wording, real cart writes, and Swiggy's cross-border data gate remain unresolved.
+
 #### Work Card: Keep Render and return to core reliability
 
 - **Problem / tension**: The proposed region migration was consuming time while the real shopping and AI failures remain unresolved. Render has no India region; Swiggy still requires a DPA and safeguards for MCP data processed outside India before production.

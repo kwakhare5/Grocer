@@ -311,10 +311,9 @@ class SwiggyAgentTools:
                                 "name": str(product.get("name") or item["query"]),
                                 "pack_size": pack, "price": float(price),
                                 "max_quantity": product.get("max_quantity")})
-            if len(options) > 6:
-                return {"success": False, "error": "NARROW_PRODUCT_QUERY", "query": item["query"]}
             if options:
-                groups.append({"query": item["query"], "quantity": item["quantity"], "options": options})
+                groups.append({"query": item["query"], "quantity": item["quantity"],
+                               "options": options[:6], "more_available": len(options) > 6})
             elif item["query"] not in restricted:
                 unavailable.append(item["query"])
         return {"success": True, "needs_variant_choice": bool(groups), "groups": groups,
@@ -504,7 +503,10 @@ class SwiggyAgentTools:
                     "cart_id": existing_cart.cart_id,
                     "address_id": existing_cart.address_id,
                     "grand_total": existing_cart.grand_total,
-                    "items": sorted([ci.spin_id, ci.sku_id, ci.quantity] for ci in existing_cart.items),
+                    "items": sorted(
+                        ([ci.spin_id, ci.sku_id, ci.quantity] for ci in existing_cart.items),
+                        key=lambda entry: entry[0],
+                    ),
                 } != expected_cart_state:
                     return {"success": False, "error": "CART_CHANGED", "retryable": False,
                             "message": "Your Swiggy basket changed. Please review it before adding these items."}
@@ -543,7 +545,12 @@ class SwiggyAgentTools:
                 items=cart_updates, address_id=address_id
             )
             # Swiggy's cart response is not a substitute for a fresh provider read-back.
-            verified = await self.commerce.get_cart(updated.cart_id)
+            try:
+                verified = await self.commerce.get_cart(updated.cart_id)
+            except Exception as exc:
+                logger.warning("Cart read-back failed after provider write: %s", exc)
+                return {"success": False, "error": "CART_WRITE_UNVERIFIED", "retryable": False,
+                        "message": "Swiggy may have changed your basket, but I couldn't verify it. Please show your basket before trying again."}
             if ingredient_budget_inr is not None and sum(
                 Decimal(str(item.total_price)) for item in verified.items
                 if item.spin_id in (ingredient_spin_ids or [])

@@ -4,11 +4,11 @@ This is the current plan for the product goal in `GROCER_V2_MASTER_SPEC.md`: an 
 
 ## Evidence and limits
 
-- Render is live at `9dd3cf1` in review checkout mode. After the database cutover on 2026-10-04, `/api/ready` returned HTTP 200 with no missing dependencies. This proves service readiness and a database ping, not shopping accuracy.
+- Render is live at `2eb23aa` in review checkout mode. After the database cutover on 2026-10-04, `/api/ready` returned HTTP 200 with no missing dependencies. This proves service readiness and a database ping, not shopping accuracy.
 - The old Singapore Supabase project was deleted by the customer before its data could be migrated. Supabase says deleted projects and their backups cannot be recovered. The new Mumbai project `rxaqlqvhdoiduadikjeb` was empty; all ten existing schema scripts applied, producing nine `grocer_internal` tables. Render's `DATABASE_URL` now points to its Mumbai session pooler. No independent backup was found in the workspace; customer chat state, OAuth tokens, and replenishment history require a separate dump to restore.
-- The last saved signed-webhook → PostgreSQL → agent → outbox → recorded-Meta report has 29 passed, 0 failed, 0 skipped, exit 0. The model, commerce, and Meta boundaries are simulated. This is workflow regression proof, not an AI accuracy, load, delivery, or full real-provider result.
+- The current branch's signed-webhook → PostgreSQL → agent → outbox → recorded-Meta report has 36 passed, 0 failed, 0 skipped, exit 0. The model, commerce, and Meta boundaries are simulated. This is workflow regression proof, not an AI accuracy, load, delivery, or full real-provider result.
 - Six paced, read-only real MCP calls at Charholi succeeded before the database cutover: addresses, empty cart, and four searches. After the customer reconnected, GROCER made three more real read-only calls: `get_cart` returned an empty basket, `get_addresses` returned three addresses, and an agent-level “show my basket” turn returned the correct empty-basket state. No real cart write, complete real-model shopping journey, payment, or order was verified.
-- Current code truncates product options and silently picks a first variant (`backend/agent/tools.py`), performs one cart update per item under budgets, and can pass Swiggy-originated cart/address/tool data to external model providers (`backend/agent/engine.py`, `backend/agent/prompts.py`). Replenishment is not proactively delivered. Meta HTTP acceptance is labeled sent without delivery-status reconciliation.
+- Production still silently picks a first variant and can pass Swiggy-originated cart/address/tool data to external model providers. The branch now asks for exact SKU choices, makes one whole-cart write, and verifies read-back; its real Swiggy milk search returned six choices. Render's service API reports Singapore, which requires the DPA and transfer safeguards described in Swiggy's data rules before MCP responses are processed there. Replenishment is not proactively delivered. Meta HTTP acceptance is labeled sent without delivery-status reconciliation.
 
 ## Choices recorded 2026-10-04
 
@@ -23,9 +23,9 @@ This is the current plan for the product goal in `GROCER_V2_MASTER_SPEC.md`: an 
 
 ## Current infrastructure boundary
 
-The current stack is Vercel, Render, and Supabase Mumbai. Keep the Swiggy allowlisted redirect at `https://grocerr.vercel.app/`. The deleted Supabase project cannot serve as a rollback target. Take an independent database dump after new customer state is created. Free hosting does not guarantee continuous availability. Region and data transfer compliance remain an explicit production check, without changing the agreed hosts.
+The current stack is Vercel, Render Singapore, and Supabase Mumbai. Keep the Swiggy allowlisted redirect at `https://grocerr.vercel.app/`. The deleted Supabase project cannot serve as a rollback target. Take an independent database dump after new customer state is created. Free hosting does not guarantee continuous availability. Render currently offers no India region, so the existing backend cannot satisfy Swiggy's outside-India processing rule without the specified agreement and safeguards. The new shopping path stays off main/Render until resolved.
 
-Sources: [Supabase project deletion](https://supabase.com/docs/guides/platform/delete-project), [Supabase regions](https://supabase.com/docs/guides/platform/regions), [Render regions](https://render.com/docs/regions).
+Sources: [Supabase project deletion](https://supabase.com/docs/guides/platform/delete-project), [Supabase regions](https://supabase.com/docs/guides/platform/regions), [Render regions](https://render.com/docs/regions), [Swiggy data and compliance](https://mcp.swiggy.com/builders/docs/operate/data-and-compliance/).
 
 ## Success definition
 

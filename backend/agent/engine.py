@@ -229,7 +229,10 @@ class GroceryAgentEngine:
         return {
             "cart_id": cart.cart_id, "address_id": cart.address_id,
             "grand_total": cart.grand_total,
-            "items": sorted([item.spin_id, item.sku_id, item.quantity] for item in cart.items),
+            "items": sorted(
+                ([item.spin_id, item.sku_id, item.quantity] for item in cart.items),
+                key=lambda entry: entry[0],
+            ),
         }
 
     def _variant_choice_response(
@@ -243,6 +246,8 @@ class GroceryAgentEngine:
                 lines.append(
                     f"{option['code']} — {option['name']} ({option['pack_size']}) — ₹{option['price']:g}"
                 )
+            if group.get("more_available"):
+                lines.append("More versions are available. Tell me a brand or pack size if none of these fit.")
         if proposal.get("unavailable_items"):
             lines.append("\nUnavailable: " + ", ".join(proposal["unavailable_items"]))
         if proposal.get("restricted_items"):
@@ -310,10 +315,14 @@ class GroceryAgentEngine:
                 text="I couldn't recheck those products. Your basket was not changed. Please send the same choice codes again later.",
                 conversation_state="RECOVERING",
             )
-        fresh_by_query = {group["query"]: group for group in fresh["groups"]}
+        fresh_by_query: dict[str, list[dict[str, Any]]] = {}
+        for group in fresh["groups"]:
+            fresh_by_query.setdefault(group["query"], []).append(group)
         for item in selected:
             option = item["option"]
-            live = next((candidate for candidate in fresh_by_query.get(item["query"], {}).get("options", [])
+            matching_groups = fresh_by_query.get(item["query"], [])
+            matching_group = matching_groups.pop(0) if matching_groups else {}
+            live = next((candidate for candidate in matching_group.get("options", [])
                          if candidate["spin_id"] == option["spin_id"]
                          and candidate["sku_id"] == option["sku_id"]), None)
             if live is None or live["price"] != option["price"]:
@@ -350,6 +359,9 @@ class GroceryAgentEngine:
                 conversation_state="RECOVERING",
             )
         if not result.get("success"):
+            if result.get("error") in {"CART_WRITE_UNVERIFIED", "BUDGET_ROLLBACK_UNVERIFIED"}:
+                session.external_cart_pending = True
+                session.pending_approval = None
             if result.get("error") not in {"CART_UNAVAILABLE", "SEARCH_UNAVAILABLE"}:
                 session.pending_variant_selection = None
             return NormalizedOutgoingResponse(
@@ -701,7 +713,35 @@ class GroceryAgentEngine:
             )
 
         if session.pending_variant_selection:
-            return await self._handle_variant_choice(message, customer_id, current_cart)
+            ordinal = re.fullmatch(
+                r"(?:the\s+)?(first|second|third|fourth|fifth|sixth|[1-6](?:st|nd|rd|th))"
+                r"(?:\s+(?:one|option))?",
+                norm_text,
+            )
+            if ordinal:
+                groups = session.pending_variant_selection["groups"]
+                if len(groups) != 1:
+                    return self._variant_choice_response(
+                        message, session.pending_variant_selection,
+                        "Please name a listed code for each item.",
+                    )
+                choice_number = {
+                    "first": 1, "second": 2, "third": 3, "fourth": 4,
+                    "fifth": 5, "sixth": 6,
+                }.get(ordinal.group(1), int(ordinal.group(1)[0]) if ordinal.group(1)[0].isdigit() else 0)
+                options = groups[0]["options"]
+                if choice_number <= len(options):
+                    chosen = message.model_copy(update={"text": options[choice_number - 1]["code"]})
+                    return await self._handle_variant_choice(chosen, customer_id, current_cart)
+                return self._variant_choice_response(
+                    message, session.pending_variant_selection,
+                    "That option is not listed. Please choose one of these codes.",
+                )
+            if (re.search(r"\b\d{1,2}[A-F]\b", incoming_text.upper())
+                    or norm_text in {"cancel", "never mind", "start over", "try again", "retry"}):
+                return await self._handle_variant_choice(message, customer_id, current_cart)
+            session.pending_variant_selection = None
+            session.pending_request_text = incoming_text
 
         if message.interactive_id and message.interactive_id.startswith("payment_choice:"):
             selected_id = message.interactive_id.removeprefix("payment_choice:")
@@ -1101,10 +1141,13 @@ class GroceryAgentEngine:
                     }
                     session.pending_variant_selection = proposal
                     return self._variant_choice_response(message, proposal)
-                if result.get("error") == "NARROW_PRODUCT_QUERY":
+                if not suggestion_only and result.get("success") and not result.get("groups"):
+                    missing = result.get("unavailable_items", []) + result.get("restricted_items", [])
+                    session.pending_request_text = None
                     return NormalizedOutgoingResponse(
                         recipient_id=message.sender_id, channel=message.channel,
-                        text=f"I found too many versions of {result.get('query', 'that item')}. Please name a brand or pack size.",
+                        text="I couldn't find eligible products for: " + ", ".join(missing)
+                             + ". Nothing was added. Tell me what to try instead.",
                         conversation_state="NEEDS_DECISION",
                     )
             for ec in executed_calls:
@@ -1616,6 +1659,11 @@ class GroceryAgentEngine:
             except Exception:
                 return {"success": False, "error": "CART_UNAVAILABLE"}
             existing_by_spin = {item.spin_id: item for item in existing.items}
+            if not isinstance(proposed, list) or any(
+                not isinstance(item, dict) or type(item.get("quantity")) is not int
+                for item in proposed
+            ):
+                return {"success": False, "error": "INVALID_CART_PROPOSAL"}
             if isinstance(proposed, list) and any(
                 isinstance(item, dict) and item.get("quantity", 0) > 0
                 and (item.get("spin_id") not in existing_by_spin

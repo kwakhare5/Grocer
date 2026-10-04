@@ -17,6 +17,14 @@ During the Session End ritual (called automatically whenever significant changes
 
 ### [GROCER — Mumbai database recovery] 2026-10-04
 
+#### Work Card: Exact product choice and live catalogue verification
+
+- **Problem / tension**: GROCER silently chose the first search variant; broad real queries such as “milk” could then dead-end when more than six variants existed. A model could bypass the proposed choice by calling `update_cart` directly, and a provider write with failed read-back could be mistaken for success.
+- **Change / decision**: Require a customer-selected SKU before a new cart item, show six exact choices with a refinement path for broader searches, recheck price and basket state, make one whole-cart write, and mark uncertain writes for reconciliation. Let a customer revise a request while choices are pending. Saved the implementation on `codex/full-whatsapp-recovery`; production remains on `2eb23aa`.
+- **Proof**: Signed WhatsApp webhook → isolated PostgreSQL → agent → recorded Meta E2E passed 36 cases with exit code 0 after the new human-correction case; `npm run lint`, `npm run build`, Python compilation, and `git diff --check` exited 0 before the final Python-only changes. A bounded read-only real Swiggy search at Charholi first reproduced `NARROW_PRODUCT_QUERY`, then returned six exact choices and a more-available marker after the fix. No real cart write or order occurred.
+- **Still broken / unproven**: Render's service API reports `singapore`; Swiggy's published data rule requires a signed DPA and transfer safeguards for MCP responses processed outside India. No such agreement is evidenced here. Main/Render deployment of this new shopping path remains held. Human-quality accuracy, real cart mutation, payment, proactive WhatsApp reminders, and real WhatsApp delivery remain unproven.
+- **Metric context**: 36 local full-path E2E cases; four additional real MCP read-only calls in this work card (two address reads and two milk searches), no write, no order. These cases are not a 10/10 quality score.
+
 #### Work Card: Restore service after old Supabase deletion
 
 - **Problem / tension**: The previous Singapore Supabase project was deleted before GROCER state could be migrated. Render still pointed to that database, while the new Mumbai project had no GROCER tables.

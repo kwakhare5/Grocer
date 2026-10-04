@@ -5,6 +5,7 @@ import hashlib
 import hmac
 import json
 import os
+import copy
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
 
@@ -204,6 +205,13 @@ async def test_customer_selects_exact_variants_before_one_cart_write_after_resta
             return await super().update_cart(items, cart_id=cart_id, address_id=address_id)
 
     commerce = CountingCommerce()
+    milk = next(product for product in commerce._products if product.product_id == "prod-milk")
+    for index in range(6):
+        extra = copy.deepcopy(milk.variants[0])
+        extra.spin_id = f"SPIN-MILK-EXTRA-{index}"
+        extra.sku_id = extra.spin_id
+        extra.name = f"Amul Taaza Milk pack option {index}"
+        milk.variants.append(extra)
     state_store = PostgresTaskStateStore(postgres_pool, Fernet.generate_key().decode())
     engine = GroceryAgentEngine(commerce, gemini_api_key="local-test", state_store=state_store)
     model_calls = 0
@@ -238,9 +246,19 @@ async def test_customer_selects_exact_variants_before_one_cart_write_after_resta
 
     _, variant_reply = await store.response_for_message("wamid.variant-address")
     assert variant_reply.conversation_state == "NEEDS_DECISION"
-    assert "1A" in variant_reply.text and "1B" in variant_reply.text and "2A" in variant_reply.text
+    assert "1A" in variant_reply.text and "1B" in variant_reply.text and "1F" in variant_reply.text
+    assert "2A" in variant_reply.text and "more" in variant_reply.text.casefold()
     assert "500 ml" in variant_reply.text and "1 L" in variant_reply.text
     assert commerce.cart_writes == 0
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://local-test") as client:
+        for index, bad_choice in enumerate(("1A 1A 2A", "1Z 2A", "1B"), 1):
+            bad_body, bad_headers = _webhook(f"wamid.variant-bad-{index}", bad_choice)
+            assert (await client.post("/api/whatsapp/webhook", content=bad_body, headers=bad_headers)).status_code == 200
+            _, bad_reply = await store.response_for_message(f"wamid.variant-bad-{index}")
+            assert bad_reply.conversation_state == "NEEDS_DECISION"
+            assert "1A" in bad_reply.text and "2A" in bad_reply.text
+            assert commerce.cart_writes == 0
 
     restarted = GroceryAgentEngine(commerce, gemini_api_key="local-test", state_store=state_store)
 
@@ -261,6 +279,166 @@ async def test_customer_selects_exact_variants_before_one_cart_write_after_resta
     }
     assert commerce.cart_writes == 1
     assert "500" in final_reply.text and "bread" in final_reply.text.casefold()
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://local-test") as client:
+        assert (await client.post("/api/whatsapp/webhook", content=body, headers=headers)).status_code == 200
+    assert commerce.cart_writes == 1
+
+
+@pytest.mark.asyncio
+async def test_cart_write_with_failed_readback_never_claims_success_or_retries(postgres_pool, monkeypatch):
+    class UncertainCommerce(MockCommerceAdapter):
+        def __init__(self):
+            super().__init__()
+            self.cart_writes = 0
+            self.fail_next_read = False
+
+        async def update_cart(self, items, cart_id=None, address_id=None):
+            self.cart_writes += 1
+            result = await super().update_cart(items, cart_id=cart_id, address_id=address_id)
+            self.fail_next_read = True
+            return result
+
+        async def get_cart(self, cart_id=None):
+            if self.fail_next_read:
+                self.fail_next_read = False
+                raise RuntimeError("readback unavailable")
+            return await super().get_cart(cart_id)
+
+    commerce = UncertainCommerce()
+    engine = GroceryAgentEngine(commerce, gemini_api_key="local-test")
+
+    async def model_reply(_history, **_kwargs):
+        return {"candidates": [{"content": {"parts": [{"functionCall": {
+            "name": "quick_add_items", "args": {"items": [{"query": "milk"}]},
+        }}]}}]}
+
+    engine._call_llm = model_reply
+    store = PostgresMessageStore(postgres_pool)
+    app = create_app()
+    app.state.agent_engine = engine
+    app.state.message_store = store
+    monkeypatch.setattr(default_whatsapp_adapter, "_app_secret", "local-e2e-secret")
+    monkeypatch.setattr(default_whatsapp_adapter, "record_only", True)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://local-test") as client:
+        body, headers = _webhook("wamid.uncertain-start", "Add milk")
+        assert (await client.post("/api/whatsapp/webhook", content=body, headers=headers)).status_code == 200
+        _, address_reply = await store.response_for_message("wamid.uncertain-start")
+        choice = address_reply.interactive_actions[0]
+        body, headers = _interactive_webhook("wamid.uncertain-address", choice.id, choice.title)
+        assert (await client.post("/api/whatsapp/webhook", content=body, headers=headers)).status_code == 200
+        body, headers = _webhook("wamid.uncertain-choice", "1A")
+        assert (await client.post("/api/whatsapp/webhook", content=body, headers=headers)).status_code == 200
+    _, reply = await store.response_for_message("wamid.uncertain-choice")
+    assert commerce.cart_writes == 1
+    assert "couldn't verify" in reply.text.casefold()
+    assert reply.conversation_state != "AWAITING_CHECKOUT_CONFIRMATION"
+    customer_id = default_whatsapp_adapter.map_sender_to_customer_id("919999988888")
+    assert engine.get_session(customer_id).external_cart_pending
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("interference", ["price_change", "external_cart_change"])
+async def test_changed_live_state_requires_fresh_review_before_selected_cart_write(
+    postgres_pool, monkeypatch, interference,
+):
+    class CountingCommerce(MockCommerceAdapter):
+        def __init__(self):
+            super().__init__()
+            self.cart_writes = 0
+
+        async def update_cart(self, items, cart_id=None, address_id=None):
+            self.cart_writes += 1
+            return await super().update_cart(items, cart_id=cart_id, address_id=address_id)
+
+    commerce = CountingCommerce()
+    engine = GroceryAgentEngine(commerce, gemini_api_key="local-test")
+
+    async def model_reply(_history, **_kwargs):
+        return {"candidates": [{"content": {"parts": [{"functionCall": {
+            "name": "quick_add_items", "args": {"items": [{"query": "milk"}]},
+        }}]}}]}
+
+    engine._call_llm = model_reply
+    store = PostgresMessageStore(postgres_pool)
+    app = create_app()
+    app.state.agent_engine = engine
+    app.state.message_store = store
+    monkeypatch.setattr(default_whatsapp_adapter, "_app_secret", "local-e2e-secret")
+    monkeypatch.setattr(default_whatsapp_adapter, "record_only", True)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://local-test") as client:
+        body, headers = _webhook("wamid.changed-start", "Add milk")
+        assert (await client.post("/api/whatsapp/webhook", content=body, headers=headers)).status_code == 200
+        _, address_reply = await store.response_for_message("wamid.changed-start")
+        choice = address_reply.interactive_actions[0]
+        body, headers = _interactive_webhook("wamid.changed-address", choice.id, choice.title)
+        assert (await client.post("/api/whatsapp/webhook", content=body, headers=headers)).status_code == 200
+        if interference == "price_change":
+            commerce.inject_price_change("SPIN-MILK-1L", 99)
+        else:
+            customer_id = default_whatsapp_adapter.map_sender_to_customer_id("919999988888")
+            with commerce.customer_scope(customer_id):
+                await commerce.update_cart(
+                    [CartItemUpdate(spin_id="SPIN-BREAD-400G", sku_id="SPIN-BREAD-400G", quantity=1)],
+                    address_id="addr-bandra-1",
+                )
+        baseline_writes = commerce.cart_writes
+        body, headers = _webhook("wamid.changed-choice", "1A")
+        assert (await client.post("/api/whatsapp/webhook", content=body, headers=headers)).status_code == 200
+    _, reply = await store.response_for_message("wamid.changed-choice")
+    assert commerce.cart_writes == baseline_writes
+    assert reply.conversation_state != "AWAITING_CHECKOUT_CONFIRMATION"
+    if interference == "price_change":
+        assert "price" in reply.text.casefold()
+        assert "99" in reply.text
+    else:
+        assert "changed" in reply.text.casefold()
+
+
+@pytest.mark.asyncio
+async def test_customer_changes_request_while_product_choices_are_pending(postgres_pool, monkeypatch):
+    commerce = MockCommerceAdapter()
+    engine = GroceryAgentEngine(commerce, gemini_api_key="local-test")
+    model_calls = 0
+
+    async def model_reply(_history, **_kwargs):
+        nonlocal model_calls
+        model_calls += 1
+        queries = ["milk", "bread"] if model_calls == 1 else ["bread"]
+        return {"candidates": [{"content": {"parts": [{"functionCall": {
+            "name": "quick_add_items", "args": {"items": [{"query": query} for query in queries]},
+        }}]}}]}
+
+    engine._call_llm = model_reply
+    store = PostgresMessageStore(postgres_pool)
+    app = create_app()
+    app.state.agent_engine = engine
+    app.state.message_store = store
+    monkeypatch.setattr(default_whatsapp_adapter, "_app_secret", "local-e2e-secret")
+    monkeypatch.setattr(default_whatsapp_adapter, "record_only", True)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://local-test") as client:
+        body, headers = _webhook("wamid.revise-start", "Add milk and bread")
+        assert (await client.post("/api/whatsapp/webhook", content=body, headers=headers)).status_code == 200
+        _, address_reply = await store.response_for_message("wamid.revise-start")
+        choice = address_reply.interactive_actions[0]
+        body, headers = _interactive_webhook("wamid.revise-address", choice.id, choice.title)
+        assert (await client.post("/api/whatsapp/webhook", content=body, headers=headers)).status_code == 200
+        body, headers = _webhook("wamid.revise-request", "Actually, just bread")
+        assert (await client.post("/api/whatsapp/webhook", content=body, headers=headers)).status_code == 200
+    _, reply = await store.response_for_message("wamid.revise-request")
+    assert model_calls == 2
+    assert "bread" in reply.text.casefold()
+    assert "milk" not in reply.text.casefold()
+    customer_id = default_whatsapp_adapter.map_sender_to_customer_id("919999988888")
+    with commerce.customer_scope(customer_id):
+        assert not (await commerce.get_cart()).items
+    body, headers = _webhook("wamid.revise-ordinal", "the first one")
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://local-test") as client:
+        assert (await client.post("/api/whatsapp/webhook", content=body, headers=headers)).status_code == 200
+    with commerce.customer_scope(customer_id):
+        cart = await commerce.get_cart()
+    assert [item.spin_id for item in cart.items] == ["SPIN-BREAD-400G"]
+    assert model_calls == 2
 
 
 @pytest.mark.asyncio

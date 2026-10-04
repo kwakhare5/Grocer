@@ -1,0 +1,8 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "functions": {
+    "api/region_preview.py": {
+      "regions": ["bom1"]
+    }
+  }
+}

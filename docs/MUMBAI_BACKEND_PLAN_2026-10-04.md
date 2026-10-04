@@ -13,7 +13,9 @@ Move Swiggy token, MCP, agent, WhatsApp queue, and OAuth processing from Render 
 
 ## Tracer steps
 
-1. **Preview feasibility:** Add a health-only FastAPI function in the existing Vercel project, pin it to `bom1`, and verify its runtime region, bundle size, Python dependencies, and Hobby execution limit in a preview deployment. Send no Swiggy credentials or customer data.
+1. **Preview feasibility:** Add a no-data Python region probe in the existing Vercel project, pin it to `bom1`, and verify it on a preview deployment. Then check FastAPI runtime, bundle size, Python dependencies, and Hobby execution limit before moving any backend code. Send no Swiggy credentials or customer data.
+
+   First probe: a standard-library Python function at `/api/region_preview` returns only `VERCEL_REGION`. Check that the branch preview builds, the route exists, the response says `bom1`, the existing Next.js routes still work, and no production deployment changes. A 404, build failure, wrong region, or missing preview URL fails feasibility; do not route customer data to it.
 2. **Durable one-shot worker:** Extract one bounded queue-drain pass from the infinite Render worker. A signed, private worker route processes a limited batch; PostgreSQL claims, deduplication, leases, outbox, and restart recovery stay authoritative. Keep checkout in review mode.
 3. **Wake and recovery:** After durable webhook intake, request an immediate private drain from a Mumbai function. Use Supabase `pg_cron`/`pg_net` to retry stranded work at a short interval and to run due replenishment scans. Verify the extension quota and secure the endpoint before enabling the cron job. Never depend on process-resident `BackgroundTasks` for delivery.
 4. **Route cutover:** Move WhatsApp, OAuth, simulator, and health calls to the Mumbai backend while preserving the public allowlisted URI. Remove Render from the Swiggy data path only after the same signed webhook and OAuth flows pass on a preview URL.

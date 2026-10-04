@@ -17,6 +17,14 @@ During the Session End ritual (called automatically whenever significant changes
 
 ### [GROCER — Mumbai database recovery] 2026-10-04
 
+#### Work Card: Keep Render and return to core reliability
+
+- **Problem / tension**: The proposed region migration was consuming time while the real shopping and AI failures remain unresolved. Render has no India region; Swiggy still requires a DPA and safeguards for MCP data processed outside India before production.
+- **Change / decision**: The customer chose to keep Render and defer backend region work. Removed the experimental Vercel probe files and the empty backend preview project. The existing frontend and Render service were not changed.
+- **Proof**: The protected branch preview did confirm Next.js and one FastAPI route in Mumbai; a nested FastAPI route returned 404. The separate backend project had zero deployments before removal. The active shopping branch still has 37 passing signed-webhook/PostgreSQL E2E cases from the previous checkpoint.
+- **Still broken / unproven**: Pizza step-limit, unverified payable-budget language, human-quality accuracy, real cart mutation, and live delivery need further work. Render Singapore and external model processing remain production compliance gates.
+- **Metric context**: No live Swiggy calls, cart writes, orders, or production routing changes during the region preview.
+
 #### Work Card: Real-model probe, grounded Hinglish matching, and Mumbai plan
 
 - **Problem / tension**: In a six-case signed-webhook probe using the configured real model and synthetic commerce, GROCER failed a Hinglish milk/bread request, hit its step limit on a pizza request, and described item prices under a ₹130 budget without verifying payable fees. This is not 10/10 human handling.

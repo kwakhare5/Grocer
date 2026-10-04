@@ -2,7 +2,7 @@
 
 > **Current proposed plan (2026-10-04):** [`docs/GROCER_RECOVERY_PLAN_2026-10-04.md`](docs/GROCER_RECOVERY_PLAN_2026-10-04.md). It supersedes conflicting assumptions below. The sections below are historical implementation context; their claims and open decisions are not current release proof.
 
-> **Mumbai backend feasibility proposal:** [`docs/MUMBAI_BACKEND_PLAN_2026-10-04.md`](docs/MUMBAI_BACKEND_PLAN_2026-10-04.md). Preview work awaits approval before a major architecture change.
+> **Region evaluation (deferred):** [`docs/MUMBAI_BACKEND_PLAN_2026-10-04.md`](docs/MUMBAI_BACKEND_PLAN_2026-10-04.md). The current work stays on the Render backend and returns to core reliability.
 
 ## 2026-10-03 core-system correction plan — awaiting review
 

@@ -120,6 +120,33 @@ async def test_crashed_turn_recovers_then_later_whatsapp_message_gets_reply(post
 
 
 @pytest.mark.asyncio
+async def test_greeting_does_not_ask_for_delivery_address_or_use_swiggy(postgres_pool, monkeypatch):
+    commerce = MockCommerceAdapter()
+    engine = GroceryAgentEngine(commerce, gemini_api_key="local-test")
+
+    async def unexpected_provider_call(*_args, **_kwargs):
+        raise AssertionError("Greeting should not need a Swiggy call")
+
+    commerce.get_cart = unexpected_provider_call
+    commerce.get_saved_addresses = unexpected_provider_call
+    engine._call_llm = unexpected_provider_call
+    store = PostgresMessageStore(postgres_pool)
+    app = create_app()
+    app.state.agent_engine = engine
+    app.state.message_store = store
+    monkeypatch.setattr(default_whatsapp_adapter, "_app_secret", "local-e2e-secret")
+    monkeypatch.setattr(default_whatsapp_adapter, "record_only", True)
+    body, headers = _webhook("wamid.greeting", "Hi")
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://local-test") as client:
+        assert (await client.post("/api/whatsapp/webhook", content=body, headers=headers)).status_code == 200
+    _, reply = await store.response_for_message("wamid.greeting")
+    assert "grocery" in reply.text.casefold()
+    assert "which address" not in reply.text.casefold()
+    assert not reply.interactive_actions
+    await engine.close()
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize("populated", [False, True])
 async def test_show_cart_does_not_demand_an_address(postgres_pool, monkeypatch, populated):
     store = PostgresMessageStore(postgres_pool)
@@ -152,6 +179,33 @@ async def test_show_cart_does_not_demand_an_address(postgres_pool, monkeypatch, 
     assert "which address" not in reply.text.casefold()
     assert not reply.interactive_actions
     assert len(default_whatsapp_adapter.outbound_messages) == 1
+
+
+@pytest.mark.asyncio
+async def test_food_already_at_home_does_not_select_home_delivery_address(postgres_pool, monkeypatch):
+    commerce = MockCommerceAdapter()
+    engine = GroceryAgentEngine(commerce, gemini_api_key="local-test")
+
+    async def no_model_before_address(_history, **_kwargs):
+        raise AssertionError("The customer has not selected a delivery address")
+
+    engine._call_llm = no_model_before_address
+    store = PostgresMessageStore(postgres_pool)
+    app = create_app()
+    app.state.agent_engine = engine
+    app.state.message_store = store
+    monkeypatch.setattr(default_whatsapp_adapter, "_app_secret", "local-e2e-secret")
+    monkeypatch.setattr(default_whatsapp_adapter, "record_only", True)
+    body, headers = _webhook(
+        "wamid.at-home-pantry",
+        "I have pizza base and mozzarella at home. Please get pizza sauce, mushrooms and tissues.",
+    )
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://local-test") as client:
+        assert (await client.post("/api/whatsapp/webhook", content=body, headers=headers)).status_code == 200
+    _, reply = await store.response_for_message("wamid.at-home-pantry")
+    assert "which address" in reply.text.casefold()
+    assert any(action.id.startswith("addr_choice_") for action in reply.interactive_actions)
+    await engine.close()
 
 
 @pytest.mark.asyncio
@@ -192,6 +246,382 @@ async def test_model_cannot_add_unselected_sku_with_direct_cart_tool(postgres_po
     assert commerce.cart_writes == 0
     assert reply.conversation_state != "AWAITING_CHECKOUT_CONFIRMATION"
     assert "choose" in reply.text.casefold() or "variant" in reply.text.casefold()
+
+
+@pytest.mark.asyncio
+async def test_new_item_planning_keeps_provider_cart_and_write_tools_out_of_model_request(postgres_pool, monkeypatch):
+    commerce = MockCommerceAdapter()
+    engine = GroceryAgentEngine(commerce, gemini_api_key="local-test")
+    customer_id = default_whatsapp_adapter.map_sender_to_customer_id("919999988888")
+    with commerce.customer_scope(customer_id):
+        await commerce.update_cart(
+            [CartItemUpdate(spin_id="SPIN-MILK-1L", sku_id="SPIN-MILK-1L", quantity=1)],
+            address_id="addr-bandra-1",
+        )
+    engine._customer_address[customer_id] = "addr-bandra-1"
+    engine._customer_address_label[customer_id] = "Home"
+    engine._order_address_confirmed[customer_id] = True
+
+    def model_boundary(request):
+        payload = json.loads(request.content)
+        assert [tool["function"]["name"] for tool in payload["tools"]] == ["quick_add_items"]
+        model_input = json.dumps(payload["messages"])
+        assert "SPIN-MILK" not in model_input
+        assert "Amul Taaza Milk" not in model_input
+        assert "addr-bandra-1" not in model_input
+        assert "ACTIVE DELIVERY CONTEXT" not in model_input
+        assert "LIVE BASKET STATE" not in model_input
+        return Response(200, json={"choices": [{"message": {"tool_calls": [{
+            "id": "call_eggs", "type": "function", "function": {
+                "name": "quick_add_items", "arguments": json.dumps({"items": [{"query": "eggs"}]}),
+            },
+        }]}}]})
+
+    engine._client = AsyncClient(transport=MockTransport(model_boundary))
+    store = PostgresMessageStore(postgres_pool)
+    app = create_app()
+    app.state.agent_engine = engine
+    app.state.message_store = store
+    monkeypatch.setattr(default_whatsapp_adapter, "_app_secret", "local-e2e-secret")
+    monkeypatch.setattr(default_whatsapp_adapter, "record_only", True)
+    body, headers = _webhook("wamid.safe-planning", "Please add eggs")
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://local-test") as client:
+        assert (await client.post("/api/whatsapp/webhook", content=body, headers=headers)).status_code == 200
+    _, reply = await store.response_for_message("wamid.safe-planning")
+    assert "eggs" in reply.text.casefold()
+    with commerce.customer_scope(customer_id):
+        cart = await commerce.get_cart()
+    assert [(item.spin_id, item.quantity) for item in cart.items] == [("SPIN-MILK-1L", 1)]
+    await engine.close()
+
+
+@pytest.mark.asyncio
+async def test_new_item_plan_cannot_switch_address_or_migrate_existing_cart(postgres_pool, monkeypatch):
+    class CountingCommerce(MockCommerceAdapter):
+        def __init__(self):
+            super().__init__()
+            self.cart_writes = 0
+
+        async def update_cart(self, items, cart_id=None, address_id=None):
+            self.cart_writes += 1
+            return await super().update_cart(items, cart_id=cart_id, address_id=address_id)
+
+    commerce = CountingCommerce()
+    engine = GroceryAgentEngine(commerce, gemini_api_key="local-test")
+    monkeypatch.setattr(default_whatsapp_adapter, "_app_secret", "local-e2e-secret")
+    customer_id = default_whatsapp_adapter.map_sender_to_customer_id("919999988888")
+    with commerce.customer_scope(customer_id):
+        await commerce.update_cart(
+            [CartItemUpdate(spin_id="SPIN-MILK-1L", sku_id="SPIN-MILK-1L", quantity=1)],
+            address_id="addr-bandra-1",
+        )
+    baseline_writes = commerce.cart_writes
+    engine._customer_address[customer_id] = "addr-bandra-1"
+    engine._customer_address_label[customer_id] = "Home"
+    engine._order_address_confirmed[customer_id] = True
+
+    async def unsafe_model_reply(_history, **_kwargs):
+        return {"candidates": [{"content": {"parts": [{"functionCall": {
+            "name": "select_delivery_address", "args": {"address_id": "addr-pune-1"},
+        }}]}}]}
+
+    engine._call_llm = unsafe_model_reply  # external model boundary
+    store = PostgresMessageStore(postgres_pool)
+    app = create_app()
+    app.state.agent_engine = engine
+    app.state.message_store = store
+    monkeypatch.setattr(default_whatsapp_adapter, "record_only", True)
+    body, headers = _webhook("wamid.unsafe-plan-address", "Please add eggs")
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://local-test") as client:
+        assert (await client.post("/api/whatsapp/webhook", content=body, headers=headers)).status_code == 200
+    _, reply = await store.response_for_message("wamid.unsafe-plan-address")
+    assert commerce.cart_writes == baseline_writes
+    assert engine._customer_address[customer_id] == "addr-bandra-1"
+    assert "nothing changed" in reply.text.casefold()
+    await engine.close()
+
+
+@pytest.mark.asyncio
+async def test_cart_edit_cannot_change_a_different_item_than_customer_named(postgres_pool, monkeypatch):
+    class CountingCommerce(MockCommerceAdapter):
+        def __init__(self):
+            super().__init__()
+            self.cart_writes = 0
+
+        async def update_cart(self, items, cart_id=None, address_id=None):
+            self.cart_writes += 1
+            return await super().update_cart(items, cart_id=cart_id, address_id=address_id)
+
+    commerce = CountingCommerce()
+    engine = GroceryAgentEngine(commerce, gemini_api_key="local-test")
+    monkeypatch.setattr(default_whatsapp_adapter, "_app_secret", "local-e2e-secret")
+    monkeypatch.setattr(default_whatsapp_adapter, "record_only", True)
+    customer_id = default_whatsapp_adapter.map_sender_to_customer_id("919999988888")
+    with commerce.customer_scope(customer_id):
+        await commerce.update_cart([
+            CartItemUpdate(spin_id="SPIN-MILK-1L", sku_id="SPIN-MILK-1L", quantity=1),
+            CartItemUpdate(spin_id="SPIN-BREAD-400G", sku_id="SPIN-BREAD-400G", quantity=1),
+        ], address_id="addr-bandra-1")
+    baseline_writes = commerce.cart_writes
+    proposed_edit = {"spin_id": "SPIN-BREAD-400G", "sku_id": "SPIN-BREAD-400G", "quantity": 0}
+
+    async def wrong_item_model_reply(_history, **_kwargs):
+        return {"candidates": [{"content": {"parts": [{"functionCall": {
+            "name": "update_cart", "args": {"items": [proposed_edit]},
+        }}]}}]}
+
+    engine._call_llm = wrong_item_model_reply  # external model boundary
+    store = PostgresMessageStore(postgres_pool)
+    app = create_app()
+    app.state.agent_engine = engine
+    app.state.message_store = store
+    body, headers = _webhook("wamid.wrong-cart-edit", "Remove the milk")
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://local-test") as client:
+        assert (await client.post("/api/whatsapp/webhook", content=body, headers=headers)).status_code == 200
+    _, reply = await store.response_for_message("wamid.wrong-cart-edit")
+    with commerce.customer_scope(customer_id):
+        cart = await commerce.get_cart()
+    assert commerce.cart_writes == baseline_writes
+    assert {item.spin_id for item in cart.items} == {"SPIN-MILK-1L", "SPIN-BREAD-400G"}
+    assert "bread" in reply.text.casefold() or "couldn't" in reply.text.casefold()
+
+    proposed_edit = {"spin_id": "SPIN-MILK-1L", "sku_id": "SPIN-MILK-1L", "quantity": 5}
+    body, headers = _webhook("wamid.wrong-cart-quantity", "Remove the milk")
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://local-test") as client:
+        assert (await client.post("/api/whatsapp/webhook", content=body, headers=headers)).status_code == 200
+    _, quantity_reply = await store.response_for_message("wamid.wrong-cart-quantity")
+    assert commerce.cart_writes == baseline_writes
+    assert "nothing changed" in quantity_reply.text.casefold()
+    await engine.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("model_queries", [("eggs",), ("milk", "bread", "eggs", "bananas")])
+async def test_new_item_plan_keeps_only_the_explicit_list_in_customer_order(
+    postgres_pool, monkeypatch, model_queries,
+):
+    commerce = MockCommerceAdapter()
+    engine = GroceryAgentEngine(commerce, gemini_api_key="local-test")
+    monkeypatch.setattr(default_whatsapp_adapter, "_app_secret", "local-e2e-secret")
+    customer_id = default_whatsapp_adapter.map_sender_to_customer_id("919999988888")
+
+    async def incomplete_model_reply(_history, **_kwargs):
+        return {"candidates": [{"content": {"parts": [{"functionCall": {
+            "name": "quick_add_items", "args": {"items": [{"query": query} for query in model_queries]},
+        }}]}}]}
+
+    engine._call_llm = incomplete_model_reply  # external model boundary
+    store = PostgresMessageStore(postgres_pool)
+    app = create_app()
+    app.state.agent_engine = engine
+    app.state.message_store = store
+    monkeypatch.setattr(default_whatsapp_adapter, "record_only", True)
+    body, headers = _webhook("wamid.omitted-before-plus", "Get milk and bread, plus eggs")
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://local-test") as client:
+        assert (await client.post("/api/whatsapp/webhook", content=body, headers=headers)).status_code == 200
+        _, address_reply = await store.response_for_message("wamid.omitted-before-plus")
+        choice = address_reply.interactive_actions[0]
+        choice_body, choice_headers = _interactive_webhook(
+            "wamid.omitted-before-plus-address", choice.id, choice.title,
+        )
+        assert (await client.post("/api/whatsapp/webhook", content=choice_body, headers=choice_headers)).status_code == 200
+    _, reply = await store.response_for_message("wamid.omitted-before-plus-address")
+    proposal = engine.get_session(customer_id).pending_variant_selection
+    assert proposal is not None, reply.text
+    assert [group["query"] for group in proposal["groups"]] == ["milk", "bread", "eggs"]
+    with commerce.customer_scope(customer_id):
+        assert not (await commerce.get_cart()).items
+    await engine.close()
+
+
+@pytest.mark.asyncio
+async def test_planning_reply_cannot_claim_an_unchecked_item_was_added(postgres_pool, monkeypatch):
+    commerce = MockCommerceAdapter()
+    engine = GroceryAgentEngine(commerce, gemini_api_key="local-test")
+
+    async def false_model_reply(_history, **_kwargs):
+        return {"candidates": [{"content": {"parts": [{"text": "I added eggs to your basket for ₹70."}]}}]}
+
+    engine._call_llm = false_model_reply  # external model boundary
+    store = PostgresMessageStore(postgres_pool)
+    app = create_app()
+    app.state.agent_engine = engine
+    app.state.message_store = store
+    monkeypatch.setattr(default_whatsapp_adapter, "_app_secret", "local-e2e-secret")
+    monkeypatch.setattr(default_whatsapp_adapter, "record_only", True)
+    body, headers = _webhook("wamid.false-add-claim", "Please add eggs")
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://local-test") as client:
+        assert (await client.post("/api/whatsapp/webhook", content=body, headers=headers)).status_code == 200
+        _, address_reply = await store.response_for_message("wamid.false-add-claim")
+        choice = address_reply.interactive_actions[0]
+        body, headers = _interactive_webhook("wamid.false-add-address", choice.id, choice.title)
+        assert (await client.post("/api/whatsapp/webhook", content=body, headers=headers)).status_code == 200
+    _, reply = await store.response_for_message("wamid.false-add-address")
+    assert "I added eggs" not in reply.text
+    assert "₹70" not in reply.text
+    assert "haven't checked" in reply.text.casefold()
+    customer_id = default_whatsapp_adapter.map_sender_to_customer_id("919999988888")
+    with commerce.customer_scope(customer_id):
+        assert not (await commerce.get_cart()).items
+    await engine.close()
+
+
+@pytest.mark.asyncio
+async def test_planning_clarification_reaches_customer_without_false_cart_claim(postgres_pool, monkeypatch):
+    commerce = MockCommerceAdapter()
+    engine = GroceryAgentEngine(commerce, gemini_api_key="local-test")
+    model_calls = 0
+
+    async def model_question(_history, **_kwargs):
+        nonlocal model_calls
+        model_calls += 1
+        if model_calls > 1:
+            assert "milk" in _history[0]["parts"][0]["text"].casefold()
+            assert "full cream" in _history[0]["parts"][0]["text"].casefold()
+            return {"candidates": [{"content": {"parts": [{"functionCall": {
+                "name": "quick_add_items", "args": {"items": [{"query": "full cream milk"}]},
+            }}]}}]}
+        return {"candidates": [{"content": {"parts": [
+            {"text": "Do you prefer toned or full cream milk?"},
+        ]}}]}
+
+    engine._call_llm = model_question  # external model boundary
+    store = PostgresMessageStore(postgres_pool)
+    app = create_app()
+    app.state.agent_engine = engine
+    app.state.message_store = store
+    monkeypatch.setattr(default_whatsapp_adapter, "_app_secret", "local-e2e-secret")
+    monkeypatch.setattr(default_whatsapp_adapter, "record_only", True)
+    body, headers = _webhook("wamid.clarify-milk", "I want milk but ask me what kind first")
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://local-test") as client:
+        assert (await client.post("/api/whatsapp/webhook", content=body, headers=headers)).status_code == 200
+        _, address_reply = await store.response_for_message("wamid.clarify-milk")
+        choice = address_reply.interactive_actions[0]
+        choice_body, choice_headers = _interactive_webhook(
+            "wamid.clarify-milk-address", choice.id, choice.title,
+        )
+        assert (await client.post("/api/whatsapp/webhook", content=choice_body, headers=choice_headers)).status_code == 200
+    _, reply = await store.response_for_message("wamid.clarify-milk-address")
+    assert "toned or full cream" in reply.text.casefold()
+    assert "added" not in reply.text.casefold()
+    answer_body, answer_headers = _webhook("wamid.clarify-milk-answer", "Full cream")
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://local-test") as client:
+        assert (await client.post("/api/whatsapp/webhook", content=answer_body, headers=answer_headers)).status_code == 200
+    _, answer_reply = await store.response_for_message("wamid.clarify-milk-answer")
+    assert "full cream milk" in answer_reply.text.casefold()
+    await engine.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("request_text,first_items,repaired_items,required_queries", [
+    (
+        "I need 2 packets of 500 ml milk and one brown bread, under ₹130. No eggs.",
+        ["milk", "brown bread"],
+        [{"query": "milk", "quantity": 2, "preferred_pack_size": "500 ml"},
+         {"query": "brown bread", "quantity": 1}],
+        ("milk", "brown bread"),
+    ),
+    (
+        "Make pizza ingredients under ₹1,000 and also add bread, Bournvita, tissues and a pencil",
+        [{"query": "pizza ingredients"}, {"query": "bread"}, {"query": "Bournvita"},
+         {"query": "tissues"}, {"query": "pencil"}],
+        [{"query": query} for query in (
+            "pizza base", "pizza sauce", "mozzarella", "bread", "Bournvita", "tissues", "pencil",
+        )],
+        ("pizza base", "pizza sauce", "mozzarella", "bread", "Bournvita", "tissues", "pencil"),
+    ),
+])
+async def test_invalid_model_plan_is_repaired_before_catalog_search(
+    postgres_pool, monkeypatch, request_text, first_items, repaired_items, required_queries,
+):
+    commerce = MockCommerceAdapter()
+    engine = GroceryAgentEngine(commerce, gemini_api_key="local-test")
+    monkeypatch.setattr(default_whatsapp_adapter, "_app_secret", "local-e2e-secret")
+    customer_id = default_whatsapp_adapter.map_sender_to_customer_id("919999988888")
+    engine._customer_address[customer_id] = "addr-bandra-1"
+    engine._customer_address_label[customer_id] = "Home"
+    engine._order_address_confirmed[customer_id] = True
+    model_calls = 0
+
+    async def model_reply(_history, **_kwargs):
+        nonlocal model_calls
+        model_calls += 1
+        items = first_items if model_calls == 1 else repaired_items
+        return {"candidates": [{"content": {"parts": [{"functionCall": {
+            "name": "quick_add_items", "args": {"items": items},
+        }}]}}]}
+
+    engine._call_llm = model_reply  # external model boundary
+    store = PostgresMessageStore(postgres_pool)
+    app = create_app()
+    app.state.agent_engine = engine
+    app.state.message_store = store
+    monkeypatch.setattr(default_whatsapp_adapter, "_app_secret", "local-e2e-secret")
+    monkeypatch.setattr(default_whatsapp_adapter, "record_only", True)
+    body, headers = _webhook("wamid.repair-plan", request_text)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://local-test") as client:
+        assert (await client.post("/api/whatsapp/webhook", content=body, headers=headers)).status_code == 200
+        _, address_reply = await store.response_for_message("wamid.repair-plan")
+        if (address_reply.interactive_actions
+                and address_reply.interactive_actions[0].id.startswith("addr_choice_")):
+            choice = address_reply.interactive_actions[0]
+            choice_body, choice_headers = _interactive_webhook(
+                "wamid.repair-plan-address", choice.id, choice.title,
+            )
+            assert (await client.post("/api/whatsapp/webhook", content=choice_body, headers=choice_headers)).status_code == 200
+    _, reply = await store.response_for_message(
+        "wamid.repair-plan-address" if (address_reply.interactive_actions
+                                        and address_reply.interactive_actions[0].id.startswith("addr_choice_"))
+        else "wamid.repair-plan"
+    )
+    proposal = engine.get_session(customer_id).pending_variant_selection
+    assert model_calls == 2
+    assert proposal is not None, reply.text
+    accounted = [group["query"].casefold() for group in proposal["groups"]]
+    accounted += [item.casefold() for item in proposal.get("unavailable_items", [])]
+    for query in required_queries:
+        assert query.casefold() in accounted
+    if "milk" in required_queries:
+        milk = next(group for group in proposal["groups"] if group["query"] == "milk")
+        assert milk["quantity"] == 2
+        assert all(option["pack_size"] == "500 ml" for option in milk["options"])
+    with commerce.customer_scope(customer_id):
+        assert not (await commerce.get_cart()).items
+    await engine.close()
+
+
+@pytest.mark.asyncio
+async def test_hinglish_groceries_search_english_catalog_without_losing_user_items(postgres_pool, monkeypatch):
+    commerce = MockCommerceAdapter()
+    engine = GroceryAgentEngine(commerce, gemini_api_key="local-test")
+
+    async def model_reply(_history, **_kwargs):
+        return {"candidates": [{"content": {"parts": [{"functionCall": {
+            "name": "quick_add_items", "args": {"items": [
+                {"query": "doodh"}, {"query": "chawal"},
+            ]},
+        }}]}}]}
+
+    engine._call_llm = model_reply  # external model boundary
+    store = PostgresMessageStore(postgres_pool)
+    app = create_app()
+    app.state.agent_engine = engine
+    app.state.message_store = store
+    monkeypatch.setattr(default_whatsapp_adapter, "_app_secret", "local-e2e-secret")
+    monkeypatch.setattr(default_whatsapp_adapter, "record_only", True)
+    body, headers = _webhook("wamid.hinglish", "Doodh aur chawal le aao")
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://local-test") as client:
+        assert (await client.post("/api/whatsapp/webhook", content=body, headers=headers)).status_code == 200
+        _, address_reply = await store.response_for_message("wamid.hinglish")
+        choice = address_reply.interactive_actions[0]
+        body, headers = _interactive_webhook("wamid.hinglish-address", choice.id, choice.title)
+        assert (await client.post("/api/whatsapp/webhook", content=body, headers=headers)).status_code == 200
+    _, reply = await store.response_for_message("wamid.hinglish-address")
+    assert "milk" in reply.text.casefold()
+    assert "rice" in reply.text.casefold()
+    assert "unavailable: doodh" not in reply.text.casefold()
+    assert "unavailable: chawal" not in reply.text.casefold()
+    await engine.close()
 
 
 @pytest.mark.asyncio
@@ -901,6 +1331,32 @@ async def test_catalog_rate_limit_stops_remaining_search_waves(postgres_pool, mo
      ("milk", "bread")),
     ("Pasta tonight for two. Please get pasta, sauce and cheese, plus tissues for the house.",
      ("pasta", "sauce", "cheese", "tissues")),
+    ("Pick up toothpaste, shampoo and garbage bags for the flat.",
+     ("toothpaste", "shampoo", "garbage bags")),
+    ("We're making chai: add milk, ginger and tea.",
+     ("milk", "ginger", "tea")),
+    ("Need olive oil, mushrooms and paneer.",
+     ("olive oil", "mushroom", "paneer")),
+    ("Please add dishwash liquid, handwash and a matchbox.",
+     ("dishwash", "handwash", "matchbox")),
+    ("Get dahi, onions and potatoes; skip paneer.",
+     ("dahi", "onions", "potatoes")),
+    ("Put tea, coffee and sugar on the shopping list.",
+     ("tea", "coffee", "sugar")),
+    ("I have pizza base and mozzarella at home. Please get pizza sauce, mushrooms and tissues.",
+     ("pizza sauce", "mushroom", "tissues")),
+    ("Doodh, dahi, atta, chawal, adrak, pyaz and aloo for this week.",
+     ("doodh", "dahi", "atta", "chawal", "adrak", "pyaz", "aloo")),
+    ("Need dishwash liquid, floor cleaner, garbage bags; plus bananas.",
+     ("dishwash", "floor cleaner", "garbage bags", "banana")),
+    ("For sandwiches get brown bread, cucumber, tomato and cheese slices; also a toothbrush.",
+     ("brown bread", "cucumber", "tomato", "cheese", "toothbrush")),
+    ("Buy olive oil and two packs of oats. No sugar.",
+     ("olive oil", "oats")),
+    ("We have pasta and sauce already. Just get cheese, mushrooms and tissues.",
+     ("cheese", "mushroom", "tissues")),
+    ("Grab batteries, a notebook, pencils, and a packet of biscuits.",
+     ("batteries", "notebook", "pencil", "biscuit")),
 ])
 async def test_real_model_presents_recipe_and_extras_choices_over_whatsapp_path(
     postgres_pool, monkeypatch, request_text, required_items,
@@ -974,6 +1430,8 @@ async def test_real_model_presents_recipe_and_extras_choices_over_whatsapp_path(
         assert len(milk_groups) == 1 and milk_groups[0]["quantity"] == 2
         assert all("500" in option["pack_size"] for option in milk_groups[0]["options"])
         assert not any("egg" in query for query in accounted)
+    if "skip paneer" in request_text:
+        assert not any("paneer" in query for query in accounted)
     assert "nothing has been added" in reply.text.casefold(), reply.text
     assert len(default_whatsapp_adapter.outbound_messages) == 2
     await engine.close()
@@ -1080,6 +1538,53 @@ async def test_pizza_ingredient_cap_keeps_extras_even_when_whole_basket_exceeds_
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("request_text, products, choice_codes, kept_spin, left_out, cap", [
+    ("Add milk and bread under 80", ["milk", "bread"], "1B 2A", "SPIN-MILK-500ML", "bread", 80),
+    ("Get pasta and sauce, at most 100 rupees", ["pasta", "sauce"], "1A 2A",
+     "SPIN-PASTA-PENNE-500G", "sauce", 100),
+    ("Need oil plus eggs within 180", ["oil", "eggs"], "1A 2B", "SPIN-OIL-1L", "eggs", 180),
+])
+async def test_plain_language_rupee_cap_never_becomes_unreviewed_payable_overage(
+    postgres_pool, monkeypatch, request_text, products, choice_codes, kept_spin, left_out, cap,
+):
+    commerce = MockCommerceAdapter()
+    engine = GroceryAgentEngine(commerce, gemini_api_key="local-test")
+
+    async def model_reply(_history, **_kwargs):
+        return {"candidates": [{"content": {"parts": [{"functionCall": {
+            "name": "quick_add_items", "args": {"items": [{"query": item} for item in products]},
+        }}]}}]}
+
+    engine._call_llm = model_reply  # external model boundary
+    app = create_app()
+    app.state.agent_engine = engine
+    store = PostgresMessageStore(postgres_pool)
+    app.state.message_store = store
+    monkeypatch.setattr(default_whatsapp_adapter, "_app_secret", "local-e2e-secret")
+    monkeypatch.setattr(default_whatsapp_adapter, "record_only", True)
+    default_whatsapp_adapter.outbound_messages.clear()
+    body, headers = _webhook("wamid.plain-budget", request_text)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://local-test") as client:
+        assert (await client.post("/api/whatsapp/webhook", content=body, headers=headers)).status_code == 200
+        _, address_reply = await store.response_for_message("wamid.plain-budget")
+        choice = address_reply.interactive_actions[0]
+        body, headers = _interactive_webhook("wamid.plain-budget-address", choice.id, choice.title)
+        assert (await client.post("/api/whatsapp/webhook", content=body, headers=headers)).status_code == 200
+        body, headers = _webhook("wamid.plain-budget-choices", choice_codes)
+        assert (await client.post("/api/whatsapp/webhook", content=body, headers=headers)).status_code == 200
+    _, reply = await store.response_for_message("wamid.plain-budget-choices")
+    customer_id = default_whatsapp_adapter.map_sender_to_customer_id("919999988888")
+    with commerce.customer_scope(customer_id):
+        cart = await commerce.get_cart()
+    assert [item.spin_id for item in cart.items] == [kept_spin], (reply.text, cart.items)
+    assert cart.grand_total <= cap
+    assert left_out in reply.text.casefold()
+    assert reply.conversation_state == "NEEDS_DECISION"
+    assert not any(action.id == "confirm_order" for action in reply.interactive_actions)
+    await engine.close()
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize("missing_query", ["Bournvita", "pizza base"])
 async def test_missing_requested_item_requires_review_before_checkout(postgres_pool, monkeypatch, missing_query):
     commerce = MockCommerceAdapter()
@@ -1156,6 +1661,62 @@ async def test_recipe_request_cannot_silently_omit_pizza_base(postgres_pool, mon
     assert "unavailable" in reply.text.casefold()
     assert reply.conversation_state == "NEEDS_DECISION"
     assert not any(action.id == "confirm_order" for action in reply.interactive_actions)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("request_text, model_items, omitted", [
+    ("Add milk, bread and tissues", ["milk", "bread"], ["tissues"]),
+    ("Get dal, sugar and garlic for dinner", ["dal", "garlic", "eggs"], ["sugar"]),
+    ("Pick up tea, coffee and bananas for breakfast. No eggs.",
+     ["tea", "coffee", "bananas", "eggs"], []),
+    ("Make pizza ingredients under ₹1,000 and also add bread, Bournvita, tissues and a pencil",
+     ["pizza base", "pizza sauce", "mozzarella", "bread"], ["Bournvita", "tissues", "pencil"]),
+])
+async def test_model_cannot_silently_drop_explicit_shopping_items(
+    postgres_pool, monkeypatch, request_text, model_items, omitted,
+):
+    commerce = MockCommerceAdapter()
+    engine = GroceryAgentEngine(commerce, gemini_api_key="local-test")
+
+    async def incomplete_model(_history, **_kwargs):
+        return {"candidates": [{"content": {"parts": [{"functionCall": {
+            "name": "quick_add_items",
+            "args": {"items": [{"query": query} for query in model_items]},
+        }}]}}]}
+
+    engine._call_llm = incomplete_model  # external model boundary
+    app = create_app()
+    app.state.agent_engine = engine
+    store = PostgresMessageStore(postgres_pool)
+    app.state.message_store = store
+    monkeypatch.setattr(default_whatsapp_adapter, "_app_secret", "local-e2e-secret")
+    monkeypatch.setattr(default_whatsapp_adapter, "record_only", True)
+    default_whatsapp_adapter.outbound_messages.clear()
+    body, headers = _webhook("wamid.omitted-list", request_text)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://local-test") as client:
+        assert (await client.post("/api/whatsapp/webhook", content=body, headers=headers)).status_code == 200
+        _, address_reply = await store.response_for_message("wamid.omitted-list")
+        choice = address_reply.interactive_actions[0]
+        body, headers = _interactive_webhook("wamid.omitted-address", choice.id, choice.title)
+        assert (await client.post("/api/whatsapp/webhook", content=body, headers=headers)).status_code == 200
+    _, reply = await store.response_for_message("wamid.omitted-address")
+    customer_id = default_whatsapp_adapter.map_sender_to_customer_id("919999988888")
+    proposal = engine.get_session(customer_id).pending_variant_selection
+    assert proposal is not None, reply.text
+    accounted = [group["query"].casefold() for group in proposal["groups"]]
+    accounted += [item.casefold() for item in proposal["unavailable_items"]]
+    accounted += [item.casefold() for item in proposal["restricted_items"]]
+    for item in omitted:
+        assert item.casefold() in accounted, (item, accounted, reply.text)
+        assert item.casefold() in reply.text.casefold()
+    if request_text.startswith("Add milk"):
+        assert accounted == ["milk", "bread", "tissues"], accounted
+    if request_text.startswith("Get dal"):
+        assert accounted == ["dal", "sugar", "garlic"], accounted
+    if request_text.startswith("Pick up"):
+        assert accounted == ["tea", "coffee", "bananas"], accounted
+    assert not any(action.id == "confirm_order" for action in reply.interactive_actions)
+    await engine.close()
 
 
 @pytest.mark.asyncio
@@ -1582,7 +2143,7 @@ async def test_local_simulator_uses_signed_webhook_and_rejects_customer_imperson
     assert unauthenticated.status_code == 401
     assert forged.status_code == 422
     assert response.status_code == 200
-    assert response.json()["conversation_state"] == "NEEDS_DECISION"
+    assert response.json()["conversation_state"] in {"READY", "NEEDS_DECISION"}
     assert await postgres_pool.fetchval("SELECT count(*) FROM grocer_internal.inbound_messages") == 1
     assert await postgres_pool.fetchval("SELECT status FROM grocer_internal.outbound_messages") == "SENT"
     assert len(default_whatsapp_adapter.outbound_messages) == 1

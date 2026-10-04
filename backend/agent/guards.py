@@ -2,7 +2,56 @@
 from __future__ import annotations
 
 import re
-from typing import Optional
+from typing import Any, Optional
+
+
+def reconcile_explicit_items(request: str, proposed: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Keep plainly enumerated products in the customer's order, even if the model omits one."""
+    if not all(isinstance(item, dict) and isinstance(item.get("query"), str) for item in proposed):
+        return proposed
+    request = re.split(r"(?i)\nUse delivery address:", request, maxsplit=1)[0]
+    extras = re.search(r"(?i)\b(?:also\s+add|and\s+add|plus)\b", request)
+    first_intent = re.search(r"(?i)\b(?:pick\s+up|bring|add|buy|get|need)\b", request)
+    start = first_intent if first_intent and (extras is None or first_intent.start() < extras.start()) else extras
+    if start is None:
+        return proposed
+    clause = request[start.end():]
+    clause = re.split(
+        r"(?i)\b(?:under|below|within)\s*(?:₹|rs\.?|inr)?\s*[\d,]+"
+        r"|\bfor\s+(?:dinner|breakfast|lunch|tonight)\b|[.!?]",
+        clause, maxsplit=1,
+    )[0]
+    clause = re.split(r"(?i)\b(?:but\s+)?(?:no|without|except|skip|don't\s+add)\b", clause, maxsplit=1)[0]
+    if clause.strip().casefold() == "and" or not clause.strip():
+        return proposed
+    if len(proposed) == 1 and clause.strip(" , ").casefold() == proposed[0]["query"].strip().casefold():
+        return proposed
+    requested = [
+        re.sub(r"(?i)^(?:(?:me|please|a|an|the|some|one|plus|also\s+add)\s+)+", "", part).strip(" , ;")
+        for part in re.split(r"(?i)\s*[,;]\s*|\s+and\s+|\s+plus\s+|\s*\+\s*|\s*&\s*", clause)
+    ]
+    requested = [part for part in requested if part and not re.match(r"(?i)^(?:no|without|except|skip)\b", part)]
+    if (not requested or (extras is None and len(requested) < 2)
+            or any(re.search(r"\d", part) for part in requested)):
+        return proposed
+
+    used: set[int] = set()
+    ordered: list[dict[str, Any]] = []
+    for part in requested:
+        words = re.findall(r"\w+", part.casefold())
+        full = next((index for index, item in enumerate(proposed) if index not in used
+                     and all(word in re.findall(r"\w+", item["query"].casefold()) for word in words)), None)
+        related = next((index for index, item in enumerate(proposed) if index not in used
+                        and words[-1] in re.findall(r"\w+", item["query"].casefold())), None)
+        index = full if full is not None else related
+        if index is None:
+            ordered.append({"query": part})
+        else:
+            used.add(index)
+            item = proposed[index]
+            ordered.append(item if full is not None else {**item, "query": part})
+    return ([item for index, item in enumerate(proposed) if index not in used] + ordered
+            if extras is not None and start is extras else ordered)
 
 
 def missing_recipe_staples(request: str, proposed_queries: list[str]) -> list[str]:

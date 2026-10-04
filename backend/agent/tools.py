@@ -28,6 +28,12 @@ from backend.integrations.commerce.exceptions import (
 
 logger = logging.getLogger("grocer.agent.tools")
 
+_HINDI_GROCERY_ALIASES = {
+    "doodh": "milk", "anda": "egg", "ande": "egg", "aata": "atta",
+    "chawal": "rice", "adrak": "ginger", "pyaz": "onion", "aloo": "potato",
+    "dahi": "curd",
+}
+
 
 def _format_inr(amount: float) -> str:
     """Format numeric price into clean ₹ string without trailing zero decimals."""
@@ -36,10 +42,7 @@ def _format_inr(amount: float) -> str:
 
 def _matches_requested_product(query: str, product: dict[str, Any]) -> bool:
     """Reject loose provider search hits that do not contain the requested product words."""
-    aliases = {"doodh": "milk", "anda": "egg", "ande": "egg", "aata": "atta",
-               "chawal": "rice", "adrak": "ginger", "pyaz": "onion", "aloo": "potato",
-               "dahi": "curd"}
-    words = [aliases.get(word, word) for word in re.findall(r"[\w]+", query.casefold())
+    words = [_HINDI_GROCERY_ALIASES.get(word, word) for word in re.findall(r"[\w]+", query.casefold())
              if word not in {"a", "an", "the", "of", "for"}]
     name = " ".join(str(product.get(field) or "") for field in
                     ("brand", "product_name", "name", "pack_size")).casefold()
@@ -229,7 +232,12 @@ class SwiggyAgentTools:
 
         async def _search_one(q: str) -> dict[str, Any]:
             try:
-                res = await self.search_products(q, address_id)
+                provider_query = re.sub(
+                    r"\b(?:doodh|anda|ande|aata|chawal|adrak|pyaz|aloo|dahi)\b",
+                    lambda match: _HINDI_GROCERY_ALIASES[match.group().casefold()],
+                    q, flags=re.IGNORECASE,
+                )
+                res = await self.search_products(provider_query, address_id)
                 if not res.get("success"):
                     return {"query": q, "products": [], "error": res.get("error") or "SEARCH_UNAVAILABLE",
                             "retry_after_seconds": res.get("retry_after_seconds")}

@@ -17,6 +17,13 @@ During the Session End ritual (called automatically whenever significant changes
 
 ### [GROCER — Mumbai database recovery] 2026-10-04
 
+#### Work Card: Probe human requests before choosing the core design
+
+- **Problem**: Model proposals silently omitted named items, plain rupee limits went unenforced, and unused audio assets remained in the repo.
+- **Change**: Added an explicit-list reconciliation check and plain-language budget parsing; removed two unreferenced MP3s. The architecture decision is paused for Karan.
+- **Proof**: Signed-webhook/PostgreSQL E2E: 51 passed, 9 opt-in skipped, exit 0; nine varied real-Gemini cases passed separately with synthetic commerce; lint, build, and Python compile exited 0. No Swiggy MCP or order call in this slice.
+- **Still broken**: The list check is heuristic and not a complete language solution; live MCP cart writes, deployment, large-list behavior, and the data-processing release gate remain unverified.
+
 #### Work Card: Keep full-list choices and rate-limit recovery reliable
 
 - **Problem**: Longer lists stopped after ten products; a mixed search failure could hide a Swiggy 429 and trigger extra searches; the real model used a valid sauce query that an overly exact E2E assertion rejected.
@@ -747,3 +754,4 @@ During the Session End ritual (called automatically whenever significant changes
 - Verified `pytest backend/tests`: 416 passed.
 - Pushed commits `be0c275` and `138fc2b` to GitHub `main`.
 - Remaining gate: configure deployment secrets and complete real review-mode transcript testing before deleting legacy runtime.
+

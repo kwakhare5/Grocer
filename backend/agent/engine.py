@@ -42,9 +42,11 @@ from backend.agent.guards import (  # noqa: E402, F401
     is_explicit_confirmation,
     is_hesitation,
     missing_recipe_staples,
+    reconcile_explicit_items,
 )
 from backend.agent.prompts import (  # noqa: E402, F401
     _SYSTEM_PROMPT,
+    _SHOPPING_PLAN_PROMPT,
     build_system_instruction,
 )
 
@@ -555,6 +557,7 @@ class GroceryAgentEngine:
 
         # Handle interactive button callbacks
         incoming_text = message.text.strip()
+        planning_request_text = incoming_text
         if message.interactive_id:
             if message.interactive_id == "confirm_order":
                 incoming_text = "Yes, please confirm and place the order now."
@@ -580,6 +583,13 @@ class GroceryAgentEngine:
             logger.info("Captured customer budget constraint: ₹%.2f for %s", budget, customer_id)
 
         norm_text = incoming_text.casefold().strip("!.? \t\n")
+        if (session.pending_request_text and history
+                and history[-1].get("clarification_pending")
+                and not message.interactive_id
+                and not re.match(r"(?i)^(?:add|buy|get|need|show|clear|cancel|start|remove)\b", norm_text)):
+            planning_request_text = (
+                f"{session.pending_request_text}\nCustomer clarification: {incoming_text}"
+            )
 
         if self.replenishment_store is not None:
             try:
@@ -601,6 +611,15 @@ class GroceryAgentEngine:
                 text=("I haven't cancelled an order. If you mean your current basket, "
                       "reply 'clear cart'. For an order already placed, check its status in Swiggy."),
                 conversation_state="NEEDS_DECISION",
+            )
+
+        if (norm_text in {"hi", "hello", "hey", "namaste"}
+                and not session.pending_variant_selection
+                and customer_id not in self._awaiting_address_choice):
+            return NormalizedOutgoingResponse(
+                recipient_id=message.sender_id, channel=message.channel,
+                text="Hi! Tell me what grocery items you need, or ask to see your basket.",
+                conversation_state="READY",
             )
 
         # Fast-path 1: Reset / Clear basket command
@@ -742,6 +761,7 @@ class GroceryAgentEngine:
                 return await self._handle_variant_choice(message, customer_id, current_cart)
             session.pending_variant_selection = None
             session.pending_request_text = incoming_text
+            planning_request_text = incoming_text
 
         if message.interactive_id and message.interactive_id.startswith("payment_choice:"):
             selected_id = message.interactive_id.removeprefix("payment_choice:")
@@ -900,6 +920,7 @@ class GroceryAgentEngine:
                 )
                 self._order_address_confirmed[customer_id] = True
                 if session.pending_request_text:
+                    planning_request_text = session.pending_request_text
                     incoming_text = (
                         f"{session.pending_request_text}\n"
                         f"Use delivery address: {self._customer_address_label[customer_id]} (ID: {address_id})."
@@ -916,7 +937,10 @@ class GroceryAgentEngine:
                     addresses = addr_res["addresses"]
                     # Check if user's initial message already names one of the addresses
                     explicit_matches = [a for a in addresses if a.get("label") and re.search(
-                        rf"\b{re.escape(str(a['label']).casefold())}\b", norm_text
+                        rf"\b(?:deliver(?:y)?\s+to|send\s+to|ship\s+to|use|switch\s+to|change\s+to)"
+                        rf"\s+(?:my\s+)?{re.escape(str(a['label']).casefold())}\b"
+                        rf"|\b{re.escape(str(a['label']).casefold())}\s+address\b",
+                        norm_text,
                     )]
                     explicit_match = explicit_matches[0] if len(explicit_matches) == 1 else None
 
@@ -952,6 +976,7 @@ class GroceryAgentEngine:
                 pass
 
         if session.pending_request_text and norm_text in {"try again", "retry"}:
+            planning_request_text = session.pending_request_text
             incoming_text = (
                 f"{session.pending_request_text}\n"
                 f"Use delivery address: {self._customer_address_label.get(customer_id, 'selected address')} "
@@ -985,13 +1010,21 @@ class GroceryAgentEngine:
         unavailable_items: list[str] = []
         reduced_items: list[str] = []
         guarded_change_message: str | None = None
+        legacy_operation = bool(re.search(
+            r"\b(?:remove|delete|increase|decrease|reduce|change|switch|replace|swap|"
+            r"clear|cancel|checkout|confirm|pay|payment|track|usuals?|regulars?|address)\b",
+            planning_request_text, re.IGNORECASE,
+        ))
+        planning_turn = not user_confirmed and not legacy_operation
 
         for step_idx in range(1, max_iterations + 1):
             response_data = await self._call_llm(
-                history,
-                address_id=address_id,
-                address_label=addr_lbl,
-                cart=current_cart,
+                ([{"role": "user", "parts": [{"text": planning_request_text}]}]
+                 if planning_turn else history),
+                address_id=None if planning_turn else address_id,
+                address_label=None if planning_turn else addr_lbl,
+                cart=None if planning_turn else current_cart,
+                planning_only=planning_turn,
                 fast_fail_on_rate_limit=bool(last_cart_receipt or checkout_executed),
             )
             if not response_data:
@@ -1023,8 +1056,79 @@ class GroceryAgentEngine:
             # Check if model invoked function calls
             function_calls = [p["functionCall"] for p in parts if "functionCall" in p]
 
+            if planning_turn and any(call.get("name") == "quick_add_items" for call in function_calls):
+                def invalid_item_plan(calls: list[dict[str, Any]]) -> bool:
+                    for call in calls:
+                        if call.get("name") != "quick_add_items":
+                            continue
+                        args = call.get("args")
+                        items = args.get("items") if isinstance(args, dict) else None
+                        if not isinstance(items, list) or not 1 <= len(items) <= 30:
+                            return True
+                        for item in items:
+                            if not isinstance(item, dict):
+                                return True
+                            query = item.get("query")
+                            quantity = item.get("quantity", 1)
+                            if (not isinstance(query, str) or not query.strip()
+                                    or type(quantity) is not int or not 1 <= quantity <= 99
+                                    or re.search(r"\b(?:ingredients?|groceries|recipe|items|stuff)\b", query,
+                                                 re.IGNORECASE)):
+                                return True
+                    return False
+
+                if invalid_item_plan(function_calls):
+                    repair_text = (
+                        f"Customer request: {planning_request_text}\n\n"
+                        "Your previous plan was not safe to search. Call quick_add_items with "
+                        "concrete product queries, one object per item, and the customer's "
+                        "quantity and pack-size details. Expand any named meal into ingredients."
+                    )
+                    repaired = await self._call_llm(
+                        [{"role": "user", "parts": [{"text": repair_text}]}],
+                        planning_only=True,
+                    )
+                    repaired_candidates = repaired.get("candidates", []) if repaired else []
+                    parts = (repaired_candidates[0].get("content", {}).get("parts", [])
+                             if repaired_candidates else [])
+                    function_calls = [p["functionCall"] for p in parts if "functionCall" in p]
+                    if (not any(call.get("name") == "quick_add_items" for call in function_calls)
+                            or invalid_item_plan(function_calls)):
+                        session.pending_request_text = planning_request_text
+                        return NormalizedOutgoingResponse(
+                            recipient_id=message.sender_id, channel=message.channel,
+                            text="I couldn't read every item and quantity safely. I saved your request. "
+                                 "Reply *try again* and I'll check it from the start.",
+                            conversation_state="NEEDS_DECISION",
+                        )
+
             # If no function call, we have the final assistant message
             if not function_calls:
+                if planning_turn:
+                    text_parts = [part.get("text", "").strip() for part in parts if "text" in part]
+                    question = "\n".join(part for part in text_parts if part)
+                    if (len(question) <= 180 and re.fullmatch(
+                        r"(?is)(?:which|what|do|would|could|can|how|is|are|should|please)\b[^\n]*\?",
+                        question,
+                    ) and not re.search(
+                        r"(?i)₹|\b(?:rs|cart|basket|added|ordered|found|available|stock|price)\b",
+                        question,
+                    )):
+                        session.pending_request_text = planning_request_text
+                        history.append({
+                            "role": "model", "parts": [{"text": question}],
+                            "clarification_pending": True, "recorded_at": time.time(),
+                        })
+                        pending_request_needs_retry = True
+                        final_text = question
+                        break
+                    session.pending_request_text = planning_request_text
+                    pending_request_needs_retry = True
+                    final_text = (
+                        "I haven't checked Swiggy products yet. Reply *try again* "
+                        "and I'll look up your request."
+                    )
+                    break
                 text_parts = [p.get("text", "") for p in parts if "text" in p]
                 final_text = "\n".join(t.strip() for t in text_parts if t.strip())
                 # Append assistant response to history
@@ -1065,6 +1169,51 @@ class GroceryAgentEngine:
                         conversation_state="NEEDS_DECISION",
                     )
 
+            if planning_turn and any(call.get("name") not in {
+                "quick_add_items", "get_cart", "search_products",
+            } for call in function_calls):
+                session.pending_request_text = planning_request_text
+                return NormalizedOutgoingResponse(
+                    recipient_id=message.sender_id, channel=message.channel,
+                    text="Please choose an exact product variant before I add it. Nothing changed.",
+                    conversation_state="NEEDS_DECISION",
+                )
+
+            cart_edits = [call for call in function_calls if call.get("name") == "update_cart"]
+            if cart_edits:
+                request_words = set(re.findall(r"[a-z0-9]+", planning_request_text.casefold())) - {
+                    "a", "an", "and", "cart", "basket", "change", "decrease", "delete",
+                    "from", "get", "in", "increase", "item", "make", "my", "of", "please",
+                    "quantity", "reduce", "remove", "the", "to", "units", "update", "x",
+                }
+                cart_by_spin = {item.spin_id: item for item in current_cart.items} if current_cart else {}
+                remove_requested = bool(re.search(
+                    r"\b(?:remove|delete|take\s+out)\b", planning_request_text, re.IGNORECASE,
+                ))
+                for call in cart_edits:
+                    items = call.get("args", {}).get("items") if isinstance(call.get("args"), dict) else None
+                    if not isinstance(items, list) or not items:
+                        continue
+                    exact_quantity = (re.search(r"\bto\s+(\d+)\b", planning_request_text, re.IGNORECASE)
+                                      if len(items) == 1 else None)
+                    for item in items:
+                        line = cart_by_spin.get(item.get("spin_id")) if isinstance(item, dict) else None
+                        name_words = set(re.findall(r"[a-z0-9]+", line.name.casefold())) if line else set()
+                        named_item = bool((request_words & name_words) or (
+                            len(cart_by_spin) == 1
+                            and re.search(r"\b(?:that|it)\b", planning_request_text, re.IGNORECASE)
+                        ))
+                        quantity = item.get("quantity") if isinstance(item, dict) else None
+                        if (not named_item or (remove_requested and quantity != 0)
+                                or (exact_quantity and quantity != int(exact_quantity.group(1)))):
+                            session.pending_request_text = planning_request_text
+                            return NormalizedOutgoingResponse(
+                                recipient_id=message.sender_id, channel=message.channel,
+                                text="I couldn't match that cart change to the item or quantity you named. "
+                                     "Please name the item and the quantity again; nothing changed.",
+                                conversation_state="NEEDS_DECISION",
+                            )
+
             # Append model's thought / function calls to history
             history.append({
                 "role": "model",
@@ -1092,11 +1241,10 @@ class GroceryAgentEngine:
                         fn_args["address_id"] = address_id
 
                     if fn_name == "quick_add_items" and isinstance(fn_args.get("items"), list):
-                        proposed = fn_args["items"]
+                        proposed = reconcile_explicit_items(incoming_text, fn_args["items"])
                         queries = [str(item.get("query", "")) for item in proposed if isinstance(item, dict)]
                         staples = missing_recipe_staples(incoming_text, queries)
-                        if staples:
-                            fn_args = {**fn_args, "items": [{"query": query} for query in staples] + proposed}
+                        fn_args = {**fn_args, "items": [{"query": query} for query in staples] + proposed}
 
                     tool_result = await self._execute_tool(
                         fn_name,
@@ -1229,6 +1377,11 @@ class GroceryAgentEngine:
 
             if step_idx == max_iterations:
                 step_limit_reached = True
+
+            if planning_turn:
+                final_text = "I couldn't finish checking those items. Please try again."
+                session.pending_request_text = planning_request_text
+                break
 
         out_order_id: str | None = None
         out_order_total: float | None = None
@@ -1863,6 +2016,7 @@ class GroceryAgentEngine:
         address_id: Optional[str] = None,
         address_label: Optional[str] = None,
         cart: Optional[CommerceCart] = None,
+        planning_only: bool = False,
         fast_fail_on_rate_limit: bool = False,
         **kwargs: Any,
     ) -> Optional[dict[str, Any]]:
@@ -1873,11 +2027,9 @@ class GroceryAgentEngine:
             await asyncio.sleep(0.2 - elapsed)
         self._last_call_time = asyncio.get_running_loop().time()
 
-        system_text = build_system_instruction(
-            address_id=address_id,
-            address_label=address_label,
-            cart=cart,
-        )
+        system_text = (_SHOPPING_PLAN_PROMPT if planning_only else build_system_instruction(
+            address_id=address_id, address_label=address_label, cart=cart,
+        ))
 
         providers: list[dict[str, Any]] = []
         if self.gemini_api_key and (self._gemini_explicitly_passed or self.groq_api_key or self.openrouter_api_key):
@@ -1944,7 +2096,9 @@ class GroceryAgentEngine:
             payload = {
                 "model": p_model,
                 "messages": openai_messages,
-                "tools": OPENAI_TOOL_DECLARATIONS,
+                "tools": ([tool for tool in OPENAI_TOOL_DECLARATIONS
+                           if tool["function"]["name"] == "quick_add_items"]
+                          if planning_only else OPENAI_TOOL_DECLARATIONS),
                 "tool_choice": "auto",
                 "temperature": 0.2,
             }

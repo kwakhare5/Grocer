@@ -161,6 +161,7 @@ class GroceryAgentEngine:
             known_cart_fingerprint=state.get("known_cart_fingerprint"),
             external_cart_pending=bool(state.get("external_cart_pending", False)),
             pending_request_text=state.get("pending_request_text"),
+            pending_variant_selection=state.get("pending_variant_selection"),
             selected_payment_id=state.get("selected_payment_id"),
             selected_payment_kind=state.get("selected_payment_kind"),
             selected_payment_method=state.get("selected_payment_method"),
@@ -190,6 +191,7 @@ class GroceryAgentEngine:
             "known_cart_fingerprint": session.known_cart_fingerprint,
             "external_cart_pending": session.external_cart_pending,
             "pending_request_text": session.pending_request_text,
+            "pending_variant_selection": session.pending_variant_selection,
             "selected_payment_id": session.selected_payment_id,
             "selected_payment_kind": session.selected_payment_kind,
             "selected_payment_method": session.selected_payment_method,
@@ -218,6 +220,162 @@ class GroceryAgentEngine:
                 for index, address in enumerate(addresses[:3], 1)
             ],
             conversation_state="NEEDS_DECISION",
+        )
+
+    @staticmethod
+    def _cart_proposal_state(cart: CommerceCart | None) -> dict[str, Any] | None:
+        if cart is None:
+            return None
+        return {
+            "cart_id": cart.cart_id, "address_id": cart.address_id,
+            "grand_total": cart.grand_total,
+            "items": sorted([item.spin_id, item.sku_id, item.quantity] for item in cart.items),
+        }
+
+    def _variant_choice_response(
+        self, message: NormalizedIncomingMessage, proposal: dict[str, Any],
+        prefix: str = "",
+    ) -> NormalizedOutgoingResponse:
+        lines = [prefix, "Choose the exact products to add:"] if prefix else ["Choose the exact products to add:"]
+        for index, group in enumerate(proposal["groups"], 1):
+            lines.append(f"\n*{index}. {group['query']} × {group['quantity']}*")
+            for option in group["options"]:
+                lines.append(
+                    f"{option['code']} — {option['name']} ({option['pack_size']}) — ₹{option['price']:g}"
+                )
+        if proposal.get("unavailable_items"):
+            lines.append("\nUnavailable: " + ", ".join(proposal["unavailable_items"]))
+        if proposal.get("restricted_items"):
+            lines.append("\nCannot add medical products here: " + ", ".join(proposal["restricted_items"]))
+        examples = " ".join(group["options"][0]["code"] for group in proposal["groups"])
+        lines.append(f"\nReply with one code for each item, for example: {examples}. Nothing has been added yet.")
+        return NormalizedOutgoingResponse(
+            recipient_id=message.sender_id, channel=message.channel,
+            text="\n".join(part for part in lines if part), conversation_state="NEEDS_DECISION",
+        )
+
+    async def _handle_variant_choice(
+        self, message: NormalizedIncomingMessage, customer_id: str,
+        current_cart: CommerceCart | None,
+    ) -> NormalizedOutgoingResponse:
+        session = self.get_session(customer_id)
+        proposal = session.pending_variant_selection
+        assert proposal is not None
+        if message.text.casefold().strip() in {"cancel", "never mind", "start over"}:
+            session.pending_variant_selection = None
+            return NormalizedOutgoingResponse(
+                recipient_id=message.sender_id, channel=message.channel,
+                text="Okay, I cancelled those product choices. Your basket was not changed.",
+                conversation_state="READY",
+            )
+        if (current_cart is None or self._cart_proposal_state(current_cart) != proposal.get("cart_state")
+                or self._customer_address.get(customer_id) != proposal.get("address_id")):
+            session.pending_variant_selection = None
+            return NormalizedOutgoingResponse(
+                recipient_id=message.sender_id, channel=message.channel,
+                text="Your Swiggy basket or address changed. Please tell me what to add again so I can show fresh choices.",
+                conversation_state="NEEDS_DECISION",
+            )
+
+        codes = re.findall(r"\b\d{1,2}[A-F]\b", message.text.upper())
+        selected: list[dict[str, Any]] = []
+        for group in proposal["groups"]:
+            matches = [option for option in group["options"] if option["code"] in codes]
+            if len(matches) != 1:
+                return self._variant_choice_response(
+                    message, proposal, "Please give one listed code for each item.",
+                )
+            selected.append({"query": group["query"], "quantity": group["quantity"],
+                             "option": matches[0]})
+        if len(codes) != len(selected):
+            return self._variant_choice_response(message, proposal, "I couldn't match every code to a requested item.")
+
+        fresh = await self.tools.prepare_variant_choices(
+            [{"query": group["query"], "quantity": group["quantity"]} for group in proposal["groups"]],
+            proposal["address_id"],
+        )
+        if fresh.get("error") == "AUTH_EXPIRED":
+            return await self._auth_expired_response(message)
+        if fresh.get("error") == "RATE_LIMITED":
+            seconds = fresh.get("retry_after_seconds")
+            wait = f"{seconds} seconds" if isinstance(seconds, int) else "a little while"
+            return NormalizedOutgoingResponse(
+                recipient_id=message.sender_id, channel=message.channel,
+                text=f"Swiggy is limiting requests. Please wait {wait}, then send the same choice codes. I kept your choices.",
+                conversation_state="RECOVERING",
+            )
+        if not fresh.get("success"):
+            return NormalizedOutgoingResponse(
+                recipient_id=message.sender_id, channel=message.channel,
+                text="I couldn't recheck those products. Your basket was not changed. Please send the same choice codes again later.",
+                conversation_state="RECOVERING",
+            )
+        fresh_by_query = {group["query"]: group for group in fresh["groups"]}
+        for item in selected:
+            option = item["option"]
+            live = next((candidate for candidate in fresh_by_query.get(item["query"], {}).get("options", [])
+                         if candidate["spin_id"] == option["spin_id"]
+                         and candidate["sku_id"] == option["sku_id"]), None)
+            if live is None or live["price"] != option["price"]:
+                session.pending_variant_selection = {
+                    **fresh, "address_id": proposal["address_id"],
+                    "cart_state": proposal["cart_state"],
+                } if fresh["groups"] else None
+                if session.pending_variant_selection:
+                    return self._variant_choice_response(
+                        message, session.pending_variant_selection,
+                        "A product's price or availability changed. Please choose again:",
+                    )
+                return NormalizedOutgoingResponse(
+                    recipient_id=message.sender_id, channel=message.channel,
+                    text="Those products are no longer available. Your basket was not changed.",
+                    conversation_state="NEEDS_DECISION",
+                )
+            item["option"] = live
+
+        result = await self.tools.add_selected_variants(
+            selected, proposal["address_id"], current_cart, proposal["cart_state"],
+            delivery_location=self._customer_address_label.get(customer_id, "Home"),
+            budget_cap_inr=session.budget_inr,
+            ingredient_budget_inr=session.ingredient_budget_inr,
+            ingredient_extras_text=session.ingredient_extras_text or "",
+            ingredient_spin_ids=session.ingredient_spin_ids,
+        )
+        if result.get("error") == "AUTH_EXPIRED":
+            return await self._auth_expired_response(message)
+        if result.get("error") == "RATE_LIMITED":
+            return NormalizedOutgoingResponse(
+                recipient_id=message.sender_id, channel=message.channel,
+                text="Swiggy is limiting requests. Please wait and then ask me to show your basket before retrying.",
+                conversation_state="RECOVERING",
+            )
+        if not result.get("success"):
+            if result.get("error") not in {"CART_UNAVAILABLE", "SEARCH_UNAVAILABLE"}:
+                session.pending_variant_selection = None
+            return NormalizedOutgoingResponse(
+                recipient_id=message.sender_id, channel=message.channel,
+                text=result.get("message") or "I couldn't verify the basket change. Please show your basket before trying again.",
+                conversation_state="NEEDS_DECISION",
+            )
+
+        session.pending_variant_selection = None
+        session.pending_request_text = None
+        session.ingredient_spin_ids = result.get("ingredient_spin_ids", session.ingredient_spin_ids)
+        session.known_cart_fingerprint = result.get("verified_fingerprint")
+        missing = list(dict.fromkeys(
+            proposal.get("unavailable_items", []) + proposal.get("restricted_items", [])
+            + result.get("budget_blocked_items", [])
+        ))
+        note = f"I couldn't add: {', '.join(missing)}. Please tell me what to change.\n\n" if missing else ""
+        return NormalizedOutgoingResponse(
+            recipient_id=message.sender_id, channel=message.channel,
+            text=note + result["formatted_receipt"],
+            conversation_state="NEEDS_DECISION" if missing else "AWAITING_CHECKOUT_CONFIRMATION",
+            interactive_actions=[] if missing else [
+                InteractiveAction(action_type="button", id="confirm_order", title="Confirm Order"),
+                InteractiveAction(action_type="button", id="modify_cart", title="Change Items"),
+            ],
+            order_total=result["grand_total"],
         )
 
     def reset_customer_order_address(self, customer_id: str) -> None:
@@ -542,6 +700,9 @@ class GroceryAgentEngine:
                 text=text, conversation_state=state,
             )
 
+        if session.pending_variant_selection:
+            return await self._handle_variant_choice(message, customer_id, current_cart)
+
         if message.interactive_id and message.interactive_id.startswith("payment_choice:"):
             selected_id = message.interactive_id.removeprefix("payment_choice:")
             approval = session.pending_approval
@@ -841,6 +1002,15 @@ class GroceryAgentEngine:
                 "recorded_at": time.time(),
             })
 
+            if len(function_calls) > 1 and any(
+                call.get("name") == "quick_add_items" for call in function_calls
+            ):
+                return NormalizedOutgoingResponse(
+                    recipient_id=message.sender_id, channel=message.channel,
+                    text="I need to check those product choices together. Please reply *try again*. No items were added.",
+                    conversation_state="RECOVERING",
+                )
+
             # Execute function calls concurrently and collect responses
             async def _execute_single_call(call: dict[str, Any]) -> tuple[dict[str, Any], bool, bool, dict[str, Any] | None]:
                 fn_name = call.get("name")
@@ -911,6 +1081,32 @@ class GroceryAgentEngine:
                     text=f"Swiggy is limiting requests right now. {wait_text} I'll keep your request.",
                     conversation_state="RECOVERING",
                 )
+            for ec in executed_calls:
+                part = ec[0].get("functionResponse", {})
+                result = part.get("response", {}).get("content", {})
+                if (part.get("name") == "update_cart" and isinstance(result, dict)
+                        and result.get("error") == "VARIANT_SELECTION_REQUIRED"):
+                    session.pending_request_text = session.pending_request_text or incoming_text
+                    return NormalizedOutgoingResponse(
+                        recipient_id=message.sender_id, channel=message.channel,
+                        text="Please choose an exact product and pack before I add it. I kept your request; nothing was added.",
+                        conversation_state="NEEDS_DECISION",
+                    )
+                if part.get("name") != "quick_add_items" or not isinstance(result, dict):
+                    continue
+                if result.get("needs_variant_choice"):
+                    proposal = {
+                        **result, "address_id": address_id,
+                        "cart_state": self._cart_proposal_state(current_cart),
+                    }
+                    session.pending_variant_selection = proposal
+                    return self._variant_choice_response(message, proposal)
+                if result.get("error") == "NARROW_PRODUCT_QUERY":
+                    return NormalizedOutgoingResponse(
+                        recipient_id=message.sender_id, channel=message.channel,
+                        text=f"I found too many versions of {result.get('query', 'that item')}. Please name a brand or pack size.",
+                        conversation_state="NEEDS_DECISION",
+                    )
             for ec in executed_calls:
                 resp_part = ec[0].get("functionResponse", {})
                 fn_call_name = resp_part.get("name")
@@ -1405,39 +1601,38 @@ class GroceryAgentEngine:
         elif name == "quick_add_items":
             session = self.get_session(customer_id)
             session.pending_approval = None
-            addr = args.get("address_id") or address_id
-            loc = self._customer_address_label.get(customer_id, "Home")
-            cap = session.budget_inr if session.ingredient_budget_inr is not None else (
-                args.get("budget_cap_inr") or session.budget_inr
-            )
-            result = await self.tools.quick_add_items(
-                items=args.get("items", []),
-                address_id=addr or "",
-                budget_cap_inr=cap,
-                delivery_location=loc,
-                ingredient_budget_inr=session.ingredient_budget_inr,
-                ingredient_extras_text=session.ingredient_extras_text or "",
-                ingredient_spin_ids=session.ingredient_spin_ids,
-            )
-            if result.get("ingredient_spin_ids") is not None:
-                session.ingredient_spin_ids = result["ingredient_spin_ids"]
-            if result.get("verified_fingerprint"):
-                session.known_cart_fingerprint = result["verified_fingerprint"]
-            return result
+            return await self.tools.prepare_variant_choices(args.get("items", []), address_id or "")
         elif name == "update_cart":
             session = self.get_session(customer_id)
             session.pending_approval = None
-            addr = args.get("address_id") or address_id
+            proposed = args.get("items", [])
+            try:
+                existing = await self.commerce.get_cart()
+            except ProviderAuthError:
+                return {"success": False, "error": "AUTH_EXPIRED"}
+            except ProviderRateLimitedError as exc:
+                return {"success": False, "error": "RATE_LIMITED",
+                        "retry_after_seconds": exc.retry_after_seconds}
+            except Exception:
+                return {"success": False, "error": "CART_UNAVAILABLE"}
+            existing_by_spin = {item.spin_id: item for item in existing.items}
+            if isinstance(proposed, list) and any(
+                isinstance(item, dict) and item.get("quantity", 0) > 0
+                and (item.get("spin_id") not in existing_by_spin
+                     or (item.get("sku_id") and item.get("sku_id") != existing_by_spin[item["spin_id"]].sku_id))
+                for item in proposed
+            ):
+                return {"success": False, "error": "VARIANT_SELECTION_REQUIRED"}
+            addr = address_id
             loc = self._customer_address_label.get(customer_id, "Home")
             result = await self.tools.update_cart(
-                args.get("items", []), address_id=addr or "", delivery_location=loc,
+                proposed, address_id=addr or "", delivery_location=loc,
                 ingredient_budget_inr=session.ingredient_budget_inr,
                 ingredient_spin_ids=session.ingredient_spin_ids,
             )
             unresolved_by_spin = {
                 item["spin_id"]: item for item in session.unresolved_items if item.get("spin_id")
             }
-            proposed = args.get("items", [])
             if isinstance(proposed, list):
                 for item in proposed:
                     if isinstance(item, dict) and item.get("spin_id") and result.get("success"):

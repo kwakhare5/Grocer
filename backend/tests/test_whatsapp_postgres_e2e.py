@@ -153,6 +153,46 @@ async def test_show_cart_does_not_demand_an_address(postgres_pool, monkeypatch, 
 
 
 @pytest.mark.asyncio
+async def test_model_cannot_add_unselected_sku_with_direct_cart_tool(postgres_pool, monkeypatch):
+    class CountingCommerce(MockCommerceAdapter):
+        cart_writes = 0
+
+        async def update_cart(self, items, cart_id=None, address_id=None):
+            self.cart_writes += 1
+            return await super().update_cart(items, cart_id=cart_id, address_id=address_id)
+
+    commerce = CountingCommerce()
+    customer_id = default_whatsapp_adapter.map_sender_to_customer_id("919999988888")
+    engine = GroceryAgentEngine(commerce, gemini_api_key="local-test")
+
+    async def unsafe_model_reply(_history, **_kwargs):
+        return {"candidates": [{"content": {"parts": [{"functionCall": {
+            "name": "update_cart", "args": {"items": [{
+                "spin_id": "SPIN-MILK-1L", "sku_id": "SPIN-MILK-1L", "quantity": 1,
+            }]},
+        }}]}}]}
+
+    engine._call_llm = unsafe_model_reply
+    app = create_app()
+    app.state.agent_engine = engine
+    store = PostgresMessageStore(postgres_pool)
+    app.state.message_store = store
+    monkeypatch.setattr(default_whatsapp_adapter, "_app_secret", "local-e2e-secret")
+    monkeypatch.setattr(default_whatsapp_adapter, "record_only", True)
+    body, headers = _webhook("wamid.unselected-sku", "Add milk")
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://local-test") as client:
+        assert (await client.post("/api/whatsapp/webhook", content=body, headers=headers)).status_code == 200
+        _, address_reply = await store.response_for_message("wamid.unselected-sku")
+        choice = address_reply.interactive_actions[0]
+        body, headers = _interactive_webhook("wamid.unselected-address", choice.id, choice.title)
+        assert (await client.post("/api/whatsapp/webhook", content=body, headers=headers)).status_code == 200
+    _, reply = await store.response_for_message("wamid.unselected-address")
+    assert commerce.cart_writes == 0
+    assert reply.conversation_state != "AWAITING_CHECKOUT_CONFIRMATION"
+    assert "choose" in reply.text.casefold() or "variant" in reply.text.casefold()
+
+
+@pytest.mark.asyncio
 async def test_customer_selects_exact_variants_before_one_cart_write_after_restart(postgres_pool, monkeypatch):
     class CountingCommerce(MockCommerceAdapter):
         def __init__(self):
@@ -403,14 +443,21 @@ async def test_address_choice_model_outage_then_retry_resumes_original_whatsapp_
         third_body, third_headers = _webhook("wamid.address-3", "try again")
         third = await client.post("/api/whatsapp/webhook", content=third_body, headers=third_headers)
         assert third.status_code == 200
-    _, final_reply = await store.response_for_message("wamid.address-3")
+    _, variant_reply = await store.response_for_message("wamid.address-3")
+    assert variant_reply.conversation_state == "NEEDS_DECISION"
     customer_id = default_whatsapp_adapter.map_sender_to_customer_id("919999988888")
+    with commerce.customer_scope(customer_id):
+        assert not (await commerce.get_cart()).items
+    choice_body, choice_headers = _webhook("wamid.address-4", "1A 2A")
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://local-test") as client:
+        assert (await client.post("/api/whatsapp/webhook", content=choice_body, headers=choice_headers)).status_code == 200
+    _, final_reply = await store.response_for_message("wamid.address-4")
     with commerce.customer_scope(customer_id):
         cart = await commerce.get_cart()
     assert "add milk and bread" in resumed_prompt.casefold()
     assert len(cart.items) == 2
     assert "milk" in final_reply.text.casefold() and "bread" in final_reply.text.casefold()
-    assert len(default_whatsapp_adapter.outbound_messages) == 3
+    assert len(default_whatsapp_adapter.outbound_messages) == 4
 
 
 @pytest.mark.asyncio
@@ -464,7 +511,11 @@ async def test_pizza_ingredient_cap_keeps_extras_even_when_whole_basket_exceeds_
         )
         second = await client.post("/api/whatsapp/webhook", content=choice_body, headers=choice_headers)
         assert second.status_code == 200
-    _, reply = await store.response_for_message("wamid.pizza-address")
+        _, variant_reply = await store.response_for_message("wamid.pizza-address")
+        assert variant_reply.conversation_state == "NEEDS_DECISION"
+        variant_body, variant_headers = _webhook("wamid.pizza-variants", "2A 3A 4A 5A")
+        assert (await client.post("/api/whatsapp/webhook", content=variant_body, headers=variant_headers)).status_code == 200
+    _, reply = await store.response_for_message("wamid.pizza-variants")
     customer_id = default_whatsapp_adapter.map_sender_to_customer_id("919999988888")
     with commerce.customer_scope(customer_id):
         cart = await commerce.get_cart()
@@ -621,7 +672,11 @@ async def test_provider_dropped_quick_add_item_is_named_before_partial_review(po
         choice = address_reply.interactive_actions[0]
         body, headers = _interactive_webhook("wamid.dropped-address", choice.id, choice.title)
         assert (await client.post("/api/whatsapp/webhook", content=body, headers=headers)).status_code == 200
-    _, reply = await store.response_for_message("wamid.dropped-address")
+        _, variant_reply = await store.response_for_message("wamid.dropped-address")
+        assert variant_reply.conversation_state == "NEEDS_DECISION"
+        body, headers = _webhook("wamid.dropped-variants", "1A 2A")
+        assert (await client.post("/api/whatsapp/webhook", content=body, headers=headers)).status_code == 200
+    _, reply = await store.response_for_message("wamid.dropped-variants")
     customer_id = default_whatsapp_adapter.map_sender_to_customer_id("919999988888")
     with commerce.customer_scope(customer_id):
         cart = await commerce.get_cart()

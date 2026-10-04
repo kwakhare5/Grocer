@@ -2,7 +2,7 @@ from __future__ import annotations
 from backend.integrations.commerce.models import CommerceProductItem, ProductVariant
 
 def _v(spin_id: str, name: str, pack_size: str, price: float, mrp: float, in_stock: bool = True) -> ProductVariant:
-    return ProductVariant(spin_id=spin_id, name=name, pack_size=pack_size, price=price, mrp=mrp, in_stock=in_stock)
+    return ProductVariant(spin_id=spin_id, sku_id=spin_id, name=name, pack_size=pack_size, price=price, mrp=mrp, in_stock=in_stock)
 
 def _p(pid: str, name: str, cat: str, *variants: ProductVariant) -> CommerceProductItem:
     return CommerceProductItem(product_id=pid, name=name, category=cat, variants=list(variants))

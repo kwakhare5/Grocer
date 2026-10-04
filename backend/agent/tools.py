@@ -38,7 +38,7 @@ def _matches_requested_product(query: str, product: dict[str, Any]) -> bool:
     """Reject loose provider search hits that do not contain the requested product words."""
     words = [word for word in re.findall(r"[\w]+", query.casefold())
              if word not in {"a", "an", "the", "of", "for"}]
-    name = " ".join(str(product.get(field) or "") for field in ("name", "pack_size")).casefold()
+    name = " ".join(str(product.get(field) or "") for field in ("brand", "name", "pack_size")).casefold()
     return bool(words) and all(word in name for word in words)
 
 
@@ -232,20 +232,20 @@ class SwiggyAgentTools:
                     if not res.get("success"):
                         return {"query": q, "products": [], "error": res.get("error") or "SEARCH_UNAVAILABLE",
                                 "retry_after_seconds": res.get("retry_after_seconds")}
-                    prods = res.get("products", [])[:2]
                     compact_prods = []
-                    for p in prods:
-                        v = p.get("variants", [{}])[0] if p.get("variants") else {}
-                        compact_prods.append({
-                            "name": p.get("name"),
-                            "category": p.get("category"),
-                            "brand": p.get("brand"),
-                            "spin_id": v.get("spin_id"),
-                            "sku_id": v.get("sku_id"),
-                            "pack_size": v.get("pack_size"),
-                            "price": v.get("price"),
-                            "formatted_price": v.get("formatted_price"),
-                        })
+                    for p in res.get("products", [])[:5]:
+                        for v in p.get("variants", []):
+                            compact_prods.append({
+                                "name": v.get("name") or p.get("name"),
+                                "category": p.get("category"),
+                                "brand": p.get("brand"),
+                                "spin_id": v.get("spin_id"),
+                                "sku_id": v.get("sku_id"),
+                                "pack_size": v.get("pack_size"),
+                                "price": v.get("price"),
+                                "formatted_price": v.get("formatted_price"),
+                                "max_quantity": v.get("max_quantity"),
+                            })
                     return {"query": q, "products": compact_prods}
                 except Exception as exc:
                     return {"query": q, "products": [], "error": str(exc)}
@@ -259,6 +259,66 @@ class SwiggyAgentTools:
             "success": True,
             "results": batch_results,
         }
+
+    async def prepare_variant_choices(
+        self, items: list[dict[str, Any]], address_id: str,
+    ) -> dict[str, Any]:
+        """Resolve every requested item to customer-visible SKU choices without writing the cart."""
+        if not address_id or not isinstance(items, list) or not 1 <= len(items) <= 10:
+            return {"success": False, "error": "INVALID_CART_PROPOSAL"}
+        normalized = []
+        for item in items:
+            if not isinstance(item, dict):
+                return {"success": False, "error": "INVALID_CART_PROPOSAL"}
+            query, quantity = item.get("query"), item.get("quantity", 1)
+            if not isinstance(query, str) or not query.strip() or type(quantity) is not int or not 1 <= quantity <= 99:
+                return {"success": False, "error": "INVALID_CART_PROPOSAL"}
+            normalized.append({"query": query.strip(), "quantity": quantity,
+                               "preferred_pack_size": str(item.get("preferred_pack_size") or "").strip()})
+
+        search = await self.batch_search_products([item["query"] for item in normalized], address_id)
+        if not search.get("success"):
+            return search
+        groups: list[dict[str, Any]] = []
+        unavailable: list[str] = []
+        restricted: list[str] = []
+        for index, (item, result) in enumerate(zip(normalized, search["results"], strict=True), 1):
+            if result.get("error"):
+                return {"success": False, "error": result["error"],
+                        "retry_after_seconds": result.get("retry_after_seconds")}
+            options: list[dict[str, Any]] = []
+            seen: set[str] = set()
+            for product in result.get("products", []):
+                if not _matches_requested_product(item["query"], product):
+                    continue
+                if is_restricted_medical_product(str(product.get("name") or ""),
+                                                 str(product.get("category") or "")):
+                    restricted.append(item["query"])
+                    continue
+                spin_id, sku_id = product.get("spin_id"), product.get("sku_id")
+                if not isinstance(spin_id, str) or not spin_id or spin_id in seen or not isinstance(sku_id, str):
+                    continue
+                pack = str(product.get("pack_size") or "")
+                preferred = item["preferred_pack_size"].casefold()
+                if preferred and preferred not in (pack + " " + str(product.get("name") or "")).casefold():
+                    continue
+                price = product.get("price")
+                if not isinstance(price, (int, float)) or isinstance(price, bool) or not math.isfinite(price) or price < 0:
+                    continue
+                seen.add(spin_id)
+                options.append({"code": f"{index}{chr(64 + len(options) + 1)}",
+                                "spin_id": spin_id, "sku_id": sku_id,
+                                "name": str(product.get("name") or item["query"]),
+                                "pack_size": pack, "price": float(price),
+                                "max_quantity": product.get("max_quantity")})
+            if len(options) > 6:
+                return {"success": False, "error": "NARROW_PRODUCT_QUERY", "query": item["query"]}
+            if options:
+                groups.append({"query": item["query"], "quantity": item["quantity"], "options": options})
+            elif item["query"] not in restricted:
+                unavailable.append(item["query"])
+        return {"success": True, "needs_variant_choice": bool(groups), "groups": groups,
+                "unavailable_items": unavailable, "restricted_items": list(dict.fromkeys(restricted))}
 
     async def get_saved_addresses(self, customer_id: str) -> dict[str, Any]:
         """Retrieve the user's saved delivery addresses from Swiggy."""
@@ -417,6 +477,7 @@ class SwiggyAgentTools:
         delivery_location: str = "Home",
         ingredient_budget_inr: Optional[float] = None,
         ingredient_spin_ids: list[str] | None = None,
+        expected_cart_state: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Update Swiggy Instamart cart by deterministically merging item updates with active cart items."""
         if not isinstance(address_id, str) or not address_id or not isinstance(items, list) or not 1 <= len(items) <= 30:
@@ -439,6 +500,14 @@ class SwiggyAgentTools:
                 existing_cart: CommerceCart = await self.commerce.get_cart()
                 if existing_cart is None:
                     return {"success": False, "error": "CART_UNAVAILABLE", "retryable": False}
+                if expected_cart_state is not None and {
+                    "cart_id": existing_cart.cart_id,
+                    "address_id": existing_cart.address_id,
+                    "grand_total": existing_cart.grand_total,
+                    "items": sorted([ci.spin_id, ci.sku_id, ci.quantity] for ci in existing_cart.items),
+                } != expected_cart_state:
+                    return {"success": False, "error": "CART_CHANGED", "retryable": False,
+                            "message": "Your Swiggy basket changed. Please review it before adding these items."}
                 if existing_cart and existing_cart.items:
                     for ci in existing_cart.items:
                         if ci.quantity > 0:
@@ -473,11 +542,8 @@ class SwiggyAgentTools:
             updated: CommerceCart = await self.commerce.update_cart(
                 items=cart_updates, address_id=address_id
             )
-            # Use updated cart directly if populated to save network roundtrip, otherwise fallback to get_cart
-            if updated.items or updated.grand_total > 0:
-                verified = updated
-            else:
-                verified = await self.commerce.get_cart(updated.cart_id)
+            # Swiggy's cart response is not a substitute for a fresh provider read-back.
+            verified = await self.commerce.get_cart(updated.cart_id)
             if ingredient_budget_inr is not None and sum(
                 Decimal(str(item.total_price)) for item in verified.items
                 if item.spin_id in (ingredient_spin_ids or [])
@@ -584,179 +650,98 @@ class SwiggyAgentTools:
         return (before_items == restored_items
                 and Decimal(str(before.grand_total)) == Decimal(str(restored.grand_total)))
 
-    async def quick_add_items(
-        self,
-        items: list[dict[str, Any]],
-        address_id: str,
-        budget_cap_inr: Optional[float] = None,
-        delivery_location: str = "Home",
-        ingredient_budget_inr: Optional[float] = None,
-        ingredient_extras_text: str = "",
-        ingredient_spin_ids: list[str] | None = None,
+    async def add_selected_variants(
+        self, selected: list[dict[str, Any]], address_id: str, current_cart: CommerceCart,
+        expected_cart_state: dict[str, Any], delivery_location: str = "Home",
+        budget_cap_inr: float | None = None, ingredient_budget_inr: float | None = None,
+        ingredient_extras_text: str = "", ingredient_spin_ids: list[str] | None = None,
     ) -> dict[str, Any]:
-        """Search products, resolve in-stock variants, respect budget, and update cart in a single atomic pass."""
-        if not items or not address_id:
-            return {"success": False, "error": "MISSING_ARGUMENTS"}
-
-        added_descriptions: list[str] = []
-        unavailable_items: list[str] = []
-        restricted_items: list[str] = []
-        budget_blocked_items: list[str] = []
-        cart_updates: list[dict[str, Any]] = []
-        query_by_spin: dict[str, str] = {}
-        last_update_result: dict[str, Any] | None = None
-        scoped_ids = list(ingredient_spin_ids or [])
-        has_budget = budget_cap_inr is not None or ingredient_budget_inr is not None
-
-        queries = [item.get("query", "").strip() for item in items if item.get("query")]
-        search_res = await self.batch_search_products(queries, address_id)
-        if not search_res.get("success"):
-            return {"success": False, "error": search_res.get("error") or "SEARCH_UNAVAILABLE",
-                    "retryable": bool(search_res.get("retryable", True)),
-                    "retry_after_seconds": search_res.get("retry_after_seconds"),
-                    "message": "I couldn't check every requested item, so I left the basket unchanged."}
-        search_errors = {
-            item["query"]: item["error"]
-            for item in search_res.get("results", [])
-            if item.get("error")
-        }
-        if any(error == "AUTH_EXPIRED" for error in search_errors.values()):
-            return {"success": False, "error": "AUTH_EXPIRED", "retryable": False}
-        search_failed_items = list(search_errors)
-        results_by_query = {
-            item["query"]: item.get("products", [])
-            for item in (search_res.get("results", []) if search_res.get("success") else [])
-        }
-
-        for it in items:
-            q = it.get("query", "").strip()
-            if q in search_errors:
-                continue
-            qty = max(1, int(it.get("quantity", 1)))
-            pref_size = (it.get("preferred_pack_size") or "").lower()
-
-            products = [product for product in results_by_query.get(q, [])
-                        if _matches_requested_product(q, product)]
-            selected_variant = None
-            if pref_size:
-                for p in products:
-                    if pref_size in str(p.get("name", "")).lower() or pref_size in str(p.get("pack_size", "")).lower():
-                        selected_variant = p
-                        break
-            if not selected_variant and products:
-                selected_variant = products[0]
-
-            if not selected_variant:
-                unavailable_items.append(q)
-                continue
-
-            if is_restricted_medical_product(
-                str(selected_variant.get("name") or ""),
-                str(selected_variant.get("category") or ""),
-            ):
-                restricted_items.append(q)
-                continue
-
-            proposal = {
-                "spin_id": selected_variant["spin_id"],
-                "sku_id": selected_variant["sku_id"],
-                "quantity": qty,
-                "name": selected_variant["name"],
-            }
-            query_by_spin[proposal["spin_id"]] = q
-            if has_budget:
-                try:
-                    before = await self.commerce.get_cart()
-                except Exception:
-                    return {"success": False, "error": "CART_UNAVAILABLE", "retryable": True,
-                            "message": "I couldn't verify the basket before applying your budget."}
-                if ingredient_budget_inr is not None and before.items and not scoped_ids:
-                    return {"success": False, "error": "SCOPED_BUDGET_EXISTING_CART", "retryable": False,
-                            "message": "Your basket already has items. Please clarify which existing items count as pizza ingredients."}
-                if (budget_cap_inr is not None and before.items
-                        and Decimal(str(before.grand_total)) > Decimal(str(budget_cap_inr))):
-                    budget_blocked_items.append(q)
-                    continue
-                candidate = await self.update_cart([proposal], address_id, delivery_location)
-                if not candidate.get("success"):
-                    if candidate.get("error") == "CART_ITEMS_UNRESOLVED":
-                        candidate["unavailable_items"] = [q]
-                    return candidate
-                is_ingredient = ingredient_budget_inr is not None and not is_explicit_extra(
-                    q, ingredient_extras_text,
-                )
-                proposed_scope = set(scoped_ids)
-                if is_ingredient:
-                    proposed_scope.add(proposal["spin_id"])
-                ingredient_total = sum(
-                    Decimal(str(item["total_price"])) for item in candidate["items"]
-                    if item["spin_id"] in proposed_scope
-                )
-                cap_exceeded = (
-                    ingredient_total > Decimal(str(ingredient_budget_inr))
-                    if ingredient_budget_inr is not None else
-                    Decimal(str(candidate["grand_total"])) > Decimal(str(budget_cap_inr))
-                )
-                if cap_exceeded:
-                    after = await self.commerce.get_cart()
-                    if not await self._restore_cart(before, after, address_id):
-                        return {"success": False, "error": "BUDGET_ROLLBACK_UNVERIFIED", "retryable": False,
-                                "message": "The basket changed during a budget check. Please review it before ordering."}
-                    budget_blocked_items.append(q)
-                    continue
-                if is_ingredient:
-                    scoped_ids = list(proposed_scope)
-                last_update_result = candidate
-            cart_updates.append(proposal)
-            added_descriptions.append(f"{qty}x {selected_variant['name']}")
-
-        if not cart_updates:
-            if search_failed_items and not unavailable_items and not restricted_items:
-                return {
-                    "success": False, "error": "SEARCH_UNAVAILABLE", "retryable": True,
-                    "search_failed_items": search_failed_items,
-                    "message": "I couldn't check those items right now. Please try again.",
-                }
-            return {
-                "success": False,
-                "error": "NO_ITEMS_AVAILABLE",
-                "unavailable_items": unavailable_items,
-                "restricted_items": restricted_items,
-                "budget_blocked_items": budget_blocked_items,
-                "search_failed_items": search_failed_items,
-                "message": "No requested grocery item could be added."
-            }
-
-        update_result = last_update_result if has_budget else await self.update_cart(
-            items=cart_updates, address_id=address_id, delivery_location=delivery_location,
+        """Apply customer-chosen, freshly verified SKUs in one cart update."""
+        existing_by_spin = {item.spin_id: item for item in current_cart.items}
+        ingredient_ids = set(ingredient_spin_ids or [])
+        ingredient_total = sum(
+            (Decimal(str(item.total_price)) for item in current_cart.items if item.spin_id in ingredient_ids),
+            Decimal(0),
         )
-
-        if not update_result.get("success"):
-            if update_result.get("error") == "CART_ITEMS_UNRESOLVED":
-                missing = update_result.get("unresolved_items", [])
-                update_result["unavailable_items"] = [
-                    query_by_spin.get(item.get("spin_id"), str(item.get("spin_id")))
-                    for item in missing if item.get("actual_quantity", 0) == 0
-                ]
-                update_result["reduced_items"] = [
-                    f"{query_by_spin.get(item.get('spin_id'), item.get('spin_id'))} "
-                    f"({item.get('actual_quantity', 0)} of {item.get('requested_quantity', 0)})"
-                    for item in missing if item.get("actual_quantity", 0) > 0
-                ]
-            return update_result
-
-        update_result["added_items"] = added_descriptions
-        update_result["unavailable_items"] = unavailable_items
-        update_result["restricted_items"] = restricted_items
-        update_result["budget_blocked_items"] = budget_blocked_items
-        update_result["search_failed_items"] = search_failed_items
-        if ingredient_budget_inr is not None:
-            update_result["ingredient_spin_ids"] = scoped_ids
-            update_result["ingredient_item_total"] = sum(
-                item["total_price"] for item in update_result["items"]
-                if item["spin_id"] in scoped_ids
+        predicted_total = Decimal(str(current_cart.grand_total))
+        accepted: list[dict[str, Any]] = []
+        blocked: list[str] = []
+        for item in selected:
+            option, query, quantity = item["option"], item["query"], item["quantity"]
+            spin = option["spin_id"]
+            if any(prior["spin_id"] == spin for prior in accepted):
+                return {"success": False, "error": "DUPLICATE_SELECTED_PRODUCT",
+                        "message": "The same product was selected twice. Please revise the choices."}
+            max_quantity = option.get("max_quantity")
+            if isinstance(max_quantity, int) and quantity > max_quantity:
+                blocked.append(query)
+                continue
+            line_total = Decimal(str(option["price"])) * quantity
+            previous = existing_by_spin.get(spin)
+            previous_total = Decimal(str(previous.total_price)) if previous else Decimal(0)
+            delta = line_total - previous_total
+            is_ingredient = ingredient_budget_inr is not None and not is_explicit_extra(
+                query, ingredient_extras_text,
             )
-        return update_result
+            proposed_ingredient_total = ingredient_total + (
+                delta if spin in ingredient_ids else line_total
+            ) if is_ingredient else ingredient_total
+            if (budget_cap_inr is not None and predicted_total + delta > Decimal(str(budget_cap_inr))) or (
+                ingredient_budget_inr is not None and is_ingredient
+                and proposed_ingredient_total > Decimal(str(ingredient_budget_inr))
+            ):
+                blocked.append(query)
+                continue
+            accepted.append({"spin_id": spin, "sku_id": option["sku_id"], "quantity": quantity})
+            predicted_total += delta
+            ingredient_total = proposed_ingredient_total
+            if is_ingredient:
+                ingredient_ids.add(spin)
+        if not accepted:
+            return {"success": False, "error": "BUDGET_BLOCKED", "budget_blocked_items": blocked,
+                    "message": "None of the selected items fit the stated limit. Your basket was not changed."}
+        result = await self.update_cart(
+            accepted, address_id, delivery_location,
+            expected_cart_state=expected_cart_state,
+        )
+        if not result.get("success"):
+            if result.get("error") == "CART_ITEMS_UNRESOLVED":
+                by_spin = {item["option"]["spin_id"]: item["query"] for item in selected}
+                unresolved = [by_spin.get(item["spin_id"], item["spin_id"])
+                              for item in result.get("unresolved_items", [])]
+                result["message"] = (
+                    "Swiggy omitted or changed: " + ", ".join(unresolved)
+                    + ". Please review the basket before ordering.\n\n"
+                    + result.get("formatted_receipt", "")
+                )
+            return result
+        actual_ingredient_total = sum(
+            (Decimal(str(item["total_price"])) for item in result["items"]
+             if item["spin_id"] in ingredient_ids), Decimal(0),
+        )
+        over_limit = (
+            budget_cap_inr is not None
+            and Decimal(str(result["grand_total"])) > Decimal(str(budget_cap_inr))
+        ) or (
+            ingredient_budget_inr is not None
+            and actual_ingredient_total > Decimal(str(ingredient_budget_inr))
+        )
+        if over_limit:
+            try:
+                after = await self.commerce.get_cart()
+                restored = await self._restore_cart(current_cart, after, address_id)
+            except Exception:
+                restored = False
+            return {"success": False,
+                    "error": "BUDGET_EXCEEDED" if restored else "BUDGET_ROLLBACK_UNVERIFIED",
+                    "message": ("The live total changed and exceeded your limit. I restored your previous basket."
+                                if restored else "The live total changed and I could not verify a rollback. Please review your basket."),
+                    "budget_blocked_items": blocked}
+        result["budget_blocked_items"] = blocked
+        result["ingredient_spin_ids"] = list(ingredient_ids)
+        result["added_items"] = [item["option"]["name"] for item in selected
+                                 if item["query"] not in blocked]
+        return result
 
     async def suggest_grocery_items(
         self, items: list[dict[str, Any]], address_id: str,

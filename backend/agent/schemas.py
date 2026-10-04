@@ -78,13 +78,13 @@ RAW_TOOL_DECLARATIONS = [
     },
     {
         "name": "quick_add_items",
-        "description": "Directly search, resolve in-stock variants, and add grocery items to the Swiggy Instamart basket in a single step. Ideal for natural language requests (e.g. 'add milk and bread', 'need eggs', 'make pizza under 1000'). Detects out-of-stock items, respects budget limits, and updates the cart immediately.",
+        "description": "Search for grocery items and prepare exact product, pack-size and price choices for the customer. Does not change the basket; the customer must choose one listed variant per item first.",
         "parameters": {
             "type": "object",
             "properties": {
                 "items": {
                     "type": "array",
-                    "description": "List of grocery items to search and add.",
+                    "description": "List of grocery items to search and present for customer choice.",
                     "items": {
                         "type": "object",
                         "properties": {
@@ -114,7 +114,7 @@ RAW_TOOL_DECLARATIONS = [
     },
     {
         "name": "update_cart",
-        "description": "Add, modify, or set items in the Swiggy Instamart cart. Both spin_id and sku_id from search_products are strictly mandatory for every item.",
+        "description": "Change quantity or remove products already in the basket. New products must go through quick_add_items and the customer's exact variant choice. Both spin_id and sku_id are required.",
         "parameters": {
             "type": "object",
             "properties": {

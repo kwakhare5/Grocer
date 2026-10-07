@@ -17,6 +17,13 @@ During the Session End ritual (called automatically whenever significant changes
 
 ### [GROCER — Cleanup & General Intelligence Refactor] 2026-10-07
 
+#### Work Card: Switch default model to gemini-3.5-flash-lite for stability
+
+- **Problem**: `gemini-3.6-flash` suffered from Google API HTTP 503 high demand spikes during live WhatsApp multi-turn tests, aborting grocery item planning with "try again" prompts.
+- **Change**: Updated default model to `gemini-3.5-flash-lite` and fallback to `gemini-flash-lite-latest` in `backend/config.py` and `backend/agent/engine.py`.
+- **Proof**: Probed `gemini-3.5-flash-lite` with identical `quick_add_items` payload -> HTTP 200 with immediate tool call; `python -m py_compile` passed; `npm run lint` exited 0.
+- **Still broken**: Needs git push to deploy revision to Render and complete the live test.
+
 #### Work Card: Fix missing WhatsApp identity secret in CI E2E tests
 
 - **Problem**: In GitHub Actions CI quality workflow, 3 tests failed with `RuntimeError: WhatsApp identity is not configured` because `customer_id` was calculated before monkeypatching `_app_secret`, and `WHATSAPP_APP_SECRET` was omitted from CI environment variables.

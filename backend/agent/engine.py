@@ -96,8 +96,8 @@ class GroceryAgentEngine:
             self.gemini_api_key = None
         else:
             self.gemini_api_key = getattr(settings, "GEMINI_API_KEY", None)
-        self.gemini_model = gemini_model or getattr(settings, "GEMINI_MODEL", "gemini-3.6-flash")
-        self.gemini_fallback_model = gemini_fallback_model or getattr(settings, "GEMINI_FALLBACK_MODEL", "gemini-3.5-flash-lite")
+        self.gemini_model = gemini_model or getattr(settings, "GEMINI_MODEL", "gemini-3.5-flash-lite")
+        self.gemini_fallback_model = gemini_fallback_model or getattr(settings, "GEMINI_FALLBACK_MODEL", "gemini-flash-lite-latest")
         self.groq_api_key = groq_api_key or settings.GROQ_API_KEY
         self.groq_model = groq_model or settings.GROQ_MODEL
         self.openrouter_api_key = openrouter_api_key or settings.OPENROUTER_API_KEY

@@ -35,6 +35,7 @@ Thumbs.db
 
 # logs
 *.log
+.*.log
 
 # git bundles / agent artifacts
 *.bundle

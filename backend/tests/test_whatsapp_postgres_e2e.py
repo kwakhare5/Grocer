@@ -786,9 +786,6 @@ async def test_product_name_used_as_model_pack_hint_does_not_hide_valid_bread(po
     commerce = MockCommerceAdapter()
     engine = GroceryAgentEngine(commerce, gemini_api_key="local-test")
     customer_id = default_whatsapp_adapter.map_sender_to_customer_id("919999988888")
-    engine._customer_address[customer_id] = "addr-bandra-1"
-    engine._customer_address_label[customer_id] = "Home"
-    engine._order_address_confirmed[customer_id] = True
 
     async def model_reply(_history, **_kwargs):
         return {"candidates": [{"content": {"parts": [{"functionCall": {

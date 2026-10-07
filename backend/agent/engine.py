@@ -2065,7 +2065,7 @@ class GroceryAgentEngine:
         ))
 
         providers: list[dict[str, Any]] = []
-        if self.gemini_api_key and (self._gemini_explicitly_passed or self.groq_api_key or self.openrouter_api_key):
+        if self.gemini_api_key:
             providers.append({
                 "name": "gemini",
                 "url": "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",

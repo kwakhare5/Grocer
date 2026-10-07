@@ -143,6 +143,7 @@ async def _lifespan(app: FastAPI):
         from backend.agent.replenishment import PostgresReplenishmentStore
         app.state.agent_engine = GroceryAgentEngine(
             get_commerce_adapter(force_mock=force_mock),
+            gemini_api_key=settings.GEMINI_API_KEY,
             attempt_store=PostgresCheckoutAttemptStore(pool) if pool is not None else None,
             state_store=PostgresTaskStateStore(pool, settings.DATA_ENCRYPTION_KEY) if pool is not None else None,
             replenishment_store=PostgresReplenishmentStore(pool, settings.DATA_ENCRYPTION_KEY) if pool is not None else None,

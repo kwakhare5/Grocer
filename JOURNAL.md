@@ -17,6 +17,13 @@ During the Session End ritual (called automatically whenever significant changes
 
 ### [GROCER — Cleanup & General Intelligence Refactor] 2026-10-07
 
+#### Work Card: Fix Gemini provider registration in production lifespan
+
+- **Problem**: In production Render lifespan, `gemini_api_key` was not explicitly passed to `GroceryAgentEngine`, and a guard `(self._gemini_explicitly_passed or self.groq_api_key or ...)` prevented Gemini from being added to `providers`, causing `_call_llm` to fail with `NO_PROVIDER_CONFIGURED`.
+- **Change**: Explicitly passed `gemini_api_key=settings.GEMINI_API_KEY` in `backend/main.py:144` and removed the restrictive `_gemini_explicitly_passed` condition in `backend/agent/engine.py:2068`.
+- **Proof**: `python -m py_compile` passed on all backend modules; `npm run lint` exited 0; diff strictly isolated to the two call sites.
+- **Still broken**: Needs git push to deploy to Render and test live.
+
 #### Work Card: Switch default model to gemini-3.5-flash-lite for stability
 
 - **Problem**: `gemini-3.6-flash` suffered from Google API HTTP 503 high demand spikes during live WhatsApp multi-turn tests, aborting grocery item planning with "try again" prompts.

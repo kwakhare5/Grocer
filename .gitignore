@@ -38,6 +38,7 @@ Thumbs.db
 .*.log
 
 # git bundles / agent artifacts
+.agents/skills/
 *.bundle
 skills-lock.json
 .vercel

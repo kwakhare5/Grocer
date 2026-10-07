@@ -17,6 +17,13 @@ During the Session End ritual (called automatically whenever significant changes
 
 ### [GROCER — Cleanup & General Intelligence Refactor] 2026-10-07
 
+#### Work Card: Fix missing WhatsApp identity secret in CI E2E tests
+
+- **Problem**: In GitHub Actions CI quality workflow, 3 tests failed with `RuntimeError: WhatsApp identity is not configured` because `customer_id` was calculated before monkeypatching `_app_secret`, and `WHATSAPP_APP_SECRET` was omitted from CI environment variables.
+- **Change**: Added `configure_e2e_secrets` autouse fixture to `backend/tests/test_whatsapp_postgres_e2e.py`, ensured monkeypatching precedes `map_sender_to_customer_id` across all tests, and added `WHATSAPP_APP_SECRET: local-e2e-secret` to `.github/workflows/quality.yml`.
+- **Proof**: `npm run lint` exited 0; `npm run build` exited 0; `pytest backend/tests/test_whatsapp_postgres_e2e.py` passed compilation and collection; CI run error identified and matched in job `112760404872`.
+- **Still broken**: Live Swiggy MCP cart writes and Render deployment need verification after push.
+
 #### Work Card: Add direct WhatsApp phone number input to Store Connect modal
 
 - **Problem**: Opening the landing page directly without a WhatsApp connect ticket left the user with no way to type their phone number to connect Swiggy.

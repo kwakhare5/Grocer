@@ -57,6 +57,13 @@ async def postgres_pool():
         await pool.close()
 
 
+@pytest.fixture(autouse=True)
+def configure_e2e_secrets(monkeypatch):
+    monkeypatch.setattr(default_whatsapp_adapter, "_app_secret", "local-e2e-secret")
+    monkeypatch.setattr(default_whatsapp_adapter, "record_only", True)
+    default_whatsapp_adapter.outbound_messages.clear()
+
+
 def _webhook(message_id: str, text: str) -> tuple[bytes, dict[str, str]]:
     body = json.dumps({"object": "whatsapp_business_account", "entry": [{"changes": [{"value": {
         "messages": [{"id": message_id, "from": "919999988888", "type": "text", "text": {"body": text}}]
@@ -210,6 +217,9 @@ async def test_food_already_at_home_does_not_select_home_delivery_address(postgr
 
 @pytest.mark.asyncio
 async def test_model_cannot_add_unselected_sku_with_direct_cart_tool(postgres_pool, monkeypatch):
+    monkeypatch.setattr(default_whatsapp_adapter, "_app_secret", "local-e2e-secret")
+    monkeypatch.setattr(default_whatsapp_adapter, "record_only", True)
+
     class CountingCommerce(MockCommerceAdapter):
         cart_writes = 0
 
@@ -233,8 +243,6 @@ async def test_model_cannot_add_unselected_sku_with_direct_cart_tool(postgres_po
     app.state.agent_engine = engine
     store = PostgresMessageStore(postgres_pool)
     app.state.message_store = store
-    monkeypatch.setattr(default_whatsapp_adapter, "_app_secret", "local-e2e-secret")
-    monkeypatch.setattr(default_whatsapp_adapter, "record_only", True)
     body, headers = _webhook("wamid.unselected-sku", "Add milk")
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://local-test") as client:
         assert (await client.post("/api/whatsapp/webhook", content=body, headers=headers)).status_code == 200
@@ -250,6 +258,9 @@ async def test_model_cannot_add_unselected_sku_with_direct_cart_tool(postgres_po
 
 @pytest.mark.asyncio
 async def test_new_item_planning_keeps_provider_cart_and_write_tools_out_of_model_request(postgres_pool, monkeypatch):
+    monkeypatch.setattr(default_whatsapp_adapter, "_app_secret", "local-e2e-secret")
+    monkeypatch.setattr(default_whatsapp_adapter, "record_only", True)
+
     commerce = MockCommerceAdapter()
     engine = GroceryAgentEngine(commerce, gemini_api_key="local-test")
     customer_id = default_whatsapp_adapter.map_sender_to_customer_id("919999988888")
@@ -282,8 +293,6 @@ async def test_new_item_planning_keeps_provider_cart_and_write_tools_out_of_mode
     app = create_app()
     app.state.agent_engine = engine
     app.state.message_store = store
-    monkeypatch.setattr(default_whatsapp_adapter, "_app_secret", "local-e2e-secret")
-    monkeypatch.setattr(default_whatsapp_adapter, "record_only", True)
     body, headers = _webhook("wamid.safe-planning", "Please add eggs")
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://local-test") as client:
         assert (await client.post("/api/whatsapp/webhook", content=body, headers=headers)).status_code == 200
@@ -771,6 +780,9 @@ async def test_customer_selects_exact_variants_before_one_cart_write_after_resta
 
 @pytest.mark.asyncio
 async def test_product_name_used_as_model_pack_hint_does_not_hide_valid_bread(postgres_pool, monkeypatch):
+    monkeypatch.setattr(default_whatsapp_adapter, "_app_secret", "local-e2e-secret")
+    monkeypatch.setattr(default_whatsapp_adapter, "record_only", True)
+
     commerce = MockCommerceAdapter()
     engine = GroceryAgentEngine(commerce, gemini_api_key="local-test")
     customer_id = default_whatsapp_adapter.map_sender_to_customer_id("919999988888")
@@ -791,8 +803,6 @@ async def test_product_name_used_as_model_pack_hint_does_not_hide_valid_bread(po
     app = create_app()
     app.state.agent_engine = engine
     app.state.message_store = store
-    monkeypatch.setattr(default_whatsapp_adapter, "_app_secret", "local-e2e-secret")
-    monkeypatch.setattr(default_whatsapp_adapter, "record_only", True)
     body, headers = _webhook("wamid.descriptive-pack", "2 doodh half litre and brown bread, no white bread")
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://local-test") as client:
         assert (await client.post("/api/whatsapp/webhook", content=body, headers=headers)).status_code == 200

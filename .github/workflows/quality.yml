@@ -36,6 +36,7 @@ jobs:
       - run: mkdir -p artifacts && pytest backend/tests/test_whatsapp_postgres_e2e.py --junitxml=artifacts/whatsapp_e2e.xml
         env:
           GROCER_E2E_DATABASE_URL: postgresql://grocer_test:grocer_test_local_only@127.0.0.1:55432/grocer_test
+          WHATSAPP_APP_SECRET: local-e2e-secret
       - uses: actions/upload-artifact@v4
         if: always()
         with:

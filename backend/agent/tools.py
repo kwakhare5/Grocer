@@ -33,6 +33,9 @@ _HINDI_GROCERY_ALIASES = {
     "chawal": "rice", "adrak": "ginger", "pyaz": "onion", "aloo": "potato",
     "dahi": "curd",
 }
+_HINDI_ALIAS_PATTERN = re.compile(
+    rf"\b({'|'.join(_HINDI_GROCERY_ALIASES)})\b", re.IGNORECASE
+)
 
 
 def _format_inr(amount: float) -> str:
@@ -40,13 +43,32 @@ def _format_inr(amount: float) -> str:
     return f"₹{int(amount)}" if amount.is_integer() else f"₹{amount:.2f}"
 
 
+def _normalize_token(w: str) -> str:
+    w = w.casefold()
+    if w.endswith("ies") and len(w) > 4:
+        return w[:-3] + "y"
+    if w.endswith("es") and len(w) > 3:
+        return w[:-2]
+    if w.endswith("s") and len(w) > 2 and not w.endswith("ss"):
+        return w[:-1]
+    return w
+
+
 def _matches_requested_product(query: str, product: dict[str, Any]) -> bool:
     """Reject loose provider search hits that do not contain the requested product words."""
-    words = [_HINDI_GROCERY_ALIASES.get(word, word) for word in re.findall(r"[\w]+", query.casefold())
-             if word not in {"a", "an", "the", "of", "for"}]
+    raw_words = [_HINDI_GROCERY_ALIASES.get(w, w) for w in re.findall(r"[\w]+", query.casefold())
+                 if w not in {"a", "an", "the", "of", "for"}]
+    if not raw_words:
+        return True
     name = " ".join(str(product.get(field) or "") for field in
                     ("brand", "product_name", "name", "pack_size")).casefold()
-    return bool(words) and all(word in name for word in words)
+    name_tokens = {_normalize_token(t) for t in re.findall(r"[\w]+", name)}
+    for rw in raw_words:
+        norm_rw = _normalize_token(rw)
+        if norm_rw in name or norm_rw in name_tokens or rw in name:
+            continue
+        return False
+    return True
 
 
 def clean_address(street: str, city: Optional[str] = None, label: Optional[str] = None) -> str:
@@ -227,15 +249,13 @@ class SwiggyAgentTools:
         clean_queries = [q.strip() for q in queries if isinstance(q, str) and q.strip()]
         if not clean_queries:
             return {"success": False, "error": "No valid search queries provided."}
-        if len(clean_queries) > 30:
+        if len(clean_queries) > 45:
             return {"success": False, "error": "TOO_MANY_QUERIES", "retryable": False}
 
         async def _search_one(q: str) -> dict[str, Any]:
             try:
-                provider_query = re.sub(
-                    r"\b(?:doodh|anda|ande|aata|chawal|adrak|pyaz|aloo|dahi)\b",
-                    lambda match: _HINDI_GROCERY_ALIASES[match.group().casefold()],
-                    q, flags=re.IGNORECASE,
+                provider_query = _HINDI_ALIAS_PATTERN.sub(
+                    lambda match: _HINDI_GROCERY_ALIASES[match.group().casefold()], q
                 )
                 res = await self.search_products(provider_query, address_id)
                 if not res.get("success"):

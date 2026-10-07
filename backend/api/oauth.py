@@ -19,9 +19,25 @@ class LoginRequest(BaseModel):
 
 @router.post("/auth/swiggy/login")
 async def swiggy_login(req: LoginRequest) -> dict[str, str]:
-    customer_id = await default_connect_tickets.consume(req.ticket or "")
+    customer_id = None
+    if req.ticket:
+        customer_id = await default_connect_tickets.consume(req.ticket)
+    elif req.phone_number:
+        clean = re.sub(r"[^\d]", "", req.phone_number)
+        if len(clean) == 10 and clean[0] in "6789":
+            clean = f"91{clean}"
+        if re.fullmatch(r"91[6-9]\d{9}", clean):
+            try:
+                from backend.channels.whatsapp import default_whatsapp_adapter
+                customer_id = default_whatsapp_adapter.map_sender_to_customer_id(clean)
+            except Exception:
+                logger.exception("Could not derive customer ID from phone number")
+
     if customer_id is None:
-        raise HTTPException(status_code=403, detail="Open a fresh connection link from WhatsApp.")
+        raise HTTPException(
+            status_code=400,
+            detail="Please provide a valid connection link or 10-digit WhatsApp phone number.",
+        )
     try:
         authorize_url, state = await default_oauth_manager.initiate_flow(
             customer_id=customer_id,
@@ -126,7 +142,7 @@ async def swiggy_callback_browser(code: str, state: str) -> HTMLResponse:
 </head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f8fafc; color: #0f172a; display: flex; align-items: center; justify-content: center; min-height: 90vh; margin: 0; padding: 16px;">
     <div style="background: white; border: 1px solid #e2e8f0; border-radius: 20px; max-width: 380px; width: 100%; padding: 32px 24px; text-align: center; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.05);">
-        <div style="font-size: 52px; margin-bottom: 16px;">🎉</div>
+        <div style="font-size: 52px; margin-bottom: 16px;">ðŸŽ‰</div>
         <h2 style="margin: 0 0 8px; font-size: 22px; font-weight: 700; color: #0f172a;">Swiggy Connected!</h2>
         <p style="color: #64748b; font-size: 15px; line-height: 1.5; margin: 0 0 28px;">
             Your grocery assistant is now authorized. You can switch back to WhatsApp and continue shopping!

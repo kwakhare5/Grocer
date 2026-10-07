@@ -15,7 +15,23 @@ During the Session End ritual (called automatically whenever significant changes
 
 ## Log Entries
 
-### [GROCER — Mumbai database recovery] 2026-10-04
+### [GROCER — Cleanup & General Intelligence Refactor] 2026-10-07
+
+#### Work Card: Add direct WhatsApp phone number input to Store Connect modal
+
+- **Problem**: Opening the landing page directly without a WhatsApp connect ticket left the user with no way to type their phone number to connect Swiggy.
+- **Change**: Added phone number input field with `+91` prefix to `ConnectInstamartModal.tsx`; updated `backend/api/oauth.py` to resolve pseudonymous `customer_id` from 10-digit mobile number via `default_whatsapp_adapter.map_sender_to_customer_id`.
+- **Proof**: `npm run lint` exited 0; `python -m py_compile backend/api/oauth.py` exited 0; git diff verified.
+- **Still broken**: Changes need git push to Vercel/Render for live testing on grocerr.vercel.app.
+
+
+
+#### Work Card: Support conversational basket ordinals and expand basket item caps
+
+- **Problem**: Conversational cart edits with ordinals/word numbers ("make the second one two") failed matching; non-monetary phrases ("within 30 mins") matched as budgets; a test assertion was relaxed; Hindi regex duplicated keys.
+- **Change**: Added ordinal/word-number mapping; excluded time and item counts from budget lookahead; restored exact test assertion; pre-compiled `_HINDI_ALIAS_PATTERN`; expanded planner limit to 45.
+- **Proof**: Signed WhatsApp webhook/PostgreSQL E2E: 64 passed, 16 skipped, exit 0 with restored `NEEDS_DECISION` assertion and new ordinal test; npm run lint exited 0; python -m py_compile passed.
+- **Still broken**: Live Swiggy MCP cart writes and Render cloud deployment remain unverified; production DPA cross-border data gate remains open.
 
 #### Work Card: Probe human requests before choosing the core design
 

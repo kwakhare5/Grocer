@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     AI_PROVIDER: Literal["gemini", "groq", "openrouter"] = "gemini"
     GEMINI_API_KEY: str | None = None
     GEMINI_MODEL: str = "gemini-3.6-flash"
-    GEMINI_FALLBACK_MODEL: str = "gemini-3.5-flash"
+    GEMINI_FALLBACK_MODEL: str = "gemini-3.5-flash-lite"
     GROQ_API_KEY: str | None = None
     GROQ_MODEL: str = "openai/gpt-oss-120b"
     OPENROUTER_API_KEY: str | None = None

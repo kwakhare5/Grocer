@@ -50,7 +50,18 @@ from backend.agent.prompts import (  # noqa: E402, F401
     build_system_instruction,
 )
 
-
+_WORD_NUMBERS = {
+    "zero": 0, "one": 1, "two": 2, "three": 3, "four": 4, "five": 5,
+    "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10,
+}
+_ORDINALS = {
+    "first": 0, "1st": 0,
+    "second": 1, "2nd": 1,
+    "third": 2, "3rd": 2,
+    "fourth": 3, "4th": 3,
+    "fifth": 4, "5th": 4,
+    "sixth": 5, "6th": 5,
+}
 
 
 class GroceryAgentEngine:
@@ -86,7 +97,7 @@ class GroceryAgentEngine:
         else:
             self.gemini_api_key = getattr(settings, "GEMINI_API_KEY", None)
         self.gemini_model = gemini_model or getattr(settings, "GEMINI_MODEL", "gemini-3.6-flash")
-        self.gemini_fallback_model = gemini_fallback_model or getattr(settings, "GEMINI_FALLBACK_MODEL", "gemini-3.5-flash")
+        self.gemini_fallback_model = gemini_fallback_model or getattr(settings, "GEMINI_FALLBACK_MODEL", "gemini-3.5-flash-lite")
         self.groq_api_key = groq_api_key or settings.GROQ_API_KEY
         self.groq_model = groq_model or settings.GROQ_MODEL
         self.openrouter_api_key = openrouter_api_key or settings.OPENROUTER_API_KEY
@@ -619,7 +630,7 @@ class GroceryAgentEngine:
             return NormalizedOutgoingResponse(
                 recipient_id=message.sender_id, channel=message.channel,
                 text="Hi! Tell me what grocery items you need, or ask to see your basket.",
-                conversation_state="READY",
+                conversation_state="NEEDS_DECISION",
             )
 
         # Fast-path 1: Reset / Clear basket command
@@ -1011,8 +1022,9 @@ class GroceryAgentEngine:
         reduced_items: list[str] = []
         guarded_change_message: str | None = None
         legacy_operation = bool(re.search(
-            r"\b(?:remove|delete|increase|decrease|reduce|change|switch|replace|swap|"
-            r"clear|cancel|checkout|confirm|pay|payment|track|usuals?|regulars?|address)\b",
+            r"\b(?:remove|delete|increase|decrease|reduce|change|switch|replace|swap|update|edit|drop|take\s+out|"
+            r"clear|cancel|checkout|confirm|pay|payment|track|usuals?|regulars?|address)\b"
+            r"|\b(?:make|set)\s+(?:the\s+)?(?:first|second|third|1st|2nd|3rd|it|that|\w+)\s+(?:to\s+)?(?:\d+|zero|one|two|three|four|five)\b",
             planning_request_text, re.IGNORECASE,
         ))
         planning_turn = not user_confirmed and not legacy_operation
@@ -1063,7 +1075,7 @@ class GroceryAgentEngine:
                             continue
                         args = call.get("args")
                         items = args.get("items") if isinstance(args, dict) else None
-                        if not isinstance(items, list) or not 1 <= len(items) <= 30:
+                        if not isinstance(items, list) or not 1 <= len(items) <= 45:
                             return True
                         for item in items:
                             if not isinstance(item, dict):
@@ -1186,26 +1198,47 @@ class GroceryAgentEngine:
                     "from", "get", "in", "increase", "item", "make", "my", "of", "please",
                     "quantity", "reduce", "remove", "the", "to", "units", "update", "x",
                 }
-                cart_by_spin = {item.spin_id: item for item in current_cart.items} if current_cart else {}
+                cart_items_list = list(current_cart.items) if current_cart else []
+                cart_by_spin = {item.spin_id: item for item in cart_items_list}
                 remove_requested = bool(re.search(
-                    r"\b(?:remove|delete|take\s+out)\b", planning_request_text, re.IGNORECASE,
+                    r"\b(?:remove|delete|take\s+out|drop)\b", planning_request_text, re.IGNORECASE,
                 ))
+                ordinal_match = re.search(
+                    r"\b(first|1st|second|2nd|third|3rd|fourth|4th|fifth|5th|sixth|6th)\b",
+                    planning_request_text, re.IGNORECASE,
+                )
+                target_ordinal_index = _ORDINALS.get(ordinal_match.group(1).casefold()) if ordinal_match else None
+                target_ordinal_item = (
+                    cart_items_list[target_ordinal_index]
+                    if target_ordinal_index is not None and 0 <= target_ordinal_index < len(cart_items_list)
+                    else None
+                )
+
+                qty_digit = re.search(r"\b(?:to|make\s+(?:it|that)?)\s+(\d+)\b", planning_request_text, re.IGNORECASE)
+                qty_word = re.search(
+                    r"\b(?:to|make\s+(?:it|that)?)\s+(zero|one|two|three|four|five|six|seven|eight|nine|ten)\b",
+                    planning_request_text, re.IGNORECASE,
+                )
+                exact_qty = (
+                    int(qty_digit.group(1)) if qty_digit
+                    else (_WORD_NUMBERS.get(qty_word.group(1).casefold()) if qty_word else None)
+                )
+
                 for call in cart_edits:
                     items = call.get("args", {}).get("items") if isinstance(call.get("args"), dict) else None
                     if not isinstance(items, list) or not items:
                         continue
-                    exact_quantity = (re.search(r"\bto\s+(\d+)\b", planning_request_text, re.IGNORECASE)
-                                      if len(items) == 1 else None)
                     for item in items:
                         line = cart_by_spin.get(item.get("spin_id")) if isinstance(item, dict) else None
                         name_words = set(re.findall(r"[a-z0-9]+", line.name.casefold())) if line else set()
-                        named_item = bool((request_words & name_words) or (
-                            len(cart_by_spin) == 1
-                            and re.search(r"\b(?:that|it)\b", planning_request_text, re.IGNORECASE)
-                        ))
+                        named_item = bool(
+                            (request_words & name_words)
+                            or (target_ordinal_item and line and target_ordinal_item.spin_id == line.spin_id)
+                            or (len(cart_by_spin) == 1 and re.search(r"\b(?:that|it)\b", planning_request_text, re.IGNORECASE))
+                        )
                         quantity = item.get("quantity") if isinstance(item, dict) else None
                         if (not named_item or (remove_requested and quantity != 0)
-                                or (exact_quantity and quantity != int(exact_quantity.group(1)))):
+                                or (exact_qty is not None and quantity != exact_qty)):
                             session.pending_request_text = planning_request_text
                             return NormalizedOutgoingResponse(
                                 recipient_id=message.sender_id, channel=message.channel,
@@ -1662,12 +1695,12 @@ class GroceryAgentEngine:
                     if item.spin_id in session.ingredient_spin_ids
                 )
                 scoped_note = (
-                    f"Pizza ingredient items: ₹{ingredient_total:,.2f} of "
+                    f"Ingredient items: ₹{ingredient_total:,.2f} of "
                     f"₹{session.ingredient_budget_inr:,.2f}. "
                     "Extras and shared fees are outside that limit; the full payable total is below. "
                 )
             final_text = (
-                (("These pizza ingredients did not fit your ingredient-price limit: "
+                (("These recipe ingredients did not fit your ingredient-price limit: "
                   if session.ingredient_budget_inr is not None else
                   "These requested items did not fit your budget: ") + ", ".join(blocked) + ". "
                  if blocked else "")
@@ -1912,7 +1945,7 @@ class GroceryAgentEngine:
                 )
                 if ingredient_total > sess.ingredient_budget_inr:
                     return {"success": False, "error": "INGREDIENT_BUDGET_EXCEEDED", "retryable": False,
-                            "message": "Pizza ingredients exceed the agreed price limit. Please review the basket."}
+                            "message": "Recipe ingredients exceed the agreed price limit. Please review the basket."}
             attempt_id = None
             if settings.CHECKOUT_MODE == "live":
                 if self.attempt_store is None:

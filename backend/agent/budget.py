@@ -11,7 +11,7 @@ _TOTAL_PATTERNS = (
     re.compile(rf"(?i)\b(?:under|below|max(?:imum)?)\s*{_AMOUNT}\s*{_CURRENCY}\b"),
     re.compile(
         rf"(?i)\b(?:under|below|within|at\s+most|no\s+more\s+than|up\s+to|max(?:imum)?)\s*"
-        rf"(?:{_CURRENCY}\s*)?{_AMOUNT}\b(?!\s*(?:g|kg|ml|l|litres?|pieces?|pcs)\b)"
+        rf"(?:{_CURRENCY}\s*)?{_AMOUNT}\b(?!\s*(?:g|kg|ml|l|litres?|pieces?|pcs|mins?|minutes?|hours?|hrs?|items?|products?|days?|seconds?|sec)\b)"
     ),
 )
 
@@ -45,10 +45,21 @@ def extract_ingredient_budget(text: str) -> tuple[float, str] | None:
     return (amount, extras.group("extras") if extras else "") if amount > 0 else None
 
 
+ESTIMATED_DARKSTORE_FEES_INR: float = 35.0
+
+
+def calculate_available_item_budget(budget_inr: float, reserve_fees: bool = True) -> float:
+    """Reserve room for standard delivery and handling fees so the final bill does not breach customer budget."""
+    if not reserve_fees or budget_inr <= ESTIMATED_DARKSTORE_FEES_INR:
+        return budget_inr
+    return budget_inr - ESTIMATED_DARKSTORE_FEES_INR
+
+
 def is_explicit_extra(query: str, extras_text: str) -> bool:
     """Classify only an item named in the customer's explicit extra clause."""
     words = re.findall(r"[\w]+", query.casefold())
     words = [word for word in words if len(word) >= 4 and word not in {
-        "fresh", "green", "brown", "whole", "large", "small", "organic", "pizza",
+        "fresh", "green", "brown", "whole", "large", "small", "organic",
     }]
     return bool(words and re.search(rf"\b{re.escape(words[0])}\b", extras_text.casefold()))
+

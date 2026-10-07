@@ -25,6 +25,7 @@ export function ConnectInstamartModal({
   connectTicket,
   initialError,
 }: ConnectInstamartModalProps) {
+  const [phoneNumber, setPhoneNumber] = useState("");
   const [authError, setAuthError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -35,8 +36,9 @@ export function ConnectInstamartModal({
     setAuthError(null);
 
     const ticket = connectTicket;
-    if (!ticket) {
-      setAuthError("Request a fresh connection link in your WhatsApp chat with Grocer.");
+    const cleanPhone = phoneNumber.replace(/\D/g, "");
+    if (!ticket && cleanPhone.length !== 10) {
+      setAuthError("Enter your 10-digit WhatsApp phone number to connect.");
       return;
     }
 
@@ -45,7 +47,7 @@ export function ConnectInstamartModal({
       const res = await fetch("/api/auth/swiggy/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ticket }),
+        body: JSON.stringify(ticket ? { ticket } : { phone_number: cleanPhone }),
       });
 
       const data = await res.json();
@@ -90,7 +92,7 @@ export function ConnectInstamartModal({
             </h2>
             <p className="text-xs text-zinc-500 mt-0.5 flex items-center gap-1.5">
               <span>OAuth 2.1 Gateway</span>
-              <span>•</span>
+              <span>â€¢</span>
               <WhatsAppIcon className="w-3.5 h-3.5 inline shrink-0" />
               <span>WhatsApp Replenishment</span>
             </p>
@@ -122,9 +124,35 @@ export function ConnectInstamartModal({
           </div>
         ) : (
           <form onSubmit={handleStartAuth} className="space-y-4">
-            <p className="text-xs sm:text-sm text-zinc-600 leading-relaxed font-normal">
-              Open the one-time link Grocer sent to your WhatsApp chat, then continue here to connect your Swiggy account.
-            </p>
+            {connectTicket ? (
+              <p className="text-xs sm:text-sm text-zinc-600 leading-relaxed font-normal">
+                Connection ticket verified. Continue below to authenticate your Swiggy account.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                <label htmlFor="wa-phone" className="block text-xs font-semibold text-zinc-700">
+                  WhatsApp Phone Number
+                </label>
+                <div className="relative flex items-center">
+                  <span className="absolute left-3.5 text-xs font-semibold text-zinc-500">
+                    +91
+                  </span>
+                  <input
+                    id="wa-phone"
+                    type="tel"
+                    inputMode="numeric"
+                    placeholder="98765 43210"
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value)}
+                    maxLength={14}
+                    className="w-full pl-11 pr-3.5 py-2.5 rounded-xl border border-zinc-200 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20 text-xs sm:text-sm font-medium text-zinc-900 placeholder:text-zinc-400 outline-none transition"
+                  />
+                </div>
+                <p className="text-[11px] text-zinc-500 leading-normal">
+                  Enter the 10-digit mobile number you use for Grocer on WhatsApp.
+                </p>
+              </div>
+            )}
 
             <button
               type="submit"

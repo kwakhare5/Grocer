@@ -396,6 +396,59 @@ async def test_cart_edit_cannot_change_a_different_item_than_customer_named(post
 
 
 @pytest.mark.asyncio
+async def test_cart_edit_supports_ordinal_references_like_second_one_to_two(postgres_pool, monkeypatch):
+    class CountingCommerce(MockCommerceAdapter):
+        def __init__(self):
+            super().__init__()
+            self.cart_writes = 0
+
+        async def update_cart(self, items, cart_id=None, address_id=None):
+            self.cart_writes += 1
+            return await super().update_cart(items, cart_id=cart_id, address_id=address_id)
+
+    commerce = CountingCommerce()
+    engine = GroceryAgentEngine(commerce, gemini_api_key="local-test")
+    monkeypatch.setattr(default_whatsapp_adapter, "_app_secret", "local-e2e-secret")
+    monkeypatch.setattr(default_whatsapp_adapter, "record_only", True)
+    customer_id = default_whatsapp_adapter.map_sender_to_customer_id("919999988888")
+    with commerce.customer_scope(customer_id):
+        await commerce.update_cart([
+            CartItemUpdate(spin_id="SPIN-MILK-1L", sku_id="SPIN-MILK-1L", quantity=1),
+            CartItemUpdate(spin_id="SPIN-BREAD-400G", sku_id="SPIN-BREAD-400G", quantity=1),
+        ], address_id="addr-bandra-1")
+    baseline_writes = commerce.cart_writes
+    proposed_edit = {"spin_id": "SPIN-BREAD-400G", "sku_id": "SPIN-BREAD-400G", "quantity": 2}
+
+    call_count = 0
+
+    async def valid_ordinal_model_reply(_history, **_kwargs):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            return {"candidates": [{"content": {"parts": [{"functionCall": {
+                "name": "update_cart", "args": {"items": [proposed_edit], "address_id": "addr-bandra-1"},
+            }}]}}]}
+        return {"candidates": [{"content": {"parts": [{"text": "I've updated the bread quantity to 2."}]}}]}
+
+    engine._call_llm = valid_ordinal_model_reply
+    store = PostgresMessageStore(postgres_pool)
+    app = create_app()
+    app.state.agent_engine = engine
+    app.state.message_store = store
+    body, headers = _webhook("wamid.ordinal-cart-edit", "make the second one two")
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://local-test") as client:
+        assert (await client.post("/api/whatsapp/webhook", content=body, headers=headers)).status_code == 200
+    _, reply = await store.response_for_message("wamid.ordinal-cart-edit")
+    with commerce.customer_scope(customer_id):
+        cart = await commerce.get_cart()
+    assert commerce.cart_writes == baseline_writes + 1
+    bread_item = next(item for item in cart.items if item.spin_id == "SPIN-BREAD-400G")
+    assert bread_item.quantity == 2
+    assert "bread" in reply.text.casefold() or "basket" in reply.text.casefold()
+    await engine.close()
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize("model_queries", [("eggs",), ("milk", "bread", "eggs", "bananas")])
 async def test_new_item_plan_keeps_only_the_explicit_list_in_customer_order(
     postgres_pool, monkeypatch, model_queries,
@@ -2143,7 +2196,7 @@ async def test_local_simulator_uses_signed_webhook_and_rejects_customer_imperson
     assert unauthenticated.status_code == 401
     assert forged.status_code == 422
     assert response.status_code == 200
-    assert response.json()["conversation_state"] in {"READY", "NEEDS_DECISION"}
+    assert response.json()["conversation_state"] == "NEEDS_DECISION"
     assert await postgres_pool.fetchval("SELECT count(*) FROM grocer_internal.inbound_messages") == 1
     assert await postgres_pool.fetchval("SELECT status FROM grocer_internal.outbound_messages") == "SENT"
     assert len(default_whatsapp_adapter.outbound_messages) == 1

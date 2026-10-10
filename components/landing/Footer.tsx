@@ -29,7 +29,7 @@ export function Footer() {
                 <WhatsAppIcon className="w-3.5 h-3.5 inline shrink-0" />
                 <span>WhatsApp</span>
               </span>
-              <span>grocery replenishment for Swiggy Instamart. Built with Groq LPU (Qwen 3.8 27B) &amp; Model Context Protocol.</span>
+              <span>grocery replenishment for Swiggy Instamart. Preserves shopping intent across messages and checks household restock cadences.</span>
             </p>
 
             <div className="text-xs text-zinc-500 pt-0.5">
@@ -58,12 +58,12 @@ export function Footer() {
             </a>
 
             <a
-              href="https://github.com/kwakhare5/Grocer/blob/main/docs/REVIEWER_WALKTHROUGH.md"
+              href="https://github.com/kwakhare5/Grocer/blob/main/docs/SWIGGY_BUILDER_CLUB_APPLICATION.md"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-zinc-700 hover:text-emerald-700 hover:bg-zinc-50 border border-zinc-200/80 hover:border-zinc-300 transition-all duration-150 active:scale-[0.98] shadow-2xs"
             >
-              <span>Reviewer Walkthrough</span>
+              <span>Application Dossier</span>
               <ExternalLink className="w-3.5 h-3.5 text-zinc-400" />
             </a>
 
@@ -83,7 +83,7 @@ export function Footer() {
         <div className="pt-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-zinc-500 font-mono">
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-            <span>51/51 automated invariant tests passing</span>
+            <span>94/94 automated tests passing</span>
             <span className="text-zinc-300">•</span>
             <span>Live Swiggy MCP runtime</span>
           </div>

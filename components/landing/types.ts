@@ -8,15 +8,11 @@ export interface VerifiedJourneyTurn {
   label: string;
   tag: string;
   userInput: string;
-  state: string;
-  humanState: string;
-  latencyMs: number;
   assistantMessage: string;
   items?: MessageItem[];
   subtotal?: string;
   fees?: string;
   total?: string;
-  deliveryAddress?: string;
   paymentLink?: string;
   humanExplanation: {
     customerIntent: string;
@@ -42,8 +38,6 @@ export interface PipelineNode {
   stepNumber: string;
   title: string;
   subtitle: string;
-  badge: string;
-  badgeColor: "emerald" | "blue" | "purple" | "orange" | "zinc";
   metric: string;
   description: string;
   responsibilities: string[];

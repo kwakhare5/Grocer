@@ -1,10 +1,12 @@
 import type { NextConfig } from "next";
 
-const backendUrl = process.env.LOCAL_BACKEND_URL || "http://127.0.0.1:8000";
+const backendUrl =
+  process.env.BACKEND_INTERNAL_URL ||
+  process.env.LOCAL_BACKEND_URL ||
+  "http://127.0.0.1:8000";
 
 const nextConfig: NextConfig = {
   async rewrites() {
-    if (process.env.NODE_ENV !== "development") return [];
     return [
       {
         source: "/api/simulator/:path*",

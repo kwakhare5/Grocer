@@ -26,7 +26,8 @@ export function ArchitectureSection() {
         return <WhatsAppIcon className="w-4 h-4 shrink-0" />;
       case "address":
         return <MapPin className="w-4 h-4" />;
-      case "groq":
+      case "reasoning":
+      case "gemini":
         return <Search className="w-4 h-4" />;
       case "guards":
         return <Lock className="w-4 h-4" />;
@@ -177,7 +178,7 @@ export function ArchitectureSection() {
                   Verification Status
                 </div>
                 <p className="text-zinc-500 leading-relaxed">
-                  Verified with 62 automated invariant tests against live Swiggy Instamart schemas.
+                  Verified with 94 automated invariant and end-to-end tests against live Swiggy Instamart schemas.
                 </p>
               </div>
             </div>

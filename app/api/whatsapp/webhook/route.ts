@@ -1,7 +1,17 @@
+import crypto from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { getBackendUrl } from "../../_lib/backend";
 
 const verifyToken = process.env.WHATSAPP_VERIFY_TOKEN;
+
+function safeCompare(a: string, b: string): boolean {
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  if (bufA.length !== bufB.length) {
+    return false;
+  }
+  return crypto.timingSafeEqual(bufA, bufB);
+}
 
 export async function GET(req: NextRequest) {
   try {
@@ -10,7 +20,7 @@ export async function GET(req: NextRequest) {
     const token = searchParams.get("hub.verify_token");
     const challenge = searchParams.get("hub.challenge");
 
-    if (verifyToken && mode === "subscribe" && token === verifyToken) {
+    if (verifyToken && mode === "subscribe" && token && safeCompare(token, verifyToken)) {
       return new NextResponse(challenge || "", {
         status: 200,
         headers: { "Content-Type": "text/plain" },

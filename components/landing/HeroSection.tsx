@@ -16,7 +16,7 @@ export function HeroSection({ onOpenConnect, isConnected }: HeroSectionProps) {
         {/* Universal Quick-Commerce Live Badge */}
         <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-50/90 border border-emerald-200/80 text-emerald-800 text-xs font-semibold mb-6 shadow-2xs">
           <WhatsAppIcon className="w-3.5 h-3.5 shrink-0" />
-          <span>WhatsApp Replenishment • Quick Commerce Agent</span>
+          <span>WhatsApp Grocery Replenishment • Swiggy Instamart</span>
         </div>
 
         {/* Main Headline */}
@@ -26,7 +26,7 @@ export function HeroSection({ onOpenConnect, isConnected }: HeroSectionProps) {
 
       {/* Clear, simple value prop */}
       <p className="mt-5 text-base sm:text-lg text-zinc-600 leading-relaxed max-w-2xl mx-auto font-normal">
-        No app clutter, no lost carts. Grocer checks live dark-store inventory, respects your budget caps, and requires your explicit confirmation before checkout.
+        Order naturally from everyday messages. Grocer preserves your shopping intent across multi-turn edits, predicts household staple restocks, verifies live store pricing, and locks checkout until you tap Confirm.
       </p>
 
       {/* Clean Action Buttons */}

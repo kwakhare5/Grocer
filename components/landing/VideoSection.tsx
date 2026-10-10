@@ -30,7 +30,6 @@ export function VideoSection() {
               controls
               playsInline
               preload="metadata"
-              poster="/video-poster.jpg"
               className="w-full h-full object-cover"
               onError={() => setHasVideoError(true)}
             >

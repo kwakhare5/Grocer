@@ -8,7 +8,7 @@
 > **Backend Health:** `https://grocer-backend-qwk4.onrender.com/health`  
 > **Target Review Email:** `builders@swiggy.in`  
 > **Target Form URL:** `https://forms.gle/4vkeKyqm15Qb6fnJA`  
-> **Verification Status:** 87 Invariant & Eval Tests Passing (100% Green) | Next.js 16 Production Build Clean | 0 ESLint Errors/Warnings  
+> **Verification Status:** 94 Invariant & Eval Tests Passing (100% Green) | Next.js 16 Production Build Clean | 0 ESLint Errors/Warnings  
 
 ---
 
@@ -230,7 +230,7 @@ This script is structured to match `public/demo.mp4` exactly.
 ### [1:40 – 2:00] Review Simulation, 10s Rate Tracking & Conclusion
 - **Video Action:** Agent confirms order in simulation mode and displays dynamic UPI payment link and 10s tracking cadence.
 - **Narration:**  
-  *"At checkout, because Grocer runs with `CHECKOUT_MODE=review`, it simulates dynamic UPI QR generation without charging real money. The background poller tracks payment completion every 10 seconds per Swiggy's rate limit guidelines. All 87 safety and invariant tests pass 100% green. Thank you for considering Grocer for the Swiggy Builders Club!"*
+  *"At checkout, because Grocer runs with `CHECKOUT_MODE=review`, it simulates dynamic UPI QR generation without charging real money. The background poller tracks payment completion every 10 seconds per Swiggy's rate limit guidelines. All 94 safety and invariant tests pass 100% green. Thank you for considering Grocer for the Swiggy Builders Club!"*
 
 ---
 
@@ -264,7 +264,7 @@ Key Technical Highlights:
 2. Review Mode Simulation Gate: To guarantee financial safety during demonstrations and evaluation, the backend runs under CHECKOUT_MODE=review, returning simulated dynamic UPI QR responses without triggering live provider charges.
 3. Swiggy Rate Limits: Payment status polling cadence is pinned to 10 seconds (PAYMENT_POLL_INTERVAL_SECONDS = 10), respecting Swiggy's 70 req/min overall quota.
 4. Ephemeral Security & RAM Vault: Plaintext token storage has been eradicated. Tokens are held in RAM isolation with per-customer cryptographic isolation and fail-closed persistence.
-5. Invariant Test Proof: 87 automated invariant, end-to-end, and evaluation tests pass 100% green in pytest. Next.js 16 production build compiles with 0 ESLint errors/warnings.
+5. Invariant Test Proof: 94 automated invariant, end-to-end, and evaluation tests pass 100% green in pytest. Next.js 16 production build compiles with 0 ESLint errors/warnings.
 
 I would be thrilled to receive developer access to the Swiggy Instamart Live MCP server to continue testing and refining Grocer.
 
@@ -284,7 +284,7 @@ LinkedIn: https://www.linkedin.com/in/karan-wakhare/
 
 Before and after submitting, run this final verification:
 
-- [x] **87 Backend Tests Pass:** `pytest backend/tests` exits 0 in ~16s.
+- [x] **94 Backend Tests Pass:** `pytest backend/tests` exits 0 in ~16s.
 - [x] **Clean Frontend Build:** `npm run build` compiles with Next.js 16 Turbopack in ~2.1s.
 - [x] **0 ESLint Warnings:** `npm run lint` returns 0 errors and 0 warnings.
 - [x] **`public/demo.mp4` Present:** Video file exists and plays cleanly.

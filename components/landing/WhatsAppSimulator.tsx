@@ -41,7 +41,7 @@ export function WhatsAppSimulator() {
             Real WhatsApp conversation flow
           </h2>
           <p className="mt-2.5 text-sm sm:text-base text-zinc-600 leading-relaxed font-normal">
-            Recorded live from our Groq LPU (Qwen 3.8 27B) &amp; Quick-Commerce engine. Select any turn to inspect the exact message and backend safety rules.
+            Recorded live from our Quick-Commerce AI engine with Model Context Protocol. Select any turn to inspect the exact message and backend safety rules.
           </p>
         </div>
 

@@ -24,7 +24,7 @@ const lora = Lora({
 export const metadata: Metadata = {
   title: "Grocer — Intent-Preserving Grocery Replenishment",
   description:
-    "WhatsApp consumer grocery replenishment assistant with deterministic intent verification, bounded recovery, and Swiggy Instamart integration.",
+    "WhatsApp grocery replenishment assistant for Swiggy Instamart that preserves shopping intent across messages, checks household restock cadences, and requires explicit confirmation before checkout.",
   icons: {
     icon: { url: '/logo.svg', type: 'image/svg+xml' },
     shortcut: '/logo.svg',

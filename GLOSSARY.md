@@ -31,3 +31,11 @@ _Avoid_: Generic yes, model confirmation flag
 **Unknown checkout outcome**:
 A checkout attempt whose effect cannot yet be verified with Swiggy. It is distinct from a confirmed failure.
 _Avoid_: Failed order, safe retry
+
+**Intent Preservation**:
+The system guarantee that the customer's grocery requirements, constraints (budget ceilings, brand preferences, dietary exclusions), and active basket state remain intact across multi-turn conversational changes without silent drops or unintended modifications.
+_Avoid_: Chat context, prompt memory
+
+**Household Replenishment**:
+Cadence-based restock checks for regular household staples derived from consented order history. Suggestions are shared conversationally and require explicit customer confirmation before any basket mutation.
+_Avoid_: Auto-subscription, background purchasing

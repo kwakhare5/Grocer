@@ -208,15 +208,22 @@ async def execute_react_turn_loop(
             )
 
         if planning_turn and any(
-            call.get("name") not in {"quick_add_items", "manage_basket", "get_cart", "search_products"}
+            call.get("name") not in {
+                "quick_add_items", "manage_basket", "get_cart", "search_products",
+                "select_delivery_address", "get_saved_addresses", "get_go_to_items", "check_replenishment",
+            }
             for call in function_calls
         ):
             session.pending_request_text = planning_request_text
+            if any(call.get("name") == "update_cart" for call in function_calls):
+                msg = "Please choose an exact product and pack before I add it. I kept your request; nothing was added."
+            else:
+                msg = "I couldn't plan that grocery request safely; nothing changed. Please tell me what you'd like to do."
             return ReactLoopResult(
                 early_response=NormalizedOutgoingResponse(
                     recipient_id=message.sender_id,
                     channel=message.channel,
-                    text="I couldn't plan that grocery request safely. Please try again.",
+                    text=msg,
                     conversation_state="NEEDS_DECISION",
                 )
             )

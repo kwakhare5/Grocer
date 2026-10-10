@@ -66,7 +66,8 @@ def match_explicit_address(
         if lbl and (
             re.search(
                 rf"\b(?:deliver|send|ship|bring|drop|switch|change|take)\b.*?\b(?:to|at)\s+(?:my\s+)?{re.escape(lbl)}\b"
-                rf"|\b(?:to|at|use)\s+(?:my\s+)?{re.escape(lbl)}\b"
+                rf"|\b(?:deliver|send|ship|switch|change|use)\s+to\s+(?:my\s+)?{re.escape(lbl)}\b"
+                rf"|\b(?:deliver|send|ship|drop)\s+at\s+(?:my\s+)?{re.escape(lbl)}\b"
                 rf"|\b{re.escape(lbl)}\s+(?:address|location|destination)\b",
                 norm_text,
             )

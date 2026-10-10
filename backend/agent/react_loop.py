@@ -32,6 +32,17 @@ def validate_cart_edit_calls(
             quantity = item.get("quantity")
             if quantity is None or not isinstance(quantity, int) or quantity < 0:
                 return False
+            if planning_request_text:
+                req_lower = planning_request_text.casefold()
+                target_item = cart_by_spin[spin_id]
+                item_name_tokens = {t for t in re.split(r"\W+", target_item.name.casefold()) if len(t) > 2}
+                spin_tokens = {t for t in re.split(r"\W+", str(spin_id).casefold()) if len(t) > 2}
+                has_ordinal = any(w in req_lower for w in ("first", "second", "third", "1st", "2nd", "3rd", "one", "two"))
+                matches_request = has_ordinal or any(t in req_lower for t in item_name_tokens | spin_tokens)
+                if not matches_request:
+                    return False
+                if any(w in req_lower for w in ("remove", "delete", "drop")) and quantity > 0:
+                    return False
     return True
 
 

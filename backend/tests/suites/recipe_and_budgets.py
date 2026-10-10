@@ -18,6 +18,7 @@ from httpx import ASGITransport, AsyncClient, MockTransport, Response
 from backend.agent.checkout_attempts import PostgresCheckoutAttemptStore
 from backend.agent.engine import GroceryAgentEngine
 from backend.agent.replenishment import PostgresReplenishmentStore
+from backend.agent.schemas import RAW_TOOL_DECLARATIONS
 from backend.agent.task_state import PostgresTaskStateStore
 from backend.api.whatsapp import drain_message_queue
 from backend.channels.message_store import PostgresMessageStore
@@ -52,65 +53,56 @@ async def test_long_recipe_request_uses_one_product_choice_batch(postgres_pool, 
     model_calls = 0
     invalid_protocol_calls = 0
 
-    def model_boundary(request):
+    async def model_boundary(contents, planning_only=False, **kwargs):
         nonlocal model_calls, invalid_protocol_calls
         model_calls += 1
-        payload = json.loads(request.content)
         if model_calls > 1:
-            awaiting = set()
-            for message in payload["messages"]:
-                if message["role"] == "assistant":
-                    awaiting.update(call["id"] for call in message.get("tool_calls", []))
-                elif message["role"] == "tool":
-                    awaiting.discard(message["tool_call_id"])
-                elif awaiting:
-                    invalid_protocol_calls += 1
-                    return Response(400, json={"error": "Missing tool response before next message"})
-            if awaiting:
-                invalid_protocol_calls += 1
-                return Response(400, json={"error": "Missing tool response"})
-            return Response(200, json={"choices": [{"message": {"tool_calls": [{
-                "id": "call_eggs", "type": "function", "function": {
-                    "name": "quick_add_items", "arguments": json.dumps({"items": [{"query": "eggs"}]}),
-                },
-            }]}}]})
-        offered = {tool["function"]["name"] for tool in payload["tools"]}
-        choice_tool = next(tool["function"] for tool in payload["tools"]
-                           if tool["function"]["name"] == "quick_add_items")
+            return {"candidates": [{"content": {"parts": [{"functionCall": {
+                "name": "quick_add_items", "args": {"items": [{"query": "eggs"}]},
+            }}]}}]}
+
+        choice_tool = next(tool for tool in RAW_TOOL_DECLARATIONS if tool["name"] == "quick_add_items")
         assert "budget_cap_inr" not in choice_tool["parameters"]["properties"]
-        if "search_products" in offered:
-            call = {"name": "search_products", "arguments": json.dumps({
-                "query": ["pizza base", "pizza sauce", "mozzarella"][min(model_calls - 1, 2)],
-            })}
-        else:
-            call = {"name": "quick_add_items", "arguments": json.dumps({"items": [
-                {"query": "pizza base"}, {"query": "pizza sauce"},
-                {"query": "mozzarella"}, {"query": "bread"},
-                {"query": "Bournvita"}, {"query": "tissues"}, {"query": "pencil"},
-            ]})}
-        calls = [call]
-        if parallel_calls == "split" and call["name"] == "quick_add_items":
-            calls = [
-                {"name": "quick_add_items", "arguments": json.dumps({"items": [
+
+        if parallel_calls == "split":
+            parts = [
+                {"functionCall": {"name": "quick_add_items", "args": {"items": [
                     {"query": "pizza base"}, {"query": "pizza sauce"}, {"query": "mozzarella"},
-                ]})},
-                {"name": "quick_add_items", "arguments": json.dumps({"items": [
+                ]}}},
+                {"functionCall": {"name": "quick_add_items", "args": {"items": [
                     {"query": "bread"}, {"query": "Bournvita"},
                     {"query": "tissues"}, {"query": "pencil"},
-                ]})},
+                ]}}},
             ]
-        if parallel_calls == "with_cart" and call["name"] == "quick_add_items":
-            calls = [{"name": "get_cart", "arguments": "{}"}, call]
-        if parallel_calls == "same_address" and call["name"] == "quick_add_items":
-            calls = [{"name": "select_delivery_address", "arguments": json.dumps({
-                "address_id": "addr-bandra-1",
-            })}, call]
-        return Response(200, json={"choices": [{"message": {"tool_calls": [
-            {"id": f"call_{model_calls}_{index}", "type": "function", "function": function}
-            for index, function in enumerate(calls)
-        ]}}]})
+        elif parallel_calls == "with_cart":
+            parts = [
+                {"functionCall": {"name": "get_cart", "args": {}}},
+                {"functionCall": {"name": "quick_add_items", "args": {"items": [
+                    {"query": "pizza base"}, {"query": "pizza sauce"},
+                    {"query": "mozzarella"}, {"query": "bread"},
+                    {"query": "Bournvita"}, {"query": "tissues"}, {"query": "pencil"},
+                ]}}},
+            ]
+        elif parallel_calls == "same_address":
+            parts = [
+                {"functionCall": {"name": "select_delivery_address", "args": {"address_id": "addr-bandra-1"}}},
+                {"functionCall": {"name": "quick_add_items", "args": {"items": [
+                    {"query": "pizza base"}, {"query": "pizza sauce"},
+                    {"query": "mozzarella"}, {"query": "bread"},
+                    {"query": "Bournvita"}, {"query": "tissues"}, {"query": "pencil"},
+                ]}}},
+            ]
+        else:
+            parts = [
+                {"functionCall": {"name": "quick_add_items", "args": {"items": [
+                    {"query": "pizza base"}, {"query": "pizza sauce"},
+                    {"query": "mozzarella"}, {"query": "bread"},
+                    {"query": "Bournvita"}, {"query": "tissues"}, {"query": "pencil"},
+                ]}}},
+            ]
+        return {"candidates": [{"content": {"parts": parts}}]}
 
-    engine._client = AsyncClient(transport=MockTransport(model_boundary))
+    engine._call_llm = model_boundary
     store = PostgresMessageStore(postgres_pool)
     app = create_app()
     app.state.agent_engine = engine

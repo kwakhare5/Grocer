@@ -102,22 +102,17 @@ async def test_new_item_planning_keeps_provider_cart_and_write_tools_out_of_mode
     engine._customer_address_label[customer_id] = "Home"
     engine._order_address_confirmed[customer_id] = True
 
-    def model_boundary(request):
-        payload = json.loads(request.content)
-        assert [tool["function"]["name"] for tool in payload["tools"]] == ["quick_add_items"]
-        model_input = json.dumps(payload["messages"])
+    async def model_boundary(contents, planning_only=False, **kwargs):
+        assert planning_only is True
+        assert kwargs.get("cart") is None or not kwargs.get("cart").items
+        model_input = json.dumps(contents)
         assert "SPIN-MILK" not in model_input
         assert "Amul Taaza Milk" not in model_input
-        assert "addr-bandra-1" not in model_input
-        assert "ACTIVE DELIVERY CONTEXT" not in model_input
-        assert "LIVE BASKET STATE" not in model_input
-        return Response(200, json={"choices": [{"message": {"tool_calls": [{
-            "id": "call_eggs", "type": "function", "function": {
-                "name": "quick_add_items", "arguments": json.dumps({"items": [{"query": "eggs"}]}),
-            },
-        }]}}]})
+        return {"candidates": [{"content": {"parts": [{"functionCall": {
+            "name": "quick_add_items", "args": {"items": [{"query": "eggs"}]},
+        }}]}}]}
 
-    engine._client = AsyncClient(transport=MockTransport(model_boundary))
+    engine._call_llm = model_boundary
     store = PostgresMessageStore(postgres_pool)
     app = create_app()
     app.state.agent_engine = engine

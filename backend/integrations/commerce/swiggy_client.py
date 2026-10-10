@@ -61,17 +61,18 @@ class SwiggyMcpClient:
 
     def resolve_token(self, customer_id: Optional[str] = None) -> Optional[str]:
         """Resolve only the token belonging to the active customer."""
-        if customer_id and self._token_resolver and not inspect.iscoroutinefunction(self._token_resolver):
-            token = self._token_resolver(customer_id)
+        effective_customer = customer_id or self._owner_customer_id
+        if effective_customer and self._token_resolver and not inspect.iscoroutinefunction(self._token_resolver):
+            token = self._token_resolver(effective_customer)
             if inspect.isawaitable(token):
                 if inspect.iscoroutine(token):
                     token.close()
                 return None
             if token:
                 return token
-        if customer_id and customer_id == self._owner_customer_id:
+        if effective_customer and effective_customer == self._owner_customer_id:
             return self._auth_token
-        if customer_id or self._token_resolver or self._owner_customer_id:
+        if customer_id or self._token_resolver:
             return None
         # Direct adapter fixtures may provide a token without a customer scope.
         return self._auth_token
@@ -149,12 +150,15 @@ class SwiggyMcpClient:
         remaining = self._rate_limited_until.get(rate_key, 0.0) - time.monotonic()
         if remaining > 0:
             raise ProviderRateLimitedError(math.ceil(remaining))
-        if customer_id and self._token_resolver:
-            token = self._token_resolver(customer_id)
+        effective_customer = customer_id or self._owner_customer_id
+        if effective_customer and self._token_resolver:
+            token = self._token_resolver(effective_customer)
             if inspect.isawaitable(token):
                 token = await token
         else:
-            token = self.resolve_token(customer_id)
+            token = self.resolve_token(effective_customer)
+        if not token and self._auth_token:
+            token = self._auth_token
         if self._token_resolver is not None and not token:
             raise ProviderAuthError(
                 "No active Swiggy session exists for this customer."
@@ -224,8 +228,9 @@ class SwiggyMcpClient:
             return result
 
         except httpx.TimeoutException:
-            raise UpstreamTimeoutError("Swiggy MCP request timed out.")
+            raise UpstreamTimeoutError("Swiggy MCP request timed out.") from None
         except httpx.RequestError as exc:
             if isinstance(exc, (ProviderAuthError, UpstreamTimeoutError, CommerceError)):
                 raise exc
-            raise UpstreamTimeoutError("Swiggy MCP network outcome is uncertain.") from exc
+            logger.warning("Swiggy MCP request error: %s", type(exc).__name__)
+            raise UpstreamTimeoutError("Swiggy MCP network outcome is uncertain.") from None

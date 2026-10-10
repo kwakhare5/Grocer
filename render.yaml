@@ -21,19 +21,15 @@ services:
       - key: WHATSAPP_APP_SECRET
         sync: false
       - key: AI_PROVIDER
-        value: groq
-      - key: GROQ_API_KEY
+        value: gemini
+      - key: GEMINI_API_KEY
         sync: false
-      - key: GROQ_MODEL
-        value: qwen/qwen3.8-27b
-      - key: OPENROUTER_API_KEY
-        sync: false
-      - key: OPENROUTER_MODEL
-        value: qwen/qwen3.8-27b:free
+      - key: GEMINI_MODEL
+        value: gemini-3.5-flash-lite
       - key: AGENT_ROUTE_ENABLED
         value: true
       - key: COMMERCE_ADAPTER_TYPE
-        value: swiggy_mcp
+        value: swiggy
       - key: CHECKOUT_MODE
         value: review
       - key: LIVE_CHECKOUT_ENABLED

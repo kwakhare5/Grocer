@@ -1,4 +1,4 @@
-"""Channel models for normalized message transport across Web and WhatsApp (Phase C)."""
+"""Channel models for normalized message transport across Web and WhatsApp."""
 from __future__ import annotations
 
 import time
@@ -23,7 +23,7 @@ class InteractiveAction(BaseModel):
 
 
 class NormalizedIncomingMessage(BaseModel):
-    """Channel-agnostic incoming message sent to the ShoppingTask service."""
+    """Channel-agnostic incoming message sent to GroceryAgentEngine."""
     sender_id: str = Field(..., description="Unique sender address, e.g. wa:+919876543210 or cust-web")
     customer_id: Optional[str] = Field(
         default=None,
@@ -39,7 +39,7 @@ class NormalizedIncomingMessage(BaseModel):
 
 
 class NormalizedOutgoingResponse(BaseModel):
-    """Channel-agnostic outgoing response from the ShoppingTask service."""
+    """Channel-agnostic outgoing response from GroceryAgentEngine."""
     recipient_id: str
     channel: ChannelType
     text: str

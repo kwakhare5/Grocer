@@ -1,4 +1,4 @@
-"""OpenAI and Groq-compatible function-calling tool schema declarations for GROCER."""
+"""Native Google Gemini function-calling tool schema declarations for GROCER."""
 from __future__ import annotations
 
 RAW_TOOL_DECLARATIONS = [
@@ -40,43 +40,6 @@ RAW_TOOL_DECLARATIONS = [
         },
     },
     {
-        "name": "search_products",
-        "description": "Search products in the live Swiggy Instamart store catalogue for the selected delivery address. Returns in-stock variants, pack sizes, formatted prices, spin_id, and sku_id.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "query": {
-                    "type": "string",
-                    "description": "Item name to search for (e.g. 'dairy milk', 'eggs', 'bread', 'amul milk').",
-                },
-                "address_id": {
-                    "type": "string",
-                    "description": "The user's Swiggy delivery address ID.",
-                },
-            },
-            "required": ["query", "address_id"],
-        },
-    },
-    {
-        "name": "batch_search_products",
-        "description": "Search multiple grocery items concurrently in the Swiggy Instamart catalogue (e.g. for recipes, multi-item shopping lists, or bundles). Always prefer this over repeated single-item searches.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "queries": {
-                    "type": "array",
-                    "items": {"type": "string"},
-                    "description": "List of search queries (e.g. ['pizza base', 'mozzarella cheese', 'pizza sauce']).",
-                },
-                "address_id": {
-                    "type": "string",
-                    "description": "The user's Swiggy delivery address ID.",
-                },
-            },
-            "required": ["queries", "address_id"],
-        },
-    },
-    {
         "name": "quick_add_items",
         "description": "Search for grocery items and prepare exact product, pack-size and price choices for the customer. Does not change the basket; the customer must choose one listed variant per item first.",
         "parameters": {
@@ -95,12 +58,52 @@ RAW_TOOL_DECLARATIONS = [
                         "required": ["query"],
                     },
                 },
-                "budget_cap_inr": {
-                    "type": "number",
-                    "description": "Optional total spending budget cap in INR (e.g. 200, 500, 1000).",
-                },
             },
             "required": ["items"],
+        },
+    },
+    {
+        "name": "manage_basket",
+        "description": "Manage the Swiggy Instamart basket: add new items (searches catalogue and adds best in-stock matches), remove items (by name or query), or adjust quantities. Updates the basket atomically and returns the fresh cart.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "address_id": {
+                    "type": "string",
+                    "description": "The user's Swiggy delivery address ID (optional).",
+                },
+                "add": {
+                    "type": "array",
+                    "description": "List of grocery items to search and add to the basket.",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "query": {"type": "string", "description": "Item name to search for (e.g. 'amul butter', 'eggs', 'bread')."},
+                            "quantity": {"type": "integer", "description": "Quantity to add (default 1)."},
+                            "preferred_pack_size": {"type": "string", "description": "Optional pack size preference (e.g. '500g', '1L', '6 pcs')."},
+                        },
+                        "required": ["query"],
+                    },
+                },
+                "remove": {
+                    "type": "array",
+                    "description": "List of product names or keywords to remove from the current basket (e.g. ['bread']).",
+                    "items": {"type": "string"},
+                },
+                "set_quantity": {
+                    "type": "array",
+                    "description": "List of items in the basket to change quantity for.",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "query": {"type": "string", "description": "Name or keyword of the item in the basket."},
+                            "quantity": {"type": "integer", "description": "New target quantity."},
+                        },
+                        "required": ["query", "quantity"],
+                    },
+                },
+            },
+            "required": [],
         },
     },
     {
@@ -197,13 +200,13 @@ RAW_TOOL_DECLARATIONS = [
             "required": ["order_id"],
         },
     },
-]
-
-# Standard OpenAI / Groq / OpenRouter tool declarations
-OPENAI_TOOL_DECLARATIONS = [
     {
-        "type": "function",
-        "function": tool,
-    }
-    for tool in RAW_TOOL_DECLARATIONS
+        "name": "check_replenishment",
+        "description": "Check what recurring grocery staples (e.g. milk, eggs, bread) may be running low for this household based on consented past Swiggy purchase history.",
+        "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+    },
 ]

@@ -1,1 +1,1 @@
-"""Channel abstraction layer for GROCER (Phase C & D)."""
+"""Channel abstraction layer for GROCER."""

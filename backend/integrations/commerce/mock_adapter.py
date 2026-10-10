@@ -37,6 +37,7 @@ MOCK_ADDRESSES = [
         id="addr-bandra-1",
         label="Home",
         street="14 Pali Hill Road, Bandra West",
+        area="Bandra West",
         city="Mumbai",
         postal_code="400050",
         latitude=19.0596,
@@ -48,6 +49,7 @@ MOCK_ADDRESSES = [
         id="addr-andheri-1",
         label="Work",
         street="Solitaire Corporate Park, Andheri East",
+        area="Andheri East",
         city="Mumbai",
         postal_code="400093",
         latitude=19.1136,
@@ -58,6 +60,7 @@ MOCK_ADDRESSES = [
         id="addr-pune-1",
         label="Pune Home",
         street="Flat 402, Green Acres, Clover Park, Viman Nagar",
+        area="Viman Nagar",
         city="Pune",
         postal_code="411014",
         latitude=18.5679,
@@ -381,6 +384,8 @@ class MockCommerceAdapter(CommercePort):
             bridge_url=bridge_url,
             upi_intent_url=upi_intent_url,
             is_qr_flow=is_qr,
+            polling_interval_ms=3000 if is_qr else None,
+            max_time_to_poll_ms=300000 if is_qr else None,
         )
         self._orders[order_id] = order_result
         # Clear cart on successful order

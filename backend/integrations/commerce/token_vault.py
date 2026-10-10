@@ -9,8 +9,6 @@ import base64
 import hashlib
 import json
 import logging
-import os
-from pathlib import Path
 import threading
 import time
 from typing import Any, Optional
@@ -83,29 +81,18 @@ def opaque_state_hash(state: str) -> bytes:
 
 
 class SwiggyTokenVault:
-    """Thread-safe token cache with optional encrypted PostgreSQL durability and disk fallback."""
+    """Thread-safe token cache with optional encrypted PostgreSQL durability."""
 
     def __init__(self, persistence_file: str | None = None) -> None:
+        del persistence_file  # Preserved for signature compatibility; credentials strictly use memory/Postgres
         self._tokens: dict[str, SwiggyTokenEntry] = {}
         self._lock = threading.RLock()
         self._pool: Any | None = None
         self._codec: EncryptedPayloadCodec | None = None
-        self._persistence_file = Path(persistence_file or os.getenv("TOKEN_STORAGE_PATH", ".vault_tokens.json"))
-        self._load_from_disk()
 
     @staticmethod
     def _is_valid_jwt(token: str | None) -> bool:
         return bool(token and token.startswith("ey") and len(token.split(".")) == 3)
-
-    def _load_from_disk(self) -> None:
-        # Never load legacy plaintext credentials; leave the file for a private
-        # provenance review rather than deleting historical data on startup.
-        if self._persistence_file.exists():
-            logger.warning("A legacy plaintext token file was ignored; review it privately.")
-
-    def _save_to_disk(self) -> None:
-        """Disabled for security: tokens never touch local disk in plaintext."""
-        return
 
     @property
     def is_durable(self) -> bool:
@@ -173,7 +160,6 @@ class SwiggyTokenVault:
                 logger.debug("Preserving genuine active Swiggy JWT over mock non-JWT token for %s", customer_id)
                 return existing
             self._tokens[customer_id] = entry
-        self._save_to_disk()
         return entry
 
     async def store_token_durable(
@@ -216,7 +202,6 @@ class SwiggyTokenVault:
         )
         with self._lock:
             self._tokens[customer_id] = entry
-        self._save_to_disk()
         logger.info("Stored an encrypted customer-scoped Swiggy credential.")
         return entry
 
@@ -251,7 +236,6 @@ class SwiggyTokenVault:
                 entry = self._tokens[customer_id]
                 if entry.is_expired:
                     del self._tokens[customer_id]
-                    self._save_to_disk()
                 else:
                     return entry
         # Fallback to configured SWIGGY_AUTH_TOKEN strictly for matching owner customer
@@ -278,7 +262,6 @@ class SwiggyTokenVault:
             raise RuntimeError("Use revoke_token_durable for a PostgreSQL token vault.")
         with self._lock:
             entry = self._tokens.pop(customer_id, None)
-        self._save_to_disk()
         return entry.access_token if entry else None
 
     async def revoke_token_durable(self, customer_id: str) -> str | None:
@@ -290,7 +273,6 @@ class SwiggyTokenVault:
             )
             with self._lock:
                 self._tokens.pop(customer_id, None)
-            self._save_to_disk()
             return entry.access_token if entry else None
         return self.revoke_token(customer_id)
 
@@ -299,7 +281,6 @@ class SwiggyTokenVault:
             raise RuntimeError("A durable token vault cannot be bulk-cleared in process.")
         with self._lock:
             self._tokens.clear()
-        self._save_to_disk()
 
 
 default_token_vault = SwiggyTokenVault()

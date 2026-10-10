@@ -6,7 +6,7 @@ from urllib.parse import urlparse
 
 
 async def create_postgres_pool(database_url: str, *, max_size: int = 5) -> Any:
-    """Create an SSL-only asyncpg pool suitable for a managed Postgres backend."""
+    """Create an asyncpg connection pool (SSL-required for remote, SSL-disabled for localhost)."""
     try:
         import asyncpg
     except ImportError as exc:
@@ -19,4 +19,7 @@ async def create_postgres_pool(database_url: str, *, max_size: int = 5) -> Any:
         max_size=max_size,
         ssl=False if local_database else "require",
         statement_cache_size=0,
+        timeout=10.0,
+        command_timeout=15.0,
+        max_inactive_connection_lifetime=180.0,
     )

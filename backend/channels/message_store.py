@@ -86,6 +86,29 @@ class PostgresMessageStore:
             payload = json.loads(payload)
         return row["id"], NormalizedIncomingMessage.model_validate(payload)
 
+    async def absorb_subsequent_pending(self, customer_id: str) -> list[NormalizedIncomingMessage]:
+        """Claim and absorb newly arrived pending messages for the active customer to debounce bursts."""
+        rows = await self.pool.fetch(
+            """WITH absorbed AS (
+                   SELECT id FROM grocer_internal.inbound_messages
+                   WHERE customer_id = $1 AND status = 'PENDING'
+                   ORDER BY id ASC
+                   FOR UPDATE SKIP LOCKED
+               )
+               UPDATE grocer_internal.inbound_messages i
+               SET status = 'PROCESSED', processed_at = now()
+               FROM absorbed WHERE i.id = absorbed.id
+               RETURNING i.id, i.payload""",
+            customer_id,
+        )
+        absorbed_messages: list[NormalizedIncomingMessage] = []
+        for r in rows:
+            p = r["payload"]
+            if isinstance(p, str):
+                p = json.loads(p)
+            absorbed_messages.append(NormalizedIncomingMessage.model_validate(p))
+        return absorbed_messages
+
     async def stage_response(self, inbound_id: int, response: NormalizedOutgoingResponse) -> None:
         async with self.pool.acquire() as connection:
             async with connection.transaction():
@@ -130,7 +153,7 @@ class PostgresMessageStore:
             async with connection.transaction():
                 rows = await connection.fetch(
                     """SELECT id, payload FROM grocer_internal.inbound_messages
-                       WHERE status='PROCESSING' AND claimed_at < now()-interval '2 minutes'
+                       WHERE status='PROCESSING' AND claimed_at < now()-interval '5 minutes'
                        ORDER BY claimed_at LIMIT 20 FOR UPDATE SKIP LOCKED"""
                 )
                 for row in rows:
@@ -141,8 +164,14 @@ class PostgresMessageStore:
     async def claim_outbound(self) -> tuple[int, str, NormalizedOutgoingResponse] | None:
         row = await self.pool.fetchrow(
             """WITH candidate AS (
-                   SELECT id FROM grocer_internal.outbound_messages
-                   WHERE status = 'QUEUED' ORDER BY id LIMIT 1 FOR UPDATE SKIP LOCKED
+                   SELECT o.id FROM grocer_internal.outbound_messages o
+                   WHERE o.status = 'QUEUED'
+                     AND NOT EXISTS (
+                       SELECT 1 FROM grocer_internal.outbound_messages earlier
+                       WHERE earlier.customer_id = o.customer_id AND earlier.id < o.id
+                         AND earlier.status IN ('QUEUED', 'SENDING')
+                     )
+                   ORDER BY o.id LIMIT 1 FOR UPDATE SKIP LOCKED
                )
                UPDATE grocer_internal.outbound_messages o
                SET status = 'SENDING', sending_started_at = now()
@@ -199,6 +228,9 @@ class PostgresMessageStore:
     async def purge_customer(self, customer_id: str) -> None:
         async with self.pool.acquire() as connection:
             async with connection.transaction():
+                await connection.execute(
+                    "SELECT id FROM grocer_internal.inbound_messages WHERE customer_id = $1 FOR UPDATE", customer_id
+                )
                 await connection.execute(
                     "DELETE FROM grocer_internal.outbound_messages WHERE customer_id = $1", customer_id
                 )
@@ -258,11 +290,11 @@ class PostgresMessageStore:
             async with connection.transaction():
                 await connection.execute(
                     """DELETE FROM grocer_internal.outbound_messages
-                       WHERE status = 'SENT' AND created_at <= now() - interval '30 days'"""
+                       WHERE status IN ('SENT', 'UNKNOWN') AND created_at <= now() - interval '30 days'"""
                 )
                 await connection.execute(
                     """DELETE FROM grocer_internal.inbound_messages i
-                       WHERE i.status = 'PROCESSED'
+                       WHERE i.status IN ('PROCESSED', 'NEEDS_REVIEW')
                          AND i.received_at <= now() - interval '30 days'
                          AND NOT EXISTS (SELECT 1 FROM grocer_internal.outbound_messages o
                                          WHERE o.inbound_id = i.id)"""

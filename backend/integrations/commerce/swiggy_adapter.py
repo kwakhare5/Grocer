@@ -34,30 +34,27 @@ from backend.integrations.commerce.models import (
     DeliveryAddress,
     DeliveryStatusResult,
     DeliveryTrackingStatus,
-    OrderChildResult,
     OrderDetails,
-    OrderLineItem,
     OrderSummary,
     PaymentOption,
     PaymentStatusResult,
 )
 from backend.integrations.commerce.port import CommercePort
 from backend.integrations.commerce.swiggy_client import SwiggyMcpClient
-from backend.integrations.commerce.swiggy_parsers import (
-    build_checkout_order_result,
+from backend.integrations.commerce.catalog_parsers import parse_swiggy_products
+from backend.integrations.commerce.cart_parsers import (
     build_commerce_cart,
-    normalize_existing_order_status,
     normalize_order_status,
     normalize_payment_status,
-    parse_child_order,
+)
+from backend.integrations.commerce.order_parsers import (
+    build_checkout_order_result,
     parse_delivery_addresses,
     parse_delivery_status_response,
     parse_delivery_tracking_response,
     parse_order_details_response,
-    parse_order_items,
     parse_orders_summary,
     parse_payment_options,
-    parse_swiggy_products,
 )
 
 logger = logging.getLogger("grocer.integrations.swiggy")
@@ -140,7 +137,7 @@ class SwiggyMCPAdapter(CommercePort):
         self._parse_error_if_failed(res)
         data = res.get("data", {})
         raw_items = data.get("products", data) if isinstance(data, dict) else data
-        return self._parse_products(raw_items)
+        return parse_swiggy_products(raw_items)
 
     async def search_products(self, address_id: str, query: str) -> list[CommerceProductItem]:
         """Search products available at delivery address via search_products tool."""
@@ -157,26 +154,22 @@ class SwiggyMCPAdapter(CommercePort):
         self._parse_error_if_failed(res)
         data = res.get("data", {})
         raw_items = data.get("products", data) if isinstance(data, dict) else data
-        products = self._parse_products(raw_items)
+        products = parse_swiggy_products(raw_items)
 
         if isinstance(data, dict) and "similarProducts" in data:
             similar_raw = data.get("similarProducts", [])
-            similar = self._parse_products(similar_raw)
+            similar = parse_swiggy_products(similar_raw)
             if products and similar:
                 products[0].similar_products = similar
 
         return products
-
-    def _parse_products(self, raw_items: Any) -> list[CommerceProductItem]:
-        """Parse official SearchProduct and variation schemas."""
-        return parse_swiggy_products(raw_items)
 
     async def get_cart(self, cart_id: Optional[str] = None) -> CommerceCart:
         """Fetch current Instamart cart per official get_cart schema."""
         del cart_id
         res = await self._call_mcp_tool("get_cart", {})
         self._parse_error_if_failed(res)
-        return self._build_commerce_cart(res.get("data", {}))
+        return build_commerce_cart(res.get("data", {}))
 
     async def update_cart(
         self,
@@ -219,10 +212,6 @@ class SwiggyMCPAdapter(CommercePort):
                 item for item in reduced_quantity_items if isinstance(item, dict)
             ]
         return canonical_cart
-
-    def _build_commerce_cart(self, data: dict[str, Any], cart_id: Optional[str] = None) -> CommerceCart:
-        """Construct CommerceCart domain model from InstamartCart schema."""
-        return build_commerce_cart(data, cart_id)
 
     async def clear_cart(self, cart_id: Optional[str] = None) -> bool:
         """Clear all items from active cart via clear_cart tool."""
@@ -396,7 +385,7 @@ class SwiggyMCPAdapter(CommercePort):
         elif terminal:
             normalized = "PAYMENT_UNKNOWN"
         else:
-            normalized = self._normalize_payment_status(raw_status)
+            normalized = normalize_payment_status(raw_status)
         return PaymentStatusResult(
             paas_id=str(data.get("paasId") or paas_id),
             order_id=data.get("orderId") or order_id,
@@ -428,7 +417,7 @@ class SwiggyMCPAdapter(CommercePort):
         elif result_text == "pending":
             normalized = "PAYMENT_PENDING"
         else:
-            normalized = self._normalize_order_status(
+            normalized = normalize_order_status(
                 str(order_status).upper() if order_status is not None else None,
                 order_count=1,
                 success_count=0,
@@ -454,38 +443,6 @@ class SwiggyMCPAdapter(CommercePort):
             failure_count=1 if normalized == "FAILED" else 0,
             all_succeeded=normalized == "ORDER_PLACED",
         )
-
-    @staticmethod
-    def _normalize_payment_status(raw_status: Any) -> str:
-        return normalize_payment_status(raw_status)
-
-    @staticmethod
-    def _normalize_order_status(
-        raw_status: Optional[str],
-        *,
-        order_count: int,
-        success_count: int,
-        failure_count: int,
-        all_succeeded: bool,
-    ) -> str:
-        return normalize_order_status(
-            raw_status,
-            order_count=order_count,
-            success_count=success_count,
-            failure_count=failure_count,
-            all_succeeded=all_succeeded,
-        )
-
-    def _parse_child_order(self, raw: dict[str, Any]) -> OrderChildResult:
-        return parse_child_order(raw)
-
-    @staticmethod
-    def _parse_order_items(raw_items: Any) -> list[OrderLineItem]:
-        return parse_order_items(raw_items)
-
-    @classmethod
-    def _normalize_existing_order_status(cls, raw_status: Any) -> str:
-        return normalize_existing_order_status(raw_status)
 
     async def get_orders(
         self, count: int = 10, active_only: bool = False

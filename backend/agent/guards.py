@@ -2,18 +2,57 @@
 from __future__ import annotations
 
 import re
-from typing import Optional
+from typing import Any, Optional
 
 
-def missing_recipe_staples(request: str, proposed_queries: list[str]) -> list[str]:
-    """Keep a known recipe's indispensable base from disappearing from a model proposal."""
-    if not re.search(r"(?i)\b(?:make|making|prepare|cook)\b.{0,50}\bpizza\b|\bpizza\s+ingredients\b", request):
-        return []
-    if re.search(r"(?i)\b(?:already\s+have|have|got)\b.{0,25}\b(?:pizza\s+)?(?:base|dough|crust)\b", request):
-        return []
-    if any(re.search(r"(?i)\b(?:base|dough|crust)\b", query) for query in proposed_queries):
-        return []
-    return ["pizza base"]
+def reconcile_explicit_items(request: str, proposed: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Keep plainly enumerated products in the customer's order, even if the model omits one."""
+    if not all(isinstance(item, dict) and isinstance(item.get("query"), str) for item in proposed):
+        return proposed
+    request = re.split(r"(?i)\nUse delivery address:", request, maxsplit=1)[0]
+    extras = re.search(r"(?i)\b(?:also\s+add|and\s+add|plus)\b", request)
+    first_intent = re.search(r"(?i)\b(?:pick\s+up|bring|add|buy|get|need)\b", request)
+    start = first_intent if first_intent and (extras is None or first_intent.start() < extras.start()) else extras
+    if start is None:
+        return proposed
+    clause = request[start.end():]
+    clause = re.split(
+        r"(?i)\b(?:under|below|within)\s*(?:₹|rs\.?|inr)?\s*[\d,]+"
+        r"|\bfor\s+(?:dinner|breakfast|lunch|tonight)\b|[.!?]",
+        clause, maxsplit=1,
+    )[0]
+    clause = re.split(r"(?i)\b(?:but\s+)?(?:no|without|except|skip|don't\s+add)\b", clause, maxsplit=1)[0]
+    if clause.strip().casefold() == "and" or not clause.strip():
+        return proposed
+    if len(proposed) == 1 and clause.strip(" , ").casefold() == proposed[0]["query"].strip().casefold():
+        return proposed
+    requested = [
+        re.sub(r"(?i)^(?:(?:me|please|a|an|the|some|one|plus|also\s+add)\s+)+", "", part).strip(" , ;")
+        for part in re.split(r"(?i)\s*[,;]\s*|\s+and\s+|\s+plus\s+|\s*\+\s*|\s*&\s*", clause)
+    ]
+    requested = [part for part in requested if part and not re.match(r"(?i)^(?:no|without|except|skip)\b", part)]
+    if (not requested or (extras is None and len(requested) < 2)
+            or any(re.search(r"\d", part) for part in requested)):
+        return proposed
+
+    used: set[int] = set()
+    ordered: list[dict[str, Any]] = []
+    for part in requested:
+        words = re.findall(r"\w+", part.casefold())
+        full = next((index for index, item in enumerate(proposed) if index not in used
+                     and all(word in re.findall(r"\w+", item["query"].casefold()) for word in words)), None)
+        related = next((index for index, item in enumerate(proposed) if index not in used
+                        and words[-1] in re.findall(r"\w+", item["query"].casefold())), None)
+        index = full if full is not None else related
+        if index is None:
+            ordered.append({"query": part})
+        else:
+            used.add(index)
+            item = proposed[index]
+            ordered.append(item if full is not None else {**item, "query": part})
+    return ([item for index, item in enumerate(proposed) if index not in used] + ordered
+            if extras is not None and start is extras else ordered)
+
 
 _ORDER_SUCCESS_PATTERNS = (
     re.compile(
@@ -53,7 +92,7 @@ _ORDER_SUCCESS_PATTERNS = (
     ),
 )
 
-_RESET_COMMANDS = {
+_RESET_COMMANDS = frozenset({
     "start over",
     "start fresh",
     "clear cart",
@@ -76,10 +115,21 @@ _RESET_COMMANDS = {
     "wipe cart",
     "clear everything",
     "please clear my cart and start fresh",
-    "please clear my cart and start fresh.",
-}
+})
 
-_HESITATION_PHRASES = {
+_RESET_COMMAND_REGEX = re.compile(
+    r"(?i)\b(?:clear|delete|empty|wipe|reset|cancel|scrap|remove)\s+(?:all\s+|my\s+|the\s+)?(?:cart|basket|items?|all|everything)\b"
+    r"|^(?:reset|clear\s+all|empty\s+all|delete\s+all|start\s+(?:over|fresh))$"
+)
+
+
+def is_reset_command(text: str) -> bool:
+    """Deterministically match any natural command requesting a basket purge in 0ms."""
+    cleaned = text.strip().casefold().rstrip(".,!?")
+    return cleaned in _RESET_COMMANDS or bool(_RESET_COMMAND_REGEX.search(cleaned))
+
+
+_HESITATION_PHRASES = frozenset({
     "no",
     "nope",
     "nah",
@@ -100,7 +150,7 @@ _HESITATION_PHRASES = {
     "not now",
     "no thanks",
     "cancel",
-}
+})
 
 _HESITATION_REGEX = re.compile(
     r"(?i)\b(wait|hold on|hold up|pause|stop|not yet|give me a (min|minute|sec|second)|wait a (sec|second|minute))\b"
@@ -112,12 +162,10 @@ def is_hesitation(text: str) -> bool:
     if not text or not text.strip():
         return False
     cleaned = re.sub(r"\s+", " ", text.casefold()).strip(" \t\r\n.!?")
-    if cleaned in _HESITATION_PHRASES or _HESITATION_REGEX.search(cleaned):
-        return True
-    return False
+    return cleaned in _HESITATION_PHRASES or bool(_HESITATION_REGEX.search(cleaned))
 
 
-_CONFIRMATION_PHRASES = {
+_EXPLICIT_CONFIRM_PHRASES = frozenset({
     "confirm",
     "confirm order",
     "yes",
@@ -136,13 +184,6 @@ _CONFIRMATION_PHRASES = {
     "ok",
     "okay",
     "sure",
-}
-
-_NEGATION_CONFIRM_REGEX = re.compile(
-    r"(?i)\b(don'?t|do not|never|stop|wait|hold|cancel|not now|not yet|no|nope|nah|pause|clear cart|start over)\b"
-)
-
-_EXPLICIT_CONFIRM_PHRASES = _CONFIRMATION_PHRASES | {
     "theek hai order confirm karo",
     "theek hai order confirm",
     "yes please confirm",
@@ -156,7 +197,11 @@ _EXPLICIT_CONFIRM_PHRASES = _CONFIRMATION_PHRASES | {
     "yes, please confirm and place the order now",
     "order confirm",
     "order place karo",
-}
+})
+
+_NEGATION_CONFIRM_REGEX = re.compile(
+    r"(?i)\b(don'?t|do not|never|stop|wait|hold|cancel|not now|not yet|no|nope|nah|pause|clear cart|start over)\b"
+)
 
 
 def is_explicit_confirmation(text: str) -> bool:
@@ -170,7 +215,23 @@ def is_explicit_confirmation(text: str) -> bool:
     cleaned = re.sub(r"\s+", " ", text.casefold()).strip(" \t\r\n.!?")
     if _NEGATION_CONFIRM_REGEX.search(cleaned):
         return False
-    return cleaned in _EXPLICIT_CONFIRM_PHRASES
+    if cleaned in _EXPLICIT_CONFIRM_PHRASES:
+        return True
+    return bool(re.search(r"^(?:yes\b.*(?:confirm|place|order)|confirm\s+(?:the\s+)?order|confirm\s+it|place\s+(?:the\s+)?order)$", cleaned))
+
+
+def reconcile_explicit_removals(text: str) -> list[str]:
+    """Extract explicit item deletion requests from English text (e.g. 'remove bread', 'drop milk')."""
+    if not text:
+        return []
+    pattern = r"\b(?:remove|delete|drop|take\s+out|skip|omit|without|exclude|don'?t\s+add|do\s+not\s+add|no\s+more|no)\s+([a-zA-Z0-9\s]+?)(?:,|and|\.|$)"
+    matches = re.findall(pattern, text, re.IGNORECASE)
+    cleaned = []
+    for m in matches:
+        item = re.sub(r"\b(?:the|a|an|please)\b", "", m, flags=re.IGNORECASE).strip()
+        if item:
+            cleaned.append(item)
+    return cleaned
 
 
 def _claims_order_success(text: str) -> bool:

@@ -29,13 +29,18 @@ async def drain_message_queue(store: PostgresMessageStore, engine: Any) -> None:
         outbound = await store.claim_outbound()
         if outbound is not None:
             outbound_id, customer_id, response = outbound
-            try:
-                delivered = await default_whatsapp_adapter.send_response(response)
-            except asyncio.CancelledError:
-                raise
-            except Exception:
-                logger.exception("WhatsApp delivery outcome is unknown for outbound_id=%s", outbound_id)
-                delivered = False
+            delivered = False
+            for attempt in range(3):
+                try:
+                    delivered = await default_whatsapp_adapter.send_response(response)
+                    if delivered:
+                        break
+                except asyncio.CancelledError:
+                    raise
+                except Exception:
+                    logger.warning("WhatsApp delivery attempt %d failed for outbound_id=%s", attempt + 1, outbound_id)
+                if attempt < 2:
+                    await asyncio.sleep(0.5 * (attempt + 1))
             await store.mark_outbound(outbound_id, delivered)
             if "DELETE_CUSTOMER_DATA" in response.events:
                 await store.purge_customer(customer_id)
@@ -47,6 +52,19 @@ async def drain_message_queue(store: PostgresMessageStore, engine: Any) -> None:
         if claimed is None:
             return
         inbound_id, task_message = claimed
+
+        # Debounce rapid burst typing from the same customer
+        if hasattr(store, "absorb_subsequent_pending") and task_message.customer_id:
+            try:
+                bursts = await store.absorb_subsequent_pending(task_message.customer_id)
+                for burst in bursts:
+                    if burst.text.strip():
+                        task_message = task_message.model_copy(
+                            update={"text": f"{task_message.text}\n{burst.text}"}
+                        )
+            except Exception:
+                logger.warning("Could not absorb burst messages for inbound_id=%s", inbound_id)
+
         heartbeat = None
         if hasattr(store, "heartbeat_processing"):
             async def keep_claim_alive() -> None:
@@ -79,7 +97,19 @@ async def drain_message_queue(store: PostgresMessageStore, engine: Any) -> None:
             raise
         except Exception:
             logger.exception("Agent turn needs review for inbound_id=%s", inbound_id)
-            await store.mark_processing_failed(inbound_id)
+            try:
+                fallback_resp = NormalizedOutgoingResponse(
+                    recipient_id=task_message.sender_id,
+                    channel=task_message.channel,
+                    text="I had trouble processing that grocery request. Could you please try again or rephrase?",
+                    conversation_state="READY",
+                )
+                await store.stage_response(inbound_id, fallback_resp)
+            except Exception:
+                try:
+                    await store.mark_processing_failed(inbound_id)
+                except Exception:
+                    logger.exception("Failed to mark processing failed for inbound_id=%s", inbound_id)
         finally:
             if heartbeat is not None:
                 heartbeat.cancel()

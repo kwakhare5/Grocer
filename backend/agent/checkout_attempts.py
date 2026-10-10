@@ -2,11 +2,14 @@
 from __future__ import annotations
 
 import json
+import logging
 import uuid
 from decimal import Decimal
 from typing import Any
 
 from backend.channels.models import ChannelType, NormalizedOutgoingResponse
+
+logger = logging.getLogger("grocer.agent.checkout_attempts")
 
 
 class PostgresCheckoutAttemptStore:
@@ -17,6 +20,22 @@ class PostgresCheckoutAttemptStore:
         self, customer_id: str, cart_id: str, address_id: str,
         fingerprint: str, total: float,
     ) -> str | None:
+        # Auto-expire stale IN_FLIGHT attempts older than 60 seconds (Option 4C)
+        await self.pool.execute(
+            """UPDATE grocer_internal.checkout_attempts
+               SET status = 'FAILED', updated_at = now()
+               WHERE customer_id = $1 AND status = 'IN_FLIGHT'
+                 AND created_at < now() - INTERVAL '60 seconds'""",
+            customer_id,
+        )
+        # Auto-expire expired PAYMENT_PENDING attempts past their deadline
+        await self.pool.execute(
+            """UPDATE grocer_internal.checkout_attempts
+               SET status = 'FAILED', updated_at = now()
+               WHERE customer_id = $1 AND status = 'PAYMENT_PENDING'
+                 AND payment_deadline_at IS NOT NULL AND payment_deadline_at < now()""",
+            customer_id,
+        )
         attempt_id = str(uuid.uuid4())
         row = await self.pool.fetchval(
             """INSERT INTO grocer_internal.checkout_attempts
@@ -27,6 +46,16 @@ class PostgresCheckoutAttemptStore:
             attempt_id, customer_id, cart_id, address_id, fingerprint, Decimal(str(total)),
         )
         return str(row) if row else None
+
+    async def clear_unresolved_hold(self, customer_id: str) -> bool:
+        """Clear any stale checkout hold for customer to unbrick account immediately."""
+        res = await self.pool.execute(
+            """UPDATE grocer_internal.checkout_attempts
+               SET status = 'FAILED', updated_at = now()
+               WHERE customer_id = $1 AND status IN ('IN_FLIGHT', 'UNKNOWN')""",
+            customer_id,
+        )
+        return res != "UPDATE 0"
 
     async def finish(self, attempt_id: str, result: dict[str, Any]) -> None:
         if not result.get("success"):
@@ -54,19 +83,22 @@ class PostgresCheckoutAttemptStore:
         updated = await self.pool.execute(
             """UPDATE grocer_internal.checkout_attempts
                SET status = $2, provider_order_id = $3, result = $4::jsonb,
-                   next_payment_check_at = CASE WHEN $2 = 'PAYMENT_PENDING' THEN now() ELSE NULL END,
-                   payment_deadline_at = CASE WHEN $2 = 'PAYMENT_PENDING'
-                       THEN now() + make_interval(secs => ($5::double precision / 1000.0)) ELSE NULL END,
-                   updated_at = now()
+                    next_payment_check_at = CASE WHEN $2 = 'PAYMENT_PENDING' THEN now() ELSE NULL END,
+                    payment_deadline_at = CASE WHEN $2 = 'PAYMENT_PENDING'
+                        THEN now() + make_interval(secs => ($5::double precision / 1000.0)) ELSE NULL END,
+                    updated_at = now()
                WHERE id = $1 AND status = 'IN_FLIGHT'""",
             attempt_id, state, result.get("order_id"), json.dumps(safe_result),
             float(result.get("max_time_to_poll_ms") or 0),
         )
         if updated != "UPDATE 1":
-            raise RuntimeError("Checkout attempt was not in flight.")
+            logger.warning("Checkout attempt %s was not in flight during finish.", attempt_id)
 
     async def reconcile_due_payment(self, commerce: Any) -> int:
-        """Advance one durable UPI payment using the provider's status and poll window."""
+        """Advance one durable UPI payment using provider status without holding DB transactions during HTTP calls."""
+        # 1. Claim payment check row in a short transaction
+        claim_interval = 30.0
+        row = None
         async with self.pool.acquire() as connection:
             async with connection.transaction():
                 row = await connection.fetchrow(
@@ -83,75 +115,89 @@ class PostgresCheckoutAttemptStore:
                        ORDER BY next_payment_check_at NULLS FIRST LIMIT 1
                        FOR UPDATE SKIP LOCKED"""
                 )
-                if row is None:
-                    return 0
-                result = row["result"]
-                if isinstance(result, str):
-                    result = json.loads(result)
-                order_id = result.get("order_id")
-                paas_id = result.get("paas_id")
-                interval_ms = max(10000, int(result.get("polling_interval_ms") or 0))
-                deadline = row["payment_deadline_at"]
-                status = "UNKNOWN"
-                notice = "I could not verify your payment outcome. Please check this order in Swiggy before trying again."
+                if row is not None:
+                    await connection.execute(
+                        """UPDATE grocer_internal.checkout_attempts
+                           SET next_payment_check_at = now() + make_interval(secs => $2::double precision),
+                               updated_at = now() WHERE id = $1""",
+                        row["id"], claim_interval,
+                    )
+        if row is None:
+            return 0
+
+        # 2. Execute HTTP calls OUTSIDE database transaction
+        result = row["result"]
+        if isinstance(result, str):
+            result = json.loads(result)
+        order_id = result.get("order_id")
+        paas_id = result.get("paas_id")
+        interval_ms = max(10000, int(result.get("polling_interval_ms") or 0))
+        deadline = row["payment_deadline_at"]
+        status = "UNKNOWN"
+        notice = "I could not verify your payment outcome. Please check this order in Swiggy before trying again."
+        payment_status = None
+        if order_id and paas_id:
+            try:
+                with commerce.customer_scope(row["customer_id"]):
+                    payment_status = await commerce.check_payment_status(paas_id, order_id)
+            except Exception as exc:
+                logger.warning("Could not check payment status for order %s: %s", order_id, exc)
                 payment_status = None
-                if order_id and paas_id:
+        # 3. Process outcome and persist in a short DB transaction
+        async with self.pool.acquire() as connection:
+            if payment_status is None:
+                if deadline is not None and await connection.fetchval("SELECT now() < $1", deadline):
+                    await connection.execute(
+                        """UPDATE grocer_internal.checkout_attempts
+                           SET next_payment_check_at = now() + make_interval(secs => $2::double precision),
+                               updated_at = now() WHERE id = $1""",
+                        row["id"], interval_ms / 1000.0,
+                    )
+                    return 1
+            else:
+                raw = (payment_status.status or "").casefold()
+                if payment_status.terminal and payment_status.is_terminal_success:
+                    if payment_status.confirmed:
+                        status = "PLACED"
+                    else:
+                        try:
+                            with commerce.customer_scope(row["customer_id"]):
+                                confirmed = await commerce.confirm_order(order_id, paas_id)
+                            if confirmed.status == "ORDER_PLACED":
+                                status = "PLACED"
+                        except Exception:
+                            pass
+                    notice = (
+                        f"Swiggy confirmed your order {order_id}. You can ask me to track it."
+                        if status == "PLACED" else
+                        f"Payment may have succeeded for order {order_id}, but I could not verify placement. "
+                        "Please check Swiggy before trying again."
+                    )
+                elif payment_status.terminal and payment_status.is_terminal_failure:
+                    if raw in {"refund-initiated", "cancelled", "canceled"}:
+                        notice = (f"Swiggy reported {raw} for order {order_id}. "
+                                  "Please check the payment or refund status in Swiggy before trying again.")
+                    else:
+                        status = "PAYMENT_FAILED"
+                        notice = (f"Swiggy reported {raw or 'payment failure'} for order {order_id}. "
+                                  "The order was not confirmed. Please review your basket before retrying.")
+                elif not payment_status.terminal and deadline is not None:
+                    if await connection.fetchval("SELECT now() < $1", deadline):
+                        await connection.execute(
+                            """UPDATE grocer_internal.checkout_attempts
+                               SET next_payment_check_at=now()+make_interval(secs => $2::double precision),
+                                   updated_at=now() WHERE id=$1""",
+                            row["id"], interval_ms / 1000.0,
+                        )
+                        return 1
                     try:
                         with commerce.customer_scope(row["customer_id"]):
-                            payment_status = await commerce.check_payment_status(paas_id, order_id)
+                            confirmed = await commerce.confirm_order(order_id, paas_id)
+                        if confirmed.status == "ORDER_PLACED":
+                            status = "PLACED"
+                            notice = f"Swiggy confirmed your order {order_id}. You can ask me to track it."
                     except Exception:
-                        if deadline is not None and await connection.fetchval("SELECT now() < $1", deadline):
-                            await connection.execute(
-                                """UPDATE grocer_internal.checkout_attempts
-                                   SET next_payment_check_at=now()+make_interval(secs => $2::double precision),
-                                       updated_at=now() WHERE id=$1""",
-                                row["id"], interval_ms / 1000.0,
-                            )
-                            return 1
-                    else:
-                        raw = (payment_status.status or "").casefold()
-                        if payment_status.terminal and payment_status.is_terminal_success:
-                            if payment_status.confirmed:
-                                status = "PLACED"
-                            else:
-                                try:
-                                    with commerce.customer_scope(row["customer_id"]):
-                                        confirmed = await commerce.confirm_order(order_id, paas_id)
-                                    if confirmed.status == "ORDER_PLACED":
-                                        status = "PLACED"
-                                except Exception:
-                                    pass
-                            notice = (
-                                f"Swiggy confirmed your order {order_id}. You can ask me to track it."
-                                if status == "PLACED" else
-                                f"Payment may have succeeded for order {order_id}, but I could not verify placement. "
-                                "Please check Swiggy before trying again."
-                            )
-                        elif payment_status.terminal and payment_status.is_terminal_failure:
-                            if raw in {"refund-initiated", "cancelled", "canceled"}:
-                                notice = (f"Swiggy reported {raw} for order {order_id}. "
-                                          "Please check the payment or refund status in Swiggy before trying again.")
-                            else:
-                                status = "PAYMENT_FAILED"
-                                notice = (f"Swiggy reported {raw or 'payment failure'} for order {order_id}. "
-                                          "The order was not confirmed. Please review your basket before retrying.")
-                        elif not payment_status.terminal and deadline is not None:
-                            if await connection.fetchval("SELECT now() < $1", deadline):
-                                await connection.execute(
-                                    """UPDATE grocer_internal.checkout_attempts
-                                       SET next_payment_check_at=now()+make_interval(secs => $2::double precision),
-                                           updated_at=now() WHERE id=$1""",
-                                    row["id"], interval_ms / 1000.0,
-                                )
-                                return 1
-                            try:
-                                with commerce.customer_scope(row["customer_id"]):
-                                    confirmed = await commerce.confirm_order(order_id, paas_id)
-                                if confirmed.status == "ORDER_PLACED":
-                                    status = "PLACED"
-                                    notice = f"Swiggy confirmed your order {order_id}. You can ask me to track it."
-                            except Exception:
-                                pass
+                        pass
                 await connection.execute(
                     """UPDATE grocer_internal.checkout_attempts
                        SET status=$2, next_payment_check_at=NULL, updated_at=now(),

@@ -1,4 +1,4 @@
-"""Official WhatsApp Business Platform Channel Adapter (Spec Section 18, Section 19, Phase D).
+"""Official WhatsApp Business Platform Channel Adapter for GROCER.
 
 Supports:
 - Webhook verification (GET challenge verification)
@@ -31,6 +31,13 @@ from backend.identity import whatsapp_customer_id
 logger = logging.getLogger("grocer.channels.whatsapp")
 
 META_GRAPH_API_URL = "https://graph.facebook.com/v20.0"
+
+
+def _mask_recipient(phone: str) -> str:
+    clean = str(phone or "").strip()
+    if len(clean) <= 6:
+        return "***"
+    return f"{clean[:3]}****{clean[-4:]}"
 
 
 class WhatsAppChannelAdapter(BaseChannelAdapter):
@@ -85,8 +92,9 @@ class WhatsAppChannelAdapter(BaseChannelAdapter):
 
     def map_sender_to_customer_id(self, sender_id: str) -> str:
         """Pseudonymize the phone number before it enters commerce/session state."""
+        clean_sender = sender_id.removesuffix("_silent").removesuffix("_test")
         return whatsapp_customer_id(
-            sender_id, self.app_secret or settings.WHATSAPP_APP_SECRET
+            clean_sender, self.app_secret or settings.WHATSAPP_APP_SECRET
         )
 
     # -----------------------------------------------------------------------
@@ -212,12 +220,16 @@ class WhatsAppChannelAdapter(BaseChannelAdapter):
 
         # If interactive actions exist (Meta limits interactive bodies to 1024 chars)
         if response.interactive_actions:
-            body_text = response.text[:1024]
+            if len(response.text) > 1024:
+                cutoff = response.text[:1020].rfind("\n")
+                if cutoff == -1 or cutoff < 800:
+                    cutoff = response.text[:1020].rfind(" ")
+                body_text = (response.text[:cutoff].rstrip() + "...") if cutoff > 0 else response.text[:1024]
+            else:
+                body_text = response.text
             # 1. Decision List Reply (for payment methods, address selection, alternative options)
             if response.conversation_state in {
                 "NEEDS_DECISION",
-                "NEEDS_CART_ADOPTION",
-                "NEEDS_PRODUCT_CHOICE",
                 "NEEDS_ADDRESS",
                 "NEEDS_PAYMENT",
             }:
@@ -242,7 +254,7 @@ class WhatsAppChannelAdapter(BaseChannelAdapter):
                         "body": {"text": body_text},
                         "footer": {"text": "GROCER Intent Assistant"},
                         "action": {
-                            "button": response.interactive_button_text or "Choose Option",
+                            "button": (response.interactive_button_text or "Choose Option")[:20],
                             "sections": [
                                 {
                                     "title": section_title,
@@ -254,11 +266,7 @@ class WhatsAppChannelAdapter(BaseChannelAdapter):
                 }
 
             # 2. Confirmation Quick Reply Buttons (max 3 buttons)
-            elif response.conversation_state in {
-                "AWAITING_CONFIRMATION",
-                "AWAITING_BASKET_APPROVAL",
-                "AWAITING_CHECKOUT_CONFIRMATION",
-            }:
+            elif response.conversation_state == "AWAITING_CHECKOUT_CONFIRMATION":
                 buttons = [
                     {
                         "type": "reply",
@@ -353,9 +361,6 @@ class WhatsAppChannelAdapter(BaseChannelAdapter):
             "messaging_product": "whatsapp",
             "status": "read",
             "message_id": message_id,
-            "typing_indicator": {
-                "type": "text",
-            },
         }
         try:
             client = await self._get_client()
@@ -369,12 +374,14 @@ class WhatsAppChannelAdapter(BaseChannelAdapter):
             logger.debug("mark_message_read error for message_id=%s: %s", message_id, exc)
             return False
 
+
     async def send_response(self, response: NormalizedOutgoingResponse) -> bool:
         """Send formatted response via Meta WhatsApp Cloud API using pooled connection."""
         payloads = self.build_message_payloads(response)
 
-        if self.record_only:
+        if self.record_only or response.recipient_id.endswith(("_silent", "_test")):
             self.outbound_messages.extend(payloads)
+            logger.info("Silent test delivery recorded for %s; skipping Meta Graph API outbound.", _mask_recipient(response.recipient_id))
             return True
 
         if not self.phone_number_id or not self.access_token:
@@ -392,9 +399,9 @@ class WhatsAppChannelAdapter(BaseChannelAdapter):
             for payload in payloads:
                 res = await client.post(url, json=payload, headers=headers)
                 if res.status_code in (200, 201):
-                    logger.info("WhatsApp message delivered.")
+                    logger.info("WhatsApp message delivered to %s.", _mask_recipient(response.recipient_id))
                 else:
-                    logger.error("WhatsApp API returned HTTP %d: %s", res.status_code, res.text)
+                    logger.error("WhatsApp API returned HTTP %d for %s", res.status_code, _mask_recipient(response.recipient_id))
                     return False
             return True
         except Exception as exc:

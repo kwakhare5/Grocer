@@ -24,7 +24,7 @@ class SimulatorMessage(BaseModel):
 
 
 def _authorize(request: Request) -> None:
-    if request.client is None or request.client.host not in ("127.0.0.1", "::1"):
+    if request.client is None or request.client.host not in ("127.0.0.1", "::1", "::ffff:127.0.0.1"):
         raise HTTPException(status_code=403, detail="Simulator is available only on localhost.")
     provided = request.headers.get("Authorization", "")
     expected = f"Bearer {settings.SIMULATOR_ACCESS_TOKEN}"
@@ -71,7 +71,14 @@ async def simulator_chat(message: SimulatorMessage, request: Request) -> dict:
     if intake.status_code != 200:
         raise HTTPException(status_code=503, detail="Signed WhatsApp intake failed.")
 
-    staged = await store.response_for_message(message_id)
+    import asyncio
+    staged = None
+    for _ in range(30):
+        staged = await store.response_for_message(message_id)
+        if staged is not None:
+            break
+        await asyncio.sleep(0.5)
+
     if staged is None:
         raise HTTPException(status_code=503, detail="No durable response was staged.")
     delivery_status, response = staged

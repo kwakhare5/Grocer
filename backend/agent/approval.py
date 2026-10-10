@@ -17,19 +17,20 @@ class PendingApproval:
 
 
 def cart_fingerprint(cart: CommerceCart, address_id: str) -> str | None:
+    target_address = address_id or cart.address_id or ""
     if (not cart.items or not cart.billing_complete or cart.currency != "INR"
-            or not address_id or cart.address_id != address_id
+            or not target_address or (cart.address_id and cart.address_id != target_address)
             or not math.isfinite(cart.grand_total) or cart.grand_total <= 0):
         return None
     payload = {
         "cart_id": cart.cart_id,
-        "address_id": address_id,
-        "provider_address_id": cart.address_id,
+        "address_id": target_address,
+        "provider_address_id": target_address,
         "payable_inr": str(Decimal(str(cart.grand_total))),
         "currency": cart.currency,
         "bill_lines": cart.bill_lines,
         "items": sorted(
-            (item.spin_id, item.sku_id, item.quantity, str(Decimal(str(item.total_price))))
+            (item.spin_id, item.sku_id or "", item.quantity, str(Decimal(str(item.total_price))))
             for item in cart.items
         ),
     }

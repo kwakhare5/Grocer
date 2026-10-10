@@ -23,8 +23,8 @@ async def health_check(request: Request) -> dict[str, Any]:
 async def readiness_check(request: Request) -> JSONResponse:
     """State whether this instance can accept signed WhatsApp traffic safely."""
     missing: list[str] = []
-    if not (settings.GROQ_API_KEY or settings.OPENROUTER_API_KEY):
-        missing.append("model_key")
+    if not settings.GEMINI_API_KEY:
+        missing.append("gemini_key")
     if not settings.DATABASE_URL or getattr(request.app.state, "database_pool", None) is None:
         missing.append("database")
     if not settings.DATA_ENCRYPTION_KEY:

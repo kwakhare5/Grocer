@@ -11,6 +11,7 @@ class DeliveryAddress(BaseModel):
     id: str
     label: str = ""
     street: str = ""
+    area: Optional[str] = None
     city: Optional[str] = None
     postal_code: Optional[str] = None
     latitude: Optional[float] = None

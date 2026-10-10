@@ -10,7 +10,7 @@ from backend.identity import whatsapp_customer_id
 
 
 class BaseChannelAdapter(ABC):
-    """Minimal transport boundary; conversation behavior belongs to ShoppingTask."""
+    """Minimal transport boundary; conversation behavior belongs to GroceryAgentEngine."""
 
     def __init__(self, channel_type: ChannelType) -> None:
         self.channel_type = channel_type

@@ -28,6 +28,7 @@ from backend.api.health import router as health_router
 from backend.api.whatsapp import router as whatsapp_router
 from backend.api.oauth import router as oauth_router
 from backend.api.simulator import router as simulator_router
+from backend.api.debug import router as debug_router
 
 logger = logging.getLogger("grocer.main")
 
@@ -143,6 +144,7 @@ async def _lifespan(app: FastAPI):
         from backend.agent.replenishment import PostgresReplenishmentStore
         app.state.agent_engine = GroceryAgentEngine(
             get_commerce_adapter(force_mock=force_mock),
+            gemini_api_key=settings.GEMINI_API_KEY,
             attempt_store=PostgresCheckoutAttemptStore(pool) if pool is not None else None,
             state_store=PostgresTaskStateStore(pool, settings.DATA_ENCRYPTION_KEY) if pool is not None else None,
             replenishment_store=PostgresReplenishmentStore(pool, settings.DATA_ENCRYPTION_KEY) if pool is not None else None,
@@ -210,6 +212,7 @@ def create_app() -> FastAPI:
     app.include_router(whatsapp_router)
     app.include_router(oauth_router, prefix="/api")
     app.include_router(oauth_router)
+    app.include_router(debug_router, prefix="/api")
     if settings.SIMULATOR_ENABLED:
         if (not settings.SIMULATOR_ACCESS_TOKEN or len(settings.SIMULATOR_ACCESS_TOKEN) < 16
                 or not settings.SIMULATOR_SENDER_ID):

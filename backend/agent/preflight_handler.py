@@ -438,6 +438,20 @@ async def execute_preflight(
                         chosen_addr.get("clean_address") or chosen_addr.get("label") or "Home"
                     )
                     engine._order_address_confirmed[customer_id] = True
+                elif (
+                    len(addresses) > 1
+                    and not (current_cart and current_cart.items)
+                    and not any(k in norm_text for k in ("address", "saved address", "track", "status"))
+                ):
+                    session.pending_request_text = incoming_text
+                    choices = [
+                        {**a, "_choice_code": secrets.token_hex(3), "_choice_index": str(idx)}
+                        for idx, a in enumerate(addresses, 1)
+                    ]
+                    engine._awaiting_address_choice[customer_id] = choices
+                    return PreflightResult(
+                        early_response=engine._address_choice_response(message, choices)
+                    )
                 elif not address_id:
                     chosen_addr = next((a for a in addresses if a.get("is_default")), addresses[0])
                     address_id = chosen_addr["address_id"]

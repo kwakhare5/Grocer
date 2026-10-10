@@ -23,6 +23,11 @@ from backend.agent.preflight_handler import execute_preflight
 from backend.agent.react_coordinator import execute_react_turn_loop
 from backend.agent.response_synthesizer import synthesize_turn_response
 from backend.agent.tool_executor import execute_engine_tool
+from backend.agent.variant_manager import (
+    build_variant_choice_response,
+    cart_proposal_state,
+    handle_variant_choice,
+)
 from backend.channels.models import (
     NormalizedIncomingMessage,
     NormalizedOutgoingResponse,
@@ -316,3 +321,22 @@ class GroceryAgentEngine:
             system_text=system_text,
             tools=gemini_tools,
         )
+
+    def _cart_proposal_state(self, cart: Optional[CommerceCart]) -> Optional[dict[str, Any]]:
+        return cart_proposal_state(cart)
+
+    def _variant_choice_response(
+        self,
+        message: NormalizedIncomingMessage,
+        proposal: dict[str, Any],
+        prefix: str = "",
+    ) -> NormalizedOutgoingResponse:
+        return build_variant_choice_response(message, proposal, prefix=prefix)
+
+    async def _handle_variant_choice(
+        self,
+        message: NormalizedIncomingMessage,
+        customer_id: str,
+        current_cart: Optional[CommerceCart],
+    ) -> NormalizedOutgoingResponse:
+        return await handle_variant_choice(self, message, customer_id, current_cart)

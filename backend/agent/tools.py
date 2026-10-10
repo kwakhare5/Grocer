@@ -34,6 +34,7 @@ from backend.agent.address_tools import (
     execute_get_saved_addresses,
     execute_select_delivery_address,
 )
+from backend.agent.variant_manager import execute_prepare_variant_choices
 
 
 class SwiggyAgentTools:
@@ -237,6 +238,11 @@ class SwiggyAgentTools:
             ingredient_spin_ids=ingredient_spin_ids,
         )
 
+    async def prepare_variant_choices(
+        self, items: list[dict[str, Any]], address_id: str
+    ) -> dict[str, Any]:
+        """Resolve every requested item to customer-visible SKU choices without writing the cart."""
+        return await execute_prepare_variant_choices(self, items, address_id)
 
     async def get_saved_addresses(self, customer_id: str) -> dict[str, Any]:
         """Retrieve the user's saved delivery addresses from Swiggy."""

@@ -6,6 +6,8 @@ from typing import Any, Optional
 
 _GENERIC_ADDR_TOKENS = frozenset({
     "road", "flat", "floor", "near", "opposite", "lane", "nagar", "pune", "maharashtra", "india",
+    "home", "work", "office", "other", "house", "apartment", "building", "society",
+    "west", "east", "north", "south", "street", "block", "sector", "phase",
 })
 
 
@@ -74,11 +76,15 @@ def match_explicit_address(
         ):
             return a
 
+        loc = (str(a.get("area") or "") + " " + str(a.get("street") or "")).casefold()
         addr_tokens = [
-            t for t in re.findall(r"[a-z]{4,}", clean_addr)
-            if t not in _GENERIC_ADDR_TOKENS
+            t for t in re.findall(r"[a-z]{4,}", loc)
+            if t not in _GENERIC_ADDR_TOKENS and t != lbl
         ]
-        if any(t in norm_text for t in addr_tokens):
+        if any(
+            re.search(rf"\b(?:deliver|send|ship|bring|drop|switch|change|to|at)\b.*?\b{re.escape(t)}\b", norm_text)
+            for t in addr_tokens
+        ):
             return a
 
     return None

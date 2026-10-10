@@ -387,6 +387,43 @@ async def execute_preflight(
             history = []
             engine._history[customer_id] = history
 
+    if session.pending_variant_selection:
+        ordinal = re.fullmatch(
+            r"(?:the\s+)?(first|second|third|fourth|fifth|sixth|[1-6](?:st|nd|rd|th))"
+            r"(?:\s+(?:one|option))?",
+            norm_text,
+        )
+        if ordinal:
+            groups = session.pending_variant_selection["groups"]
+            if len(groups) != 1:
+                return PreflightResult(
+                    early_response=engine._variant_choice_response(
+                        message, session.pending_variant_selection,
+                        "Please name a listed code for each item.",
+                    )
+                )
+            choice_number = {
+                "first": 1, "second": 2, "third": 3, "fourth": 4,
+                "fifth": 5, "sixth": 6,
+            }.get(ordinal.group(1), int(ordinal.group(1)[0]) if ordinal.group(1)[0].isdigit() else 0)
+            options = groups[0]["options"]
+            if choice_number <= len(options):
+                chosen = message.model_copy(update={"text": options[choice_number - 1]["code"]})
+                resp = await engine._handle_variant_choice(chosen, customer_id, current_cart)
+                return PreflightResult(early_response=resp)
+            return PreflightResult(
+                early_response=engine._variant_choice_response(
+                    message, session.pending_variant_selection,
+                    "That option is not listed. Please choose one of these codes.",
+                )
+            )
+        if (re.search(r"\b\d{1,2}[A-F]\b", incoming_text.upper())
+                or norm_text in {"cancel", "never mind", "start over", "try again", "retry"}):
+            resp = await engine._handle_variant_choice(message, customer_id, current_cart)
+            return PreflightResult(early_response=resp)
+        session.pending_variant_selection = None
+        session.pending_request_text = incoming_text
+
     if customer_id in engine._awaiting_address_choice:
         pending_addrs = engine._awaiting_address_choice[customer_id]
         chosen_addr = match_pending_address_choice(

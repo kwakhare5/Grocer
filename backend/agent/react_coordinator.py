@@ -120,7 +120,7 @@ async def execute_react_turn_loop(
             ([{"role": "user", "parts": [{"text": planning_request_text}]}] if planning_turn else history),
             address_id=address_id,
             address_label=addr_lbl,
-            cart=current_cart,
+            cart=None if planning_turn else current_cart,
             planning_only=planning_turn,
             fast_fail_on_rate_limit=bool(last_cart_receipt or checkout_executed),
         )
@@ -208,10 +208,15 @@ async def execute_react_turn_loop(
             )
 
         if planning_turn and any(
-            call.get("name") not in {
-                "quick_add_items", "manage_basket", "get_cart", "search_products",
-                "select_delivery_address", "get_saved_addresses", "get_go_to_items", "check_replenishment",
-            }
+            (
+                call.get("name") not in {
+                    "quick_add_items", "manage_basket", "get_cart", "search_products",
+                }
+                and not (
+                    call.get("name") == "select_delivery_address"
+                    and call.get("args", {}).get("address_id") == address_id
+                )
+            )
             for call in function_calls
         ):
             session.pending_request_text = planning_request_text
@@ -364,7 +369,17 @@ async def execute_react_turn_loop(
                 )
             if part.get("name") not in ("quick_add_items", "manage_basket") or not isinstance(result, dict):
                 continue
-            if not suggestion_only and result.get("success") and not result.get("formatted_receipt"):
+            if result.get("needs_variant_choice") or result.get("groups"):
+                proposal = {
+                    **result,
+                    "address_id": address_id,
+                    "cart_state": engine._cart_proposal_state(current_cart),
+                }
+                session.pending_variant_selection = proposal
+                return ReactLoopResult(
+                    early_response=engine._variant_choice_response(message, proposal)
+                )
+            if not suggestion_only and result.get("success") and not result.get("formatted_receipt") and not result.get("groups"):
                 missing = result.get("unavailable_items", []) + result.get("restricted_items", [])
                 if missing:
                     session.pending_request_text = None

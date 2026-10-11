@@ -4,11 +4,20 @@ from __future__ import annotations
 
 class CommerceError(Exception):
     """Base exception for all commerce adapter failures."""
-    def __init__(self, message: str, provider: str = "commerce", code: str = "COMMERCE_ERROR"):
+    def __init__(
+        self,
+        message: str,
+        provider: str = "commerce",
+        code: str = "COMMERCE_ERROR",
+        report_id: str | None = None,
+        report_hint: str | None = None,
+    ):
         super().__init__(message)
         self.message = message
         self.provider = provider
         self.code = code
+        self.report_id = report_id
+        self.report_hint = report_hint
 
 
 class UnconfirmedCheckoutError(CommerceError):
@@ -94,3 +103,21 @@ class OrderStateUnknownError(CommerceError):
     """Raised when checkout failed ambiguously (5xx/timeout) and order verification is pending."""
     def __init__(self, message: str = "Checkout status unknown. Verification required before retrying."):
         super().__init__(message=message, code="ORDER_STATE_UNKNOWN")
+
+
+class ProviderInternalError(CommerceError):
+    """Raised on upstream provider internal error (JSON-RPC -32603)."""
+    def __init__(self, message: str = "Upstream provider encountered an internal error.", report_id: str | None = None, report_hint: str | None = None):
+        super().__init__(message=message, provider="swiggy", code="PROVIDER_INTERNAL_ERROR", report_id=report_id, report_hint=report_hint)
+
+
+class CartChangedError(CommerceError):
+    """Raised when cart contents, prices, or store inventory changed during checkout."""
+    def __init__(self, message: str = "Cart state changed during checkout. Please review updated cart.", report_id: str | None = None, report_hint: str | None = None):
+        super().__init__(message=message, provider="swiggy", code="CART_CHANGED", report_id=report_id, report_hint=report_hint)
+
+
+class DuplicateOrderError(CommerceError):
+    """Raised when upstream flags a possible duplicate order within short timeframe."""
+    def __init__(self, message: str = "A matching order was recently placed. Explicit duplicate confirmation required."):
+        super().__init__(message=message, provider="swiggy", code="DUPLICATE_ORDER")

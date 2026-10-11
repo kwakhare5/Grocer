@@ -119,17 +119,6 @@ class PaymentOption(BaseModel):
     kind: Optional[str] = None  # "intent" or "qr"
 
 
-class OrderChildResult(BaseModel):
-    """One provider child order in a potentially multi-store checkout."""
-
-    order_id: Optional[str] = None
-    status: str = "ORDER_STATE_UNKNOWN"
-    raw_status: Optional[str] = None
-    success: Optional[bool] = None
-    grand_total: Optional[float] = None
-    error: Optional[str] = None
-
-
 class PaymentStatusResult(BaseModel):
     """Normalized result of the provider's payment-status observation."""
 
@@ -155,7 +144,6 @@ class CommerceOrderResult(BaseModel):
         "PAYMENT_PENDING",
         "PAYMENT_CONFIRMED",
         "ORDER_PLACED",
-        "PARTIAL_ORDER",
         "ORDER_STATE_UNKNOWN",
         "REVIEW_COMPLETE",
         "REVIEW_SIMULATED",
@@ -168,17 +156,13 @@ class CommerceOrderResult(BaseModel):
     delivery_address: Optional[DeliveryAddress] = None
     placed_at: Optional[datetime] = None
     tracking_url: Optional[str] = None
-    orders: list[OrderChildResult] = Field(default_factory=list)
-    order_count: int = 0
-    success_count: int = 0
-    failure_count: int = 0
-    all_succeeded: bool = False
     is_simulated: bool = False
     message: Optional[str] = None
     paas_id: Optional[str] = None
     transaction_id: Optional[str] = None
     bridge_url: Optional[str] = None
     upi_intent_url: Optional[str] = None
+    qr_code_url: Optional[str] = None
     is_qr_flow: bool = False
     polling_interval_ms: Optional[int] = None
     max_time_to_poll_ms: Optional[int] = None
@@ -301,3 +285,36 @@ class DeliveryStatusResult(BaseModel):
     delivered: Optional[bool] = None
     status_text: Optional[str] = None
     poll_interval_sec: Optional[int] = None
+
+
+class Coupon(BaseModel):
+    """Available coupon promotion for active cart."""
+    code: str
+    description: Optional[str] = None
+    discount_amount: Optional[float] = None
+    min_cart_value: Optional[float] = None
+    is_applicable: bool = True
+    terms: Optional[str] = None
+
+
+class CouponApplyResult(BaseModel):
+    """Outcome of applying a coupon to the active cart."""
+    applied: bool
+    code: str
+    discount_amount: float = 0.0
+    message: Optional[str] = None
+
+
+class AddressRecommendation(BaseModel):
+    """AI or provider recommended delivery address based on context/location."""
+    recommended_address_id: Optional[str] = None
+    confidence: Optional[float] = None
+    reason: Optional[str] = None
+    matched_address: Optional[DeliveryAddress] = None
+
+
+class ErrorReportResult(BaseModel):
+    """Result of dispatching diagnostics via report_error."""
+    report_id: str
+    status: str = "received"
+    message: Optional[str] = None

@@ -11,7 +11,6 @@ from backend.integrations.commerce.models import (
     DeliveryStatusResult,
     DeliveryTrackingStatus,
     OrderBillLine,
-    OrderChildResult,
     OrderDetails,
     OrderLineItem,
     OrderSummary,
@@ -33,28 +32,12 @@ def normalize_payment_status(raw_status: Any) -> str:
     return "PAYMENT_UNKNOWN"
 
 
-def normalize_order_status(
-    raw_status: Optional[str],
-    *,
-    order_count: int,
-    success_count: int,
-    failure_count: int,
-    all_succeeded: bool,
-) -> str:
-    """Normalize order status according to line counts and outcomes."""
+def normalize_order_status(raw_status: Optional[str]) -> str:
+    """Normalize order status according to canonical outcomes."""
     status = (raw_status or "").strip().upper()
     if status in {"PENDING_PAYMENT", "PAYMENT_PENDING"}:
         return "PAYMENT_PENDING"
-    if (failure_count > 0 and success_count > 0) or status in {
-        "PARTIAL",
-        "PARTIAL_ORDER",
-        "PARTIALLY_PLACED",
-    }:
-        return "PARTIAL_ORDER"
-    if (
-        (failure_count > 0 and success_count == 0)
-        or status in {"FAILED", "FAILURE", "UNSUCCESSFUL", "CANCELLED", "CANCELED", "EXPIRED"}
-    ):
+    if status in {"FAILED", "FAILURE", "UNSUCCESSFUL", "CANCELLED", "CANCELED", "EXPIRED"}:
         return "FAILED"
     if status in {
         "CONFIRMED",
@@ -66,44 +49,7 @@ def normalize_order_status(
         "PAYMENT_CONFIRMED",
     }:
         return "ORDER_PLACED"
-    if order_count > 0 and all_succeeded and success_count == order_count:
-        return "ORDER_PLACED"
-    return "ORDER_STATE_UNKNOWN"
-
-
-def parse_child_order(raw: dict[str, Any]) -> OrderChildResult:
-    """Parse single child order payload in multi-order or split-order baskets."""
-    raw_status_value = raw.get("status")
-    raw_status = str(raw_status_value).upper() if raw_status_value is not None else None
-    explicit_success = raw.get("success")
-    success = explicit_success if isinstance(explicit_success, bool) else None
-    raw_error = raw.get("error")
-    if isinstance(raw_error, dict):
-        child_error = raw_error.get("message") or raw_error.get("code")
-    else:
-        child_error = raw_error
-    normalized = normalize_order_status(
-        raw_status,
-        order_count=1,
-        success_count=1 if success is True else 0,
-        failure_count=1 if success is False else 0,
-        all_succeeded=success is True,
-    )
-    if child_error is not None and normalized == "ORDER_STATE_UNKNOWN":
-        normalized = "FAILED"
-    if success is None:
-        if normalized == "ORDER_PLACED":
-            success = True
-        elif normalized == "FAILED":
-            success = False
-    return OrderChildResult(
-        order_id=str(raw["orderId"]) if raw.get("orderId") else None,
-        status=normalized,
-        raw_status=raw_status,
-        success=success,
-        grand_total=float(raw["orderTotal"]) if raw.get("orderTotal") is not None else None,
-        error=str(child_error) if child_error is not None else None,
-    )
+    return "ORDER_STATE_UNKNOWN" 
 
 
 def parse_order_items(raw_items: Any) -> list[OrderLineItem]:
@@ -141,13 +87,7 @@ def normalize_existing_order_status(raw_status: Any) -> str:
         return "DELIVERED"
     if any(token in status for token in ("PACK", "PREPAR")):
         return "PACKING"
-    return normalize_order_status(
-        status or None,
-        order_count=0,
-        success_count=0,
-        failure_count=0,
-        all_succeeded=False,
-    )
+    return normalize_order_status(status or None)
 
 
 def parse_delivery_addresses(data: Any) -> list[DeliveryAddress]:
@@ -192,6 +132,11 @@ def parse_delivery_addresses(data: Any) -> list[DeliveryAddress]:
             elif "postal_code" in raw:
                 postal_code = str(raw["postal_code"])
 
+            raw_lat = raw.get("latitude") if raw.get("latitude") is not None else raw.get("lat")
+            raw_lng = raw.get("longitude") if raw.get("longitude") is not None else raw.get("lng")
+            latitude = float(raw_lat) if raw_lat is not None else None
+            longitude = float(raw_lng) if raw_lng is not None else None
+
             addresses.append(
                 DeliveryAddress(
                     id=addr_id,
@@ -200,6 +145,8 @@ def parse_delivery_addresses(data: Any) -> list[DeliveryAddress]:
                     area=area,
                     city=city,
                     postal_code=postal_code,
+                    latitude=latitude,
+                    longitude=longitude,
                     phone_number=raw.get("phoneNumber"),
                     address_category=raw.get("addressCategory"),
                     address_tag=raw.get("addressTag"),
@@ -296,64 +243,18 @@ def build_checkout_order_result(
     payment_method: str,
 ) -> CommerceOrderResult:
     """Construct CommerceOrderResult from Swiggy checkout tool response."""
-    raw_orders = data.get("orders", [])
-    orders_list = raw_orders if isinstance(raw_orders, list) else []
-    children = [parse_child_order(raw) for raw in orders_list if isinstance(raw, dict)]
-    if children:
-        order_count = len(children)
-        success_count = sum(child.status == "ORDER_PLACED" for child in children)
-        failure_count = sum(child.status == "FAILED" for child in children)
-        all_succeeded = bool(
-            order_count
-            and success_count == order_count
-            and failure_count == 0
-        )
-    else:
-        order_count = int(data.get("orderCount", 0))
-        success_count = int(data.get("successCount", 0))
-        failure_count = int(data.get("failureCount", 0))
-        reported_all_succeeded = data.get("allSucceeded")
-        all_succeeded = (
-            reported_all_succeeded
-            if isinstance(reported_all_succeeded, bool)
-            else bool(
-                order_count
-                and success_count == order_count
-                and failure_count == 0
-            )
-        )
-    primary_order_id = data.get("orderId") or next(
-        (child.order_id for child in children if child.order_id), None
-    )
-
+    primary_order_id = data.get("orderId")
     raw_status_value = data.get("status")
     raw_status = str(raw_status_value).upper() if raw_status_value is not None else None
-    top_level_status = normalize_order_status(
-        raw_status,
-        order_count=order_count,
-        success_count=success_count,
-        failure_count=failure_count,
-        all_succeeded=all_succeeded,
-    )
-    if children:
-        if all_succeeded:
-            status = "ORDER_PLACED"
-        elif failure_count == order_count:
-            status = "FAILED"
-        elif success_count > 0:
-            status = "PARTIAL_ORDER"
-        elif top_level_status == "PAYMENT_PENDING" and failure_count == 0:
-            status = "PAYMENT_PENDING"
-        else:
-            status = "ORDER_STATE_UNKNOWN"
-    else:
-        status = top_level_status
+    status = normalize_order_status(raw_status)
     if status == "ORDER_PLACED" and not primary_order_id:
         status = "ORDER_STATE_UNKNOWN"
 
     raw_grand_total = data.get("cartTotal", data.get("grandTotal"))
     grand_total = float(raw_grand_total) if raw_grand_total is not None else None
     delivery_addr = data.get("deliveryAddress")
+    qr_code_url = data.get("qrCodeUrl") or data.get("qr_code_url")
+    is_qr_flow = bool(data.get("isQrFlow", False) or qr_code_url)
 
     return CommerceOrderResult(
         order_id=primary_order_id,
@@ -369,16 +270,12 @@ def build_checkout_order_result(
             street=delivery_addr if isinstance(delivery_addr, str) else "",
         ),
         tracking_url=data.get("trackingUrl"),
-        orders=children,
-        order_count=order_count,
-        success_count=success_count,
-        failure_count=failure_count,
-        all_succeeded=all_succeeded,
         paas_id=data.get("paasId"),
         transaction_id=data.get("transactionId"),
         bridge_url=data.get("bridgeUrl"),
         upi_intent_url=data.get("upiIntentUrl"),
-        is_qr_flow=bool(data.get("isQrFlow", False)),
+        qr_code_url=qr_code_url,
+        is_qr_flow=is_qr_flow,
         polling_interval_ms=data.get("pollingIntervalInMs"),
         max_time_to_poll_ms=data.get("maxTimeToPollForInMs"),
         provider_message=(
@@ -510,11 +407,11 @@ def parse_delivery_tracking_response(data: dict[str, Any], order_id: str) -> Del
         status = "CANCELLED"
     elif "DELIVERED" in status_msg:
         status = "DELIVERED"
-    elif "OUT" in status_msg or "DISPATCH" in status_msg:
+    elif "OUT_FOR_DELIVERY" in status_msg or "DISPATCH" in status_msg or status_msg.startswith("OUT FOR DELIVERY"):
         status = "OUT_FOR_DELIVERY"
-    elif "PACK" in status_msg or "PREPAR" in status_msg:
+    elif "PACKING" in status_msg or "PREPAR" in status_msg or status_msg == "PACK":
         status = "PACKING"
-    elif "RIDER" in status_msg and ("ASSIGN" in status_msg or "FOUND" in status_msg):
+    elif "RIDER_ASSIGNED" in status_msg or ("RIDER" in status_msg and ("ASSIGN" in status_msg or "FOUND" in status_msg)):
         status = "RIDER_ASSIGNED"
     elif "CONFIRM" in status_msg or "PLACED" in status_msg:
         status = "ORDER_PLACED"
@@ -556,6 +453,16 @@ def parse_delivery_tracking_response(data: dict[str, Any], order_id: str) -> Del
             str(data["orderSubtitle"])
             if data.get("orderSubtitle") is not None
             else None
+        ),
+        driver_name=(
+            str(delivery_info["riderName"])
+            if isinstance(delivery_info, dict) and delivery_info.get("riderName") is not None
+            else (str(data["riderName"]) if data.get("riderName") is not None else None)
+        ),
+        driver_phone=(
+            str(delivery_info["riderPhone"])
+            if isinstance(delivery_info, dict) and delivery_info.get("riderPhone") is not None
+            else (str(data["riderPhone"]) if data.get("riderPhone") is not None else None)
         ),
         status_message=str(raw_status) if raw_status is not None else None,
         store_name=(
@@ -599,7 +506,6 @@ __all__ = [
     "normalize_existing_order_status",
     "normalize_order_status",
     "normalize_payment_status",
-    "parse_child_order",
     "parse_delivery_addresses",
     "parse_delivery_status_response",
     "parse_delivery_tracking_response",

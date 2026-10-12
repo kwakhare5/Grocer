@@ -5,6 +5,7 @@ from typing import Any, Optional
 
 from backend.integrations.commerce.models import (
     CommerceProductItem,
+    Coupon,
     ProductVariant,
 )
 
@@ -93,6 +94,38 @@ def parse_swiggy_products(raw_items: Any) -> list[CommerceProductItem]:
                 )
             )
 
+        if not variants and (item.get("spinId") or item.get("spin_id")):
+            spin_id = item.get("spinId") or item.get("spin_id")
+            sku_id = item.get("skuId") or item.get("sku_id")
+            pack_size = (
+                item.get("quantityDescription")
+                or item.get("packSize")
+                or item.get("pack_size")
+                or ""
+            )
+            raw_price = item.get("price", item.get("offerPrice", item.get("mrp", 0.0)))
+            offer_price = float(raw_price) if raw_price is not None else 0.0
+            mrp = float(item.get("mrp", offer_price))
+            is_available = _optional_provider_bool(
+                item.get("inStock", item.get("isInStock", item.get("is_available")))
+            )
+            max_allowed = item.get("maxAllowedQuantity")
+            is_veg = _optional_provider_bool(item.get("isVeg", item.get("is_veg", item.get("veg"))))
+            variants.append(
+                ProductVariant(
+                    spin_id=str(spin_id),
+                    sku_id=str(sku_id) if sku_id else None,
+                    name=display_name,
+                    pack_size=str(pack_size),
+                    price=offer_price,
+                    mrp=mrp,
+                    in_stock=is_available,
+                    is_available=is_available,
+                    is_veg=is_veg,
+                    max_quantity=(int(max_allowed) if max_allowed is not None else None),
+                )
+            )
+
         if not variants:
             continue
 
@@ -109,4 +142,34 @@ def parse_swiggy_products(raw_items: Any) -> list[CommerceProductItem]:
     return products
 
 
-__all__ = ["_optional_provider_bool", "parse_swiggy_products"]
+def parse_coupons(raw_coupons: Any) -> list[Coupon]:
+    """Parse list_coupons response from Swiggy Instamart."""
+    coupons: list[Coupon] = []
+    items = raw_coupons.get("coupons", raw_coupons) if isinstance(raw_coupons, dict) else raw_coupons
+    if not isinstance(items, list):
+        return coupons
+    for c in items:
+        if not isinstance(c, dict) or not c.get("code"):
+            continue
+        coupons.append(
+            Coupon(
+                code=str(c["code"]),
+                description=str(c["description"]) if c.get("description") is not None else None,
+                discount_amount=(
+                    float(c["discountAmount"])
+                    if c.get("discountAmount") is not None
+                    else (float(c["discount"]) if c.get("discount") is not None else None)
+                ),
+                min_cart_value=(
+                    float(c["minCartValue"])
+                    if c.get("minCartValue") is not None
+                    else (float(c["minOrderValue"]) if c.get("minOrderValue") is not None else None)
+                ),
+                is_applicable=bool(c.get("isApplicable", c.get("applicable", True))),
+                terms=str(c["terms"]) if c.get("terms") is not None else None,
+            )
+        )
+    return coupons
+
+
+__all__ = ["_optional_provider_bool", "parse_coupons", "parse_swiggy_products"]

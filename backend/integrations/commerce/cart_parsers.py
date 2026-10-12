@@ -128,7 +128,7 @@ def build_commerce_cart(data: dict[str, Any], cart_id: Optional[str] = None) -> 
         is_serviceable = False
 
     return CommerceCart(
-        cart_id=str(data["cartId"]) if data.get("cartId") is not None else None,
+        cart_id=(str(data["cartId"]) if data.get("cartId") is not None else cart_id),
         address_id=(
             (data.get("selectedAddress", {}).get("id") or data.get("selectedAddress", {}).get("addressId"))
             if isinstance(data.get("selectedAddress"), dict)

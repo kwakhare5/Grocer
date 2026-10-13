@@ -12,11 +12,14 @@ import httpx
 
 from backend.integrations.commerce.exceptions import (
     AddressNotServiceableError,
+    CartChangedError,
     CartExpiredError,
     CommerceError,
+    DuplicateOrderError,
     ItemOutOfStockError,
     MinOrderNotMetError,
     ProviderAuthError,
+    ProviderInternalError,
     ProviderRateLimitedError,
     ProviderSessionRevokedError,
     UpstreamTimeoutError,
@@ -47,8 +50,14 @@ class SwiggyMcpClient:
     def _get_client(self) -> Any:
         """Return persistent HTTP client pool for Swiggy MCP calls."""
         if self._client is None or getattr(self._client, "is_closed", False):
+            try:
+                import h2  # noqa: F401
+                enable_http2 = True
+            except ImportError:
+                enable_http2 = False
             self._client = httpx.AsyncClient(
                 timeout=self.timeout,
+                http2=enable_http2,
                 limits=httpx.Limits(max_keepalive_connections=10, max_connections=20),
             )
         return self._client
@@ -79,12 +88,20 @@ class SwiggyMcpClient:
 
     def parse_error_if_failed(self, response_data: dict[str, Any]) -> None:
         """Classify errors from Swiggy envelope per official error taxonomy."""
-        if response_data.get("success") is False:
+        if response_data.get("success") is False or "error" in response_data:
             err = response_data.get("error", {})
+            if not isinstance(err, dict):
+                err = {"message": str(err)}
             msg = err.get("message", "Swiggy operation failed")
+            report_id = err.get("reportId")
+            report_hint = err.get("reportHint")
             msg_lower = msg.lower()
 
-            if "out of stock" in msg_lower or "item_out_of_stock" in msg_lower:
+            if "duplicate" in msg_lower:
+                raise DuplicateOrderError(msg)
+            elif "cart changed" in msg_lower or "cart_changed" in msg_lower:
+                raise CartChangedError(msg, report_id=report_id, report_hint=report_hint)
+            elif "out of stock" in msg_lower or "item_out_of_stock" in msg_lower:
                 raise ItemOutOfStockError(spin_id="unknown")
             elif "not serviceable" in msg_lower or "address_not_serviceable" in msg_lower:
                 raise AddressNotServiceableError(address_id="current")
@@ -97,7 +114,7 @@ class SwiggyMcpClient:
             elif "session_revoked" in msg_lower:
                 raise ProviderSessionRevokedError(msg)
             else:
-                raise CommerceError(f"Swiggy error: {msg}")
+                raise CommerceError(f"Swiggy error: {msg}", report_id=report_id, report_hint=report_hint)
 
     @staticmethod
     def _decode_success_response(response: httpx.Response) -> dict[str, Any]:
@@ -144,6 +161,7 @@ class SwiggyMcpClient:
         tool_name: str,
         arguments: dict[str, Any],
         customer_id: Optional[str] = None,
+        timeout: Optional[float] = None,
     ) -> dict[str, Any]:
         """Execute JSON-RPC 2.0 tool call against Swiggy Instamart MCP endpoint."""
         rate_key = customer_id or self._owner_customer_id or "anonymous"
@@ -184,7 +202,10 @@ class SwiggyMcpClient:
 
         try:
             client = self._get_client()
-            resp = await client.post(self.base_url, json=payload, headers=headers)
+            post_kwargs: dict[str, Any] = {"headers": headers, "json": payload}
+            if timeout is not None:
+                post_kwargs["timeout"] = timeout
+            resp = await client.post(self.base_url, **post_kwargs)
 
             if resp.status_code == 401:
                 raise ProviderAuthError("Swiggy MCP session unauthenticated or token expired.")
@@ -217,10 +238,16 @@ class SwiggyMcpClient:
                 rpc_err = data["error"]
                 code = rpc_err.get("code")
                 msg = rpc_err.get("message", "Unknown JSON-RPC error")
+                report_id = rpc_err.get("reportId")
+                report_hint = rpc_err.get("reportHint")
                 if code == -32001:
                     raise ProviderAuthError(msg)
+                if code == -32000:
+                    raise ProviderRateLimitedError(60)
+                if code == -32603:
+                    raise ProviderInternalError(msg, report_id=report_id, report_hint=report_hint)
                 self.parse_error_if_failed({"success": False, "error": rpc_err})
-                raise CommerceError(f"Swiggy MCP RPC error {code}: {msg}")
+                raise CommerceError(f"Swiggy MCP RPC error {code}: {msg}", report_id=report_id, report_hint=report_hint)
 
             result = data.get("result", data)
             # Official Swiggy MCP returns structuredContent inside result

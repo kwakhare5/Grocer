@@ -1,27 +1,2 @@
-from collections.abc import AsyncGenerator
-
-import pytest_asyncio
-from httpx import ASGITransport, AsyncClient
-
-from backend.main import create_app
-
-
-@pytest_asyncio.fixture
-async def client() -> AsyncGenerator[AsyncClient, None]:
-    """Provide an isolated, non-network HTTP client for API tests."""
-    app = create_app()
-    async with AsyncClient(
-        transport=ASGITransport(app=app),
-        base_url="http://test",
-    ) as ac:
-        yield ac
-
-
-import pytest
-from backend.integrations.commerce.mock_adapter import MockCommerceAdapter
-
-
-@pytest.fixture
-def mock_commerce() -> MockCommerceAdapter:
-    """Provide a fresh isolated MockCommerceAdapter instance."""
-    return MockCommerceAdapter()
+"""Pytest root configuration and fixtures for Grocer."""
+from __future__ import annotations

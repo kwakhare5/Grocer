@@ -154,7 +154,7 @@ RAW_TOOL_DECLARATIONS = [
     },
     {
         "name": "checkout",
-        "description": "Place the Swiggy Instamart order using a payment option the user selected from get_payment_options. NEVER call this unless the user has explicitly confirmed the basket and address.",
+        "description": "Place the Swiggy Instamart order using the customer's selected payment option. NEVER call this unless the user has explicitly confirmed the basket and address.",
         "parameters": {
             "type": "object",
             "properties": {
@@ -176,7 +176,7 @@ RAW_TOOL_DECLARATIONS = [
                 },
                 "payment_option_id": {
                     "type": "string",
-                    "description": "Exact ID of the payment option selected by the user from get_payment_options.",
+                    "description": "Exact ID of the payment option selected by the user.",
                 },
                 "is_user_confirmed": {
                     "type": "boolean",

@@ -1,5 +1,6 @@
 const backendUrl = (
   process.env.BACKEND_INTERNAL_URL ||
+  process.env.LOCAL_BACKEND_URL ||
   "https://grocer-backend-qwk4.onrender.com"
 ).replace(/\/+$/, "");
 

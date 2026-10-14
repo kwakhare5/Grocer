@@ -87,10 +87,6 @@ async def swiggy_callback(req: CallbackRequest) -> dict[str, bool]:
         ) from exc
 
 
-@router.post("/auth/token/sync")
-async def sync_token() -> None:
-    """Close the legacy arbitrary-customer token import."""
-    raise HTTPException(status_code=410, detail="Connect your own account through WhatsApp OAuth.")
 
 
 @router.get("/connect")

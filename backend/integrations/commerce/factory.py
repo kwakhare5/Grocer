@@ -18,7 +18,7 @@ def get_commerce_adapter(force_mock: bool = False) -> CommercePort:
 
     adapter_type = "mock" if force_mock else getattr(settings, "COMMERCE_ADAPTER_TYPE", "mock").lower()
 
-    if adapter_type == "swiggy_mcp":
+    if adapter_type in ("swiggy", "swiggy_mcp"):
         if _cached_swiggy_adapter is None:
             base_url = getattr(settings, "SWIGGY_MCP_BASE_URL", "https://mcp.swiggy.com/im")
             _cached_swiggy_adapter = SwiggyMCPAdapter(

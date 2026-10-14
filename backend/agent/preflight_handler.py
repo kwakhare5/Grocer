@@ -18,7 +18,7 @@ from backend.agent.fast_paths import (
     handle_greeting_or_cancellation_fast_path,
     handle_reset_fast_path,
 )
-from backend.agent.formatters import clean_address, format_cart_receipt
+from backend.agent.formatters import format_cart_receipt
 from backend.agent.guards import is_explicit_confirmation, is_hesitation
 from backend.channels.models import (
     InteractiveAction,
@@ -51,15 +51,15 @@ async def execute_preflight(
 
     incoming_text = message.text.strip()
     planning_request_text = incoming_text
-    if message.interactive_id:
-        if message.interactive_id == "confirm_order":
-            incoming_text = "Yes, please confirm and place the order now."
-        elif message.interactive_id == "proceed_checkout":
-            incoming_text = "Proceed to checkout and review my order."
-        elif message.interactive_id == "modify_cart":
-            incoming_text = "I would like to change something in my cart."
-        elif message.interactive_id in ("start_fresh", "clear_cart"):
-            incoming_text = "Please clear my cart and start fresh."
+    action_map = {
+        "confirm_order": "Yes, please confirm and place the order now.",
+        "proceed_checkout": "Proceed to checkout and review my order.",
+        "modify_cart": "I would like to change something in my cart.",
+        "start_fresh": "Please clear my cart and start fresh.",
+        "clear_cart": "Please clear my cart and start fresh.",
+    }
+    if message.interactive_id in action_map:
+        incoming_text = action_map[message.interactive_id]
 
     ingredient_budget = extract_ingredient_budget(incoming_text)
     budget = extract_total_budget(incoming_text) if ingredient_budget is None else None
@@ -78,14 +78,6 @@ async def execute_preflight(
     is_retry_command = norm_text in {"try again", "retry"}
     if is_retry_command and session.pending_request_text:
         planning_request_text = session.pending_request_text
-    if (
-        session.pending_request_text
-        and history
-        and history[-1].get("clarification_pending")
-        and not message.interactive_id
-        and not re.match(r"(?i)^(?:add|buy|get|need|show|clear|cancel|start|remove)\b", norm_text)
-    ):
-        planning_request_text = f"{session.pending_request_text}\nCustomer clarification: {incoming_text}"
 
     if engine.replenishment_store is not None:
         try:
@@ -217,34 +209,23 @@ async def execute_preflight(
             )
         )
 
-    cart_read = norm_text in {"cart", "basket"} or bool(
-        re.fullmatch(
-            r"(?:(?:please|can you|could you)\s+)?(?:show|view|see|list)(?:\s+me)?\s+"
-            r"(?:(?:my|the|your|current)\s+)?(?:cart|basket)(?:\s+(?:right\s+)?now)?"
-            r"|what(?:'s| is)\s+in\s+(?:my|the|your)\s+(?:cart|basket)(?:\s+right\s+now)?",
-            norm_text,
-        )
-    )
+    cart_read = norm_text in {"cart", "basket"} or bool(re.fullmatch(
+        r"(?:(?:please|can you|could you)\s+)?(?:show|view|see|list)(?:\s+me)?\s+"
+        r"(?:(?:my|the|your|current)\s+)?(?:cart|basket)(?:\s+(?:right\s+)?now)?"
+        r"|what(?:'s| is)\s+in\s+(?:my|the|your)\s+(?:cart|basket)(?:\s+right\s+now)?",
+        norm_text,
+    ))
     if cart_read:
         if current_cart is None:
-            text = "I couldn't read your current basket. Please try again shortly."
-            state = "FAILED"
+            text, state = "I couldn't read your current basket. Please try again shortly.", "FAILED"
         elif not current_cart.items:
-            text = "Your basket is empty. What groceries would you like to add?"
-            state = "READY"
+            text, state = "Your basket is empty. What groceries would you like to add?", "READY"
         else:
-            text = format_cart_receipt(
-                current_cart, session.address_label or "Saved Address", allow_checkout_prompt=False
-            )
+            text = format_cart_receipt(current_cart, session.address_label or "Saved Address", allow_checkout_prompt=False)
             state = "NEEDS_DECISION"
-        return PreflightResult(
-            early_response=NormalizedOutgoingResponse(
-                recipient_id=message.sender_id,
-                channel=message.channel,
-                text=text,
-                conversation_state=state,
-            )
-        )
+        return PreflightResult(early_response=NormalizedOutgoingResponse(
+            recipient_id=message.sender_id, channel=message.channel, text=text, conversation_state=state,
+        ))
 
     if message.interactive_id and message.interactive_id.startswith("payment_choice:"):
         selected_id = message.interactive_id.removeprefix("payment_choice:")
@@ -313,65 +294,52 @@ async def execute_preflight(
         )
 
     if message.interactive_id == "accept_partial_basket" or norm_text in {
-        "keep the partial basket",
-        "keep these items",
-        "accept partial basket",
+        "keep the partial basket", "keep these items", "accept partial basket",
     }:
         if not session.budget_blocked_items or not current_cart:
-            return PreflightResult(
-                early_response=NormalizedOutgoingResponse(
-                    recipient_id=message.sender_id,
-                    channel=message.channel,
-                    text="I couldn't verify a partial basket to keep. Please ask me to show your cart.",
-                    conversation_state="NEEDS_DECISION",
-                )
-            )
+            return PreflightResult(early_response=NormalizedOutgoingResponse(
+                recipient_id=message.sender_id, channel=message.channel,
+                text="I couldn't verify a partial basket to keep. Please ask me to show your cart.",
+                conversation_state="NEEDS_DECISION",
+            ))
         approved_address = session.address_id or current_cart.address_id or ""
         if not engine._record_pending_approval(customer_id, current_cart, approved_address):
-            return PreflightResult(
-                early_response=NormalizedOutgoingResponse(
-                    recipient_id=message.sender_id,
-                    channel=message.channel,
-                    text="I couldn't verify the current basket and delivery address. Please review the basket again.",
-                    conversation_state="NEEDS_DECISION",
-                )
-            )
+            return PreflightResult(early_response=NormalizedOutgoingResponse(
+                recipient_id=message.sender_id, channel=message.channel,
+                text="I couldn't verify the current basket and delivery address. Please review the basket again.",
+                conversation_state="NEEDS_DECISION",
+            ))
         session.budget_blocked_items.clear()
-        return PreflightResult(
-            early_response=NormalizedOutgoingResponse(
-                recipient_id=message.sender_id,
-                channel=message.channel,
-                text="Okay, I'll keep only these items. Please review the basket before placing an order.\n\n"
-                + format_cart_receipt(current_cart, session.address_label or "Home"),
-                interactive_actions=[
-                    InteractiveAction(action_type="button", id="confirm_order", title="Confirm Order"),
-                    InteractiveAction(action_type="button", id="modify_cart", title="Change Items"),
-                ],
-                conversation_state="AWAITING_CHECKOUT_CONFIRMATION",
-                order_total=current_cart.grand_total,
-            )
-        )
+        return PreflightResult(early_response=NormalizedOutgoingResponse(
+            recipient_id=message.sender_id, channel=message.channel,
+            text="Okay, I'll keep only these items. Please review the basket before placing an order.\n\n"
+            + format_cart_receipt(current_cart, session.address_label or "Home"),
+            interactive_actions=[
+                InteractiveAction(action_type="button", id="confirm_order", title="Confirm Order"),
+                InteractiveAction(action_type="button", id="modify_cart", title="Change Items"),
+            ],
+            conversation_state="AWAITING_CHECKOUT_CONFIRMATION",
+            order_total=current_cart.grand_total,
+        ))
 
     # Fast-path 2: Hesitation guard when active basket exists
     if is_hesitation(norm_text) and current_cart and current_cart.items:
         loc = engine._customer_address_label.get(customer_id) or "Home"
         receipt = format_cart_receipt(current_cart, delivery_location=loc)
-        return PreflightResult(
-            early_response=NormalizedOutgoingResponse(
-                recipient_id=message.sender_id,
-                channel=message.channel,
-                text=(
-                    "No problem, I've kept your basket on hold! 🛒\n\n"
-                    "Your groceries are still saved. Whenever you're ready, let me know if you want to add/remove items, switch delivery address, or clear your basket.\n\n"
-                    f"{receipt}"
-                ),
-                interactive_actions=[
-                    InteractiveAction(action_type="button", id="confirm_order", title="Confirm Order"),
-                    InteractiveAction(action_type="button", id="modify_cart", title="Change Items"),
-                    InteractiveAction(action_type="button", id="start_fresh", title="Clear Cart"),
-                ],
-                requires_confirmation=True,
-                conversation_state="AWAITING_CHECKOUT_CONFIRMATION",
+        return PreflightResult(early_response=NormalizedOutgoingResponse(
+            recipient_id=message.sender_id, channel=message.channel,
+            text=(
+                "No problem, I've kept your basket on hold! 🛒\n\n"
+                "Your groceries are still saved. Whenever you're ready, let me know if you want to add/remove items, switch delivery address, or clear your basket.\n\n"
+                f"{receipt}"
+            ),
+            interactive_actions=[
+                InteractiveAction(action_type="button", id="confirm_order", title="Confirm Order"),
+                InteractiveAction(action_type="button", id="modify_cart", title="Change Items"),
+                InteractiveAction(action_type="button", id="start_fresh", title="Clear Cart"),
+            ],
+            requires_confirmation=True,
+            conversation_state="AWAITING_CHECKOUT_CONFIRMATION",
                 order_total=current_cart.grand_total,
             )
         )
@@ -430,18 +398,13 @@ async def execute_preflight(
             pending_addrs, norm_text, message.interactive_id
         )
         if not chosen_addr:
-            return PreflightResult(
-                early_response=engine._address_choice_response(message, pending_addrs)
-            )
+            return PreflightResult(early_response=engine._address_choice_response(message, pending_addrs))
 
         engine._awaiting_address_choice.pop(customer_id, None)
         address_id = chosen_addr["address_id"]
         engine._customer_address[customer_id] = address_id
         engine._customer_address_label[customer_id] = (
-            chosen_addr.get("clean_address")
-            or chosen_addr.get("street")
-            or chosen_addr.get("label")
-            or "Home"
+            chosen_addr.get("clean_address") or chosen_addr.get("street") or chosen_addr.get("label") or "Home"
         )
         engine._order_address_confirmed[customer_id] = True
         if session.pending_request_text:
@@ -458,7 +421,8 @@ async def execute_preflight(
         r"|\b(?:address|location|destination)\b",
         norm_text,
     ))
-    if not address_id or has_explicit_address_intent:
+    is_referencing_current_address = bool(re.search(r"\b(?:selected|current|same)\s+address\b", norm_text))
+    if not address_id or (has_explicit_address_intent and not is_referencing_current_address):
         try:
             addr_res = await engine.tools.get_saved_addresses(customer_id)
             if addr_res.get("error") == "AUTH_EXPIRED":
@@ -505,6 +469,20 @@ async def execute_preflight(
         addr_lbl = engine._customer_address_label.get(customer_id, "selected address")
         addr_val = address_id or engine._customer_address.get(customer_id, "")
         incoming_text = f"{session.pending_request_text}\nUse delivery address: {addr_lbl} (ID: {addr_val})."
+    elif (
+        getattr(session, "pending_clarification", False)
+        and session.pending_request_text
+        and not user_confirmed
+        and not is_retry_command
+        and not re.search(r"\b\d{1,2}[A-F]\b", incoming_text.upper())
+    ):
+        planning_request_text = f"{session.pending_request_text} ({incoming_text})"
+        session.pending_request_text = None
+        session.pending_clarification = False
+        addr_lbl = engine._customer_address_label.get(customer_id, "selected address")
+        addr_val = address_id or engine._customer_address.get(customer_id, "")
+        incoming_text = f"{planning_request_text}\nUse delivery address: {addr_lbl} (ID: {addr_val})."
+        history.clear()
 
     return PreflightResult(
         early_response=None,

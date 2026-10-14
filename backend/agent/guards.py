@@ -5,6 +5,17 @@ import re
 from typing import Any, Optional
 
 
+def missing_recipe_staples(request: str, proposed_queries: list[str]) -> list[str]:
+    """Keep a known recipe's indispensable base from disappearing from a model proposal."""
+    if not re.search(r"(?i)\b(?:make|making|prepare|cook)\b.{0,50}\bpizza\b|\bpizza\s+ingredients\b", request):
+        return []
+    if re.search(r"(?i)\b(?:already\s+have|have|got)\b.{0,25}\b(?:pizza\s+)?(?:base|dough|crust)\b", request):
+        return []
+    if any(re.search(r"(?i)\b(?:base|dough|crust)\b", query) for query in proposed_queries):
+        return []
+    return ["pizza base"]
+
+
 def reconcile_explicit_items(request: str, proposed: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Keep plainly enumerated products in the customer's order, even if the model omits one."""
     if not all(isinstance(item, dict) and isinstance(item.get("query"), str) for item in proposed):

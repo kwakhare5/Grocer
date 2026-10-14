@@ -14,9 +14,12 @@ from backend.channels.whatsapp import default_whatsapp_adapter
 
 
 def _local_dsn() -> str:
-    dsn = os.environ.get("GROCER_E2E_DATABASE_URL", "")
+    dsn = os.environ.get(
+        "GROCER_E2E_DATABASE_URL",
+        "postgresql://postgres:postgres@127.0.0.1:5432/grocer_test",
+    )
     if "@127.0.0.1:" not in dsn or not dsn.endswith("/grocer_test"):
-        pytest.skip("Set GROCER_E2E_DATABASE_URL to the isolated localhost grocer_test database")
+        raise RuntimeError("GROCER_E2E_DATABASE_URL must point to an isolated localhost grocer_test database")
     return dsn
 
 

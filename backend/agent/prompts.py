@@ -98,8 +98,8 @@ def build_system_instruction(
         )
     elif cart is not None:
         system_text += (
-            f"\n\n### LIVE BASKET STATE:\n"
-            f"- The basket is currently empty (0 items).\n"
+            "\n\n### LIVE BASKET STATE:\n"
+            "- The basket is currently empty (0 items).\n"
         )
     else:
         system_text += (

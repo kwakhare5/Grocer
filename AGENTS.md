@@ -11,7 +11,7 @@ WhatsApp consumer grocery replenishment assistant with deterministic intent veri
 ## Commands (how to run/build/test)
 - Install: `npm install` and `pip install -r requirements.txt`
 - Dev server: `npm run dev` & `uvicorn backend.main:app --reload --port 8000`
-- Test: `pytest backend/tests/test_whatsapp_postgres_e2e.py`
+- Test: `pytest`
 - E2E: `pytest backend/tests/test_whatsapp_postgres_e2e.py`
 - Lint: `npm run lint`
 - Done check = Test + Lint both exit 0.
@@ -25,7 +25,7 @@ Fonts and colors come from tokens file.
 
 ## Gotchas (project decisions)
 - WhatsApp webhooks require signature validation and idempotency tokens.
-- Live external LLM calls are disabled by default in test runner (`-m "not live_llm"`).
+- Allowed Mocks Only: External 3rd-party billable APIs (Gemini, Meta, Swiggy) mocked at port boundary; zero test skips allowed.
 - State transitions enforce strict deterministic state bounds before placing orders.
 - Anti-drift: Never build dark-store dashboards, fleet logistics, or generic shopping bots; Intent is an extension of the WhatsApp agent.
 - Autonomy & Safety: Server-side gated checkout with explicit confirmation; deterministic code enforces/verifies, LLM only proposes.

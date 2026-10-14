@@ -35,10 +35,14 @@ export function ConnectInstamartModal({
     e.preventDefault();
     setAuthError(null);
 
-    const ticket = connectTicket;
-    const cleanPhone = phoneNumber.replace(/\D/g, "");
-    if (!ticket && cleanPhone.length !== 10) {
-      setAuthError("Enter your 10-digit WhatsApp phone number to connect.");
+    let cleanPhone = phoneNumber.replace(/\D/g, "");
+    if (cleanPhone.startsWith("91") && cleanPhone.length === 12) {
+      cleanPhone = cleanPhone.slice(2);
+    } else if (cleanPhone.startsWith("0") && cleanPhone.length === 11) {
+      cleanPhone = cleanPhone.slice(1);
+    }
+    if (!ticket && !/^[6-9]\d{9}$/.test(cleanPhone)) {
+      setAuthError("Enter a valid 10-digit Indian WhatsApp number (starting with 6-9).");
       return;
     }
 
@@ -71,7 +75,7 @@ export function ConnectInstamartModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/40 backdrop-blur-sm animate-in fade-in duration-150">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/40 backdrop-blur-sm transition-opacity duration-150">
       <div className="bg-white rounded-3xl p-6 sm:p-8 border border-zinc-200 shadow-2xl max-w-md w-full relative">
         <button
           type="button"

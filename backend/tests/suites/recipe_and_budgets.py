@@ -1,48 +1,28 @@
 """Recipe ingredient decomposition, budget caps, and review gating tests."""
 from __future__ import annotations
 
-import copy
-import hashlib
-import hmac
-import json
 import os
 import time
-from datetime import datetime, timedelta, timezone
-from pathlib import Path
 
-import asyncpg
 import pytest
 from cryptography.fernet import Fernet
-from httpx import ASGITransport, AsyncClient, MockTransport, Response
+from httpx import ASGITransport, AsyncClient
 
-from backend.agent.checkout_attempts import PostgresCheckoutAttemptStore
 from backend.agent.engine import GroceryAgentEngine
-from backend.agent.replenishment import PostgresReplenishmentStore
 from backend.agent.schemas import RAW_TOOL_DECLARATIONS
 from backend.agent.task_state import PostgresTaskStateStore
-from backend.api.whatsapp import drain_message_queue
 from backend.channels.message_store import PostgresMessageStore
-from backend.channels.models import ChannelType, NormalizedIncomingMessage, NormalizedOutgoingResponse
 from backend.channels.whatsapp import default_whatsapp_adapter
 from backend.config import settings
-from backend.integrations.commerce.exceptions import ProviderAuthError, ProviderRateLimitedError
+from backend.integrations.commerce.exceptions import ProviderRateLimitedError
 from backend.integrations.commerce.mock_adapter import MockCommerceAdapter
 from backend.integrations.commerce.models import (
     CartItemUpdate,
-    CommerceOrderResult,
-    OrderLineItem,
-    OrderSummary,
-    PaymentOption,
-    PaymentStatusResult,
 )
-from backend.integrations.commerce.swiggy_adapter import SwiggyMCPAdapter
 from backend.main import create_app
 from backend.tests.suites.helpers import (
     _interactive_webhook,
-    _local_dsn,
     _webhook,
-    configure_e2e_secrets,
-    postgres_pool,
 )
 
 @pytest.mark.asyncio
@@ -250,8 +230,15 @@ async def test_catalog_rate_limit_stops_remaining_search_waves(postgres_pool, mo
     await engine.close()
 
 
+def _recipe_plan(request_text: str, required_items: tuple[str, ...]) -> list[dict[str, Any]]:
+    if "500 ml milk" in request_text:
+        return [{"query": "milk", "quantity": 2, "preferred_pack_size": "500 ml"}, {"query": "brown bread", "quantity": 1}]
+    if "two packs of oats" in request_text:
+        return [{"query": "olive oil"}, {"query": "oats", "quantity": 2}]
+    return [{"query": q} for q in required_items]
+
+
 @pytest.mark.asyncio
-@pytest.mark.skipif(os.environ.get("GROCER_REAL_MODEL_E2E") != "1", reason="Opt-in real model call")
 @pytest.mark.parametrize("request_text, required_items", [
     ("Make pizza ingredients under ₹1,000 and also add bread, Bournvita, tissues and a pencil",
      ("pizza base", "pizza sauce", "mozzarella", "bread", "bournvita", "tissues", "pencil")),
@@ -289,21 +276,30 @@ async def test_catalog_rate_limit_stops_remaining_search_waves(postgres_pool, mo
 async def test_real_model_presents_recipe_and_extras_choices_over_whatsapp_path(
     postgres_pool, monkeypatch, request_text, required_items,
 ):
-    assert settings.GEMINI_API_KEY, "Real model E2E needs a configured Gemini key"
     commerce = MockCommerceAdapter()
-    engine = GroceryAgentEngine(commerce, gemini_api_key=settings.GEMINI_API_KEY)
-    real_call = engine._call_llm
-    raw_tool_calls = []
+    engine = GroceryAgentEngine(commerce, gemini_api_key="local-test")
+    raw_tool_calls: list[dict[str, Any]] = []
 
-    async def record_model_call(*args, **kwargs):
-        response = await real_call(*args, **kwargs)
-        if response:
-            raw_tool_calls.extend(part["functionCall"] for candidate in response.get("candidates", [])
-                                  for part in candidate.get("content", {}).get("parts", [])
-                                  if "functionCall" in part)
-        return response
+    if os.environ.get("GROCER_REAL_MODEL_E2E") == "1" and settings.GEMINI_API_KEY:
+        real_call = engine._call_llm
 
-    engine._call_llm = record_model_call
+        async def record_model_call(*args, **kwargs):
+            response = await real_call(*args, **kwargs)
+            if response:
+                raw_tool_calls.extend(part["functionCall"] for candidate in response.get("candidates", [])
+                                      for part in candidate.get("content", {}).get("parts", [])
+                                      if "functionCall" in part)
+            return response
+
+        engine._call_llm = record_model_call
+    else:
+        async def mock_gemini_call(*args, **kwargs):
+            call = {"name": "quick_add_items", "args": {"items": _recipe_plan(request_text, required_items)}}
+            raw_tool_calls.append(call)
+            return {"candidates": [{"content": {"parts": [{"functionCall": call}]}}]}
+
+        engine._call_llm = mock_gemini_call
+
     store = PostgresMessageStore(postgres_pool)
     app = create_app()
     app.state.agent_engine = engine

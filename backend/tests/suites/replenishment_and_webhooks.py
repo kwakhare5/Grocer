@@ -1,47 +1,28 @@
 """Replenishment consent, webhook signature validation, data deletion, and simulator tests."""
 from __future__ import annotations
 
-import copy
-import hashlib
-import hmac
-import json
-import os
-import time
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
 
-import asyncpg
 import pytest
 from cryptography.fernet import Fernet
-from httpx import ASGITransport, AsyncClient, MockTransport, Response
+from httpx import ASGITransport, AsyncClient
 
 from backend.agent.checkout_attempts import PostgresCheckoutAttemptStore
 from backend.agent.engine import GroceryAgentEngine
 from backend.agent.replenishment import PostgresReplenishmentStore
 from backend.agent.task_state import PostgresTaskStateStore
-from backend.api.whatsapp import drain_message_queue
 from backend.channels.message_store import PostgresMessageStore
-from backend.channels.models import ChannelType, NormalizedIncomingMessage, NormalizedOutgoingResponse
 from backend.channels.whatsapp import default_whatsapp_adapter
 from backend.config import settings
-from backend.integrations.commerce.exceptions import ProviderAuthError, ProviderRateLimitedError
+from backend.integrations.commerce.exceptions import ProviderAuthError
 from backend.integrations.commerce.mock_adapter import MockCommerceAdapter
 from backend.integrations.commerce.models import (
-    CartItemUpdate,
-    CommerceOrderResult,
     OrderLineItem,
     OrderSummary,
-    PaymentOption,
-    PaymentStatusResult,
 )
-from backend.integrations.commerce.swiggy_adapter import SwiggyMCPAdapter
 from backend.main import create_app
 from backend.tests.suites.helpers import (
-    _interactive_webhook,
-    _local_dsn,
     _webhook,
-    configure_e2e_secrets,
-    postgres_pool,
 )
 
 @pytest.mark.asyncio

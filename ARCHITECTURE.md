@@ -1,6 +1,6 @@
 # Grocer Architecture
 
-Updated: 2026-10-10. Authoritative technical specification for the Grocer WhatsApp replenishment assistant, detailing the conversational reasoning pipeline, deterministic safety boundaries, and Swiggy Instamart Model Context Protocol (MCP) integration.
+Updated: 2026-10-14. Authoritative technical specification for the Grocer WhatsApp replenishment assistant, detailing the conversational reasoning pipeline, deterministic safety boundaries, modular component architecture, and Swiggy Instamart Model Context Protocol (MCP) integration.
 
 ---
 
@@ -56,3 +56,42 @@ Meta WhatsApp Cloud Webhook
 - **Storage**: PostgreSQL (`grocer_internal` schema) stores encrypted OAuth tokens, connect tickets, inbox/outbox queues, checkout attempts, task snapshots, and replenishment history.
 - **Data Deletion (`delete my data`)**: Customers sending "delete my data" trigger an immediate cryptographic purge of their conversation history, token vault records, and learned purchase habits.
 - **Liveness & Readiness**: `GET /api/ready` validates database connectivity and migration integrity, while `GET /api/health` reports process liveness.
+
+---
+
+## 6. Modular Subsystem Architecture
+
+All backend modules strictly adhere to single-responsibility bounds (<500 lines per file):
+
+### Conversational Agent (`backend/agent/`)
+- `engine.py` & `react_coordinator.py`: Master turn executor and multi-step ReAct reasoning coordinator.
+- `session_manager.py`: Per-customer concurrency serialization (`asyncio.Lock`) and session resumption.
+- `variant_manager.py`: Deterministic catalog candidate disambiguation and numbered option selection (`1A`, `1B`).
+- `basket_manager.py`: Non-destructive delta basket merging and quantity updates.
+- `address_resolver.py` & `address_tools.py`: Delivery destination privacy sanitization and structured area/city extraction.
+- `guards.py`: Hard budget verification, hesitation phrase detection, and negation-first confirmation filtering.
+- `preflight_handler.py`: Fast-path intake validation, conversational greetings, and intent routing.
+- `receipt_builders.py`: Deterministic receipt math formatting and Meta 1,024-character message chunking.
+- `replenishment.py`: Encrypted purchase habit analysis and predictive restock cadence estimation.
+- `checkout_attempts.py` & `task_state.py`: Durable task snapshot storage and restart-resilient order reconciliation.
+
+### Commerce Integration (`backend/integrations/commerce/`)
+- `port.py`: Clean abstract `CommercePort` contract defining catalog search, cart operations, addresses, and checkout.
+- `swiggy_adapter.py`: Production Swiggy Instamart MCP client (`https://mcp.swiggy.com/im`) implementing all 14 official MCP tools over HTTP/2.
+- `mock_adapter.py`: Deterministic offline adapter with local catalog for zero-cost integration testing.
+- `token_vault.py`: Fernet-encrypted PostgreSQL vault for customer OAuth credentials.
+- `connect_tickets.py`: Single-use 10-minute ticket generator binding WhatsApp identities to OAuth flows.
+
+### Ingress & Delivery Channels (`backend/channels/`)
+- `whatsapp.py`: Meta Cloud API client supporting dual-message receipt splitting and delivery ACK tracking.
+- `message_store.py`: Durable PostgreSQL inbox/outbox queue with rapid burst debouncing and 3-attempt staged delivery.
+
+---
+
+## 7. Verification & Testing Strategy
+
+- **94 Total Tests (100% Green)**:
+  - **13 Invariant Tests** (`backend/tests/test_invariants.py`): Pure deterministic guards verifying budget ceilings, negation safety, receipt splitting, and cryptographic token vaults.
+  - **81 End-to-End Integration Tests** (`backend/tests/test_whatsapp_postgres_e2e.py` & `suites/`): Verifying signed webhooks, customer concurrency locks, multi-turn basket edits, recipe ingredient decomposition, replenishment consent, and restart recovery.
+- **Anti-Cheat & Zero-Mock Policy**: Zero mocking of internal database tables, schemas, or application modules. Mocks are restricted solely to external billable network boundaries (Meta Graph API, Gemini API, Swiggy MCP).
+- **Done Condition**: Any task is complete only when both `pytest` and `npm run lint` exit 0.

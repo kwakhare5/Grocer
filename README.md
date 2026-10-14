@@ -227,7 +227,7 @@ npm install
 ### 5. Run the Verification Suite
 Run the 94-test invariant and integration test suite:
 ```powershell
-pytest backend/tests/test_invariants.py
+pytest
 npm run lint
 ```
 
@@ -262,24 +262,21 @@ Grocer includes a full-featured web simulator at `http://localhost:3000` (live a
 Grocer enforces a **zero-cheat invariant testing philosophy**. Tests never mock internal modules or database tables—they mock only external third-party network APIs (Meta and Swiggy).
 
 ```powershell
-# Run the 13 fast invariant tests (always run, takes ~0.1s)
-pytest backend/tests/test_invariants.py
-
-# Run the complete 94-test battery (with isolated PostgreSQL)
-pytest backend/tests/test_invariants.py backend/tests/test_whatsapp_postgres_e2e.py
+# Run the complete 94-test battery (13 invariants + 81 integration cases)
+pytest
 ```
 
-### Test Suite Structure
+### Test Suite Structure (94 Tests Total)
 
-| Suite | File | Tests | What It Proves |
+| Suite | Focus | Tests | What It Proves |
 |---|---|:---:|---|
-| **Deterministic Invariants** | `backend/tests/test_invariants.py` | 13 | Budget ceilings, token redaction, signature verification, zero unselected item mutations, address privacy sanitization |
-| **Turn Recovery & Resilience** | `backend/tests/suites/turn_recovery.py` | 4 | Crashed turn recovery, zero address demand on greeting, empty cart preservation |
-| **Planning & Basket Integrity** | `backend/tests/suites/planning_and_orders.py` | 10 | Unselected SKU protection, ordinal references ("the second one"), Hinglish grocery searches |
-| **Cart & Variant Disambiguation** | `backend/tests/suites/cart_and_addresses.py` | 10 | Exact variant choices before writes, rate-limit backoff, retry memory preservation |
-| **Recipes & Budget Ceilings** | `backend/tests/suites/recipe_and_budgets.py` | 11 | Multi-item recipe batching, rupee caps, partial-basket warnings, symptom-to-grocery boundaries |
-| **Replenishment & Webhooks** | `backend/tests/suites/replenishment_and_webhooks.py` | 13 | Consented cadence restocks, data purge (`delete my data`), forged webhook rejection, gated checkout |
-| **Simulator & Channel Safety** | `backend/tests/suites/webhook_and_simulator.py` | 3 | Customer isolation, signed intake validation, local simulator boundary checks |
+| **Deterministic Invariants** | `test_invariants.py` | 13 | Rupee budget ceilings, token redaction, signature verification, zero unselected item mutations, address privacy sanitization |
+| **Turn Recovery & Intent Safety** | `turn_recovery.py` | 4 | Crashed turn recovery, zero address demand on greeting, empty cart preservation, uncertain turn alerts |
+| **Planning, Integrity & Repairs** | `planning_and_orders.py`, `planning_repairs.py` | 10 | Unselected SKU protection, ordinal references ("the second one"), Hinglish searches, recipe repair turns |
+| **Cart & Variant Disambiguation** | `cart_and_addresses.py`, `address_disambiguation.py` | 10 | Exact variant choices before writes, rate-limit backoff, retry memory preservation, multi-address resolution |
+| **Recipes, Pacing & Budget Caps** | `recipe_and_budgets.py`, `budget_and_symptoms.py` | 41 | Multi-item recipe batching (16 meal combinations), strict rupee caps, partial-basket warnings, symptom boundary checks |
+| **Consented Replenishment & Purge** | `replenishment_and_webhooks.py` | 12 | Consented cadence restocks, data purge (`delete my data`), forged webhook rejection, gated checkout |
+| **Simulator & Channel Safety** | `webhook_and_simulator.py` | 4 | Customer isolation, signed intake validation, local simulator boundary checks, payment reconciliation |
 
 ---
 
@@ -340,7 +337,7 @@ Grocer/
 │   │   └── message_store.py        # PostgreSQL message ledger & burst debouncer
 │   ├── integrations/commerce/      # Swiggy Instamart integration
 │   │   ├── swiggy_adapter.py       # Live MCP client & MockCommerceAdapter
-│   │   ├── ports.py                # Abstract CommercePort contract
+│   │   ├── port.py                 # Abstract CommercePort contract
 │   │   └── token_vault.py          # Encrypted customer credential vault
 │   └── tests/                      # Verification test battery
 │       ├── test_invariants.py      # 13 deterministic system invariant tests
@@ -354,7 +351,11 @@ Grocer/
 │   ├── landing/                    # Showcase sections, feature cards, and FAQs
 │   └── simulator/                  # Interactive WhatsApp playground client
 ├── docs/                           # Architectural specs & Swiggy submission dossier
-│   └── SWIGGY_BUILDER_CLUB_APPLICATION.md
+│   ├── SWIGGY_BUILDER_CLUB_APPLICATION.md # Swiggy Builders Club dossier & form answers
+│   ├── SWIGGY_MCP_API.md          # Official 14-tool Swiggy Instamart MCP specification
+│   ├── database_schema.md         # Encrypted PostgreSQL schema reference
+│   ├── RELEASE_RUNBOOK.md         # Operator deployment and recovery runbook
+│   └── agents/issue-tracker.md    # GitHub issue tracking conventions
 ├── .github/workflows/              # Continuous integration pipelines
 │   ├── quality.yml                 # Runs full 94-test battery & Next.js lint/build
 │   └── keep_warm.yml               # Scheduled health pinger for Render web service

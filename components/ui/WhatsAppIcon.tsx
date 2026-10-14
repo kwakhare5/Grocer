@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useId } from "react";
 
 export interface WhatsAppIconProps extends React.SVGProps<SVGSVGElement> {
   className?: string;
@@ -10,6 +10,10 @@ export function WhatsAppIcon({
   size,
   ...props
 }: WhatsAppIconProps) {
+  const uniqueId = useId().replace(/:/g, "");
+  const greenGradId = `wa-green-${uniqueId}`;
+  const whiteGradId = `wa-white-${uniqueId}`;
+
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -22,21 +26,21 @@ export function WhatsAppIcon({
     >
       <title>WhatsApp</title>
       <defs>
-        <linearGradient id="SVGK3KZq49U" x1="50%" x2="50%" y1="100%" y2="0%">
+        <linearGradient id={greenGradId} x1="50%" x2="50%" y1="100%" y2="0%">
           <stop offset="0%" stopColor="#1faf38" />
           <stop offset="100%" stopColor="#60d669" />
         </linearGradient>
-        <linearGradient id="SVGefMkoEOd" x1="50%" x2="50%" y1="100%" y2="0%">
+        <linearGradient id={whiteGradId} x1="50%" x2="50%" y1="100%" y2="0%">
           <stop offset="0%" stopColor="#f9f9f9" />
           <stop offset="100%" stopColor="#fff" />
         </linearGradient>
       </defs>
       <path
-        fill="url(#SVGK3KZq49U)"
+        fill={`url(#${greenGradId})`}
         d="M5.463 127.456c-.006 21.677 5.658 42.843 16.428 61.499L4.433 252.697l65.232-17.104a123 123 0 0 0 58.8 14.97h.054c67.815 0 123.018-55.183 123.047-123.01c.013-32.867-12.775-63.773-36.009-87.025c-23.23-23.25-54.125-36.061-87.043-36.076c-67.823 0-123.022 55.18-123.05 123.004"
       />
       <path
-        fill="url(#SVGefMkoEOd)"
+        fill={`url(#${whiteGradId})`}
         d="M1.07 127.416c-.007 22.457 5.86 44.38 17.014 63.704L0 257.147l67.571-17.717c18.618 10.151 39.58 15.503 60.91 15.511h.055c70.248 0 127.434-57.168 127.464-127.423c.012-34.048-13.236-66.065-37.3-90.15C194.633 13.286 162.633.014 128.536 0C58.276 0 1.099 57.16 1.071 127.416m40.24 60.376l-2.523-4.005c-10.606-16.864-16.204-36.352-16.196-56.363C22.614 69.029 70.138 21.52 128.576 21.52c28.3.012 54.896 11.044 74.9 31.06c20.003 20.018 31.01 46.628 31.003 74.93c-.026 58.395-47.551 105.91-105.943 105.91h-.042c-19.013-.01-37.66-5.116-53.922-14.765l-3.87-2.295l-40.098 10.513z"
       />
       <path

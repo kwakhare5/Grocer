@@ -27,7 +27,6 @@ export function ArchitectureSection() {
       case "address":
         return <MapPin className="w-4 h-4" />;
       case "reasoning":
-      case "gemini":
         return <Search className="w-4 h-4" />;
       case "guards":
         return <Lock className="w-4 h-4" />;

@@ -53,7 +53,7 @@ export default function Home() {
   }, []);
 
   return (
-    <div className="relative min-h-screen bg-matte-grain text-zinc-900 flex flex-col font-sans selection:bg-emerald-600 selection:text-white">
+    <div className="relative min-h-screen text-zinc-900 flex flex-col font-sans">
       {/* Global Navigation Header (Clean 4-Link Structure) */}
       <AppGlobalHeader />
 

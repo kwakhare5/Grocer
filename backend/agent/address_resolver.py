@@ -64,7 +64,6 @@ def match_explicit_address(
     """Match explicit address mentions in incoming messages against saved addresses."""
     for a in addresses:
         lbl = str(a.get("label") or "").casefold()
-        clean_addr = str(a.get("clean_address") or "").casefold()
         if lbl and (
             re.search(
                 rf"\b(?:deliver|send|ship|bring|drop|switch|change|take)\b.*?\b(?:to|at)\s+(?:my\s+)?{re.escape(lbl)}\b"

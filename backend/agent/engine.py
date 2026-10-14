@@ -48,8 +48,6 @@ class GroceryAgentEngine:
     def __init__(
         self,
         commerce: CommercePort,
-        api_key: Optional[str] = None,
-        model: Optional[str] = None,
         gemini_api_key: Optional[str] = None,
         gemini_model: Optional[str] = None,
         gemini_fallback_model: Optional[str] = None,
@@ -67,8 +65,6 @@ class GroceryAgentEngine:
         self.gemini_api_key = gemini_api_key or getattr(settings, "GEMINI_API_KEY", None)
         self.gemini_model = gemini_model or getattr(settings, "GEMINI_MODEL", "gemini-3.5-flash-lite")
         self.gemini_fallback_model = gemini_fallback_model or getattr(settings, "GEMINI_FALLBACK_MODEL", "gemini-3.5-flash-lite")
-        self.api_key = api_key or self.gemini_api_key
-        self.model = model or self.gemini_model
         self.timeout = timeout
         # Unified atomic customer session map + compatibility views
         self._sessions: dict[str, Any] = {}
@@ -84,7 +80,7 @@ class GroceryAgentEngine:
         self.last_llm_error: Optional[str] = None
         self.last_turn_latency_ms: Optional[float] = None
         self.gemini = GeminiClient(
-            api_key=self.gemini_api_key or self.api_key or "",
+            api_key=self.gemini_api_key or "",
             primary_model=self.gemini_model,
             fallback_model=self.gemini_fallback_model,
             timeout=self.timeout,
@@ -303,7 +299,6 @@ class GroceryAgentEngine:
         address_label: Optional[str] = None,
         cart: Optional[CommerceCart] = None,
         planning_only: bool = False,
-        fast_fail_on_rate_limit: bool = False,
         **kwargs: Any,
     ) -> Optional[dict[str, Any]]:
         base_sys = build_system_instruction(

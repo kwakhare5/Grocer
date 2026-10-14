@@ -1,4 +1,4 @@
-"""Abstract interface for grocery commerce adapters (Spec Section 5.1, Section 28.1).
+"""Abstract interface for grocery commerce adapters.
 
 Enforces clean architectural boundary: consumer grocery replenishment and
 customer reordering interact with external quick-commerce systems (or local

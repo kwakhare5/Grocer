@@ -1,4 +1,4 @@
-"""Swiggy Instamart MCP commerce adapter (Spec Section 5.1, Section 28, & Section 38.9).
+"""Swiggy Instamart MCP commerce adapter.
 
 Authoritative integration with Swiggy Instamart MCP server following official
 Swiggy Builders Club specifications. Strictly enforces:

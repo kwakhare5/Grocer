@@ -101,7 +101,7 @@ def format_cart_receipt(
     items_block = "\n".join(item_lines)
 
     lines = [
-        f"🛒 *Your Basket*",
+        "🛒 *Your Basket*",
         items_block,
         "",
     ]

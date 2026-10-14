@@ -83,8 +83,7 @@ def opaque_state_hash(state: str) -> bytes:
 class SwiggyTokenVault:
     """Thread-safe token cache with optional encrypted PostgreSQL durability."""
 
-    def __init__(self, persistence_file: str | None = None) -> None:
-        del persistence_file  # Preserved for signature compatibility; credentials strictly use memory/Postgres
+    def __init__(self) -> None:
         self._tokens: dict[str, SwiggyTokenEntry] = {}
         self._lock = threading.RLock()
         self._pool: Any | None = None

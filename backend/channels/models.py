@@ -1,4 +1,4 @@
-"""Channel models for normalized message transport across Web and WhatsApp."""
+"""Channel models for normalized message transport across WhatsApp."""
 from __future__ import annotations
 
 import time
@@ -8,9 +8,7 @@ from pydantic import BaseModel, Field
 
 
 class ChannelType(str, Enum):
-    WEB = "web"
     WHATSAPP = "whatsapp"
-    TEST = "test"
 
 
 class InteractiveAction(BaseModel):

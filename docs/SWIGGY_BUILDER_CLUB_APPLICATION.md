@@ -126,7 +126,7 @@ The architecture follows clean separation across 8 coordinated stages:
 ```mermaid
 flowchart TD
     subgraph Ingress ["1. WhatsApp Ingress & Fast-ACK (<200ms)"]
-        WA["Customer on WhatsApp (+1 555 663-1707)"] -->|"Meta Cloud Webhook"| Vercel["Vercel Edge Gateway (/api/whatsapp/webhook)"]
+        WA["Customer on WhatsApp (+91 98765 43210)"] -->|"Meta Cloud Webhook"| Vercel["Vercel Edge Gateway (/api/whatsapp/webhook)"]
         Vercel -->|"Instant Fast-ACK & Blue Ticks (<200ms)"| WA
         Vercel -->|"Proxied Payload"| FastAPI["FastAPI Engine on Render (/webhook)"]
     end

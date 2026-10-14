@@ -10,8 +10,7 @@ from fastapi.responses import PlainTextResponse
 
 from backend.channels.whatsapp import default_whatsapp_adapter
 from backend.channels.message_store import PostgresMessageStore
-from backend.channels.models import NormalizedIncomingMessage
-from backend.channels.models import ChannelType, NormalizedOutgoingResponse
+from backend.channels.models import ChannelType, NormalizedIncomingMessage, NormalizedOutgoingResponse
 from backend.integrations.commerce.token_vault import default_token_vault
 
 logger = logging.getLogger("grocer.api.whatsapp")

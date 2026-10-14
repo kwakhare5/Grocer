@@ -102,7 +102,7 @@ export function WhatsAppSimulator() {
                 <div className="space-y-3">
                   {/* Delivery Location Pill */}
                   <div className="mx-auto w-fit px-3 py-1 rounded-full bg-white/90 border border-zinc-200/80 text-xs text-zinc-600 font-medium shadow-2xs">
-                    Baner, Pune Hub • Turn {currentTurn.turn} of 6
+                    {currentTurn.turn === 1 ? "Select Delivery Address" : "Office (Baner, Pune Hub)"} &bull; Turn {currentTurn.turn} of 6
                   </div>
 
                   {/* 1. Customer Speech Bubble */}
@@ -161,15 +161,16 @@ export function WhatsAppSimulator() {
                       {/* Official Payment Link Card */}
                       {currentTurn.paymentLink && (
                         <div className="pt-2 border-t border-zinc-100">
-                          <a
-                            href={currentTurn.paymentLink}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="p-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 flex items-center justify-between text-xs text-emerald-950 font-semibold transition active:scale-[0.98]"
+                          <button
+                            type="button"
+                            onClick={() => {
+                              alert("Review Mode: Live UPI payment links are verified in real time on deployment. No external charges are billed in simulation.");
+                            }}
+                            className="w-full p-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 flex items-center justify-between text-xs text-emerald-950 font-semibold transition active:scale-[0.98] cursor-pointer"
                           >
-                            <span>Official Swiggy UPI Payment Link</span>
+                            <span>Official Swiggy UPI Payment Link (Simulated)</span>
                             <ExternalLink className="w-3.5 h-3.5 text-emerald-700" />
-                          </a>
+                          </button>
                         </div>
                       )}
 

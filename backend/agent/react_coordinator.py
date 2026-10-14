@@ -10,6 +10,7 @@ from typing import Any, Optional
 from backend.agent.catalog_ranker import _matches_item_name
 from backend.agent.checkout_outcome import process_checkout_outcome
 from backend.agent.guards import (
+    missing_recipe_staples,
     reconcile_explicit_items,
     reconcile_explicit_removals,
 )
@@ -101,19 +102,19 @@ async def execute_react_turn_loop(
     reduced_items: list[str] = []
     guarded_change_message: str | None = None
 
-    legacy_operation = bool(re.search(
+    is_conversational_turn = bool(re.search(
         r"\b(?:remove|delete|increase|decrease|reduce|change|switch|replace|swap|update|edit|drop|take\s+out|"
         r"clear|cancel|checkout|confirm|pay|payment|track|usuals?|regulars?|address)\b"
         r"|\b(?:make|set)\s+(?:the\s+)?(?:first|second|third|1st|2nd|3rd|it|that|\w+)\s+(?:to\s+)?(?:\d+|zero|one|two|three|four|five)\b",
         planning_request_text,
         re.IGNORECASE,
     ))
-    if not legacy_operation and current_cart and current_cart.items:
+    if not is_conversational_turn and current_cart and current_cart.items:
         for ci in current_cart.items:
             if _matches_item_name(planning_request_text, ci.name):
-                legacy_operation = True
+                is_conversational_turn = True
                 break
-    planning_turn = not user_confirmed and not legacy_operation
+    planning_turn = not user_confirmed and not is_conversational_turn
 
     for step_idx in range(1, max_iterations + 1):
         response_data = await engine._call_llm(
@@ -122,12 +123,12 @@ async def execute_react_turn_loop(
             address_label=addr_lbl,
             cart=None if planning_turn else current_cart,
             planning_only=planning_turn,
-            fast_fail_on_rate_limit=bool(last_cart_receipt or checkout_executed),
         )
         if not response_data:
             if last_cart_receipt or checkout_executed:
                 final_text = ""
-            elif session.pending_request_text:
+            elif session.pending_request_text or planning_request_text:
+                session.pending_request_text = session.pending_request_text or planning_request_text
                 pending_request_needs_retry = True
                 final_text = (
                     f"I saved your request: {session.pending_request_text}. "
@@ -180,6 +181,17 @@ async def execute_react_turn_loop(
             text_parts = [p.get("text", "") for p in parts if "text" in p]
             response_text = "\n".join(t.strip() for t in text_parts if t.strip())
             if response_text:
+                if planning_turn and any(
+                    kw in response_text.casefold()
+                    for kw in ("added", "in your basket", "to your basket", "in your cart", "to your cart", "₹", "rs.")
+                ):
+                    session.pending_request_text = planning_request_text
+                    pending_request_needs_retry = True
+                    final_text = "I haven't checked Swiggy products yet. Reply *try again* and I'll look up your request."
+                    break
+                if planning_turn:
+                    session.pending_request_text = planning_request_text
+                    session.pending_clarification = True
                 final_text = response_text
                 history.append({
                     "role": "model",
@@ -208,30 +220,17 @@ async def execute_react_turn_loop(
             )
 
         if planning_turn and any(
-            (
-                call.get("name") not in {
-                    "quick_add_items", "manage_basket", "get_cart", "search_products",
-                }
-                and not (
-                    call.get("name") == "select_delivery_address"
-                    and call.get("args", {}).get("address_id") == address_id
-                )
-            )
+            (call.get("name") not in {"quick_add_items", "manage_basket", "get_cart", "search_products"}
+             and not (call.get("name") == "select_delivery_address" and call.get("args", {}).get("address_id") == address_id))
             for call in function_calls
         ):
             session.pending_request_text = planning_request_text
-            if any(call.get("name") == "update_cart" for call in function_calls):
-                msg = "Please choose an exact product and pack before I add it. I kept your request; nothing was added."
-            else:
-                msg = "I couldn't plan that grocery request safely; nothing changed. Please tell me what you'd like to do."
-            return ReactLoopResult(
-                early_response=NormalizedOutgoingResponse(
-                    recipient_id=message.sender_id,
-                    channel=message.channel,
-                    text=msg,
-                    conversation_state="NEEDS_DECISION",
-                )
-            )
+            msg = ("Please choose an exact product and pack before I add it. I kept your request; nothing was added."
+                   if any(call.get("name") == "update_cart" for call in function_calls)
+                   else "I couldn't plan that grocery request safely; nothing changed. Please tell me what you'd like to do.")
+            return ReactLoopResult(early_response=NormalizedOutgoingResponse(
+                recipient_id=message.sender_id, channel=message.channel, text=msg, conversation_state="NEEDS_DECISION",
+            ))
 
         if not validate_cart_edit_calls(function_calls, current_cart, planning_request_text):
             session.pending_request_text = planning_request_text
@@ -269,14 +268,20 @@ async def execute_react_turn_loop(
                 explicit_removals = reconcile_explicit_removals(incoming_text)
                 if fn_name == "quick_add_items":
                     items = fn_args.get("items", []) if isinstance(fn_args.get("items"), list) else []
+                    items = reconcile_explicit_items(incoming_text, items)
                     if explicit_removals:
-                        fn_name = "manage_basket"
-                        fn_args = {
-                            "add": reconcile_explicit_items(incoming_text, items),
-                            "remove": explicit_removals,
-                        }
-                    else:
-                        fn_args = {**fn_args, "items": reconcile_explicit_items(incoming_text, items)}
+                        items = [
+                            it for it in items
+                            if not any(
+                                rem.lower() in (it.get("query", "") if isinstance(it, dict) else str(it)).lower()
+                                for rem in explicit_removals
+                            )
+                        ]
+                    queries = [str(it.get("query", "")) for it in items if isinstance(it, dict)]
+                    staples = missing_recipe_staples(incoming_text, queries)
+                    if staples:
+                        items = [{"query": query} for query in staples] + items
+                    fn_args = {**fn_args, "items": items}
                 elif fn_name == "manage_basket":
                     if isinstance(fn_args.get("add"), list):
                         fn_args["add"] = reconcile_explicit_items(incoming_text, fn_args["add"])
@@ -341,38 +346,30 @@ async def execute_react_turn_loop(
                 if isinstance(seconds, int)
                 else "Please wait, then reply *try again*."
             )
-            return ReactLoopResult(
-                early_response=NormalizedOutgoingResponse(
-                    recipient_id=message.sender_id,
-                    channel=message.channel,
-                    text=f"Swiggy is limiting requests right now. {wait_text} I'll keep your request.",
-                    conversation_state="RECOVERING",
-                )
-            )
+            return ReactLoopResult(early_response=NormalizedOutgoingResponse(
+                recipient_id=message.sender_id, channel=message.channel,
+                text=f"Swiggy is limiting requests right now. {wait_text} I'll keep your request.",
+                conversation_state="RECOVERING",
+            ))
 
         for ec in executed_calls:
             part = ec[0].get("functionResponse", {})
             result = part.get("response", {}).get("content", {})
-            if (
-                part.get("name") == "update_cart"
-                and isinstance(result, dict)
-                and result.get("error") == "VARIANT_SELECTION_REQUIRED"
-            ):
+            if (part.get("name") == "update_cart" and isinstance(result, dict)
+                    and result.get("error") == "VARIANT_SELECTION_REQUIRED"):
                 session.pending_request_text = session.pending_request_text or incoming_text
-                return ReactLoopResult(
-                    early_response=NormalizedOutgoingResponse(
-                        recipient_id=message.sender_id,
-                        channel=message.channel,
-                        text="Please choose an exact product and pack before I add it. I kept your request; nothing was added.",
-                        conversation_state="NEEDS_DECISION",
-                    )
-                )
+                return ReactLoopResult(early_response=NormalizedOutgoingResponse(
+                    recipient_id=message.sender_id, channel=message.channel,
+                    text="Please choose an exact product and pack before I add it. I kept your request; nothing was added.",
+                    conversation_state="NEEDS_DECISION",
+                ))
             if part.get("name") not in ("quick_add_items", "manage_basket") or not isinstance(result, dict):
                 continue
             if result.get("needs_variant_choice") or result.get("groups"):
                 proposal = {
                     **result,
                     "address_id": address_id,
+                    "cart_items": [item.name for item in current_cart.items] if current_cart and current_cart.items else [],
                     "cart_state": engine._cart_proposal_state(current_cart),
                 }
                 session.pending_variant_selection = proposal

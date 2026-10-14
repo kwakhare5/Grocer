@@ -23,9 +23,8 @@ from backend.integrations.commerce.token_vault import default_token_vault
 from backend.integrations.commerce.connect_tickets import default_connect_tickets
 from backend.channels.message_store import PostgresMessageStore
 from backend.channels.whatsapp import default_whatsapp_adapter
-from backend.api.whatsapp import drain_message_queue
 from backend.api.health import router as health_router
-from backend.api.whatsapp import router as whatsapp_router
+from backend.api.whatsapp import drain_message_queue, router as whatsapp_router
 from backend.api.oauth import router as oauth_router
 from backend.api.simulator import router as simulator_router
 from backend.api.debug import router as debug_router
@@ -85,7 +84,7 @@ async def _lifespan(app: FastAPI):
     worker = None
     replenishment_worker = None
     payment_worker = None
-    is_live_swiggy = settings.COMMERCE_ADAPTER_TYPE.lower() == "swiggy_mcp"
+    is_live_swiggy = settings.COMMERCE_ADAPTER_TYPE.lower() in ("swiggy", "swiggy_mcp")
     if settings.CHECKOUT_MODE == "live" and not settings.LIVE_CHECKOUT_ENABLED:
         raise RuntimeError("Live checkout is release-gated. Keep CHECKOUT_MODE=review.")
     if settings.SIMULATOR_ENABLED and (not settings.DATABASE_URL or settings.CHECKOUT_MODE != "review"):

@@ -27,7 +27,6 @@ from backend.agent.checkout_executor import execute_gated_checkout
 from backend.agent.basket_manager import execute_manage_basket, execute_quick_add_items
 from backend.agent.cart_actions import (
     execute_add_selected_variants,
-    execute_restore_cart,
     execute_update_cart,
 )
 from backend.agent.address_tools import (
@@ -42,6 +41,7 @@ class SwiggyAgentTools:
 
     def __init__(self, commerce: CommercePort) -> None:
         self.commerce = commerce
+        self._catalog_cache: dict[tuple[str, str], tuple[float, list[dict[str, Any]]]] = {}
 
     async def search_products(
         self, query: str, address_id: Optional[str] = None
@@ -112,7 +112,7 @@ class SwiggyAgentTools:
             return {"success": False, "error": str(exc), "retryable": True}
 
     async def batch_search_products(
-        self, queries: list[str], address_id: Optional[str] = None
+        self, queries: list[str], address_id: Optional[str] = None, bypass_cache: bool = False
     ) -> dict[str, Any]:
         """Search multiple grocery items concurrently against Swiggy Instamart."""
         if not address_id:
@@ -130,8 +130,8 @@ class SwiggyAgentTools:
         async def _search_one(q: str) -> dict[str, Any]:
             cache_key = (q.casefold().strip(), str(address_id or ""))
             now = time.time()
-            if cache_key in _CATALOG_CACHE:
-                cached_time, cached_items = _CATALOG_CACHE[cache_key]
+            if not bypass_cache and cache_key in self._catalog_cache:
+                cached_time, cached_items = self._catalog_cache[cache_key]
                 if now - cached_time < 300.0:
                     return {"query": q, "products": cached_items}
 
@@ -155,23 +155,29 @@ class SwiggyAgentTools:
                             "formatted_price": v.get("formatted_price"),
                             "max_quantity": v.get("max_quantity"),
                         })
-                _CATALOG_CACHE[cache_key] = (now, compact_prods)
+                self._catalog_cache[cache_key] = (now, compact_prods)
                 return {"query": q, "products": compact_prods}
             except Exception as exc:
                 return {"query": q, "products": [], "error": str(exc)}
 
-        sem = asyncio.Semaphore(3)
-
-        async def _bounded_search(q: str) -> dict[str, Any]:
-            async with sem:
-                return await _search_one(q)
-
-        batch_results = await asyncio.gather(*[_bounded_search(q) for q in clean_queries])
-        critical_failed = (next((item for item in batch_results if item.get("error") == "RATE_LIMITED"), None)
-                           or next((item for item in batch_results if item.get("error") == "AUTH_EXPIRED"), None))
-        if critical_failed:
-            return {"success": False, "error": critical_failed["error"], "retryable": False,
-                    "retry_after_seconds": critical_failed.get("retry_after_seconds")}
+        batch_results = []
+        for i in range(0, len(clean_queries), 3):
+            if i > 0:
+                await asyncio.sleep(2.8)
+            wave = clean_queries[i : i + 3]
+            wave_res = await asyncio.gather(*[_search_one(q) for q in wave])
+            batch_results.extend(wave_res)
+            critical = next(
+                (item for item in wave_res if item.get("error") in ("RATE_LIMITED", "AUTH_EXPIRED")),
+                None,
+            )
+            if critical:
+                return {
+                    "success": False,
+                    "error": critical["error"],
+                    "retryable": False,
+                    "retry_after_seconds": critical.get("retry_after_seconds"),
+                }
         return {
             "success": True,
             "results": list(batch_results),
@@ -239,10 +245,10 @@ class SwiggyAgentTools:
         )
 
     async def prepare_variant_choices(
-        self, items: list[dict[str, Any]], address_id: str
+        self, items: list[dict[str, Any]], address_id: str, bypass_cache: bool = False
     ) -> dict[str, Any]:
         """Resolve every requested item to customer-visible SKU choices without writing the cart."""
-        return await execute_prepare_variant_choices(self, items, address_id)
+        return await execute_prepare_variant_choices(self, items, address_id, bypass_cache=bypass_cache)
 
     async def get_saved_addresses(self, customer_id: str) -> dict[str, Any]:
         """Retrieve the user's saved delivery addresses from Swiggy."""
@@ -324,9 +330,6 @@ class SwiggyAgentTools:
             ingredient_spin_ids=ingredient_spin_ids,
             expected_cart_state=expected_cart_state,
         )
-
-    async def _restore_cart(self, before: CommerceCart, after: CommerceCart, address_id: str) -> bool:
-        return await execute_restore_cart(self.commerce, before, after, address_id)
 
     async def add_selected_variants(
         self,

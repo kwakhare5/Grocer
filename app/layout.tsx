@@ -42,11 +42,6 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} ${lora.variable} h-full antialiased`}
     >
-      <head>
-        <link rel="icon" href="/logo.svg" type="image/svg+xml" />
-        <link rel="alternate icon" href="/logo.svg" />
-        <link rel="apple-touch-icon" href="/logo.svg" />
-      </head>
       <body className="min-h-full flex flex-col selection:bg-emerald-600 selection:text-white relative overflow-x-hidden bg-matte-grain text-zinc-900 font-sans">
         
         {/* Page Content */}

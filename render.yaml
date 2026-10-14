@@ -29,7 +29,7 @@ services:
       - key: AGENT_ROUTE_ENABLED
         value: true
       - key: COMMERCE_ADAPTER_TYPE
-        value: swiggy
+        value: swiggy_mcp
       - key: CHECKOUT_MODE
         value: review
       - key: LIVE_CHECKOUT_ENABLED

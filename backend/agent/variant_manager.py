@@ -34,6 +34,7 @@ async def execute_prepare_variant_choices(
     tools: Any,
     items: list[dict[str, Any]],
     address_id: str,
+    bypass_cache: bool = False,
 ) -> dict[str, Any]:
     """Resolve every requested item to customer-visible SKU choices without writing the cart."""
     if not address_id or not isinstance(items, list) or not 1 <= len(items) <= 30:
@@ -51,7 +52,9 @@ async def execute_prepare_variant_choices(
             "preferred_pack_size": str(item.get("preferred_pack_size") or "").strip(),
         })
 
-    search = await tools.batch_search_products([item["query"] for item in normalized], address_id)
+    search = await tools.batch_search_products(
+        [item["query"] for item in normalized], address_id, bypass_cache=bypass_cache
+    )
     if not search.get("success"):
         return search
     groups: list[dict[str, Any]] = []
@@ -79,7 +82,10 @@ async def execute_prepare_variant_choices(
                 continue
             pack = str(product.get("pack_size") or "")
             preferred = item["preferred_pack_size"].casefold()
-            if preferred and preferred not in (pack + " " + str(product.get("name") or "")).casefold():
+            if preferred and preferred not in (
+                pack + " " + str(product.get("name") or "")
+                + " " + str(product.get("product_name") or "")
+            ).casefold():
                 continue
             price = product.get("price")
             if not isinstance(price, (int, float)) or isinstance(price, bool) or not math.isfinite(price) or price < 0:
@@ -134,6 +140,10 @@ def build_variant_choice_response(
 ) -> NormalizedOutgoingResponse:
     """Format structured variant options (1A, 1B, 2A...) for WhatsApp customer display."""
     lines = [prefix, "Choose the exact products to add:"] if prefix else ["Choose the exact products to add:"]
+    cart_items = proposal.get("cart_items")
+    if cart_items:
+        names = ", ".join(cart_items)
+        lines.insert(0, f"Your basket already has: {names}")
     for index, group in enumerate(proposal["groups"], 1):
         lines.append(f"\n*{index}. {group['query']} × {group['quantity']}*")
         for option in group["options"]:
@@ -208,6 +218,7 @@ async def handle_variant_choice(
     fresh = await engine.tools.prepare_variant_choices(
         [{"query": group["query"], "quantity": group["quantity"]} for group in proposal["groups"]],
         proposal["address_id"],
+        bypass_cache=True,
     )
     if fresh.get("error") == "AUTH_EXPIRED":
         return await engine._auth_expired_response(message)

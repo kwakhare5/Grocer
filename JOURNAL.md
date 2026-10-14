@@ -17,6 +17,13 @@ During the Session End ritual (called automatically whenever significant changes
 
 ### [GROCER — Codebase-Wide Ruthless Dead Code Purge, Production Config Alignment & Schema Grounding] 2026-10-14
 
+#### Work Card: Fix Undeclared `ticket` Identifier in ConnectInstamartModal
+
+- **Problem**: Next.js production build (`npm run build`) failed during TypeScript compilation with `Type error: Cannot find name 'ticket'` in `components/landing/ConnectInstamartModal.tsx:44`, causing both Vercel deployments and GitHub Actions frontend CI checks to fail after 35 seconds.
+- **Change**: Replaced references to undeclared `ticket` with the component prop `connectTicket` in `components/landing/ConnectInstamartModal.tsx` on lines 44 and 54 (`JSON.stringify(connectTicket ? { ticket: connectTicket } : { phone_number: cleanPhone })`).
+- **Proof**: `npm run build` compiled successfully in 2.0s with zero TypeScript errors; `npm run lint` passed with code 0; `pytest backend/tests/test_invariants.py` passed with code 0 (13 passed).
+- **Still broken**: None. Frontend build and type-checking fully resolved.
+
 #### Work Card: Ruthless Dead Code Purge, Silent Mock Fallback Resolution, and Real Encrypted DDL Grounding
 
 - **Problem**: `render.yaml` configured `COMMERCE_ADAPTER_TYPE: swiggy` which silently degraded to `MockCommerceAdapter` in production; `.env.example` still listed Groq/Qwen; schemas told Gemini to call non-existent LLM tool `get_payment_options`; 108 unused imports and 33 fixture shadowing warnings cluttered test suites; `POST /auth/token/sync`, `_restore_cart`, `ChannelType.WEB/TEST`, and legacy engine aliases were dead; Turn 5 linked to a live Swiggy 404 domain; Turn 1 leaked the address pill; `docs/database_schema.md` documented fictional plaintext DDL instead of the real encrypted schema; and `docs/agents/domain.md` was an unreferenced generic boilerplate.

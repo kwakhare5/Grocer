@@ -41,7 +41,7 @@ export function ConnectInstamartModal({
     } else if (cleanPhone.startsWith("0") && cleanPhone.length === 11) {
       cleanPhone = cleanPhone.slice(1);
     }
-    if (!ticket && !/^[6-9]\d{9}$/.test(cleanPhone)) {
+    if (!connectTicket && !/^[6-9]\d{9}$/.test(cleanPhone)) {
       setAuthError("Enter a valid 10-digit Indian WhatsApp number (starting with 6-9).");
       return;
     }
@@ -51,7 +51,7 @@ export function ConnectInstamartModal({
       const res = await fetch("/api/auth/swiggy/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(ticket ? { ticket } : { phone_number: cleanPhone }),
+        body: JSON.stringify(connectTicket ? { ticket: connectTicket } : { phone_number: cleanPhone }),
       });
 
       const data = await res.json();

@@ -64,7 +64,7 @@ class PostgresMessageStore:
                      AND NOT EXISTS (
                        SELECT 1 FROM grocer_internal.inbound_messages earlier
                        WHERE earlier.customer_id = i.customer_id AND earlier.id < i.id
-                         AND earlier.status IN ('PENDING', 'PROCESSING', 'NEEDS_REVIEW'))
+                         AND earlier.status IN ('PENDING', 'PROCESSING'))
                      AND NOT EXISTS (
                        SELECT 1 FROM grocer_internal.outbound_messages o
                        WHERE o.customer_id = i.customer_id

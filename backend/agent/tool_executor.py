@@ -73,7 +73,22 @@ async def execute_engine_tool(
     elif name == "quick_add_items":
         session = engine.get_session(customer_id)
         session.pending_approval = None
-        return await engine.tools.prepare_variant_choices(args.get("items", []), address_id or "")
+        loc = engine._customer_address_label.get(customer_id, "Home")
+        result = await engine.tools.quick_add_items(
+            items=args.get("items", []),
+            address_id=args.get("address_id") or address_id or "",
+            current_cart=current_cart,
+            delivery_location=loc,
+            budget_cap_inr=session.budget_inr,
+            ingredient_budget_inr=session.ingredient_budget_inr,
+            ingredient_extras_text=session.ingredient_extras_text or "",
+            ingredient_spin_ids=session.ingredient_spin_ids,
+        )
+        if result.get("verified_fingerprint"):
+            session.known_cart_fingerprint = result["verified_fingerprint"]
+        if result.get("ingredient_spin_ids"):
+            session.ingredient_spin_ids = result["ingredient_spin_ids"]
+        return result
     elif name == "update_cart":
         session = engine.get_session(customer_id)
         session.pending_approval = None

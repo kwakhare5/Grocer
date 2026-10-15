@@ -24,34 +24,43 @@ _DELETE_DATA_PATTERN = re.compile(
 router = APIRouter(prefix="/api/whatsapp", tags=["whatsapp"])
 
 
+async def drain_outbound_queue(store: PostgresMessageStore) -> int:
+    """Deliver staged responses promptly without blocking on inbound turns."""
+    sent = 0
+    while True:
+        outbound = await store.claim_outbound()
+        if outbound is None:
+            break
+        outbound_id, customer_id, response = outbound
+        delivered = False
+        for attempt in range(3):
+            try:
+                delivered = await default_whatsapp_adapter.send_response(response)
+                if delivered:
+                    break
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                logger.warning("WhatsApp delivery attempt %d failed for outbound_id=%s", attempt + 1, outbound_id)
+            if attempt < 2:
+                await asyncio.sleep(0.5 * (attempt + 1))
+        await store.mark_outbound(outbound_id, delivered)
+        if "DELETE_CUSTOMER_DATA" in response.events:
+            await store.purge_customer(customer_id)
+        if not delivered:
+            logger.error("WhatsApp delivery needs review for outbound_id=%s", outbound_id)
+        sent += 1
+    return sent
+
+
 async def drain_message_queue(store: PostgresMessageStore, engine: Any) -> None:
     """Deliver staged responses, then process pending messages in customer order."""
     if hasattr(store, "recover_stale_processing"):
         await store.recover_stale_processing()
     if hasattr(store, "recover_stale_outbound"):
         await store.recover_stale_outbound()
+    await drain_outbound_queue(store)
     while True:
-        outbound = await store.claim_outbound()
-        if outbound is not None:
-            outbound_id, customer_id, response = outbound
-            delivered = False
-            for attempt in range(3):
-                try:
-                    delivered = await default_whatsapp_adapter.send_response(response)
-                    if delivered:
-                        break
-                except asyncio.CancelledError:
-                    raise
-                except Exception:
-                    logger.warning("WhatsApp delivery attempt %d failed for outbound_id=%s", attempt + 1, outbound_id)
-                if attempt < 2:
-                    await asyncio.sleep(0.5 * (attempt + 1))
-            await store.mark_outbound(outbound_id, delivered)
-            if "DELETE_CUSTOMER_DATA" in response.events:
-                await store.purge_customer(customer_id)
-            if not delivered:
-                logger.error("WhatsApp delivery needs review for outbound_id=%s", outbound_id)
-            continue
 
         claimed = await store.claim_next()
         if claimed is None:

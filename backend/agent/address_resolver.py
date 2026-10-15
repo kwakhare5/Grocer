@@ -6,8 +6,11 @@ from typing import Any, Optional
 
 _GENERIC_ADDR_TOKENS = frozenset({
     "road", "flat", "floor", "near", "opposite", "lane", "nagar", "pune", "maharashtra", "india",
+    "mumbai", "delhi", "bangalore", "bengaluru", "hyderabad", "chennai", "kolkata", "gurgaon", "noida",
     "home", "work", "office", "other", "house", "apartment", "building", "society",
     "west", "east", "north", "south", "street", "block", "sector", "phase",
+    "green", "view", "park", "layout", "cross", "main", "garden", "lake", "hill", "city",
+    "fresh", "sweet", "white", "brown", "red", "black", "pure",
 })
 
 
@@ -62,6 +65,9 @@ def match_explicit_address(
     norm_text: str,
 ) -> Optional[dict[str, Any]]:
     """Match explicit address mentions in incoming messages against saved addresses."""
+    if not norm_text:
+        return None
+    norm_text = norm_text.casefold()
     for a in addresses:
         lbl = str(a.get("label") or "").casefold()
         if lbl and (
@@ -81,7 +87,11 @@ def match_explicit_address(
             if t not in _GENERIC_ADDR_TOKENS and t != lbl
         ]
         if any(
-            re.search(rf"\b(?:deliver|send|ship|bring|drop|switch|change|to|at)\b.*?\b{re.escape(t)}\b", norm_text)
+            re.search(
+                rf"\b(?:deliver|send|ship|bring|drop|switch|change)\s+(?:to|at)\s+(?:my\s+|the\s+)?{re.escape(t)}\b"
+                rf"|\b(?:to|at)\s+(?:my\s+|the\s+)?{re.escape(t)}\s+(?:address|location|area|house|flat|apartment|branch)?\b",
+                norm_text,
+            )
             for t in addr_tokens
         ):
             return a

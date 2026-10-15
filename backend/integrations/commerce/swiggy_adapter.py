@@ -325,19 +325,28 @@ class SwiggyMCPAdapter(CommercePort):
             data = res.get("data", {})
             orders = data.get("orders", []) if isinstance(data, dict) else []
             if orders and isinstance(orders, list):
-                correlated = next(
-                    (
-                        order
-                        for order in orders
-                        if isinstance(order, dict)
-                        and str(order.get("cartId", "")) == cart_id
-                        and str(order.get("addressId", "")) == address_id
-                    ),
-                    None,
-                )
+                correlated = None
+                for order in orders:
+                    if not isinstance(order, dict) or not order.get("orderId"):
+                        continue
+                    delivery = order.get("deliveryAddress")
+                    ord_addr = (
+                        str(delivery.get("id"))
+                        if isinstance(delivery, dict) and delivery.get("id") is not None
+                        else str(order.get("addressId") or "")
+                    )
+                    ord_cart = str(order.get("cartId", ""))
+                    if ord_cart and ord_cart != cart_id:
+                        continue
+                    if ord_addr and ord_addr != address_id:
+                        continue
+                    correlated = order
+                    break
+
                 if correlated:
                     order_id = correlated.get("orderId")
-                    raw_status = correlated.get("status")
+                    raw_status = correlated.get("currentStatus") or correlated.get("status")
+                    order_total = correlated.get("totalAmount") or correlated.get("orderTotal")
                     return CommerceOrderResult(
                         order_id=str(order_id) if order_id else None,
                         cart_id=cart_id,
@@ -351,8 +360,8 @@ class SwiggyMCPAdapter(CommercePort):
                         raw_status=str(raw_status) if raw_status is not None else None,
                         payment_method=str(correlated.get("paymentMethod") or ""),
                         grand_total=(
-                            float(correlated["orderTotal"])
-                            if correlated.get("orderTotal") is not None
+                            float(order_total)
+                            if order_total is not None
                             else None
                         ),
                         delivery_address=DeliveryAddress(id=address_id),

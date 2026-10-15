@@ -6,6 +6,7 @@ import math
 import re
 from typing import Any, Optional
 
+from backend.agent.catalog_ranker import _matches_requested_product
 from backend.agent.product_policy import is_restricted_medical_product
 from backend.channels.models import (
     InteractiveAction,
@@ -15,19 +16,6 @@ from backend.channels.models import (
 from backend.integrations.commerce.models import CommerceCart
 
 logger = logging.getLogger("grocer.agent.variant_manager")
-
-
-def _matches_requested_product(query: str, product: dict[str, Any]) -> bool:
-    """Reject loose provider search hits that do not contain the requested product words."""
-    words = [
-        word for word in re.findall(r"[\w]+", query.casefold())
-        if word not in {"a", "an", "the", "of", "for"}
-    ]
-    name = " ".join(
-        str(product.get(field) or "")
-        for field in ("brand", "name", "pack_size", "product_name")
-    ).casefold()
-    return bool(words) and all(word in name for word in words)
 
 
 async def execute_prepare_variant_choices(

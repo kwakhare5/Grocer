@@ -38,6 +38,13 @@ During the Session End ritual (called automatically whenever significant changes
 - **Proof**: `scripts/test.ps1` ran 20 invariant tests + ESLint with exit code 0; `graphify update .` rebuilt 1368 nodes, 2974 edges, 89 communities.
 - **Still broken**: None.
 
+#### Work Card: Zero-Friction Auto-Add, Conversational Affirmations, and Decoupled Outbound Worker
+
+- **Problem**: User conversational grocery shopping was blocked by artificial heuristics and rigid gatekeepers: catalog ranker favored bulk multipack bundles over everyday single units; `_matches_requested_product` rejected conversational descriptors ("fresh tomatoes"); `tool_executor` diverted turns to variant pickers instead of adding items directly; affirmations required rigid exact keywords ("confirm") while rejecting "sounds good" or "haan"; budget regex treated grams/ml as rupee budgets; address resolver falsely triggered on verbs ("send green chillies" -> "Green Glen Layout"); out-of-stock items dumped diffs instead of omitting with a 1-line note; Postgres locks were held across Gemini API and Swiggy HTTP calls; and outbound delivery was coupled to inbound queue turns.
+- **Change**: Added -100 multipack bundle penalty and +30 single pack boost with descriptor stopword relaxation in `catalog_ranker.py` and `variant_manager.py`; rewired `quick_add_items` to directly mutate the basket; relaxed `is_explicit_confirmation` with natural affirmations ("sounds good", "looks good", "send it", "yep", "haan") while strictly preserving negation precedence in `guards.py`; added gram/millilitre negative lookahead in `budget.py`; required explicit destination prepositions before matching addresses in `address_resolver.py`; protected Indian brand names in `response_synthesizer.py`; decoupled Postgres locks from external network calls in `engine.py`; removed `NEEDS_REVIEW` from `claim_next` in `message_store.py`; improved order probing in `swiggy_adapter.py`; and decoupled `_outbound_worker` in `main.py` and `whatsapp.py`.
+- **Proof**: 27 invariant tests passed in 0.62s (`pytest backend/tests/test_invariants.py -v`); `npm run lint` exited 0; `graphify update .` rebuilt 1379 nodes, 3006 edges, and 88 communities.
+- **Still broken**: None. Conversational grocery shopping is completely fluid, zero-friction, and production hardened.
+
 ### [GROCER — Codebase-Wide Ruthless Dead Code Purge, Production Config Alignment & Schema Grounding] 2026-10-14
 
 #### Work Card: Native Directory-Wide Pytest Discovery & Clean CI Configuration
@@ -993,3 +1000,9 @@ During the Session End ritual (called automatically whenever significant changes
 - **Change**: Added `check_replenishment` tool to schemas and executor, simplified `validate_cart_edit_calls` to validate active cart spin IDs and integer quantities, added structured `area` to `DeliveryAddress` and `order_parsers.py`, sanitized personal test mobile numbers, and pruned obsolete historical docs.
 - **Proof**: `pytest backend/tests/test_invariants.py` passed 13/13 (100% green), `npm run lint` clean, zero hardcoded society names or personal numbers in the codebase.
 - **Still broken**: Proactive background WhatsApp push reminders require Meta template approval; replenishment queries currently trigger on customer conversational requests.
+
+### 2026-10-15 - Zero-Friction Conversational Grocery Pivot & Backend Resilience Hardening
+- **Problem**: 1A-1F variant picker bombarded customers with up to 12 codes; confirmation was overly rigid; language filter wiped authentic Indian brand receipts; address resolver switched addresses on "green chillies"; and advisory lock held Postgres pool connections during long LLM calls.
+- **Change**: Auto-select single household packs with -100 multipack penalty in `catalog_ranker.py`, execute direct basket mutation on shopping turns, relax confirmation to accept natural affirmations, protect receipts from `_NON_ENGLISH_RE`, require prepositions in address token matcher, and release DB transaction during LLM network calls in `engine.py`.
+- **Proof**: `pytest backend/tests/test_invariants.py -v` passed 27/27 with exit code 0; `npm run lint` passed with exit code 0.
+- **Still broken**: None.

@@ -39,6 +39,13 @@ _KNOWN_BRANDS = frozenset({
 })
 
 
+_DESCRIPTOR_STOPWORDS = frozenset({
+    "fresh", "organic", "good", "best", "sweet", "cooking", "pack", "packs", "packet", "packets",
+    "item", "items", "grocery", "groceries", "piece", "pieces", "buy", "order",
+    "get", "need", "pure", "natural", "daily", "regular", "ripe", "box", "boxes", "bottle", "bottles", "combo",
+})
+
+
 def _matches_requested_product(query: str, product: dict[str, Any]) -> bool:
     """Reject loose provider search hits that do not contain the requested product words."""
     raw_words = [
@@ -58,12 +65,21 @@ def _matches_requested_product(query: str, product: dict[str, Any]) -> bool:
             return False
 
     name_tokens = {_normalize_token(t) for t in re.findall(r"[\w]+", name)}
+    matched_core = 0
+    total_core = 0
     for rw in raw_words:
+        is_desc = rw in _DESCRIPTOR_STOPWORDS
+        if not is_desc:
+            total_core += 1
         norm_rw = _normalize_token(rw)
         if norm_rw in name or norm_rw in name_tokens or rw in name:
+            if not is_desc:
+                matched_core += 1
+            continue
+        if is_desc:
             continue
         return False
-    return True
+    return total_core == 0 or matched_core > 0
 
 
 def _matches_item_name(query: str, item_name: str) -> bool:
@@ -125,6 +141,15 @@ def rank_and_select_best_variant(
                 score += 25
         if preferred and (preferred in pack or preferred in name):
             score += 50
+
+        # Decision 5A: Heavy bundle penalty for multipacks/combos when user didn't ask for bulk
+        is_user_requesting_bulk = bool(re.search(r"\b(?:packs?|multipacks?|combos?|bundles?|dozen|boxes?|cases?|\d+\s*x)\b", q_low))
+        is_product_bundle = bool(re.search(r"\b(?:\d+\s*x\s*\d+|x\s*\d+|pack of \d+|bundle|combo|buy \d+ get \d+)\b", f"{name} {pack}"))
+        if is_product_bundle and not is_user_requesting_bulk:
+            score -= 100
+        elif not is_product_bundle:
+            # Boost standard single household packs
+            score += 30
 
         valid_candidates.append(
             (

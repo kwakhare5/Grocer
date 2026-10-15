@@ -24,12 +24,28 @@ from backend.integrations.commerce.connect_tickets import default_connect_ticket
 from backend.channels.message_store import PostgresMessageStore
 from backend.channels.whatsapp import default_whatsapp_adapter
 from backend.api.health import router as health_router
-from backend.api.whatsapp import drain_message_queue, router as whatsapp_router
+from backend.api.whatsapp import (
+    drain_message_queue,
+    drain_outbound_queue,
+    router as whatsapp_router,
+)
 from backend.api.oauth import router as oauth_router
 from backend.api.simulator import router as simulator_router
 from backend.api.debug import router as debug_router
 
 logger = logging.getLogger("grocer.main")
+
+
+async def _outbound_worker(app: FastAPI) -> None:
+    """Deliver outbound WhatsApp responses promptly without waiting on inbound agent turns."""
+    while True:
+        try:
+            await drain_outbound_queue(app.state.message_store)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.exception("Outbound WhatsApp worker failed; it will retry.")
+        await asyncio.sleep(0.5)
 
 
 async def _message_worker(app: FastAPI) -> None:
@@ -82,6 +98,7 @@ async def _lifespan(app: FastAPI):
     """Attach optional durable state without hiding database startup failures."""
     pool = None
     worker = None
+    outbound_worker = None
     replenishment_worker = None
     payment_worker = None
     is_live_swiggy = settings.COMMERCE_ADAPTER_TYPE.lower() in ("swiggy", "swiggy_mcp")
@@ -149,6 +166,7 @@ async def _lifespan(app: FastAPI):
             replenishment_store=PostgresReplenishmentStore(pool, settings.DATA_ENCRYPTION_KEY) if pool is not None else None,
         )
         if pool is not None:
+            outbound_worker = asyncio.create_task(_outbound_worker(app))
             worker = asyncio.create_task(_message_worker(app))
             replenishment_worker = asyncio.create_task(_replenishment_worker(app))
             if settings.CHECKOUT_MODE == "live":
@@ -157,6 +175,12 @@ async def _lifespan(app: FastAPI):
         yield
     finally:
         default_whatsapp_adapter.record_only = previous_record_only
+        if outbound_worker is not None:
+            outbound_worker.cancel()
+            try:
+                await outbound_worker
+            except asyncio.CancelledError:
+                pass
         if worker is not None:
             worker.cancel()
             try:

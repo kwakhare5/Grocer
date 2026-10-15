@@ -203,13 +203,15 @@ class GroceryAgentEngine:
         async with lock:
             if self.state_store is not None and getattr(self.state_store, "pool", None) is not None:
                 async with self.state_store.transaction_lock(customer_id) as conn:
-                    self._restore_task_state(customer_id, await self.state_store.load(customer_id, conn=conn))
-                    self._prune_history(customer_id)
-                    with self.commerce.customer_scope(customer_id):
-                        try:
-                            result = await self._process_scoped_message(message, customer_id)
-                        finally:
-                            self._prune_history(customer_id)
+                    state_data = await self.state_store.load(customer_id, conn=conn)
+                self._restore_task_state(customer_id, state_data)
+                self._prune_history(customer_id)
+                with self.commerce.customer_scope(customer_id):
+                    try:
+                        result = await self._process_scoped_message(message, customer_id)
+                    finally:
+                        self._prune_history(customer_id)
+                        async with self.state_store.transaction_lock(customer_id) as conn:
                             await self.state_store.save(customer_id, self._task_state_snapshot(customer_id), conn=conn)
             else:
                 if self.state_store is not None:

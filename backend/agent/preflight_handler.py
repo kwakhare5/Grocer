@@ -209,12 +209,10 @@ async def execute_preflight(
             )
         )
 
-    cart_read = norm_text in {"cart", "basket"} or bool(re.fullmatch(
-        r"(?:(?:please|can you|could you)\s+)?(?:show|view|see|list)(?:\s+me)?\s+"
-        r"(?:(?:my|the|your|current)\s+)?(?:cart|basket)(?:\s+(?:right\s+)?now)?"
-        r"|what(?:'s| is)\s+in\s+(?:my|the|your)\s+(?:cart|basket)(?:\s+right\s+now)?",
-        norm_text,
-    ))
+    cart_read = (
+        norm_text in {"cart", "basket", "my cart", "items", "my basket", "view cart", "show cart", "check cart"}
+        or bool(re.search(r"\b(?:show|view|see|list|check|display|what(?:'s|\s+is))\b.*?\b(?:cart|basket|items)\b", norm_text))
+    )
     if cart_read:
         if current_cart is None:
             text, state = "I couldn't read your current basket. Please try again shortly.", "FAILED"

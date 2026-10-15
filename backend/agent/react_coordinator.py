@@ -114,14 +114,15 @@ async def execute_react_turn_loop(
             if _matches_item_name(planning_request_text, ci.name):
                 is_conversational_turn = True
                 break
-    planning_turn = not user_confirmed and not is_conversational_turn
+    has_active_cart = bool(current_cart and current_cart.items)
+    planning_turn = not user_confirmed and not is_conversational_turn and not has_active_cart
 
     for step_idx in range(1, max_iterations + 1):
         response_data = await engine._call_llm(
-            ([{"role": "user", "parts": [{"text": planning_request_text}]}] if planning_turn else history),
+            ([{"role": "user", "parts": [{"text": planning_request_text}]}] if (planning_turn and not history) else history),
             address_id=address_id,
             address_label=addr_lbl,
-            cart=None if planning_turn else current_cart,
+            cart=None if (planning_turn and not has_active_cart) else current_cart,
             planning_only=planning_turn,
         )
         if not response_data:

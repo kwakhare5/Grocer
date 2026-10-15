@@ -25,9 +25,10 @@ def _ensure_english_only(text: str) -> str:
     """Intercept and cleanse any non-English tokens from outbound customer messages."""
     if not text:
         return text
-    if _NON_ENGLISH_RE.search(text):
-        logger.warning("Deterministic guard: non-English tokens intercepted in outbound text. Cleansing to English.")
-        receipt_match = re.search(r"🛒\s*\*?Your Basket.*", text, flags=re.DOTALL | re.IGNORECASE)
+    receipt_match = re.search(r"🛒\s*\*?Your Basket.*", text, flags=re.DOTALL | re.IGNORECASE)
+    conversational_part = text[:receipt_match.start()] if receipt_match else text
+    if _NON_ENGLISH_RE.search(conversational_part):
+        logger.warning("Deterministic guard: non-English tokens intercepted in outbound conversational text. Cleansing to English.")
         if receipt_match:
             return f"I can only assist with groceries on Swiggy Instamart in English.\n\n{receipt_match.group(0)}"
         return "I can only help you shop for groceries on Swiggy Instamart in English. What grocery items would you like to order today?"
@@ -188,7 +189,7 @@ async def synthesize_turn_response(
         blocked = list(dict.fromkeys(budget_blocked_items))
         unavailable = list(dict.fromkeys(unavailable_items))
         reduced = list(dict.fromkeys(reduced_items))
-        session.budget_blocked_items = blocked + unavailable + reduced
+        session.budget_blocked_items = blocked + reduced
         session.pending_approval = None
         receipt = last_cart_receipt or "Your basket is empty."
         scoped_note = ""
@@ -210,15 +211,25 @@ async def synthesize_turn_response(
                 )
         has_items_in_basket = bool(last_cart_receipt and "Your Basket is empty" not in last_cart_receipt and last_cart_total)
         if has_items_in_basket:
-            basket_followup = (
-                "I kept the items that fit in the order you listed them. "
-                "Would you like to keep this partial basket or change something?\n\n"
-                + receipt
-            )
-            actions = [
-                InteractiveAction(action_type="button", id="accept_partial_basket", title="Keep These Items"),
-                InteractiveAction(action_type="button", id="modify_cart", title="Change Items"),
-            ]
+            if not blocked and not reduced:
+                # Decision 8A: Pure out-of-stock omission -> Proceed directly with standard confirmation receipt
+                basket_followup = receipt
+                actions = [
+                    InteractiveAction(action_type="button", id="confirm_order", title="Confirm Order"),
+                    InteractiveAction(action_type="button", id="modify_cart", title="Change Items"),
+                ]
+                conv_state = "AWAITING_CHECKOUT_CONFIRMATION"
+            else:
+                basket_followup = (
+                    "I kept the items that fit in the order you listed them. "
+                    "Would you like to keep this partial basket or change something?\n\n"
+                    + receipt
+                )
+                actions = [
+                    InteractiveAction(action_type="button", id="accept_partial_basket", title="Keep These Items"),
+                    InteractiveAction(action_type="button", id="modify_cart", title="Change Items"),
+                ]
+                conv_state = "NEEDS_DECISION"
         else:
             basket_followup = (
                 "Would you like to try searching for something else or check another delivery location?\n\n"
@@ -227,25 +238,24 @@ async def synthesize_turn_response(
             actions = [
                 InteractiveAction(action_type="button", id="modify_cart", title="Try Other Items"),
             ]
+            conv_state = "NEEDS_DECISION"
 
-        final_text = (
-            (
-                (
-                    "These recipe ingredients did not fit your ingredient-price limit: "
-                    if session.ingredient_budget_inr is not None
-                    else "These requested items did not fit your budget: "
-                )
-                + ", ".join(blocked)
-                + ". "
-                if blocked
-                else ""
+        intro_parts = []
+        if blocked:
+            prefix = (
+                "These recipe ingredients did not fit your ingredient-price limit: "
+                if session.ingredient_budget_inr is not None
+                else "These requested items did not fit your budget: "
             )
-            + ("These requested items were unavailable: " + ", ".join(unavailable) + ". " if unavailable else "")
-            + ("Swiggy reduced these quantities: " + ", ".join(reduced) + ". " if reduced else "")
-            + scoped_note
-            + basket_followup
-        )
-        conv_state = "NEEDS_DECISION"
+            intro_parts.append(f"{prefix}{', '.join(blocked)}.")
+        if unavailable:
+            intro_parts.append(f"*{', '.join(unavailable)}* was out of stock on Swiggy, so I skipped it.")
+        if reduced:
+            intro_parts.append(f"Swiggy reduced these quantities: {', '.join(reduced)}.")
+        if scoped_note:
+            intro_parts.append(scoped_note.strip())
+
+        final_text = "\n\n".join(intro_parts + [basket_followup]).strip()
 
     if (not final_text.strip() or final_text.strip() == "How can I help with your groceries today?") and last_cart_receipt:
         final_text = last_cart_receipt

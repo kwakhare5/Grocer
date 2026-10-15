@@ -494,4 +494,105 @@ async def test_engine_handle_message_returns_response_with_pool_state_store():
     assert res.text
 
 
+def test_is_explicit_confirmation_accepts_natural_affirmations_and_rejects_negations():
+    from backend.agent.guards import is_explicit_confirmation
+    affirmations = [
+        "confirm", "confirm order", "yes", "place order", "proceed", "pay",
+        "sounds good", "looks good", "send it", "yep", "yeah", "yup",
+        "good to go", "all good", "perfect", "haan", "haan kar do", "haan place karo",
+    ]
+    for text in affirmations:
+        assert is_explicit_confirmation(text) is True, f"Failed on affirmation: {text}"
+
+    negations = [
+        "don't confirm", "do not place order", "not now", "cancel order",
+        "wait", "hold on", "stop", "never order", "pause", "no don't order",
+    ]
+    for text in negations:
+        assert is_explicit_confirmation(text) is False, f"Failed on negation: {text}"
+
+
+def test_catalog_ranker_penalizes_multipack_bundles_unless_requested():
+    from backend.agent.catalog_ranker import rank_and_select_best_variant
+    candidates = [
+        {"spin_id": "SPIN-BUNDLE-4X", "sku_id": "SKU-B4", "name": "Amul Taaza Milk (500 ml x 4)", "price": 120.0, "pack_size": "500 ml x 4"},
+        {"spin_id": "SPIN-SINGLE-500", "sku_id": "SKU-S1", "name": "Amul Taaza Milk (500 ml)", "price": 30.0, "pack_size": "500 ml"},
+    ]
+    # Simple query should pick single pack
+    best = rank_and_select_best_variant("amul milk", candidates)
+    assert best is not None
+    assert best["spin_id"] == "SPIN-SINGLE-500", f"Expected single pack, got {best['name']}"
+
+    # Explicit bulk request allows bundle
+    best_bulk = rank_and_select_best_variant("amul milk pack of 4", candidates)
+    assert best_bulk is not None
+    assert best_bulk["spin_id"] == "SPIN-BUNDLE-4X", f"Expected bundle, got {best_bulk['name']}"
+
+
+def test_matches_requested_product_relaxed_for_common_descriptors():
+    from backend.agent.catalog_ranker import _matches_requested_product
+    # "fresh tomatoes" should match "Tomato Hybrid 500g"
+    product = {"name": "Tomato Hybrid 500g", "brand": "Fresh", "pack_size": "500g"}
+    assert _matches_requested_product("fresh tomatoes", product) is True
+
+    # "cooking oil" matches "Fortune Sunflower Oil 1L"
+    oil = {"name": "Fortune Sunflower Oil 1L", "brand": "Fortune", "pack_size": "1L"}
+    assert _matches_requested_product("cooking oil", oil) is True
+
+    # Negative exclusion check: "eggless" for "egg" must fail
+    eggless = {"name": "Britannia Eggless Cake", "brand": "Britannia"}
+    assert _matches_requested_product("egg", eggless) is False
+
+
+def test_budget_negative_lookahead_handles_grams_and_volume_units():
+    from backend.agent.budget import extract_total_budget
+    # Unit weights must not be parsed as budget caps
+    assert extract_total_budget("under 500 grams of paneer") is None
+    assert extract_total_budget("under 500 gms of paneer") is None
+    assert extract_total_budget("below 250 ml milk") is None
+
+    # Genuine rupee budgets must be extracted
+    assert extract_total_budget("under 500 rupees") == 500.0
+    assert extract_total_budget("under ₹500") == 500.0
+    assert extract_total_budget("under Rs 350 for all items") == 350.0
+
+
+def test_address_resolver_avoids_false_positives_on_shopping_verbs():
+    from backend.agent.address_resolver import match_explicit_address
+    addresses = [
+        {"id": "addr-1", "label": "Home", "area": "Green Glen Layout", "street": "Outer Ring Road"},
+    ]
+    # Shopping for green chillies must not switch address to Green Glen Layout
+    assert match_explicit_address(addresses, "send 1kg green chillies") is None
+    assert match_explicit_address(addresses, "bring green apples") is None
+
+    # Explicit delivery instruction should switch
+    match = match_explicit_address(addresses, "deliver to Home")
+    assert match is not None and match["id"] == "addr-1"
+
+
+def test_response_synthesizer_english_guard_preserves_indian_brand_receipts():
+    from backend.agent.response_synthesizer import _ensure_english_only
+    receipt_text = (
+        "Here are your items:\n\n"
+        "🛒 *Your Basket:*\n"
+        "1. Chitale Bandhu Bakarwadi 250g — ₹85.00\n"
+        "2. Mera Swad Mango Pickle 500g — ₹120.00\n"
+        "Total: ₹205.00\n\n"
+        "👉 Reply *Confirm* to place order."
+    )
+    result = _ensure_english_only(receipt_text)
+    assert "Chitale Bandhu Bakarwadi" in result
+    assert "Mera Swad Mango Pickle" in result
+    assert "I can only help you shop for groceries" not in result
+
+
+def test_reconcile_explicit_removals_cleans_cart_context_phrases():
+    from backend.agent.guards import reconcile_explicit_removals
+    assert reconcile_explicit_removals("remove eggs from my cart please") == ["eggs"]
+    assert reconcile_explicit_removals("drop the bread from basket") == ["bread"]
+    assert reconcile_explicit_removals("delete milk") == ["milk"]
+
+
+
 

@@ -209,6 +209,19 @@ _EXPLICIT_CONFIRM_PHRASES = frozenset({
     "ok",
     "okay",
     "sure",
+    "sounds good",
+    "looks good",
+    "send it",
+    "yep",
+    "yeah",
+    "yup",
+    "good to go",
+    "all good",
+    "perfect",
+    "haan",
+    "haan kar do",
+    "haan place karo",
+    "haan confirm karo",
     "theek hai order confirm karo",
     "theek hai order confirm",
     "yes please confirm",
@@ -242,7 +255,7 @@ def is_explicit_confirmation(text: str) -> bool:
         return False
     if cleaned in _EXPLICIT_CONFIRM_PHRASES:
         return True
-    return bool(re.search(r"^(?:yes\b.*(?:confirm|place|order)|confirm\s+(?:the\s+)?order|confirm\s+it|place\s+(?:the\s+)?order)$", cleaned))
+    return bool(re.search(r"^(?:yes\b.*(?:confirm|place|order)|confirm\s+(?:the\s+)?order|confirm\s+it|place\s+(?:the\s+)?order|sounds?\s+good|looks?\s+good|send\s+it|good\s+to\s+go)$", cleaned))
 
 
 def reconcile_explicit_removals(text: str) -> list[str]:
@@ -253,7 +266,7 @@ def reconcile_explicit_removals(text: str) -> list[str]:
     matches = re.findall(pattern, text, re.IGNORECASE)
     cleaned = []
     for m in matches:
-        item = re.sub(r"\b(?:the|a|an|please)\b", "", m, flags=re.IGNORECASE).strip()
+        item = re.sub(r"\b(?:the|a|an|please|from\s+(?:my\s+|the\s+)?(?:cart|basket))\b", "", m, flags=re.IGNORECASE).strip()
         if item:
             cleaned.append(item)
     return cleaned

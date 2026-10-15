@@ -26,7 +26,7 @@ async def swiggy_login(req: LoginRequest) -> dict[str, str]:
         clean = re.sub(r"[^\d]", "", req.phone_number)
         if len(clean) == 10 and clean[0] in "6789":
             clean = f"91{clean}"
-        if re.fullmatch(r"91[6-9]\d{9}", clean):
+        if re.fullmatch(r"[1-9][0-9]{6,14}", clean):
             try:
                 from backend.channels.whatsapp import default_whatsapp_adapter
                 customer_id = default_whatsapp_adapter.map_sender_to_customer_id(clean)
@@ -36,7 +36,7 @@ async def swiggy_login(req: LoginRequest) -> dict[str, str]:
     if customer_id is None:
         raise HTTPException(
             status_code=400,
-            detail="Please provide a valid connection link or 10-digit WhatsApp phone number.",
+            detail="Please provide a valid connection link or WhatsApp phone number.",
         )
     try:
         authorize_url, state = await default_oauth_manager.initiate_flow(

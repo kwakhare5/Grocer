@@ -13,7 +13,7 @@ import threading
 import time
 from typing import Any, Optional
 
-from cryptography.fernet import Fernet, InvalidToken
+from cryptography.fernet import Fernet, InvalidToken, MultiFernet
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger("grocer.integrations.token_vault")
@@ -46,26 +46,32 @@ class SwiggyTokenEntry(BaseModel):
 
 
 class EncryptedPayloadCodec:
-    """Encrypt and authenticate small JSON OAuth payloads with Fernet."""
+    """Encrypt and authenticate small JSON payloads with Fernet and MultiFernet key rotation."""
 
     def __init__(self, encryption_key: str) -> None:
         if not encryption_key:
             raise ValueError("DATA_ENCRYPTION_KEY is required.")
-        try:
-            raw_key = base64.urlsafe_b64decode(encryption_key.encode("ascii"))
-        except (ValueError, UnicodeEncodeError) as exc:
-            raise ValueError("DATA_ENCRYPTION_KEY must be a Fernet key.") from exc
-        if len(raw_key) != 32:
-            raise ValueError("DATA_ENCRYPTION_KEY must be a Fernet key.")
-        self._fernet = Fernet(encryption_key.encode("ascii"))
+        key_list = [k.strip() for k in encryption_key.split(",") if k.strip()]
+        if not key_list:
+            raise ValueError("DATA_ENCRYPTION_KEY is required.")
+        fernets = []
+        for key_str in key_list:
+            try:
+                raw_key = base64.urlsafe_b64decode(key_str.encode("ascii"))
+            except (ValueError, UnicodeEncodeError) as exc:
+                raise ValueError("DATA_ENCRYPTION_KEY must be a Fernet key.") from exc
+            if len(raw_key) != 32:
+                raise ValueError("DATA_ENCRYPTION_KEY must be a Fernet key.")
+            fernets.append(Fernet(key_str.encode("ascii")))
+        self._multi_fernet = MultiFernet(fernets)
 
     def encrypt(self, payload: dict[str, Any]) -> bytes:
         raw = json.dumps(payload, separators=(",", ":")).encode("utf-8")
-        return self._fernet.encrypt(raw)
+        return self._multi_fernet.encrypt(raw)
 
     def decrypt(self, ciphertext: bytes) -> dict[str, Any]:
         try:
-            value = json.loads(self._fernet.decrypt(ciphertext))
+            value = json.loads(self._multi_fernet.decrypt(ciphertext))
         except (InvalidToken, UnicodeDecodeError, json.JSONDecodeError) as exc:
             raise CredentialDecryptionError(
                 "Stored OAuth credentials could not be decrypted."

@@ -327,3 +327,134 @@ def test_inbound_burst_message_concatenation():
     assert "and 1 whole wheat bread" in merged.text
     assert merged.message_id == "msg-1"
 
+
+def test_universal_e164_identity():
+    """Universal E.164 identity must accept valid international and Indian numbers."""
+    from backend.identity import whatsapp_customer_id
+
+    secret = "test-app-secret-32-chars-long-1234"
+    # Indian 10-digit
+    in_id = whatsapp_customer_id("9876543210", secret)
+    assert in_id.startswith("cust_wa_")
+    assert in_id == whatsapp_customer_id("+919876543210", secret)
+
+    # US international
+    us_id = whatsapp_customer_id("+15551234567", secret)
+    assert us_id.startswith("cust_wa_")
+
+    # UK international
+    uk_id = whatsapp_customer_id("447123456789", secret)
+    assert uk_id.startswith("cust_wa_")
+
+    # Invalid cases
+    with pytest.raises(ValueError):
+        whatsapp_customer_id("123", secret)
+    with pytest.raises(ValueError):
+        whatsapp_customer_id("abcdefghij", secret)
+
+
+def test_multi_fernet_key_rotation():
+    """MultiFernet must support rotating keys with zero downtime."""
+    from cryptography.fernet import Fernet
+    from backend.integrations.commerce.token_vault import EncryptedPayloadCodec
+
+    k1 = Fernet.generate_key().decode()
+    k2 = Fernet.generate_key().decode()
+
+    # Encrypt with k1
+    codec_old = EncryptedPayloadCodec(k1)
+    ciphertext = codec_old.encrypt({"customer_id": "cust_123", "token": "xyz"})
+
+    # Decrypt with rotated key list [k2, k1]
+    codec_rotated = EncryptedPayloadCodec(f"{k2},{k1}")
+    decrypted = codec_rotated.decrypt(ciphertext)
+    assert decrypted["customer_id"] == "cust_123"
+
+    # New writes use k2 (primary)
+    new_ciphertext = codec_rotated.encrypt({"customer_id": "cust_456"})
+    # k2 standalone can decrypt
+    codec_new_only = EncryptedPayloadCodec(k2)
+    assert codec_new_only.decrypt(new_ciphertext)["customer_id"] == "cust_456"
+
+
+def test_recipe_staples_guards_multimeal():
+    """Recipe guards must ensure indispensable bases for pizza, pasta, and burger are preserved."""
+    from backend.agent.guards import missing_recipe_staples
+
+    # Pizza missing base
+    assert missing_recipe_staples("I want to make pizza tonight", ["tomato", "cheese"]) == ["pizza base"]
+    # Pizza with base present
+    assert missing_recipe_staples("I want to make pizza tonight", ["pizza crust", "cheese"]) == []
+    # Pizza when user already has base
+    assert missing_recipe_staples("I want to make pizza, I already have pizza base", ["cheese"]) == []
+
+    # Pasta missing base
+    assert missing_recipe_staples("Let's cook pasta", ["pasta sauce", "parmesan"]) == ["pasta"]
+    # Pasta with base present
+    assert missing_recipe_staples("Let's cook pasta", ["penne", "sauce"]) == []
+
+    # Burger missing bun
+    assert missing_recipe_staples("prepare burger for dinner", ["patty", "mayo"]) == ["burger bun"]
+    # Burger with bun present
+    assert missing_recipe_staples("prepare burger for dinner", ["burger bun", "patty"]) == []
+
+
+def test_first_aid_product_policy_not_restricted():
+    """Non-prescription first aid products must not be restricted even if in pharmacy category."""
+    from backend.agent.product_policy import is_restricted_medical_product
+
+    # Allowed first aid
+    assert is_restricted_medical_product("Hansaplast Band-Aid (Pack of 10)", category="pharmacy") is False
+    assert is_restricted_medical_product("Electral ORS Powder 21.8g", category="pharmacy") is False
+    assert is_restricted_medical_product("Savlon Antiseptic Liquid 200ml", category="pharmacy") is False
+    assert is_restricted_medical_product("Absorbent Cotton 100g", category="pharmacy") is False
+
+    # Strictly blocked prescription drugs
+    assert is_restricted_medical_product("Dolo 650 Tablet", category="pharmacy") is True
+    assert is_restricted_medical_product("Crocin Pain Relief", category="pharmacy") is True
+    assert is_restricted_medical_product("Amoxicillin Antibiotic 500mg", category="pharmacy") is True
+
+
+def test_delete_data_pattern_matching():
+    """Data deletion regex must match natural privacy requests and ignore ordinary shopping."""
+    from backend.api.whatsapp import _DELETE_DATA_PATTERN
+
+    # Valid deletion variations
+    for text in [
+        "delete my data",
+        "Delete my data",
+        "please delete my data",
+        "purge my data",
+        "erase my data",
+        "remove my data",
+        "delete all my data",
+        "delete my history",
+        "delete my account",
+        "purge my history",
+    ]:
+        assert _DELETE_DATA_PATTERN.match(text) is not None, f"Failed to match: {text}"
+
+    # Ordinary shopping or item removal must NOT match
+    for text in [
+        "delete 1 milk",
+        "remove bread from cart",
+        "please add eggs",
+        "my data plan is expired",
+    ]:
+        assert _DELETE_DATA_PATTERN.match(text) is None, f"Falsely matched: {text}"
+
+
+def test_customer_advisory_lock_key_deterministic_64bit():
+    """Customer advisory lock key must be a deterministic signed 64-bit integer for Postgres."""
+    from backend.agent.task_state import customer_advisory_lock_key
+
+    key1 = customer_advisory_lock_key("cust_wa_abcdef123456")
+    key2 = customer_advisory_lock_key("cust_wa_abcdef123456")
+    key3 = customer_advisory_lock_key("cust_wa_other_customer")
+
+    assert key1 == key2
+    assert key1 != key3
+    assert -9223372036854775808 <= key1 <= 9223372036854775807
+    assert -9223372036854775808 <= key3 <= 9223372036854775807
+
+

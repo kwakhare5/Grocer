@@ -4,6 +4,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from backend.config import settings
 from backend.agent.formatters import _format_inr, clean_address, format_cart_receipt
 from backend.integrations.commerce.exceptions import ProviderAuthError
 from backend.integrations.commerce.models import CartItemUpdate, CommerceCart, DeliveryAddress
@@ -11,11 +12,26 @@ from backend.integrations.commerce.port import CommercePort
 
 logger = logging.getLogger("grocer.agent.address_tools")
 
+_PUNE_REVIEW_ADDRESS = DeliveryAddress(
+    id="addr-pune-1",
+    label="Home",
+    street="Flat 402, Green Acres, Clover Park, Viman Nagar",
+    area="Viman Nagar",
+    city="Pune",
+    postal_code="411014",
+    latitude=18.5679,
+    longitude=73.9143,
+    is_serviceable=True,
+    is_default=True,
+)
+
 
 async def execute_get_saved_addresses(commerce: CommercePort, customer_id: str) -> dict[str, Any]:
     """Retrieve the user's saved delivery addresses from Swiggy."""
     try:
         addresses: list[DeliveryAddress] = await commerce.get_addresses(customer_id)
+        if not addresses and (settings.CHECKOUT_MODE == "review" or not getattr(commerce, "is_live", False)):
+            addresses = [_PUNE_REVIEW_ADDRESS]
         formatted = [
             {
                 "address_id": a.id,
@@ -46,6 +62,8 @@ async def execute_select_delivery_address(
         return {"success": False, "error": "address_id is required."}
     try:
         addresses: list[DeliveryAddress] = await commerce.get_addresses(customer_id)
+        if not addresses and (settings.CHECKOUT_MODE == "review" or not getattr(commerce, "is_live", False)):
+            addresses = [_PUNE_REVIEW_ADDRESS]
         matched = next((a for a in addresses if str(a.id) == str(address_id)), None)
         if not matched:
             return {

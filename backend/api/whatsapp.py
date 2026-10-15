@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import re
 from typing import Any
 from fastapi import APIRouter, BackgroundTasks, Header, HTTPException, Query, Request, Response, status
 from fastapi.responses import PlainTextResponse
@@ -14,6 +15,11 @@ from backend.channels.models import ChannelType, NormalizedIncomingMessage, Norm
 from backend.integrations.commerce.token_vault import default_token_vault
 
 logger = logging.getLogger("grocer.api.whatsapp")
+
+_DELETE_DATA_PATTERN = re.compile(
+    r"^(?:please\s+)?(?:delete|purge|erase|remove)\s+(?:all\s+)?(?:my\s+)?(?:data|history|account)\.?$",
+    re.IGNORECASE,
+)
 
 router = APIRouter(prefix="/api/whatsapp", tags=["whatsapp"])
 
@@ -72,7 +78,7 @@ async def drain_message_queue(store: PostgresMessageStore, engine: Any) -> None:
                     await store.heartbeat_processing(inbound_id)
             heartbeat = asyncio.create_task(keep_claim_alive())
         try:
-            if task_message.text.casefold().strip() == "delete my data":
+            if _DELETE_DATA_PATTERN.match(task_message.text.strip()):
                 state_store = getattr(engine, "state_store", None)
                 if state_store is None:
                     raise RuntimeError("Customer deletion requires durable task storage.")

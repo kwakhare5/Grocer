@@ -35,14 +35,17 @@ export function ConnectInstamartModal({
     e.preventDefault();
     setAuthError(null);
 
-    let cleanPhone = phoneNumber.replace(/\D/g, "");
-    if (cleanPhone.startsWith("91") && cleanPhone.length === 12) {
-      cleanPhone = cleanPhone.slice(2);
-    } else if (cleanPhone.startsWith("0") && cleanPhone.length === 11) {
+    let cleanPhone = phoneNumber.replace(/[^\d+]/g, "");
+    if (cleanPhone.startsWith("+")) {
+      cleanPhone = cleanPhone.slice(1);
+    } else if (cleanPhone.startsWith("0")) {
       cleanPhone = cleanPhone.slice(1);
     }
-    if (!connectTicket && !/^[6-9]\d{9}$/.test(cleanPhone)) {
-      setAuthError("Enter a valid 10-digit Indian WhatsApp number (starting with 6-9).");
+    if (cleanPhone.length === 10 && /^[6-9]/.test(cleanPhone)) {
+      cleanPhone = `91${cleanPhone}`;
+    }
+    if (!connectTicket && !/^[1-9]\d{6,14}$/.test(cleanPhone)) {
+      setAuthError("Enter a valid WhatsApp phone number (with country code if outside India).");
       return;
     }
 
@@ -138,22 +141,18 @@ export function ConnectInstamartModal({
                   WhatsApp Phone Number
                 </label>
                 <div className="relative flex items-center">
-                  <span className="absolute left-3.5 text-xs font-semibold text-zinc-500">
-                    +91
-                  </span>
                   <input
                     id="wa-phone"
                     type="tel"
-                    inputMode="numeric"
-                    placeholder="98765 43210"
+                    placeholder="+91 98765 43210"
                     value={phoneNumber}
                     onChange={(e) => setPhoneNumber(e.target.value)}
-                    maxLength={14}
-                    className="w-full pl-11 pr-3.5 py-2.5 rounded-xl border border-zinc-200 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20 text-xs sm:text-sm font-medium text-zinc-900 placeholder:text-zinc-400 outline-none transition"
+                    maxLength={18}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-zinc-200 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20 text-xs sm:text-sm font-medium text-zinc-900 placeholder:text-zinc-400 outline-none transition"
                   />
                 </div>
                 <p className="text-[11px] text-zinc-500 leading-normal">
-                  Enter the 10-digit mobile number you use for Grocer on WhatsApp.
+                  Enter your WhatsApp mobile number (e.g. +91 98765 43210).
                 </p>
               </div>
             )}

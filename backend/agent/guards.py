@@ -7,13 +7,27 @@ from typing import Any, Optional
 
 def missing_recipe_staples(request: str, proposed_queries: list[str]) -> list[str]:
     """Keep a known recipe's indispensable base from disappearing from a model proposal."""
-    if not re.search(r"(?i)\b(?:make|making|prepare|cook)\b.{0,50}\bpizza\b|\bpizza\s+ingredients\b", request):
-        return []
-    if re.search(r"(?i)\b(?:already\s+have|have|got)\b.{0,25}\b(?:pizza\s+)?(?:base|dough|crust)\b", request):
-        return []
-    if any(re.search(r"(?i)\b(?:base|dough|crust)\b", query) for query in proposed_queries):
-        return []
-    return ["pizza base"]
+    missing = []
+    if re.search(r"(?i)\b(?:make|making|prepare|cook)\b.{0,50}\bpizza\b|\bpizza\s+ingredients\b", request):
+        if not re.search(r"(?i)\b(?:already\s+have|have|got)\b.{0,25}\b(?:pizza\s+)?(?:base|dough|crust)\b", request):
+            if not any(re.search(r"(?i)\b(?:base|dough|crust)\b", query) for query in proposed_queries):
+                missing.append("pizza base")
+
+    if re.search(r"(?i)\b(?:make|making|prepare|cook)\b.{0,50}\bpasta\b|\bpasta\s+ingredients\b", request):
+        if not re.search(r"(?i)\b(?:already\s+have|have|got)\b.{0,25}\b(?:pasta|penne|fusilli|spaghetti|macaroni|noodles)\b", request):
+            if not any(
+                re.search(r"(?i)\b(?:penne|fusilli|spaghetti|macaroni|noodles)\b", q)
+                or (re.search(r"(?i)\bpasta\b", q) and not re.search(r"(?i)\b(?:sauce|masala|seasoning|mix)\b", q))
+                for q in proposed_queries
+            ):
+                missing.append("pasta")
+
+    if re.search(r"(?i)\b(?:make|making|prepare|cook)\b.{0,50}\bburger\b|\bburger\s+ingredients\b", request):
+        if not re.search(r"(?i)\b(?:already\s+have|have|got)\b.{0,25}\b(?:burger\s+)?(?:bun|buns|bread)\b", request):
+            if not any(re.search(r"(?i)\b(?:bun|buns)\b", query) for query in proposed_queries):
+                missing.append("burger bun")
+
+    return missing
 
 
 def reconcile_explicit_items(request: str, proposed: list[dict[str, Any]]) -> list[dict[str, Any]]:

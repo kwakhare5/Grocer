@@ -9,11 +9,17 @@ _MEDICAL_NAME = re.compile(
     r"\b(?:dolo\s*650|paracetamol|ibuprofen|antibiotic|crocin|"
     r"cough syrup|painkiller|prescription)\b", re.I,
 )
+_ALLOWED_FIRST_AID = re.compile(
+    r"\b(?:band[\s-]?aid|bandage|cotton|ors|electral|antiseptic|dettol liquid|savlon liquid|thermometer|gauze|sanitizer)\b",
+    re.I,
+)
 _SYMPTOM = re.compile(r"\b(?:headache|sore throat|fever|cough|(?:a|the) cold)\b", re.I)
 _EXPLICIT_ADD = re.compile(r"\b(?:add|buy|order|put in (?:my |the )?cart|get me)\b", re.I)
 
 
 def is_restricted_medical_product(name: str, category: str | None = None) -> bool:
+    if _ALLOWED_FIRST_AID.search(name):
+        return False
     return bool(_MEDICAL_CATEGORY.search(category or "") or _MEDICAL_NAME.search(name))
 
 

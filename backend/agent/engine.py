@@ -201,16 +201,27 @@ class GroceryAgentEngine:
         customer_id = message.customer_id or message.sender_id
         lock = self._locks.setdefault(customer_id, asyncio.Lock())
         async with lock:
-            if self.state_store is not None:
-                self._restore_task_state(customer_id, await self.state_store.load(customer_id))
-                self._prune_history(customer_id)
-            with self.commerce.customer_scope(customer_id):
-                try:
-                    result = await self._process_scoped_message(message, customer_id)
-                finally:
-                    if self.state_store is not None:
-                        self._prune_history(customer_id)
-                        await self.state_store.save(customer_id, self._task_state_snapshot(customer_id))
+            if self.state_store is not None and getattr(self.state_store, "pool", None) is not None:
+                async with self.state_store.transaction_lock(customer_id) as conn:
+                    self._restore_task_state(customer_id, await self.state_store.load(customer_id, conn=conn))
+                    self._prune_history(customer_id)
+                    with self.commerce.customer_scope(customer_id):
+                        try:
+                            result = await self._process_scoped_message(message, customer_id)
+                        finally:
+                            self._prune_history(customer_id)
+                            await self.state_store.save(customer_id, self._task_state_snapshot(customer_id), conn=conn)
+            else:
+                if self.state_store is not None:
+                    self._restore_task_state(customer_id, await self.state_store.load(customer_id))
+                    self._prune_history(customer_id)
+                with self.commerce.customer_scope(customer_id):
+                    try:
+                        result = await self._process_scoped_message(message, customer_id)
+                    finally:
+                        if self.state_store is not None:
+                            self._prune_history(customer_id)
+                            await self.state_store.save(customer_id, self._task_state_snapshot(customer_id))
                 self.last_turn_latency_ms = round(
                     (asyncio.get_running_loop().time() - start_time) * 1000, 1
                 )

@@ -79,7 +79,7 @@ async def execute_preflight(
     if is_retry_command and session.pending_request_text:
         planning_request_text = session.pending_request_text
 
-    if engine.replenishment_store is not None:
+    if engine.replenishment_store is not None and not any(w in norm_text for w in {"add", "buy", "order", "cart", "basket", "send", "deliver", "get me"}):
         try:
             reminder_reply = await engine.replenishment_store.reply(
                 customer_id, incoming_text, engine.commerce

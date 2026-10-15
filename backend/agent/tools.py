@@ -162,9 +162,14 @@ class SwiggyAgentTools:
 
         batch_results = []
         for i in range(0, len(clean_queries), 3):
-            if i > 0:
-                await asyncio.sleep(2.8)
             wave = clean_queries[i : i + 3]
+            needs_sleep = i > 0 and any(
+                bypass_cache or (address_id, q.casefold()) not in self._catalog_cache
+                or (time.time() - self._catalog_cache[(address_id, q.casefold())][0] >= 300)
+                for q in wave
+            )
+            if needs_sleep:
+                await asyncio.sleep(2.8)
             wave_res = await asyncio.gather(*[_search_one(q) for q in wave])
             batch_results.extend(wave_res)
             critical = next(

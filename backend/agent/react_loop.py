@@ -65,7 +65,14 @@ def is_invalid_item_plan(calls: list[dict[str, Any]]) -> bool:
                 or not query.strip()
                 or type(quantity) is not int
                 or not 1 <= quantity <= 99
-                or re.search(r"^(?:(?:all\s+)?(?:the\s+)?(?:ingredients?|groceries|recipe|items?|stuff))$", query.strip(), re.IGNORECASE)
+                or (
+                    bool(
+                        re.search(r"^(?:(?:all\s+)?(?:the\s+)?(?:ingredients?|groceries|recipe|items?|stuff))$", query.strip(), re.IGNORECASE)
+                        or query.strip().casefold().endswith((" ingredients", " ingredient", " groceries"))
+                        or re.search(r"\b(?:ingredients?|groceries|recipe)\s+(?:for|of)\b", query.strip(), re.IGNORECASE)
+                    )
+                    and not bool(re.search(r"\b(?:masala|mix|powder|paste|sauce|kit|seasoning)\b", query.strip(), re.IGNORECASE))
+                )
             ):
                 return True
     return False

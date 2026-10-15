@@ -72,7 +72,7 @@ class PostgresMessageStore:
                      AND NOT EXISTS (
                        SELECT 1 FROM grocer_internal.privacy_deletions d
                        WHERE d.customer_id = i.customer_id)
-                   ORDER BY COALESCE((i.payload->>'timestamp')::double precision, i.id::double precision), i.id ASC LIMIT 1 FOR UPDATE SKIP LOCKED
+                   ORDER BY i.id ASC LIMIT 1 FOR UPDATE SKIP LOCKED
                )
                UPDATE grocer_internal.inbound_messages i
                SET status = 'PROCESSING', claimed_at = now()
@@ -92,7 +92,7 @@ class PostgresMessageStore:
             """WITH absorbed AS (
                    SELECT id FROM grocer_internal.inbound_messages
                    WHERE customer_id = $1 AND status = 'PENDING'
-                   ORDER BY COALESCE((payload->>'timestamp')::double precision, id::double precision), id ASC
+                   ORDER BY id ASC
                    FOR UPDATE SKIP LOCKED
                )
                UPDATE grocer_internal.inbound_messages i

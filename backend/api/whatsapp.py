@@ -64,6 +64,7 @@ async def drain_message_queue(store: PostgresMessageStore, engine: Any) -> None:
 
         claimed = await store.claim_next()
         if claimed is None:
+            await drain_outbound_queue(store)
             return
         inbound_id, task_message = claimed
 
@@ -107,6 +108,7 @@ async def drain_message_queue(store: PostgresMessageStore, engine: Any) -> None:
             else:
                 response = await asyncio.wait_for(engine.handle_message(task_message), timeout=180)
             await store.stage_response(inbound_id, response)
+            await drain_outbound_queue(store)
         except asyncio.CancelledError:
             raise
         except Exception:
@@ -119,6 +121,7 @@ async def drain_message_queue(store: PostgresMessageStore, engine: Any) -> None:
                     conversation_state="READY",
                 )
                 await store.stage_response(inbound_id, fallback_resp)
+                await drain_outbound_queue(store)
             except Exception:
                 try:
                     await store.mark_processing_failed(inbound_id)

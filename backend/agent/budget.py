@@ -9,6 +9,10 @@ _TOTAL_PATTERNS = (
     re.compile(rf"(?i)\b(?:total|overall|budget(?:\s+of)?)\s*(?:under|below|up\s+to|of|is|:)?\s*(?:{_CURRENCY}\s*)?{_AMOUNT}\b"),
     re.compile(rf"(?i)\b(?:under|below|within|max(?:imum)?|up\s+to|at\s+most)\s*{_CURRENCY}\s*{_AMOUNT}\b"),
     re.compile(rf"(?i)\b(?:under|below|within|max(?:imum)?|up\s+to|at\s+most)\s*{_AMOUNT}\s*{_CURRENCY}\b"),
+    re.compile(
+        rf"(?i)\b(?:under|below|within|at\s+most|no\s+more\s+than|up\s+to|max(?:imum)?)\s*"
+        rf"(?:{_CURRENCY}\s*)?{_AMOUNT}\b(?!\s*(?:g|gm|gms|grams?|kg|kgs?|kilos?|ml|mls?|l|ltrs?|litres?|liters?|pieces?|pcs|mins?|minutes?|hours?|hrs?|items?|products?|days?|seconds?|sec|percent|%|steps?|times?)\b)"
+    ),
 )
 
 

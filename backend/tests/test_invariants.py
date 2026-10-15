@@ -511,6 +511,12 @@ def test_is_explicit_confirmation_accepts_natural_affirmations_and_rejects_negat
     for text in negations:
         assert is_explicit_confirmation(text) is False, f"Failed on negation: {text}"
 
+    shopping_phrases = [
+        "order 2 milk", "order milk", "place 1 bread in cart", "add milk", "need bread", "bring eggs",
+    ]
+    for text in shopping_phrases:
+        assert is_explicit_confirmation(text) is False, f"Shopping phrase falsely confirmed: {text}"
+
 
 def test_catalog_ranker_penalizes_multipack_bundles_unless_requested():
     from backend.agent.catalog_ranker import rank_and_select_best_variant
@@ -551,7 +557,10 @@ def test_budget_negative_lookahead_handles_grams_and_volume_units():
     assert extract_total_budget("under 500 gms of paneer") is None
     assert extract_total_budget("below 250 ml milk") is None
 
-    # Genuine rupee budgets must be extracted
+    # Plain number and genuine rupee budgets must be extracted
+    assert extract_total_budget("under 80") == 80.0
+    assert extract_total_budget("within 180") == 180.0
+    assert extract_total_budget("at most 100") == 100.0
     assert extract_total_budget("under 500 rupees") == 500.0
     assert extract_total_budget("under ₹500") == 500.0
     assert extract_total_budget("under Rs 350 for all items") == 350.0

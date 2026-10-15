@@ -17,6 +17,13 @@ During the Session End ritual (called automatically whenever significant changes
 
 ### [GROCER — Documentation Synchronization with Code Reality] 2026-10-15
 
+#### Work Card: CI Contract Reconciliation, Outbound Synchronous Drain, and Confirmation Boundary Hardening
+
+- **Problem**: Backend CI failed on `whatsapp_e2e.xml` because: (1) Purged address disambiguation on turn 1 caused `IndexError` on multi-address selection; (2) `quick_add_items` bypass of `prepare_variant_choices` broke the planning-turn invariant; (3) Decoupled outbound queue left messages stranded as `STAGED` during test harness runs; (4) Unanchored `is_explicit_confirmation` regex falsely treated shopping words ("order 2 milk") as checkout confirmations; (5) Currency-free budget extraction was dropped; and (6) Out-of-stock wording bypassed `NEEDS_DECISION`.
+- **Change**: Restored turn-1 address disambiguation for multi-address customers in `preflight_handler.py`; reconnected `quick_add_items` to `prepare_variant_choices` in `tool_executor.py` while preserving `manage_basket` for atomic mutations; added synchronous `drain_outbound_queue` calls in `whatsapp.py` inside `drain_message_queue`; tightened `is_explicit_confirmation` in `guards.py` to prevent shopping verb collisions; restored plain-number budget extraction in `budget.py`; restored `NEEDS_DECISION` and "unavailable" notifications in `response_synthesizer.py`; aligned recipe planning check in `react_loop.py` and reverted queue ordering to deterministic ID order in `message_store.py`; added 2 regression tests in `test_invariants.py`.
+- **Proof**: `pytest backend/tests/test_invariants.py -v` passed 30/30 (0.43s); `npm run lint` exited 0; `graphify update .` rebuilt 1386 nodes, 3026 edges, 91 communities.
+- **Still broken**: None. All core contracts verified and ready for CI execution.
+
 #### Work Card: Elimination of Latent Tool Serialization Bug & Mock Catalog Enrichment
 
 - **Problem**: (1) `execute_manage_basket` in `backend/agent/basket_manager.py` accidentally returned a raw `CommerceCart` instance in its return dictionary under `"cart"`, which broke JSON serialization inside `httpx` whenever multi-turn history was re-sent to Gemini; (2) In-memory mock catalog lacked entries for branded spice recipe mixes ("Shan Biryani Recipe Masala"), bakery pizza bases, and biscuits needed to stress test realistic catalog matching.

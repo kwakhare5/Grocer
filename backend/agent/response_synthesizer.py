@@ -182,7 +182,7 @@ async def synthesize_turn_response(
         blocked = list(dict.fromkeys(budget_blocked_items))
         unavailable = list(dict.fromkeys(unavailable_items))
         reduced = list(dict.fromkeys(reduced_items))
-        session.budget_blocked_items = blocked + reduced
+        session.budget_blocked_items = blocked + unavailable + reduced
         session.pending_approval = None
         receipt = last_cart_receipt or "Your basket is empty."
         scoped_note = ""
@@ -204,25 +204,16 @@ async def synthesize_turn_response(
                 )
         has_items_in_basket = bool(last_cart_receipt and "Your Basket is empty" not in last_cart_receipt and last_cart_total)
         if has_items_in_basket:
-            if not blocked and not reduced:
-                # Decision 8A: Pure out-of-stock omission -> Proceed directly with standard confirmation receipt
-                basket_followup = receipt
-                actions = [
-                    InteractiveAction(action_type="button", id="confirm_order", title="Confirm Order"),
-                    InteractiveAction(action_type="button", id="modify_cart", title="Change Items"),
-                ]
-                conv_state = "AWAITING_CHECKOUT_CONFIRMATION"
-            else:
-                basket_followup = (
-                    "I kept the items that fit in the order you listed them. "
-                    "Would you like to keep this partial basket or change something?\n\n"
-                    + receipt
-                )
-                actions = [
-                    InteractiveAction(action_type="button", id="accept_partial_basket", title="Keep These Items"),
-                    InteractiveAction(action_type="button", id="modify_cart", title="Change Items"),
-                ]
-                conv_state = "NEEDS_DECISION"
+            basket_followup = (
+                "I kept the items that fit in the order you listed them. "
+                "Would you like to keep this partial basket or change something?\n\n"
+                + receipt
+            )
+            actions = [
+                InteractiveAction(action_type="button", id="accept_partial_basket", title="Keep These Items"),
+                InteractiveAction(action_type="button", id="modify_cart", title="Change Items"),
+            ]
+            conv_state = "NEEDS_DECISION"
         else:
             basket_followup = (
                 "Would you like to try searching for something else or check another delivery location?\n\n"
@@ -242,7 +233,7 @@ async def synthesize_turn_response(
             )
             intro_parts.append(f"{prefix}{', '.join(blocked)}.")
         if unavailable:
-            intro_parts.append(f"*{', '.join(unavailable)}* was out of stock on Swiggy, so I skipped it.")
+            intro_parts.append(f"These requested items were unavailable on Swiggy: {', '.join(unavailable)}.")
         if reduced:
             intro_parts.append(f"Swiggy reduced these quantities: {', '.join(reduced)}.")
         if scoped_note:

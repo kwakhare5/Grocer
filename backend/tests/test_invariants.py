@@ -458,3 +458,40 @@ def test_customer_advisory_lock_key_deterministic_64bit():
     assert -9223372036854775808 <= key3 <= 9223372036854775807
 
 
+@pytest.mark.asyncio
+async def test_engine_handle_message_returns_response_with_pool_state_store():
+    """handle_message must never return None when state_store has a pool."""
+    from contextlib import asynccontextmanager
+    from unittest.mock import AsyncMock, MagicMock
+    from backend.agent.engine import GroceryAgentEngine
+    from backend.channels.models import NormalizedIncomingMessage, NormalizedOutgoingResponse
+    from backend.integrations.commerce.mock_adapter import MockCommerceAdapter
+
+    mock_pool = MagicMock()
+    mock_state_store = MagicMock()
+    mock_state_store.pool = mock_pool
+
+    @asynccontextmanager
+    async def fake_lock(customer_id):
+        yield "fake_conn"
+
+    mock_state_store.transaction_lock = fake_lock
+    mock_state_store.load = AsyncMock(return_value=None)
+    mock_state_store.save = AsyncMock(return_value=None)
+
+    commerce = MockCommerceAdapter()
+    engine = GroceryAgentEngine(commerce, gemini_api_key="local-test", state_store=mock_state_store)
+
+    msg = NormalizedIncomingMessage(
+        sender_id="919999988888",
+        message_id="msg-pool-test",
+        text="hi",
+        timestamp=1000.0,
+    )
+    res = await engine.handle_message(msg)
+    assert res is not None, "handle_message must never return None when state_store has a pool"
+    assert isinstance(res, NormalizedOutgoingResponse)
+    assert res.text
+
+
+

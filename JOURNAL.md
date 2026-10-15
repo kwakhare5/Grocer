@@ -31,6 +31,13 @@ During the Session End ritual (called automatically whenever significant changes
 - **Proof**: `scripts/test.ps1` ran 19 invariant tests + ESLint with exit code 0; `MultiFernet` key rotation tested with live ciphertext cross-decryption; `graphify update .` rebuilt 1365 nodes, 2966 edges, 93 communities with 0 errors; all backend files verified under 500 lines.
 - **Still broken**: None. All core systems permanently hardened and covered by automated tests.
 
+#### Work Card: Fix Engine Return Indentation for PostgreSQL Advisory Lock Execution
+
+- **Problem**: In GitHub Actions CI (run #105, commit `0bb3d06`), 4 E2E tests failed with `AttributeError: 'NoneType' object has no attribute 'model_dump_json'` because `return result` in `GroceryAgentEngine.handle_message` was accidentally indented inside the `else:` branch, causing `handle_message` to return `None` when running with a live PostgreSQL pool.
+- **Change**: Unindented latency logging and `return result` in `backend/agent/engine.py` out of the `else:` branch so all execution paths (Postgres pool and in-memory) return the turn result; added `test_engine_handle_message_returns_response_with_pool_state_store` in `backend/tests/test_invariants.py`.
+- **Proof**: `scripts/test.ps1` ran 20 invariant tests + ESLint with exit code 0; `graphify update .` rebuilt 1368 nodes, 2974 edges, 89 communities.
+- **Still broken**: None.
+
 ### [GROCER — Codebase-Wide Ruthless Dead Code Purge, Production Config Alignment & Schema Grounding] 2026-10-14
 
 #### Work Card: Native Directory-Wide Pytest Discovery & Clean CI Configuration

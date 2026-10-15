@@ -222,16 +222,17 @@ class GroceryAgentEngine:
                         if self.state_store is not None:
                             self._prune_history(customer_id)
                             await self.state_store.save(customer_id, self._task_state_snapshot(customer_id))
-                self.last_turn_latency_ms = round(
-                    (asyncio.get_running_loop().time() - start_time) * 1000, 1
-                )
-                logger.info(
-                    "Turn completed for customer=%s in %.1fms (state=%s)",
-                    customer_id,
-                    self.last_turn_latency_ms,
-                    result.conversation_state,
-                )
-                return result
+
+            self.last_turn_latency_ms = round(
+                (asyncio.get_running_loop().time() - start_time) * 1000, 1
+            )
+            logger.info(
+                "Turn completed for customer=%s in %.1fms (state=%s)",
+                customer_id,
+                self.last_turn_latency_ms,
+                result.conversation_state,
+            )
+            return result
 
     async def _process_scoped_message(
         self, message: NormalizedIncomingMessage, customer_id: str

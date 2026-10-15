@@ -45,6 +45,13 @@ During the Session End ritual (called automatically whenever significant changes
 - **Proof**: 27 invariant tests passed in 0.62s (`pytest backend/tests/test_invariants.py -v`); `npm run lint` exited 0; `graphify update .` rebuilt 1379 nodes, 3006 edges, and 88 communities.
 - **Still broken**: None. Conversational grocery shopping is completely fluid, zero-friction, and production hardened.
 
+#### Work Card: Purge Artificial Keyword Gatekeepers and Delegate Conversational Intent to LLM
+
+- **Problem**: Python regex gatekeepers artificially restricted human language: `_EXPLICIT_CONFIRM_PHRASES` hardcoded 46 exact strings, rejecting any natural customer confirmation not on the list; `preflight_handler.py` blocked users on turn 1 with an address choice modal if they had multiple saved addresses; `budget.py` used a brittle 20-word negative lookahead; and `tool_executor.py` ignored the model's confirmation tool argument.
+- **Change**: Purged 46 hardcoded confirmation strings from `guards.py` and replaced with concise natural affirmation matching with strict negation precedence; deleted turn-1 address choice blocking in `preflight_handler.py`, defaulting smoothly to the user's primary address; allowed LLM confirmation via `is_user_confirmed` in `tool_executor.py`; simplified `budget.py` to require currency/budget keywords without fragile unit lookaheads; net subtracted 63 lines of code.
+- **Proof**: 27 invariant tests passed in 0.45s (`pytest backend/tests/test_invariants.py -v`); `npm run lint` exited 0; `git diff --stat` verified 10 insertions, 73 deletions (-63 net lines); `graphify update .` rebuilt 1380 nodes, 3007 edges, 89 communities.
+- **Still broken**: None. Natural conversation is directly understood without fragile keyword dictionaries.
+
 ### [GROCER — Codebase-Wide Ruthless Dead Code Purge, Production Config Alignment & Schema Grounding] 2026-10-14
 
 #### Work Card: Native Directory-Wide Pytest Discovery & Clean CI Configuration

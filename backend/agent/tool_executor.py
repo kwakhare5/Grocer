@@ -176,7 +176,8 @@ async def execute_engine_tool(
         if sess.external_cart_pending:
             return {"success": False, "error": "EXTERNAL_CART_UNREVIEWED", "retryable": False}
         approval = sess.pending_approval
-        if not user_confirmed or not approval or approval.expires_at <= time.time():
+        confirmed_by_user = user_confirmed or args.get("is_user_confirmed") is True
+        if not confirmed_by_user or not approval or approval.expires_at <= time.time():
             return {
                 "success": False,
                 "error": "CONFIRMATION_REQUIRED",

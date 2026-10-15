@@ -190,55 +190,11 @@ def is_hesitation(text: str) -> bool:
     return cleaned in _HESITATION_PHRASES or bool(_HESITATION_REGEX.search(cleaned))
 
 
-_EXPLICIT_CONFIRM_PHRASES = frozenset({
-    "confirm",
-    "confirm order",
-    "yes",
-    "yes please",
-    "place order",
-    "place the order",
-    "place this order",
-    "proceed",
-    "checkout",
-    "pay",
-    "book it",
-    "order it",
-    "order now",
-    "go ahead",
-    "do it",
-    "ok",
-    "okay",
-    "sure",
-    "sounds good",
-    "looks good",
-    "send it",
-    "yep",
-    "yeah",
-    "yup",
-    "good to go",
-    "all good",
-    "perfect",
-    "haan",
-    "haan kar do",
-    "haan place karo",
-    "haan confirm karo",
-    "theek hai order confirm karo",
-    "theek hai order confirm",
-    "yes please confirm",
-    "yes confirm",
-    "yes place",
-    "proceed to pay",
-    "i explicitly confirm",
-    "proceed with order",
-    "complete order",
-    "konfirm order",
-    "yes, please confirm and place the order now",
-    "order confirm",
-    "order place karo",
-})
-
 _NEGATION_CONFIRM_REGEX = re.compile(
     r"(?i)\b(don'?t|do not|never|stop|wait|hold|cancel|not now|not yet|no|nope|nah|pause|clear cart|start over)\b"
+)
+_AFFIRMATIVE_INTENT_REGEX = re.compile(
+    r"(?i)\b(yes|yeah|yep|yup|confirm|place|proceed|checkout|pay|book|order|ahead|do it|ok|okay|sure|sounds? good|looks? good|send it|good to go|all good|perfect|haan|theek hai|all set)\b"
 )
 
 
@@ -250,12 +206,10 @@ def is_explicit_confirmation(text: str) -> bool:
     """
     if not text or not text.strip():
         return False
-    cleaned = re.sub(r"\s+", " ", text.casefold()).strip(" \t\r\n.!?")
+    cleaned = text.strip()
     if _NEGATION_CONFIRM_REGEX.search(cleaned):
         return False
-    if cleaned in _EXPLICIT_CONFIRM_PHRASES:
-        return True
-    return bool(re.search(r"^(?:yes\b.*(?:confirm|place|order)|confirm\s+(?:the\s+)?order|confirm\s+it|place\s+(?:the\s+)?order|sounds?\s+good|looks?\s+good|send\s+it|good\s+to\s+go)$", cleaned))
+    return bool(_AFFIRMATIVE_INTENT_REGEX.search(cleaned))
 
 
 def reconcile_explicit_removals(text: str) -> list[str]:

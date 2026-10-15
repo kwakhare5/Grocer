@@ -184,7 +184,6 @@ async def execute_manage_basket(
     receipt = format_cart_receipt(current_cart, delivery_location)
     return {
         "success": True,
-        "cart": current_cart,
         "cart_id": current_cart.cart_id,
         "item_count": len(current_cart.items),
         "items": [

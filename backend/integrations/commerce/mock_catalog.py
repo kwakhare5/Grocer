@@ -61,4 +61,7 @@ MOCK_PRODUCTS: list[CommerceProductItem] = [
     _p('prod-chips', "Lay's India's Magic Masala Potato Chips", 'snacks', _v('SPIN-LAYS-CHIPS-50G', "Lay's Magic Masala Potato Chips 50g", '50 g', 20.0, 20.0, True)),
     _p('prod-pepsi', 'Pepsi Original Taste Cold Drink', 'beverages', _v('SPIN-PEPSI-CAN-330ML', 'Pepsi Can (330 ml)', '330 ml', 40.0, 40.0, True)),
     _p('prod-matchbox', 'Homelite Safety Matchbox', 'household', _v('SPIN-MATCHBOX-10PK', 'Homelite Safety Matches (Pack of 10)', '10 pcs', 10.0, 10.0, True)),
+    _p('prod-biryani-masala', 'Shan Biryani Recipe Masala', 'spices', _v('SPIN-SHAN-BIRYANI-50G', 'Shan Biryani Recipe Masala 50g', '50 g', 85.0, 95.0, True)),
+    _p('prod-pizza-base', 'English Oven Pizza Base', 'bakery', _v('SPIN-PIZZA-BASE-2PCS', 'Pizza Base (2 pcs)', '2 pcs', 45.0, 50.0, True)),
+    _p('prod-biscuits', 'Parle-G Gold Gluco Biscuits', 'snacks', _v('SPIN-PARLEG-250G', 'Parle-G Biscuits 250g', '250 g', 30.0, 30.0, True)),
 ]

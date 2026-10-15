@@ -17,6 +17,13 @@ During the Session End ritual (called automatically whenever significant changes
 
 ### [GROCER — Documentation Synchronization with Code Reality] 2026-10-15
 
+#### Work Card: Elimination of Latent Tool Serialization Bug & Mock Catalog Enrichment
+
+- **Problem**: (1) `execute_manage_basket` in `backend/agent/basket_manager.py` accidentally returned a raw `CommerceCart` instance in its return dictionary under `"cart"`, which broke JSON serialization inside `httpx` whenever multi-turn history was re-sent to Gemini; (2) In-memory mock catalog lacked entries for branded spice recipe mixes ("Shan Biryani Recipe Masala"), bakery pizza bases, and biscuits needed to stress test realistic catalog matching.
+- **Change**: (1) Removed the non-serializable `"cart": current_cart` entry from `execute_manage_basket` in `backend/agent/basket_manager.py`, preserving only the pre-formatted primitive cart fields; (2) Added `prod-biryani-masala`, `prod-pizza-base`, and `prod-biscuits` to `MOCK_PRODUCTS` in `backend/integrations/commerce/mock_catalog.py`.
+- **Proof**: Tested 5 consecutive multi-turn messages with live `json.dumps(history)` exiting 0; `pytest backend/tests/test_invariants.py -v` passed 30/30; launched 50-example live stress test harness.
+- **Still broken**: None. Multi-turn history is 100% JSON-serializable across all tools.
+
 #### Work Card: Permanent Core Architecture: Auto-Unbrick, Bounded Price Tolerance, and Hinglish Grounding
 
 - **Problem**: 5 core failure modes hindered resilience: (1) Out-of-stock mid-checkout bricked customer accounts via permanent `UNKNOWN` checkout state; (2) Zero-tolerance price checks trapped users in infinite "Reply *use changes*" loops on minor provider fee fluctuations; (3) Hinglish/brand regex filtered Indian brands (e.g. "Mera Swad") and prompt scolded Hindi speakers; (4) Cart edit validator rejected quantity drops ("drop milk from 3 to 2") and valid branded spice recipes; (5) Store closures were falsely reported as items out of stock; and (6) Inbound messages lacked payload timestamp ordering under network jitter.

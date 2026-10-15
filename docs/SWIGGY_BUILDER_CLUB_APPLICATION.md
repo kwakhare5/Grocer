@@ -173,7 +173,7 @@ Copy and paste this section when completing extended access, data protection, or
 ### Data Handling & Ephemeral Privacy
 - **No Long-Term PII Storage:** Customer phone numbers and street addresses are used exclusively for session routing and dark-store resolution.
 - **RAM-Isolated Token Vault:** OAuth access tokens are stored in-memory during active sessions (`TokenVault`). Disk fallback to plaintext files (`.vault_tokens.json`) has been completely eradicated.
-- **Cryptographic Encryption at Rest:** When tokens are persisted in PostgreSQL, fields are encrypted using AES-GCM (Fernet) with strict customer-specific keys. Any storage failure fails closed without leaking plaintext.
+- **Cryptographic Encryption at Rest:** When tokens are persisted in PostgreSQL, fields are encrypted using Fernet (AES-128-CBC with HMAC-SHA256) with strict customer-specific keys. Any storage failure fails closed without leaking plaintext.
 - **Strict Customer Isolation:** Each customer operates solely through their own OAuth token. There is zero owner token fallback or credential sharing between accounts.
 - **Log Sanitization:** Sensitive headers, Bearer tokens, phone numbers, and payment signatures are redacted from application logs.
 

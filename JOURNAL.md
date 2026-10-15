@@ -15,6 +15,15 @@ During the Session End ritual (called automatically whenever significant changes
 
 ## Log Entries
 
+### [GROCER — Documentation Synchronization with Code Reality] 2026-10-15
+
+#### Work Card: Synchronize Architecture, README, and Application Specs with Implemented Code
+
+- **Problem**: Documentation contained outdated claims that diverged from actual code: `README.md` and `ARCHITECTURE.md` claimed full Hinglish dialog despite prompt guards enforcing English responses with grocery vocabulary mapping; `README.md` presented the local development `/simulator` as a production feature alongside the live 6-turn showcase on Vercel; and `SWIGGY_BUILDER_CLUB_APPLICATION.md` described token storage as "AES-GCM (Fernet)" instead of Fernet (AES-128-CBC with HMAC-SHA256).
+- **Change**: Updated `README.md` and `ARCHITECTURE.md` to accurately document English-first conversational ordering with Indian grocery vocabulary mapping and clarified that `/simulator` is a local development console while the Vercel landing page provides the verified 6-turn journey showcase; corrected token vault encryption specification in `docs/SWIGGY_BUILDER_CLUB_APPLICATION.md` to Fernet (AES-128-CBC with HMAC-SHA256); ran `graphify update .` to sync AST knowledge graph.
+- **Proof**: `pytest backend/tests/test_invariants.py` passed with 13/13 green in 1.24s; `npm run lint` exited 0 with 0 errors/warnings; `graphify update .` rebuilt 1344 nodes, 2931 edges, and 97 communities.
+- **Still broken**: None. All documentation is 100% grounded in code reality.
+
 ### [GROCER — Codebase-Wide Ruthless Dead Code Purge, Production Config Alignment & Schema Grounding] 2026-10-14
 
 #### Work Card: Native Directory-Wide Pytest Discovery & Clean CI Configuration

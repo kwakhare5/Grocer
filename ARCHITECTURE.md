@@ -34,7 +34,7 @@ Meta WhatsApp Cloud Webhook
 
 ## 3. Conversational Reasoning & Intent Preservation
 
-- **Gemini 3.5 Flash-Lite Engine**: Google Gemini acts as the reasoning engine (~1.2s turn latency), handling compound meal requests (decomposing recipes into concrete items), Hinglish vocabulary, and search queries.
+- **Gemini 3.5 Flash-Lite Engine**: Google Gemini acts as the reasoning engine (~1.2s turn latency), handling compound meal requests (decomposing recipes into concrete items), Indian grocery vocabulary mapping, and catalog search queries.
 - **Intent Preservation**: Rather than wiping state between turns, the engine preserves active shopping items, dietary exclusions, and budget caps across conversational amendments. Edits ("drop sauce, make bread 2") execute atomically without losing previously selected items.
 - **Replenishment Cadence**: Consented purchase history is encrypted with Fernet in `grocer_internal.replenishment`. The system computes median repurchase intervals for staples (milk, eggs, bread) and answers restock queries conversationally (`check_replenishment`), accepting user stock corrections ("I have enough milk for 4 days") without mutating the active cart.
 

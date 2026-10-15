@@ -58,7 +58,7 @@ Grocer remembers your shopping intent across multiple turns and corrections with
 * **Meal Decomposition**: Say *"pasta for 4 under ₹800"*, and Grocer breaks the meal down into ingredients, matches dark-store pack sizes, and validates total cost against your budget ceiling.
 * **Non-Destructive Amendments**: Say *"swap penne for fusilli and make it 2 packs"*, and Grocer updates only that specific line item while preserving the rest of your cart.
 * **Deterministic Variant Selection**: When catalog searches return multiple candidates (e.g. 500ml vs 1L milk), Grocer presents numbered interactive choices (`1A`, `1B`). It writes to your cart only after you explicitly select the variant.
-* **Hinglish & Natural Quantities**: Understands conversational Indian household requests like *"2 packet doodh, 1 bread aur thoda dhaniya"* without dropping items or misidentifying quantities.
+* **Indian Grocery Vocabulary & Quantities**: Interprets everyday Indian grocery terms and household quantities (e.g. *"doodh"*, *"atta"*, *"dahi"*, *"packet"*, *"kilo"*) and maps them to verified English dark-store catalog items while responding in clear English.
 
 ### 2. Household Replenishment (Cadence Restock Checks)
 Grocer tracks your historical purchase cadence to predict when household staples are running low:
@@ -244,12 +244,11 @@ Open **[http://localhost:3000](http://localhost:3000)** in your browser to inter
 
 ---
 
-## Interactive Web Simulator
+## Interactive Web Simulator & Conversation Showcase
 
-Grocer includes a full-featured web simulator at `http://localhost:3000` (live at [grocerr.vercel.app](https://grocerr.vercel.app)).
-
-* **Signed WhatsApp Intake**: The simulator signs every message with cryptographic HMAC-SHA256 headers, perfectly mirroring Meta's WhatsApp Cloud API.
-* **Pre-Loaded Scenarios**:
+Grocer provides two ways to inspect and test conversations:
+* **Verified Conversation Showcase (Production)**: The live landing page at [grocerr.vercel.app](https://grocerr.vercel.app) showcases 6 verified multi-turn journeys, allowing reviewers to inspect exact customer messages, raw tool executions, and backend safety rules.
+* **Interactive Local Simulator (Development)**: When running locally (`npm run dev` with `SIMULATOR_ENABLED=true`), `/simulator` provides a live chat console that signs every message with cryptographic HMAC-SHA256 headers, perfectly mirroring Meta's WhatsApp Cloud API.
   * **Recipe & Constraints**: Multi-item ingredient planning under strict rupee budgets.
   * **Interactive Disambiguation**: Selecting specific pack sizes (`1A`, `2B`) when multiple catalog matches exist.
   * **Household Replenishment**: Cadence-based restock checks and non-destructive stock level updates.

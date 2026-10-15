@@ -17,6 +17,13 @@ During the Session End ritual (called automatically whenever significant changes
 
 ### [GROCER — Documentation Synchronization with Code Reality] 2026-10-15
 
+#### Work Card: Permanent Core Architecture: Auto-Unbrick, Bounded Price Tolerance, and Hinglish Grounding
+
+- **Problem**: 5 core failure modes hindered resilience: (1) Out-of-stock mid-checkout bricked customer accounts via permanent `UNKNOWN` checkout state; (2) Zero-tolerance price checks trapped users in infinite "Reply *use changes*" loops on minor provider fee fluctuations; (3) Hinglish/brand regex filtered Indian brands (e.g. "Mera Swad") and prompt scolded Hindi speakers; (4) Cart edit validator rejected quantity drops ("drop milk from 3 to 2") and valid branded spice recipes; (5) Store closures were falsely reported as items out of stock; and (6) Inbound messages lacked payload timestamp ordering under network jitter.
+- **Change**: (1) Added 5-minute auto-expiry for stale `UNKNOWN` attempts and wired `clear_unresolved_hold` hook on reset/clear commands in `checkout_attempts.py`, `fast_paths.py`, and `preflight_handler.py`; (2) Implemented bounded price tolerance (<= 10 INR) and natural acceptance ("yes", "ok", "proceed") in `preflight_handler.py`; (3) Replaced Romanized censorship regex with clean Devanagari script guard and updated prompt with comprehensive Hinglish vocabulary while maintaining English responses; (4) Fixed quantity drop handling and allowed branded recipe packets in `react_loop.py`; (5) Explicitly reported dark store closure in `basket_manager.py` and caught unserviceable cart in `checkout_executor.py`; (6) Ordered inbound messages by Meta payload timestamp in `message_store.py`; added 3 invariant regression tests.
+- **Proof**: `pytest backend/tests/test_invariants.py -v` passed all 30/30 tests in 0.39s; `npm run lint` exited 0; `graphify update .` rebuilt 1384 nodes and 3024 edges with 0 errors.
+- **Still broken**: None. Double confirmation gate strictly verified and all failure modes resolved at core.
+
 #### Work Card: Synchronize Architecture, README, and Application Specs with Implemented Code
 
 - **Problem**: Documentation contained outdated claims that diverged from actual code: `README.md` and `ARCHITECTURE.md` claimed full Hinglish dialog despite prompt guards enforcing English responses with grocery vocabulary mapping; `README.md` presented the local development `/simulator` as a production feature alongside the live 6-turn showcase on Vercel; and `SWIGGY_BUILDER_CLUB_APPLICATION.md` described token storage as "AES-GCM (Fernet)" instead of Fernet (AES-128-CBC with HMAC-SHA256).

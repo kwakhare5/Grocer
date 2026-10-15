@@ -37,11 +37,11 @@ def validate_cart_edit_calls(
                 target_item = cart_by_spin[spin_id]
                 item_name_tokens = {t for t in re.split(r"\W+", target_item.name.casefold()) if len(t) > 2}
                 spin_tokens = {t for t in re.split(r"\W+", str(spin_id).casefold()) if len(t) > 2}
-                has_ordinal = any(w in req_lower for w in ("first", "second", "third", "1st", "2nd", "3rd", "one", "two"))
+                has_ordinal = any(w in req_lower for w in ("first", "second", "third", "fourth", "fifth", "1st", "2nd", "3rd", "4th", "5th", "one", "two", "three", "four", "five", "item"))
                 matches_request = has_ordinal or any(t in req_lower for t in item_name_tokens | spin_tokens)
                 if not matches_request:
                     return False
-                if any(w in req_lower for w in ("remove", "delete", "drop")) and quantity > 0:
+                if any(w in req_lower for w in ("remove", "delete")) and not any(w in req_lower for w in ("to", "by", "from", "reduce", "decrease")) and quantity > 0:
                     return False
     return True
 
@@ -65,7 +65,7 @@ def is_invalid_item_plan(calls: list[dict[str, Any]]) -> bool:
                 or not query.strip()
                 or type(quantity) is not int
                 or not 1 <= quantity <= 99
-                or re.search(r"\b(?:ingredients?|groceries|recipe|items|stuff)\b", query, re.IGNORECASE)
+                or re.search(r"^(?:(?:all\s+)?(?:the\s+)?(?:ingredients?|groceries|recipe|items?|stuff))$", query.strip(), re.IGNORECASE)
             ):
                 return True
     return False

@@ -19,6 +19,7 @@ async def handle_reset_fast_path(
     commerce: Any,
     reset_order_address_fn: Callable[[str], None],
     clear_history_fn: Callable[[str], None],
+    clear_hold_fn: Optional[Callable[[str], Any]] = None,
 ) -> Optional[NormalizedOutgoingResponse]:
     """If user issued a reset/clear basket command, execute 0ms deterministic wipe."""
     if not is_reset_command(norm_text):
@@ -43,6 +44,11 @@ async def handle_reset_fast_path(
     clear_history_fn(customer_id)
     session.clear_all()
     reset_order_address_fn(customer_id)
+    if clear_hold_fn is not None:
+        try:
+            await clear_hold_fn(customer_id)
+        except Exception as exc:
+            logger.warning("Fast-path clear_hold failed: %s", exc)
     return NormalizedOutgoingResponse(
         recipient_id=message.sender_id,
         channel=message.channel,

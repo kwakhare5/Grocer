@@ -11,6 +11,9 @@ from backend.agent.formatters import _format_inr
 from backend.agent.product_policy import is_restricted_medical_product
 from backend.config import settings
 from backend.integrations.commerce.exceptions import (
+    AddressNotServiceableError,
+    ItemOutOfStockError,
+    MinOrderNotMetError,
     OrderStateUnknownError,
     ProviderAuthError,
 )
@@ -54,7 +57,21 @@ async def execute_gated_checkout(
             "message": "I couldn't verify your basket. Please review it again before ordering.",
         }
 
-    if not cart or not math.isfinite(cart.grand_total) or cart.grand_total <= 0:
+    if not cart:
+        return {
+            "success": False,
+            "error": "CART_UNAVAILABLE",
+            "retryable": False,
+            "message": "I couldn't verify your basket. Please review it again before ordering.",
+        }
+    if getattr(cart, "is_serviceable", True) is False:
+        return {
+            "success": False,
+            "error": "ADDRESS_NOT_SERVICEABLE",
+            "retryable": False,
+            "message": "Swiggy Instamart is currently unable to deliver to this address (store may be closed or unserviceable).",
+        }
+    if not math.isfinite(cart.grand_total) or cart.grand_total <= 0:
         return {
             "success": False,
             "error": "TOTAL_UNKNOWN",
@@ -248,6 +265,28 @@ async def execute_gated_checkout(
         }
     except ProviderAuthError as exc:
         return {"success": False, "error": "AUTH_EXPIRED", "detail": str(exc)}
+    except ItemOutOfStockError as exc:
+        return {
+            "success": False,
+            "error": "ITEM_OUT_OF_STOCK",
+            "retryable": True,
+            "spin_id": getattr(exc, "spin_id", None),
+            "message": "One of the items in your basket just went out of stock on Swiggy Instamart.",
+        }
+    except AddressNotServiceableError:
+        return {
+            "success": False,
+            "error": "ADDRESS_NOT_SERVICEABLE",
+            "retryable": False,
+            "message": "Swiggy Instamart is currently unable to deliver to this address (store may be closed or unserviceable).",
+        }
+    except MinOrderNotMetError as exc:
+        return {
+            "success": False,
+            "error": "MIN_ORDER_NOT_MET",
+            "retryable": False,
+            "message": str(exc),
+        }
     except OrderStateUnknownError:
         return {
             "success": False,

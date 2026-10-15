@@ -118,12 +118,18 @@ async def execute_manage_basket(
 
             for item, result in zip(normalized_add, search["results"], strict=True):
                 if result.get("error"):
-                    err_str = str(result.get("error"))
-                    if err_str in ("RATE_LIMITED", "AUTH_EXPIRED", "SERVICE_UNAVAILABLE"):
+                    err_str = str(result.get("error")).upper()
+                    if err_str in ("RATE_LIMITED", "AUTH_EXPIRED", "SERVICE_UNAVAILABLE", "STORE_CLOSED", "ADDRESS_NOT_SERVICEABLE"):
                         return {
                             "success": False,
                             "error": result["error"],
                             "retry_after_seconds": result.get("retry_after_seconds"),
+                        }
+                    if "STORE" in err_str or "CLOSED" in err_str or "UNSERVICEABLE" in err_str:
+                        return {
+                            "success": False,
+                            "error": "ADDRESS_NOT_SERVICEABLE",
+                            "message": "The local Swiggy Instamart store is currently closed or unserviceable for this address.",
                         }
                     unavailable_items.append(item["query"])
                     continue

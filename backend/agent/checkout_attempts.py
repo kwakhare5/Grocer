@@ -36,6 +36,14 @@ class PostgresCheckoutAttemptStore:
                  AND payment_deadline_at IS NOT NULL AND payment_deadline_at < now()""",
             customer_id,
         )
+        # Auto-expire stale UNKNOWN attempts older than 5 minutes (300 seconds)
+        await self.pool.execute(
+            """UPDATE grocer_internal.checkout_attempts
+               SET status = 'FAILED', updated_at = now()
+               WHERE customer_id = $1 AND status = 'UNKNOWN'
+                 AND created_at < now() - INTERVAL '300 seconds'""",
+            customer_id,
+        )
         attempt_id = str(uuid.uuid4())
         row = await self.pool.fetchval(
             """INSERT INTO grocer_internal.checkout_attempts

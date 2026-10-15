@@ -12,7 +12,7 @@ from backend.agent.address_resolver import (
     match_explicit_address,
     match_pending_address_choice,
 )
-from backend.agent.approval import cart_fingerprint
+from backend.agent.approval import PendingApproval, cart_fingerprint
 from backend.agent.budget import extract_ingredient_budget, extract_total_budget
 from backend.agent.fast_paths import (
     handle_greeting_or_cancellation_fast_path,
@@ -133,6 +133,7 @@ async def execute_preflight(
         commerce=engine.commerce,
         reset_order_address_fn=engine.reset_customer_order_address,
         clear_history_fn=lambda cid: engine._history.pop(cid, None),
+        clear_hold_fn=engine.attempt_store.clear_unresolved_hold if getattr(engine, "attempt_store", None) else None,
     )
     if reset_resp is not None:
         return PreflightResult(early_response=reset_resp)
@@ -169,16 +170,34 @@ async def execute_preflight(
             else None
         )
         if observed_fingerprint != session.known_cart_fingerprint:
-            session.external_cart_pending = True
-            session.pending_approval = None
-            session.selected_payment_id = None
+            # Bounded price tolerance (Q1): minor fee fluctuations (<= ₹10) proceed smoothly
+            is_minor_fluctuation = False
+            if current_cart and session.pending_approval:
+                old_total = getattr(session, "known_cart_total", None)
+                if old_total is not None:
+                    delta = abs(current_cart.grand_total - old_total)
+                    within_budget = session.budget_inr is None or current_cart.grand_total <= session.budget_inr
+                    if delta <= 10.0 and within_budget:
+                        is_minor_fluctuation = True
+                        session.known_cart_fingerprint = observed_fingerprint
+                        session.known_cart_total = current_cart.grand_total
+                        session.pending_approval = PendingApproval(
+                            fingerprint=observed_fingerprint,
+                            expires_at=session.pending_approval.expires_at,
+                        )
+
+            if not is_minor_fluctuation:
+                session.external_cart_pending = True
+                session.pending_approval = None
+                session.selected_payment_id = None
     if session.external_cart_pending:
-        if norm_text == "use changes" and current_cart:
+        if (norm_text in {"use changes", "yes", "proceed", "confirm", "ok", "accept changes", "use change"} or user_confirmed) and current_cart:
             observed_fingerprint = cart_fingerprint(
                 current_cart, current_cart.address_id or session.address_id or ""
             )
             if observed_fingerprint:
                 session.known_cart_fingerprint = observed_fingerprint
+                session.known_cart_total = current_cart.grand_total
                 session.external_cart_pending = False
                 return PreflightResult(
                     early_response=NormalizedOutgoingResponse(

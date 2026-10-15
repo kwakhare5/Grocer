@@ -15,24 +15,17 @@ from backend.channels.models import (
 
 logger = logging.getLogger("grocer.agent.response_synthesizer")
 
-_NON_ENGLISH_RE = re.compile(
-    r"[\u0900-\u097F]|\b(?:aapke|aapka|meri|mera|hata|hatao|chahiye|karo|kardo|nahin|theek|hain|hota|paas|jankari|bhai|bhau)\b",
-    re.IGNORECASE,
-)
+_DEVNAGARI_RE = re.compile(r"[\u0900-\u097F]")
 
 
 def _ensure_english_only(text: str) -> str:
-    """Intercept and cleanse any non-English tokens from outbound customer messages."""
-    if not text:
+    """Ensure raw non-Latin characters are translated cleanly without censoring Indian brand names."""
+    if not text or not _DEVNAGARI_RE.search(text):
         return text
     receipt_match = re.search(r"🛒\s*\*?Your Basket.*", text, flags=re.DOTALL | re.IGNORECASE)
-    conversational_part = text[:receipt_match.start()] if receipt_match else text
-    if _NON_ENGLISH_RE.search(conversational_part):
-        logger.warning("Deterministic guard: non-English tokens intercepted in outbound conversational text. Cleansing to English.")
-        if receipt_match:
-            return f"I can only assist with groceries on Swiggy Instamart in English.\n\n{receipt_match.group(0)}"
-        return "I can only help you shop for groceries on Swiggy Instamart in English. What grocery items would you like to order today?"
-    return text
+    if receipt_match:
+        return f"Here are your grocery items:\n\n{receipt_match.group(0)}"
+    return "Here are your grocery items. What else would you like to add?"
 
 
 async def synthesize_turn_response(

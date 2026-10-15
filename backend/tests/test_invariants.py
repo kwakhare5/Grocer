@@ -594,5 +594,58 @@ def test_reconcile_explicit_removals_cleans_cart_context_phrases():
     assert reconcile_explicit_removals("delete milk") == ["milk"]
 
 
+def test_cart_edits_allows_quantity_reduction_phrases():
+    from backend.agent.react_loop import validate_cart_edit_calls
+    from unittest.mock import MagicMock
+    item = MagicMock()
+    item.spin_id = "SPIN-MILK"
+    item.name = "Amul Taaza Milk 1L"
+    cart = MagicMock()
+    cart.items = [item]
+
+    calls = [{
+        "name": "update_cart",
+        "args": {"items": [{"spin_id": "SPIN-MILK", "quantity": 2}]}
+    }]
+    # "drop milk from 3 to 2" must be accepted, not rejected
+    assert validate_cart_edit_calls(calls, cart, "drop milk from 3 to 2") is True
+    assert validate_cart_edit_calls(calls, cart, "reduce milk to 2") is True
+
+
+def test_is_invalid_item_plan_allows_branded_spice_recipes():
+    from backend.agent.react_loop import is_invalid_item_plan
+    # Branded spice mix containing the word "recipe" must NOT be considered an invalid plan
+    branded_calls = [{
+        "name": "quick_add_items",
+        "args": {"items": [{"query": "Shan Biryani Recipe Masala", "quantity": 1}]}
+    }]
+    assert is_invalid_item_plan(branded_calls) is False
+
+    # Abstract queries like "all ingredients" or "recipe" alone must still be rejected
+    abstract_calls = [{
+        "name": "quick_add_items",
+        "args": {"items": [{"query": "recipe", "quantity": 1}]}
+    }]
+    assert is_invalid_item_plan(abstract_calls) is True
+
+
+@pytest.mark.asyncio
+async def test_checkout_executor_guards_unserviceable_cart():
+    from backend.agent.checkout_executor import execute_gated_checkout
+    from unittest.mock import AsyncMock, MagicMock
+    commerce = MagicMock()
+    cart = MagicMock()
+    cart.is_serviceable = False
+    cart.grand_total = 150.0
+    cart.currency = "INR"
+    cart.billing_complete = True
+    cart.items = [MagicMock()]
+    commerce.get_cart = AsyncMock(return_value=cart)
+
+    res = await execute_gated_checkout(commerce, cart_id="cart-1", address_id="addr-1", is_user_confirmed=True)
+    assert res["success"] is False
+    assert res["error"] == "ADDRESS_NOT_SERVICEABLE"
+
+
 
 

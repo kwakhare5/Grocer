@@ -41,9 +41,10 @@ from backend.integrations.commerce.models import (
 )
 from backend.integrations.commerce.port import CommercePort
 from backend.integrations.commerce.swiggy_client import SwiggyMcpClient
-from backend.integrations.commerce.swiggy_parsers import (
+from backend.integrations.commerce.catalog_parsers import parse_swiggy_products
+from backend.integrations.commerce.cart_parsers import build_commerce_cart
+from backend.integrations.commerce.order_parsers import (
     build_checkout_order_result,
-    build_commerce_cart,
     normalize_order_status,
     normalize_payment_status,
     parse_delivery_addresses,
@@ -52,7 +53,6 @@ from backend.integrations.commerce.swiggy_parsers import (
     parse_order_details_response,
     parse_orders_summary,
     parse_payment_options,
-    parse_swiggy_products,
 )
 
 logger = logging.getLogger("grocer.integrations.swiggy")

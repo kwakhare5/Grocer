@@ -14,29 +14,15 @@ logger = logging.getLogger("grocer.api.oauth")
 router = APIRouter()
 
 class LoginRequest(BaseModel):
-    ticket: str | None = None
-    phone_number: str | None = None
+    ticket: str
 
 @router.post("/auth/swiggy/login")
 async def swiggy_login(req: LoginRequest) -> dict[str, str]:
-    customer_id = None
-    if req.ticket:
-        customer_id = await default_connect_tickets.consume(req.ticket)
-    elif req.phone_number:
-        clean = re.sub(r"[^\d]", "", req.phone_number)
-        if len(clean) == 10 and clean[0] in "6789":
-            clean = f"91{clean}"
-        if re.fullmatch(r"[1-9][0-9]{6,14}", clean):
-            try:
-                from backend.channels.whatsapp import default_whatsapp_adapter
-                customer_id = default_whatsapp_adapter.map_sender_to_customer_id(clean)
-            except Exception:
-                logger.exception("Could not derive customer ID from phone number")
-
+    customer_id = await default_connect_tickets.consume(req.ticket)
     if customer_id is None:
         raise HTTPException(
             status_code=400,
-            detail="Please provide a valid connection link or WhatsApp phone number.",
+            detail="Invalid or expired connection ticket. Please request a new link in WhatsApp.",
         )
     try:
         authorize_url, state = await default_oauth_manager.initiate_flow(

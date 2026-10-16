@@ -3,7 +3,8 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Any, Optional
+from collections.abc import Awaitable, Callable
+from typing import Any, Optional, TypeVar
 
 from backend.agent.approval import cart_fingerprint
 from backend.config import settings
@@ -11,6 +12,28 @@ from backend.integrations.commerce.exceptions import ProviderAuthError, Provider
 from backend.integrations.commerce.models import CommerceCart
 
 logger = logging.getLogger("grocer.agent.tool_executor")
+
+T = TypeVar("T")
+
+
+async def execute_tool_calls(
+    calls: list[dict[str, Any]], execute: Callable[[dict[str, Any]], Awaitable[T]]
+) -> list[T]:
+    """Execute tool calls sequentially in model order without race conditions."""
+    results: list[T] = []
+    for call in calls:
+        try:
+            results.append(await execute(call))
+        except Exception as exc:
+            tool_name = call.get("name", "unknown")
+            logger.warning("Tool execution error for %s: %s", tool_name, exc)
+            results.append({  # type: ignore[arg-type]
+                "success": False,
+                "error": "TOOL_EXECUTION_ERROR",
+                "tool": tool_name,
+                "message": f"Tool {tool_name} failed: {exc}",
+            })
+    return results
 
 
 async def execute_engine_tool(
@@ -69,6 +92,7 @@ async def execute_engine_tool(
             session.known_cart_fingerprint = result["verified_fingerprint"]
         if result.get("ingredient_spin_ids"):
             session.ingredient_spin_ids = result["ingredient_spin_ids"]
+        return result
     elif name == "quick_add_items":
         session = engine.get_session(customer_id)
         session.pending_approval = None

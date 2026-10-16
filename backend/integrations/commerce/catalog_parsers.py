@@ -86,6 +86,7 @@ def parse_swiggy_products(raw_items: Any) -> list[CommerceProductItem]:
                     pack_size=str(pack_size),
                     price=offer_price,
                     mrp=mrp,
+                    in_stock=is_available,
                     is_available=is_available,
                     is_veg=is_veg,
                     max_quantity=(int(max_allowed) if max_allowed is not None else None),

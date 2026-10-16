@@ -64,20 +64,6 @@ async def _message_worker(app: FastAPI) -> None:
         await asyncio.sleep(2)
 
 
-async def _replenishment_worker(app: FastAPI) -> None:
-    """Refresh consented purchase patterns without delaying inbound WhatsApp turns."""
-    while True:
-        try:
-            await app.state.agent_engine.replenishment_store.refresh_due(
-                app.state.agent_engine.commerce
-            )
-        except asyncio.CancelledError:
-            raise
-        except Exception:
-            logger.exception("Consented purchase history refresh failed; it will retry.")
-        await asyncio.sleep(60)
-
-
 async def _payment_worker(app: FastAPI) -> None:
     """Resume pending UPI payments from PostgreSQL after process restarts."""
     while True:
@@ -98,7 +84,6 @@ async def _lifespan(app: FastAPI):
     pool = None
     worker = None
     outbound_worker = None
-    replenishment_worker = None
     payment_worker = None
     is_live_swiggy = settings.COMMERCE_ADAPTER_TYPE.lower() in ("swiggy", "swiggy_mcp")
     if settings.CHECKOUT_MODE == "live" and not settings.LIVE_CHECKOUT_ENABLED:
@@ -185,12 +170,6 @@ async def _lifespan(app: FastAPI):
                 await worker
             except asyncio.CancelledError:
                 pass
-        if replenishment_worker is not None:
-            replenishment_worker.cancel()
-            try:
-                await replenishment_worker
-            except asyncio.CancelledError:
-                pass
         if payment_worker is not None:
             payment_worker.cancel()
             try:
@@ -232,7 +211,6 @@ def create_app() -> FastAPI:
     app.include_router(health_router)
     app.include_router(whatsapp_router)
     app.include_router(oauth_router, prefix="/api")
-    app.include_router(oauth_router)
     if settings.SIMULATOR_ENABLED:
         if (not settings.SIMULATOR_ACCESS_TOKEN or len(settings.SIMULATOR_ACCESS_TOKEN) < 16
                 or not settings.SIMULATOR_SENDER_ID):

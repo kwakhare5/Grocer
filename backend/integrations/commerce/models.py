@@ -32,6 +32,8 @@ class ProductVariant(BaseModel):
     price: float
     mrp: float
     in_stock: Optional[bool] = None
+    is_available: Optional[bool] = None
+    is_veg: Optional[bool] = None
     sku_id: Optional[str] = None
     offer_price: Optional[float] = None
     image_url: Optional[str] = None

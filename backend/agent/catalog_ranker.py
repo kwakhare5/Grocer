@@ -20,69 +20,20 @@ def _normalize_token(w: str) -> str:
     return w
 
 
-_NEGATIVE_PAIR_EXCLUSIONS = (
-    ("egg", "eggless"),
-    ("sugar", "sugar-free"),
-    ("caffeine", "decaf"),
-    ("dairy", "dairy-free"),
-    ("gluten", "gluten-free"),
-    ("oil", "hair oil"),
-    ("soap", "dishwash"),
-    ("apple", "shampoo"),
-)
-
-_KNOWN_BRANDS = frozenset({
-    "amul", "nandini", "mother dairy", "haldiram", "tata", "epigamia",
-    "fortune", "aashirvaad", "britannia", "saffola", "everest", "mdh",
-    "nestle", "cadbury", "modern", "lay's", "lays", "kurkure", "parle",
-    "surf excel", "vim", "dettol", "colgate", "maggi", "kissan", "bingo",
-    "chitale", "gowardhan", "warana", "katraj", "id fresh", "heritage", "gemini",
-})
-
-
-_DESCRIPTOR_STOPWORDS = frozenset({
-    "fresh", "organic", "good", "best", "sweet", "cooking", "pack", "packs", "packet", "packets",
-    "item", "items", "grocery", "groceries", "piece", "pieces", "buy", "order",
-    "get", "need", "pure", "natural", "daily", "regular", "ripe", "box", "boxes", "bottle", "bottles", "combo",
-    "cold", "chilled", "cow", "toned", "full", "cream", "sharbati", "flour", "atta", "like", "want",
-})
-
-
 def _matches_requested_product(query: str, product: dict[str, Any]) -> bool:
-    """Reject loose provider search hits that do not contain the requested product words."""
-    cleaned_query = re.sub(r"'(?:d|s|m|ll|ve|re)\b", "", query.casefold())
-    raw_words = [
-        w for w in re.findall(r"[a-z]{2,}", cleaned_query)
-        if w not in {"the", "of", "for", "in", "to", "like", "want", "please", "need"}
-    ]
-    if not raw_words:
-        return True
+    """Check if product matches query, avoiding direct negative exclusions."""
+    q_low = query.casefold()
     name = " ".join(
         str(product.get(field) or "")
         for field in ("brand", "product_name", "name", "pack_size")
     ).casefold()
 
-    q_low = query.casefold()
-    for req, forbidden in _NEGATIVE_PAIR_EXCLUSIONS:
-        if re.search(r"\b" + re.escape(req) + r"\b", q_low) and forbidden not in q_low and forbidden in name:
-            return False
-
-    name_tokens = {_normalize_token(t) for t in re.findall(r"[\w]+", name)}
-    matched_core = 0
-    total_core = 0
-    for rw in raw_words:
-        is_desc = rw in _DESCRIPTOR_STOPWORDS
-        if not is_desc:
-            total_core += 1
-        norm_rw = _normalize_token(rw)
-        if norm_rw in name or norm_rw in name_tokens or rw in name:
-            if not is_desc:
-                matched_core += 1
-            continue
-        if is_desc:
-            continue
+    # Guard against accidental opposite matches (e.g., eggless cake when user asked for egg)
+    if "egg" in q_low.split() and "eggless" not in q_low and "eggless" in name:
         return False
-    return total_core == 0 or matched_core > 0
+    if "sugar" in q_low.split() and "sugar-free" not in q_low and "sugar-free" in name:
+        return False
+    return True
 
 
 def _matches_item_name(query: str, item_name: str) -> bool:
@@ -107,19 +58,15 @@ def rank_and_select_best_variant(
     products: list[dict[str, Any]],
     preferred_pack_size: str = "",
 ) -> Optional[dict[str, Any]]:
-    """Deterministically score and pick the single best product variant."""
+    """Deterministically score and pick the single best product variant from provider search hits."""
     valid_candidates = []
     preferred = preferred_pack_size.casefold() if preferred_pack_size else ""
     q_low = query.casefold()
-    req_brand = next(
-        (b for b in _KNOWN_BRANDS if re.search(r"\b" + re.escape(b) + r"\b", q_low)),
-        None,
-    )
-    cleaned_q = re.sub(r"'(?:d|s|m|ll|ve|re)\b", "", query.casefold())
+    cleaned_q = re.sub(r"'(?:d|s|m|ll|ve|re)\b", "", q_low)
     query_words = [
         w
         for w in re.findall(r"[a-z]{2,}", cleaned_q)
-        if w not in {"the", "of", "for", "packet", "packets", "kg", "litre", "ltr", "like", "want"}
+        if w not in {"the", "of", "for", "packet", "packets", "kg", "litre", "ltr", "like", "want", "please", "need"}
     ]
 
     for idx, p in enumerate(products):
@@ -134,19 +81,17 @@ def rank_and_select_best_variant(
 
         name = str(p.get("name") or "").casefold()
         pack = str(p.get("pack_size") or "").casefold()
+        brand = str(p.get("brand") or "").casefold()
 
-        # Strict brand omission: if a specific brand was requested, reject non-brand variants
-        if req_brand and req_brand not in name and req_brand not in str(p.get("brand") or "").casefold():
-            continue
-
+        # Relevance starts with search rank from provider
         score = 100 - idx
         for qw in query_words:
-            if qw in name:
+            if qw in name or qw in brand:
                 score += 25
         if preferred and (preferred in pack or preferred in name):
             score += 50
 
-        # Decision 5A: Heavy bundle penalty for multipacks/combos when user didn't ask for bulk
+        # Multipack vs single household pack preferences
         is_user_requesting_bulk = bool(re.search(r"\b(?:packs?|multipacks?|combos?|bundles?|dozen|boxes?|cases?|\d+\s*x)\b", q_low))
         is_product_bundle = bool(re.search(r"\b(?:\d+\s*x\s*\d+|x\s*\d+|pack of \d+|bundle|combo|buy \d+ get \d+)\b", f"{name} {pack}"))
         if is_product_bundle and not is_user_requesting_bulk:
@@ -154,7 +99,6 @@ def rank_and_select_best_variant(
         elif is_product_bundle and is_user_requesting_bulk:
             score += 50
         elif not is_product_bundle:
-            # Boost standard single household packs
             score += 30
 
         valid_candidates.append(

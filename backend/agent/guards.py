@@ -156,9 +156,7 @@ def is_reset_command(text: str) -> bool:
     if cleaned in _RESET_COMMANDS:
         return True
     # If the user mentions a specific product/ingredient or specifies items to remove, it's not a full purge
-    if re.search(r"\b(?:remove|delete|clear|drop)\s+all\s+(?:the\s+)?\w+", cleaned):
-        return False
-    if re.search(r"\b(?:bread|milk|egg|apple|banana|butter|cheese|curd|dahi|paneer|atta|rice|oil|dal|onion|potato|tomato|tea|coffee|sugar|salt)\b", cleaned):
+    if re.search(r"\b(?:remove|delete|clear|drop)\s+(?:all\s+)?(?:the\s+)?(?!cart\b|basket\b|items?\b|all\b|everything\b)\b[a-z]{3,}\b", cleaned):
         return False
     return bool(_RESET_COMMAND_REGEX.search(cleaned))
 
@@ -201,7 +199,7 @@ def is_hesitation(text: str) -> bool:
     # Exclude common false positives: transportation stops and shopping sentences
     if re.search(r"\b(?:bus|auto|metro|train|taxi|cab|car|full|non)\s+stop\b", cleaned):
         return False
-    if re.search(r"\b(?:add|buy|order|deliver|get|need|bring|send|pack|basket|cart|milk|bread|egg)\b", cleaned):
+    if re.search(r"\b(?:add|buy|order|deliver|get|need|bring|send|pack|basket|cart)\b", cleaned):
         return False
     return bool(_HESITATION_REGEX.search(cleaned))
 
@@ -211,7 +209,7 @@ _NEGATION_CONFIRM_REGEX = re.compile(
 )
 _SHOPPING_ITEM_OR_ACTION_REGEX = re.compile(
     r"(?i)\b(?:add|bring|need|want|remove|drop|delete|swap|change)\b"
-    r"|\b(?:order|place)\s+(?:\d+|some|a|an|few|two|one|packets?|kg|litres?|milk|bread|eggs?|groceries|items|curd|dahi|paneer|atta|rice|oil)\b"
+    r"|\b(?:order|place)\s+(?!\b(?:order|now|karo|kar\s*do|the\s+order|this\s+order|my\s+order)\b)\b[\w-]+\b"
 )
 _AFFIRMATIVE_STANDALONE_REGEX = re.compile(
     r"(?i)^\s*(?:yes|yeah|yep|yup|haan(?:ji)?|ok|okay|sure|proceed|checkout|pay|book\s+it|send\s+it|do\s+it|go\s+ahead|sounds?\s+good|looks?\s+good|good\s+to\s+go|all\s+good|perfect|all\s+set|cool|theek\s+hai(?:.*?kar\s*do)?|haan\s+kar\s*do|haan\s+place\s*karo)(?:\s+(?:please|now|boss|bhai))?\s*[.!]?\s*$"

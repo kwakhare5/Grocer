@@ -46,8 +46,6 @@ async def execute_select_delivery_address(
         return {"success": False, "error": "address_id is required."}
     try:
         addresses: list[DeliveryAddress] = await commerce.get_addresses(customer_id)
-        if not addresses and (settings.CHECKOUT_MODE == "review" or not getattr(commerce, "is_live", False)):
-            addresses = [_PUNE_REVIEW_ADDRESS]
         matched = next((a for a in addresses if str(a.id) == str(address_id)), None)
         if not matched:
             return {

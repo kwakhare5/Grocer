@@ -18,7 +18,6 @@ class Settings(BaseSettings):
     SWIGGY_REDIRECT_URI: str = "https://grocerr.vercel.app/"
     CONNECT_BASE_URL: str = "https://grocerr.vercel.app"
     CORS_ALLOWED_ORIGINS: str = "https://grocerr.vercel.app"
-    AI_PROVIDER: Literal["gemini"] = "gemini"
     GEMINI_API_KEY: str | None = None
     GEMINI_MODEL: str = "gemini-3.5-flash"
     GEMINI_FALLBACK_MODEL: str = "gemini-3-flash-preview"

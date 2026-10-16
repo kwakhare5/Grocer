@@ -129,7 +129,7 @@ Grocer:   "Got it! Adjusted your bread reminder. Added 1x Toned Milk 500ml (₹2
                                           │
                                           ▼
    ┌─────────────────────────────────────────────────────────────────────────────┐
-   │                    Agent Engine (Gemini 3.5 Flash-Lite)                     │
+   │                    Agent Engine (Gemini 3.5 Flash)                          │
    │  • Meal & grocery intent decomposition                                      │
    │  • Multi-turn conversational history & pending request memory               │
    │  • Constraint bounds & budget ceiling enforcement                           │
@@ -188,7 +188,7 @@ sequenceDiagram
 - **Node.js**: 20+ (`node --version`)
 - **npm**: 10+ (`npm --version`)
 - **PostgreSQL**: 16 (Supabase cloud connection or local instance for E2E tests)
-- **Google AI Studio Key**: API key for Gemini 3.5 Flash-Lite
+- **Google AI Studio Key**: API key for Gemini 3.5 Flash
 
 ---
 
@@ -207,9 +207,8 @@ cp .env.example .env
 ```
 Fill in your required secrets:
 ```ini
-AI_PROVIDER=gemini
 GEMINI_API_KEY=your_gemini_api_key_here
-GEMINI_MODEL=gemini-3.5-flash-lite
+GEMINI_MODEL=gemini-3.5-flash
 COMMERCE_ADAPTER_TYPE=mock
 DATA_ENCRYPTION_KEY=your_32_byte_base64_encryption_key
 ```
@@ -225,9 +224,9 @@ npm install
 ```
 
 ### 5. Run the Verification Suite
-Run the 94-test invariant and integration test suite:
+Run the 114-test verification suite:
 ```powershell
-pytest
+pytest backend/tests/test_invariants.py
 npm run lint
 ```
 
@@ -256,20 +255,20 @@ Grocer provides two ways to inspect and test conversations:
 
 ---
 
-## Testing & Verification (94 Tests)
+## Testing & Verification (114 Tests)
 
 Grocer enforces a **zero-cheat invariant testing philosophy**. Tests never mock internal modules or database tables—they mock only external third-party network APIs (Meta and Swiggy).
 
 ```powershell
-# Run the complete 94-test battery (13 invariants + 81 integration cases)
+# Run the complete 114-test battery (33 invariants + 81 integration cases)
 pytest
 ```
 
-### Test Suite Structure (94 Tests Total)
+### Test Suite Structure (114 Tests Total)
 
 | Suite | Focus | Tests | What It Proves |
 |---|---|:---:|---|
-| **Deterministic Invariants** | `test_invariants.py` | 13 | Rupee budget ceilings, token redaction, signature verification, zero unselected item mutations, address privacy sanitization |
+| **Deterministic Invariants** | `test_invariants.py` | 33 | Rupee budget ceilings, token redaction, signature verification, zero unselected item mutations, address privacy sanitization |
 | **Turn Recovery & Intent Safety** | `turn_recovery.py` | 4 | Crashed turn recovery, zero address demand on greeting, empty cart preservation, uncertain turn alerts |
 | **Planning, Integrity & Repairs** | `planning_and_orders.py`, `planning_repairs.py` | 10 | Unselected SKU protection, ordinal references ("the second one"), Hinglish searches, recipe repair turns |
 | **Cart & Variant Disambiguation** | `cart_and_addresses.py`, `address_disambiguation.py` | 10 | Exact variant choices before writes, rate-limit backoff, retry memory preservation, multi-address resolution |
@@ -285,10 +284,9 @@ pytest
 |---|:---:|:---:|---|
 | `DATABASE_URL` | Yes (Prod) | - | PostgreSQL connection URL (e.g. Supabase connection pooler) |
 | `DATA_ENCRYPTION_KEY` | Yes | - | 32-byte Fernet key for encrypting stored OAuth credentials |
-| `AI_PROVIDER` | Yes | `gemini` | Primary AI provider (`gemini`) |
 | `GEMINI_API_KEY` | Yes | - | Google AI Studio API key |
-| `GEMINI_MODEL` | No | `gemini-3.5-flash-lite` | Gemini model for intent parsing and planning |
-| `GEMINI_FALLBACK_MODEL` | No | `gemini-flash-lite-latest` | Fallback model used if the primary model hits transient quotas |
+| `GEMINI_MODEL` | No | `gemini-3.5-flash` | Gemini model for intent parsing and planning |
+| `GEMINI_FALLBACK_MODEL` | No | `gemini-3-flash-preview` | Fallback model used if the primary model hits transient quotas |
 | `COMMERCE_ADAPTER_TYPE` | No | `swiggy` | Adapter implementation (`swiggy` for live MCP, `mock` for offline dev) |
 | `WHATSAPP_PHONE_NUMBER_ID` | Yes (Prod) | - | Meta WhatsApp Cloud API Phone Number ID |
 | `WHATSAPP_ACCESS_TOKEN` | Yes (Prod) | - | Meta System User Graph API access token |
@@ -307,7 +305,7 @@ For evaluators reviewing the Swiggy Builders Club submission:
 - [x] **Zero Drift**: Never builds dark-store dashboards, fleet logistics, or generic bots; Grocer is dedicated exclusively to intent-preserving consumer grocery replenishment.
 - [x] **Autonomous Gated Checkout**: Server-side approval gate requires explicit customer confirmation before any order attempt is executed.
 - [x] **Privacy Sanitization**: Delivery addresses strip private flat and building numbers down to safe area labels (e.g. `Home (Koramangala, Bengaluru)`).
-- [x] **Production Verification**: 94 tests passing 100% green; live endpoints deployed on Render (`/ready`) and Vercel.
+- [x] **Production Verification**: 114 tests passing 100% green; live endpoints deployed on Render (`/ready`) and Vercel.
 
 ---
 
@@ -319,7 +317,6 @@ Grocer/
 │   ├── agent/                      # Core agent reasoning & conversation orchestration
 │   │   ├── engine.py               # Facade for incoming WhatsApp message handling
 │   │   ├── react_coordinator.py    # Multi-turn conversational loop & tool execution
-│   │   ├── react_loop.py           # Gemini tool-call scheduler & fallback dispatcher
 │   │   ├── basket_manager.py       # Cart state synchronizer & item mutation ledger
 │   │   ├── replenishment.py        # Household cadence calculation & restock predictions
 │   │   ├── budget.py               # Rupee ceiling validation & overage preventer
@@ -336,10 +333,13 @@ Grocer/
 │   │   └── message_store.py        # PostgreSQL message ledger & burst debouncer
 │   ├── integrations/commerce/      # Swiggy Instamart integration
 │   │   ├── swiggy_adapter.py       # Live MCP client & MockCommerceAdapter
+│   │   ├── catalog_parsers.py      # Swiggy dark-store catalog response parsing
+│   │   ├── cart_parsers.py         # Dynamic cart & fee breakdown normalization
+│   │   ├── order_parsers.py        # Order creation, status & live delivery tracking
 │   │   ├── port.py                 # Abstract CommercePort contract
 │   │   └── token_vault.py          # Encrypted customer credential vault
 │   └── tests/                      # Verification test battery
-│       ├── test_invariants.py      # 13 deterministic system invariant tests
+│       ├── test_invariants.py      # 33 deterministic system invariant tests
 │       ├── test_whatsapp_postgres_e2e.py # 81 integration tests across all flows
 │       └── suites/                 # Modular test suites by feature domain
 ├── app/                            # Next.js 16 App Router frontend

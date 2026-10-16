@@ -8,7 +8,7 @@ from typing import Any, Optional
 from backend.agent.schemas import RAW_TOOL_DECLARATIONS
 from backend.agent.tools import SwiggyAgentTools
 from backend.agent.gemini import GeminiClient
-from backend.agent.receipts import (
+from backend.agent.formatters import (
     build_address_choice_response,
     build_auth_expired_response,
     build_connect_url,
@@ -31,7 +31,6 @@ from backend.config import settings
 from backend.integrations.commerce.models import CommerceCart
 from backend.integrations.commerce.port import CommercePort
 from backend.agent.prompts import (
-    _SHOPPING_PLAN_PROMPT,
     build_system_instruction,
 )
 
@@ -109,8 +108,8 @@ class GroceryAgentEngine:
         self.state_store = state_store
         self.replenishment_store = replenishment_store
         self.gemini_api_key = gemini_api_key or getattr(settings, "GEMINI_API_KEY", None)
-        self.gemini_model = gemini_model or getattr(settings, "GEMINI_MODEL", "gemini-3.5-flash-lite")
-        self.gemini_fallback_model = gemini_fallback_model or getattr(settings, "GEMINI_FALLBACK_MODEL", "gemini-3.5-flash-lite")
+        self.gemini_model = gemini_model or getattr(settings, "GEMINI_MODEL", "gemini-3.5-flash")
+        self.gemini_fallback_model = gemini_fallback_model or getattr(settings, "GEMINI_FALLBACK_MODEL", "gemini-3-flash-preview")
         self.timeout = timeout
         # Single authoritative CustomerSession map with synchronized views
         self._sessions: dict[str, Any] = {}

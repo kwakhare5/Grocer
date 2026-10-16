@@ -17,6 +17,13 @@ During the Session End ritual (called automatically whenever significant changes
 
 ### [GROCER — Architecture Simplification & Core Overhaul] 2026-10-16
 
+#### Work Card: Permanent Elimination of Keyword Traps, Hollow Shims, and Subsystem Micro-Management
+
+- **Problem**: (1) Python word bouncers (`_KNOWN_BRANDS`, `_DESCRIPTOR_STOPWORDS`, `_matches_requested_product`, and 20-food reset lists) rejected authentic user searches and Hindi/Hinglish groceries; (2) Critical backend defects: unauthenticated OAuth backdoor (`req.phone_number`), 30s `UNKNOWN` auto-purge causing double billing, catalog parser `in_stock` field mismatch, and `manage_basket` missing return value; (3) Hollow stubs (`receipts.py`, `swiggy_parsers.py`, `react_loop.py`, `tool_scheduler.py`) and unstarted background workers lingered as dead weight; (4) Stale model references (`gemini-3.5-flash-lite`) and outdated 94-test / 500-line documentation contradicted codebase reality.
+- **Change**: Deleted hardcoded brand lists, stop words, and keyword traps in `catalog_ranker.py` and `guards.py`; fixed `in_stock` in `catalog_parsers.py` and `models.py`, removed OAuth phone backdoor in `oauth.py`, extended auto-expire to 300s in `checkout_attempts.py`, and added `return result` to `tool_executor.py`; deleted hollow re-export files (`receipts.py`, `swiggy_parsers.py`, `react_loop.py`, `tool_scheduler.py`), pruned dead `AI_PROVIDER` and unstarted replenishment worker; synchronized all docs (`README.md`, `ARCHITECTURE.md`, `backend/tests/README.md`, `render.yaml`, `.env.example`) to `gemini-3.5-flash` and 114 tests.
+- **Proof**: `pytest backend/tests/test_invariants.py` passed 33/33 (0.53s); `npm run lint` exited 0 with 0 errors; `graphify update .` rebuilt 1394 nodes and 3023 edges cleanly.
+- **Still broken**: None. Zero test skips, zero lint warnings, zero artificial word bouncers.
+
 #### Work Card: Eradication of Conversational Traps, 500-Line Artificial Ceilings, and LLM Micro-Management
 
 - **Problem**: (1) Fragile regexes and keywords trapped users ("remove all bread" wiped whole cart, "bus stop" triggered hesitation lock, "bring/send" cold medicine locked suggestion mode); (2) Catalog brand ranking crashed on contractions ("I'd like milk" scored None) and reversed cache keys in search delayed queries by 2.8s; (3) Artificial 500-line ceilings fractured single jobs into circular sub-modules (`react_coordinator`, `react_loop`, `tool_scheduler`, `tool_executor`); (4) Out-of-stock items locked checkout confirm buttons permanently and Pune address fallback hallucinated locations; (5) Stale model references targeted non-existent "gemini-3.5-flash-lite".

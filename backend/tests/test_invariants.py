@@ -322,7 +322,7 @@ def test_get_commerce_adapter_reuses_swiggy_singleton():
 @pytest.mark.asyncio
 async def test_tool_scheduler_survives_partial_read_failure():
     """Fault-tolerant tool scheduler must not crash entire batch when an optional read tool throws."""
-    from backend.agent.tool_scheduler import execute_tool_calls
+    from backend.agent.tool_executor import execute_tool_calls
 
     async def mock_execute(call):
         if call.get("name") == "get_saved_addresses":
@@ -640,7 +640,7 @@ def test_reconcile_explicit_removals_cleans_cart_context_phrases():
 
 
 def test_cart_edits_allows_quantity_reduction_phrases():
-    from backend.agent.react_loop import validate_cart_edit_calls
+    from backend.agent.react_coordinator import validate_cart_edit_calls
     from unittest.mock import MagicMock
     item = MagicMock()
     item.spin_id = "SPIN-MILK"
@@ -658,7 +658,7 @@ def test_cart_edits_allows_quantity_reduction_phrases():
 
 
 def test_is_invalid_item_plan_allows_branded_spice_recipes():
-    from backend.agent.react_loop import is_invalid_item_plan
+    from backend.agent.react_coordinator import is_invalid_item_plan
     # Branded spice mix containing the word "recipe" must NOT be considered an invalid plan
     branded_calls = [{
         "name": "quick_add_items",

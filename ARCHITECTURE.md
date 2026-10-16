@@ -12,7 +12,7 @@ Meta WhatsApp Cloud Webhook
   → FastAPI HMAC-SHA256 signature verification & rapid burst debouncing
   → PostgreSQL inbound_messages (durable commit before HTTP 200 ACK)
   → Customer-serialized worker (per-phone asyncio.Lock)
-  → GroceryAgentEngine (Gemini 3.5 Flash-Lite ReAct loop)
+  → GroceryAgentEngine (Gemini 3.5 Flash ReAct loop)
       ├── Address Sanitizer: resolves destination as Label (Area, City)
       ├── Intent Preservation: atomic multi-turn basket edits (manage_basket)
       ├── Replenishment Engine: cadence checks via grocer_internal.replenishment
@@ -34,7 +34,7 @@ Meta WhatsApp Cloud Webhook
 
 ## 3. Conversational Reasoning & Intent Preservation
 
-- **Gemini 3.5 Flash-Lite Engine**: Google Gemini acts as the reasoning engine (~1.2s turn latency), handling compound meal requests (decomposing recipes into concrete items), Indian grocery vocabulary mapping, and catalog search queries.
+- **Gemini 3.5 Flash Engine**: Google Gemini acts as the reasoning engine (~1.2s turn latency), handling compound meal requests (decomposing recipes into concrete items), Indian grocery vocabulary mapping, and catalog search queries.
 - **Intent Preservation**: Rather than wiping state between turns, the engine preserves active shopping items, dietary exclusions, and budget caps across conversational amendments. Edits ("drop sauce, make bread 2") execute atomically without losing previously selected items.
 - **Replenishment Cadence**: Consented purchase history is encrypted with Fernet in `grocer_internal.replenishment`. The system computes median repurchase intervals for staples (milk, eggs, bread) and answers restock queries conversationally (`check_replenishment`), accepting user stock corrections ("I have enough milk for 4 days") without mutating the active cart.
 
@@ -61,23 +61,24 @@ Meta WhatsApp Cloud Webhook
 
 ## 6. Modular Subsystem Architecture
 
-All backend modules strictly adhere to single-responsibility bounds (<500 lines per file):
+All backend modules adhere to single-responsibility domain boundaries:
 
 ### Conversational Agent (`backend/agent/`)
 - `engine.py` & `react_coordinator.py`: Master turn executor and multi-step ReAct reasoning coordinator.
 - `session_manager.py`: Per-customer concurrency serialization (`asyncio.Lock`) and session resumption.
-- `variant_manager.py`: Deterministic catalog candidate disambiguation and numbered option selection (`1A`, `1B`).
 - `basket_manager.py`: Non-destructive delta basket merging and quantity updates.
+- `catalog_ranker.py`: Relevance scoring and pack size heuristics for dark-store product candidates.
 - `address_resolver.py` & `address_tools.py`: Delivery destination privacy sanitization and structured area/city extraction.
 - `guards.py`: Hard budget verification, hesitation phrase detection, and negation-first confirmation filtering.
 - `preflight_handler.py`: Fast-path intake validation, conversational greetings, and intent routing.
-- `receipt_builders.py`: Deterministic receipt math formatting and Meta 1,024-character message chunking.
+- `formatters.py`: Deterministic receipt math formatting and Meta 1,024-character message chunking.
 - `replenishment.py`: Encrypted purchase habit analysis and predictive restock cadence estimation.
 - `checkout_attempts.py` & `task_state.py`: Durable task snapshot storage and restart-resilient order reconciliation.
 
 ### Commerce Integration (`backend/integrations/commerce/`)
 - `port.py`: Clean abstract `CommercePort` contract defining catalog search, cart operations, addresses, and checkout.
 - `swiggy_adapter.py`: Production Swiggy Instamart MCP client (`https://mcp.swiggy.com/im`) implementing all 14 official MCP tools over HTTP/2.
+- `catalog_parsers.py`, `cart_parsers.py`, `order_parsers.py`: Focused domain parsers for Swiggy catalog, active cart calculations, and order tracking.
 - `mock_adapter.py`: Deterministic offline adapter with local catalog for zero-cost integration testing.
 - `token_vault.py`: Fernet-encrypted PostgreSQL vault for customer OAuth credentials.
 - `connect_tickets.py`: Single-use 10-minute ticket generator binding WhatsApp identities to OAuth flows.
@@ -90,8 +91,8 @@ All backend modules strictly adhere to single-responsibility bounds (<500 lines 
 
 ## 7. Verification & Testing Strategy
 
-- **94 Total Tests (100% Green)**:
-  - **13 Invariant Tests** (`backend/tests/test_invariants.py`): Pure deterministic guards verifying budget ceilings, negation safety, receipt splitting, and cryptographic token vaults.
+- **114 Total Tests (100% Green)**:
+  - **33 Invariant Tests** (`backend/tests/test_invariants.py`): Pure deterministic guards verifying budget ceilings, negation safety, receipt splitting, and cryptographic token vaults.
   - **81 End-to-End Integration Tests** (`backend/tests/test_whatsapp_postgres_e2e.py` & `suites/`): Verifying signed webhooks, customer concurrency locks, multi-turn basket edits, recipe ingredient decomposition, replenishment consent, and restart recovery.
 - **Anti-Cheat & Zero-Mock Policy**: Zero mocking of internal database tables, schemas, or application modules. Mocks are restricted solely to external billable network boundaries (Meta Graph API, Gemini API, Swiggy MCP).
 - **Done Condition**: Any task is complete only when both `pytest` and `npm run lint` exit 0.

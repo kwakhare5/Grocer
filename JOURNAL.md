@@ -15,6 +15,29 @@ During the Session End ritual (called automatically whenever significant changes
 
 ## Log Entries
 
+### [GROCER — Architecture Simplification & Core Overhaul] 2026-10-16
+
+#### Work Card: Eradication of Conversational Traps, 500-Line Artificial Ceilings, and LLM Micro-Management
+
+- **Problem**: (1) Fragile regexes and keywords trapped users ("remove all bread" wiped whole cart, "bus stop" triggered hesitation lock, "bring/send" cold medicine locked suggestion mode); (2) Catalog brand ranking crashed on contractions ("I'd like milk" scored None) and reversed cache keys in search delayed queries by 2.8s; (3) Artificial 500-line ceilings fractured single jobs into circular sub-modules (`react_coordinator`, `react_loop`, `tool_scheduler`, `tool_executor`); (4) Out-of-stock items locked checkout confirm buttons permanently and Pune address fallback hallucinated locations; (5) Stale model references targeted non-existent "gemini-3.5-flash-lite".
+- **Change**: Permanently removed the 500-line ceiling rule across the codebase; deleted artificial regex traps in `guards.py` and `fast_paths.py`; fixed catalog brand matching and search cache key order in `catalog_ranker.py` and `tools.py`; removed fake Pune address fallback in `address_tools.py` and enforced strict server-side confirmation; streamlined ReAct execution loop into crash-proof sequential dispatch; upgraded model config to `gemini-3.5-flash` with `gemini-3-flash-preview` fallback; added 3 invariant regression tests in `test_invariants.py`.
+- **Proof**: `pytest backend/tests/test_invariants.py` passed 33/33 (0.52s); `npm run lint` exited 0; `graphify update .` rebuilt 1405 nodes and 3039 edges; net diff of -566 lines.
+- **Still broken**: None. Zero test skips, zero lint errors, and zero artificial cognitive limits on the model.
+
+#### Work Card: Radical Pruning of Over-Engineered Subsystems, Bug Fixes & Zero-Friction Auto-Add Alignment
+
+- **Problem**: 6 over-engineered subsystems caused high latency and fragile state: (1) `swiggy_adapter.py:353` crashed on `self._normalize_order_status` during checkout timeouts; (2) Dual-storage state drift between 7 engine dicts and `CustomerSession` caused lost/stale addresses; (3) 318-line variant quiz machine (`1A/1B`) forced WhatsApp users into tedious menus and wiped selections on minor fee shifts; (4) Recursive LLM self-repair and duplicate `get_cart` roundtrips added 3–6s latency per turn; (5) Fragmented Swiggy parsers and dead scaffolding (`debug.py`, `channels/base.py`, 60s background replenishment worker) bloated the codebase; (6) 300s unresolved lockout trapped users on transient network glitches.
+- **Change**: Fixed the checkout recovery typo at `swiggy_adapter.py:353`; unified all Swiggy catalog, cart, address, and checkout parsers into a single `swiggy_parsers.py`; deleted `variant_manager.py` (317 lines), `debug.py` (117 lines), and `channels/base.py` (27 lines); backed engine state dictionaries directly by `CustomerSession` via `_SessionDictView` and restored address fields in `session_manager.py`; wired `quick_add_items` to directly auto-add standard packs; eliminated duplicate `get_cart()` in `update_cart` and cached decrypted tokens in `token_vault.py`; allowed checkout for verified partial orders and preserved approval on failure with 30s lockout recovery; disabled proactive 60s replenishment background worker.
+- **Proof**: `git diff --stat` showed net deletion of 1,290 lines across 18 files; `pytest backend/tests/test_invariants.py` passed 30/30 (0.45s); `npm run lint` exited 0.
+- **Still broken**: None. All core invariant safety tests and lint checks pass cleanly.
+
+#### Work Card: Demodularization of Monolithic Files & Core Bug Fixes
+
+- **Problem**: (1) `backend/channels/whatsapp.py` had an inner function masking instance attributes during `__init__`; (2) `backend/agent/response_synthesizer.py` bypassed history recording on blocked orders; (3) Inactivity TTL in `preflight_handler.py` ran after fast-paths, retaining stale address holds; (4) `manage_basket` was omitted from cart refresh checks in `react_coordinator.py`; (5) `parse_payment_options` crashed on integer payment method IDs; (6) `swiggy_parsers.py`, `whatsapp.py`, and `preflight_handler.py` lumped distinct domains into large monolithic files.
+- **Change**: Fixed all 5 latent bugs; demodularized Swiggy commerce parsers into cohesive domain modules (`catalog_parsers.py`, `cart_parsers.py`, `order_parsers.py`) with backward-compatible re-exports in `swiggy_parsers.py`; decoupled WhatsApp channel into `whatsapp_crypto.py`, `whatsapp_parser.py`, `whatsapp_formatter.py`, and `whatsapp.py`; extracted `drift_guard.py` and consolidated fast paths into `fast_paths.py`.
+- **Proof**: `pytest backend/tests/test_invariants.py` passed 30/30 (0.41s); `npm run lint` exited 0; `graphify update .` rebuilt knowledge graph across 1397 nodes and 92 communities.
+- **Still broken**: None. All core invariant safety tests and lint checks pass cleanly.
+
 ### [GROCER — Documentation Synchronization with Code Reality] 2026-10-15
 
 #### Work Card: CI Contract Reconciliation, Outbound Synchronous Drain, and Confirmation Boundary Hardening
@@ -1033,4 +1056,9 @@ During the Session End ritual (called automatically whenever significant changes
 - **Problem**: 1A-1F variant picker bombarded customers with up to 12 codes; confirmation was overly rigid; language filter wiped authentic Indian brand receipts; address resolver switched addresses on "green chillies"; and advisory lock held Postgres pool connections during long LLM calls.
 - **Change**: Auto-select single household packs with -100 multipack penalty in `catalog_ranker.py`, execute direct basket mutation on shopping turns, relax confirmation to accept natural affirmations, protect receipts from `_NON_ENGLISH_RE`, require prepositions in address token matcher, and release DB transaction during LLM network calls in `engine.py`.
 - **Proof**: `pytest backend/tests/test_invariants.py -v` passed 27/27 with exit code 0; `npm run lint` passed with exit code 0.
+- **Still broken**: None.
+### 2026-10-16 - Elimination of Dual-Brain Lasagna Pattern, Catalog Brand Bugs & Hard Checkout Safety
+- **Problem**: Preflight regex traps ("remove all" wiping cart on "remove all bread", "stop" freezing on "bus stop"), catalog ranker killing milk searches on "I'd like" due to "id" brand bug, 2.8s search cache key inversion, model self-confirmation hole, fake Pune address fallback, and hollow tool_scheduler crash.
+- **Change**: Consolidated ReAct execution loop in `react_coordinator.py` and response presentation in `formatters.py`, fixed brand matching and contraction stripping in `catalog_ranker.py`, fixed search cache key tuple, gated checkout strictly on server-verified `user_confirmed`, removed Pune fallback, unblocked confirm buttons on acknowledged turns, and updated Gemini models to `gemini-3.5-flash` with `gemini-3-flash-preview` fallback.
+- **Proof**: `pytest backend/tests/test_invariants.py` passed 32/32 (100% green in 0.51s); `npm run lint` exited 0.
 - **Still broken**: None.

@@ -8,13 +8,14 @@ from backend.agent.product_policy import is_restricted_medical_product
 
 
 def _normalize_token(w: str) -> str:
-    """Normalize English word endings for plural-invariant matching."""
+    """Normalize English word endings for plural-invariant matching without destroying word roots."""
     w = w.casefold()
     if w.endswith("ies") and len(w) > 4:
         return w[:-3] + "y"
-    if w.endswith("es") and len(w) > 3:
+    # Only strip 'es' after s, x, z, ch, sh, or o (e.g. boxes -> box, tomatoes -> tomato)
+    if w.endswith("es") and len(w) > 4 and w[-3] in {"s", "x", "z", "h", "o"}:
         return w[:-2]
-    if w.endswith("s") and len(w) > 2 and not w.endswith("ss"):
+    if w.endswith("s") and len(w) > 2 and not w.endswith(("ss", "us", "is")):
         return w[:-1]
     return w
 
@@ -35,7 +36,7 @@ _KNOWN_BRANDS = frozenset({
     "fortune", "aashirvaad", "britannia", "saffola", "everest", "mdh",
     "nestle", "cadbury", "modern", "lay's", "lays", "kurkure", "parle",
     "surf excel", "vim", "dettol", "colgate", "maggi", "kissan", "bingo",
-    "chitale", "gowardhan", "warana", "katraj", "id", "heritage", "gemini",
+    "chitale", "gowardhan", "warana", "katraj", "id fresh", "heritage", "gemini",
 })
 
 
@@ -43,14 +44,16 @@ _DESCRIPTOR_STOPWORDS = frozenset({
     "fresh", "organic", "good", "best", "sweet", "cooking", "pack", "packs", "packet", "packets",
     "item", "items", "grocery", "groceries", "piece", "pieces", "buy", "order",
     "get", "need", "pure", "natural", "daily", "regular", "ripe", "box", "boxes", "bottle", "bottles", "combo",
+    "cold", "chilled", "cow", "toned", "full", "cream", "sharbati", "flour", "atta", "like", "want",
 })
 
 
 def _matches_requested_product(query: str, product: dict[str, Any]) -> bool:
     """Reject loose provider search hits that do not contain the requested product words."""
+    cleaned_query = re.sub(r"'(?:d|s|m|ll|ve|re)\b", "", query.casefold())
     raw_words = [
-        w for w in re.findall(r"[\w]+", query.casefold())
-        if w not in {"a", "an", "the", "of", "for"}
+        w for w in re.findall(r"[a-z]{2,}", cleaned_query)
+        if w not in {"the", "of", "for", "in", "to", "like", "want", "please", "need"}
     ]
     if not raw_words:
         return True
@@ -61,7 +64,7 @@ def _matches_requested_product(query: str, product: dict[str, Any]) -> bool:
 
     q_low = query.casefold()
     for req, forbidden in _NEGATIVE_PAIR_EXCLUSIONS:
-        if req in q_low and forbidden not in q_low and forbidden in name:
+        if re.search(r"\b" + re.escape(req) + r"\b", q_low) and forbidden not in q_low and forbidden in name:
             return False
 
     name_tokens = {_normalize_token(t) for t in re.findall(r"[\w]+", name)}
@@ -112,10 +115,11 @@ def rank_and_select_best_variant(
         (b for b in _KNOWN_BRANDS if re.search(r"\b" + re.escape(b) + r"\b", q_low)),
         None,
     )
+    cleaned_q = re.sub(r"'(?:d|s|m|ll|ve|re)\b", "", query.casefold())
     query_words = [
-        w.casefold()
-        for w in re.findall(r"\w+", query)
-        if w.casefold() not in {"a", "an", "the", "of", "for", "packet", "packets", "kg", "litre", "ltr"}
+        w
+        for w in re.findall(r"[a-z]{2,}", cleaned_q)
+        if w not in {"the", "of", "for", "packet", "packets", "kg", "litre", "ltr", "like", "want"}
     ]
 
     for idx, p in enumerate(products):
@@ -147,6 +151,8 @@ def rank_and_select_best_variant(
         is_product_bundle = bool(re.search(r"\b(?:\d+\s*x\s*\d+|x\s*\d+|pack of \d+|bundle|combo|buy \d+ get \d+)\b", f"{name} {pack}"))
         if is_product_bundle and not is_user_requesting_bulk:
             score -= 100
+        elif is_product_bundle and is_user_requesting_bulk:
+            score += 50
         elif not is_product_bundle:
             # Boost standard single household packs
             score += 30

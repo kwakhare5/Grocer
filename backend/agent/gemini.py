@@ -15,8 +15,8 @@ class GeminiClient:
     def __init__(
         self,
         api_key: str,
-        primary_model: str = "gemini-3.5-flash-lite",
-        fallback_model: str = "gemini-3.5-flash-lite",
+        primary_model: str = "gemini-3.5-flash",
+        fallback_model: str = "gemini-3-flash-preview",
         timeout: float = 30.0,
     ) -> None:
         self.api_key = api_key

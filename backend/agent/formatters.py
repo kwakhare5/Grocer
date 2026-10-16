@@ -93,7 +93,7 @@ def format_cart_receipt(
     if cart.currency != "INR":
         return "⚠️ The provider basket is not priced in INR. Checkout is unavailable."
 
-    clean_loc = clean_address(delivery_location)
+    clean_loc = delivery_location if ("(" in delivery_location and ")" in delivery_location) else clean_address(delivery_location)
     item_lines = [
         f"• {it.quantity}x {it.name} ({it.pack_size}) — {_format_inr(it.total_price)}"
         for it in cart.items
@@ -108,10 +108,12 @@ def format_cart_receipt(
     if not cart.billing_complete:
         lines.append("*Provider bill:* calculating total...")
     elif cart.bill_lines:
-        lines.extend(
-            f"*{line['label']}:* {_format_inr(float(line['value']))}"
-            for line in cart.bill_lines
-        )
+        for line in cart.bill_lines:
+            try:
+                val = float(line.get("value", 0))
+                lines.append(f"*{line.get('label', 'Item')}:* {_format_inr(val)}")
+            except (ValueError, TypeError):
+                lines.append(f"*{line.get('label', 'Item')}:* {line.get('value', '')}")
     else:
         lines.append(f"*Subtotal:* {_format_inr(cart.item_total)}")
         delivery_text = "FREE (₹0)" if cart.delivery_fee == 0 else _format_inr(cart.delivery_fee)
@@ -147,3 +149,72 @@ def format_cart_receipt(
         lines.append("👉 Reply *Confirm* to place order, or tell me what to change!")
 
     return "\n".join(lines)
+
+
+def build_connect_url(ticket: str, base_url: str | None = None) -> str:
+    """Generate customer-scoped one-time authentication link."""
+    from backend.config import settings
+
+    base = (base_url or settings.CONNECT_BASE_URL or "https://grocerr.vercel.app").rstrip("/")
+    return f"{base}/?connect_ticket={ticket}"
+
+
+async def build_auth_expired_response(
+    message: Any,
+    base_url: str | None = None,
+) -> Any:
+    """Generate re-connection response with a one-time login link."""
+    import logging
+    from backend.channels.models import NormalizedOutgoingResponse
+    from backend.integrations.commerce.connect_tickets import default_connect_tickets
+
+    logger = logging.getLogger("grocer.agent.formatters")
+    try:
+        ticket = await default_connect_tickets.issue(getattr(message, "customer_id", None) or "")
+        instructions = (
+            "Your Swiggy login needs reconnecting. Open this one-time link from your WhatsApp chat:\n\n"
+            f"👉 {build_connect_url(ticket, base_url)}\n\n"
+            "The link expires in 10 minutes. After connecting, message me again."
+        )
+    except Exception:
+        logger.exception("Could not issue a customer-scoped Swiggy connection link.")
+        instructions = "Swiggy connection is temporarily unavailable. Please message me again shortly."
+
+    return NormalizedOutgoingResponse(
+        recipient_id=getattr(message, "sender_id", ""),
+        channel=getattr(message, "channel", "whatsapp"),
+        text=instructions,
+        conversation_state="AUTH_REQUIRED",
+    )
+
+
+def build_address_choice_response(
+    message: Any,
+    addresses: list[dict[str, Any]],
+) -> Any:
+    """Format an interactive address selection card with quick-reply buttons."""
+    from backend.channels.models import InteractiveAction, NormalizedOutgoingResponse
+
+    lines = []
+    for index, address in enumerate(addresses, 1):
+        lbl = address.get("label") or f"Address {index}"
+        details = address.get("clean_address") or address.get("street") or lbl
+        lines.append(f"*{index}. {lbl}* — {details}")
+    prompt = "📍 *Which address should I use?*\n\n" + "\n".join(lines)
+    prompt += "\n\nReply with the number (e.g. 1), label (e.g. Home), or tap a button."
+
+    return NormalizedOutgoingResponse(
+        recipient_id=getattr(message, "sender_id", ""),
+        channel=getattr(message, "channel", "whatsapp"),
+        text=prompt,
+        interactive_actions=[
+            InteractiveAction(
+                action_type="button",
+                id=f"addr_choice_{address.get('_choice_code') or address.get('address_id')}",
+                title=f"{index}. {str(address.get('label') or f'Address {index}')}"[:20],
+            )
+            for index, address in enumerate(addresses[:3], 1)
+        ],
+        conversation_state="NEEDS_DECISION",
+    )
+

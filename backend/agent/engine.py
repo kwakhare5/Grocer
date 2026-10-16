@@ -23,11 +23,6 @@ from backend.agent.preflight_handler import execute_preflight
 from backend.agent.react_coordinator import execute_react_turn_loop
 from backend.agent.response_synthesizer import synthesize_turn_response
 from backend.agent.tool_executor import execute_engine_tool
-from backend.agent.variant_manager import (
-    build_variant_choice_response,
-    cart_proposal_state,
-    handle_variant_choice,
-)
 from backend.channels.models import (
     NormalizedIncomingMessage,
     NormalizedOutgoingResponse,
@@ -41,6 +36,57 @@ from backend.agent.prompts import (
 )
 
 logger = logging.getLogger("grocer.agent.engine")
+
+
+class _SessionDictView(dict):
+    """Transparent bidirectional dictionary view backed directly by CustomerSession."""
+
+    def __init__(self, engine: Any, attr_name: str, default: Any = None):
+        super().__init__()
+        self._engine = engine
+        self._attr = attr_name
+        self._default = default
+
+    def get(self, key: str, default: Any = None):
+        sess = self._engine._sessions.get(key)
+        if sess is not None:
+            val = getattr(sess, self._attr, None)
+            if val is not None:
+                return val
+        return super().get(key, default if default is not None else self._default)
+
+    def __getitem__(self, key: str):
+        val = self.get(key)
+        if val is None:
+            raise KeyError(key)
+        return val
+
+    def __setitem__(self, key: str, value: Any):
+        sess = self._engine._sessions.get(key)
+        if sess is None:
+            sess = self._engine.get_session(key)
+        setattr(sess, self._attr, value)
+        super().__setitem__(key, value)
+
+    def pop(self, key: str, default: Any = None):
+        super().pop(key, None)
+        sess = self._engine._sessions.get(key)
+        if sess is not None:
+            old = getattr(sess, self._attr, None)
+            setattr(sess, self._attr, None if not isinstance(self._default, bool) else False)
+            return old if old is not None else default
+        return default
+
+    def __contains__(self, key: object):
+        if not isinstance(key, str):
+            return False
+        sess = self._engine._sessions.get(key)
+        if sess is not None:
+            val = getattr(sess, self._attr, None)
+            if val is not None and (val is not False if isinstance(self._default, bool) else True):
+                return True
+        return super().__contains__(key)
+
 
 class GroceryAgentEngine:
     """Conversational ReAct agent driving Swiggy Instamart through Google Gemini function calling."""
@@ -66,13 +112,13 @@ class GroceryAgentEngine:
         self.gemini_model = gemini_model or getattr(settings, "GEMINI_MODEL", "gemini-3.5-flash-lite")
         self.gemini_fallback_model = gemini_fallback_model or getattr(settings, "GEMINI_FALLBACK_MODEL", "gemini-3.5-flash-lite")
         self.timeout = timeout
-        # Unified atomic customer session map + compatibility views
+        # Single authoritative CustomerSession map with synchronized views
         self._sessions: dict[str, Any] = {}
-        self._history: dict[str, list[dict[str, Any]]] = {}
-        self._customer_address: dict[str, str] = {}
-        self._customer_address_label: dict[str, str] = {}
-        self._order_address_confirmed: dict[str, bool] = {}
-        self._awaiting_address_choice: dict[str, list[dict[str, Any]]] = {}
+        self._customer_address = _SessionDictView(self, "address_id")
+        self._customer_address_label = _SessionDictView(self, "address_label")
+        self._order_address_confirmed = _SessionDictView(self, "order_address_confirmed", default=False)
+        self._awaiting_address_choice = _SessionDictView(self, "awaiting_address_choice")
+        self._history = _SessionDictView(self, "history", default=[])
         self._pending_checkout: dict[str, bool] = {}
         self._last_interaction_time: dict[str, float] = {}
         self._locks: dict[str, asyncio.Lock] = {}
@@ -318,11 +364,9 @@ class GroceryAgentEngine:
         base_sys = build_system_instruction(
             address_id=address_id, address_label=address_label, cart=cart,
         )
-        system_text = f"{base_sys}\n\n### PLANNING TURN:\n{_SHOPPING_PLAN_PROMPT}" if planning_only else base_sys
+        system_text = base_sys
         if planning_only:
             gemini_tools = [tool for tool in RAW_TOOL_DECLARATIONS if tool["name"] == "quick_add_items"]
-            if not gemini_tools:
-                raise RuntimeError("CRITICAL: quick_add_items is missing from RAW_TOOL_DECLARATIONS during planning turn")
         else:
             gemini_tools = RAW_TOOL_DECLARATIONS
         return await self.gemini.generate_content(
@@ -330,22 +374,3 @@ class GroceryAgentEngine:
             system_text=system_text,
             tools=gemini_tools,
         )
-
-    def _cart_proposal_state(self, cart: Optional[CommerceCart]) -> Optional[dict[str, Any]]:
-        return cart_proposal_state(cart)
-
-    def _variant_choice_response(
-        self,
-        message: NormalizedIncomingMessage,
-        proposal: dict[str, Any],
-        prefix: str = "",
-    ) -> NormalizedOutgoingResponse:
-        return build_variant_choice_response(message, proposal, prefix=prefix)
-
-    async def _handle_variant_choice(
-        self,
-        message: NormalizedIncomingMessage,
-        customer_id: str,
-        current_cart: Optional[CommerceCart],
-    ) -> NormalizedOutgoingResponse:
-        return await handle_variant_choice(self, message, customer_id, current_cart)

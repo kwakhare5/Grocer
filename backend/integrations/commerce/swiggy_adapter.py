@@ -41,20 +41,18 @@ from backend.integrations.commerce.models import (
 )
 from backend.integrations.commerce.port import CommercePort
 from backend.integrations.commerce.swiggy_client import SwiggyMcpClient
-from backend.integrations.commerce.catalog_parsers import parse_swiggy_products
-from backend.integrations.commerce.cart_parsers import (
+from backend.integrations.commerce.swiggy_parsers import (
+    build_checkout_order_result,
     build_commerce_cart,
     normalize_order_status,
     normalize_payment_status,
-)
-from backend.integrations.commerce.order_parsers import (
-    build_checkout_order_result,
     parse_delivery_addresses,
     parse_delivery_status_response,
     parse_delivery_tracking_response,
     parse_order_details_response,
     parse_orders_summary,
     parse_payment_options,
+    parse_swiggy_products,
 )
 
 logger = logging.getLogger("grocer.integrations.swiggy")
@@ -203,8 +201,11 @@ class SwiggyMCPAdapter(CommercePort):
         self._parse_error_if_failed(res)
 
         data = res.get("data", {})
+        if isinstance(data, dict) and (data.get("items") or data.get("cartId")):
+            canonical_cart = build_commerce_cart(data, cart_id=cart_id)
+        else:
+            canonical_cart = await self.get_cart()
         reduced_quantity_items = data.get("reducedQuantityItems", []) if isinstance(data, dict) else []
-        canonical_cart = await self.get_cart()
         if not canonical_cart.address_id and effective_address:
             canonical_cart.address_id = effective_address
         if isinstance(reduced_quantity_items, list):
@@ -276,11 +277,13 @@ class SwiggyMCPAdapter(CommercePort):
             logger.info(
                 "CHECKOUT_MODE=review active: suppressing live Swiggy MCP checkout and returning simulated order."
             )
-            current_cart = None
             try:
                 current_cart = await self.get_cart(cart_id)
-            except Exception:
-                pass
+            except ProviderAuthError:
+                raise
+            except Exception as exc:
+                logger.warning("Could not fetch cart for review simulation: %s", exc)
+                raise CommerceError(f"Cannot checkout: unable to verify cart {cart_id}", provider="swiggy")
             cart_items = current_cart.items if current_cart else []
             total_amt = current_cart.grand_total if current_cart else 0.0
 
@@ -350,7 +353,7 @@ class SwiggyMCPAdapter(CommercePort):
                     return CommerceOrderResult(
                         order_id=str(order_id) if order_id else None,
                         cart_id=cart_id,
-                        status=self._normalize_order_status(
+                        status=normalize_order_status(
                             str(raw_status).upper() if raw_status is not None else None,
                             order_count=1,
                             success_count=1 if order_id else 0,

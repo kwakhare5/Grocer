@@ -1,14 +1,9 @@
-"""Swiggy Instamart delivery, addresses, checkout result, and order tracking parsers."""
+"""Swiggy Instamart delivery, addresses, checkout, and tracking parsers."""
 from __future__ import annotations
 
 from typing import Any, Optional
 
 from backend.integrations.commerce.catalog_parsers import _optional_provider_bool
-from backend.integrations.commerce.cart_parsers import (
-    normalize_order_status,
-    parse_child_order,
-    parse_order_items,
-)
 from backend.integrations.commerce.exceptions import CommerceError
 from backend.integrations.commerce.models import (
     CommerceOrderResult,
@@ -16,12 +11,123 @@ from backend.integrations.commerce.models import (
     DeliveryStatusResult,
     DeliveryTrackingStatus,
     OrderBillLine,
+    OrderChildResult,
     OrderDetails,
+    OrderLineItem,
     OrderSummary,
     PaymentOption,
     TrackingLineItem,
     TrackingLocation,
 )
+
+
+def normalize_payment_status(raw_status: Any) -> str:
+    """Normalize Swiggy payment status string into canonical states."""
+    status = str(raw_status or "").strip().upper()
+    if status in {"FAILED", "FAILURE", "CANCELLED", "CANCELED", "EXPIRED", "REFUNDED", "REFUND_INITIATED", "UNSUCCESSFUL", "UNPAID"}:
+        return "PAYMENT_FAILED"
+    if status in {"SUCCESS", "PAID", "COMPLETED", "CAPTURED"}:
+        return "PAYMENT_CONFIRMED"
+    if status in {"PENDING", "PROCESSING", "INITIATED", "PENDING_PAYMENT"}:
+        return "PAYMENT_PENDING"
+    return "PAYMENT_UNKNOWN"
+
+
+def normalize_order_status(
+    raw_status: Optional[str],
+    *,
+    order_count: int,
+    success_count: int,
+    failure_count: int,
+    all_succeeded: bool,
+) -> str:
+    """Normalize order status according to line counts and outcomes."""
+    status = (raw_status or "").strip().upper()
+    if status in {"PENDING_PAYMENT", "PAYMENT_PENDING"}:
+        return "PAYMENT_PENDING"
+    if (failure_count > 0 and success_count > 0) or status in {
+        "PARTIAL",
+        "PARTIAL_ORDER",
+        "PARTIALLY_PLACED",
+    }:
+        return "PARTIAL_ORDER"
+    if (
+        (failure_count > 0 and success_count == 0)
+        or status in {"FAILED", "FAILURE", "UNSUCCESSFUL", "CANCELLED", "CANCELED", "EXPIRED"}
+    ):
+        return "FAILED"
+    if status in {
+        "CONFIRMED",
+        "ORDER_PLACED",
+        "PLACED",
+        "SUCCESS",
+        "SUCCEEDED",
+        "COMPLETED",
+        "PAYMENT_CONFIRMED",
+    }:
+        return "ORDER_PLACED"
+    if order_count > 0 and all_succeeded and success_count == order_count:
+        return "ORDER_PLACED"
+    return "ORDER_STATE_UNKNOWN"
+
+
+def parse_child_order(raw: dict[str, Any]) -> OrderChildResult:
+    """Parse single child order payload in multi-order or split-order baskets."""
+    raw_status_value = raw.get("status")
+    raw_status = str(raw_status_value).upper() if raw_status_value is not None else None
+    explicit_success = raw.get("success")
+    success = explicit_success if isinstance(explicit_success, bool) else None
+    raw_error = raw.get("error")
+    if isinstance(raw_error, dict):
+        child_error = raw_error.get("message") or raw_error.get("code")
+    else:
+        child_error = raw_error
+    normalized = normalize_order_status(
+        raw_status,
+        order_count=1,
+        success_count=1 if success is True else 0,
+        failure_count=1 if success is False else 0,
+        all_succeeded=success is True,
+    )
+    if child_error is not None and normalized == "ORDER_STATE_UNKNOWN":
+        normalized = "FAILED"
+    if success is None:
+        if normalized == "ORDER_PLACED":
+            success = True
+        elif normalized == "FAILED":
+            success = False
+    return OrderChildResult(
+        order_id=str(raw["orderId"]) if raw.get("orderId") else None,
+        status=normalized,
+        raw_status=raw_status,
+        success=success,
+        grand_total=float(raw["orderTotal"]) if raw.get("orderTotal") is not None else None,
+        error=str(child_error) if child_error is not None else None,
+    )
+
+
+def parse_order_items(raw_items: Any) -> list[OrderLineItem]:
+    """Parse list of items inside an existing order."""
+    items: list[OrderLineItem] = []
+    if not isinstance(raw_items, list):
+        return items
+    for raw in raw_items:
+        if not isinstance(raw, dict) or not raw.get("name") or "quantity" not in raw:
+            continue
+        items.append(
+            OrderLineItem(
+                name=str(raw["name"]),
+                quantity=int(raw["quantity"]),
+                item_id=(str(raw["itemId"]) if raw.get("itemId") is not None else None),
+                final_price=(
+                    float(raw["finalPrice"])
+                    if raw.get("finalPrice") is not None
+                    else None
+                ),
+                removed=(bool(raw["removed"]) if "removed" in raw else None),
+            )
+        )
+    return items
 
 
 def normalize_existing_order_status(raw_status: Any) -> str:
@@ -136,17 +242,19 @@ def parse_payment_options(data: dict[str, Any]) -> list[PaymentOption]:
             mid = m.get("id")
             if not mid:
                 continue
+            mid_str = str(mid)
             dname = m.get("displayName", mid)
+            dname_str = str(dname) if dname is not None else mid_str
             raw_kind = m.get("kind")
             kind = (
                 str(raw_kind).casefold()
                 if raw_kind is not None
-                else platform_kinds.get(str(mid))
+                else platform_kinds.get(mid_str)
             )
             if kind not in ("intent", "qr"):
                 kind = None
-            is_upi = "upi" in mid.lower() or "upi" in dname.lower() or kind in ("intent", "qr")
-            lowered = f"{mid} {dname}".lower()
+            is_upi = "upi" in mid_str.lower() or "upi" in dname_str.lower() or kind in ("intent", "qr")
+            lowered = f"{mid_str} {dname_str}".lower()
             if is_upi:
                 method_cat = "UPI"
             elif "cash" in lowered or "cod" in lowered:
@@ -154,14 +262,14 @@ def parse_payment_options(data: dict[str, Any]) -> list[PaymentOption]:
             elif "swiggy" in lowered and "pay" in lowered:
                 method_cat = "SwiggyPay"
             else:
-                method_cat = str(m.get("paymentMethod") or m.get("group") or mid)
+                method_cat = str(m.get("paymentMethod") or m.get("group") or mid_str)
 
             options.append(
                 PaymentOption(
                     method=method_cat,
-                    label=dname,
+                    label=dname_str,
                     is_available=bool(m.get("enabled", True)),
-                    id=mid,
+                    id=mid_str,
                     kind=kind,
                 )
             )
@@ -484,3 +592,19 @@ def parse_delivery_tracking_response(data: dict[str, Any], order_id: str) -> Del
         rider_location=_parse_location(map_info.get("riderLocation")) if isinstance(map_info, dict) else None,
         polling_interval_seconds=int(data["pollingIntervalSeconds"]) if data.get("pollingIntervalSeconds") is not None else None,
     )
+
+
+__all__ = [
+    "build_checkout_order_result",
+    "normalize_existing_order_status",
+    "normalize_order_status",
+    "normalize_payment_status",
+    "parse_child_order",
+    "parse_delivery_addresses",
+    "parse_delivery_status_response",
+    "parse_delivery_tracking_response",
+    "parse_order_details_response",
+    "parse_order_items",
+    "parse_orders_summary",
+    "parse_payment_options",
+]

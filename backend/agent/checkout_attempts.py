@@ -41,7 +41,7 @@ class PostgresCheckoutAttemptStore:
             """UPDATE grocer_internal.checkout_attempts
                SET status = 'FAILED', updated_at = now()
                WHERE customer_id = $1 AND status = 'UNKNOWN'
-                 AND created_at < now() - INTERVAL '300 seconds'""",
+                 AND created_at < now() - INTERVAL '30 seconds'""",
             customer_id,
         )
         attempt_id = str(uuid.uuid4())

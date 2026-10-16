@@ -109,6 +109,11 @@ def restore_task_state_dict(
     session = CustomerSession(
         customer_id=customer_id,
         history=history,
+        address_id=state.get("address_id"),
+        address_label=state.get("address_label"),
+        order_address_confirmed=bool(state.get("order_address_confirmed", False)),
+        awaiting_address_choice=state.get("awaiting_address_choice"),
+        last_active_ts=float(state.get("last_active_ts") or 0.0),
         budget_inr=state.get("budget_inr"),
         ingredient_budget_inr=state.get("ingredient_budget_inr"),
         ingredient_extras_text=state.get("ingredient_extras_text"),

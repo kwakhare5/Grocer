@@ -15,13 +15,6 @@ from backend.agent.guards import (
     reconcile_explicit_removals,
 )
 from backend.agent.product_policy import is_symptom_suggestion_request
-from backend.agent.react_loop import (
-    build_recipe_repair_prompt,
-    is_invalid_item_plan,
-    merge_redundant_function_calls,
-    validate_cart_edit_calls,
-)
-from backend.agent.tool_scheduler import execute_tool_calls
 from backend.channels.models import (
     InteractiveAction,
     NormalizedIncomingMessage,
@@ -30,6 +23,82 @@ from backend.channels.models import (
 from backend.integrations.commerce.models import CommerceCart
 
 logger = logging.getLogger("grocer.agent.react_coordinator")
+
+
+def validate_cart_edit_calls(
+    function_calls: list[dict[str, Any]],
+    current_cart: Any,
+    planning_request_text: str,
+) -> bool:
+    """Ensure update_cart function calls modify valid active cart items with non-negative quantities."""
+    cart_edits = [call for call in function_calls if call.get("name") == "update_cart"]
+    if not cart_edits or not current_cart or not getattr(current_cart, "items", None):
+        return True
+
+    cart_by_spin = {item.spin_id: item for item in current_cart.items}
+    for call in cart_edits:
+        args = call.get("args") if isinstance(call.get("args"), dict) else {}
+        items = args.get("items")
+        if not isinstance(items, list):
+            continue
+        for item in items:
+            if not isinstance(item, dict):
+                return False
+            spin_id = item.get("spin_id")
+            if not spin_id or spin_id not in cart_by_spin:
+                return False
+            quantity = item.get("quantity")
+            if quantity is None or not isinstance(quantity, int) or quantity < 0:
+                return False
+            if planning_request_text:
+                req_lower = planning_request_text.casefold()
+                target_item = cart_by_spin[spin_id]
+                item_name_tokens = {t for t in re.split(r"\W+", target_item.name.casefold()) if len(t) > 2}
+                spin_tokens = {t for t in re.split(r"\W+", str(spin_id).casefold()) if len(t) > 2}
+                has_ordinal = any(w in req_lower for w in ("first", "second", "third", "fourth", "fifth", "1st", "2nd", "3rd", "4th", "5th", "one", "two", "three", "four", "five", "item"))
+                matches_request = has_ordinal or any(t in req_lower for t in item_name_tokens | spin_tokens)
+                if not matches_request:
+                    return False
+                if any(w in req_lower for w in ("remove", "delete")) and not any(w in req_lower for w in ("to", "by", "from", "reduce", "decrease")) and quantity > 0:
+                    return False
+    return True
+
+
+def merge_redundant_function_calls(
+    function_calls: list[dict[str, Any]],
+    address_id: str,
+    parts: Optional[list[dict[str, Any]]] = None,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], bool]:
+    """Merge parallel quick_add_items calls into a single batch if appropriate."""
+    current_parts = list(parts) if parts is not None else []
+    include_cart_in_choices = False
+    if len(function_calls) > 1 and any(
+        call.get("name") == "quick_add_items" for call in function_calls
+    ):
+        redundant_addresses = all(
+            isinstance(call.get("args"), dict) and call["args"].get("address_id") == address_id
+            for call in function_calls
+            if call.get("name") == "select_delivery_address"
+        )
+        if redundant_addresses and all(
+            call.get("name") in {"quick_add_items", "get_cart", "select_delivery_address"}
+            for call in function_calls
+        ):
+            include_cart_in_choices = any(call.get("name") == "get_cart" for call in function_calls)
+            batches = [
+                call["args"].get("items") if isinstance(call.get("args"), dict) else None
+                for call in function_calls
+                if call.get("name") == "quick_add_items"
+            ]
+            if all(isinstance(batch, list) for batch in batches):
+                merged = [item for batch in batches for item in batch]
+                if 1 <= len(merged) <= 30:
+                    first_add = next(call for call in function_calls if call.get("name") == "quick_add_items")
+                    new_calls = [{**first_add, "args": {"items": merged}}]
+                    new_parts = [part for part in current_parts if "functionCall" not in part]
+                    new_parts.append({"functionCall": new_calls[0]})
+                    return new_calls, new_parts, include_cart_in_choices
+    return function_calls, current_parts, include_cart_in_choices
 
 
 @dataclass
@@ -153,31 +222,6 @@ async def execute_react_turn_loop(
         parts = content.get("parts", [])
         function_calls = [p["functionCall"] for p in parts if "functionCall" in p]
 
-        if planning_turn and any(call.get("name") == "quick_add_items" for call in function_calls):
-            if is_invalid_item_plan(function_calls):
-                repair_text = build_recipe_repair_prompt(planning_request_text)
-                repaired = await engine._call_llm(
-                    [{"role": "user", "parts": [{"text": repair_text}]}],
-                    planning_only=True,
-                )
-                repaired_candidates = repaired.get("candidates", []) if repaired else []
-                parts = (
-                    repaired_candidates[0].get("content", {}).get("parts", [])
-                    if repaired_candidates
-                    else []
-                )
-                function_calls = [p["functionCall"] for p in parts if "functionCall" in p]
-                if not any(call.get("name") == "quick_add_items" for call in function_calls) or is_invalid_item_plan(function_calls):
-                    session.pending_request_text = planning_request_text
-                    return ReactLoopResult(
-                        early_response=NormalizedOutgoingResponse(
-                            recipient_id=message.sender_id,
-                            channel=message.channel,
-                            text="I couldn't read every item and quantity safely. I saved your request. Reply *try again* and I'll check it from the start.",
-                            conversation_state="NEEDS_DECISION",
-                        )
-                    )
-
         if not function_calls:
             text_parts = [p.get("text", "") for p in parts if "text" in p]
             response_text = "\n".join(t.strip() for t in text_parts if t.strip())
@@ -269,7 +313,6 @@ async def execute_react_turn_loop(
                 explicit_removals = reconcile_explicit_removals(incoming_text)
                 if fn_name == "quick_add_items":
                     items = fn_args.get("items", []) if isinstance(fn_args.get("items"), list) else []
-                    items = reconcile_explicit_items(incoming_text, items)
                     if explicit_removals:
                         items = [
                             it for it in items
@@ -278,14 +321,8 @@ async def execute_react_turn_loop(
                                 for rem in explicit_removals
                             )
                         ]
-                    queries = [str(it.get("query", "")) for it in items if isinstance(it, dict)]
-                    staples = missing_recipe_staples(incoming_text, queries)
-                    if staples:
-                        items = [{"query": query} for query in staples] + items
                     fn_args = {**fn_args, "items": items}
                 elif fn_name == "manage_basket":
-                    if isinstance(fn_args.get("add"), list):
-                        fn_args["add"] = reconcile_explicit_items(incoming_text, fn_args["add"])
                     if explicit_removals:
                         existing_rem = fn_args.get("remove") or []
                         if isinstance(existing_rem, list):
@@ -315,17 +352,26 @@ async def execute_react_turn_loop(
                 tool_response_part["functionResponse"]["id"] = call_id
             return tool_response_part, is_auth_failed, is_checkout, (tool_result if is_checkout else None)
 
-        executed_calls = await execute_tool_calls(function_calls, _execute_single_call)
-        normalized_calls = [
-            ec if isinstance(ec, (tuple, list)) and len(ec) >= 4
-            else (
-                {"functionResponse": {"name": ec.get("tool", "unknown") if isinstance(ec, dict) else "unknown", "response": {"name": ec.get("tool", "unknown") if isinstance(ec, dict) else "unknown", "content": ec}}}
-                if isinstance(ec, dict)
-                else {"functionResponse": {"name": "unknown", "response": {"content": str(ec)}}},
-                False, False, None,
-            )
-            for ec in executed_calls
-        ]
+        executed_calls: list[tuple[dict[str, Any], bool, bool, dict[str, Any] | None]] = []
+        for call in function_calls:
+            try:
+                res = await _execute_single_call(call)
+                executed_calls.append(res)
+            except Exception as exc:
+                t_name = call.get("name", "unknown")
+                logger.warning("Tool execution error for %s: %s", t_name, exc)
+                executed_calls.append((
+                    {
+                        "functionResponse": {
+                            "name": t_name,
+                            "response": {"name": t_name, "content": {"success": False, "error": str(exc)}},
+                        }
+                    },
+                    False,
+                    False,
+                    None,
+                ))
+        normalized_calls = executed_calls
         tool_responses = [nc[0] for nc in normalized_calls]
         history.append({
             "role": "user",
@@ -422,7 +468,7 @@ async def execute_react_turn_loop(
 
         if any(
             ec[0].get("functionResponse", {}).get("name")
-            in ("update_cart", "quick_add_items", "select_delivery_address", "clear_cart")
+            in ("update_cart", "quick_add_items", "select_delivery_address", "clear_cart", "manage_basket")
             for ec in executed_calls
         ):
             try:

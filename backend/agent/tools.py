@@ -33,7 +33,6 @@ from backend.agent.address_tools import (
     execute_get_saved_addresses,
     execute_select_delivery_address,
 )
-from backend.agent.variant_manager import execute_prepare_variant_choices
 
 
 class SwiggyAgentTools:
@@ -164,8 +163,8 @@ class SwiggyAgentTools:
         for i in range(0, len(clean_queries), 3):
             wave = clean_queries[i : i + 3]
             needs_sleep = i > 0 and any(
-                bypass_cache or (address_id, q.casefold()) not in self._catalog_cache
-                or (time.time() - self._catalog_cache[(address_id, q.casefold())][0] >= 300)
+                bypass_cache or (q.casefold().strip(), str(address_id or "")) not in self._catalog_cache
+                or (time.time() - self._catalog_cache[(q.casefold().strip(), str(address_id or ""))][0] >= 300)
                 for q in wave
             )
             if needs_sleep:
@@ -248,12 +247,6 @@ class SwiggyAgentTools:
             ingredient_extras_text=ingredient_extras_text,
             ingredient_spin_ids=ingredient_spin_ids,
         )
-
-    async def prepare_variant_choices(
-        self, items: list[dict[str, Any]], address_id: str, bypass_cache: bool = False
-    ) -> dict[str, Any]:
-        """Resolve every requested item to customer-visible SKU choices without writing the cart."""
-        return await execute_prepare_variant_choices(self, items, address_id, bypass_cache=bypass_cache)
 
     async def get_saved_addresses(self, customer_id: str) -> dict[str, Any]:
         """Retrieve the user's saved delivery addresses from Swiggy."""

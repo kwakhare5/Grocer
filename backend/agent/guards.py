@@ -150,8 +150,17 @@ _RESET_COMMAND_REGEX = re.compile(
 
 def is_reset_command(text: str) -> bool:
     """Deterministically match any natural command requesting a basket purge in 0ms."""
+    if not text:
+        return False
     cleaned = text.strip().casefold().rstrip(".,!?")
-    return cleaned in _RESET_COMMANDS or bool(_RESET_COMMAND_REGEX.search(cleaned))
+    if cleaned in _RESET_COMMANDS:
+        return True
+    # If the user mentions a specific product/ingredient or specifies items to remove, it's not a full purge
+    if re.search(r"\b(?:remove|delete|clear|drop)\s+all\s+(?:the\s+)?\w+", cleaned):
+        return False
+    if re.search(r"\b(?:bread|milk|egg|apple|banana|butter|cheese|curd|dahi|paneer|atta|rice|oil|dal|onion|potato|tomato|tea|coffee|sugar|salt)\b", cleaned):
+        return False
+    return bool(_RESET_COMMAND_REGEX.search(cleaned))
 
 
 _HESITATION_PHRASES = frozenset({
@@ -187,7 +196,14 @@ def is_hesitation(text: str) -> bool:
     if not text or not text.strip():
         return False
     cleaned = re.sub(r"\s+", " ", text.casefold()).strip(" \t\r\n.!?")
-    return cleaned in _HESITATION_PHRASES or bool(_HESITATION_REGEX.search(cleaned))
+    if cleaned in _HESITATION_PHRASES:
+        return True
+    # Exclude common false positives: transportation stops and shopping sentences
+    if re.search(r"\b(?:bus|auto|metro|train|taxi|cab|car|full|non)\s+stop\b", cleaned):
+        return False
+    if re.search(r"\b(?:add|buy|order|deliver|get|need|bring|send|pack|basket|cart|milk|bread|egg)\b", cleaned):
+        return False
+    return bool(_HESITATION_REGEX.search(cleaned))
 
 
 _NEGATION_CONFIRM_REGEX = re.compile(

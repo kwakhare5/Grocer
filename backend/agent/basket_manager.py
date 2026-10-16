@@ -54,6 +54,7 @@ async def execute_manage_basket(
 
     extra_updates: list[dict[str, Any]] = []
     removed_items: list[str] = []
+    not_found_removals: list[str] = []
     modified_items: list[str] = []
     unavailable_items: list[str] = []
     restricted_items: list[str] = []
@@ -75,7 +76,7 @@ async def execute_manage_basket(
                     removed_items.append(ci.name)
                     matched_any = True
             if not matched_any:
-                removed_items.append(rem_clean)
+                not_found_removals.append(rem_clean)
 
     # 2. Process Quantity Adjustments
     if set_quantity and isinstance(set_quantity, list):
@@ -175,6 +176,7 @@ async def execute_manage_basket(
             return mutation
         mutation["added_items"] = [s["option"]["name"] for s in selected_for_add]
         mutation["removed_items"] = removed_items
+        mutation["not_found_removals"] = not_found_removals
         mutation["modified_items"] = modified_items
         mutation["unavailable_items"] = unavailable_items
         mutation["restricted_items"] = list(dict.fromkeys(restricted_items))
@@ -200,6 +202,7 @@ async def execute_manage_basket(
         "formatted_receipt": receipt,
         "added_items": [],
         "removed_items": removed_items,
+        "not_found_removals": not_found_removals,
         "modified_items": modified_items,
         "unavailable_items": unavailable_items,
         "restricted_items": list(dict.fromkeys(restricted_items)),

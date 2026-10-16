@@ -1,18 +1,14 @@
 """Official WhatsApp Business Platform Channel Adapter for GROCER.
 
 Supports:
-- Webhook verification (GET challenge verification)
-- HMAC-SHA256 signature verification (X-Hub-Signature-256)
-- Meta Cloud API payload parsing (text, quick reply buttons, interactive list replies)
-- Replay attack & duplicate event protection
-- Stable customer and session mapping
-- Rich interactive message construction (Lists, Reply Buttons)
+- Webhook verification (GET challenge verification) via whatsapp_crypto
+- HMAC-SHA256 signature verification (X-Hub-Signature-256) via whatsapp_crypto
+- Meta Cloud API payload parsing via whatsapp_parser
+- Rich interactive message construction & chunking via whatsapp_formatter
 - Outbound delivery via Meta Graph API v20.0 with test-mode recording
 """
 from __future__ import annotations
 
-import hashlib
-import hmac
 import logging
 import os
 from typing import Any, Optional
@@ -20,11 +16,22 @@ from typing import Any, Optional
 import httpx
 
 from backend.config import settings
-from backend.channels.base import BaseChannelAdapter
 from backend.channels.models import (
     ChannelType,
     NormalizedIncomingMessage,
     NormalizedOutgoingResponse,
+)
+from backend.channels.whatsapp_crypto import (
+    verify_signature as _crypto_verify_signature,
+    verify_webhook_challenge as _crypto_verify_challenge,
+)
+from backend.channels.whatsapp_formatter import (
+    build_message_payloads as _format_build_payloads,
+    format_whatsapp_payload as _format_single_payload,
+    mask_recipient,
+)
+from backend.channels.whatsapp_parser import (
+    parse_webhook_payload as _parse_webhook_payload,
 )
 from backend.identity import whatsapp_customer_id
 
@@ -34,13 +41,10 @@ META_GRAPH_API_URL = "https://graph.facebook.com/v20.0"
 
 
 def _mask_recipient(phone: str) -> str:
-    clean = str(phone or "").strip()
-    if len(clean) <= 6:
-        return "***"
-    return f"{clean[:3]}****{clean[-4:]}"
+    return mask_recipient(phone)
 
 
-class WhatsAppChannelAdapter(BaseChannelAdapter):
+class WhatsAppChannelAdapter:
     """Authoritative adapter for WhatsApp Business Cloud API."""
 
     def __init__(
@@ -52,7 +56,7 @@ class WhatsAppChannelAdapter(BaseChannelAdapter):
         timeout: float = 10.0,
         record_only: bool = False,
     ) -> None:
-        super().__init__(channel_type=ChannelType.WHATSAPP)
+        self.channel_type = ChannelType.WHATSAPP
         self._verify_token = verify_token
         self._app_secret = app_secret
         self._phone_number_id = phone_number_id
@@ -108,46 +112,15 @@ class WhatsAppChannelAdapter(BaseChannelAdapter):
         challenge: Optional[str],
     ) -> tuple[bool, str]:
         """Verify Meta webhook registration challenge."""
-        expected = self.verify_token
-        if (
-            mode == "subscribe"
-            and expected is not None
-            and token is not None
-            and hmac.compare_digest(token, expected)
-        ):
-            logger.info("WhatsApp webhook challenge verified successfully.")
-            return True, challenge or ""
-        logger.warning("WhatsApp webhook challenge verification failed.")
-        return False, "Forbidden"
+        return _crypto_verify_challenge(self.verify_token, mode, token, challenge)
 
     # -----------------------------------------------------------------------
     # 2. Signature Verification (POST HMAC-SHA256)
     # -----------------------------------------------------------------------
 
     def verify_signature(self, payload_bytes: bytes, signature_header: Optional[str]) -> bool:
-        """Verify X-Hub-Signature-256 header using app secret.
-
-        Header format: sha256={hex_digest}
-        """
-        if not self.app_secret:
-            logger.error("WHATSAPP_APP_SECRET is required for webhook verification.")
-            return False
-
-        if not signature_header or not signature_header.startswith("sha256="):
-            logger.warning("Missing or malformed X-Hub-Signature-256 header.")
-            return False
-
-        expected_sig = signature_header[7:]
-        computed_sig = hmac.new(
-            self.app_secret.encode("utf-8"),
-            payload_bytes,
-            hashlib.sha256,
-        ).hexdigest()
-
-        is_valid = hmac.compare_digest(expected_sig, computed_sig)
-        if not is_valid:
-            logger.warning("Invalid WhatsApp webhook HMAC-SHA256 signature.")
-        return is_valid
+        """Verify X-Hub-Signature-256 header using app secret."""
+        return _crypto_verify_signature(self.app_secret, payload_bytes, signature_header)
 
     # -----------------------------------------------------------------------
     # 3. Payload Parsing
@@ -155,60 +128,7 @@ class WhatsAppChannelAdapter(BaseChannelAdapter):
 
     def parse_webhook_payload(self, payload: dict[str, Any]) -> list[NormalizedIncomingMessage]:
         """Extract and normalize inbound WhatsApp messages from Meta webhook payload."""
-        incoming_messages: list[NormalizedIncomingMessage] = []
-        entries = payload.get("entry", [])
-
-        for entry in entries:
-            changes = entry.get("changes", [])
-            for change in changes:
-                val = change.get("value", {})
-                messages = val.get("messages", [])
-
-                for msg in messages:
-                    msg_id = msg.get("id", "")
-                    sender_phone = msg.get("from", "")
-                    msg_type = msg.get("type", "text")
-
-                    if not msg_id or not sender_phone:
-                        continue
-
-                    text_body = ""
-                    interactive_type = None
-                    interactive_id = None
-
-                    if msg_type == "text":
-                        text_body = msg.get("text", {}).get("body", "").strip()
-
-                    elif msg_type == "interactive":
-                        interactive_obj = msg.get("interactive", {})
-                        interactive_type = interactive_obj.get("type")
-
-                        if interactive_type == "button_reply":
-                            btn = interactive_obj.get("button_reply", {})
-                            interactive_id = btn.get("id")
-                            text_body = btn.get("title", "")
-
-                        elif interactive_type == "list_reply":
-                            list_item = interactive_obj.get("list_reply", {})
-                            interactive_id = list_item.get("id")
-                            text_body = list_item.get("title", "")
-
-                    elif msg_type in ("audio", "voice", "image", "document", "sticker", "video"):
-                        text_body = "UNSUPPORTED_MEDIA"
-
-                    if text_body or interactive_id:
-                        incoming_messages.append(
-                            NormalizedIncomingMessage(
-                                sender_id=sender_phone,
-                                channel=ChannelType.WHATSAPP,
-                                text=text_body,
-                                message_id=msg_id,
-                                interactive_type=interactive_type,
-                                interactive_id=interactive_id,
-                            )
-                        )
-
-        return incoming_messages
+        return _parse_webhook_payload(payload)
 
     # -----------------------------------------------------------------------
     # 4. Outbound WhatsApp Message Formatting
@@ -216,124 +136,11 @@ class WhatsAppChannelAdapter(BaseChannelAdapter):
 
     def format_whatsapp_payload(self, response: NormalizedOutgoingResponse) -> dict[str, Any]:
         """Build Meta WhatsApp Cloud API JSON payload."""
-        to_number = response.recipient_id.replace("+", "").strip()
-
-        # If interactive actions exist (Meta limits interactive bodies to 1024 chars)
-        if response.interactive_actions:
-            if len(response.text) > 1024:
-                cutoff = response.text[:1020].rfind("\n")
-                if cutoff == -1 or cutoff < 800:
-                    cutoff = response.text[:1020].rfind(" ")
-                body_text = (response.text[:cutoff].rstrip() + "...") if cutoff > 0 else response.text[:1024]
-            else:
-                body_text = response.text
-            # 1. Decision List Reply (for payment methods, address selection, alternative options)
-            if response.conversation_state in {
-                "NEEDS_DECISION",
-                "NEEDS_ADDRESS",
-                "NEEDS_PAYMENT",
-            }:
-                header_text = (response.interactive_title or "Options")[:60]
-                section_title = (response.interactive_title or "Available Options")[:24]
-                rows = [
-                    {
-                        "id": action.id,
-                        "title": action.title[:24],
-                        "description": (action.description or "")[:72],
-                    }
-                    for action in response.interactive_actions
-                ]
-                return {
-                    "messaging_product": "whatsapp",
-                    "recipient_type": "individual",
-                    "to": to_number,
-                    "type": "interactive",
-                    "interactive": {
-                        "type": "list",
-                        "header": {"type": "text", "text": header_text},
-                        "body": {"text": body_text},
-                        "footer": {"text": "GROCER Intent Assistant"},
-                        "action": {
-                            "button": (response.interactive_button_text or "Choose Option")[:20],
-                            "sections": [
-                                {
-                                    "title": section_title,
-                                    "rows": rows[:10],  # Meta allows max 10 rows
-                                }
-                            ],
-                        },
-                    },
-                }
-
-            # 2. Confirmation Quick Reply Buttons (max 3 buttons)
-            elif response.conversation_state == "AWAITING_CHECKOUT_CONFIRMATION":
-                buttons = [
-                    {
-                        "type": "reply",
-                        "reply": {
-                            "id": action.id,
-                            "title": action.title[:20],  # Meta max 20 chars
-                        },
-                    }
-                    for action in response.interactive_actions[:3]
-                ]
-                return {
-                    "messaging_product": "whatsapp",
-                    "recipient_type": "individual",
-                    "to": to_number,
-                    "type": "interactive",
-                    "interactive": {
-                        "type": "button",
-                        "body": {"text": body_text},
-                        "action": {"buttons": buttons},
-                    },
-                }
-
-        # 3. Standard Text Message (up to 4096 characters)
-        return {
-            "messaging_product": "whatsapp",
-            "recipient_type": "individual",
-            "to": to_number,
-            "type": "text",
-            "text": {"body": response.text[:4096]},
-        }
+        return _format_single_payload(response)
 
     def build_message_payloads(self, response: NormalizedOutgoingResponse) -> list[dict[str, Any]]:
         """Construct ordered text chunks followed by actions, without truncating a receipt."""
-        to_number = response.recipient_id.replace("+", "").strip()
-        if len(response.text) <= 4096 and (
-            not response.interactive_actions or len(response.text) <= 1000
-        ):
-            return [self.format_whatsapp_payload(response)]
-
-        payloads: list[dict[str, Any]] = []
-        remaining = response.text
-        while remaining:
-            cut = min(len(remaining), 4096)
-            if cut < len(remaining):
-                newline = remaining.rfind("\n", 0, cut + 1)
-                if newline > cut // 2:
-                    cut = newline + 1
-            payloads.append({
-                "messaging_product": "whatsapp",
-                "recipient_type": "individual",
-                "to": to_number,
-                "type": "text",
-                "text": {"body": remaining[:cut]},
-            })
-            remaining = remaining[cut:]
-        if response.interactive_actions:
-            short_prompt_resp = NormalizedOutgoingResponse(
-                recipient_id=response.recipient_id,
-                channel=response.channel,
-                text="Please review the details above and choose an option:",
-                conversation_state=response.conversation_state,
-                interactive_actions=response.interactive_actions,
-                interactive_title=response.interactive_title,
-                interactive_button_text=response.interactive_button_text,
-            )
-            payloads.append(self.format_whatsapp_payload(short_prompt_resp))
-        return payloads
+        return _format_build_payloads(response)
 
     # -----------------------------------------------------------------------
     # 5. Outbound Delivery
@@ -374,7 +181,6 @@ class WhatsAppChannelAdapter(BaseChannelAdapter):
             logger.debug("mark_message_read error for message_id=%s: %s", message_id, exc)
             return False
 
-
     async def send_response(self, response: NormalizedOutgoingResponse) -> bool:
         """Send formatted response via Meta WhatsApp Cloud API using pooled connection."""
         payloads = self.build_message_payloads(response)
@@ -411,3 +217,9 @@ class WhatsAppChannelAdapter(BaseChannelAdapter):
 
 # Singleton instance
 default_whatsapp_adapter = WhatsAppChannelAdapter()
+
+__all__ = [
+    "WhatsAppChannelAdapter",
+    "_mask_recipient",
+    "default_whatsapp_adapter",
+]

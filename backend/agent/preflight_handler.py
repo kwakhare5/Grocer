@@ -14,12 +14,15 @@ from backend.agent.address_resolver import (
 )
 from backend.agent.approval import PendingApproval, cart_fingerprint
 from backend.agent.budget import extract_ingredient_budget, extract_total_budget
+from backend.agent.drift_guard import check_cart_drift
 from backend.agent.fast_paths import (
+    handle_cart_read_fast_path,
     handle_greeting_or_cancellation_fast_path,
+    handle_hesitation_fast_path,
     handle_reset_fast_path,
 )
 from backend.agent.formatters import format_cart_receipt
-from backend.agent.guards import is_explicit_confirmation, is_hesitation
+from backend.agent.guards import is_explicit_confirmation
 from backend.channels.models import (
     InteractiveAction,
     NormalizedIncomingMessage,
@@ -60,6 +63,17 @@ async def execute_preflight(
     }
     if message.interactive_id in action_map:
         incoming_text = action_map[message.interactive_id]
+
+    current_time = time.time()
+    last_seen = engine._last_interaction_time.get(customer_id)
+    engine._last_interaction_time[customer_id] = current_time
+    is_inactive_session = last_seen is not None and (current_time - last_seen) > 1800
+    if is_inactive_session:
+        engine._order_address_confirmed.pop(customer_id, None)
+        engine._awaiting_address_choice.pop(customer_id, None)
+        engine._customer_address.pop(customer_id, None)
+        session.pending_approval = None
+        session.selected_payment_id = None
 
     ingredient_budget = extract_ingredient_budget(incoming_text)
     budget = extract_total_budget(incoming_text) if ingredient_budget is None else None
@@ -163,86 +177,28 @@ async def execute_preflight(
     except Exception as exc:
         logger.debug("Failed to fetch initial cart for customer=%s: %s", customer_id, exc)
 
-    if session.known_cart_fingerprint:
-        observed_fingerprint = (
-            cart_fingerprint(current_cart, current_cart.address_id or session.address_id or "")
-            if current_cart
-            else None
-        )
-        if observed_fingerprint != session.known_cart_fingerprint:
-            # Bounded price tolerance (Q1): minor fee fluctuations (<= ₹10) proceed smoothly
-            is_minor_fluctuation = False
-            if current_cart and session.pending_approval:
-                old_total = getattr(session, "known_cart_total", None)
-                if old_total is not None:
-                    delta = abs(current_cart.grand_total - old_total)
-                    within_budget = session.budget_inr is None or current_cart.grand_total <= session.budget_inr
-                    if delta <= 10.0 and within_budget:
-                        is_minor_fluctuation = True
-                        session.known_cart_fingerprint = observed_fingerprint
-                        session.known_cart_total = current_cart.grand_total
-                        session.pending_approval = PendingApproval(
-                            fingerprint=observed_fingerprint,
-                            expires_at=session.pending_approval.expires_at,
-                        )
+    if is_inactive_session and (not current_cart or not current_cart.items):
+        history = []
+        engine._history[customer_id] = history
 
-            if not is_minor_fluctuation:
-                session.external_cart_pending = True
-                session.pending_approval = None
-                session.selected_payment_id = None
-    if session.external_cart_pending:
-        if (norm_text in {"use changes", "yes", "proceed", "confirm", "ok", "accept changes", "use change"} or user_confirmed) and current_cart:
-            observed_fingerprint = cart_fingerprint(
-                current_cart, current_cart.address_id or session.address_id or ""
-            )
-            if observed_fingerprint:
-                session.known_cart_fingerprint = observed_fingerprint
-                session.known_cart_total = current_cart.grand_total
-                session.external_cart_pending = False
-                return PreflightResult(
-                    early_response=NormalizedOutgoingResponse(
-                        recipient_id=message.sender_id,
-                        channel=message.channel,
-                        text="I’ve included the Swiggy cart changes. Please tell me what to change next.\n\n"
-                        + format_cart_receipt(
-                            current_cart, session.address_label or "Saved Address", allow_checkout_prompt=False
-                        ),
-                        conversation_state="NEEDS_DECISION",
-                    )
-                )
-        receipt = (
-            format_cart_receipt(
-                current_cart, session.address_label or "Saved Address", allow_checkout_prompt=False
-            )
-            if current_cart
-            else "I couldn't read the current Swiggy basket."
-        )
-        return PreflightResult(
-            early_response=NormalizedOutgoingResponse(
-                recipient_id=message.sender_id,
-                channel=message.channel,
-                text="The Swiggy cart changed outside this chat. Reply *use changes* to include it, "
-                "or tell me how you want to restore the basket.\n\n"
-                + receipt,
-                conversation_state="NEEDS_DECISION",
-            )
-        )
-
-    cart_read = (
-        norm_text in {"cart", "basket", "my cart", "items", "my basket", "view cart", "show cart", "check cart"}
-        or bool(re.search(r"\b(?:show|view|see|list|check|display|what(?:'s|\s+is))\b.*?\b(?:cart|basket|items)\b", norm_text))
+    drift_resp = check_cart_drift(
+        session=session,
+        current_cart=current_cart,
+        norm_text=norm_text,
+        user_confirmed=user_confirmed,
+        message=message,
     )
-    if cart_read:
-        if current_cart is None:
-            text, state = "I couldn't read your current basket. Please try again shortly.", "FAILED"
-        elif not current_cart.items:
-            text, state = "Your basket is empty. What groceries would you like to add?", "READY"
-        else:
-            text = format_cart_receipt(current_cart, session.address_label or "Saved Address", allow_checkout_prompt=False)
-            state = "NEEDS_DECISION"
-        return PreflightResult(early_response=NormalizedOutgoingResponse(
-            recipient_id=message.sender_id, channel=message.channel, text=text, conversation_state=state,
-        ))
+    if drift_resp is not None:
+        return PreflightResult(early_response=drift_resp)
+
+    cart_read_resp = handle_cart_read_fast_path(
+        norm_text=norm_text,
+        message=message,
+        current_cart=current_cart,
+        address_label=session.address_label,
+    )
+    if cart_read_resp is not None:
+        return PreflightResult(early_response=cart_read_resp)
 
     if message.interactive_id and message.interactive_id.startswith("payment_choice:"):
         selected_id = message.interactive_id.removeprefix("payment_choice:")
@@ -339,73 +295,16 @@ async def execute_preflight(
             order_total=current_cart.grand_total,
         ))
 
-    # Fast-path 2: Hesitation guard when active basket exists
-    if is_hesitation(norm_text) and current_cart and current_cart.items:
-        loc = engine._customer_address_label.get(customer_id) or "Home"
-        receipt = format_cart_receipt(current_cart, delivery_location=loc)
-        return PreflightResult(early_response=NormalizedOutgoingResponse(
-            recipient_id=message.sender_id, channel=message.channel,
-            text=(
-                "No problem, I've kept your basket on hold! 🛒\n\n"
-                "Your groceries are still saved. Whenever you're ready, let me know if you want to add/remove items, switch delivery address, or clear your basket.\n\n"
-                f"{receipt}"
-            ),
-            interactive_actions=[
-                InteractiveAction(action_type="button", id="confirm_order", title="Confirm Order"),
-                InteractiveAction(action_type="button", id="modify_cart", title="Change Items"),
-                InteractiveAction(action_type="button", id="start_fresh", title="Clear Cart"),
-            ],
-            requires_confirmation=True,
-            conversation_state="AWAITING_CHECKOUT_CONFIRMATION",
-                order_total=current_cart.grand_total,
-            )
-        )
-
-    current_time = time.time()
-    last_seen = engine._last_interaction_time.get(customer_id)
-    engine._last_interaction_time[customer_id] = current_time
-    if last_seen is not None and (current_time - last_seen) > 1800:
-        engine._order_address_confirmed.pop(customer_id, None)
-        engine._awaiting_address_choice.pop(customer_id, None)
-        engine._customer_address.pop(customer_id, None)
-        if not current_cart or not current_cart.items:
-            history = []
-            engine._history[customer_id] = history
+    hesitation_resp = handle_hesitation_fast_path(
+        norm_text=norm_text,
+        message=message,
+        current_cart=current_cart,
+        address_label=engine._customer_address_label.get(customer_id),
+    )
+    if hesitation_resp is not None:
+        return PreflightResult(early_response=hesitation_resp)
 
     if session.pending_variant_selection:
-        ordinal = re.fullmatch(
-            r"(?:the\s+)?(first|second|third|fourth|fifth|sixth|[1-6](?:st|nd|rd|th))"
-            r"(?:\s+(?:one|option))?",
-            norm_text,
-        )
-        if ordinal:
-            groups = session.pending_variant_selection["groups"]
-            if len(groups) != 1:
-                return PreflightResult(
-                    early_response=engine._variant_choice_response(
-                        message, session.pending_variant_selection,
-                        "Please name a listed code for each item.",
-                    )
-                )
-            choice_number = {
-                "first": 1, "second": 2, "third": 3, "fourth": 4,
-                "fifth": 5, "sixth": 6,
-            }.get(ordinal.group(1), int(ordinal.group(1)[0]) if ordinal.group(1)[0].isdigit() else 0)
-            options = groups[0]["options"]
-            if choice_number <= len(options):
-                chosen = message.model_copy(update={"text": options[choice_number - 1]["code"]})
-                resp = await engine._handle_variant_choice(chosen, customer_id, current_cart)
-                return PreflightResult(early_response=resp)
-            return PreflightResult(
-                early_response=engine._variant_choice_response(
-                    message, session.pending_variant_selection,
-                    "That option is not listed. Please choose one of these codes.",
-                )
-            )
-        if (re.search(r"\b\d{1,2}[A-F]\b", incoming_text.upper())
-                or norm_text in {"cancel", "never mind", "start over", "try again", "retry"}):
-            resp = await engine._handle_variant_choice(message, customer_id, current_cart)
-            return PreflightResult(early_response=resp)
         session.pending_variant_selection = None
         session.pending_request_text = incoming_text
 

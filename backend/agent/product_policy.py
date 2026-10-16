@@ -14,7 +14,7 @@ _ALLOWED_FIRST_AID = re.compile(
     re.I,
 )
 _SYMPTOM = re.compile(r"\b(?:headache|sore throat|fever|cough|(?:a|the) cold)\b", re.I)
-_EXPLICIT_ADD = re.compile(r"\b(?:add|buy|order|put in (?:my |the )?cart|get me)\b", re.I)
+_EXPLICIT_ADD = re.compile(r"\b(?:add|buy|order|put in (?:my |the )?cart|get me|get|bring|send|deliver|need|want|pick up)\b", re.I)
 
 
 def is_restricted_medical_product(name: str, category: str | None = None) -> bool:

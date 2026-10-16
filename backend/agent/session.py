@@ -50,7 +50,10 @@ class CustomerSession:
 
     def clear_all(self) -> None:
         """Completely reset session history and address state."""
-        self.history.clear()
+        if self.history is not None:
+            self.history.clear()
+        else:
+            self.history = []
         self.reset_order_address()
         self.pending_approval = None
         self.unresolved_items.clear()

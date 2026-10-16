@@ -31,7 +31,6 @@ from backend.api.whatsapp import (
 )
 from backend.api.oauth import router as oauth_router
 from backend.api.simulator import router as simulator_router
-from backend.api.debug import router as debug_router
 
 logger = logging.getLogger("grocer.main")
 
@@ -168,7 +167,6 @@ async def _lifespan(app: FastAPI):
         if pool is not None:
             outbound_worker = asyncio.create_task(_outbound_worker(app))
             worker = asyncio.create_task(_message_worker(app))
-            replenishment_worker = asyncio.create_task(_replenishment_worker(app))
             if settings.CHECKOUT_MODE == "live":
                 payment_worker = asyncio.create_task(_payment_worker(app))
     try:
@@ -235,7 +233,6 @@ def create_app() -> FastAPI:
     app.include_router(whatsapp_router)
     app.include_router(oauth_router, prefix="/api")
     app.include_router(oauth_router)
-    app.include_router(debug_router, prefix="/api")
     if settings.SIMULATOR_ENABLED:
         if (not settings.SIMULATOR_ACCESS_TOKEN or len(settings.SIMULATOR_ACCESS_TOKEN) < 16
                 or not settings.SIMULATOR_SENDER_ID):

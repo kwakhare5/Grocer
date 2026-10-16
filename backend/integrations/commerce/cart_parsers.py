@@ -1,4 +1,4 @@
-"""Swiggy Instamart cart and child order parsers."""
+"""Swiggy Instamart cart and bill breakdown parser."""
 from __future__ import annotations
 
 from typing import Any, Optional
@@ -7,8 +7,6 @@ from backend.integrations.commerce.catalog_parsers import _optional_provider_boo
 from backend.integrations.commerce.models import (
     CartItem,
     CommerceCart,
-    OrderChildResult,
-    OrderLineItem,
 )
 
 
@@ -80,34 +78,26 @@ def build_commerce_cart(data: dict[str, Any], cart_id: Optional[str] = None) -> 
             item_total = val
         elif "delivery" in label:
             delivery_fee = val
-        elif "packaging" in label:
+        elif "package" in label or "packing" in label:
             packaging_fee = val
-        elif "handling" in label:
+        elif "handling" in label or "convenience" in label:
             handling_fee = val
-        elif "tax" in label or "gst" in label or "govt" in label:
+        elif "tax" in label or "gst" in label:
             taxes = val
-        elif "discount" in label or "coupon" in label or "saving" in label:
+        elif "discount" in label or "coupon" in label:
             discount = abs(val)
-        elif "platform" in label or "surge" in label or "rain" in label or "fee" in label or "charge" in label:
-            handling_fee += val
-        elif val > 0:
-            handling_fee += val
-
-    # Fallback to direct bill or subtotal if lineItems was absent
-    if item_total == 0.0:
-        legacy_bill = data.get("bill", {})
-        item_total = float(legacy_bill.get("itemTotal", data.get("subtotal", sum(ci.total_price for ci in cart_items))))
-        delivery_fee = float(legacy_bill.get("deliveryFee", data.get("deliveryFee", 0.0)))
-        packaging_fee = float(legacy_bill.get("packagingFee", data.get("packagingFee", 0.0)))
-        discount = float(legacy_bill.get("discount", 0.0))
 
     grand_total = 0.0
-    to_pay = bill_breakdown.get("toPay", {})
-    if to_pay and "value" in to_pay:
+    to_pay = bill_breakdown.get("toPay") or data.get("toPay") or {}
+    if isinstance(to_pay, dict) and "value" in to_pay:
         try:
             grand_total = float(str(to_pay["value"]).replace("₹", "").replace(",", "").strip())
         except ValueError:
             grand_total = 0.0
+    elif isinstance(to_pay, (int, float)):
+        grand_total = float(to_pay)
+    else:
+        grand_total = float(data.get("grandTotal", 0.0))
 
     if grand_total == 0.0 and (data.get("cartTotalAmount") is not None or data.get("total") is not None):
         tot_str = str(data.get("cartTotalAmount", data.get("total"))).replace("₹", "").replace(",", "").strip()
@@ -116,7 +106,11 @@ def build_commerce_cart(data: dict[str, Any], cart_id: Optional[str] = None) -> 
         except ValueError:
             grand_total = 0.0
 
+    if not item_total and cart_items:
+        item_total = sum(i.total_price for i in cart_items)
+
     computed_sum = round(item_total + delivery_fee + packaging_fee + handling_fee + taxes - discount, 2)
+    grand_total = round(grand_total, 2)
     diff = round(grand_total - computed_sum, 2)
 
     # Intelligently absorb positive provider surcharges (rain fee, night fee, platform fees)
@@ -175,110 +169,4 @@ def build_commerce_cart(data: dict[str, Any], cart_id: Optional[str] = None) -> 
     )
 
 
-def normalize_payment_status(raw_status: Any) -> str:
-    """Normalize Swiggy payment status string into canonical states."""
-    status = str(raw_status or "").strip().upper()
-    if status in {"FAILED", "FAILURE", "CANCELLED", "CANCELED", "EXPIRED", "REFUNDED", "REFUND_INITIATED", "UNSUCCESSFUL", "UNPAID"}:
-        return "PAYMENT_FAILED"
-    if status in {"SUCCESS", "PAID", "COMPLETED", "CAPTURED"}:
-        return "PAYMENT_CONFIRMED"
-    if status in {"PENDING", "PROCESSING", "INITIATED", "PENDING_PAYMENT"}:
-        return "PAYMENT_PENDING"
-    return "PAYMENT_UNKNOWN"
-
-
-def normalize_order_status(
-    raw_status: Optional[str],
-    *,
-    order_count: int,
-    success_count: int,
-    failure_count: int,
-    all_succeeded: bool,
-) -> str:
-    """Normalize order status according to line counts and outcomes."""
-    status = (raw_status or "").strip().upper()
-    if status in {"PENDING_PAYMENT", "PAYMENT_PENDING"}:
-        return "PAYMENT_PENDING"
-    if (failure_count > 0 and success_count > 0) or status in {
-        "PARTIAL",
-        "PARTIAL_ORDER",
-        "PARTIALLY_PLACED",
-    }:
-        return "PARTIAL_ORDER"
-    if (
-        (failure_count > 0 and success_count == 0)
-        or status in {"FAILED", "FAILURE", "UNSUCCESSFUL", "CANCELLED", "CANCELED", "EXPIRED"}
-    ):
-        return "FAILED"
-    if status in {
-        "CONFIRMED",
-        "ORDER_PLACED",
-        "PLACED",
-        "SUCCESS",
-        "SUCCEEDED",
-        "COMPLETED",
-        "PAYMENT_CONFIRMED",
-    }:
-        return "ORDER_PLACED"
-    if order_count > 0 and all_succeeded and success_count == order_count:
-        return "ORDER_PLACED"
-    return "ORDER_STATE_UNKNOWN"
-
-
-def parse_child_order(raw: dict[str, Any]) -> OrderChildResult:
-    """Parse single child order payload in multi-order or split-order baskets."""
-    raw_status_value = raw.get("status")
-    raw_status = str(raw_status_value).upper() if raw_status_value is not None else None
-    explicit_success = raw.get("success")
-    success = explicit_success if isinstance(explicit_success, bool) else None
-    raw_error = raw.get("error")
-    if isinstance(raw_error, dict):
-        child_error = raw_error.get("message") or raw_error.get("code")
-    else:
-        child_error = raw_error
-    normalized = normalize_order_status(
-        raw_status,
-        order_count=1,
-        success_count=1 if success is True else 0,
-        failure_count=1 if success is False else 0,
-        all_succeeded=success is True,
-    )
-    if child_error is not None and normalized == "ORDER_STATE_UNKNOWN":
-        normalized = "FAILED"
-    if success is None:
-        if normalized == "ORDER_PLACED":
-            success = True
-        elif normalized == "FAILED":
-            success = False
-    return OrderChildResult(
-        order_id=str(raw["orderId"]) if raw.get("orderId") else None,
-        status=normalized,
-        raw_status=raw_status,
-        success=success,
-        grand_total=float(raw["orderTotal"]) if raw.get("orderTotal") is not None else None,
-        error=str(child_error) if child_error is not None else None,
-    )
-
-
-def parse_order_items(raw_items: Any) -> list[OrderLineItem]:
-    """Parse list of items inside an existing order."""
-    items: list[OrderLineItem] = []
-    if not isinstance(raw_items, list):
-        return items
-    for raw in raw_items:
-        if not isinstance(raw, dict) or not raw.get("name") or "quantity" not in raw:
-            continue
-        items.append(
-            OrderLineItem(
-                name=str(raw["name"]),
-                quantity=int(raw["quantity"]),
-                item_id=(str(raw["itemId"]) if raw.get("itemId") is not None else None),
-                final_price=(
-                    float(raw["finalPrice"])
-                    if raw.get("finalPrice") is not None
-                    else None
-                ),
-                removed=(bool(raw["removed"]) if "removed" in raw else None),
-            )
-        )
-    return items
+__all__ = ["_optional_provider_bool", "build_commerce_cart"]

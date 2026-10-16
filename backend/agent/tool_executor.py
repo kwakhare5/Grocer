@@ -69,11 +69,25 @@ async def execute_engine_tool(
             session.known_cart_fingerprint = result["verified_fingerprint"]
         if result.get("ingredient_spin_ids"):
             session.ingredient_spin_ids = result["ingredient_spin_ids"]
-        return result
     elif name == "quick_add_items":
         session = engine.get_session(customer_id)
         session.pending_approval = None
-        return await engine.tools.prepare_variant_choices(args.get("items", []), address_id or "")
+        loc = engine._customer_address_label.get(customer_id, "Home")
+        result = await engine.tools.quick_add_items(
+            items=args.get("items", []),
+            address_id=address_id or "",
+            current_cart=current_cart,
+            delivery_location=loc,
+            budget_cap_inr=session.budget_inr,
+            ingredient_budget_inr=session.ingredient_budget_inr,
+            ingredient_extras_text=session.ingredient_extras_text or "",
+            ingredient_spin_ids=session.ingredient_spin_ids,
+        )
+        if result.get("verified_fingerprint"):
+            session.known_cart_fingerprint = result["verified_fingerprint"]
+        if result.get("ingredient_spin_ids"):
+            session.ingredient_spin_ids = result["ingredient_spin_ids"]
+        return result
     elif name == "update_cart":
         session = engine.get_session(customer_id)
         session.pending_approval = None
@@ -151,17 +165,20 @@ async def execute_engine_tool(
         return result
     elif name == "checkout":
         sess = engine.get_session(customer_id)
+        confirmed_by_user = bool(user_confirmed)
+        approval = sess.pending_approval
         if sess.unresolved_items:
-            return {
-                "success": False,
-                "error": "ITEMS_UNRESOLVED",
-                "retryable": False,
-                "message": "Please resolve each missing or reduced requested item before checkout.",
-            }
+            if confirmed_by_user and approval and approval.expires_at > time.time():
+                sess.unresolved_items.clear()
+            else:
+                return {
+                    "success": False,
+                    "error": "ITEMS_UNRESOLVED",
+                    "retryable": False,
+                    "message": "Please resolve each missing or reduced requested item before checkout.",
+                }
         if sess.external_cart_pending:
             return {"success": False, "error": "EXTERNAL_CART_UNREVIEWED", "retryable": False}
-        approval = sess.pending_approval
-        confirmed_by_user = user_confirmed or args.get("is_user_confirmed") is True
         if not confirmed_by_user or not approval or approval.expires_at <= time.time():
             return {
                 "success": False,
@@ -227,7 +244,6 @@ async def execute_engine_tool(
                     "retryable": False,
                     "message": "An earlier checkout or payment is unresolved. Further checkout is on hold.",
                 }
-        sess.pending_approval = None
         try:
             result = await engine.tools.checkout(
                 cart_id=args.get("cart_id", ""),
@@ -241,17 +257,15 @@ async def execute_engine_tool(
             )
             if attempt_id is not None:
                 await engine.attempt_store.finish(attempt_id, result)
-            if result.get("error") in {
-                "PAYMENT_CHOICE_REQUIRED",
-                "PAYMENT_OPTION_UNAVAILABLE",
-                "PAYMENT_OPTIONS_UNAVAILABLE",
-                "QR_ELIGIBILITY_UNVERIFIED",
-            }:
+            if not result.get("success"):
                 sess.pending_approval = approval
+            else:
+                sess.pending_approval = None
             return result
         except Exception as exc:
             logger.exception("Checkout outcome could not be verified: %s", exc)
-            fallback = {"success": False, "error": "ORDER_STATE_UNKNOWN", "retryable": False}
+            fallback = {"success": False, "error": "ORDER_STATE_UNKNOWN", "retryable": True}
+            sess.pending_approval = approval
             if attempt_id is not None:
                 try:
                     await engine.attempt_store.finish(attempt_id, fallback)

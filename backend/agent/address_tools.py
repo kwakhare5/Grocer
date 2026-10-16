@@ -12,26 +12,10 @@ from backend.integrations.commerce.port import CommercePort
 
 logger = logging.getLogger("grocer.agent.address_tools")
 
-_PUNE_REVIEW_ADDRESS = DeliveryAddress(
-    id="addr-pune-1",
-    label="Home",
-    street="Flat 402, Green Acres, Clover Park, Viman Nagar",
-    area="Viman Nagar",
-    city="Pune",
-    postal_code="411014",
-    latitude=18.5679,
-    longitude=73.9143,
-    is_serviceable=True,
-    is_default=True,
-)
-
-
 async def execute_get_saved_addresses(commerce: CommercePort, customer_id: str) -> dict[str, Any]:
     """Retrieve the user's saved delivery addresses from Swiggy."""
     try:
         addresses: list[DeliveryAddress] = await commerce.get_addresses(customer_id)
-        if not addresses and (settings.CHECKOUT_MODE == "review" or not getattr(commerce, "is_live", False)):
-            addresses = [_PUNE_REVIEW_ADDRESS]
         formatted = [
             {
                 "address_id": a.id,

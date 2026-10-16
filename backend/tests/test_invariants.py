@@ -44,11 +44,47 @@ def test_is_reset_command_does_not_falsely_match_shopping_intents():
         "basket of apples",
         "delete 1 milk",
         "remove bread from basket",
+        "remove all bread",
+        "delete all apples",
         "cart total please",
         "where is my order",
     ]
     for case in negative_cases:
         assert is_reset_command(case) is False, f"Falsely matched shopping intent: '{case}'"
+
+
+def test_is_hesitation_does_not_falsely_match_bus_stop_or_shopping():
+    """Hesitation guard must not match transportation stops or shopping statements."""
+    from backend.agent.guards import is_hesitation
+
+    negative_cases = [
+        "milk at the bus stop",
+        "meet me at the metro stop and bring bread",
+        "add milk",
+    ]
+    for case in negative_cases:
+        assert is_hesitation(case) is False, f"Falsely matched hesitation: '{case}'"
+
+
+def test_cart_read_fast_path_does_not_hijack_product_recommendation_questions():
+    """Cart read fast-path must not hijack user questions like 'what items go well with pasta?'."""
+    from backend.agent.fast_paths import handle_cart_read_fast_path
+    from backend.channels.models import NormalizedIncomingMessage
+
+    dummy_msg = NormalizedIncomingMessage(
+        message_id="msg-1",
+        sender_id="user-1",
+        channel="whatsapp",
+        text="what items go well with pasta?",
+    )
+    result = handle_cart_read_fast_path(
+        norm_text="what items go well with pasta?",
+        message=dummy_msg,
+        current_cart=None,
+    )
+    assert result is None, "Recommendation questions must not trigger cart read fast-path"
+
+
 
 
 @pytest.mark.asyncio
@@ -654,6 +690,26 @@ async def test_checkout_executor_guards_unserviceable_cart():
     res = await execute_gated_checkout(commerce, cart_id="cart-1", address_id="addr-1", is_user_confirmed=True)
     assert res["success"] is False
     assert res["error"] == "ADDRESS_NOT_SERVICEABLE"
+
+
+def test_rank_and_select_best_variant_handles_id_like_milk():
+    """English contraction 'I'd like milk' must not be mistaken for ID Fresh brand."""
+    from backend.agent.catalog_ranker import rank_and_select_best_variant
+
+    products = [
+        {
+            "name": "Amul Taaza Toned Milk",
+            "brand": "Amul",
+            "spin_id": "spin-amul-milk",
+            "sku_id": "sku-amul-milk",
+            "price": 27.0,
+            "pack_size": "500 ml",
+        }
+    ]
+    selected = rank_and_select_best_variant("I'd like 2 packets of milk", products)
+    assert selected is not None, "Product should not be rejected due to 'id' contraction"
+    assert selected["spin_id"] == "spin-amul-milk"
+
 
 
 

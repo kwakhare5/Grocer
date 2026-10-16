@@ -1,4 +1,4 @@
-"""Swiggy Instamart product catalog and search response parsers."""
+"""Swiggy Instamart product catalog parser."""
 from __future__ import annotations
 
 from typing import Any, Optional
@@ -51,7 +51,6 @@ def parse_swiggy_products(raw_items: Any) -> list[CommerceProductItem]:
                 or ""
             )
 
-            # Official price structure is { mrp: number, offerPrice: number }
             price_obj = v.get("price")
             if isinstance(price_obj, dict):
                 if "offerPrice" not in price_obj and "mrp" not in price_obj:
@@ -59,43 +58,54 @@ def parse_swiggy_products(raw_items: Any) -> list[CommerceProductItem]:
                 offer_price = float(price_obj.get("offerPrice", price_obj.get("mrp", 0.0)))
                 mrp = float(price_obj.get("mrp", offer_price))
             else:
-                if "price" not in v:
-                    continue
-                offer_price = float(v.get("price", 0.0))
+                raw_price = v.get("price", v.get("offerPrice", v.get("mrp", 0.0)))
+                offer_price = float(raw_price) if raw_price is not None else 0.0
                 mrp = float(v.get("mrp", offer_price))
 
-            stock_value = v.get(
-                "isInStockAndAvailable", v.get("inStock", item.get("inStock"))
-            )
-            in_stock = _optional_provider_bool(stock_value)
-            image_url = v.get("imageUrl") or item.get("imageUrl")
+            inventory = v.get("inventory", {})
+            if isinstance(inventory, dict):
+                is_available = _optional_provider_bool(
+                    inventory.get("inStock", inventory.get("isInStock"))
+                )
+                max_allowed = inventory.get("maxAllowedQuantity")
+            else:
+                is_available = _optional_provider_bool(v.get("inStock", v.get("isInStock")))
+                max_allowed = v.get("maxAllowedQuantity")
+
+            meta = v.get("meta", {})
+            if not isinstance(meta, dict):
+                meta = {}
+            veg_val = meta.get("isVeg", meta.get("veg"))
+            is_veg = _optional_provider_bool(veg_val)
 
             variants.append(
                 ProductVariant(
-                    spin_id=spin_id,
-                    sku_id=sku_id,
-                    name=var_name,
-                    pack_size=pack_size,
+                    spin_id=str(spin_id),
+                    sku_id=str(sku_id) if sku_id else None,
+                    name=str(var_name),
+                    pack_size=str(pack_size),
                     price=offer_price,
-                    offer_price=offer_price,
                     mrp=mrp,
-                    in_stock=in_stock,
-                    image_url=image_url,
-                    max_quantity=v.get("maxQuantity"),
-                    max_quantity_message=v.get("maxQuantityMessage"),
+                    is_available=is_available,
+                    is_veg=is_veg,
+                    max_quantity=(int(max_allowed) if max_allowed is not None else None),
                 )
             )
 
         if not variants:
             continue
+
         products.append(
             CommerceProductItem(
                 product_id=product_id,
                 name=display_name,
+                brand=str(brand) if brand else None,
                 category=category,
-                brand=brand,
                 variants=variants,
-                image_url=item.get("imageUrl"),
             )
         )
+
     return products
+
+
+__all__ = ["_optional_provider_bool", "parse_swiggy_products"]

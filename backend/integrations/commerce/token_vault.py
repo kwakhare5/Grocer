@@ -215,11 +215,14 @@ class SwiggyTokenVault:
         return entry.access_token if entry else None
 
     async def get_token_durable(self, customer_id: str | None) -> str | None:
-        """Read the current customer token on every provider call across app instances."""
+        """Read current customer token, checking memory cache before hitting Postgres."""
         if not customer_id:
             return None
+        cached = self.get_entry(customer_id)
+        if cached and not cached.is_expired:
+            return cached.access_token
         if not self.is_durable:
-            return self.get_token(customer_id)
+            return None
         assert self._pool is not None and self._codec is not None
         row = await self._pool.fetchrow(
             """SELECT ciphertext FROM grocer_internal.oauth_tokens
@@ -233,7 +236,11 @@ class SwiggyTokenVault:
         except (CredentialDecryptionError, ValueError):
             logger.error("A stored Swiggy credential could not be loaded safely.")
             return None
-        return entry.access_token if not entry.is_expired else None
+        if entry and not entry.is_expired:
+            with self._lock:
+                self._tokens[customer_id] = entry
+            return entry.access_token
+        return None
 
     def get_entry(self, customer_id: Optional[str] = None) -> SwiggyTokenEntry | None:
         with self._lock:

@@ -246,85 +246,76 @@ async def synthesize_turn_response(
     if out_order_total is None and last_cart_total is not None:
         out_order_total = last_cart_total
 
+    if user_confirmed or incoming_text.strip().casefold() in {"keep these items", "proceed", "yes", "confirm", "ok", "place order"}:
+        session.budget_blocked_items.clear()
+        session.unresolved_items.clear()
+
     if any(action.id == "confirm_order" for action in actions):
-        if session.budget_blocked_items:
+        if session.budget_blocked_items and not user_confirmed:
             session.pending_approval = None
-            actions = [action for action in actions if action.id != "confirm_order"]
             conv_state = "NEEDS_DECISION"
             final_text = (
                 "Some requested items were left out: "
                 + ", ".join(session.budget_blocked_items)
                 + ". Please review this partial basket and choose Keep These Items or tell me what to change."
             )
-            return NormalizedOutgoingResponse(
-                recipient_id=message.sender_id,
-                channel=message.channel,
-                text=final_text,
-                interactive_actions=[
-                    InteractiveAction(action_type="button", id="accept_partial_basket", title="Keep These Items"),
-                    InteractiveAction(action_type="button", id="modify_cart", title="Change Items"),
-                ],
-                conversation_state=conv_state,
-            )
-        unresolved = engine.get_session(customer_id).unresolved_items
-        if unresolved:
+            actions = [
+                InteractiveAction(action_type="button", id="accept_partial_basket", title="Keep These Items"),
+                InteractiveAction(action_type="button", id="modify_cart", title="Change Items"),
+            ]
+        elif engine.get_session(customer_id).unresolved_items and not user_confirmed:
+            unresolved = engine.get_session(customer_id).unresolved_items
             engine.get_session(customer_id).pending_approval = None
-            actions = [action for action in actions if action.id != "confirm_order"]
             conv_state = "NEEDS_DECISION"
             final_text = (
                 "Swiggy changed or omitted a requested item. Please resolve these before approval: "
                 + ", ".join(str(item.get("name") or item.get("query") or "requested item") for item in unresolved)
             )
-            return NormalizedOutgoingResponse(
-                recipient_id=message.sender_id,
-                channel=message.channel,
-                text=final_text,
-                interactive_actions=actions,
-                conversation_state=conv_state,
-            )
-        try:
-            reviewed_cart = await engine.commerce.get_cart()
-        except Exception:
-            reviewed_cart = None
-        approved_address = engine._customer_address.get(customer_id) or (
-            reviewed_cart.address_id if reviewed_cart else None
-        )
-        if reviewed_cart and not reviewed_cart.address_id and approved_address:
-            reviewed_cart.address_id = approved_address
-
-        approval_ok = bool(
-            reviewed_cart
-            and approved_address
-            and engine._record_pending_approval(customer_id, reviewed_cart, approved_address)
-        )
-
-        if not approval_ok:
-            engine.get_session(customer_id).pending_approval = None
             actions = [action for action in actions if action.id != "confirm_order"]
-            if user_confirmed:
-                conv_state = "NEEDS_DECISION"
-                final_text = "I couldn't verify the complete basket and delivery address. Please review them before ordering."
-            else:
-                actions = [
-                    InteractiveAction(action_type="button", id="proceed_checkout", title="Proceed to Checkout"),
-                    InteractiveAction(action_type="button", id="modify_cart", title="Change Items"),
-                ]
         else:
-            receipt = format_cart_receipt(
-                reviewed_cart, engine._customer_address_label.get(customer_id) or approved_address
+            try:
+                reviewed_cart = await engine.commerce.get_cart()
+            except Exception:
+                reviewed_cart = None
+            approved_address = engine._customer_address.get(customer_id) or (
+                reviewed_cart.address_id if reviewed_cart else None
             )
-            basket_pattern = r"🛒\s*\*?Your Basket.*"
-            if re.search(basket_pattern, final_text, flags=re.DOTALL | re.IGNORECASE):
-                intro = re.sub(basket_pattern, "", final_text, flags=re.DOTALL | re.IGNORECASE).strip()
-                intro = re.sub(r"👉\s*Reply\s*\*?Confirm\*?.*", "", intro, flags=re.IGNORECASE).strip()
-                final_text = f"{intro}\n\n{receipt}" if intro else receipt
-            elif final_text and final_text.strip():
-                clean_intro = re.sub(r"👉\s*Reply\s*\*?Confirm\*?.*", "", final_text, flags=re.IGNORECASE).strip()
-                final_text = f"{clean_intro}\n\n{receipt}" if clean_intro else receipt
+            if reviewed_cart and not reviewed_cart.address_id and approved_address:
+                reviewed_cart.address_id = approved_address
+
+            approval_ok = bool(
+                reviewed_cart
+                and approved_address
+                and engine._record_pending_approval(customer_id, reviewed_cart, approved_address)
+            )
+
+            if not approval_ok:
+                engine.get_session(customer_id).pending_approval = None
+                actions = [action for action in actions if action.id != "confirm_order"]
+                if user_confirmed:
+                    conv_state = "NEEDS_DECISION"
+                    final_text = "I couldn't verify the complete basket and delivery address. Please review them before ordering."
+                else:
+                    actions = [
+                        InteractiveAction(action_type="button", id="proceed_checkout", title="Proceed to Checkout"),
+                        InteractiveAction(action_type="button", id="modify_cart", title="Change Items"),
+                    ]
             else:
-                final_text = receipt
-            out_order_total = reviewed_cart.grand_total
-            conv_state = "AWAITING_CHECKOUT_CONFIRMATION"
+                receipt = format_cart_receipt(
+                    reviewed_cart, engine._customer_address_label.get(customer_id) or approved_address
+                )
+                basket_pattern = r"🛒\s*\*?Your Basket.*"
+                if re.search(basket_pattern, final_text, flags=re.DOTALL | re.IGNORECASE):
+                    intro = re.sub(basket_pattern, "", final_text, flags=re.DOTALL | re.IGNORECASE).strip()
+                    intro = re.sub(r"👉\s*Reply\s*\*?Confirm\*?.*", "", intro, flags=re.IGNORECASE).strip()
+                    final_text = f"{intro}\n\n{receipt}" if intro else receipt
+                elif final_text and final_text.strip():
+                    clean_intro = re.sub(r"👉\s*Reply\s*\*?Confirm\*?.*", "", final_text, flags=re.IGNORECASE).strip()
+                    final_text = f"{clean_intro}\n\n{receipt}" if clean_intro else receipt
+                else:
+                    final_text = receipt
+                out_order_total = reviewed_cart.grand_total
+                conv_state = "AWAITING_CHECKOUT_CONFIRMATION"
     elif not checkout_executed:
         engine.get_session(customer_id).pending_approval = None
 

@@ -153,6 +153,7 @@ async def execute_engine_tool(
             proposed,
             address_id=addr or "",
             delivery_location=loc,
+            budget_cap_inr=session.budget_inr,
             ingredient_budget_inr=session.ingredient_budget_inr,
             ingredient_spin_ids=session.ingredient_spin_ids,
         )

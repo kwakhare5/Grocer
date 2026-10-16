@@ -35,15 +35,13 @@ async def execute_manage_basket(
             current_cart = await tools.commerce.get_cart()
         except ProviderAuthError as exc:
             return {"success": False, "error": "AUTH_EXPIRED", "detail": str(exc)}
-        except Exception:
-            current_cart = CommerceCart(
-                cart_id="new_cart",
-                items=[],
-                item_total=0.0,
-                grand_total=0.0,
-                address_id=address_id,
-                is_serviceable=True,
-            )
+        except Exception as exc:
+            logger.warning(f"Failed to fetch cart: {exc}")
+            return {
+                "success": False,
+                "error": "CART_UNAVAILABLE",
+                "message": "Could not retrieve your current basket from Swiggy Instamart.",
+            }
 
     expected_cart_state = {
         "cart_id": current_cart.cart_id,
@@ -98,7 +96,13 @@ async def execute_manage_basket(
 
     # 3. Process Additions
     selected_for_add: list[dict[str, Any]] = []
-    if add and isinstance(add, list) and 1 <= len(add) <= 30:
+    if add and isinstance(add, list):
+        if len(add) > 30:
+            return {
+                "success": False,
+                "error": "TOO_MANY_ITEMS",
+                "message": "Cannot add more than 30 items in a single request.",
+            }
         normalized_add = []
         for item in add:
             if not isinstance(item, dict):
@@ -174,7 +178,11 @@ async def execute_manage_basket(
         )
         if not mutation.get("success"):
             return mutation
-        mutation["added_items"] = [s["option"]["name"] for s in selected_for_add]
+        verified_spins = {item.get("spin_id") for item in mutation.get("items", [])}
+        mutation["added_items"] = [
+            s["option"]["name"] for s in selected_for_add
+            if s["option"].get("spin_id") in verified_spins
+        ]
         mutation["removed_items"] = removed_items
         mutation["not_found_removals"] = not_found_removals
         mutation["modified_items"] = modified_items

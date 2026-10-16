@@ -96,7 +96,7 @@ class PostgresMessageStore:
                    FOR UPDATE SKIP LOCKED
                )
                UPDATE grocer_internal.inbound_messages i
-               SET status = 'PROCESSED', processed_at = now()
+               SET status = 'PROCESSING', claimed_at = now()
                FROM absorbed WHERE i.id = absorbed.id
                RETURNING i.id, i.payload""",
             customer_id,
@@ -122,6 +122,12 @@ class PostgresMessageStore:
                 if row is None:
                     raise RuntimeError("Inbound message is not being processed.")
                 await connection.execute(
+                    """UPDATE grocer_internal.inbound_messages
+                       SET status = 'PROCESSED', processed_at = now()
+                       WHERE customer_id = $1 AND status = 'PROCESSING'""",
+                    row["customer_id"],
+                )
+                await connection.execute(
                     """INSERT INTO grocer_internal.outbound_messages
                        (inbound_id, customer_id, payload) VALUES ($1, $2, $3::jsonb)""",
                     inbound_id, row["customer_id"], response.model_dump_json(),
@@ -132,12 +138,18 @@ class PostgresMessageStore:
         async with self.pool.acquire() as connection:
             async with connection.transaction():
                 row = await connection.fetchrow(
-                    """SELECT payload FROM grocer_internal.inbound_messages
+                    """SELECT customer_id, payload FROM grocer_internal.inbound_messages
                        WHERE id = $1 AND status = 'PROCESSING' FOR UPDATE""",
                     inbound_id,
                 )
                 if row is None:
                     return
+                await connection.execute(
+                    """UPDATE grocer_internal.inbound_messages
+                       SET status = 'NEEDS_REVIEW', processed_at = now()
+                       WHERE customer_id = $1 AND status = 'PROCESSING' AND id != $2""",
+                    row["customer_id"], inbound_id,
+                )
                 await self._complete_uncertain(connection, inbound_id, row["payload"])
 
     async def heartbeat_processing(self, inbound_id: int) -> None:

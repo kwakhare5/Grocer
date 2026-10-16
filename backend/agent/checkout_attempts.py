@@ -20,12 +20,12 @@ class PostgresCheckoutAttemptStore:
         self, customer_id: str, cart_id: str, address_id: str,
         fingerprint: str, total: float,
     ) -> str | None:
-        # Auto-expire stale IN_FLIGHT attempts older than 60 seconds (Option 4C)
+        # Auto-expire stale IN_FLIGHT attempts older than 120 seconds if unconfirmed
         await self.pool.execute(
             """UPDATE grocer_internal.checkout_attempts
                SET status = 'FAILED', updated_at = now()
                WHERE customer_id = $1 AND status = 'IN_FLIGHT'
-                 AND created_at < now() - INTERVAL '60 seconds'""",
+                 AND created_at < now() - INTERVAL '120 seconds'""",
             customer_id,
         )
         # Auto-expire expired PAYMENT_PENDING attempts past their deadline
@@ -34,14 +34,6 @@ class PostgresCheckoutAttemptStore:
                SET status = 'FAILED', updated_at = now()
                WHERE customer_id = $1 AND status = 'PAYMENT_PENDING'
                  AND payment_deadline_at IS NOT NULL AND payment_deadline_at < now()""",
-            customer_id,
-        )
-        # Auto-expire stale UNKNOWN attempts older than 5 minutes (300 seconds)
-        await self.pool.execute(
-            """UPDATE grocer_internal.checkout_attempts
-               SET status = 'FAILED', updated_at = now()
-               WHERE customer_id = $1 AND status = 'UNKNOWN'
-                 AND created_at < now() - INTERVAL '300 seconds'""",
             customer_id,
         )
         attempt_id = str(uuid.uuid4())
@@ -56,11 +48,12 @@ class PostgresCheckoutAttemptStore:
         return str(row) if row else None
 
     async def clear_unresolved_hold(self, customer_id: str) -> bool:
-        """Clear any stale checkout hold for customer to unbrick account immediately."""
+        """Clear abandoned IN_FLIGHT checkout attempts. UNKNOWN states require provider reconciliation."""
         res = await self.pool.execute(
             """UPDATE grocer_internal.checkout_attempts
                SET status = 'FAILED', updated_at = now()
-               WHERE customer_id = $1 AND status IN ('IN_FLIGHT', 'UNKNOWN')""",
+               WHERE customer_id = $1 AND status = 'IN_FLIGHT'
+                 AND created_at < now() - INTERVAL '60 seconds'""",
             customer_id,
         )
         return res != "UPDATE 0"

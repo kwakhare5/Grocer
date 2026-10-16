@@ -83,7 +83,7 @@ export function Footer() {
         <div className="pt-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-zinc-500 font-mono">
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-            <span>94/94 automated tests passing</span>
+            <span>Automated tests passing</span>
             <span className="text-zinc-300">•</span>
             <span>Live Swiggy MCP runtime</span>
           </div>

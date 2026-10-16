@@ -38,10 +38,10 @@ export function WhatsAppSimulator() {
             <span>Verified WhatsApp Conversation Flow</span>
           </div>
           <h2 className="text-2xl sm:text-3xl font-editorial font-bold text-zinc-950 tracking-tight">
-            Real WhatsApp conversation flow
+            WhatsApp conversation walkthrough
           </h2>
           <p className="mt-2.5 text-sm sm:text-base text-zinc-600 leading-relaxed font-normal">
-            Recorded live from our Quick-Commerce AI engine with Model Context Protocol. Select any turn to inspect the exact message and backend safety rules.
+            Simulated walkthrough representing the deterministic grocery replenishment lifecycle with Swiggy Instamart. Select any turn to inspect the exact message and backend safety rules.
           </p>
         </div>
 

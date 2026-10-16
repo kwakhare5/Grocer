@@ -9,6 +9,8 @@ Supports:
 """
 from __future__ import annotations
 
+import hashlib
+import json
 import logging
 import os
 from typing import Any, Optional
@@ -66,6 +68,7 @@ class WhatsAppChannelAdapter:
 
         # Record of outbound messages for testing and inspection
         self.outbound_messages: list[dict[str, Any]] = []
+        self._sent_payload_hashes: set[str] = set()
         # Persistent HTTP/2 client for outbound messages and status updates
         self._client: Optional[httpx.AsyncClient] = None
 
@@ -203,8 +206,12 @@ class WhatsAppChannelAdapter:
         try:
             client = await self._get_client()
             for payload in payloads:
+                payload_key = hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()
+                if payload_key in self._sent_payload_hashes:
+                    continue
                 res = await client.post(url, json=payload, headers=headers)
                 if res.status_code in (200, 201):
+                    self._sent_payload_hashes.add(payload_key)
                     logger.info("WhatsApp message delivered to %s.", _mask_recipient(response.recipient_id))
                 else:
                     logger.error("WhatsApp API returned HTTP %d for %s", res.status_code, _mask_recipient(response.recipient_id))

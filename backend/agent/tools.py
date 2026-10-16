@@ -153,6 +153,9 @@ class SwiggyAgentTools:
                             "price": v.get("price"),
                             "formatted_price": v.get("formatted_price"),
                             "max_quantity": v.get("max_quantity"),
+                            "in_stock": v.get("in_stock") if v.get("in_stock") is not None else v.get("is_available"),
+                            "is_available": v.get("is_available") if v.get("is_available") is not None else v.get("in_stock"),
+                            "is_veg": v.get("is_veg") if v.get("is_veg") is not None else p.get("is_veg"),
                         })
                 self._catalog_cache[cache_key] = (now, compact_prods)
                 return {"query": q, "products": compact_prods}
@@ -418,8 +421,8 @@ class SwiggyAgentTools:
                 try:
                     addrs = await self.commerce.get_addresses()
                     if addrs:
-                        lat = addrs[0].lat
-                        lng = addrs[0].lng
+                        lat = getattr(addrs[0], "latitude", getattr(addrs[0], "lat", None))
+                        lng = getattr(addrs[0], "longitude", getattr(addrs[0], "lng", None))
                 except Exception:
                     pass
             status = await self.commerce.track_order(order_id, lat=lat, lng=lng)

@@ -285,26 +285,33 @@ async def execute_add_selected_variants(
     predicted_total = Decimal(str(current_cart.grand_total))
     accepted: list[dict[str, Any]] = []
     blocked: list[str] = []
+    merged_selected: dict[str, dict[str, Any]] = {}
     for item in selected:
+        spin = item["option"]["spin_id"]
+        if spin in merged_selected:
+            merged_selected[spin]["quantity"] += item["quantity"]
+        else:
+            merged_selected[spin] = dict(item)
+
+    for spin, item in merged_selected.items():
         option, query, quantity = item["option"], item["query"], item["quantity"]
-        spin = option["spin_id"]
-        existing_accepted = next((prior for prior in accepted if prior["spin_id"] == spin), None)
-        if existing_accepted:
-            existing_accepted["quantity"] += quantity
-            continue
+        previous = existing_by_spin.get(spin)
+        prev_qty = previous.quantity if previous else 0
+        final_quantity = prev_qty + quantity
+
         max_quantity = option.get("max_quantity")
-        if isinstance(max_quantity, int) and quantity > max_quantity:
+        if isinstance(max_quantity, int) and final_quantity > max_quantity:
             blocked.append(query)
             continue
-        line_total = Decimal(str(option["price"])) * quantity
-        previous = existing_by_spin.get(spin)
-        previous_total = Decimal(str(previous.total_price)) if previous else Decimal(0)
-        delta = line_total - previous_total
+
+        unit_price = Decimal(str(option["price"]))
+        delta = unit_price * quantity
+
         is_ingredient = ingredient_budget_inr is not None and not is_explicit_extra(
             query, ingredient_extras_text,
         )
         proposed_ingredient_total = (
-            ingredient_total + (delta if spin in ingredient_ids else line_total)
+            ingredient_total + delta
             if is_ingredient
             else ingredient_total
         )
@@ -315,7 +322,7 @@ async def execute_add_selected_variants(
         ):
             blocked.append(query)
             continue
-        accepted.append({"spin_id": spin, "sku_id": option["sku_id"], "quantity": quantity})
+        accepted.append({"spin_id": spin, "sku_id": option["sku_id"], "quantity": final_quantity})
         predicted_total += delta
         ingredient_total = proposed_ingredient_total
         if is_ingredient:

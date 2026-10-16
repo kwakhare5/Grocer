@@ -80,8 +80,8 @@ def build_commerce_cart(data: dict[str, Any], cart_id: Optional[str] = None) -> 
             delivery_fee = val
         elif "package" in label or "packing" in label:
             packaging_fee = val
-        elif "handling" in label or "convenience" in label:
-            handling_fee = val
+        elif "handling" in label or "convenience" in label or "platform" in label or "surge" in label or "rain" in label:
+            handling_fee += val
         elif "tax" in label or "gst" in label:
             taxes = val
         elif "discount" in label or "coupon" in label:
@@ -113,15 +113,9 @@ def build_commerce_cart(data: dict[str, Any], cart_id: Optional[str] = None) -> 
     grand_total = round(grand_total, 2)
     diff = round(grand_total - computed_sum, 2)
 
-    # Intelligently absorb positive provider surcharges (rain fee, night fee, platform fees)
-    if diff > 0.01:
-        handling_fee = round(handling_fee + diff, 2)
-        parsed_bill_lines.append({"label": "Surcharges & Fees", "value": diff})
-        computed_sum = grand_total
-        diff = 0.0
-
     cart_warning = data.get("cartWarning")
-    currency = str(data.get("currency") or to_pay.get("currency") or "INR").upper()
+    to_pay_currency = to_pay.get("currency") if isinstance(to_pay, dict) else None
+    currency = str(data.get("currency") or to_pay_currency or "INR").upper()
     if currency != "INR":
         cart_warning = "Provider cart currency is not INR."
     if grand_total <= 0:

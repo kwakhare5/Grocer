@@ -22,7 +22,7 @@ from backend.agent.fast_paths import (
     handle_reset_fast_path,
 )
 from backend.agent.formatters import format_cart_receipt
-from backend.agent.guards import is_explicit_confirmation
+from backend.agent.guards import is_explicit_confirmation, _NEGATION_CONFIRM_REGEX
 from backend.channels.models import (
     InteractiveAction,
     NormalizedIncomingMessage,
@@ -54,6 +54,7 @@ async def execute_preflight(
 
     incoming_text = message.text.strip()
     planning_request_text = incoming_text
+    has_burst_negation = bool(_NEGATION_CONFIRM_REGEX.search(message.text))
     action_map = {
         "confirm_order": "Yes, please confirm and place the order now.",
         "proceed_checkout": "Proceed to checkout and review my order.",
@@ -61,7 +62,7 @@ async def execute_preflight(
         "start_fresh": "Please clear my cart and start fresh.",
         "clear_cart": "Please clear my cart and start fresh.",
     }
-    if message.interactive_id in action_map:
+    if message.interactive_id in action_map and not has_burst_negation:
         incoming_text = action_map[message.interactive_id]
 
     current_time = time.time()
@@ -152,7 +153,9 @@ async def execute_preflight(
     if reset_resp is not None:
         return PreflightResult(early_response=reset_resp)
 
-    user_confirmed = message.interactive_id == "confirm_order" or is_explicit_confirmation(incoming_text)
+    user_confirmed = not has_burst_negation and (
+        message.interactive_id == "confirm_order" or is_explicit_confirmation(incoming_text)
+    )
 
     current_cart: Optional[CommerceCart] = None
     try:

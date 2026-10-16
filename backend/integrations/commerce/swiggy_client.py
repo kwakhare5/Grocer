@@ -155,11 +155,13 @@ class SwiggyMcpClient:
             token = self._token_resolver(effective_customer)
             if inspect.isawaitable(token):
                 token = await token
+            if not token:
+                raise ProviderAuthError(
+                    "No active Swiggy session exists for this customer."
+                )
         else:
             token = self.resolve_token(effective_customer)
-        if not token and self._auth_token:
-            token = self._auth_token
-        if self._token_resolver is not None and not token:
+        if not token:
             raise ProviderAuthError(
                 "No active Swiggy session exists for this customer."
             )

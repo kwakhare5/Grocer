@@ -339,10 +339,16 @@ class SwiggyMCPAdapter(CommercePort):
                         else str(order.get("addressId") or "")
                     )
                     ord_cart = str(order.get("cartId", ""))
-                    if ord_cart and ord_cart != cart_id:
-                        continue
-                    if ord_addr and ord_addr != address_id:
-                        continue
+                    if ord_cart:
+                        if ord_cart != cart_id:
+                            continue
+                    else:
+                        # Require address match and non-historical order state to prevent claiming old orders
+                        if not ord_addr or ord_addr != address_id:
+                            continue
+                        raw_st = str(order.get("currentStatus") or order.get("status") or "").upper()
+                        if raw_st in ("DELIVERED", "COMPLETED", "CANCELLED", "REFUNDED", "FAILED", "RETURNED"):
+                            continue
                     correlated = order
                     break
 

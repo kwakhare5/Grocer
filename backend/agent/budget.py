@@ -48,8 +48,8 @@ def extract_ingredient_budget(text: str) -> tuple[float, str] | None:
 def is_explicit_extra(query: str, extras_text: str) -> bool:
     """Classify only an item named in the customer's explicit extra clause."""
     words = re.findall(r"[\w]+", query.casefold())
-    words = [word for word in words if len(word) >= 4 and word not in {
-        "fresh", "green", "brown", "whole", "large", "small", "organic",
+    words = [word for word in words if len(word) >= 3 and word not in {
+        "the", "and", "for", "with", "fresh", "green", "brown", "whole", "large", "small", "organic",
     }]
     return bool(words and any(re.search(rf"\b{re.escape(w)}\b", extras_text.casefold()) for w in words))
 

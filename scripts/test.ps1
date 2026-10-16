@@ -33,9 +33,8 @@ if ($pgAvailable) {
         exit $LASTEXITCODE
     }
 } else {
-    Write-Host "[INFO] PostgreSQL container not running on 127.0.0.1:5432. Skipping Docker E2E suite." -ForegroundColor Yellow
-    Write-Host "       To run the 81 E2E tests locally, run:" -ForegroundColor Gray
-    Write-Host "       docker run -d -p 5432:5432 -e POSTGRES_PASSWORD=postgres postgres:16-alpine" -ForegroundColor Gray
+    Write-Error "PostgreSQL container is not reachable on 127.0.0.1:5432. Zero test skips allowed. Run: docker run -d -p 5432:5432 -e POSTGRES_PASSWORD=postgres postgres:16-alpine"
+    exit 1
 }
 
 Write-Host "`n=== 3. Running Frontend Linter ===" -ForegroundColor Cyan

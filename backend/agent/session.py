@@ -29,6 +29,7 @@ class CustomerSession:
     external_cart_pending: bool = False
     pending_request_text: Optional[str] = None
     pending_variant_selection: Optional[dict[str, Any]] = None
+    pending_clarification: Optional[dict[str, Any]] = None
     selected_payment_id: Optional[str] = None
     selected_payment_kind: Optional[str] = None
     selected_payment_method: Optional[str] = None
@@ -62,6 +63,7 @@ class CustomerSession:
         self.external_cart_pending = False
         self.pending_request_text = None
         self.pending_variant_selection = None
+        self.pending_clarification = None
         self.selected_payment_id = None
         self.selected_payment_kind = None
         self.selected_payment_method = None

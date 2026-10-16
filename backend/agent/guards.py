@@ -212,10 +212,13 @@ _SHOPPING_ITEM_OR_ACTION_REGEX = re.compile(
     r"|\b(?:order|place)\s+(?!\b(?:order|now|karo|kar\s*do|the\s+order|this\s+order|my\s+order)\b)\b[\w-]+\b"
 )
 _AFFIRMATIVE_STANDALONE_REGEX = re.compile(
-    r"(?i)^\s*(?:yes|yeah|yep|yup|haan(?:ji)?|ok|okay|sure|proceed|checkout|pay|book\s+it|send\s+it|do\s+it|go\s+ahead|sounds?\s+good|looks?\s+good|good\s+to\s+go|all\s+good|perfect|all\s+set|cool|theek\s+hai(?:.*?kar\s*do)?|haan\s+kar\s*do|haan\s+place\s*karo)(?:\s+(?:please|now|boss|bhai))?\s*[.!]?\s*$"
+    r"(?i)^\s*(?:yes|yeah|yep|yup|haan(?:ji)?|ok|okay|sure|proceed|checkout|pay|book\s+it|send\s+it|do\s+it|go\s+ahead|sounds?\s+good|looks?\s+good|good\s+to\s+go|all\s+good|perfect|all\s+set|cool|theek\s+hai(?:.*?kar\s*do)?|haan\s+kar\s*do|haan\s+place\s*karo|confirm(?:\s+order)?)(?:\s+(?:please|now|boss|bhai))?\s*[.!]?$"
 )
 _EXPLICIT_CHECKOUT_PHRASES_REGEX = re.compile(
-    r"(?i)\b(?:confirm(?:\s+order|\s+the\s+order|\s+this\s+order|\s+my\s+order)?|place\s+(?:the\s+|this\s+|my\s+)?order|proceed\s+to\s+pay|proceed\s+with\s+order|order\s+now|order\s+confirm|order\s+place\s+karo|konfirm\s+order)\b"
+    r"(?i)\b(?:confirm\s+(?:the\s+|this\s+|my\s+)?order|place\s+(?:the\s+|this\s+|my\s+)?order|proceed\s+to\s+pay|proceed\s+with\s+order|order\s+now|order\s+confirm|order\s+place\s+karo|konfirm\s+order)\b"
+)
+_INQUIRY_OR_QUESTION_REGEX = re.compile(
+    r"(?i)\?|\b(?:whether|check|tell\s+me|is|are|how\s+much|what\s+is|available|in\s+stock)\b"
 )
 
 
@@ -224,13 +227,16 @@ def is_explicit_confirmation(text: str) -> bool:
 
     CRITICAL INVARIANT: Negations ('don't confirm', 'do not order', 'not now') must
     always take precedence and reject confirmation, even if 'confirm' or 'order' appears.
-    Normal grocery shopping queries (e.g. 'order 2 milk', 'add bread') must never be
-    treated as checkout confirmations.
+    Normal grocery shopping queries (e.g. 'order 2 milk', 'add bread') and questions
+    (e.g. 'please confirm whether milk is available') must never be treated as checkout
+    confirmations.
     """
     if not text or not text.strip():
         return False
     cleaned = text.strip()
     if _NEGATION_CONFIRM_REGEX.search(cleaned):
+        return False
+    if _INQUIRY_OR_QUESTION_REGEX.search(cleaned):
         return False
     if _SHOPPING_ITEM_OR_ACTION_REGEX.search(cleaned):
         return False

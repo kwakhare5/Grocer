@@ -42,15 +42,32 @@ def _matches_item_name(query: str, item_name: str) -> bool:
         return False
     q_low = query.strip().casefold()
     n_low = item_name.strip().casefold()
-    if q_low in n_low or n_low in q_low:
+    if q_low == n_low:
         return True
+
     q_words = [
         w for w in re.findall(r"\w+", q_low)
-        if w not in {"the", "a", "an", "remove", "delete", "drop", "item", "please", "my"}
+        if w not in {"the", "a", "an", "remove", "delete", "drop", "item", "please", "my", "from", "cart", "basket"}
     ]
-    if q_words and all(_normalize_token(w) in n_low or w in n_low for w in q_words):
-        return True
-    return False
+    if not q_words:
+        return False
+
+    # Guard staple removals from accidentally deleting sweets/chocolates/ice creams
+    staples = {"milk", "tea", "coffee", "bread", "butter", "oil", "sugar", "salt"}
+    confection_markers = {"chocolate", "chocolates", "biscuit", "biscuits", "cookie", "cookies", "ice cream", "candy", "shake", "bar"}
+    if any(w in staples for w in q_words) and not any(m in q_low for m in confection_markers):
+        if any(m in n_low for m in confection_markers):
+            return False
+
+    item_tokens = [w for w in re.findall(r"\w+", n_low)]
+    normalized_item_tokens = {_normalize_token(t) for t in item_tokens}
+    item_tokens_set = set(item_tokens)
+
+    for w in q_words:
+        norm_w = _normalize_token(w)
+        if norm_w not in normalized_item_tokens and w not in item_tokens_set:
+            return False
+    return True
 
 
 def rank_and_select_best_variant(
@@ -83,11 +100,18 @@ def rank_and_select_best_variant(
         pack = str(p.get("pack_size") or "").casefold()
         brand = str(p.get("brand") or "").casefold()
 
+        # Minimum identity requirement: at least one substantive query word must match
+        matching_words = [
+            qw for qw in query_words
+            if qw in name or qw in brand or qw in str(p.get("category") or "").casefold()
+        ]
+        if query_words and not matching_words:
+            continue
+
         # Relevance starts with search rank from provider
         score = 100 - idx
-        for qw in query_words:
-            if qw in name or qw in brand:
-                score += 25
+        for qw in matching_words:
+            score += 25
         if preferred and (preferred in pack or preferred in name):
             score += 50
 

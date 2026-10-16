@@ -275,8 +275,8 @@ def test_swiggy_client_uses_owner_token_when_customer_id_is_none():
     assert resolved == "auth-token-xyz", f"Expected auth-token-xyz but got {resolved}"
 
 
-def test_cart_parsers_absorbs_positive_provider_surcharges():
-    """Positive unclassified provider fees (rain fee, surge) must be absorbed so billing_complete remains True."""
+def test_cart_parsers_flags_unexplained_billing_differences():
+    """Unexplained billing differences must not be invented as verified fees and must set billing_complete=False."""
     from backend.integrations.commerce.cart_parsers import build_commerce_cart
 
     raw_payload = {
@@ -299,9 +299,28 @@ def test_cart_parsers_absorbs_positive_provider_surcharges():
         },
     }
     cart = build_commerce_cart(raw_payload)
-    assert cart.billing_complete is True, f"Expected billing_complete=True, but diff was not absorbed: {cart.cart_warning}"
+    assert cart.billing_complete is False, "Unexplained positive difference must not mark billing_complete=True"
     assert cart.grand_total == 55.0
-    assert cart.handling_fee >= 5.0, "Unclassified surge must be absorbed into handling_fee"
+    assert cart.cart_warning == "Provider bill lines do not explain the payable total."
+
+    # But when provider includes an explicit surge/rain fee line, it is properly recognized
+    explained_payload = {
+        "cartId": "cart-surge-123",
+        "items": [
+            {"spinId": "SPIN-1", "itemName": "Milk 1L", "quantity": 1, "price": 50.0, "mrp": 50.0}
+        ],
+        "billBreakdown": {
+            "lineItems": [
+                {"label": "Item Total", "value": "50"},
+                {"label": "Rain Surge Fee", "value": "5"},
+            ],
+            "toPay": {"value": "55", "currency": "INR"},
+        },
+    }
+    cart_explained = build_commerce_cart(explained_payload)
+    assert cart_explained.billing_complete is True
+    assert cart_explained.handling_fee == 5.0
+
 
 
 def test_get_commerce_adapter_reuses_swiggy_singleton():

@@ -2,9 +2,16 @@
 from __future__ import annotations
 
 import copy
+import contextvars
+from contextlib import contextmanager
+from collections.abc import Iterator
 import uuid
 from datetime import datetime, timezone
 from typing import Optional
+
+_mock_current_customer: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar(
+    "mock_current_customer", default=None
+)
 
 from backend.integrations.commerce.port import CommercePort
 from backend.integrations.commerce.models import (
@@ -163,7 +170,7 @@ class MockCommerceAdapter(CommercePort):
 
     def inject_brand_mismatch(self, cart_id: str, spin_id: str, substitute_name: str) -> None:
         """Simulate upstream provider substituting a non-compliant brand in cart."""
-        cid = cart_id or "default-cart"
+        cid = self._resolve_cart_id(cart_id)
         if cid in self._carts:
             for it in self._carts[cid].items:
                 if it.spin_id == spin_id:
@@ -185,6 +192,22 @@ class MockCommerceAdapter(CommercePort):
     # -----------------------------------------------------------------------
     # CommercePort Methods
     # -----------------------------------------------------------------------
+
+    @contextmanager
+    def customer_scope(self, customer_id: str) -> Iterator[None]:
+        token = _mock_current_customer.set(customer_id)
+        try:
+            yield
+        finally:
+            _mock_current_customer.reset(token)
+
+    def _resolve_cart_id(self, cart_id: Optional[str] = None) -> str:
+        if cart_id:
+            return cart_id
+        cust = _mock_current_customer.get()
+        if cust:
+            return f"cart:{cust}"
+        return "default-cart"
 
     async def get_addresses(self, customer_id: str) -> list[DeliveryAddress]:
         self.call_count += 1
@@ -223,7 +246,7 @@ class MockCommerceAdapter(CommercePort):
             self._transient_errors_remaining -= 1
             raise CommerceError("Simulated upstream transient network timeout", code="TRANSIENT_TIMEOUT")
 
-        cid = cart_id or "default-cart"
+        cid = self._resolve_cart_id(cart_id)
         if cid not in self._carts:
             self._carts[cid] = CommerceCart(
                 cart_id=cid,
@@ -251,7 +274,7 @@ class MockCommerceAdapter(CommercePort):
             self._transient_errors_remaining -= 1
             raise CommerceError("Simulated upstream transient network timeout", code="TRANSIENT_TIMEOUT")
 
-        cid = cart_id or "default-cart"
+        cid = self._resolve_cart_id(cart_id)
         cart_items: list[CartItem] = []
         item_total = 0.0
         partial_drop_detected = any(
@@ -312,7 +335,7 @@ class MockCommerceAdapter(CommercePort):
 
     async def clear_cart(self, cart_id: Optional[str] = None) -> bool:
         self.call_count += 1
-        cid = cart_id or "default-cart"
+        cid = self._resolve_cart_id(cart_id)
         self._carts[cid] = CommerceCart(cart_id=cid)
         self.successful_call_count += 1
         return True

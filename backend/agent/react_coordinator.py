@@ -454,17 +454,6 @@ async def execute_react_turn_loop(
                 ))
             if part.get("name") not in ("quick_add_items", "manage_basket") or not isinstance(result, dict):
                 continue
-            if result.get("needs_variant_choice") or result.get("groups"):
-                proposal = {
-                    **result,
-                    "address_id": address_id,
-                    "cart_items": [item.name for item in current_cart.items] if current_cart and current_cart.items else [],
-                    "cart_state": engine._cart_proposal_state(current_cart),
-                }
-                session.pending_variant_selection = proposal
-                return ReactLoopResult(
-                    early_response=engine._variant_choice_response(message, proposal)
-                )
             if not suggestion_only and result.get("success") and not result.get("formatted_receipt") and not result.get("groups"):
                 missing = result.get("unavailable_items", []) + result.get("restricted_items", [])
                 if missing:
@@ -490,8 +479,16 @@ async def execute_react_turn_loop(
             if isinstance(fn_content, dict):
                 if fn_content.get("error") in {"INGREDIENT_BUDGET_EXCEEDED", "SCOPED_BUDGET_USE_SEARCH"}:
                     guarded_change_message = str(fn_content.get("message") or "That change needs another review.")
-                if fn_content.get("error") == "BUDGET_ROLLBACK_UNVERIFIED":
+                if fn_content.get("error") in {"CART_WRITE_UNVERIFIED", "BUDGET_ROLLBACK_UNVERIFIED"}:
                     session.external_cart_pending = True
+                    return ReactLoopResult(
+                        early_response=NormalizedOutgoingResponse(
+                            recipient_id=message.sender_id,
+                            channel=message.channel,
+                            text="I couldn't verify your basket changes with Swiggy just now. Please review your basket or wait a moment before trying again.",
+                            conversation_state="RECOVERING",
+                        )
+                    )
                 if fn_call_name in ("quick_add_items", "manage_basket"):
                     unavailable_items.extend(str(item) for item in fn_content.get("unavailable_items", []))
                     reduced_items.extend(str(item) for item in fn_content.get("reduced_items", []))

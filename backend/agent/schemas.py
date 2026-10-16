@@ -41,13 +41,13 @@ RAW_TOOL_DECLARATIONS = [
     },
     {
         "name": "quick_add_items",
-        "description": "Search for grocery items and prepare exact product, pack-size and price choices for the customer. Does not change the basket; the customer must choose one listed variant per item first.",
+        "description": "Search for grocery items, automatically select standard household packs, and add them directly to the Swiggy Instamart basket.",
         "parameters": {
             "type": "object",
             "properties": {
                 "items": {
                     "type": "array",
-                    "description": "List of grocery items to search and present for customer choice.",
+                    "description": "List of grocery items to search and add to the basket.",
                     "items": {
                         "type": "object",
                         "properties": {

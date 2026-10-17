@@ -24,6 +24,7 @@ export function ConnectInstamartModal({
   isConnected,
   connectTicket,
   initialError,
+}: ConnectInstamartModalProps) {
   const [authError, setAuthError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 

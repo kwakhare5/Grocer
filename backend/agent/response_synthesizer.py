@@ -15,17 +15,10 @@ from backend.channels.models import (
 
 logger = logging.getLogger("grocer.agent.response_synthesizer")
 
-_DEVNAGARI_RE = re.compile(r"[\u0900-\u097F]")
-
 
 def _ensure_english_only(text: str) -> str:
-    """Ensure raw non-Latin characters are translated cleanly without censoring Indian brand names."""
-    if not text or not _DEVNAGARI_RE.search(text):
-        return text
-    receipt_match = re.search(r"🛒\s*\*?Your Basket.*", text, flags=re.DOTALL | re.IGNORECASE)
-    if receipt_match:
-        return f"Here are your grocery items:\n\n{receipt_match.group(0)}"
-    return "Here are your grocery items. What else would you like to add?"
+    """Pass through text unmodified without canned replacement."""
+    return text
 
 
 async def synthesize_turn_response(
@@ -81,27 +74,12 @@ async def synthesize_turn_response(
         ]
         conv_state = "NEEDS_DECISION"
     elif last_cart_receipt:
-        amnesiac_phrases = (
-            "what would you like to order",
-            "what can i get for you",
-            "what do you want to order",
-            "how can i help with your groceries",
-            "what groceries",
-            "what would you like",
-        )
-        is_amnesiac = any(p in final_text.casefold() for p in amnesiac_phrases)
-        if address_changed and is_amnesiac:
-            logger.info(
-                "Deterministic address-change guard triggered: overriding amnesiac text for %s",
-                addr_lbl,
-            )
-            final_text = f"I've updated your delivery address to *{addr_lbl}*! 📍\n\n{last_cart_receipt}"
-        elif last_cart_receipt not in final_text:
+        if last_cart_receipt not in final_text:
             basket_match = re.search(r"🛒\s*\*?Your Basket.*", final_text, flags=re.DOTALL | re.IGNORECASE)
             if basket_match:
                 intro = final_text[: basket_match.start()].strip()
                 final_text = f"{intro}\n\n{last_cart_receipt}" if intro else last_cart_receipt
-            elif not final_text.strip() or final_text.strip() == "How can I help with your groceries today?":
+            elif not final_text.strip():
                 if address_changed:
                     final_text = f"I've updated your delivery address to *{addr_lbl}*! 📍\n\n{last_cart_receipt}"
                 else:
@@ -141,11 +119,12 @@ async def synthesize_turn_response(
                 if any(word in incoming_text.casefold() for word in ("cold", "cough", "throat"))
                 else ["water", "tea", "a light snack"]
             )
-        options = ", ".join(suggested_items[:5])
-        final_text = (
-            "I can suggest groceries, but I can't add medical products here. "
-            f"You could choose from: {options}. Which would you like me to add?"
-        )
+        if not final_text.strip():
+            options = ", ".join(suggested_items[:5])
+            final_text = (
+                "I can suggest groceries, but I can't add medical products here. "
+                f"You could choose from: {options}. Which would you like me to add?"
+            )
         actions = []
         conv_state = "NEEDS_DECISION"
         session.pending_request_text = None
@@ -241,14 +220,10 @@ async def synthesize_turn_response(
 
         final_text = "\n\n".join(intro_parts + [basket_followup]).strip()
 
-    if (not final_text.strip() or final_text.strip() == "How can I help with your groceries today?") and last_cart_receipt:
+    if not final_text.strip() and last_cart_receipt:
         final_text = last_cart_receipt
     if out_order_total is None and last_cart_total is not None:
         out_order_total = last_cart_total
-
-    if user_confirmed or incoming_text.strip().casefold() in {"keep these items", "proceed", "yes", "confirm", "ok", "place order"}:
-        session.budget_blocked_items.clear()
-        session.unresolved_items.clear()
 
     if any(action.id == "confirm_order" for action in actions):
         if session.budget_blocked_items and not user_confirmed:
@@ -326,8 +301,6 @@ async def synthesize_turn_response(
         and not search_failed_items
     ):
         session.pending_request_text = None
-
-    final_text = _ensure_english_only(final_text)
 
     if history and history[-1].get("role") == "user":
         history.append({

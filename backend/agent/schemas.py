@@ -209,4 +209,18 @@ RAW_TOOL_DECLARATIONS = [
             "required": [],
         },
     },
+    {
+        "name": "set_budget",
+        "description": "Set the customer's maximum spending limit for this order. Call this when the customer mentions a budget, spending limit, or says they only have a certain amount of money.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "amount_inr": {
+                    "type": "number",
+                    "description": "Budget amount in Indian Rupees",
+                },
+            },
+            "required": ["amount_inr"],
+        },
+    },
 ]

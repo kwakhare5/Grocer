@@ -122,14 +122,14 @@ class GeminiClient:
 
                 if resp.status_code == 400:
                     logger.warning("Gemini HTTP 400 on payload: %s", resp.text[:400])
-                    if len(contents) > 1:
+                    if len(alternated_contents) > 1:
                         logger.warning("HTTP 400 on multi-turn history. Retrying text-only parts...")
                     salvaged = [
                         {
                             "role": entry.get("role"),
                             "parts": [p for p in entry.get("parts", []) if "text" in p]
                         }
-                        for entry in contents
+                        for entry in alternated_contents
                     ]
                     salvaged = [entry for entry in salvaged if entry["parts"]]
                     retry_payload = dict(payload)

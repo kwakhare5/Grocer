@@ -23,6 +23,7 @@ import httpx
 from backend.integrations.commerce.exceptions import (
     CommerceError,
     OrderStateUnknownError,
+    ProviderAuthError,
     UnconfirmedCheckoutError,
     UpstreamTimeoutError,
 )

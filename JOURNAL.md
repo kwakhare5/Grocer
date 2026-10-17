@@ -15,6 +15,15 @@ During the Session End ritual (called automatically whenever significant changes
 
 ## Log Entries
 
+### [GROCER — Audit Fixes: Cart Writes Unblocked, Devanagari Passthrough & Model Budget Tool] 2026-10-17
+
+#### Work Card: Resolution of Audit Issues Across Tool Execution, Sanitization, and Budget Control
+
+- **Problem**: (1) `tool_executor.py` crashed on cart updates by passing `budget_cap_inr` to `update_cart`; (2) `swiggy_adapter.py` missed importing `ProviderAuthError`; (3) Devanagari detection in `response_synthesizer.py` discarded assistant replies with a canned message; (4) `guards.py` removal regex captured items on sentences like "I have no preference"; (5) generic confirmation words silently cleared budget warnings; (6) Gemini 400 retry built payloads from raw uncleaned contents; (7) non-safety synthesizer overrides replaced AI replies; (8) budget was regex-only; and (9) E2E tests mixed with unit tests created 81 errors on local pytest runs without Postgres.
+- **Change**: Deleted `budget_cap_inr` from `tool_executor.py`; imported `ProviderAuthError` in `swiggy_adapter.py`; converted `_ensure_english_only` to passthrough and instructed English responses via system prompt; removed bare `|no` from `guards.py`; removed budget state wipe from `response_synthesizer.py`; used `alternated_contents` in `gemini.py` retry; removed amnesiac and canned suggestion overrides in `response_synthesizer.py`; added `set_budget` tool in `schemas.py`, `tool_executor.py`, and `prompts.py`; split test suites via `backend/tests/conftest.py` and `pytest.ini` (`-m "not e2e"`); configured `gemini-3.5-flash` with `gemini-3.5-flash-lite` fallback in `backend/config.py` and `.env`.
+- **Proof**: `python -m pytest` passed 33/33 (0.74s) with 0 errors; `npm run lint` exited 0 with 0 errors; `graphify update .` rebuilt 1399 nodes, 3032 edges, 88 communities.
+- **Still broken**: None. All unit and invariant test suites run clean with exit code 0.
+
 ### [GROCER — Architecture Simplification & Core Overhaul] 2026-10-16
 
 #### Work Card: Resolution of Audit Vulnerabilities Across Checkout, Shopping Contract, Cart Math, and Isolation

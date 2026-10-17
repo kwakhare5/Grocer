@@ -153,7 +153,6 @@ async def execute_engine_tool(
             proposed,
             address_id=addr or "",
             delivery_location=loc,
-            budget_cap_inr=session.budget_inr,
             ingredient_budget_inr=session.ingredient_budget_inr,
             ingredient_spin_ids=session.ingredient_spin_ids,
         )
@@ -327,4 +326,10 @@ async def execute_engine_tool(
         except Exception as exc:
             logger.warning("check_replenishment failed for customer=%s: %s", customer_id, exc)
             return {"success": False, "error": str(exc), "message": "Could not check replenishment right now."}
+    elif name == "set_budget":
+        amount = args.get("amount_inr")
+        if not isinstance(amount, (int, float)) or amount <= 0:
+            return {"success": False, "error": "Invalid budget amount"}
+        session.budget_inr = float(amount)
+        return {"success": True, "budget_inr": amount, "message": f"Budget set to ₹{amount}"}
     return {"error": f"Unknown tool: {name}"}

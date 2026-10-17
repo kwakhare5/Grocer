@@ -247,7 +247,7 @@ def reconcile_explicit_removals(text: str) -> list[str]:
     """Extract explicit item deletion requests from English text (e.g. 'remove bread', 'drop milk')."""
     if not text:
         return []
-    pattern = r"\b(?:remove|delete|drop|take\s+out|skip|omit|without|exclude|don'?t\s+add|do\s+not\s+add|no\s+more|no)\s+([a-zA-Z0-9\s]+?)(?:,|and|\.|$)"
+    pattern = r"\b(?:remove|delete|drop|take\s+out|skip|omit|without|exclude|don'?t\s+add|do\s+not\s+add|no\s+more)\s+([a-zA-Z0-9\s]+?)(?:,|and|\.|$)"
     matches = re.findall(pattern, text, re.IGNORECASE)
     cleaned = []
     for m in matches:

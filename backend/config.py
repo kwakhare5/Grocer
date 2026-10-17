@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     CORS_ALLOWED_ORIGINS: str = "https://grocerr.vercel.app"
     GEMINI_API_KEY: str | None = None
     GEMINI_MODEL: str = "gemini-3.5-flash"
-    GEMINI_FALLBACK_MODEL: str = "gemini-3-flash-preview"
+    GEMINI_FALLBACK_MODEL: str = "gemini-3.5-flash-lite"
     WHATSAPP_VERIFY_TOKEN: str | None = None
     WHATSAPP_APP_SECRET: str | None = None
     WHATSAPP_PHONE_NUMBER_ID: str | None = None

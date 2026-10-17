@@ -1,7 +1,5 @@
-import hashlib
 import logging
 import re
-from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -16,26 +14,15 @@ logger = logging.getLogger("grocer.api.oauth")
 router = APIRouter()
 
 class LoginRequest(BaseModel):
-    ticket: Optional[str] = None
-    phone_number: Optional[str] = None
+    ticket: str
 
 @router.post("/auth/swiggy/login")
 async def swiggy_login(req: LoginRequest) -> dict[str, str]:
-    customer_id: Optional[str] = None
-    if req.ticket:
-        customer_id = await default_connect_tickets.consume(req.ticket)
-        if customer_id is None:
-            raise HTTPException(
-                status_code=400,
-                detail="Invalid or expired connection ticket. Please request a new link in WhatsApp.",
-            )
-    elif req.phone_number and req.phone_number.strip():
-        cleaned = req.phone_number.strip()
-        customer_id = f"cust_{hashlib.sha256(cleaned.encode()).hexdigest()[:16]}"
-    else:
+    customer_id = await default_connect_tickets.consume(req.ticket)
+    if customer_id is None:
         raise HTTPException(
             status_code=400,
-            detail="A connection ticket or phone number is required.",
+            detail="Invalid or expired connection ticket. Please request a new link in WhatsApp.",
         )
     try:
         authorize_url, state = await default_oauth_manager.initiate_flow(

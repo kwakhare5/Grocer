@@ -13,7 +13,6 @@ from backend.agent.address_resolver import (
     match_pending_address_choice,
 )
 from backend.agent.approval import PendingApproval, cart_fingerprint
-from backend.agent.budget import extract_ingredient_budget, extract_total_budget
 from backend.agent.drift_guard import check_cart_drift
 from backend.agent.fast_paths import (
     handle_cart_read_fast_path,
@@ -75,6 +74,14 @@ async def execute_preflight(
         engine._customer_address.pop(customer_id, None)
         session.pending_approval = None
         session.selected_payment_id = None
+
+    budget_cap = await engine._read_budget_cap(incoming_text)
+    if budget_cap is not None:
+        session.budget_inr = float(budget_cap)
+        session.ingredient_budget_inr = None
+        session.ingredient_extras_text = None
+        session.ingredient_spin_ids.clear()
+        logger.info("Captured whole-basket budget cap: ₹%.2f for %s", budget_cap, customer_id)
 
     norm_text = incoming_text.casefold().strip("!.? \t\n")
     is_retry_command = norm_text in {"try again", "retry"}

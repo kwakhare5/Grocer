@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 from typing import Any, Optional
 import httpx
@@ -150,3 +151,61 @@ class GeminiClient:
                 return None
 
         return None
+
+    async def generate_structured(
+        self,
+        model: str,
+        prompt: str,
+        response_schema: dict[str, Any],
+    ) -> Optional[dict[str, Any]]:
+        """Call Gemini generateContent for small structured-output responses."""
+        if not self.api_key:
+            logger.error("No Gemini API key configured.")
+            return None
+
+        # Rate throttle (minimum 200ms spacing between turns)
+        now = asyncio.get_running_loop().time()
+        elapsed = now - self._last_call_time
+        if elapsed < 0.2:
+            await asyncio.sleep(0.2 - elapsed)
+        self._last_call_time = asyncio.get_running_loop().time()
+
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+        headers = {
+            "Content-Type": "application/json",
+            "x-goog-api-key": self.api_key,
+        }
+        payload: dict[str, Any] = {
+            "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+            "generationConfig": {
+                "responseMimeType": "application/json",
+                "responseSchema": response_schema,
+                "thinkingConfig": {
+                    "thinkingLevel": "low",
+                },
+            },
+        }
+
+        try:
+            client = await self.get_http_client()
+            resp = await client.post(url, json=payload, headers=headers)
+            if resp.status_code != 200:
+                logger.warning(
+                    "Gemini %s structured call returned %d: %s",
+                    model, resp.status_code, resp.text[:200]
+                )
+                return None
+
+            data = resp.json()
+            candidates = data.get("candidates", [])
+            if not candidates:
+                return None
+            parts = candidates[0].get("content", {}).get("parts", [])
+            for part in parts:
+                text = part.get("text")
+                if text:
+                    return json.loads(text)
+            return None
+        except Exception as exc:
+            logger.warning("Gemini %s structured call exception: %r", model, exc)
+            return None

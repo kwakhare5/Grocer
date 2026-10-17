@@ -15,6 +15,15 @@ During the Session End ritual (called automatically whenever significant changes
 
 ## Log Entries
 
+### [GROCER — Whole-Basket Spending Cap Protection via Native Gemini Flash-Lite] 2026-10-18
+
+#### Work Card: Restored Spending Cap Protection with Flash-Lite Structured Output
+
+- **Problem**: Removing regex parsing deleted preflight budget capture, allowing baskets to exceed customer spending caps unless the model invoked `set_budget`.
+- **Change**: Added `generate_structured` to `GeminiClient` with low thinking and response schema; added `read_budget_cap` using `gemini-3.5-flash-lite`; exposed `_read_budget_cap` on `GroceryAgentEngine`; recorded budget via direct `await` and cleared ingredient spin lists in `preflight_handler.py`; stubbed `_read_budget_cap` with an async stub in `budget_and_symptoms.py`.
+- **Proof**: Unit budget suite passed; `pytest backend/tests/test_invariants.py` passed 33/33 (1.85s); `npm run lint` exited 0; `graphify update .` indexed 1428 nodes and 3074 edges.
+- **Still broken**: None. Whole-basket budget caps are stored prior to basket updates and strictly enforced.
+
 ### [GROCER — Audit Fixes: Cart Writes Unblocked, Devanagari Passthrough & Model Budget Tool] 2026-10-17
 
 #### Work Card: Resolution of Audit Issues Across Tool Execution, Sanitization, and Budget Control

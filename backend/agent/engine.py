@@ -8,6 +8,7 @@ from typing import Any, Optional
 from backend.agent.schemas import RAW_TOOL_DECLARATIONS
 from backend.agent.tools import SwiggyAgentTools
 from backend.agent.gemini import GeminiClient
+from backend.agent.budget import read_budget_cap
 from backend.agent.formatters import (
     build_address_choice_response,
     build_auth_expired_response,
@@ -381,3 +382,8 @@ class GroceryAgentEngine:
             system_text=system_text,
             tools=gemini_tools,
         )
+
+    async def _read_budget_cap(self, text: str) -> float | None:
+        """Extract whole-basket rupee budget cap using the engine's Gemini client."""
+        return await read_budget_cap(text, self.gemini)
+

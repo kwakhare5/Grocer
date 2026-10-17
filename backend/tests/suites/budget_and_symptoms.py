@@ -30,6 +30,11 @@ async def test_plain_language_rupee_cap_never_becomes_unreviewed_payable_overage
         }}]}}]}
 
     engine._call_llm = model_reply  # external model boundary
+
+    async def stub_budget_cap(_text):
+        return cap
+
+    engine._read_budget_cap = stub_budget_cap
     app = create_app()
     app.state.agent_engine = engine
     store = PostgresMessageStore(postgres_pool)

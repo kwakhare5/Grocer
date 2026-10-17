@@ -39,7 +39,7 @@ logger = logging.getLogger("grocer.agent.engine")
 
 
 class _SessionDictView(dict):
-    """Transparent bidirectional dictionary view backed directly by CustomerSession."""
+    """Transparent dictionary view backed purely by CustomerSession with zero duplicate state."""
 
     def __init__(self, engine: Any, attr_name: str, default: Any = None):
         super().__init__()
@@ -53,7 +53,7 @@ class _SessionDictView(dict):
             val = getattr(sess, self._attr, None)
             if val is not None:
                 return val
-        return super().get(key, default if default is not None else self._default)
+        return default if default is not None else self._default
 
     def __getitem__(self, key: str):
         val = self.get(key)
@@ -62,14 +62,10 @@ class _SessionDictView(dict):
         return val
 
     def __setitem__(self, key: str, value: Any):
-        sess = self._engine._sessions.get(key)
-        if sess is None:
-            sess = self._engine.get_session(key)
+        sess = self._engine.get_session(key)
         setattr(sess, self._attr, value)
-        super().__setitem__(key, value)
 
     def pop(self, key: str, default: Any = None):
-        super().pop(key, None)
         sess = self._engine._sessions.get(key)
         if sess is not None:
             old = getattr(sess, self._attr, None)
@@ -77,15 +73,27 @@ class _SessionDictView(dict):
             return old if old is not None else default
         return default
 
+    def clear(self):
+        for sess in self._engine._sessions.values():
+            setattr(sess, self._attr, None if not isinstance(self._default, bool) else False)
+
     def __contains__(self, key: object):
         if not isinstance(key, str):
             return False
         sess = self._engine._sessions.get(key)
         if sess is not None:
             val = getattr(sess, self._attr, None)
-            if val is not None and (val is not False if isinstance(self._default, bool) else True):
-                return True
-        return super().__contains__(key)
+            return val is not None and (val is not False if isinstance(self._default, bool) else True)
+        return False
+
+    def keys(self):
+        return [k for k, s in self._engine._sessions.items() if getattr(s, self._attr, None) is not None]
+
+    def values(self):
+        return [getattr(s, self._attr) for s in self._engine._sessions.values() if getattr(s, self._attr, None) is not None]
+
+    def items(self):
+        return [(k, getattr(s, self._attr)) for k, s in self._engine._sessions.items() if getattr(s, self._attr, None) is not None]
 
 
 class GroceryAgentEngine:
@@ -250,14 +258,13 @@ class GroceryAgentEngine:
             if self.state_store is not None and getattr(self.state_store, "pool", None) is not None:
                 async with self.state_store.transaction_lock(customer_id) as conn:
                     state_data = await self.state_store.load(customer_id, conn=conn)
-                self._restore_task_state(customer_id, state_data)
-                self._prune_history(customer_id)
-                with self.commerce.customer_scope(customer_id):
-                    try:
-                        result = await self._process_scoped_message(message, customer_id)
-                    finally:
-                        self._prune_history(customer_id)
-                        async with self.state_store.transaction_lock(customer_id) as conn:
+                    self._restore_task_state(customer_id, state_data)
+                    self._prune_history(customer_id)
+                    with self.commerce.customer_scope(customer_id):
+                        try:
+                            result = await self._process_scoped_message(message, customer_id)
+                        finally:
+                            self._prune_history(customer_id)
                             await self.state_store.save(customer_id, self._task_state_snapshot(customer_id), conn=conn)
             else:
                 if self.state_store is not None:

@@ -20,22 +20,6 @@ class PostgresCheckoutAttemptStore:
         self, customer_id: str, cart_id: str, address_id: str,
         fingerprint: str, total: float,
     ) -> str | None:
-        # Auto-expire stale IN_FLIGHT attempts older than 120 seconds if unconfirmed
-        await self.pool.execute(
-            """UPDATE grocer_internal.checkout_attempts
-               SET status = 'FAILED', updated_at = now()
-               WHERE customer_id = $1 AND status = 'IN_FLIGHT'
-                 AND created_at < now() - INTERVAL '120 seconds'""",
-            customer_id,
-        )
-        # Auto-expire expired PAYMENT_PENDING attempts past their deadline
-        await self.pool.execute(
-            """UPDATE grocer_internal.checkout_attempts
-               SET status = 'FAILED', updated_at = now()
-               WHERE customer_id = $1 AND status = 'PAYMENT_PENDING'
-                 AND payment_deadline_at IS NOT NULL AND payment_deadline_at < now()""",
-            customer_id,
-        )
         attempt_id = str(uuid.uuid4())
         row = await self.pool.fetchval(
             """INSERT INTO grocer_internal.checkout_attempts
@@ -47,14 +31,44 @@ class PostgresCheckoutAttemptStore:
         )
         return str(row) if row else None
 
-    async def clear_unresolved_hold(self, customer_id: str) -> bool:
-        """Clear abandoned IN_FLIGHT checkout attempts. UNKNOWN states require provider reconciliation."""
+    async def clear_unresolved_hold(self, customer_id: str, commerce: Any = None) -> bool:
+        """Clear abandoned IN_FLIGHT checkout attempts safely. UNKNOWN states require provider reconciliation."""
+        row = await self.pool.fetchrow(
+            """SELECT id FROM grocer_internal.checkout_attempts
+               WHERE customer_id = $1 AND status = 'IN_FLIGHT'
+               ORDER BY created_at DESC LIMIT 1""",
+            customer_id,
+        )
+        if not row:
+            return False
+
+        if commerce is not None:
+            try:
+                with commerce.customer_scope(customer_id):
+                    orders = await commerce.get_orders()
+                if orders:
+                    await self.pool.execute(
+                        """UPDATE grocer_internal.checkout_attempts
+                           SET status = 'UNKNOWN', updated_at = now()
+                           WHERE id = $1""",
+                        row["id"],
+                    )
+                    return False
+            except Exception as exc:
+                logger.warning("Could not reconcile order status before clearing hold: %s", exc)
+                await self.pool.execute(
+                    """UPDATE grocer_internal.checkout_attempts
+                       SET status = 'UNKNOWN', updated_at = now()
+                       WHERE id = $1""",
+                    row["id"],
+                )
+                return False
+
         res = await self.pool.execute(
             """UPDATE grocer_internal.checkout_attempts
                SET status = 'FAILED', updated_at = now()
-               WHERE customer_id = $1 AND status = 'IN_FLIGHT'
-                 AND created_at < now() - INTERVAL '60 seconds'""",
-            customer_id,
+               WHERE id = $1 AND status = 'IN_FLIGHT'""",
+            row["id"],
         )
         return res != "UPDATE 0"
 

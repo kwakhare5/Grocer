@@ -22,15 +22,19 @@ class PostgresTaskStateStore:
 
     @asynccontextmanager
     async def transaction_lock(self, customer_id: str) -> AsyncIterator[Any]:
-        """Acquire a Postgres transaction advisory lock ensuring single-turn serialization across all nodes."""
+        """Acquire a Postgres session advisory lock ensuring single-turn serialization across all nodes."""
         if not self.pool:
             yield None
             return
         lock_key = customer_advisory_lock_key(customer_id)
         async with self.pool.acquire() as conn:
-            async with conn.transaction():
-                await conn.execute("SELECT pg_advisory_xact_lock($1)", lock_key)
+            await conn.execute("SELECT pg_advisory_lock($1)", lock_key)
+            try:
                 yield conn
+            finally:
+                await conn.execute("SELECT pg_advisory_unlock($1)", lock_key)
+
+    customer_lock = transaction_lock
 
     async def load(self, customer_id: str, conn: Any = None) -> dict[str, Any] | None:
         executor = conn or self.pool

@@ -48,10 +48,11 @@ async def execute_engine_tool(
 ) -> Any:
     """Dispatch a single function call to SwiggyAgentTools."""
     logger.info("Executing agent tool call: %s", name)
+    session = engine.get_session(customer_id)
     if name == "get_saved_addresses":
         return await engine.tools.get_saved_addresses(customer_id)
     elif name == "select_delivery_address":
-        engine.get_session(customer_id).pending_approval = None
+        session.pending_approval = None
         res = await engine.tools.select_delivery_address(customer_id, args.get("address_id", ""))
         if res.get("success") and res.get("address_id"):
             engine._customer_address[customer_id] = res["address_id"]
@@ -331,5 +332,8 @@ async def execute_engine_tool(
         if not isinstance(amount, (int, float)) or amount <= 0:
             return {"success": False, "error": "Invalid budget amount"}
         session.budget_inr = float(amount)
+        session.ingredient_budget_inr = None
+        session.ingredient_extras_text = None
+        session.ingredient_spin_ids.clear()
         return {"success": True, "budget_inr": amount, "message": f"Budget set to ₹{amount}"}
     return {"error": f"Unknown tool: {name}"}

@@ -76,19 +76,6 @@ async def execute_preflight(
         session.pending_approval = None
         session.selected_payment_id = None
 
-    ingredient_budget = extract_ingredient_budget(incoming_text)
-    budget = extract_total_budget(incoming_text) if ingredient_budget is None else None
-    if ingredient_budget is not None:
-        session.ingredient_budget_inr, session.ingredient_extras_text = ingredient_budget
-        session.ingredient_spin_ids.clear()
-        session.budget_inr = None
-    elif budget is not None:
-        session.budget_inr = budget
-        session.ingredient_budget_inr = None
-        session.ingredient_extras_text = None
-        session.ingredient_spin_ids.clear()
-        logger.info("Captured customer budget constraint: ₹%.2f for %s", budget, customer_id)
-
     norm_text = incoming_text.casefold().strip("!.? \t\n")
     is_retry_command = norm_text in {"try again", "retry"}
     if is_retry_command and session.pending_request_text:
@@ -148,13 +135,22 @@ async def execute_preflight(
         commerce=engine.commerce,
         reset_order_address_fn=engine.reset_customer_order_address,
         clear_history_fn=lambda cid: engine._history.pop(cid, None),
-        clear_hold_fn=engine.attempt_store.clear_unresolved_hold if getattr(engine, "attempt_store", None) else None,
+        clear_hold_fn=(
+            (lambda cid: engine.attempt_store.clear_unresolved_hold(cid, commerce=engine.commerce))
+            if getattr(engine, "attempt_store", None)
+            else None
+        ),
     )
     if reset_resp is not None:
         return PreflightResult(early_response=reset_resp)
 
+    is_awaiting_checkout = (
+        session.pending_approval is not None
+        and session.pending_approval.expires_at > time.time()
+    )
     user_confirmed = not has_burst_negation and (
-        message.interactive_id == "confirm_order" or is_explicit_confirmation(incoming_text)
+        message.interactive_id == "confirm_order"
+        or (is_awaiting_checkout and is_explicit_confirmation(incoming_text))
     )
 
     current_cart: Optional[CommerceCart] = None

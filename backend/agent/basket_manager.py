@@ -121,7 +121,12 @@ async def execute_manage_basket(
             if not search.get("success"):
                 return search
 
-            for item, result in zip(normalized_add, search["results"], strict=True):
+            search_results = search.get("results") or []
+            for idx, item in enumerate(normalized_add):
+                if idx >= len(search_results):
+                    unavailable_items.append(item["query"])
+                    continue
+                result = search_results[idx]
                 if result.get("error"):
                     err_str = str(result.get("error")).upper()
                     if err_str in ("RATE_LIMITED", "AUTH_EXPIRED", "SERVICE_UNAVAILABLE", "STORE_CLOSED", "ADDRESS_NOT_SERVICEABLE"):

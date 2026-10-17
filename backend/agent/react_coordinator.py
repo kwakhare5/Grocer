@@ -9,11 +9,6 @@ from typing import Any, Optional
 
 from backend.agent.catalog_ranker import _matches_item_name
 from backend.agent.checkout_outcome import process_checkout_outcome
-from backend.agent.guards import (
-    missing_recipe_staples,
-    reconcile_explicit_items,
-    reconcile_explicit_removals,
-)
 from backend.agent.product_policy import is_symptom_suggestion_request
 from backend.channels.models import (
     InteractiveAction,
@@ -351,26 +346,6 @@ async def execute_react_turn_loop(
             else:
                 if "address_id" in fn_args and not fn_args["address_id"] and address_id:
                     fn_args["address_id"] = address_id
-
-                explicit_removals = reconcile_explicit_removals(incoming_text)
-                if fn_name == "quick_add_items":
-                    items = fn_args.get("items", []) if isinstance(fn_args.get("items"), list) else []
-                    if explicit_removals:
-                        items = [
-                            it for it in items
-                            if not any(
-                                rem.lower() in (it.get("query", "") if isinstance(it, dict) else str(it)).lower()
-                                for rem in explicit_removals
-                            )
-                        ]
-                    fn_args = {**fn_args, "items": items}
-                elif fn_name == "manage_basket":
-                    if explicit_removals:
-                        existing_rem = fn_args.get("remove") or []
-                        if isinstance(existing_rem, list):
-                            fn_args["remove"] = list(set(existing_rem + explicit_removals))
-                        else:
-                            fn_args["remove"] = explicit_removals
 
                 tool_result = await engine._execute_tool(
                     fn_name,

@@ -153,6 +153,9 @@ def is_reset_command(text: str) -> bool:
     if not text:
         return False
     cleaned = text.strip().casefold().rstrip(".,!?")
+    # If the user specifies exceptions ("except milk", "keep eggs", "save bread"), NEVER purge cart
+    if re.search(r"\b(?:except|but|save|keep|leaving|apart from|other than)\b", cleaned):
+        return False
     if cleaned in _RESET_COMMANDS:
         return True
     # If the user mentions a specific product/ingredient or specifies items to remove, it's not a full purge
@@ -212,7 +215,7 @@ _SHOPPING_ITEM_OR_ACTION_REGEX = re.compile(
     r"|\b(?:order|place)\s+(?!\b(?:order|now|karo|kar\s*do|the\s+order|this\s+order|my\s+order)\b)\b[\w-]+\b"
 )
 _AFFIRMATIVE_STANDALONE_REGEX = re.compile(
-    r"(?i)^\s*(?:yes|yeah|yep|yup|haan(?:ji)?|ok|okay|sure|proceed|checkout|pay|book\s+it|send\s+it|do\s+it|go\s+ahead|sounds?\s+good|looks?\s+good|good\s+to\s+go|all\s+good|perfect|all\s+set|cool|theek\s+hai(?:.*?kar\s*do)?|haan\s+kar\s*do|haan\s+place\s*karo|confirm(?:\s+order)?)(?:\s+(?:please|now|boss|bhai))?\s*[.!]?$"
+    r"(?i)^\s*(?:yes|yeah|yep|yup|haan(?:ji)?|proceed|checkout|pay|book\s+it|send\s+it|do\s+it|go\s+ahead|sounds?\s+good|looks?\s+good|good\s+to\s+go|all\s+good|perfect|theek\s+hai(?:.*?kar\s*do)?|haan\s+kar\s*do|haan\s+place\s*karo|confirm(?:\s+order)?)(?:\s+(?:please|now|boss|bhai))?\s*[.!]?$"
 )
 _EXPLICIT_CHECKOUT_PHRASES_REGEX = re.compile(
     r"(?i)\b(?:confirm\s+(?:the\s+|this\s+|my\s+)?order|place\s+(?:the\s+|this\s+|my\s+)?order|proceed\s+to\s+pay|proceed\s+with\s+order|order\s+now|order\s+confirm|order\s+place\s+karo|konfirm\s+order)\b"

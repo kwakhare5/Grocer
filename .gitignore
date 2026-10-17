@@ -46,3 +46,4 @@ skills-lock.json
 *.tokens.json
 .vault_tokens.json
 bootstrap.vault
+.backups/

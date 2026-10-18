@@ -267,6 +267,8 @@ class SwiggyAgentTools:
             cart: CommerceCart = await self.commerce.get_cart()
             items = [
                 {
+                    "id": getattr(item, "cart_line_id", None) or getattr(item, "line_id", None) or item.spin_id,
+                    "line_id": getattr(item, "cart_line_id", None) or getattr(item, "line_id", None) or item.spin_id,
                     "spin_id": item.spin_id,
                     "sku_id": item.sku_id,
                     "name": item.name,

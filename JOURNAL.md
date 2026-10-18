@@ -17,6 +17,13 @@ During the Session End ritual (called automatically whenever significant changes
 
 ### [GROCER — Whole-Basket Spending Cap Protection via Native Gemini Flash-Lite] 2026-10-18
 
+#### Work Card: manage_basket Line ID Targeting and Identical Line Guard (Slice 5 Step 5a)
+
+- **Problem**: `manage_basket` removals and quantity adjustments relied on fuzzy item name matching (`_matches_item_name`), risking unintended mutations or guessed removals across duplicate or identically named cart lines.
+- **Change**: Updated `execute_manage_basket` to validate and operate strictly on cart line IDs; rejected unknown IDs with `INVALID_LINE_ID` before mutating; instructed the model to ask the customer if lines look identical; updated schema and prompt to present and require line IDs; added 4 invariant unit tests in `test_invariants.py`.
+- **Proof**: `pytest backend/tests/test_invariants.py` passed 29/29; `pytest backend/tests/test_invariants.py backend/tests/test_two_step_clear_cart.py` passed 32/32; `npm run lint` passed (code 0); `git diff --check` clean.
+- **Still broken**: None in scope.
+
 #### Work Card: Retired Hardcoded Fast Paths and Word Lists (Slice 5 Step 4)
 
 - **Problem**: Natural language understanding was previously coupled to hardcoded fast paths and word lists (`fast_paths.py`, `guards.py`, regex matchers) bypassing the model for cart reads, resets, greetings, and address switches.

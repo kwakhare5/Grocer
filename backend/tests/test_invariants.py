@@ -580,6 +580,219 @@ def test_rank_and_select_best_variant_handles_id_like_milk():
     assert selected["spin_id"] == "spin-amul-milk"
 
 
+@pytest.mark.asyncio
+async def test_manage_basket_remove_valid_line_id():
+    """Valid line id in remove removes only the target line."""
+    from backend.agent.tools import SwiggyAgentTools
+    from backend.integrations.commerce.mock_adapter import MockCommerceAdapter
+    from backend.integrations.commerce.models import CartItem, CommerceCart
+
+    commerce = MockCommerceAdapter()
+    tools = SwiggyAgentTools(commerce)
+
+    item1 = CartItem(
+        spin_id="SPIN-MILK-1L",
+        sku_id="SPIN-MILK-1L",
+        name="Amul Taaza Milk 1L Pouch",
+        pack_size="1 L",
+        unit_price=66.0,
+        quantity=1,
+        total_price=66.0,
+    )
+    item2 = CartItem(
+        spin_id="SPIN-BREAD-400G",
+        sku_id="SPIN-BREAD-400G",
+        name="Whole Wheat Bread 400g",
+        pack_size="400 g",
+        unit_price=50.0,
+        quantity=1,
+        total_price=50.0,
+    )
+    cart = CommerceCart(
+        cart_id="default-cart",
+        address_id="addr-1",
+        items=[item1, item2],
+        item_total=116.0,
+        grand_total=116.0,
+    )
+    commerce._carts["default-cart"] = cart
+
+    result = await tools.manage_basket(
+        address_id="addr-1",
+        remove=["SPIN-MILK-1L"],
+        current_cart=cart,
+    )
+
+    assert result["success"] is True
+    assert "Amul Taaza Milk 1L Pouch" in result["removed_items"]
+    remaining_spins = [it["spin_id"] for it in result.get("items", [])]
+    assert "SPIN-MILK-1L" not in remaining_spins
+    assert "SPIN-BREAD-400G" in remaining_spins
+
+
+@pytest.mark.asyncio
+async def test_manage_basket_unknown_line_id_changes_nothing():
+    """Unknown line id in remove or set_quantity returns an error and changes nothing."""
+    from backend.agent.tools import SwiggyAgentTools
+    from backend.integrations.commerce.mock_adapter import MockCommerceAdapter
+    from backend.integrations.commerce.models import CartItem, CommerceCart
+
+    commerce = MockCommerceAdapter()
+    tools = SwiggyAgentTools(commerce)
+
+    item1 = CartItem(
+        spin_id="SPIN-MILK-1L",
+        sku_id="SPIN-MILK-1L",
+        name="Amul Taaza Milk 1L Pouch",
+        pack_size="1 L",
+        unit_price=66.0,
+        quantity=1,
+        total_price=66.0,
+    )
+    cart = CommerceCart(
+        cart_id="default-cart",
+        address_id="addr-1",
+        items=[item1],
+        item_total=66.0,
+        grand_total=66.0,
+    )
+    commerce._carts["default-cart"] = cart
+
+    # 1. Unknown ID in remove
+    result_remove = await tools.manage_basket(
+        address_id="addr-1",
+        remove=["UNKNOWN-LINE-ID"],
+        current_cart=cart,
+    )
+    assert result_remove["success"] is False
+    assert result_remove["error"] == "INVALID_LINE_ID"
+    fresh_cart = await commerce.get_cart("default-cart")
+    assert len(fresh_cart.items) == 1
+    assert fresh_cart.items[0].spin_id == "SPIN-MILK-1L"
+
+    # 2. Unknown ID in set_quantity
+    result_sq = await tools.manage_basket(
+        address_id="addr-1",
+        set_quantity=[{"line_id": "UNKNOWN-LINE-ID", "quantity": 3}],
+        current_cart=cart,
+    )
+    assert result_sq["success"] is False
+    assert result_sq["error"] == "INVALID_LINE_ID"
+    fresh_cart2 = await commerce.get_cart("default-cart")
+    assert len(fresh_cart2.items) == 1
+    assert fresh_cart2.items[0].quantity == 1
+
+
+@pytest.mark.asyncio
+async def test_manage_basket_set_quantity_by_line_id():
+    """set_quantity by line id updates the specific item quantity."""
+    from backend.agent.tools import SwiggyAgentTools
+    from backend.integrations.commerce.mock_adapter import MockCommerceAdapter
+    from backend.integrations.commerce.models import CartItem, CommerceCart
+
+    commerce = MockCommerceAdapter()
+    tools = SwiggyAgentTools(commerce)
+
+    item1 = CartItem(
+        spin_id="SPIN-MILK-1L",
+        sku_id="SPIN-MILK-1L",
+        name="Amul Taaza Milk 1L Pouch",
+        pack_size="1 L",
+        unit_price=66.0,
+        quantity=1,
+        total_price=66.0,
+    )
+    cart = CommerceCart(
+        cart_id="default-cart",
+        address_id="addr-1",
+        items=[item1],
+        item_total=66.0,
+        grand_total=66.0,
+    )
+    commerce._carts["default-cart"] = cart
+
+    result = await tools.manage_basket(
+        address_id="addr-1",
+        set_quantity=[{"line_id": "SPIN-MILK-1L", "quantity": 3}],
+        current_cart=cart,
+    )
+    assert result["success"] is True
+    assert any("Amul Taaza Milk 1L Pouch -> 3" in mod for mod in result.get("modified_items", []))
+    fresh_cart = await commerce.get_cart("default-cart")
+    assert fresh_cart.items[0].quantity == 3
+
+
+@pytest.mark.asyncio
+async def test_manage_basket_two_identical_lines_not_touched_by_guessed_name():
+    """Two identical lines are not touched when a guessed item name is passed instead of exact line id."""
+    from backend.agent.tools import SwiggyAgentTools
+    from backend.integrations.commerce.mock_adapter import MockCommerceAdapter
+    from backend.integrations.commerce.models import CartItem, CommerceCart
+
+    commerce = MockCommerceAdapter()
+    tools = SwiggyAgentTools(commerce)
+
+    # Two items with identical display name and attributes, but distinct line IDs
+    item1 = CartItem(
+        spin_id="SPIN-MILK-1L",
+        line_id="line-milk-a",
+        sku_id="SPIN-MILK-1L",
+        name="Amul Taaza Fresh Toned Milk",
+        pack_size="1 L",
+        unit_price=66.0,
+        quantity=1,
+        total_price=66.0,
+    )
+    item2 = CartItem(
+        spin_id="SPIN-MILK-500ML",
+        line_id="line-milk-b",
+        sku_id="SPIN-MILK-500ML",
+        name="Amul Taaza Fresh Toned Milk",
+        pack_size="500 ml",
+        unit_price=34.0,
+        quantity=1,
+        total_price=34.0,
+    )
+    cart = CommerceCart(
+        cart_id="default-cart",
+        address_id="addr-1",
+        items=[item1, item2],
+        item_total=100.0,
+        grand_total=100.0,
+    )
+    commerce._carts["default-cart"] = cart
+
+    # 1. Attempting to remove using the guessed product name fails with INVALID_LINE_ID and touches neither line
+    res_name_remove = await tools.manage_basket(
+        address_id="addr-1",
+        remove=["Amul Taaza Fresh Toned Milk"],
+        current_cart=cart,
+    )
+    assert res_name_remove["success"] is False
+    assert res_name_remove["error"] == "INVALID_LINE_ID"
+
+    # 2. Attempting to set quantity using guessed product name fails with INVALID_LINE_ID and touches neither line
+    res_name_sq = await tools.manage_basket(
+        address_id="addr-1",
+        set_quantity=[{"line_id": "Amul Taaza Fresh Toned Milk", "quantity": 2}],
+        current_cart=cart,
+    )
+    assert res_name_sq["success"] is False
+    assert res_name_sq["error"] == "INVALID_LINE_ID"
+
+    # 3. Passing exact line ID touches only that line and preserves the other identical line
+    res_id_remove = await tools.manage_basket(
+        address_id="addr-1",
+        remove=["line-milk-a"],
+        current_cart=cart,
+    )
+    assert res_id_remove["success"] is True
+    assert "Amul Taaza Fresh Toned Milk" in res_id_remove["removed_items"]
+    remaining_spins = [it["spin_id"] for it in res_id_remove.get("items", [])]
+    assert "SPIN-MILK-1L" not in remaining_spins
+    assert "SPIN-MILK-500ML" in remaining_spins
+
+
 
 
 

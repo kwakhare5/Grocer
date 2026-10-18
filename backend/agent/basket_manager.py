@@ -4,7 +4,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Optional
 
-from backend.agent.catalog_ranker import _matches_item_name, _matches_requested_product
+from backend.agent.catalog_ranker import _matches_requested_product
 from backend.agent.formatters import format_cart_receipt
 from backend.agent.product_policy import is_restricted_medical_product
 from backend.integrations.commerce.exceptions import ProviderAuthError
@@ -50,6 +50,40 @@ async def execute_manage_basket(
         "items": sorted(([it.spin_id, it.sku_id, it.quantity] for it in current_cart.items), key=lambda e: e[0]),
     }
 
+    cart_items_by_id: dict[str, Any] = {}
+    for ci in current_cart.items:
+        lid = getattr(ci, "cart_line_id", None) or getattr(ci, "line_id", None) or getattr(ci, "id", None) or ci.spin_id
+        cart_items_by_id[lid] = ci
+        if ci.spin_id and ci.spin_id not in cart_items_by_id:
+            cart_items_by_id[ci.spin_id] = ci
+
+    # Validation: line IDs in remove and set_quantity must exist in live cart
+    if remove and isinstance(remove, list):
+        for rem in remove:
+            if not isinstance(rem, str) or not rem.strip():
+                continue
+            rem_clean = rem.strip()
+            if rem_clean not in cart_items_by_id:
+                return {
+                    "success": False,
+                    "error": "INVALID_LINE_ID",
+                    "message": f"Cart line ID '{rem_clean}' does not exist in the active basket.",
+                }
+
+    if set_quantity and isinstance(set_quantity, list):
+        for sq in set_quantity:
+            if not isinstance(sq, dict):
+                continue
+            q_id = str(sq.get("line_id") or sq.get("id") or sq.get("query") or "").strip()
+            if not q_id:
+                continue
+            if q_id not in cart_items_by_id:
+                return {
+                    "success": False,
+                    "error": "INVALID_LINE_ID",
+                    "message": f"Cart line ID '{q_id}' does not exist in the active basket.",
+                }
+
     extra_updates: list[dict[str, Any]] = []
     removed_items: list[str] = []
     not_found_removals: list[str] = []
@@ -63,36 +97,32 @@ async def execute_manage_basket(
             if not isinstance(rem, str) or not rem.strip():
                 continue
             rem_clean = rem.strip()
-            matched_any = False
-            for ci in current_cart.items:
-                if _matches_item_name(rem_clean, ci.name):
-                    extra_updates.append({
-                        "spin_id": ci.spin_id,
-                        "sku_id": ci.sku_id,
-                        "quantity": 0,
-                    })
-                    removed_items.append(ci.name)
-                    matched_any = True
-            if not matched_any:
-                not_found_removals.append(rem_clean)
+            ci = cart_items_by_id.get(rem_clean)
+            if ci:
+                extra_updates.append({
+                    "spin_id": ci.spin_id,
+                    "sku_id": ci.sku_id,
+                    "quantity": 0,
+                })
+                removed_items.append(ci.name)
 
     # 2. Process Quantity Adjustments
     if set_quantity and isinstance(set_quantity, list):
         for sq in set_quantity:
             if not isinstance(sq, dict):
                 continue
-            q_text = str(sq.get("query") or "").strip()
+            q_id = str(sq.get("line_id") or sq.get("id") or sq.get("query") or "").strip()
             t_qty = sq.get("quantity")
-            if not q_text or type(t_qty) is not int or not 0 <= t_qty <= 99:
+            if not q_id or type(t_qty) is not int or not 0 <= t_qty <= 99:
                 continue
-            for ci in current_cart.items:
-                if _matches_item_name(q_text, ci.name):
-                    extra_updates.append({
-                        "spin_id": ci.spin_id,
-                        "sku_id": ci.sku_id,
-                        "quantity": t_qty,
-                    })
-                    modified_items.append(f"{ci.name} -> {t_qty}")
+            ci = cart_items_by_id.get(q_id)
+            if ci:
+                extra_updates.append({
+                    "spin_id": ci.spin_id,
+                    "sku_id": ci.sku_id,
+                    "quantity": t_qty,
+                })
+                modified_items.append(f"{ci.name} -> {t_qty}")
 
     # 3. Process Additions
     selected_for_add: list[dict[str, Any]] = []
@@ -203,6 +233,8 @@ async def execute_manage_basket(
         "item_count": len(current_cart.items),
         "items": [
             {
+                "id": getattr(item, "cart_line_id", None) or getattr(item, "line_id", None) or getattr(item, "id", None) or item.spin_id,
+                "line_id": getattr(item, "cart_line_id", None) or getattr(item, "line_id", None) or getattr(item, "id", None) or item.spin_id,
                 "spin_id": item.spin_id,
                 "sku_id": item.sku_id,
                 "name": item.name,

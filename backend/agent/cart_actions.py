@@ -199,6 +199,8 @@ async def execute_update_cart(
             }
         items_summary = [
             {
+                "id": getattr(item, "cart_line_id", None) or getattr(item, "line_id", None) or getattr(item, "id", None) or item.spin_id,
+                "line_id": getattr(item, "cart_line_id", None) or getattr(item, "line_id", None) or getattr(item, "id", None) or item.spin_id,
                 "spin_id": item.spin_id,
                 "sku_id": item.sku_id,
                 "name": item.name,

@@ -69,12 +69,18 @@ class CartItem(BaseModel):
     total_price: float
     is_available: Optional[bool] = None
     sku_id: Optional[str] = None
+    line_id: Optional[str] = None
+    id: Optional[str] = None
     mrp: Optional[float] = None
     product_id: Optional[str] = None
     category: Optional[str] = None
     brand: Optional[str] = None
     max_quantity: Optional[int] = None
     max_quantity_message: Optional[str] = None
+
+    @property
+    def cart_line_id(self) -> str:
+        return self.line_id or self.id or self.spin_id
 
 
 class CommerceCart(BaseModel):

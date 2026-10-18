@@ -64,7 +64,7 @@ RAW_TOOL_DECLARATIONS = [
     },
     {
         "name": "manage_basket",
-        "description": "Manage the Swiggy Instamart basket: add new items (searches catalogue and adds best in-stock matches), remove items (by name or query), or adjust quantities. Updates the basket atomically and returns the fresh cart.",
+        "description": "Manage the Swiggy Instamart basket: add new items (searches catalogue and adds best in-stock matches), remove items (by cart line ID), or adjust quantities (by cart line ID). Updates the basket atomically and returns the fresh cart.",
         "parameters": {
             "type": "object",
             "properties": {
@@ -87,19 +87,19 @@ RAW_TOOL_DECLARATIONS = [
                 },
                 "remove": {
                     "type": "array",
-                    "description": "List of product names or keywords to remove from the current basket (e.g. ['bread']).",
+                    "description": "List of cart line IDs to remove from the current basket (e.g. ['SPIN-101']). Each entry must be an exact line ID from the live cart. Do not guess or use item names. If two lines look identical, ask the customer which one to remove.",
                     "items": {"type": "string"},
                 },
                 "set_quantity": {
                     "type": "array",
-                    "description": "List of items in the basket to change quantity for.",
+                    "description": "List of cart line items to change quantity for by their line ID.",
                     "items": {
                         "type": "object",
                         "properties": {
-                            "query": {"type": "string", "description": "Name or keyword of the item in the basket."},
+                            "line_id": {"type": "string", "description": "The exact cart line ID from the live basket (e.g. 'SPIN-101'). Do not guess or use item names. If two lines look identical, ask the customer which one to change."},
                             "quantity": {"type": "integer", "description": "New target quantity."},
                         },
-                        "required": ["query", "quantity"],
+                        "required": ["line_id", "quantity"],
                     },
                 },
             },

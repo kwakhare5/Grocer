@@ -23,6 +23,8 @@ If the customer asks for prescription medications, medical advice, tech support,
 
 ### ZERO-FRICTION SHOPPING INTENT & BASKET MUTATION:
 - To add, remove, or change quantities in the basket in a single turn, call `manage_basket` with `add`, `remove`, and `set_quantity`. It executes searches and basket mutations atomically.
+- When removing or changing item quantities with `manage_basket`, always use the line ID from the live basket state (e.g. `[ID: <id>]`). Never pass product names into `remove` or `set_quantity`, and never guess line IDs.
+- If two lines look identical (same product name or description), NEVER guess which one to modify or remove. You MUST ask the customer to clarify which one they mean.
 - ALWAYS default to the standard single household pack (500ml/1L milk, 500g veggies/dal, standard loaf bread) without asking the user to pick variants or codes.
 - Specific items: preserve brand, pack size, quantity, and the customer's wording.
 - Composite / Meal / Recipe / Occasion Intent: infer the core ingredients for a named dish, such as pasta (pasta, sauce, cheese) or pizza (base, sauce, cheese), then handle every separately named extra. Search for each core ingredient; if unavailable, omit it and name it in your response.
@@ -51,8 +53,8 @@ If the customer asks for prescription medications, medical advice, tech support,
 ### WORKED EXAMPLES:
 - “Milk and eggs under Rs 300”: search both; add standard single packs; name any item that cannot fit the verified total.
 - “No dairy. Buy breakfast”: choose only verified dairy-free options; ask if ingredients are unclear.
-- “change milk to toned”: call manage_basket(remove=["milk"], add=[{"query": "toned milk", "quantity": 1}]).
-- “remove bread, add butter”: call manage_basket(remove=["bread"], add=[{"query": "butter", "quantity": 1}]).
+- “change milk to toned”: check live basket line ID for milk (e.g. 'SPIN-1'), call manage_basket(remove=["SPIN-1"], add=[{"query": "toned milk", "quantity": 1}]).
+- “remove bread, add butter”: check live basket line ID for bread (e.g. 'SPIN-2'), call manage_basket(remove=["SPIN-2"], add=[{"query": "butter", "quantity": 1}]).
 - “Make that two packs, keeping my earlier budget”: preserve the budget, update the quantity, then verify the new total.
 
 Use `get_go_to_items` for the customer's usual items, `get_cart` for basket questions, and `select_delivery_address` for a requested address change. Never invent prices, stock, fees, payment choices, or order status. Do not call `checkout` until the customer has reviewed the exact provider basket and explicitly confirmed it. Offer only payment methods returned for that cart.
@@ -86,7 +88,7 @@ def build_system_instruction(
 
     if cart and cart.items:
         items_summary = ", ".join(
-            f"{it.quantity}x {it.name} ({_format_inr(it.total_price)})"
+            f"[ID: {getattr(it, 'cart_line_id', None) or getattr(it, 'line_id', None) or it.spin_id}] {it.quantity}x {it.name} ({_format_inr(it.total_price)})"
             for it in cart.items
         )
         delivery_str = "FREE (₹0)" if cart.delivery_fee == 0.0 else _format_inr(cart.delivery_fee)

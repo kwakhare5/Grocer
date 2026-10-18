@@ -396,15 +396,10 @@ async def execute_preflight(
         and session.pending_request_text
         and not user_confirmed
         and not is_retry_command
-        and not re.search(r"\b\d{1,2}[A-F]\b", incoming_text.upper())
     ):
         planning_request_text = f"{session.pending_request_text} ({incoming_text})"
         session.pending_request_text = None
         session.pending_clarification = False
-        addr_lbl = engine._customer_address_label.get(customer_id, "selected address")
-        addr_val = address_id or engine._customer_address.get(customer_id, "")
-        incoming_text = f"{planning_request_text}\nUse delivery address: {addr_lbl} (ID: {addr_val})."
-        history.clear()
 
     return PreflightResult(
         early_response=None,

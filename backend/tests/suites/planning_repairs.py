@@ -21,8 +21,18 @@ async def test_planning_clarification_reaches_customer_without_false_cart_claim(
         nonlocal model_calls
         model_calls += 1
         if model_calls > 1:
+            assert len(_history) == 3
+            assert _history[0]["role"] == "user"
             assert "milk" in _history[0]["parts"][0]["text"].casefold()
-            assert "full cream" in _history[0]["parts"][0]["text"].casefold()
+            assert _history[1]["role"] == "model"
+            assert "toned or full cream" in _history[1]["parts"][0]["text"].casefold()
+            assert _history[2]["role"] == "user"
+            assert _history[2]["parts"][0]["text"] == "Full cream"
+            assert "use delivery address" not in _history[2]["parts"][0]["text"].casefold()
+            for entry in _history:
+                for part in entry.get("parts", []):
+                    text = part.get("text", "")
+                    assert "i want milk but ask me what kind first (" not in text.casefold()
             return {"candidates": [{"content": {"parts": [{"functionCall": {
                 "name": "quick_add_items", "args": {"items": [{"query": "full cream milk"}]},
             }}]}}]}

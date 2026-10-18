@@ -22,7 +22,12 @@ During the Session End ritual (called automatically whenever significant changes
 - **Problem**: Removing regex parsing deleted preflight budget capture, allowing baskets to exceed customer spending caps unless the model invoked `set_budget`.
 - **Change**: Added `generate_structured` to `GeminiClient` with low thinking and response schema; added `read_budget_cap` using `gemini-3.5-flash-lite`; exposed `_read_budget_cap` on `GroceryAgentEngine`; recorded budget via direct `await` and cleared ingredient spin lists in `preflight_handler.py`; stubbed `_read_budget_cap` with an async stub in `budget_and_symptoms.py`.
 - **Proof**: Unit budget suite passed; `pytest backend/tests/test_invariants.py` passed 33/33 (1.85s); `npm run lint` exited 0; `graphify update .` indexed 1428 nodes and 3074 edges.
-- **Still broken**: None. Whole-basket budget caps are stored prior to basket updates and strictly enforced.
+#### Work Card: Fixed History Corruption on Customer Clarification Follow-ups (S8)
+
+- **Problem**: In `execute_preflight`, answering a clarifying question cleared conversation history (`history.clear()`) and rewrote the user reply into a synthetic merged prompt with `Use delivery address: ...`.
+- **Change**: Removed `history.clear()`, delivery address lines, and choice-code regex in `preflight_handler.py`; preserved customer reply in history; kept merged text only in `planning_request_text` for retries; updated `test_planning_clarification_reaches_customer_without_false_cart_claim` in `planning_repairs.py` to assert real 3-turn history without merged text or address injections.
+- **Proof**: `test_planning_clarification_reaches_customer_without_false_cart_claim` passed; `pytest backend/tests/test_invariants.py` passed 33/33 (1.46s); `npm run lint` exited 0 with no lint errors.
+- **Still broken**: None in scope. Pre-existing recipe repair and address disambiguation tests in uncompleted slices require their respective repairs.
 
 ### [GROCER — Audit Fixes: Cart Writes Unblocked, Devanagari Passthrough & Model Budget Tool] 2026-10-17
 

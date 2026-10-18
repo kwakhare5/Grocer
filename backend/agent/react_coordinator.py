@@ -8,6 +8,8 @@ from dataclasses import dataclass, field
 from typing import Any, Optional
 
 from backend.agent.checkout_outcome import process_checkout_outcome
+from backend.agent.claim_check import check_reply_claims
+from backend.agent.formatters import format_cart_receipt
 from backend.agent.product_policy import is_symptom_suggestion_request
 from backend.channels.models import (
     InteractiveAction,
@@ -101,6 +103,11 @@ async def execute_react_turn_loop(
     reduced_items: list[str] = []
     guarded_change_message: str | None = None
 
+    initial_cart_items = tuple((it.spin_id or it.product_id, it.quantity) for it in current_cart.items) if current_cart else ()
+    initial_budget = getattr(session, "budget_inr", None)
+    initial_address_id = session.address_id
+    any_tool_called = False
+
     start_time = _now()
     for step_idx in range(1, MAX_TOOL_STEPS + 2):
         if step_idx > MAX_TOOL_STEPS or (_now() - start_time > TURN_TIME_LIMIT_SECONDS):
@@ -159,10 +166,49 @@ async def execute_react_turn_loop(
             text_parts = [p.get("text", "") for p in parts if "text" in p]
             response_text = "\n".join(t.strip() for t in text_parts if t.strip())
             if response_text:
-                final_text = response_text
+                cart_items_now = tuple((it.spin_id or it.product_id, it.quantity) for it in current_cart.items) if current_cart else ()
+                state_changed = (
+                    (cart_items_now != initial_cart_items)
+                    or address_changed
+                    or (session.address_id != initial_address_id)
+                    or (getattr(session, "budget_inr", None) != initial_budget)
+                    or checkout_executed
+                    or bool(budget_blocked_items)
+                )
+                if not state_changed:
+                    try:
+                        claim = await check_reply_claims(getattr(engine, "gemini", None), response_text)
+                    except Exception:
+                        claim = "unclear"
+                    if claim == "no":
+                        final_text = response_text
+                    else:
+                        if current_cart is None:
+                            try:
+                                current_cart = await engine.commerce.get_cart()
+                            except Exception:
+                                current_cart = None
+                        if current_cart and current_cart.items:
+                            safe_receipt = format_cart_receipt(current_cart, addr_lbl or session.address_label)
+                            final_text = safe_receipt
+                            last_cart_receipt = safe_receipt
+                        else:
+                            final_text = "Your basket is empty. What groceries would you like to add?"
+                else:
+                    if last_cart_receipt:
+                        final_text = ""
+                    elif current_cart and current_cart.items:
+                        safe_receipt = format_cart_receipt(current_cart, addr_lbl or session.address_label)
+                        final_text = safe_receipt
+                        last_cart_receipt = safe_receipt
+                    elif address_changed:
+                        final_text = f"I've updated your delivery address to *{addr_lbl or session.address_label}*! 📍"
+                    else:
+                        final_text = "Your basket is empty. What groceries would you like to add?"
+
                 history.append({
                     "role": "model",
-                    "parts": parts,
+                    "parts": [{"text": final_text}],
                     "recorded_at": time.time(),
                 })
                 session.pending_request_text = None
@@ -170,6 +216,7 @@ async def execute_react_turn_loop(
             final_text = "I couldn't process that request right now. Please tell me what you'd like to do."
             break
 
+        any_tool_called = True
         history.append({
             "role": "model",
             "parts": parts,

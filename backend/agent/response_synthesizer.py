@@ -78,17 +78,12 @@ async def synthesize_turn_response(
         conv_state = "NEEDS_DECISION"
     elif last_cart_receipt and not is_checkout_turn:
         if last_cart_receipt not in final_text:
-            basket_match = re.search(r"🛒\s*\*?Your Basket.*", final_text, flags=re.DOTALL | re.IGNORECASE)
-            if basket_match:
-                intro = final_text[: basket_match.start()].strip()
-                final_text = f"{intro}\n\n{last_cart_receipt}" if intro else last_cart_receipt
-            elif not final_text.strip():
-                if address_changed:
-                    final_text = f"I've updated your delivery address to *{addr_lbl}*! 📍\n\n{last_cart_receipt}"
-                else:
-                    final_text = last_cart_receipt
-            else:
+            if address_changed:
+                final_text = f"I've updated your delivery address to *{addr_lbl}*! 📍\n\n{last_cart_receipt}"
+            elif session.pending_cart_clear and final_text.strip():
                 final_text = f"{final_text.strip()}\n\n{last_cart_receipt}"
+            else:
+                final_text = last_cart_receipt
 
         actions = [
             InteractiveAction(action_type="button", id="confirm_order", title="Confirm Order"),
@@ -264,6 +259,13 @@ async def synthesize_turn_response(
                 conv_state = "AWAITING_CHECKOUT_CONFIRMATION"
     elif not checkout_executed:
         engine.get_session(customer_id).pending_approval = None
+
+    if is_checkout_turn:
+        session.known_cart_fingerprint = None
+        session.external_cart_pending = False
+        session.budget_blocked_items.clear()
+        session.unresolved_items.clear()
+        session.pending_approval = None
 
     if not approval_recorded_this_turn:
         actions = [

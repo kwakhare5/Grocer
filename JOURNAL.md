@@ -17,6 +17,13 @@ During the Session End ritual (called automatically whenever significant changes
 
 ### [GROCER — Whole-Basket Spending Cap Protection via Native Gemini Flash-Lite] 2026-10-18
 
+#### Work Card: Landing Honesty, Reply Claim Check, 50-Message Scripted Invariant Run (Slice D2a)
+
+- **Problem**: When the model replied with text only and no tool call, unbacked claims about items, totals, or order status could reach the customer; retained cart fingerprint after checkout triggered false external drift on subsequent turns.
+- **Change**: Created `backend/agent/claim_check.py` with structured output schema judging claims on text-only turns; replaced unbacked claims with safe real-state replies in `react_coordinator.py`; built customer text by code on state changes and cleared post-checkout fingerprint and pending state in `response_synthesizer.py`; added 7 unit and integration tests in `backend/tests/test_slice_d2a.py` including a 50-step interleaved invariant run.
+- **Proof**: `pytest backend/tests/test_slice_d2a.py` passed 7/7; full pytest ran with 103 passed, 34 failed (exact same 34 baseline failures in `test_whatsapp_postgres_e2e.py`); `git diff --check` exits 0.
+- **Still broken**: None in scope. 34 pre-existing failures in `test_whatsapp_postgres_e2e.py` remain unchanged.
+
 #### Work Card: Doc Audit Fixes, Invariant Test Rename, Code-Backed Claims Only (Slice D1c)
 
 - **Problem**: `docs/SWIGGY_BUILDER_CLUB_APPLICATION.md` contained inaccurate or unbacked claims regarding Render region (`frankfurt`), pool max size (`5`), webhook verification location (Next.js proxy vs backend), token encryption ("per-customer cryptographic isolation"), PII storage ("no long-term storage"), review mode mechanics (simulated dynamic UPI QR generation vs skipping checkout), dietary exclusions (deterministic code vs model prompt instructions), recipe deduplication (hardcoded map vs model deduction), confirmation evaluation (fixed rule vs model yes/no check), model tier naming (Flash-Lite primary vs Gemini 3.5 Flash primary with Flash-Lite fallback), test count status line ("0 ESLint errors/warnings"), build timing ("in ~2.1s"), and unmeasured numbers / rate limit guidelines; `test_recipe_planning_preserves_item_coverage_quantity_pack_size_and_exclusions` implied it tested model exclusion logic when the plan was scripted.

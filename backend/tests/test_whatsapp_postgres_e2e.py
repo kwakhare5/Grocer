@@ -72,6 +72,8 @@ from backend.tests.suites.confirmation_token import (
     test_expired_approval_refused_typed_and_by_button,
     test_typed_yes_confirms_when_model_check_returns_true_refused_when_false,
     test_typed_confirm_order_with_no_approval_still_refused,
+    test_price_change_forces_fresh_review_and_old_token_refused,
+    test_missing_known_cart_fingerprint_with_pending_approval_refuses_confirm,
 )
 
 __all__ = [
@@ -84,6 +86,8 @@ __all__ = [
     "test_expired_approval_refused_typed_and_by_button",
     "test_typed_yes_confirms_when_model_check_returns_true_refused_when_false",
     "test_typed_confirm_order_with_no_approval_still_refused",
+    "test_price_change_forces_fresh_review_and_old_token_refused",
+    "test_missing_known_cart_fingerprint_with_pending_approval_refuses_confirm",
     "test_crashed_turn_recovers_then_later_whatsapp_message_gets_reply",
     "test_greeting_does_not_ask_for_delivery_address_or_use_swiggy",
     "test_show_cart_does_not_demand_an_address",

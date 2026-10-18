@@ -19,34 +19,18 @@ async def check_cart_drift(
     client: Any = None,
 ) -> Optional[NormalizedOutgoingResponse]:
     """Detect external changes to Swiggy cart and enforce bounded price tolerance."""
-    if session.known_cart_fingerprint:
-        observed_fingerprint = (
-            cart_fingerprint(current_cart, current_cart.address_id or session.address_id or "")
-            if current_cart
-            else None
-        )
-        if observed_fingerprint != session.known_cart_fingerprint:
-            # Bounded price tolerance: minor fee fluctuations (<= ₹10) proceed smoothly
-            is_minor_fluctuation = False
-            if current_cart and session.pending_approval:
-                old_total = getattr(session, "known_cart_total", None)
-                if old_total is not None:
-                    delta = abs(current_cart.grand_total - old_total)
-                    within_budget = session.budget_inr is None or current_cart.grand_total <= session.budget_inr
-                    if delta <= 10.0 and within_budget:
-                        is_minor_fluctuation = True
-                        session.known_cart_fingerprint = observed_fingerprint
-                        session.known_cart_total = current_cart.grand_total
-                        session.pending_approval = PendingApproval(
-                            fingerprint=observed_fingerprint,
-                            expires_at=session.pending_approval.expires_at,
-                            token=session.pending_approval.token,
-                        )
-
-            if not is_minor_fluctuation:
-                session.external_cart_pending = True
-                session.pending_approval = None
-                session.selected_payment_id = None
+    observed_fingerprint = (
+        cart_fingerprint(current_cart, current_cart.address_id or session.address_id or "")
+        if current_cart
+        else None
+    )
+    if (
+        (session.known_cart_fingerprint and observed_fingerprint != session.known_cart_fingerprint)
+        or (session.pending_approval is not None and not session.known_cart_fingerprint)
+    ):
+        session.external_cart_pending = True
+        session.pending_approval = None
+        session.selected_payment_id = None
 
     if session.external_cart_pending:
         confirmed = user_confirmed

@@ -17,6 +17,13 @@ During the Session End ritual (called automatically whenever significant changes
 
 ### [GROCER — Whole-Basket Spending Cap Protection via Native Gemini Flash-Lite] 2026-10-18
 
+#### Work Card: Removed Rs 10 Price Tolerance in Drift Guard (Slice 5 Step 2)
+
+- **Problem**: `drift_guard.py` permitted price fluctuations up to ₹10 to silently update the approval fingerprint and preserve the active approval token instead of requiring customer review.
+- **Change**: Deleted the 18-line minor price fluctuation branch in `drift_guard.py`; invalidated pending approval and payment ID on any fingerprint drift or when `known_cart_fingerprint` is missing while an approval is pending; enforced fingerprint consistency in `preflight_handler.py` so button taps automatically reuse the stale-token refresh path; added 2 tests to `confirmation_token.py` (₹5 price change forces review, missing fingerprint refuses confirmation) and registered them in `test_whatsapp_postgres_e2e.py`.
+- **Proof**: `pytest backend/tests/suites/confirmation_token.py` passed 7/7 (4.54s); full test suite `python -m pytest -q -ra -p backend.tests.suites.helpers` passed 70, 46 failed (same 46 known failures, passed count increased by 2 from 68 to 70); `git diff --check` clean.
+- **Still broken**: None in scope. 46 pre-existing catalog/recipe/address failures in uncompleted redesign slices remain unchanged.
+
 #### Work Card: Cart-Bound Confirmation Tokens and Checked Typed Yes (Slice 5 Step 1)
 
 - **Problem**: Any generic `confirm_order` button or word-matched typed text previously confirmed orders without binding to the exact basket reviewed or verifying intent.

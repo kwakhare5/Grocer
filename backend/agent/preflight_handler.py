@@ -160,6 +160,22 @@ async def execute_preflight(
         history = []
         engine._history[customer_id] = history
 
+    approved_address = engine._customer_address.get(customer_id) or (
+        current_cart.address_id if current_cart else ""
+    ) or ""
+    observed_fingerprint = cart_fingerprint(current_cart, approved_address) if current_cart else None
+
+    if session.pending_approval is not None:
+        fingerprint_valid = (
+            bool(session.known_cart_fingerprint)
+            and observed_fingerprint is not None
+            and observed_fingerprint == session.known_cart_fingerprint
+            and observed_fingerprint == session.pending_approval.fingerprint
+        )
+        if not fingerprint_valid:
+            session.pending_approval = None
+            session.selected_payment_id = None
+
     is_awaiting_checkout = (
         session.pending_approval is not None
         and session.pending_approval.expires_at > current_time

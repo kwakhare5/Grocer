@@ -216,10 +216,64 @@ async def test_typed_confirm_order_with_no_approval_still_refused(postgres_pool,
     assert commerce.checkout_calls == 0
 
 
+@pytest.mark.asyncio
+async def test_price_change_forces_fresh_review_and_old_token_refused(postgres_pool, monkeypatch):
+    commerce, engine, store, customer_id, cart, app = await _setup_engine_and_cart(postgres_pool, monkeypatch)
+    assert engine._record_pending_approval(customer_id, cart, "addr-bandra-1")
+    old_token = engine.get_session(customer_id).pending_approval.token
+    old_price = cart.items[0].unit_price
+
+    # Inject a Rs 5 price change on the cart item (delta <= 10, previously bypassed by tolerance)
+    commerce.inject_price_change("SPIN-MILK-1L", old_price + 5.0)
+
+    _stub_checkout_model(engine, cart)
+
+    body, headers = _interactive_webhook("wamid.price-drift", f"confirm_order:{old_token}", "Confirm Order")
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://local-test") as client:
+        resp = await client.post("/api/whatsapp/webhook", content=body, headers=headers)
+    assert resp.status_code == 200
+    assert commerce.checkout_calls == 0
+
+    _, reply = await store.response_for_message("wamid.price-drift")
+    assert reply is not None
+    confirm_actions = [a for a in reply.interactive_actions if a.id.startswith("confirm_order:")]
+    assert len(confirm_actions) == 1
+    new_token = confirm_actions[0].id.removeprefix("confirm_order:")
+    assert new_token != old_token
+    assert "milk" in reply.text.casefold() or "basket" in reply.text.casefold()
+
+
+@pytest.mark.asyncio
+async def test_missing_known_cart_fingerprint_with_pending_approval_refuses_confirm(postgres_pool, monkeypatch):
+    commerce, engine, store, customer_id, cart, app = await _setup_engine_and_cart(postgres_pool, monkeypatch)
+    assert engine._record_pending_approval(customer_id, cart, "addr-bandra-1")
+    token = engine.get_session(customer_id).pending_approval.token
+
+    # Clear known_cart_fingerprint to simulate legacy or missing state while approval is pending
+    engine.get_session(customer_id).known_cart_fingerprint = None
+
+    _stub_checkout_model(engine, cart)
+
+    body, headers = _interactive_webhook("wamid.missing-fp", f"confirm_order:{token}", "Confirm Order")
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://local-test") as client:
+        resp = await client.post("/api/whatsapp/webhook", content=body, headers=headers)
+    assert resp.status_code == 200
+    assert commerce.checkout_calls == 0
+
+    _, reply = await store.response_for_message("wamid.missing-fp")
+    assert reply is not None
+    confirm_actions = [a for a in reply.interactive_actions if a.id.startswith("confirm_order:")]
+    assert len(confirm_actions) == 1
+    new_token = confirm_actions[0].id.removeprefix("confirm_order:")
+    assert new_token != token
+
+
 __all__ = [
     "test_valid_confirmation_token_confirms",
     "test_stale_confirmation_token_refused_with_fresh_summary_and_button",
     "test_expired_approval_refused_typed_and_by_button",
     "test_typed_yes_confirms_when_model_check_returns_true_refused_when_false",
     "test_typed_confirm_order_with_no_approval_still_refused",
+    "test_price_change_forces_fresh_review_and_old_token_refused",
+    "test_missing_known_cart_fingerprint_with_pending_approval_refuses_confirm",
 ]

@@ -54,11 +54,9 @@ async def synthesize_turn_response(
     session = engine.get_session(customer_id)
     history = engine.get_history(customer_id)
     current_cart = None
-    is_checkout_turn = conv_state in (
-        "ORDER_PLACED",
-        "AWAITING_PAYMENT",
-        "PARTIAL_ORDER",
-        "PAYMENT_CONFIRMED",
+    is_checkout_turn = (
+        checkout_executed
+        and conv_state != "AWAITING_CHECKOUT_CONFIRMATION"
     )
 
     if step_limit_reached:

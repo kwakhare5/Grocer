@@ -225,35 +225,60 @@ async def test_confirmation_required_turn_keeps_receipt_and_tokenized_confirm_bu
 
 
 @pytest.mark.asyncio
-async def test_failed_checkout_items_unresolved_no_stray_confirm_button_no_crash():
-    """Failed checkout (ITEMS_UNRESOLVED): no stray confirm button, no crash."""
+@pytest.mark.parametrize(
+    "conv_state",
+    [
+        "REVIEW_COMPLETE",
+        "FAILED",
+        "RECOVERING",
+        "NEEDS_DECISION",
+        "ORDER_PLACED",
+        "AWAITING_PAYMENT",
+    ],
+)
+async def test_checkout_outcomes_suppress_receipt_and_confirm_button(conv_state: str):
+    """Parametrized test over real conv_states:
+
+    REVIEW_COMPLETE, FAILED, RECOVERING, NEEDS_DECISION (partial), ORDER_PLACED, AWAITING_PAYMENT.
+    checkout_executed true, last_cart_receipt set (model called get_cart in the same turn).
+    Assert: no receipt appended, no confirm_order action, _record_pending_approval not called,
+    conv_state unchanged.
+    """
     customer_id = "cust-123"
     engine, session, _ = _setup_engine(customer_id)
     receipt = "🛒 *Your Basket:*\n• Amul Taaza Milk 1L x1 — ₹54\nTotal: ₹54"
 
+    initial_actions = (
+        [
+            InteractiveAction(action_type="button", id="accept_partial_basket", title="Keep These Items"),
+            InteractiveAction(action_type="button", id="modify_cart", title="Change Items"),
+        ]
+        if conv_state == "NEEDS_DECISION"
+        else [
+            InteractiveAction(action_type="button", id="modify_cart", title="Change Items"),
+        ]
+    )
+
     message = NormalizedIncomingMessage(
-        message_id="wamid.test-fail",
+        message_id="wamid.test-param",
         sender_id="919999988888",
         channel="whatsapp",
         text="place order",
     )
 
-    session.unresolved_items = [{"name": "Organic Milk", "query": "milk"}]
+    engine._record_pending_approval.reset_mock()
 
     resp = await synthesize_turn_response(
         engine,
         message,
         customer_id,
-        final_text="I could not place your order because some items are unresolved.",
-        actions=[
-            InteractiveAction(action_type="button", id="confirm_order", title="Confirm Order"),
-            InteractiveAction(action_type="button", id="modify_cart", title="Change Items"),
-        ],
-        conv_state="NEEDS_DECISION",
+        final_text=f"Outcome message for {conv_state}.",
+        actions=list(initial_actions),
+        conv_state=conv_state,
         last_cart_receipt=receipt,
         last_cart_total=54.0,
-        out_order_id=None,
-        out_order_total=None,
+        out_order_id="ORD-123" if conv_state in ("ORDER_PLACED", "AWAITING_PAYMENT") else None,
+        out_order_total=54.0,
         out_bridge_url=None,
         address_changed=False,
         suggestion_only=False,
@@ -267,13 +292,15 @@ async def test_failed_checkout_items_unresolved_no_stray_confirm_button_no_crash
         pending_request_needs_retry=False,
         step_limit_reached=False,
         checkout_executed=True,
-        user_confirmed=False,
+        user_confirmed=True,
         incoming_text="place order",
         addr_lbl="Home",
     )
 
+    assert "Your Basket" not in resp.text
     assert not any(a.id == "confirm_order" or a.id.startswith("confirm_order:") for a in resp.interactive_actions)
-    assert resp.conversation_state == "NEEDS_DECISION"
+    engine._record_pending_approval.assert_not_called()
+    assert resp.conversation_state == conv_state
 
 
 @pytest.mark.asyncio

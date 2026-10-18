@@ -17,12 +17,19 @@ During the Session End ritual (called automatically whenever significant changes
 
 ### [GROCER — Whole-Basket Spending Cap Protection via Native Gemini Flash-Lite] 2026-10-18
 
+#### Work Card: Suppress Receipt and Confirm Button on All Checkout Outcomes Except Confirmation-Required (Slice 6d)
+
+- **Problem**: is_checkout_turn only listed 4 placed states; other real checkout outcomes (REVIEW_COMPLETE, FAILED, RECOVERING, NEEDS_DECISION) appended receipts and issued fresh confirm buttons if get_cart was called in the same turn.
+- **Change**: Updated is_checkout_turn in response_synthesizer.py to `checkout_executed and conv_state != "AWAITING_CHECKOUT_CONFIRMATION"`; removed unreachable ITEMS_UNRESOLVED test and added parametrized test across REVIEW_COMPLETE, FAILED, RECOVERING, NEEDS_DECISION, ORDER_PLACED, and AWAITING_PAYMENT in test_slice_6b.py asserting receipt suppressed, no confirm button, no approval recorded, and state unchanged.
+- **Proof**: test_slice_6b.py passed 13/13; full pytest ran with 87 passed, 38 failed (0 regressions against baseline 38 failures); git diff --check exits 0.
+- **Still broken**: None in scope. 38 pre-existing suite failures across unmigrated redesign slice tests remain unchanged.
+
 #### Work Card: Fix Confirm Button Strip on Failed Checkout, Real Yes/No Tests, Doc Claims (Slice 6c)
 
 - **Problem**: Bare checkout_executed flag inadvertently stripped confirm buttons and receipts on failed checkouts or CONFIRMATION_REQUIRED turns; test 3 in 6b mocked is_confirmed instead of testing it with a fake model; application docs retained obsolete negation-first regex claims.
-- **Change**: Restricted is_checkout_turn in response_synthesizer.py strictly to placed order states (ORDER_PLACED, AWAITING_PAYMENT, PARTIAL_ORDER, PAYMENT_CONFIRMED) and removed unused checkout_result argument; added tests for CONFIRMATION_REQUIRED, failed checkout (ITEMS_UNRESOLVED), stale bare confirm tap with empty cart, and accept_partial_basket; rewrote test 3 using a fake Gemini client verifying real yes/no confirmation calls without mocking is_confirmed; updated consent guard claims in docs/SWIGGY_BUILDER_CLUB_APPLICATION.md.
+- **Change**: Restricted is_checkout_turn in response_synthesizer.py to placed order states (ORDER_PLACED, AWAITING_PAYMENT, PARTIAL_ORDER, PAYMENT_CONFIRMED) and removed unused checkout_result argument; added tests for CONFIRMATION_REQUIRED, failed checkout (unreachable ITEMS_UNRESOLVED test, removed in 6d), stale bare confirm tap with empty cart, and accept_partial_basket; rewrote test 3 using a fake Gemini client verifying real yes/no confirmation calls without mocking is_confirmed; updated consent guard claims in docs/SWIGGY_BUILDER_CLUB_APPLICATION.md.
 - **Proof**: test_slice_6b.py passed 8/8; full pytest ran with 82 passed, 38 failed (0 regressions against baseline 38 failures); git diff --check exits 0.
-- **Still broken**: None in scope. 38 pre-existing suite failures across unmigrated redesign slice tests remain unchanged.
+- **Still broken**: The conv_state list was incomplete (omitting REVIEW_COMPLETE, FAILED, RECOVERING, NEEDS_DECISION) and the ITEMS_UNRESOLVED test was unreachable, fixed in 6d. 38 pre-existing suite failures across unmigrated redesign slice tests remain unchanged.
 
 #### Work Card: Fix Confirm Button After Order & Delete Three Word Lists (Slice 6b)
 

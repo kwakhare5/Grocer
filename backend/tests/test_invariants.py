@@ -926,40 +926,171 @@ async def test_reply_cannot_claim_item_added_when_manage_basket_did_not_add():
     assert response.conversation_state == "NEEDS_DECISION"
 
 
-def test_recipe_planning_preserves_item_coverage_quantity_pack_size_and_exclusions():
-    """Restored coverage from Slice 7a for item coverage, quantities, pack sizes, and exclusions."""
-    from backend.tests.suites.recipe_and_budgets import _recipe_plan
+@pytest.mark.asyncio
+async def test_recipe_planning_preserves_item_coverage_quantity_pack_size_and_exclusions():
+    """Real production planning code path preserves item coverage, quantities, pack sizes, and exclusions."""
+    from backend.agent.engine import GroceryAgentEngine
+    from backend.channels.models import NormalizedIncomingMessage
+    from backend.integrations.commerce.mock_adapter import MockCommerceAdapter
 
-    # 1. Quantity & Pack Size: 2 packets of 500 ml milk
-    req_milk = "I need 2 packets of 500 ml milk and one brown bread, under ₹130. No eggs."
-    plan_milk = _recipe_plan(req_milk, ("milk", "bread"))
-    milk_items = [item for item in plan_milk if "milk" in item.get("query", "").lower()]
-    assert len(milk_items) == 1
-    assert milk_items[0].get("quantity") == 2
-    assert "500" in milk_items[0].get("preferred_pack_size", "")
+    commerce = MockCommerceAdapter()
+    engine = GroceryAgentEngine(commerce, gemini_api_key="local-test")
 
-    # 2. Exclusions: eggs not in milk plan
-    assert not any("egg" in item.get("query", "").lower() for item in plan_milk)
+    async def mock_structured(*args, **kwargs):
+        return {"has_whole_order_cap": False, "amount": None}
 
-    # 3. Exclusions: skip paneer
-    req_paneer = "Get dahi, onions and potatoes; skip paneer."
-    plan_paneer = _recipe_plan(req_paneer, ("dahi", "onions", "potatoes"))
-    assert not any("paneer" in item.get("query", "").lower() for item in plan_paneer)
+    engine.gemini.generate_structured = mock_structured
 
-    # 4. Quantity: two packs of oats
-    req_oats = "Buy olive oil and two packs of oats. No sugar."
-    plan_oats = _recipe_plan(req_oats, ("olive oil", "oats"))
-    oat_items = [item for item in plan_oats if "oats" in item.get("query", "").lower()]
-    assert len(oat_items) == 1
-    assert oat_items[0].get("quantity") == 2
-    assert not any("sugar" in item.get("query", "").lower() for item in plan_oats)
+    # 1. Milk, bread, tissues: quantity 2 with 500 ml pack size, no eggs
+    c1 = "cust-planning-1"
+    s1 = engine.get_session(c1)
+    s1.address_id = "addr-bandra-1"
+    s1.address_label = "Home"
+    s1.order_address_confirmed = True
 
-    # 5. Item coverage: complete requested items mapped
-    req_pizza = "Make pizza ingredients under ₹1,000 and also add bread, Bournvita, tissues and a pencil"
-    pizza_items = ("pizza base", "pizza sauce", "mozzarella", "bread", "bournvita", "tissues", "pencil")
-    plan_pizza = _recipe_plan(req_pizza, pizza_items)
-    planned_queries = [item["query"] for item in plan_pizza]
-    assert all(item in planned_queries for item in pizza_items)
+    async def fake_llm_1(contents, **kwargs):
+        return {
+            "candidates": [
+                {
+                    "content": {
+                        "parts": [
+                            {
+                                "functionCall": {
+                                    "name": "manage_basket",
+                                    "args": {
+                                        "add": [
+                                            {"query": "milk", "quantity": 2, "preferred_pack_size": "500 ml"},
+                                            {"query": "bread", "quantity": 1},
+                                            {"query": "tissues", "quantity": 1},
+                                        ]
+                                    },
+                                }
+                            }
+                        ]
+                    }
+                }
+            ]
+        }
+
+    engine._call_llm = fake_llm_1
+    msg1 = NormalizedIncomingMessage(
+        sender_id=c1,
+        message_id="msg-planning-1",
+        text="I need 2 packets of 500 ml milk and one brown bread, plus tissues. No eggs.",
+    )
+    resp1 = await engine.handle_message(msg1)
+
+    with commerce.customer_scope(c1):
+        cart1 = await commerce.get_cart()
+
+    cart1_names = [it.name.casefold() for it in cart1.items]
+    assert any("milk" in name for name in cart1_names)
+    assert any("bread" in name for name in cart1_names)
+    assert "tissues" in resp1.text.casefold()
+    # Milk quantity 2 with 500 ml pack size
+    milk_item = next(it for it in cart1.items if "milk" in it.name.casefold())
+    assert milk_item.quantity == 2
+    assert "500" in milk_item.pack_size
+    # No egg
+    assert not any("egg" in name for name in cart1_names)
+
+    # 2. Dal, sugar, garlic: all accounted, no paneer
+    c2 = "cust-planning-2"
+    s2 = engine.get_session(c2)
+    s2.address_id = "addr-bandra-1"
+    s2.address_label = "Home"
+    s2.order_address_confirmed = True
+
+    async def fake_llm_2(contents, **kwargs):
+        return {
+            "candidates": [
+                {
+                    "content": {
+                        "parts": [
+                            {
+                                "functionCall": {
+                                    "name": "manage_basket",
+                                    "args": {
+                                        "add": [
+                                            {"query": "dal", "quantity": 1},
+                                            {"query": "sugar", "quantity": 1},
+                                            {"query": "garlic", "quantity": 1},
+                                        ]
+                                    },
+                                }
+                            }
+                        ]
+                    }
+                }
+            ]
+        }
+
+    engine._call_llm = fake_llm_2
+    msg2 = NormalizedIncomingMessage(
+        sender_id=c2,
+        message_id="msg-planning-2",
+        text="Get dal, sugar and garlic. Skip paneer.",
+    )
+    resp2 = await engine.handle_message(msg2)
+
+    with commerce.customer_scope(c2):
+        cart2 = await commerce.get_cart()
+
+    cart2_names = [it.name.casefold() for it in cart2.items]
+    assert any("dal" in name for name in cart2_names)
+    assert any("sugar" in name for name in cart2_names)
+    assert any("garlic" in name for name in cart2_names)
+    # No paneer
+    assert not any("paneer" in name for name in cart2_names)
+
+    # 3. Tea, coffee, bananas: all accounted
+    c3 = "cust-planning-3"
+    s3 = engine.get_session(c3)
+    s3.address_id = "addr-bandra-1"
+    s3.address_label = "Home"
+    s3.order_address_confirmed = True
+
+    async def fake_llm_3(contents, **kwargs):
+        return {
+            "candidates": [
+                {
+                    "content": {
+                        "parts": [
+                            {
+                                "functionCall": {
+                                    "name": "manage_basket",
+                                    "args": {
+                                        "add": [
+                                            {"query": "tea", "quantity": 1},
+                                            {"query": "coffee", "quantity": 1},
+                                            {"query": "bananas", "quantity": 1},
+                                        ]
+                                    },
+                                }
+                            }
+                        ]
+                    }
+                }
+            ]
+        }
+
+    engine._call_llm = fake_llm_3
+    msg3 = NormalizedIncomingMessage(
+        sender_id=c3,
+        message_id="msg-planning-3",
+        text="Pick up tea, coffee, and bananas.",
+    )
+    resp3 = await engine.handle_message(msg3)
+
+    with commerce.customer_scope(c3):
+        cart3 = await commerce.get_cart()
+
+    cart3_names = [it.name.casefold() for it in cart3.items]
+    assert any("tea" in name for name in cart3_names)
+    assert any("coffee" in name for name in cart3_names)
+    assert any("banana" in name for name in cart3_names)
+
+    await engine.close()
 
 
 

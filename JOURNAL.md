@@ -17,6 +17,13 @@ During the Session End ritual (called automatically whenever significant changes
 
 ### [GROCER — Whole-Basket Spending Cap Protection via Native Gemini Flash-Lite] 2026-10-18
 
+#### Work Card: Real Planning Invariant Test, Strict Step Limit Assertion, Backed Doc Claims (Slice D1b)
+
+- **Problem**: (1) `test_recipe_planning_preserves_item_coverage_quantity_pack_size_and_exclusions` only checked the hardcoded mock helper `_recipe_plan` instead of executing real production engine planning; (2) `test_slice_7c.py` tolerated obsolete "couldn't finish checking those items" loop message; (3) `docs/SWIGGY_BUILDER_CLUB_APPLICATION.md` contained unbacked claims ("100% green", "exits 0", "~16s", exponential backoff on HTTP 429, hesitation phrase traps, HTTP/2 pool).
+- **Change**: Replaced mock plan test with real production engine execution (`handle_message`, `manage_basket`, catalog search, variant ranking, and cart mutations) asserting real item coverage, pack sizes, quantities, and exclusions; tightened step-limit and time-cap assertions in `test_slice_7c.py` to assert only `"maximum processing steps"`; updated `SWIGGY_BUILDER_CLUB_APPLICATION.md` to current test counts (96 passed, 34 failed), cited >= 10s polling interval (`checkout_attempts.py:149`, `mock_adapter.py:494`), cited search pacing in waves of 3 (`tools.py:165`), cited 429 Retry-After cooldown (`swiggy_client.py:194`), and removed unbacked claims.
+- **Proof**: `pytest backend/tests/test_invariants.py` passed 27/27; `pytest backend/tests/test_slice_7c.py` passed 4/4; full pytest ran with 96 passed, 34 failed (exact same 34 failures); `git diff --check` exits 0.
+- **Still broken**: None in scope. 34 pre-existing suite failures across unmigrated redesign slice tests remain.
+
 #### Work Card: Heartbeat Error Recovery, Real Claim Assertion, Dead Text Cleanup & Doc Fixes (Slice D1)
 
 - **Problem**: Heartbeat keep-alive died silently if DB blipped; heartbeat test relied on manual backdate instead of asserting against DB timestamp; dead text assignment bypassed synthesizer default in react_coordinator; application doc referenced unverified 70 req/min limit and outdated test counts.

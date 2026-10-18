@@ -75,7 +75,7 @@ async def test_eight_tool_steps_complete_and_step_nine_triggers_step_limit():
 
     assert call_count_b == 8  # Only 8 tool calls executed before step 9 hit the limit
     assert resp_b.conversation_state == "NEEDS_DECISION"
-    assert "maximum processing steps" in resp_b.text.casefold() or "couldn't finish checking those items" in resp_b.text.casefold()
+    assert "maximum processing steps" in resp_b.text.casefold()
     assert session.pending_request_text == "Search 9 times"
 
 
@@ -112,7 +112,7 @@ async def test_time_cap_exceeded_triggers_step_limit_and_saves_request(monkeypat
 
     assert call_count == 1  # Only 1 step ran before time limit fired on the next step
     assert resp.conversation_state == "NEEDS_DECISION"
-    assert "maximum processing steps" in resp.text.casefold() or "couldn't finish checking those items" in resp.text.casefold()
+    assert "maximum processing steps" in resp.text.casefold()
     assert session.pending_request_text == "Slow search"
 
 

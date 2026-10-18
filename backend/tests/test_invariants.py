@@ -927,8 +927,8 @@ async def test_reply_cannot_claim_item_added_when_manage_basket_did_not_add():
 
 
 @pytest.mark.asyncio
-async def test_recipe_planning_preserves_item_coverage_quantity_pack_size_and_exclusions():
-    """Real production planning code path preserves item coverage, quantities, pack sizes, and exclusions."""
+async def test_basket_execution_preserves_quantity_pack_size_and_items_with_scripted_plan():
+    """The model plan is scripted and this does not test understanding of exclusions; asserts basket execution preserves quantities, pack sizes, and items."""
     from backend.agent.engine import GroceryAgentEngine
     from backend.channels.models import NormalizedIncomingMessage
     from backend.integrations.commerce.mock_adapter import MockCommerceAdapter

@@ -15,14 +15,8 @@ from backend.agent.address_resolver import (
 )
 from backend.agent.approval import PendingApproval, cart_fingerprint
 from backend.agent.drift_guard import check_cart_drift
-from backend.agent.fast_paths import (
-    handle_cart_read_fast_path,
-    handle_greeting_or_cancellation_fast_path,
-    handle_hesitation_fast_path,
-    handle_reset_fast_path,
-)
 from backend.agent.formatters import format_cart_receipt
-from backend.agent.guards import is_explicit_confirmation, _NEGATION_CONFIRM_REGEX
+from backend.agent.guards import _NEGATION_CONFIRM_REGEX
 from backend.channels.models import (
     InteractiveAction,
     NormalizedIncomingMessage,
@@ -42,7 +36,6 @@ class PreflightResult:
     user_confirmed: bool = False
     current_cart: Optional[CommerceCart] = None
     address_id: Optional[str] = None
-    is_retry_command: bool = False
 
 
 async def execute_preflight(
@@ -51,6 +44,13 @@ async def execute_preflight(
     """Execute pre-turn validation, fast paths, cart inspection, and address resolution."""
     history = engine.get_history(customer_id)
     session = engine.get_session(customer_id)
+
+    is_clear_confirm_tap = (
+        message.interactive_id == "clear_cart_confirm"
+        or (message.interactive_id is not None and message.interactive_id.startswith("clear_cart_confirm:"))
+    )
+    if not is_clear_confirm_tap:
+        session.pending_cart_clear = None
 
     incoming_text = message.text.strip()
     planning_request_text = incoming_text
@@ -84,55 +84,6 @@ async def execute_preflight(
         logger.info("Captured whole-basket budget cap: ₹%.2f for %s", budget_cap, customer_id)
 
     norm_text = incoming_text.casefold().strip("!.? \t\n")
-    is_retry_command = norm_text in {"try again", "retry"}
-    if is_retry_command and session.pending_request_text:
-        planning_request_text = session.pending_request_text
-
-    greet_or_cancel_resp = handle_greeting_or_cancellation_fast_path(
-        norm_text=norm_text,
-        message=message,
-        is_awaiting_address=customer_id in engine._awaiting_address_choice,
-    )
-    if greet_or_cancel_resp is not None:
-        return PreflightResult(early_response=greet_or_cancel_resp)
-
-    # Fast-path: Explicit address change request
-    if (
-        norm_text in {"change address", "switch address", "different address", "update address"}
-        or "change address" in norm_text
-    ):
-        try:
-            addr_res = await engine.tools.get_saved_addresses(customer_id)
-            if addr_res.get("success") and addr_res.get("addresses"):
-                addrs = addr_res["addresses"]
-                choices = [
-                    {**a, "_choice_code": secrets.token_hex(3), "_choice_index": str(idx)}
-                    for idx, a in enumerate(addrs, 1)
-                ]
-                engine._awaiting_address_choice[customer_id] = choices
-                return PreflightResult(early_response=engine._address_choice_response(message, choices))
-        except Exception:
-            pass
-
-    # Fast-path 1: Reset / Clear basket command
-    reset_resp = await handle_reset_fast_path(
-        norm_text=norm_text,
-        message=message,
-        customer_id=customer_id,
-        session=session,
-        tools=engine.tools,
-        commerce=engine.commerce,
-        reset_order_address_fn=engine.reset_customer_order_address,
-        clear_history_fn=lambda cid: engine._history.pop(cid, None),
-        clear_hold_fn=(
-            (lambda cid: engine.attempt_store.clear_unresolved_hold(cid, commerce=engine.commerce))
-            if getattr(engine, "attempt_store", None)
-            else None
-        ),
-        address_id=engine._customer_address.get(customer_id) or session.address_id,
-    )
-    if reset_resp is not None:
-        return PreflightResult(early_response=reset_resp)
 
     current_cart: Optional[CommerceCart] = None
     try:
@@ -176,6 +127,8 @@ async def execute_preflight(
             and observed_fingerprint == session.pending_approval.fingerprint
         )
         if not fingerprint_valid:
+            if not session.known_cart_fingerprint:
+                session.external_cart_pending = True
             session.pending_approval = None
             session.selected_payment_id = None
 
@@ -361,15 +314,6 @@ async def execute_preflight(
     if drift_resp is not None:
         return PreflightResult(early_response=drift_resp)
 
-    cart_read_resp = handle_cart_read_fast_path(
-        norm_text=norm_text,
-        message=message,
-        current_cart=current_cart,
-        address_label=session.address_label,
-    )
-    if cart_read_resp is not None:
-        return PreflightResult(early_response=cart_read_resp)
-
     if message.interactive_id and message.interactive_id.startswith("payment_choice:"):
         selected_id = message.interactive_id.removeprefix("payment_choice:")
         approval = session.pending_approval
@@ -476,15 +420,6 @@ async def execute_preflight(
             order_total=current_cart.grand_total,
         ))
 
-    hesitation_resp = handle_hesitation_fast_path(
-        norm_text=norm_text,
-        message=message,
-        current_cart=current_cart,
-        address_label=engine._customer_address_label.get(customer_id),
-    )
-    if hesitation_resp is not None:
-        return PreflightResult(early_response=hesitation_resp)
-
     if session.pending_variant_selection:
         session.pending_variant_selection = None
         session.pending_request_text = incoming_text
@@ -512,14 +447,7 @@ async def execute_preflight(
             )
 
     address_id = engine._customer_address.get(customer_id)
-    has_explicit_address_intent = bool(re.search(
-        r"\b(?:deliver|send|ship|bring|drop|switch|change|use)\b.*?\b(?:to|at|address|location|destination)\b"
-        r"|\b(?:deliver|send|ship|switch|change)\s+to\b"
-        r"|\b(?:address|location|destination)\b",
-        norm_text,
-    ))
-    is_referencing_current_address = bool(re.search(r"\b(?:selected|current|same)\s+address\b", norm_text))
-    if not address_id or (has_explicit_address_intent and not is_referencing_current_address):
+    if not address_id:
         try:
             addr_res = await engine.tools.get_saved_addresses(customer_id)
             if addr_res.get("error") == "AUTH_EXPIRED":
@@ -539,7 +467,6 @@ async def execute_preflight(
                 elif (
                     len(addresses) > 1
                     and not (current_cart and current_cart.items)
-                    and not any(k in norm_text for k in ("address", "saved address", "track", "status"))
                 ):
                     session.pending_request_text = incoming_text
                     choices = [
@@ -561,16 +488,10 @@ async def execute_preflight(
         except Exception:
             pass
 
-    if session.pending_request_text and is_retry_command:
-        planning_request_text = session.pending_request_text
-        addr_lbl = engine._customer_address_label.get(customer_id, "selected address")
-        addr_val = address_id or engine._customer_address.get(customer_id, "")
-        incoming_text = f"{session.pending_request_text}\nUse delivery address: {addr_lbl} (ID: {addr_val})."
-    elif (
+    if (
         getattr(session, "pending_clarification", False)
         and session.pending_request_text
         and not user_confirmed
-        and not is_retry_command
     ):
         planning_request_text = f"{session.pending_request_text} ({incoming_text})"
         session.pending_request_text = None
@@ -583,5 +504,4 @@ async def execute_preflight(
         user_confirmed=user_confirmed,
         current_cart=current_cart,
         address_id=address_id,
-        is_retry_command=is_retry_command,
     )

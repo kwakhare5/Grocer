@@ -1,6 +1,7 @@
 """Local simulator, unknown meta delivery, and restart reconciliation tests."""
 from __future__ import annotations
 
+import time
 import pytest
 from httpx import ASGITransport, AsyncClient
 
@@ -35,18 +36,140 @@ async def test_local_simulator_clear_failure_never_claims_empty_basket(postgres_
     monkeypatch.setattr(settings, "CHECKOUT_MODE", "review")
     app = create_app()
     commerce = FailingClearAdapter()
-    app.state.agent_engine = GroceryAgentEngine(commerce, gemini_api_key="local-test")
+    engine = GroceryAgentEngine(commerce, gemini_api_key="local-test")
+    app.state.agent_engine = engine
     app.state.message_store = PostgresMessageStore(postgres_pool)
     monkeypatch.setattr(default_whatsapp_adapter, "_app_secret", "local-e2e-secret")
     monkeypatch.setattr(default_whatsapp_adapter, "record_only", True)
+
+    sender = "919999988888"
+    customer_id = default_whatsapp_adapter.map_sender_to_customer_id(sender)
+    address_id = "addr-bandra-1"
+    engine._customer_address[customer_id] = address_id
+    engine._customer_address_label[customer_id] = "Home"
+    engine._order_address_confirmed[customer_id] = True
+
+    with commerce.customer_scope(customer_id):
+        await commerce.update_cart(
+            [CartItemUpdate(spin_id="SPIN-MILK-1L", sku_id="SPIN-MILK-1L", quantity=1)],
+            address_id=address_id,
+        )
+        cart = await commerce.get_cart()
+
+    from backend.agent.session_manager import record_pending_cart_clear
+    session = engine.get_session(customer_id)
+    assert record_pending_cart_clear(session, cart, address_id)
+    token = session.pending_cart_clear.token
+
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://127.0.0.1") as client:
         response = await client.post(
-            "/api/simulator/chat", headers={"Authorization": "Bearer local-test-secret"},
-            json={"text": "delete all"},
+            "/api/simulator/chat",
+            headers={"Authorization": "Bearer local-test-secret"},
+            json={"text": "Clear", "interactive_id": f"clear_cart_confirm:{token}"},
         )
     assert response.status_code == 200
     assert "couldn't verify" in response.json()["text"].casefold()
     assert "cleared" not in response.json()["text"].casefold()
+
+
+@pytest.mark.asyncio
+async def test_preflight_resets_stale_clear_cart_ask_on_unrelated_turn():
+    from backend.agent.preflight_handler import execute_preflight
+    from backend.agent.session_manager import record_pending_cart_clear
+
+    commerce = MockCommerceAdapter()
+    engine = GroceryAgentEngine(commerce, gemini_api_key="local-test")
+    customer_id = "919999988888"
+    address_id = "addr-bandra-1"
+    engine._customer_address[customer_id] = address_id
+    engine._customer_address_label[customer_id] = "Home"
+    engine._order_address_confirmed[customer_id] = True
+
+    with commerce.customer_scope(customer_id):
+        await commerce.update_cart(
+            [CartItemUpdate(spin_id="SPIN-MILK-1L", sku_id="SPIN-MILK-1L", quantity=1)],
+            address_id=address_id,
+        )
+        cart = await commerce.get_cart()
+
+    session = engine.get_session(customer_id)
+    assert record_pending_cart_clear(session, cart, address_id)
+    assert session.pending_cart_clear is not None
+
+    msg = NormalizedIncomingMessage(
+        sender_id=customer_id,
+        message_id="msg-unrelated",
+        text="add bread",
+        timestamp=int(time.time()),
+    )
+    await execute_preflight(engine, msg, customer_id)
+    assert session.pending_cart_clear is None
+
+
+@pytest.mark.asyncio
+async def test_missing_known_fingerprint_clears_pending_approval_and_sets_external_cart_pending():
+    from backend.agent.approval import PendingApproval, cart_fingerprint
+    from backend.agent.preflight_handler import execute_preflight
+
+    commerce = MockCommerceAdapter()
+    engine = GroceryAgentEngine(commerce, gemini_api_key="local-test")
+    customer_id = "919999988888"
+    address_id = "addr-bandra-1"
+    engine._customer_address[customer_id] = address_id
+    engine._customer_address_label[customer_id] = "Home"
+    engine._order_address_confirmed[customer_id] = True
+
+    with commerce.customer_scope(customer_id):
+        await commerce.update_cart(
+            [CartItemUpdate(spin_id="SPIN-MILK-1L", sku_id="SPIN-MILK-1L", quantity=1)],
+            address_id=address_id,
+        )
+        cart = await commerce.get_cart()
+
+    session = engine.get_session(customer_id)
+    fp = cart_fingerprint(cart, address_id)
+    session.pending_approval = PendingApproval(
+        token="test-token-123",
+        fingerprint=fp,
+        expires_at=time.time() + 300,
+    )
+    session.known_cart_fingerprint = None
+    session.external_cart_pending = False
+
+    # 1. Confirm tap entry path: pending_approval is cleared and external_cart_pending is set
+    msg_tap = NormalizedIncomingMessage(
+        sender_id=customer_id,
+        message_id="msg-confirm-tap",
+        text="Confirm Order",
+        interactive_id="confirm_order:test-token-123",
+        timestamp=int(time.time()),
+    )
+    result_tap = await execute_preflight(engine, msg_tap, customer_id)
+    assert session.pending_approval is None
+    assert session.external_cart_pending is True
+    assert result_tap.early_response is not None
+    assert "expired or the basket changed" in result_tap.early_response.text.casefold()
+
+    # 2. Typed path: when known_cart_fingerprint is missing, external_cart_pending forces check_cart_drift review
+    session.pending_approval = PendingApproval(
+        token="test-token-456",
+        fingerprint=fp,
+        expires_at=time.time() + 300,
+    )
+    session.known_cart_fingerprint = None
+    session.external_cart_pending = False
+
+    msg_typed = NormalizedIncomingMessage(
+        sender_id=customer_id,
+        message_id="msg-typed",
+        text="place order",
+        timestamp=int(time.time()),
+    )
+    result_typed = await execute_preflight(engine, msg_typed, customer_id)
+    assert session.pending_approval is None
+    assert session.external_cart_pending is True
+    assert result_typed.early_response is not None
+    assert "swiggy cart changed outside this chat" in result_typed.early_response.text.casefold()
 
 
 @pytest.mark.asyncio

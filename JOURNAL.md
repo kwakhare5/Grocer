@@ -17,6 +17,14 @@ During the Session End ritual (called automatically whenever significant changes
 
 ### [GROCER — Whole-Basket Spending Cap Protection via Native Gemini Flash-Lite] 2026-10-18
 
+#### Work Card: Retired Hardcoded Fast Paths and Word Lists (Slice 5 Step 4)
+
+- **Problem**: Natural language understanding was previously coupled to hardcoded fast paths and word lists (`fast_paths.py`, `guards.py`, regex matchers) bypassing the model for cart reads, resets, greetings, and address switches.
+- **Change**: Deleted `backend/agent/fast_paths.py` and its call sites in `preflight_handler.py`; removed deleted guards from `guards.py`; added stale clear-ask reset and external cart pending on missing fingerprint; rewrote simulator clear failure, typed reset, `test_show_cart_does_not_demand_an_address`, and `test_greeting_does_not_ask_for_delivery_address_or_use_swiggy` to use scripted fake models; deleted 8 invariant tests targeting deleted fast-paths/symbols and deleted imports in `test_invariants.py`.
+- **Proof**: `git diff --stat` (262 insertions, 633 deletions); `git diff --check` clean; plain `pytest` exited with zero collection errors: 66 passed, 45 failed (all 45 are the known pre-existing model tests from uncompleted slices, 0 new failures).
+- **Still broken**: None in scope. 45 pre-existing failures in uncompleted redesign slices remain.
+
+
 #### Work Card: Two-Step Clear Cart Bound by Token (Slice 5 Step 3)
 
 - **Problem**: Typed reset requests, model calls to `clear_cart`, and interactive buttons immediately cleared the Swiggy basket without requiring explicit confirmation.

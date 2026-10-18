@@ -174,6 +174,47 @@ async def test_typed_reset_leaves_cart_non_empty_and_produces_clear_cart_ask():
             address_id=address_id,
         )
 
+    # Scripted model: replies to typed "clear my cart" by calling clear_cart tool
+    turn_count = 0
+
+    async def mock_call_llm(contents, **kwargs):
+        nonlocal turn_count
+        turn_count += 1
+        if turn_count == 1:
+            return {
+                "candidates": [
+                    {
+                        "content": {
+                            "parts": [
+                                {
+                                    "functionCall": {
+                                        "name": "clear_cart",
+                                        "args": {},
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                ]
+            }
+        return {
+            "candidates": [
+                {
+                    "content": {
+                        "parts": [
+                            {"text": "Clear cart? This will remove all items from your basket."}
+                        ]
+                    }
+                }
+            ]
+        }
+
+    async def mock_read_budget_cap(text: str) -> float | None:
+        return None
+
+    engine._call_llm = mock_call_llm
+    engine._read_budget_cap = mock_read_budget_cap
+
     msg = NormalizedIncomingMessage(
         sender_id=customer_id,
         message_id="msg-typed-reset",

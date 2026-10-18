@@ -1,88 +1,12 @@
 """Adversarial invariant unit tests for GROCER fast-paths, schemas, and resilient tool resolution."""
 import pytest
 from backend.agent.schemas import RAW_TOOL_DECLARATIONS
-from backend.agent.guards import is_reset_command
 
 
 def test_quick_add_items_in_raw_tool_declarations():
     """Stage 1 planning requires quick_add_items schema for recipe and meal kit decomposition."""
     tool_names = [tool["name"] for tool in RAW_TOOL_DECLARATIONS]
     assert "quick_add_items" in tool_names, "quick_add_items must be declared in RAW_TOOL_DECLARATIONS"
-
-
-def test_is_reset_command_matches_all_natural_basket_purge_variations():
-    """Fast-path guard must deterministically match user reset commands in 0ms without reaching LLM."""
-    positive_cases = [
-        "delete basket",
-        "Delete Basket",
-        "clear cart",
-        "clear basket",
-        "empty cart",
-        "empty my cart",
-        "empty basket",
-        "empty the basket",
-        "delete cart",
-        "delete all",
-        "delete everything",
-        "clear all",
-        "clear everything",
-        "wipe cart",
-        "wipe all items",
-        "reset",
-        "start over",
-        "start fresh",
-    ]
-    for case in positive_cases:
-        assert is_reset_command(case) is True, f"Failed to match reset command: '{case}'"
-
-
-def test_is_reset_command_does_not_falsely_match_shopping_intents():
-    """Reset guard must not hijack regular shopping or item requests."""
-    negative_cases = [
-        "i wanna make pizza give me ingredients",
-        "add bread and milk to basket",
-        "basket of apples",
-        "delete 1 milk",
-        "remove bread from basket",
-        "remove all bread",
-        "delete all apples",
-        "cart total please",
-        "where is my order",
-    ]
-    for case in negative_cases:
-        assert is_reset_command(case) is False, f"Falsely matched shopping intent: '{case}'"
-
-
-def test_is_hesitation_does_not_falsely_match_bus_stop_or_shopping():
-    """Hesitation guard must not match transportation stops or shopping statements."""
-    from backend.agent.guards import is_hesitation
-
-    negative_cases = [
-        "milk at the bus stop",
-        "meet me at the metro stop and bring bread",
-        "add milk",
-    ]
-    for case in negative_cases:
-        assert is_hesitation(case) is False, f"Falsely matched hesitation: '{case}'"
-
-
-def test_cart_read_fast_path_does_not_hijack_product_recommendation_questions():
-    """Cart read fast-path must not hijack user questions like 'what items go well with pasta?'."""
-    from backend.agent.fast_paths import handle_cart_read_fast_path
-    from backend.channels.models import NormalizedIncomingMessage
-
-    dummy_msg = NormalizedIncomingMessage(
-        message_id="msg-1",
-        sender_id="user-1",
-        channel="whatsapp",
-        text="what items go well with pasta?",
-    )
-    result = handle_cart_read_fast_path(
-        norm_text="what items go well with pasta?",
-        message=dummy_msg,
-        current_cart=None,
-    )
-    assert result is None, "Recommendation questions must not trigger cart read fast-path"
 
 
 
@@ -160,27 +84,6 @@ async def test_engine_planning_turn_includes_quick_add_items():
 
     assert len(passed_tools) == 1, "Planning turn tools must contain exactly quick_add_items, not empty list"
     assert passed_tools[0]["name"] == "quick_add_items"
-
-
-@pytest.mark.asyncio
-async def test_engine_fast_path_delete_basket():
-    """Incoming 'delete basket' must trigger 0ms fast-path cart wipe."""
-    from backend.agent.engine import GroceryAgentEngine
-    from backend.integrations.commerce.mock_adapter import MockCommerceAdapter
-    from backend.channels.models import NormalizedIncomingMessage
-
-    commerce = MockCommerceAdapter()
-    engine = GroceryAgentEngine(commerce, gemini_api_key="mock-key")
-
-    msg = NormalizedIncomingMessage(
-        sender_id="919876543210",
-        message_id="msg-reset-test",
-        text="delete basket",
-        timestamp=1234567890,
-    )
-    resp = await engine.handle_message(msg)
-    assert resp.text is not None
-    assert "cleared" in resp.text.lower() or "empty" in resp.text.lower()
 
 
 @pytest.mark.asyncio
@@ -432,28 +335,6 @@ def test_multi_fernet_key_rotation():
     assert codec_new_only.decrypt(new_ciphertext)["customer_id"] == "cust_456"
 
 
-def test_recipe_staples_guards_multimeal():
-    """Recipe guards must ensure indispensable bases for pizza, pasta, and burger are preserved."""
-    from backend.agent.guards import missing_recipe_staples
-
-    # Pizza missing base
-    assert missing_recipe_staples("I want to make pizza tonight", ["tomato", "cheese"]) == ["pizza base"]
-    # Pizza with base present
-    assert missing_recipe_staples("I want to make pizza tonight", ["pizza crust", "cheese"]) == []
-    # Pizza when user already has base
-    assert missing_recipe_staples("I want to make pizza, I already have pizza base", ["cheese"]) == []
-
-    # Pasta missing base
-    assert missing_recipe_staples("Let's cook pasta", ["pasta sauce", "parmesan"]) == ["pasta"]
-    # Pasta with base present
-    assert missing_recipe_staples("Let's cook pasta", ["penne", "sauce"]) == []
-
-    # Burger missing bun
-    assert missing_recipe_staples("prepare burger for dinner", ["patty", "mayo"]) == ["burger bun"]
-    # Burger with bun present
-    assert missing_recipe_staples("prepare burger for dinner", ["burger bun", "patty"]) == []
-
-
 def test_first_aid_product_policy_not_restricted():
     """Non-prescription first aid products must not be restricted even if in pharmacy category."""
     from backend.agent.product_policy import is_restricted_medical_product
@@ -549,30 +430,6 @@ async def test_engine_handle_message_returns_response_with_pool_state_store():
     assert res.text
 
 
-def test_is_explicit_confirmation_accepts_natural_affirmations_and_rejects_negations():
-    from backend.agent.guards import is_explicit_confirmation
-    affirmations = [
-        "confirm", "confirm order", "yes", "place order", "proceed", "pay",
-        "sounds good", "looks good", "send it", "yep", "yeah", "yup",
-        "good to go", "all good", "perfect", "haan", "haan kar do", "haan place karo",
-    ]
-    for text in affirmations:
-        assert is_explicit_confirmation(text) is True, f"Failed on affirmation: {text}"
-
-    negations = [
-        "don't confirm", "do not place order", "not now", "cancel order",
-        "wait", "hold on", "stop", "never order", "pause", "no don't order",
-    ]
-    for text in negations:
-        assert is_explicit_confirmation(text) is False, f"Failed on negation: {text}"
-
-    shopping_phrases = [
-        "order 2 milk", "order milk", "place 1 bread in cart", "add milk", "need bread", "bring eggs",
-    ]
-    for text in shopping_phrases:
-        assert is_explicit_confirmation(text) is False, f"Shopping phrase falsely confirmed: {text}"
-
-
 def test_catalog_ranker_penalizes_multipack_bundles_unless_requested():
     from backend.agent.catalog_ranker import rank_and_select_best_variant
     candidates = [
@@ -649,13 +506,6 @@ def test_response_synthesizer_english_guard_preserves_indian_brand_receipts():
     assert "Chitale Bandhu Bakarwadi" in result
     assert "Mera Swad Mango Pickle" in result
     assert "I can only help you shop for groceries" not in result
-
-
-def test_reconcile_explicit_removals_cleans_cart_context_phrases():
-    from backend.agent.guards import reconcile_explicit_removals
-    assert reconcile_explicit_removals("remove eggs from my cart please") == ["eggs"]
-    assert reconcile_explicit_removals("drop the bread from basket") == ["bread"]
-    assert reconcile_explicit_removals("delete milk") == ["milk"]
 
 
 def test_cart_edits_allows_quantity_reduction_phrases():

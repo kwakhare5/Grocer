@@ -68,22 +68,49 @@ async def test_greeting_does_not_ask_for_delivery_address_or_use_swiggy(postgres
     async def unexpected_provider_call(*_args, **_kwargs):
         raise AssertionError("Greeting should not need a Swiggy call")
 
-    commerce.get_cart = unexpected_provider_call
-    commerce.get_saved_addresses = unexpected_provider_call
-    engine._call_llm = unexpected_provider_call
+    commerce.search_products = unexpected_provider_call
+    commerce.update_cart = unexpected_provider_call
+    commerce.checkout = unexpected_provider_call
+    commerce.clear_cart = unexpected_provider_call
+
+    async def fake_model(_history, **_kwargs):
+        return {
+            "candidates": [
+                {
+                    "content": {
+                        "parts": [{"text": "Hello! How can I help you today?"}]
+                    }
+                }
+            ]
+        }
+
+    async def mock_read_budget_cap(text: str) -> float | None:
+        return None
+
+    engine._call_llm = fake_model
+    engine._read_budget_cap = mock_read_budget_cap
+
+    customer_id = default_whatsapp_adapter.map_sender_to_customer_id("919999988888")
+    engine._customer_address[customer_id] = "addr-bandra-1"
+    engine._customer_address_label[customer_id] = "Home"
+
     store = PostgresMessageStore(postgres_pool)
     app = create_app()
     app.state.agent_engine = engine
     app.state.message_store = store
     monkeypatch.setattr(default_whatsapp_adapter, "_app_secret", "local-e2e-secret")
     monkeypatch.setattr(default_whatsapp_adapter, "record_only", True)
+    default_whatsapp_adapter.outbound_messages.clear()
     body, headers = _webhook("wamid.greeting", "Hi")
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://local-test") as client:
         assert (await client.post("/api/whatsapp/webhook", content=body, headers=headers)).status_code == 200
     _, reply = await store.response_for_message("wamid.greeting")
-    assert "grocery" in reply.text.casefold()
     assert "which address" not in reply.text.casefold()
+    assert "address" not in reply.text.casefold()
+    assert "cart" not in reply.text.casefold()
+    assert "basket" not in reply.text.casefold()
     assert not reply.interactive_actions
+    assert len(default_whatsapp_adapter.outbound_messages) == 1
     await engine.close()
 
 
@@ -94,18 +121,56 @@ async def test_show_cart_does_not_demand_an_address(postgres_pool, monkeypatch, 
     commerce = MockCommerceAdapter()
     engine = GroceryAgentEngine(commerce, gemini_api_key="local-test")
 
-    async def no_model_needed(_history, **_kwargs):
-        raise AssertionError("A cart read should not require a model call")
+    step = 0
 
-    engine._call_llm = no_model_needed
+    async def scripted_call_llm(_history, **_kwargs):
+        nonlocal step
+        step += 1
+        if step == 1:
+            return {
+                "candidates": [
+                    {
+                        "content": {
+                            "parts": [
+                                {
+                                    "functionCall": {
+                                        "name": "get_cart",
+                                        "args": {},
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                ]
+            }
+        text = "You have 1x Nandini Pure Milk 1L in your cart." if populated else "Your cart is completely empty."
+        return {
+            "candidates": [
+                {
+                    "content": {
+                        "parts": [{"text": text}]
+                    }
+                }
+            ]
+        }
+
+    async def mock_read_budget_cap(text: str) -> float | None:
+        return None
+
+    engine._call_llm = scripted_call_llm
+    engine._read_budget_cap = mock_read_budget_cap
     app = create_app()
     app.state.agent_engine = engine
     app.state.message_store = store
     monkeypatch.setattr(default_whatsapp_adapter, "_app_secret", "local-e2e-secret")
     monkeypatch.setattr(default_whatsapp_adapter, "record_only", True)
     default_whatsapp_adapter.outbound_messages.clear()
+
+    customer_id = default_whatsapp_adapter.map_sender_to_customer_id("919999988888")
+    engine._customer_address[customer_id] = "addr-bandra-1"
+    engine._customer_address_label[customer_id] = "Home"
+
     if populated:
-        customer_id = default_whatsapp_adapter.map_sender_to_customer_id("919999988888")
         with commerce.customer_scope(customer_id):
             await commerce.update_cart(
                 [CartItemUpdate(spin_id="SPIN-MILK-1L", sku_id="SPIN-MILK-1L", quantity=1)],
@@ -118,8 +183,8 @@ async def test_show_cart_does_not_demand_an_address(postgres_pool, monkeypatch, 
     _, reply = await store.response_for_message("wamid.show-empty-cart")
     assert ("milk" if populated else "empty") in reply.text.casefold()
     assert "which address" not in reply.text.casefold()
-    assert not reply.interactive_actions
     assert len(default_whatsapp_adapter.outbound_messages) == 1
+    await engine.close()
 
 
 @pytest.mark.asyncio

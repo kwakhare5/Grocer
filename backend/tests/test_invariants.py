@@ -338,24 +338,9 @@ def test_delete_data_pattern_matching():
         assert _DELETE_DATA_PATTERN.match(text) is None, f"Falsely matched: {text}"
 
 
-def test_customer_advisory_lock_key_deterministic_64bit():
-    """Customer advisory lock key must be a deterministic signed 64-bit integer for Postgres."""
-    from backend.agent.task_state import customer_advisory_lock_key
-
-    key1 = customer_advisory_lock_key("cust_wa_abcdef123456")
-    key2 = customer_advisory_lock_key("cust_wa_abcdef123456")
-    key3 = customer_advisory_lock_key("cust_wa_other_customer")
-
-    assert key1 == key2
-    assert key1 != key3
-    assert -9223372036854775808 <= key1 <= 9223372036854775807
-    assert -9223372036854775808 <= key3 <= 9223372036854775807
-
-
 @pytest.mark.asyncio
 async def test_engine_handle_message_returns_response_with_pool_state_store():
-    """handle_message must never return None when state_store has a pool."""
-    from contextlib import asynccontextmanager
+    """handle_message must never return None and must load/save state without a held connection."""
     from unittest.mock import AsyncMock, MagicMock
     from backend.agent.engine import GroceryAgentEngine
     from backend.channels.models import NormalizedIncomingMessage, NormalizedOutgoingResponse
@@ -364,12 +349,6 @@ async def test_engine_handle_message_returns_response_with_pool_state_store():
     mock_pool = MagicMock()
     mock_state_store = MagicMock()
     mock_state_store.pool = mock_pool
-
-    @asynccontextmanager
-    async def fake_lock(customer_id):
-        yield "fake_conn"
-
-    mock_state_store.transaction_lock = fake_lock
     mock_state_store.load = AsyncMock(return_value=None)
     mock_state_store.save = AsyncMock(return_value=None)
 
@@ -386,6 +365,13 @@ async def test_engine_handle_message_returns_response_with_pool_state_store():
     assert res is not None, "handle_message must never return None when state_store has a pool"
     assert isinstance(res, NormalizedOutgoingResponse)
     assert res.text
+
+    customer_id = msg.customer_id or msg.sender_id
+    mock_state_store.load.assert_awaited_once_with(customer_id)
+    assert mock_state_store.save.await_count == 1
+    save_args, save_kwargs = mock_state_store.save.call_args
+    assert save_args[0] == customer_id
+    assert "conn" not in save_kwargs or save_kwargs["conn"] is None
 
 
 def test_catalog_ranker_penalizes_multipack_bundles_unless_requested():

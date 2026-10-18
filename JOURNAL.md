@@ -17,6 +17,13 @@ During the Session End ritual (called automatically whenever significant changes
 
 ### [GROCER — Whole-Basket Spending Cap Protection via Native Gemini Flash-Lite] 2026-10-18
 
+#### Work Card: 90s Claim Lease with Heartbeat, Remove Advisory Turn Lock (Slice 7d)
+
+- **Problem**: PostgreSQL session advisory locks (`pg_advisory_lock`) held pool connections open across entire agent turns and external LLM/commerce calls to guard per-customer turn serialization across nodes; worker claims took 5 minutes to recover without proactively aborting turns on lost leases.
+- **Change**: Replaced connection-holding advisory locks with atomic in-process `asyncio.Lock` plus pool-direct load/save in `engine.py` (and deleted `transaction_lock`, `customer_lock`, and `customer_advisory_lock_key` in `task_state.py`); added `CLAIM_LEASE_SECONDS = 90` in `message_store.py` and updated `recover_stale_processing`; updated `heartbeat_processing` to return updated row count; added `HEARTBEAT_INTERVAL_SECONDS = 15` in `whatsapp.py`, cancelling in-flight `handle_message` on 0-row heartbeat without staging a second fallback; rewrote pool state store invariant test and added `test_slice_7d.py` (3 tests).
+- **Proof**: `test_slice_7d.py` passed 3/3; `test_invariants.py` passed 26/26; `git grep -n "transaction_lock\|advisory" backend` returned zero hits; full pytest ran with 93 passed, 34 failed (exact same 34 failures as Slice 7c); `git diff --check` exits 0.
+- **Still broken**: None in scope. 34 pre-existing suite failures across unmigrated redesign slice tests remain.
+
 #### Work Card: Loop Behaviour Fixes, Turn Caps, and Resume from Saved Request (Slice 7c)
 
 - **Problem**: React loop was bounded by local 3-step iteration limit with no turn elapsed time cap, and interrupted turns could not pass saved context cleanly to the model on resumption without hardcoded keyword matching.

@@ -9,6 +9,8 @@ from typing import Any
 
 from backend.channels.models import ChannelType, NormalizedIncomingMessage, NormalizedOutgoingResponse
 
+CLAIM_LEASE_SECONDS = 90
+
 
 def _uncertain_turn_response(payload: dict[str, Any]) -> NormalizedOutgoingResponse:
     message = NormalizedIncomingMessage.model_validate(payload)
@@ -152,11 +154,14 @@ class PostgresMessageStore:
                 )
                 await self._complete_uncertain(connection, inbound_id, row["payload"])
 
-    async def heartbeat_processing(self, inbound_id: int) -> None:
-        await self.pool.execute(
+    async def heartbeat_processing(self, inbound_id: int) -> int:
+        result = await self.pool.execute(
             "UPDATE grocer_internal.inbound_messages SET claimed_at=now() WHERE id=$1 AND status='PROCESSING'",
             inbound_id,
         )
+        if isinstance(result, str) and result.startswith("UPDATE "):
+            return int(result.removeprefix("UPDATE "))
+        return int(result) if isinstance(result, int) else 0
 
     async def recover_stale_processing(self) -> int:
         """Resolve abandoned claims after their worker lease expires."""
@@ -164,8 +169,8 @@ class PostgresMessageStore:
         async with self.pool.acquire() as connection:
             async with connection.transaction():
                 rows = await connection.fetch(
-                    """SELECT id, payload FROM grocer_internal.inbound_messages
-                       WHERE status='PROCESSING' AND claimed_at < now()-interval '5 minutes'
+                    f"""SELECT id, payload FROM grocer_internal.inbound_messages
+                       WHERE status='PROCESSING' AND claimed_at < now()-interval '{CLAIM_LEASE_SECONDS} seconds'
                        ORDER BY claimed_at LIMIT 20 FOR UPDATE SKIP LOCKED"""
                 )
                 for row in rows:

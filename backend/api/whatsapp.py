@@ -21,6 +21,8 @@ _DELETE_DATA_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
+HEARTBEAT_INTERVAL_SECONDS = 15
+
 router = APIRouter(prefix="/api/whatsapp", tags=["whatsapp"])
 
 
@@ -81,11 +83,19 @@ async def drain_message_queue(store: PostgresMessageStore, engine: Any) -> None:
                 logger.warning("Could not absorb burst messages for inbound_id=%s", inbound_id)
 
         heartbeat = None
+        claim_lost = False
+        work_task: asyncio.Task[NormalizedOutgoingResponse] | None = None
         if hasattr(store, "heartbeat_processing"):
             async def keep_claim_alive() -> None:
+                nonlocal claim_lost
                 while True:
-                    await asyncio.sleep(15)
-                    await store.heartbeat_processing(inbound_id)
+                    await asyncio.sleep(HEARTBEAT_INTERVAL_SECONDS)
+                    updated = await store.heartbeat_processing(inbound_id)
+                    if updated == 0:
+                        claim_lost = True
+                        if work_task is not None and not work_task.done():
+                            work_task.cancel()
+                        break
             heartbeat = asyncio.create_task(keep_claim_alive())
         try:
             if _DELETE_DATA_PATTERN.match(task_message.text.strip()):
@@ -103,12 +113,19 @@ async def drain_message_queue(store: PostgresMessageStore, engine: Any) -> None:
                     conversation_state="READY", events=["DELETE_CUSTOMER_DATA"],
                 )
             else:
-                response = await asyncio.wait_for(engine.handle_message(task_message), timeout=180)
+                work_task = asyncio.create_task(engine.handle_message(task_message))
+                response = await asyncio.wait_for(work_task, timeout=180)
+            if claim_lost:
+                return
             await store.stage_response(inbound_id, response)
             await drain_outbound_queue(store)
         except asyncio.CancelledError:
+            if claim_lost:
+                return
             raise
         except Exception:
+            if claim_lost:
+                return
             logger.exception("Agent turn needs review for inbound_id=%s", inbound_id)
             try:
                 fallback_resp = NormalizedOutgoingResponse(
@@ -130,6 +147,12 @@ async def drain_message_queue(store: PostgresMessageStore, engine: Any) -> None:
                 try:
                     await heartbeat
                 except asyncio.CancelledError:
+                    pass
+            if work_task is not None and not work_task.done():
+                work_task.cancel()
+                try:
+                    await work_task
+                except (asyncio.CancelledError, Exception):
                     pass
 
 

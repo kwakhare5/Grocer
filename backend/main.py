@@ -105,7 +105,7 @@ async def _lifespan(app: FastAPI):
         try:
             required_tables = ("oauth_tokens", "oauth_pending_flows", "connect_tickets",
                                "inbound_messages", "outbound_messages", "checkout_attempts",
-                               "task_state", "privacy_deletions", "replenishment")
+                               "task_state", "privacy_deletions")
             for table in required_tables:
                 if await pool.fetchval("SELECT to_regclass($1)", f"grocer_internal.{table}") is None:
                     raise RuntimeError(f"Missing database table grocer_internal.{table}; apply migrations first.")
@@ -113,7 +113,6 @@ async def _lifespan(app: FastAPI):
                 "inbound_messages": ("claimed_at",),
                 "outbound_messages": ("sending_started_at", "payment_attempt_id"),
                 "checkout_attempts": ("next_payment_check_at", "payment_deadline_at"),
-                "replenishment": ("next_sync_at", "paused"),
             }
             for table, columns in required_columns.items():
                 for column in columns:
@@ -141,13 +140,11 @@ async def _lifespan(app: FastAPI):
         from backend.agent.engine import GroceryAgentEngine
         from backend.agent.checkout_attempts import PostgresCheckoutAttemptStore
         from backend.agent.task_state import PostgresTaskStateStore
-        from backend.agent.replenishment import PostgresReplenishmentStore
         app.state.agent_engine = GroceryAgentEngine(
             get_commerce_adapter(force_mock=force_mock),
             gemini_api_key=settings.GEMINI_API_KEY,
             attempt_store=PostgresCheckoutAttemptStore(pool) if pool is not None else None,
             state_store=PostgresTaskStateStore(pool, settings.DATA_ENCRYPTION_KEY) if pool is not None else None,
-            replenishment_store=PostgresReplenishmentStore(pool, settings.DATA_ENCRYPTION_KEY) if pool is not None else None,
         )
         if pool is not None:
             outbound_worker = asyncio.create_task(_outbound_worker(app))

@@ -94,9 +94,6 @@ async def drain_message_queue(store: PostgresMessageStore, engine: Any) -> None:
                     raise RuntimeError("Customer deletion requires durable task storage.")
                 await store.request_deletion(task_message.customer_id)
                 await state_store.delete(task_message.customer_id)
-                replenishment_store = getattr(engine, "replenishment_store", None)
-                if replenishment_store is not None:
-                    await replenishment_store.delete(task_message.customer_id)
                 await default_token_vault.revoke_token_durable(task_message.customer_id)
                 await engine.forget_customer(task_message.customer_id)
                 response = NormalizedOutgoingResponse(

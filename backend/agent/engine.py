@@ -109,14 +109,12 @@ class GroceryAgentEngine:
         timeout: float = 25.0,
         attempt_store: Any | None = None,
         state_store: Any | None = None,
-        replenishment_store: Any | None = None,
         **_kwargs: Any,
     ) -> None:
         self.commerce = commerce
         self.tools = SwiggyAgentTools(commerce)
         self.attempt_store = attempt_store
         self.state_store = state_store
-        self.replenishment_store = replenishment_store
         self.gemini_api_key = gemini_api_key or getattr(settings, "GEMINI_API_KEY", None)
         self.gemini_model = gemini_model or getattr(settings, "GEMINI_MODEL", "gemini-3.5-flash")
         self.gemini_fallback_model = gemini_fallback_model or getattr(settings, "GEMINI_FALLBACK_MODEL", "gemini-3-flash-preview")

@@ -256,9 +256,6 @@ class PostgresMessageStore:
                     "DELETE FROM grocer_internal.task_state WHERE customer_id = $1", customer_id
                 )
                 await connection.execute(
-                    "DELETE FROM grocer_internal.replenishment WHERE customer_id = $1", customer_id
-                )
-                await connection.execute(
                     "DELETE FROM grocer_internal.oauth_tokens WHERE customer_id = $1", customer_id
                 )
                 await connection.execute(

@@ -43,6 +43,13 @@ During the Session End ritual (called automatically whenever significant changes
 - **Proof**: `python -c "from backend.main import create_app; create_app()"` exited 0; `git diff --check` clean; `preflight_handler.py` has 0 replenishment references; `test_invariants.py` passed 33/33; `replenishment_and_webhooks.py` passed 11/11; all retained tests in `planning_repairs`, `planning_and_orders`, `turn_recovery`, `address_disambiguation`, `budget_and_symptoms`, and `test_whatsapp_postgres_e2e` produced identical results to baseline.
 - **Still broken**: None in scope. Pre-existing recipe repair, greeting, and address disambiguation failures in uncompleted slices remain unchanged.
 
+#### Work Card: Removed Replenishment Wiring, Privacy Deletions, and Module (Slice 4 Step 3)
+
+- **Problem**: Dead replenishment plumbing remained in `GroceryAgentEngine`, `main.py` startup checks, `whatsapp.py` deletion hooks, and `message_store.py` customer purging, while `replenishment.py` remained as orphaned code.
+- **Change**: Removed `replenishment_store` constructor param and assignment from `backend/agent/engine.py`; removed `replenishment` from required table and column checks and removed store wiring from `backend/main.py`; removed replenishment deletion lines from `backend/api/whatsapp.py` and `backend/channels/message_store.py`; deleted `backend/agent/replenishment.py`.
+- **Proof**: `python -c "from backend.main import create_app; create_app()"` exited 0; grep for replenishment symbols in `backend/` showed zero hits; all test suites matched baseline (invariants 33/0, replenishment_and_webhooks 11/0, e2e 30/46, planning_repairs 1/3, planning_and_orders 5/7, turn_recovery 4/1, address_disambiguation 1/1, budget_and_symptoms 3/9).
+- **Still broken**: None in scope. Table `grocer_internal.replenishment` retained until step 5 migration drop; pre-existing recipe repair, greeting, and address disambiguation failures in uncompleted slices remain unchanged.
+
 ### [GROCER — Audit Fixes: Cart Writes Unblocked, Devanagari Passthrough & Model Budget Tool] 2026-10-17
 
 #### Work Card: Resolution of Audit Issues Across Tool Execution, Sanitization, and Budget Control

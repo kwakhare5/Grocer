@@ -1,6 +1,6 @@
 """Commerce integration layer for Grocer.
 
-Provides the CommercePort abstraction decoupling customer replenishment from
+Provides the CommercePort abstraction decoupling customer grocery ordering from
 the specific underlying delivery provider (Mock/Simulated vs Swiggy Instamart MCP).
 """
 from backend.integrations.commerce.port import CommercePort

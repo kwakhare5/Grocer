@@ -91,7 +91,7 @@ export function ConnectInstamartModal({
               <span>Secure Store Link</span>
               <span>•</span>
               <WhatsAppIcon className="w-3.5 h-3.5 inline shrink-0" />
-              <span>WhatsApp Replenishment</span>
+              <span>WhatsApp Assistant</span>
             </p>
           </div>
         </div>

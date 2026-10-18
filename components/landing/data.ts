@@ -50,10 +50,10 @@ export const VERIFIED_JOURNEY_TURNS: VerifiedJourneyTurn[] = [
   },
   {
     turn: 3,
-    label: "Turn 3: Compound Edit & Restock",
-    tag: "Intent & Restock",
-    userInput: "drop sauce, make bread 2, and what staples am I running low on?",
-    assistantMessage: "Your Basket (Baner Hub)\n\n• 1x Yu Zero Maida Penne Pasta 500g — ₹49\n• 1x Amul Mozzarella Diced Cheese 200g — ₹110\n• 2x Whole Wheat Bread 400g — ₹100\n\nSubtotal: ₹259\nDelivery Fee: FREE (₹0)\nPackaging & Handling: ₹5\nGrand Total: ₹264\n\nDelivering to: Office (Baner, Pune)\n\nStaple Check: Based on your regular ordering intervals, you may be running low on Amul Taaza Milk (1L). Would you like to add a pouch?",
+    label: "Turn 3: Compound Edit",
+    tag: "Intent Preservation",
+    userInput: "drop sauce, make bread 2",
+    assistantMessage: "Your Basket (Baner Hub)\n\n• 1x Yu Zero Maida Penne Pasta 500g — ₹49\n• 1x Amul Mozzarella Diced Cheese 200g — ₹110\n• 2x Whole Wheat Bread 400g — ₹100\n\nSubtotal: ₹259\nDelivery Fee: FREE (₹0)\nPackaging & Handling: ₹5\nGrand Total: ₹264\n\nDelivering to: Office (Baner, Pune)\nReply Confirm to place order, or say what to change.",
     items: [
       { name: "Yu Zero Maida Penne Pasta 500g", price: "₹49" },
       { name: "Amul Mozzarella Diced Cheese 200g", price: "₹110" },
@@ -63,16 +63,16 @@ export const VERIFIED_JOURNEY_TURNS: VerifiedJourneyTurn[] = [
     fees: "₹5 (Packaging & Handling)",
     total: "₹264",
     humanExplanation: {
-      customerIntent: "Customer made a compound edit (dropped sauce, doubled bread) and asked for replenishment advice.",
-      safetyRule: "Intent Preservation & Replenishment: Preserves active pasta items while applying edits, and estimates staple depletion without unconfirmed cart mutations.",
-      storeOutcome: "Cart safely updated to 3 items (₹264). Milk restock suggested conversationally without altering the basket.",
+      customerIntent: "Customer dropped sauce and doubled bread in one message.",
+      safetyRule: "Intent Preservation: Both edits apply atomically; the other basket items stay.",
+      storeOutcome: "Cart now 3 items, ₹264; sauce out, bread doubled.",
     },
     toolTrace: {
-      tool: "manage_basket + check_replenishment",
-      params: { remove: ["sauce"], set_quantity: [{ name: "bread", quantity: 2 }], check_replenishment: true },
-      resultSummary: "Atomically updated cart items, preserved remaining pasta ingredients, and returned cadence-based milk restock estimate.",
+      tool: "manage_basket",
+      params: { remove: ["sauce"], set_quantity: [{ name: "bread", quantity: 2 }] },
+      resultSummary: "Removed sauce, set bread to 2, kept the pasta items.",
       latencyMs: 1180,
-      invariantTested: "Multi-Turn Intent Preservation & Household Replenishment",
+      invariantTested: "Multi-Turn Intent Preservation",
     },
   },
   {
@@ -167,14 +167,14 @@ export const PIPELINE_NODES: PipelineNode[] = [
   {
     id: "reasoning",
     stepNumber: "03",
-    title: "Intent & Replenishment",
+    title: "Intent & Cart Memory",
     subtitle: "Gemini 3.5 Flash-Lite Reasoning",
     metric: "Sub-Second",
-    description: "Interprets conversational grocery requests, converts recipe ideas into ingredients, preserves multi-turn cart memory, and tracks household restock cadences.",
+    description: "Interprets grocery requests, converts recipes into ingredients, preserves cart memory across messages.",
     responsibilities: [
       "Decomposes recipe requests (e.g. 'pasta for 4 under ₹800') into concrete grocery items",
       "Preserves existing cart items across multi-turn changes ('drop sauce, make bread 2')",
-      "Checks consented order history to predict when daily staples like milk or bread are running low",
+      "Understands Hindi, Hinglish, and Indian grocery vocabulary",
     ],
     whyItMatters: "Customers can order using everyday language without losing previous cart items or browsing through endless app categories.",
   },
@@ -212,10 +212,6 @@ export const FAQ_ITEMS: FaqItem[] = [
   {
     question: "What is Intent Preservation?",
     answer: "Intent Preservation ensures Grocer never forgets what you asked for across multiple messages. When you ask to 'drop sauce, make bread 2, and add eggs', Grocer updates those exact items while keeping the rest of your cart intact. It also remembers your budget limits and dietary exclusions throughout the conversation.",
-  },
-  {
-    question: "How does Household Replenishment work?",
-    answer: "With your permission, Grocer analyzes your regular ordering intervals to predict when staples like milk, eggs, or bread are running low. When you ask what you need, it suggests restocks conversationally—it never adds items or places orders without your direct approval.",
   },
   {
     question: "Can Grocer charge my account without my approval?",

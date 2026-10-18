@@ -41,7 +41,7 @@ export function WhatsAppSimulator() {
             WhatsApp conversation walkthrough
           </h2>
           <p className="mt-2.5 text-sm sm:text-base text-zinc-600 leading-relaxed font-normal">
-            Simulated walkthrough representing the deterministic grocery replenishment lifecycle with Swiggy Instamart. Select any turn to inspect the exact message and backend safety rules.
+            Simulated walkthrough representing a real grocery ordering conversation with Swiggy Instamart. Select any turn to inspect the exact message and backend safety rules.
           </p>
         </div>
 

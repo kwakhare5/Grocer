@@ -1,7 +1,7 @@
 """Abstract interface for grocery commerce adapters.
 
-Enforces clean architectural boundary: consumer grocery replenishment and
-customer reordering interact with external quick-commerce systems (or local
+Enforces clean architectural boundary: consumer grocery ordering and basket
+management interact with external quick-commerce systems (or local
 simulation) solely through this port.
 """
 from __future__ import annotations

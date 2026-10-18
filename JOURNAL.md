@@ -50,6 +50,13 @@ During the Session End ritual (called automatically whenever significant changes
 - **Proof**: `python -c "from backend.main import create_app; create_app()"` exited 0; grep for replenishment symbols in `backend/` showed zero hits; all test suites matched baseline (invariants 33/0, replenishment_and_webhooks 11/0, e2e 30/46, planning_repairs 1/3, planning_and_orders 5/7, turn_recovery 4/1, address_disambiguation 1/1, budget_and_symptoms 3/9).
 - **Still broken**: None in scope. Table `grocer_internal.replenishment` retained until step 5 migration drop; pre-existing recipe repair, greeting, and address disambiguation failures in uncompleted slices remain unchanged.
 
+#### Work Card: Copy Cleanup After Replenishment Removal (Slice 4 Step 4)
+
+- **Problem**: The frontend UI, metadata, package description, agent prompts, and commerce port docstrings still advertised replenishment, restock predictions, and staple tracking after the backend features were removed.
+- **Change**: Updated `data.ts` (Turn 3 converted to compound edit, reasoning pipeline card updated to cart memory and Hindi/Hinglish understanding, replenishment FAQ deleted), `HeroSection.tsx`, `Footer.tsx`, `ConnectInstamartModal.tsx`, `WhatsAppSimulator.tsx`, `layout.tsx`, `package.json`, `prompts.py`, `port.py`, and `__init__.py` to honestly present Grocer as a WhatsApp grocery assistant without replenishment or restock claims.
+- **Proof**: `npm run lint` exited 0; `npm run build` exited 0; `python -c "from backend.main import create_app; create_app()"` exited 0; test counts unchanged across all suites (invariants 33/0, replenishment_and_webhooks 11/0, e2e 30/46, planning_repairs 1/3, planning_and_orders 5/7, turn_recovery 4/1, address_disambiguation 1/1, budget_and_symptoms 3/9); zero "replenish" or "restock" occurrences across modified files.
+- **Still broken**: None in scope. Pre-existing recipe repair, greeting, and address disambiguation failures in uncompleted slices remain unchanged.
+
 ### [GROCER — Audit Fixes: Cart Writes Unblocked, Devanagari Passthrough & Model Budget Tool] 2026-10-17
 
 #### Work Card: Resolution of Audit Issues Across Tool Execution, Sanitization, and Budget Control

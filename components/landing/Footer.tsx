@@ -29,7 +29,7 @@ export function Footer() {
                 <WhatsAppIcon className="w-3.5 h-3.5 inline shrink-0" />
                 <span>WhatsApp</span>
               </span>
-              <span>grocery replenishment for Swiggy Instamart. Preserves shopping intent across messages and checks household restock cadences.</span>
+              <span>grocery assistant for Swiggy Instamart. Preserves shopping intent across messages and never orders without your confirmation.</span>
             </p>
 
             <div className="text-xs text-zinc-500 pt-0.5">

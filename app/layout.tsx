@@ -22,9 +22,9 @@ const lora = Lora({
 });
 
 export const metadata: Metadata = {
-  title: "Grocer — Intent-Preserving Grocery Replenishment",
+  title: "Grocer — Intent-Preserving WhatsApp Grocery Assistant",
   description:
-    "WhatsApp grocery replenishment assistant for Swiggy Instamart that preserves shopping intent across messages, checks household restock cadences, and requires explicit confirmation before checkout.",
+    "WhatsApp grocery assistant for Swiggy Instamart. Preserves intent across messages; checkout needs explicit confirmation.",
   icons: {
     icon: { url: '/logo.svg', type: 'image/svg+xml' },
     shortcut: '/logo.svg',

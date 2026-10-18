@@ -77,9 +77,9 @@ async def test_heartbeat_keeps_claim_alive_past_90s(postgres_pool):
     )
     await store.enqueue_many([msg])
 
-    # Mark as PROCESSING initially 85s ago
+    # Mark as PROCESSING initially 80s ago
     await postgres_pool.execute(
-        "UPDATE grocer_internal.inbound_messages SET status='PROCESSING', claimed_at=now() - interval '85 seconds' WHERE message_id=$1",
+        "UPDATE grocer_internal.inbound_messages SET status='PROCESSING', claimed_at=now() - interval '80 seconds' WHERE message_id=$1",
         msg.message_id,
     )
     row = await postgres_pool.fetchrow(
@@ -92,11 +92,14 @@ async def test_heartbeat_keeps_claim_alive_past_90s(postgres_pool):
     rows_updated = await store.heartbeat_processing(inbound_id)
     assert rows_updated == 1
 
-    # Backdate by 30s (less than 90s lease from the updated heartbeat)
-    await postgres_pool.execute(
-        "UPDATE grocer_internal.inbound_messages SET claimed_at=now() - interval '30 seconds' WHERE id=$1",
+    # Read claimed_at from DB and assert it is now within 2 seconds of now
+    row_after = await postgres_pool.fetchrow(
+        "SELECT EXTRACT(EPOCH FROM (now() - claimed_at)) AS diff_sec FROM grocer_internal.inbound_messages WHERE id=$1",
         inbound_id,
     )
+    assert abs(row_after["diff_sec"]) <= 2.0
+
+    # Since claimed_at was updated to now, recover_stale_processing does NOT reclaim it
     recovered = await store.recover_stale_processing()
     assert recovered == 0
 
@@ -153,3 +156,98 @@ async def test_heartbeat_zero_rows_cancels_turn_and_sends_no_second_fallback(mon
     assert turn_cancelled is True, "In-flight handle_message task was not cancelled"
     mock_store.stage_response.assert_not_called()
     mock_store.mark_processing_failed.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_heartbeat_crash_edge_retries_and_cancels_after_two_failed_ticks(monkeypatch):
+    from backend.api.whatsapp import drain_message_queue
+
+    monkeypatch.setattr("backend.api.whatsapp.HEARTBEAT_INTERVAL_SECONDS", 0.01)
+
+    msg = NormalizedIncomingMessage(
+        message_id="wamid.slice7d.crash-edge",
+        channel=ChannelType.WHATSAPP,
+        sender_id="919999900005",
+        customer_id="cust-slice7d-crash-edge",
+        text="add bread",
+    )
+
+    claims = [(102, msg)]
+    async def fake_claim_next():
+        return claims.pop(0) if claims else None
+
+    mock_store = MagicMock()
+    mock_store.recover_stale_processing = AsyncMock(return_value=0)
+    mock_store.recover_stale_outbound = AsyncMock(return_value=0)
+    mock_store.claim_outbound = AsyncMock(return_value=None)
+    mock_store.claim_next = fake_claim_next
+    # Heartbeat raises on both ticks
+    mock_store.heartbeat_processing = AsyncMock(side_effect=RuntimeError("database blip"))
+    mock_store.stage_response = AsyncMock()
+    mock_store.mark_processing_failed = AsyncMock()
+
+    turn_cancelled = False
+    async def slow_turn(_message):
+        nonlocal turn_cancelled
+        try:
+            await asyncio.sleep(5.0)
+        except asyncio.CancelledError:
+            turn_cancelled = True
+            raise
+
+    mock_engine = MagicMock()
+    mock_engine.handle_message = slow_turn
+
+    await drain_message_queue(mock_store, mock_engine)
+
+    assert turn_cancelled is True, "In-flight handle_message task was not cancelled after 2 failed heartbeat ticks"
+    assert mock_store.heartbeat_processing.call_count >= 2, "Heartbeat was not retried on next tick before cancelling"
+    mock_store.stage_response.assert_not_called()
+    mock_store.mark_processing_failed.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_heartbeat_single_error_retries_and_completes_turn(monkeypatch):
+    from backend.api.whatsapp import drain_message_queue
+    from backend.channels.models import NormalizedOutgoingResponse
+
+    monkeypatch.setattr("backend.api.whatsapp.HEARTBEAT_INTERVAL_SECONDS", 0.01)
+
+    msg = NormalizedIncomingMessage(
+        message_id="wamid.slice7d.single-err",
+        channel=ChannelType.WHATSAPP,
+        sender_id="919999900006",
+        customer_id="cust-slice7d-single-err",
+        text="add eggs",
+    )
+
+    claims = [(103, msg)]
+    async def fake_claim_next():
+        return claims.pop(0) if claims else None
+
+    mock_store = MagicMock()
+    mock_store.recover_stale_processing = AsyncMock(return_value=0)
+    mock_store.recover_stale_outbound = AsyncMock(return_value=0)
+    mock_store.claim_outbound = AsyncMock(return_value=None)
+    mock_store.claim_next = fake_claim_next
+    # First tick errors, next ticks succeed
+    mock_store.heartbeat_processing = AsyncMock(side_effect=[RuntimeError("transient db blip"), 1, 1, 1])
+    mock_store.stage_response = AsyncMock()
+    mock_store.mark_processing_failed = AsyncMock()
+
+    async def normal_turn(_message):
+        await asyncio.sleep(0.06)
+        return NormalizedOutgoingResponse(
+            recipient_id=msg.sender_id,
+            channel=ChannelType.WHATSAPP,
+            text="Added eggs!",
+            conversation_state="READY",
+        )
+
+    mock_engine = MagicMock()
+    mock_engine.handle_message = normal_turn
+
+    await drain_message_queue(mock_store, mock_engine)
+
+    assert mock_store.stage_response.call_count == 1
+    assert mock_store.heartbeat_processing.call_count >= 2

@@ -106,7 +106,6 @@ async def execute_react_turn_loop(
         if step_idx > MAX_TOOL_STEPS or (_now() - start_time > TURN_TIME_LIMIT_SECONDS):
             step_limit_reached = True
             session.pending_request_text = planning_request_text
-            final_text = "I couldn't finish checking those items. Please tell me which specific item you'd like me to search next."
             break
 
         if extra_context_note:

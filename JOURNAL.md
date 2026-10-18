@@ -17,6 +17,13 @@ During the Session End ritual (called automatically whenever significant changes
 
 ### [GROCER — Whole-Basket Spending Cap Protection via Native Gemini Flash-Lite] 2026-10-18
 
+#### Work Card: Heartbeat Error Recovery, Real Claim Assertion, Dead Text Cleanup & Doc Fixes (Slice D1)
+
+- **Problem**: Heartbeat keep-alive died silently if DB blipped; heartbeat test relied on manual backdate instead of asserting against DB timestamp; dead text assignment bypassed synthesizer default in react_coordinator; application doc referenced unverified 70 req/min limit and outdated test counts.
+- **Change**: Updated heartbeat keep-alive in `whatsapp.py` to retry transient errors and cancel turn after 2 consecutive failures; updated `test_heartbeat_keeps_claim_alive_past_90s` to assert `claimed_at` within 2s of now; removed dead `final_text` assignment at `react_coordinator.py:109`; restored item coverage, quantity, pack size, and exclusion assertions in `test_invariants.py`; updated doc to real 6 req/min polling cadence and 96 passing test count; added 2 heartbeat crash edge tests in `test_slice_7d.py`.
+- **Proof**: `test_slice_7d.py` passed 5/5; `test_invariants.py` passed 27/27; full pytest ran with 96 passed, 34 failed (exact same 34 failures as Slice 7d); `git diff --check` exits 0.
+- **Still broken**: None in scope. 34 pre-existing suite failures across unmigrated redesign slice tests remain.
+
 #### Work Card: 90s Claim Lease with Heartbeat, Remove Advisory Turn Lock (Slice 7d)
 
 - **Problem**: PostgreSQL session advisory locks (`pg_advisory_lock`) held pool connections open across entire agent turns and external LLM/commerce calls to guard per-customer turn serialization across nodes; worker claims took 5 minutes to recover without proactively aborting turns on lost leases.

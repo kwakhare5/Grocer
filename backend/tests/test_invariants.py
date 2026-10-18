@@ -926,6 +926,42 @@ async def test_reply_cannot_claim_item_added_when_manage_basket_did_not_add():
     assert response.conversation_state == "NEEDS_DECISION"
 
 
+def test_recipe_planning_preserves_item_coverage_quantity_pack_size_and_exclusions():
+    """Restored coverage from Slice 7a for item coverage, quantities, pack sizes, and exclusions."""
+    from backend.tests.suites.recipe_and_budgets import _recipe_plan
+
+    # 1. Quantity & Pack Size: 2 packets of 500 ml milk
+    req_milk = "I need 2 packets of 500 ml milk and one brown bread, under ₹130. No eggs."
+    plan_milk = _recipe_plan(req_milk, ("milk", "bread"))
+    milk_items = [item for item in plan_milk if "milk" in item.get("query", "").lower()]
+    assert len(milk_items) == 1
+    assert milk_items[0].get("quantity") == 2
+    assert "500" in milk_items[0].get("preferred_pack_size", "")
+
+    # 2. Exclusions: eggs not in milk plan
+    assert not any("egg" in item.get("query", "").lower() for item in plan_milk)
+
+    # 3. Exclusions: skip paneer
+    req_paneer = "Get dahi, onions and potatoes; skip paneer."
+    plan_paneer = _recipe_plan(req_paneer, ("dahi", "onions", "potatoes"))
+    assert not any("paneer" in item.get("query", "").lower() for item in plan_paneer)
+
+    # 4. Quantity: two packs of oats
+    req_oats = "Buy olive oil and two packs of oats. No sugar."
+    plan_oats = _recipe_plan(req_oats, ("olive oil", "oats"))
+    oat_items = [item for item in plan_oats if "oats" in item.get("query", "").lower()]
+    assert len(oat_items) == 1
+    assert oat_items[0].get("quantity") == 2
+    assert not any("sugar" in item.get("query", "").lower() for item in plan_oats)
+
+    # 5. Item coverage: complete requested items mapped
+    req_pizza = "Make pizza ingredients under ₹1,000 and also add bread, Bournvita, tissues and a pencil"
+    pizza_items = ("pizza base", "pizza sauce", "mozzarella", "bread", "bournvita", "tissues", "pencil")
+    plan_pizza = _recipe_plan(req_pizza, pizza_items)
+    planned_queries = [item["query"] for item in plan_pizza]
+    assert all(item in planned_queries for item in pizza_items)
+
+
 
 
 

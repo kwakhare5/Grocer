@@ -88,14 +88,28 @@ async def drain_message_queue(store: PostgresMessageStore, engine: Any) -> None:
         if hasattr(store, "heartbeat_processing"):
             async def keep_claim_alive() -> None:
                 nonlocal claim_lost
+                consecutive_errors = 0
                 while True:
                     await asyncio.sleep(HEARTBEAT_INTERVAL_SECONDS)
-                    updated = await store.heartbeat_processing(inbound_id)
-                    if updated == 0:
-                        claim_lost = True
-                        if work_task is not None and not work_task.done():
-                            work_task.cancel()
-                        break
+                    try:
+                        updated = await store.heartbeat_processing(inbound_id)
+                        consecutive_errors = 0
+                        if updated == 0:
+                            claim_lost = True
+                            if work_task is not None and not work_task.done():
+                                work_task.cancel()
+                            break
+                    except Exception as err:
+                        consecutive_errors += 1
+                        logger.warning(
+                            "Heartbeat failed for inbound_id=%s (error %d/2): %s",
+                            inbound_id, consecutive_errors, err,
+                        )
+                        if consecutive_errors >= 2:
+                            claim_lost = True
+                            if work_task is not None and not work_task.done():
+                                work_task.cancel()
+                            break
             heartbeat = asyncio.create_task(keep_claim_alive())
         try:
             if _DELETE_DATA_PATTERN.match(task_message.text.strip()):

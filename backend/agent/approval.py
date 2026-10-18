@@ -14,6 +14,7 @@ from backend.integrations.commerce.models import CommerceCart
 class PendingApproval:
     fingerprint: str
     expires_at: float
+    token: str = ""
 
 
 def cart_fingerprint(cart: CommerceCart, address_id: str) -> str | None:

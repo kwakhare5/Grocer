@@ -17,6 +17,13 @@ During the Session End ritual (called automatically whenever significant changes
 
 ### [GROCER — Whole-Basket Spending Cap Protection via Native Gemini Flash-Lite] 2026-10-18
 
+#### Work Card: Cart-Bound Confirmation Tokens and Checked Typed Yes (Slice 5 Step 1)
+
+- **Problem**: Any generic `confirm_order` button or word-matched typed text previously confirmed orders without binding to the exact basket reviewed or verifying intent.
+- **Change**: Added token field to `PendingApproval` set via `secrets.token_hex` in `session_manager.py`; bound Confirm Order button IDs to `confirm_order:<token>` shown only when approval was recorded this turn; dropped Confirm Order button from hesitation fast-path; created `confirmation_check.py` judging typed approval via structured `gemini-3.5-flash-lite` calls; updated `preflight_handler.py` to refuse stale/expired tokens with fresh summary and new button, gate typed confirmation on model judgment, and pass model check into `drift_guard.py`; created `confirmation_token.py` test suite (5 tests) and registered in `test_whatsapp_postgres_e2e.py`.
+- **Proof**: `pytest backend/tests/suites/confirmation_token.py` passed 5/5; `pytest backend/tests/suites/webhook_and_simulator.py` passed 6/6; full suite `python -m pytest -q -ra -p backend.tests.suites.helpers` passed 68, 46 failed (exact same 46 known red baseline failures, 0 regressions, all 5 new tests passed).
+- **Still broken**: None in scope. 46 pre-existing catalog/recipe/address failures in uncompleted redesign slices remain unchanged.
+
 #### Work Card: Dropped Retired Replenishment Table (Slice 4 Step 5)
 
 - **Problem**: Forward migration history and test fixtures still retained and truncated the retired replenishment table after feature removal.

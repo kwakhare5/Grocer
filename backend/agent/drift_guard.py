@@ -9,12 +9,14 @@ from backend.channels.models import NormalizedIncomingMessage, NormalizedOutgoin
 from backend.integrations.commerce.models import CommerceCart
 
 
-def check_cart_drift(
+async def check_cart_drift(
     session: Any,
     current_cart: Optional[CommerceCart],
     norm_text: str,
     user_confirmed: bool,
     message: NormalizedIncomingMessage,
+    confirmation_check: Any = None,
+    client: Any = None,
 ) -> Optional[NormalizedOutgoingResponse]:
     """Detect external changes to Swiggy cart and enforce bounded price tolerance."""
     if session.known_cart_fingerprint:
@@ -38,6 +40,7 @@ def check_cart_drift(
                         session.pending_approval = PendingApproval(
                             fingerprint=observed_fingerprint,
                             expires_at=session.pending_approval.expires_at,
+                            token=session.pending_approval.token,
                         )
 
             if not is_minor_fluctuation:
@@ -46,7 +49,21 @@ def check_cart_drift(
                 session.selected_payment_id = None
 
     if session.external_cart_pending:
-        if (norm_text in {"use changes", "yes", "proceed", "confirm", "ok", "accept changes", "use change"} or user_confirmed) and current_cart:
+        confirmed = user_confirmed
+        if not confirmed and current_cart and message.text.strip():
+            if confirmation_check is not None:
+                ctx = "The Swiggy cart changed outside this chat. Did the customer confirm using the changes?"
+                if hasattr(confirmation_check, "is_confirmed"):
+                    confirmed = await confirmation_check.is_confirmed(client, message.text, context=ctx)
+                elif callable(confirmation_check):
+                    try:
+                        confirmed = await confirmation_check(client, message.text, context=ctx)
+                    except TypeError:
+                        confirmed = await confirmation_check(message.text, ctx)
+                elif isinstance(confirmation_check, bool):
+                    confirmed = confirmation_check
+
+        if confirmed and current_cart:
             observed_fingerprint = cart_fingerprint(
                 current_cart, current_cart.address_id or session.address_id or ""
             )

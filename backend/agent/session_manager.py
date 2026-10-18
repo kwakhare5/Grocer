@@ -1,6 +1,7 @@
 """Customer session state serialization, task state persistence, and history compaction."""
 from __future__ import annotations
 
+import secrets
 import time
 from typing import Any, Optional
 
@@ -12,10 +13,11 @@ from backend.integrations.commerce.models import CommerceCart
 def record_pending_approval(
     session: CustomerSession, cart: CommerceCart, address_id: str
 ) -> bool:
-    """Record pending order approval with 15-minute TTL."""
+    """Record pending order approval with 15-minute TTL and random token."""
     fingerprint = cart_fingerprint(cart, address_id)
+    token = secrets.token_hex() if fingerprint else ""
     session.pending_approval = (
-        PendingApproval(fingerprint=fingerprint, expires_at=time.time() + 900)
+        PendingApproval(fingerprint=fingerprint, expires_at=time.time() + 900, token=token)
         if fingerprint
         else None
     )
@@ -157,7 +159,11 @@ def dump_task_state_dict(
         "ingredient_extras_text": session.ingredient_extras_text,
         "ingredient_spin_ids": session.ingredient_spin_ids,
         "pending_approval": (
-            {"fingerprint": approval.fingerprint, "expires_at": approval.expires_at}
+            {
+                "fingerprint": approval.fingerprint,
+                "expires_at": approval.expires_at,
+                "token": approval.token,
+            }
             if approval
             else None
         ),

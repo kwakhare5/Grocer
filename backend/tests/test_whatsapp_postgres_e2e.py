@@ -66,11 +66,24 @@ from backend.tests.suites.replenishment_and_webhooks import (
     test_confirmed_whatsapp_checkout_is_reconciled_and_notified_after_restart,
 )
 
+from backend.tests.suites.confirmation_token import (
+    test_valid_confirmation_token_confirms,
+    test_stale_confirmation_token_refused_with_fresh_summary_and_button,
+    test_expired_approval_refused_typed_and_by_button,
+    test_typed_yes_confirms_when_model_check_returns_true_refused_when_false,
+    test_typed_confirm_order_with_no_approval_still_refused,
+)
+
 __all__ = [
     "postgres_pool",
     "configure_e2e_secrets",
     "_webhook",
     "_interactive_webhook",
+    "test_valid_confirmation_token_confirms",
+    "test_stale_confirmation_token_refused_with_fresh_summary_and_button",
+    "test_expired_approval_refused_typed_and_by_button",
+    "test_typed_yes_confirms_when_model_check_returns_true_refused_when_false",
+    "test_typed_confirm_order_with_no_approval_still_refused",
     "test_crashed_turn_recovers_then_later_whatsapp_message_gets_reply",
     "test_greeting_does_not_ask_for_delivery_address_or_use_swiggy",
     "test_show_cart_does_not_demand_an_address",

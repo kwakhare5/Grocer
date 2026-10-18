@@ -225,7 +225,8 @@ async def synthesize_turn_response(
     if out_order_total is None and last_cart_total is not None:
         out_order_total = last_cart_total
 
-    if any(action.id == "confirm_order" for action in actions):
+    approval_recorded_this_turn = False
+    if any(action.id == "confirm_order" or action.id.startswith("confirm_order:") for action in actions):
         if session.budget_blocked_items and not user_confirmed:
             session.pending_approval = None
             conv_state = "NEEDS_DECISION"
@@ -246,7 +247,7 @@ async def synthesize_turn_response(
                 "Swiggy changed or omitted a requested item. Please resolve these before approval: "
                 + ", ".join(str(item.get("name") or item.get("query") or "requested item") for item in unresolved)
             )
-            actions = [action for action in actions if action.id != "confirm_order"]
+            actions = [action for action in actions if action.id != "confirm_order" and not action.id.startswith("confirm_order:")]
         else:
             try:
                 reviewed_cart = await engine.commerce.get_cart()
@@ -266,7 +267,7 @@ async def synthesize_turn_response(
 
             if not approval_ok:
                 engine.get_session(customer_id).pending_approval = None
-                actions = [action for action in actions if action.id != "confirm_order"]
+                actions = [action for action in actions if action.id != "confirm_order" and not action.id.startswith("confirm_order:")]
                 if user_confirmed:
                     conv_state = "NEEDS_DECISION"
                     final_text = "I couldn't verify the complete basket and delivery address. Please review them before ordering."
@@ -276,6 +277,14 @@ async def synthesize_turn_response(
                         InteractiveAction(action_type="button", id="modify_cart", title="Change Items"),
                     ]
             else:
+                approval_recorded_this_turn = True
+                token = session.pending_approval.token
+                actions = [
+                    InteractiveAction(action_type="button", id=f"confirm_order:{token}", title="Confirm Order")
+                    if action.id == "confirm_order" or action.id.startswith("confirm_order:")
+                    else action
+                    for action in actions
+                ]
                 receipt = format_cart_receipt(
                     reviewed_cart, engine._customer_address_label.get(customer_id) or approved_address
                 )
@@ -293,6 +302,13 @@ async def synthesize_turn_response(
                 conv_state = "AWAITING_CHECKOUT_CONFIRMATION"
     elif not checkout_executed:
         engine.get_session(customer_id).pending_approval = None
+
+    if not approval_recorded_this_turn:
+        actions = [
+            action
+            for action in actions
+            if action.id != "confirm_order" and not action.id.startswith("confirm_order:")
+        ]
 
     if (
         last_cart_receipt

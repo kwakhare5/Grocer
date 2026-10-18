@@ -8,6 +8,7 @@ import time
 from dataclasses import dataclass
 from typing import Any, Optional
 
+from backend.agent import confirmation_check
 from backend.agent.address_resolver import (
     match_explicit_address,
     match_pending_address_choice,
@@ -55,7 +56,6 @@ async def execute_preflight(
     planning_request_text = incoming_text
     has_burst_negation = bool(_NEGATION_CONFIRM_REGEX.search(message.text))
     action_map = {
-        "confirm_order": "Yes, please confirm and place the order now.",
         "proceed_checkout": "Proceed to checkout and review my order.",
         "modify_cart": "I would like to change something in my cart.",
         "start_fresh": "Please clear my cart and start fresh.",
@@ -133,15 +133,6 @@ async def execute_preflight(
     if reset_resp is not None:
         return PreflightResult(early_response=reset_resp)
 
-    is_awaiting_checkout = (
-        session.pending_approval is not None
-        and session.pending_approval.expires_at > time.time()
-    )
-    user_confirmed = not has_burst_negation and (
-        message.interactive_id == "confirm_order"
-        or (is_awaiting_checkout and is_explicit_confirmation(incoming_text))
-    )
-
     current_cart: Optional[CommerceCart] = None
     try:
         current_cart = await engine.commerce.get_cart()
@@ -169,12 +160,102 @@ async def execute_preflight(
         history = []
         engine._history[customer_id] = history
 
-    drift_resp = check_cart_drift(
+    is_awaiting_checkout = (
+        session.pending_approval is not None
+        and session.pending_approval.expires_at > current_time
+    )
+    is_confirm_tap = (
+        message.interactive_id == "confirm_order"
+        or (message.interactive_id is not None and message.interactive_id.startswith("confirm_order:"))
+    )
+    user_confirmed = False
+
+    if is_confirm_tap:
+        incoming_token = (
+            message.interactive_id.removeprefix("confirm_order:")
+            if message.interactive_id.startswith("confirm_order:")
+            else ""
+        )
+        approval = session.pending_approval
+        is_token_valid = (
+            bool(incoming_token)
+            and approval is not None
+            and approval.token == incoming_token
+            and approval.expires_at > current_time
+        )
+        if is_token_valid and not has_burst_negation:
+            user_confirmed = True
+        else:
+            try:
+                current_cart = await engine.commerce.get_cart()
+            except Exception:
+                pass
+            approved_address = engine._customer_address.get(customer_id) or (
+                current_cart.address_id if current_cart else ""
+            ) or ""
+            if current_cart and not current_cart.address_id and approved_address:
+                current_cart.address_id = approved_address
+            approval_ok = bool(
+                current_cart
+                and approved_address
+                and engine._record_pending_approval(customer_id, current_cart, approved_address)
+            )
+            if approval_ok:
+                new_token = session.pending_approval.token
+                receipt = format_cart_receipt(
+                    current_cart, engine._customer_address_label.get(customer_id) or approved_address
+                )
+                return PreflightResult(
+                    early_response=NormalizedOutgoingResponse(
+                        recipient_id=message.sender_id,
+                        channel=message.channel,
+                        text=(
+                            "Your previous order confirmation expired or the basket changed. "
+                            "Please review your basket and confirm:\n\n"
+                            f"{receipt}"
+                        ),
+                        interactive_actions=[
+                            InteractiveAction(action_type="button", id=f"confirm_order:{new_token}", title="Confirm Order"),
+                            InteractiveAction(action_type="button", id="modify_cart", title="Change Items"),
+                        ],
+                        requires_confirmation=True,
+                        conversation_state="AWAITING_CHECKOUT_CONFIRMATION",
+                        order_total=current_cart.grand_total,
+                    ),
+                    current_cart=current_cart,
+                    address_id=approved_address,
+                )
+            else:
+                session.pending_approval = None
+                return PreflightResult(
+                    early_response=NormalizedOutgoingResponse(
+                        recipient_id=message.sender_id,
+                        channel=message.channel,
+                        text="Your previous order confirmation expired or the basket changed. Please review your basket before ordering.",
+                        conversation_state="NEEDS_DECISION",
+                    ),
+                    current_cart=current_cart,
+                )
+    elif is_awaiting_checkout and not message.interactive_id and not has_burst_negation:
+        short_context = (
+            format_cart_receipt(current_cart, session.address_label or "Home", allow_checkout_prompt=False)
+            if current_cart
+            else ""
+        )
+        user_confirmed = await confirmation_check.is_confirmed(
+            engine.gemini,
+            incoming_text,
+            context=short_context,
+        )
+
+    drift_resp = await check_cart_drift(
         session=session,
         current_cart=current_cart,
         norm_text=norm_text,
         user_confirmed=user_confirmed,
         message=message,
+        confirmation_check=confirmation_check,
+        client=engine.gemini,
     )
     if drift_resp is not None:
         return PreflightResult(early_response=drift_resp)
@@ -237,6 +318,16 @@ async def execute_preflight(
         session.selected_payment_kind = selected.kind
         session.selected_payment_method = selected.method
         session.selected_payment_label = selected.label
+        if not engine._record_pending_approval(customer_id, current_cart, approved_address):
+            return PreflightResult(
+                early_response=NormalizedOutgoingResponse(
+                    recipient_id=message.sender_id,
+                    channel=message.channel,
+                    text="I couldn't verify the current basket and delivery address. Please review them before ordering.",
+                    conversation_state="NEEDS_DECISION",
+                )
+            )
+        token = session.pending_approval.token
         return PreflightResult(
             early_response=NormalizedOutgoingResponse(
                 recipient_id=message.sender_id,
@@ -246,7 +337,7 @@ async def execute_preflight(
                     + f"\n\nPayment: {selected.label}. Do you want to place this order to this address?"
                 ),
                 interactive_actions=[
-                    InteractiveAction(action_type="button", id="confirm_order", title="Confirm Order"),
+                    InteractiveAction(action_type="button", id=f"confirm_order:{token}", title="Confirm Order"),
                     InteractiveAction(action_type="button", id="modify_cart", title="Change Items"),
                 ],
                 conversation_state="AWAITING_CHECKOUT_CONFIRMATION",
@@ -271,12 +362,13 @@ async def execute_preflight(
                 conversation_state="NEEDS_DECISION",
             ))
         session.budget_blocked_items.clear()
+        token = session.pending_approval.token
         return PreflightResult(early_response=NormalizedOutgoingResponse(
             recipient_id=message.sender_id, channel=message.channel,
             text="Okay, I'll keep only these items. Please review the basket before placing an order.\n\n"
             + format_cart_receipt(current_cart, session.address_label or "Home"),
             interactive_actions=[
-                InteractiveAction(action_type="button", id="confirm_order", title="Confirm Order"),
+                InteractiveAction(action_type="button", id=f"confirm_order:{token}", title="Confirm Order"),
                 InteractiveAction(action_type="button", id="modify_cart", title="Change Items"),
             ],
             conversation_state="AWAITING_CHECKOUT_CONFIRMATION",

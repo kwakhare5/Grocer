@@ -136,7 +136,6 @@ def handle_hesitation_fast_path(
             f"{receipt}"
         ),
         interactive_actions=[
-            InteractiveAction(action_type="button", id="confirm_order", title="Confirm Order"),
             InteractiveAction(action_type="button", id="modify_cart", title="Change Items"),
             InteractiveAction(action_type="button", id="start_fresh", title="Clear Cart"),
         ],

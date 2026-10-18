@@ -4,6 +4,7 @@ from __future__ import annotations
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+from backend.agent import confirmation_check
 from backend.agent.checkout_attempts import PostgresCheckoutAttemptStore
 from backend.agent.engine import GroceryAgentEngine
 from backend.api.whatsapp import drain_message_queue
@@ -165,6 +166,11 @@ async def test_confirmed_whatsapp_checkout_is_reconciled_and_notified_after_rest
         return {"candidates": [{"content": {"parts": [{"text": "Please complete payment."}]}}]}
 
     engine._call_llm = model_reply  # external model boundary
+
+    async def _mock_is_confirmed(*_args, **_kwargs):
+        return True
+
+    monkeypatch.setattr(confirmation_check, "is_confirmed", _mock_is_confirmed)
     app = create_app()
     app.state.agent_engine = engine
     app.state.message_store = store

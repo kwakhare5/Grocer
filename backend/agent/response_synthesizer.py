@@ -49,11 +49,22 @@ async def synthesize_turn_response(
     user_confirmed: bool,
     incoming_text: str,
     addr_lbl: Optional[str],
+    checkout_result: Optional[dict[str, Any]] = None,
 ) -> NormalizedOutgoingResponse:
     """Build and format the final NormalizedOutgoingResponse for WhatsApp."""
     session = engine.get_session(customer_id)
     history = engine.get_history(customer_id)
     current_cart = None
+    checkout_status = (
+        (checkout_result.get("status") if isinstance(checkout_result, dict) else str(checkout_result))
+        if checkout_result
+        else None
+    )
+    is_checkout_turn = (
+        checkout_executed
+        or conv_state in ("ORDER_PLACED", "AWAITING_PAYMENT", "PARTIAL_ORDER", "PAYMENT_CONFIRMED")
+        or checkout_status in ("ORDER_PLACED", "PAYMENT_PENDING", "PARTIAL_ORDER", "PAYMENT_CONFIRMED")
+    )
 
     if step_limit_reached:
         receipt_str = last_cart_receipt
@@ -73,7 +84,7 @@ async def synthesize_turn_response(
             InteractiveAction(action_type="button", id="start_fresh", title="Clear Cart"),
         ]
         conv_state = "NEEDS_DECISION"
-    elif last_cart_receipt:
+    elif last_cart_receipt and not is_checkout_turn:
         if last_cart_receipt not in final_text:
             basket_match = re.search(r"🛒\s*\*?Your Basket.*", final_text, flags=re.DOTALL | re.IGNORECASE)
             if basket_match:
@@ -87,25 +98,6 @@ async def synthesize_turn_response(
             else:
                 final_text = f"{final_text.strip()}\n\n{last_cart_receipt}"
 
-        actions = [
-            InteractiveAction(action_type="button", id="confirm_order", title="Confirm Order"),
-            InteractiveAction(action_type="button", id="modify_cart", title="Change Items"),
-        ]
-        conv_state = "AWAITING_CHECKOUT_CONFIRMATION"
-
-    elif any(
-        phrase in final_text.casefold()
-        for phrase in (
-            "place this order",
-            "confirm order",
-            "shall i place",
-            "would you like me to place",
-            "reply *confirm*",
-            "reply confirm",
-            "place order",
-            "confirm to place order",
-        )
-    ):
         actions = [
             InteractiveAction(action_type="button", id="confirm_order", title="Confirm Order"),
             InteractiveAction(action_type="button", id="modify_cart", title="Change Items"),
@@ -220,13 +212,15 @@ async def synthesize_turn_response(
 
         final_text = "\n\n".join(intro_parts + [basket_followup]).strip()
 
-    if not final_text.strip() and last_cart_receipt:
+    if not final_text.strip() and last_cart_receipt and not is_checkout_turn:
         final_text = last_cart_receipt
     if out_order_total is None and last_cart_total is not None:
         out_order_total = last_cart_total
 
     approval_recorded_this_turn = False
-    if any(action.id == "confirm_order" or action.id.startswith("confirm_order:") for action in actions):
+    if is_checkout_turn:
+        actions = [a for a in actions if a.id != "confirm_order" and not a.id.startswith("confirm_order:")]
+    elif any(action.id == "confirm_order" or action.id.startswith("confirm_order:") for action in actions):
         if session.budget_blocked_items and not user_confirmed:
             session.pending_approval = None
             conv_state = "NEEDS_DECISION"

@@ -17,6 +17,13 @@ During the Session End ritual (called automatically whenever significant changes
 
 ### [GROCER — Whole-Basket Spending Cap Protection via Native Gemini Flash-Lite] 2026-10-18
 
+#### Work Card: Fix Confirm Button After Order & Delete Three Word Lists (Slice 6b)
+
+- **Problem**: When get_cart was called in the same turn as checkout, a receipt was appended and a stale confirm button appeared; confirmation and partial basket routing used fragile word lists and regex.
+- **Change**: Suppressed receipt appending, confirm buttons, and approval recording when checkout executed or order succeeded; deleted the model confirmation phrase list from response_synthesizer.py; deleted _NEGATION_CONFIRM_REGEX and removed empty guards.py; removed typed partial-basket shortcuts in preflight_handler.py; added test_slice_6b.py (4 tests).
+- **Proof**: test_slice_6b.py and test_order_messages.py passed 11/11; full pytest ran with 78 passed, 38 failed (0 regressions from baseline); git diff --check exits 0.
+- **Still broken**: None in scope. 38 pre-existing suite failures across unmigrated redesign slice tests remain unchanged.
+
 #### Work Card: Code-Written Order Messages and Removed Success-Claim Guards (Slice 6)
 
 - **Problem**: Checkout outcome responses relied on LLM text guarded by regex pattern matching, bare confirm_order buttons could be emitted, and legacy test mocks used outdated quick_add_items.

@@ -16,7 +16,6 @@ from backend.agent.address_resolver import (
 from backend.agent.approval import PendingApproval, cart_fingerprint
 from backend.agent.drift_guard import check_cart_drift
 from backend.agent.formatters import format_cart_receipt
-from backend.agent.guards import _NEGATION_CONFIRM_REGEX
 from backend.channels.models import (
     InteractiveAction,
     NormalizedIncomingMessage,
@@ -54,14 +53,13 @@ async def execute_preflight(
 
     incoming_text = message.text.strip()
     planning_request_text = incoming_text
-    has_burst_negation = bool(_NEGATION_CONFIRM_REGEX.search(message.text))
     action_map = {
         "proceed_checkout": "Proceed to checkout and review my order.",
         "modify_cart": "I would like to change something in my cart.",
         "start_fresh": "Please clear my cart and start fresh.",
         "clear_cart": "Please clear my cart and start fresh.",
     }
-    if message.interactive_id in action_map and not has_burst_negation:
+    if message.interactive_id in action_map:
         incoming_text = action_map[message.interactive_id]
 
     current_time = time.time()
@@ -155,7 +153,7 @@ async def execute_preflight(
             and clear_approval is not None
             and clear_approval.fingerprint == observed_fingerprint
         )
-        if fingerprint_matches and not has_burst_negation:
+        if fingerprint_matches:
             try:
                 clear_res = await engine.tools.clear_cart()
                 verified_cart = await engine.commerce.get_cart() if clear_res.get("success") else None
@@ -237,7 +235,7 @@ async def execute_preflight(
             and approval.token == incoming_token
             and approval.expires_at > current_time
         )
-        if is_token_valid and not has_burst_negation:
+        if is_token_valid:
             user_confirmed = True
         else:
             try:
@@ -290,7 +288,7 @@ async def execute_preflight(
                     ),
                     current_cart=current_cart,
                 )
-    elif is_awaiting_checkout and not message.interactive_id and not has_burst_negation:
+    elif is_awaiting_checkout and not message.interactive_id:
         short_context = (
             format_cart_receipt(current_cart, session.address_label or "Home", allow_checkout_prompt=False)
             if current_cart
@@ -390,9 +388,7 @@ async def execute_preflight(
             )
         )
 
-    if message.interactive_id == "accept_partial_basket" or norm_text in {
-        "keep the partial basket", "keep these items", "accept partial basket",
-    }:
+    if message.interactive_id == "accept_partial_basket":
         if not session.budget_blocked_items or not current_cart:
             return PreflightResult(early_response=NormalizedOutgoingResponse(
                 recipient_id=message.sender_id, channel=message.channel,

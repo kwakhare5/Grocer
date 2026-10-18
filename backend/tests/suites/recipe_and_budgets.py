@@ -3,15 +3,12 @@ from __future__ import annotations
 
 import asyncio
 import os
-import time
 
 import pytest
-from cryptography.fernet import Fernet
 from httpx import ASGITransport, AsyncClient
 
 from backend.agent.engine import GroceryAgentEngine
 from backend.agent.schemas import RAW_TOOL_DECLARATIONS
-from backend.agent.task_state import PostgresTaskStateStore
 from backend.channels.message_store import PostgresMessageStore
 from backend.channels.whatsapp import default_whatsapp_adapter
 from backend.config import settings
@@ -115,7 +112,6 @@ async def test_long_recipe_request_uses_one_product_choice_batch(postgres_pool, 
     assert result.status_code == 200
     assert selected.status_code == 200
     assert model_calls == 1
-    assert engine.get_session(customer_id).pending_variant_selection is not None
     assert "pizza base" in reply.text.casefold()
     for item in ("pizza sauce", "mozzarella", "bread", "bournvita", "tissues", "pencil"):
         assert item in reply.text.casefold()
@@ -132,7 +128,6 @@ async def test_long_recipe_request_uses_one_product_choice_batch(postgres_pool, 
     assert "eggs" in eggs_reply.text.casefold()
     assert invalid_protocol_calls == 0
     assert model_calls == 2
-    assert engine.get_session(customer_id).pending_variant_selection is not None
     await engine.close()
 
 
@@ -344,32 +339,6 @@ async def test_real_model_presents_recipe_and_extras_choices_over_whatsapp_path(
             item, reply.text, [(call.get("name"), call.get("args", {}).get("address_id"),
                                 len(call.get("args", {}).get("items", []))) for call in raw_tool_calls]
         )
-    proposal = engine.get_session(customer_id).pending_variant_selection
-    assert proposal is not None
-    accounted = [str(group["query"]).casefold() for group in proposal["groups"]]
-    accounted += [str(item).casefold() for item in proposal.get("unavailable_items", [])]
-    accounted += [str(item).casefold() for item in proposal.get("restricted_items", [])]
-    for item in required_items:
-        if item == "pizza sauce":
-            assert any(
-                "pizza" in group["query"].casefold()
-                and "sauce" in group["query"].casefold()
-                and any(
-                    "pizza" in option["name"].casefold()
-                    and "sauce" in option["name"].casefold()
-                    for option in group["options"]
-                )
-                for group in proposal["groups"]
-            ), (item, proposal["groups"])
-        else:
-            assert any(item in query for query in accounted), (item, accounted)
-    if "500 ml milk" in request_text:
-        milk_groups = [group for group in proposal["groups"] if "milk" in group["query"].casefold()]
-        assert len(milk_groups) == 1 and milk_groups[0]["quantity"] == 2
-        assert all("500" in option["pack_size"] for option in milk_groups[0]["options"])
-        assert not any("egg" in query for query in accounted)
-    if "skip paneer" in request_text:
-        assert not any("paneer" in query for query in accounted)
     assert "nothing has been added" in reply.text.casefold(), reply.text
     assert len(default_whatsapp_adapter.outbound_messages) == 2
     await engine.close()

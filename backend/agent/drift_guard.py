@@ -53,7 +53,6 @@ async def check_cart_drift(
             )
             if observed_fingerprint:
                 session.known_cart_fingerprint = observed_fingerprint
-                session.known_cart_total = current_cart.grand_total
                 session.external_cart_pending = False
                 return NormalizedOutgoingResponse(
                     recipient_id=message.sender_id,

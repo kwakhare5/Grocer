@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import logging
 from decimal import Decimal
-from typing import Any, Optional
+from typing import Any
 
 from backend.agent.approval import cart_fingerprint
 from backend.agent.formatters import _format_inr, format_cart_receipt

@@ -53,7 +53,6 @@ async def synthesize_turn_response(
     """Build and format the final NormalizedOutgoingResponse for WhatsApp."""
     session = engine.get_session(customer_id)
     history = engine.get_history(customer_id)
-    current_cart = None
     is_checkout_turn = (
         checkout_executed
         and conv_state != "AWAITING_CHECKOUT_CONFIRMATION"

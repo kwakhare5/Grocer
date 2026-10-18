@@ -410,10 +410,6 @@ async def execute_preflight(
             order_total=current_cart.grand_total,
         ))
 
-    if session.pending_variant_selection:
-        session.pending_variant_selection = None
-        session.pending_request_text = incoming_text
-
     if customer_id in engine._awaiting_address_choice:
         pending_addrs = engine._awaiting_address_choice[customer_id]
         chosen_addr = match_pending_address_choice(
@@ -477,15 +473,6 @@ async def execute_preflight(
                     engine._order_address_confirmed[customer_id] = True
         except Exception:
             pass
-
-    if (
-        getattr(session, "pending_clarification", False)
-        and session.pending_request_text
-        and not user_confirmed
-    ):
-        planning_request_text = f"{session.pending_request_text} ({incoming_text})"
-        session.pending_request_text = None
-        session.pending_clarification = False
 
     return PreflightResult(
         early_response=None,

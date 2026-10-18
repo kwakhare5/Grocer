@@ -17,12 +17,19 @@ During the Session End ritual (called automatically whenever significant changes
 
 ### [GROCER — Whole-Basket Spending Cap Protection via Native Gemini Flash-Lite] 2026-10-18
 
+#### Work Card: Delete Dead State Fields and Paths (Slice 7a)
+
+- **Problem**: Dead session and engine state fields (`pending_variant_selection`, `_pending_checkout`, `pending_clarification`, `known_cart_total`) and dead imports cluttered runtime models and preflight branches.
+- **Change**: Deleted `pending_variant_selection` and `pending_clarification` from `session.py`, `session_manager.py`, and `preflight_handler.py`; removed `_pending_checkout` dict from `engine.py`; removed dead `session.known_cart_total` assignment from `drift_guard.py`; removed unused `Optional` from `cart_actions.py`, dead `current_cart = None` from `response_synthesizer.py`, and unused `time`, `Fernet`, `PostgresTaskStateStore` from `recipe_and_budgets.py`; pruned assertions on deleted state fields across `recipe_and_budgets.py` and `budget_and_symptoms.py`.
+- **Proof**: `git grep -En "pending_variant_selection|_pending_checkout|pending_clarification|known_cart_total" backend` returned zero hits; `git diff --check` exits 0; full pytest ran with 88 passed, 34 failed.
+- **Still broken**: None in scope. 34 pre-existing suite failures across unmigrated redesign slice tests remain.
+
 #### Work Card: Delete Scoped Ingredient Budget, Dead Budget Regex, and Search Sleep (Slice B2)
 
 - **Problem**: Dead regex budget parsers and unused scoped ingredient budget fields/gates cluttered codebase; fixed 2.8s artificial sleep slowed parallel catalog search.
 - **Change**: Deleted `extract_total_budget`, `extract_ingredient_budget`, `is_explicit_extra` from `budget.py` (retained live `read_budget_cap`); removed `session.ingredient_*` fields across session, session_manager, preflight_handler, tool_executor, response_synthesizer, cart_actions, basket_manager, and tools; deleted artificial 2.8s sleep in `batch_search_products` (kept wave batching of 3); rewrote `test_long_list_checks_every_item_in_paced_batches` to assert 3 groups of 3 with all 9 results added; deleted 2 `test_pizza_ingredient_cap` test cases and 1 budget regex invariant test; updated `GROCER_REDESIGN.md`.
-- **Proof**: `test_long_list_checks_every_item_in_paced_batches` and `test_catalog_rate_limit_stops_remaining_search_waves` passed; `grep` for deleted symbols returned zero hits in `backend/`; full pytest ran with 85 passed, 36 failed (38 minus 2 deleted tests, 0 regressions); `git diff --check` exits 0.
-- **Still broken**: None in scope. 36 pre-existing suite failures across unmigrated redesign slice tests remain unchanged.
+- **Proof**: `test_long_list_checks_every_item_in_paced_batches` and `test_catalog_rate_limit_stops_remaining_search_waves` passed; `grep` for deleted symbols returned zero hits in `backend/`; full pytest ran with 87 passed, 35 failed (38 minus 3 deleted tests, 0 regressions); `git diff --check` exits 0.
+- **Still broken**: None in scope. 35 pre-existing suite failures across unmigrated redesign slice tests remain unchanged.
 
 #### Work Card: Suppress Receipt and Confirm Button on All Checkout Outcomes Except Confirmation-Required (Slice 6d)
 

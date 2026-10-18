@@ -125,7 +125,6 @@ class GroceryAgentEngine:
         self._order_address_confirmed = _SessionDictView(self, "order_address_confirmed", default=False)
         self._awaiting_address_choice = _SessionDictView(self, "awaiting_address_choice")
         self._history = _SessionDictView(self, "history", default=[])
-        self._pending_checkout: dict[str, bool] = {}
         self._last_interaction_time: dict[str, float] = {}
         self._locks: dict[str, asyncio.Lock] = {}
         self._last_call_time: float = 0.0
@@ -158,7 +157,7 @@ class GroceryAgentEngine:
         for mapping in (
             self._sessions, self._history, self._customer_address,
             self._customer_address_label, self._order_address_confirmed,
-            self._awaiting_address_choice, self._pending_checkout,
+            self._awaiting_address_choice,
             self._last_interaction_time,
         ):
             mapping.pop(customer_id, None)

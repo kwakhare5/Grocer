@@ -24,10 +24,9 @@ _CATALOG_CACHE: dict[tuple[str, str], tuple[float, list[dict[str, Any]]]] = {}
 from backend.agent.formatters import _format_inr, format_cart_receipt
 from backend.agent.catalog_ranker import rank_and_select_best_variant
 from backend.agent.checkout_executor import execute_gated_checkout
-from backend.agent.basket_manager import execute_manage_basket, execute_quick_add_items
+from backend.agent.basket_manager import execute_manage_basket
 from backend.agent.cart_actions import (
     execute_add_selected_variants,
-    execute_update_cart,
 )
 from backend.agent.address_tools import (
     execute_get_saved_addresses,
@@ -227,30 +226,6 @@ class SwiggyAgentTools:
             ingredient_spin_ids=ingredient_spin_ids,
         )
 
-    async def quick_add_items(
-        self,
-        items: list[dict[str, Any]],
-        address_id: str,
-        current_cart: Optional[CommerceCart] = None,
-        delivery_location: str = "Home",
-        budget_cap_inr: Optional[float] = None,
-        ingredient_budget_inr: Optional[float] = None,
-        ingredient_extras_text: str = "",
-        ingredient_spin_ids: Optional[list[str]] = None,
-    ) -> dict[str, Any]:
-        """Automatically find and add the best matching in-stock grocery items to the cart."""
-        return await execute_quick_add_items(
-            tools=self,
-            items=items,
-            address_id=address_id,
-            current_cart=current_cart,
-            delivery_location=delivery_location,
-            budget_cap_inr=budget_cap_inr,
-            ingredient_budget_inr=ingredient_budget_inr,
-            ingredient_extras_text=ingredient_extras_text,
-            ingredient_spin_ids=ingredient_spin_ids,
-        )
-
     async def get_saved_addresses(self, customer_id: str) -> dict[str, Any]:
         """Retrieve the user's saved delivery addresses from Swiggy."""
         return await execute_get_saved_addresses(self.commerce, customer_id)
@@ -313,26 +288,6 @@ class SwiggyAgentTools:
         except Exception as exc:
             logger.warning("get_cart failed: %s", exc)
             return {"success": False, "error": str(exc)}
-
-    async def update_cart(
-        self,
-        items: list[dict[str, Any]],
-        address_id: str,
-        delivery_location: str = "Home",
-        ingredient_budget_inr: Optional[float] = None,
-        ingredient_spin_ids: list[str] | None = None,
-        expected_cart_state: dict[str, Any] | None = None,
-    ) -> dict[str, Any]:
-        """Update Swiggy Instamart cart by deterministically merging item updates with active cart items."""
-        return await execute_update_cart(
-            tools=self,
-            items=items,
-            address_id=address_id,
-            delivery_location=delivery_location,
-            ingredient_budget_inr=ingredient_budget_inr,
-            ingredient_spin_ids=ingredient_spin_ids,
-            expected_cart_state=expected_cart_state,
-        )
 
     async def add_selected_variants(
         self,

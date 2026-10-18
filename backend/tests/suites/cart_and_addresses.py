@@ -224,7 +224,7 @@ async def test_changed_live_state_requires_fresh_review_before_selected_cart_wri
 
     async def model_reply(_history, **_kwargs):
         return {"candidates": [{"content": {"parts": [{"functionCall": {
-            "name": "quick_add_items", "args": {"items": [{"query": "milk"}]},
+            "name": "manage_basket", "args": {"add": [{"query": "milk"}]},
         }}]}}]}
 
     engine._call_llm = model_reply

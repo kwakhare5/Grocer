@@ -7,7 +7,6 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
-from backend.agent.catalog_ranker import _matches_item_name
 from backend.agent.checkout_outcome import process_checkout_outcome
 from backend.agent.product_policy import is_symptom_suggestion_request
 from backend.channels.models import (
@@ -18,124 +17,6 @@ from backend.channels.models import (
 from backend.integrations.commerce.models import CommerceCart
 
 logger = logging.getLogger("grocer.agent.react_coordinator")
-
-
-def is_invalid_item_plan(calls: list[dict[str, Any]]) -> bool:
-    """Validate that quick_add_items calls contain safe, concrete product queries."""
-    for call in calls:
-        if call.get("name") != "quick_add_items":
-            continue
-        args = call.get("args")
-        items = args.get("items") if isinstance(args, dict) else None
-        if not isinstance(items, list) or not 1 <= len(items) <= 45:
-            return True
-        for item in items:
-            if not isinstance(item, dict):
-                return True
-            query = item.get("query")
-            quantity = item.get("quantity", 1)
-            if (
-                not isinstance(query, str)
-                or not query.strip()
-                or type(quantity) is not int
-                or not 1 <= quantity <= 99
-                or (
-                    bool(
-                        re.search(r"^(?:(?:all\s+)?(?:the\s+)?(?:ingredients?|groceries|recipe|items?|stuff))$", query.strip(), re.IGNORECASE)
-                        or query.strip().casefold().endswith((" ingredients", " ingredient", " groceries"))
-                        or re.search(r"\b(?:ingredients?|groceries|recipe)\s+(?:for|of)\b", query.strip(), re.IGNORECASE)
-                    )
-                    and not bool(re.search(r"\b(?:masala|mix|powder|paste|sauce|kit|seasoning)\b", query.strip(), re.IGNORECASE))
-                )
-            ):
-                return True
-    return False
-
-
-def build_recipe_repair_prompt(planning_request_text: str) -> str:
-    """Build repair instruction prompt when Gemini proposes invalid or abstract items."""
-    return (
-        f"Customer request: {planning_request_text}\n\n"
-        "Your previous plan was not safe to search. Call quick_add_items with "
-        "concrete product queries, one object per item, and the customer's "
-        "quantity and pack-size details. Expand any named meal into ingredients."
-    )
-
-
-def validate_cart_edit_calls(
-    function_calls: list[dict[str, Any]],
-    current_cart: Any,
-    planning_request_text: str,
-) -> bool:
-    """Ensure update_cart function calls modify valid active cart items with non-negative quantities."""
-    cart_edits = [call for call in function_calls if call.get("name") == "update_cart"]
-    if not cart_edits or not current_cart or not getattr(current_cart, "items", None):
-        return True
-
-    cart_by_spin = {item.spin_id: item for item in current_cart.items}
-    for call in cart_edits:
-        args = call.get("args") if isinstance(call.get("args"), dict) else {}
-        items = args.get("items")
-        if not isinstance(items, list):
-            continue
-        for item in items:
-            if not isinstance(item, dict):
-                return False
-            spin_id = item.get("spin_id")
-            if not spin_id or spin_id not in cart_by_spin:
-                return False
-            quantity = item.get("quantity")
-            if quantity is None or not isinstance(quantity, int) or quantity < 0:
-                return False
-            if planning_request_text:
-                req_lower = planning_request_text.casefold()
-                target_item = cart_by_spin[spin_id]
-                item_name_tokens = {t for t in re.split(r"\W+", target_item.name.casefold()) if len(t) > 2}
-                spin_tokens = {t for t in re.split(r"\W+", str(spin_id).casefold()) if len(t) > 2}
-                has_ordinal = any(w in req_lower for w in ("first", "second", "third", "fourth", "fifth", "1st", "2nd", "3rd", "4th", "5th", "one", "two", "three", "four", "five", "item"))
-                matches_request = has_ordinal or any(t in req_lower for t in item_name_tokens | spin_tokens)
-                if not matches_request:
-                    return False
-                if any(w in req_lower for w in ("remove", "delete")) and not any(w in req_lower for w in ("to", "by", "from", "reduce", "decrease")) and quantity > 0:
-                    return False
-    return True
-
-
-def merge_redundant_function_calls(
-    function_calls: list[dict[str, Any]],
-    address_id: str,
-    parts: Optional[list[dict[str, Any]]] = None,
-) -> tuple[list[dict[str, Any]], list[dict[str, Any]], bool]:
-    """Merge parallel quick_add_items calls into a single batch if appropriate."""
-    current_parts = list(parts) if parts is not None else []
-    include_cart_in_choices = False
-    if len(function_calls) > 1 and any(
-        call.get("name") == "quick_add_items" for call in function_calls
-    ):
-        redundant_addresses = all(
-            isinstance(call.get("args"), dict) and call["args"].get("address_id") == address_id
-            for call in function_calls
-            if call.get("name") == "select_delivery_address"
-        )
-        if redundant_addresses and all(
-            call.get("name") in {"quick_add_items", "get_cart", "select_delivery_address"}
-            for call in function_calls
-        ):
-            include_cart_in_choices = any(call.get("name") == "get_cart" for call in function_calls)
-            batches = [
-                call["args"].get("items") if isinstance(call.get("args"), dict) else None
-                for call in function_calls
-                if call.get("name") == "quick_add_items"
-            ]
-            if all(isinstance(batch, list) for batch in batches):
-                merged = [item for batch in batches for item in batch]
-                if 1 <= len(merged) <= 30:
-                    first_add = next(call for call in function_calls if call.get("name") == "quick_add_items")
-                    new_calls = [{**first_add, "args": {"items": merged}}]
-                    new_parts = [part for part in current_parts if "functionCall" not in part]
-                    new_parts.append({"functionCall": new_calls[0]})
-                    return new_calls, new_parts, include_cart_in_choices
-    return function_calls, current_parts, include_cart_in_choices
 
 
 @dataclass
@@ -208,28 +89,12 @@ async def execute_react_turn_loop(
     reduced_items: list[str] = []
     guarded_change_message: str | None = None
 
-    is_conversational_turn = bool(re.search(
-        r"\b(?:remove|delete|increase|decrease|reduce|change|switch|replace|swap|update|edit|drop|take\s+out|"
-        r"clear|cancel|checkout|confirm|pay|payment|track|usuals?|regulars?|address)\b"
-        r"|\b(?:make|set)\s+(?:the\s+)?(?:first|second|third|1st|2nd|3rd|it|that|\w+)\s+(?:to\s+)?(?:\d+|zero|one|two|three|four|five)\b",
-        planning_request_text,
-        re.IGNORECASE,
-    ))
-    if not is_conversational_turn and current_cart and current_cart.items:
-        for ci in current_cart.items:
-            if _matches_item_name(planning_request_text, ci.name):
-                is_conversational_turn = True
-                break
-    has_active_cart = bool(current_cart and current_cart.items)
-    planning_turn = not user_confirmed and not is_conversational_turn and not has_active_cart
-
     for step_idx in range(1, max_iterations + 1):
         response_data = await engine._call_llm(
-            ([{"role": "user", "parts": [{"text": planning_request_text}]}] if (planning_turn and not history) else history),
+            history,
             address_id=address_id,
             address_label=addr_lbl,
-            cart=None if (planning_turn and not has_active_cart) else current_cart,
-            planning_only=planning_turn,
+            cart=current_cart,
         )
         if not response_data:
             if last_cart_receipt or checkout_executed:
@@ -263,17 +128,6 @@ async def execute_react_turn_loop(
             text_parts = [p.get("text", "") for p in parts if "text" in p]
             response_text = "\n".join(t.strip() for t in text_parts if t.strip())
             if response_text:
-                if planning_turn and any(
-                    kw in response_text.casefold()
-                    for kw in ("added", "in your basket", "to your basket", "in your cart", "to your cart", "₹", "rs.")
-                ):
-                    session.pending_request_text = planning_request_text
-                    pending_request_needs_retry = True
-                    final_text = "I haven't checked Swiggy products yet. Reply *try again* and I'll look up your request."
-                    break
-                if planning_turn:
-                    session.pending_request_text = planning_request_text
-                    session.pending_clarification = True
                 final_text = response_text
                 history.append({
                     "role": "model",
@@ -281,49 +135,8 @@ async def execute_react_turn_loop(
                     "recorded_at": time.time(),
                 })
                 break
-            if planning_turn:
-                session.pending_request_text = planning_request_text
-                pending_request_needs_retry = True
-                final_text = "I haven't checked Swiggy products yet. Reply *try again* and I'll look up your request."
-                break
             final_text = "I couldn't process that request right now. Please tell me what you'd like to do."
             break
-
-        function_calls, parts, _ = merge_redundant_function_calls(function_calls, address_id or "", parts)
-        if len(function_calls) > 1 and any(call.get("name") == "quick_add_items" for call in function_calls):
-            session.pending_request_text = session.pending_request_text or incoming_text
-            return ReactLoopResult(
-                early_response=NormalizedOutgoingResponse(
-                    recipient_id=message.sender_id,
-                    channel=message.channel,
-                    text="I couldn't safely check all those products together. I kept your request. Please tell me which items to check first; no items were added.",
-                    conversation_state="NEEDS_DECISION",
-                )
-            )
-
-        if planning_turn and any(
-            (call.get("name") not in {"quick_add_items", "manage_basket", "get_cart", "search_products"}
-             and not (call.get("name") == "select_delivery_address" and call.get("args", {}).get("address_id") == address_id))
-            for call in function_calls
-        ):
-            session.pending_request_text = planning_request_text
-            msg = ("Please choose an exact product and pack before I add it. I kept your request; nothing was added."
-                   if any(call.get("name") == "update_cart" for call in function_calls)
-                   else "I couldn't plan that grocery request safely; nothing changed. Please tell me what you'd like to do.")
-            return ReactLoopResult(early_response=NormalizedOutgoingResponse(
-                recipient_id=message.sender_id, channel=message.channel, text=msg, conversation_state="NEEDS_DECISION",
-            ))
-
-        if not validate_cart_edit_calls(function_calls, current_cart, planning_request_text):
-            session.pending_request_text = planning_request_text
-            return ReactLoopResult(
-                early_response=NormalizedOutgoingResponse(
-                    recipient_id=message.sender_id,
-                    channel=message.channel,
-                    text="I couldn't match that cart change to the item or quantity you named. Please name the item and the quantity again; nothing changed.",
-                    conversation_state="NEEDS_DECISION",
-                )
-            )
 
         history.append({
             "role": "model",
@@ -338,10 +151,10 @@ async def execute_react_turn_loop(
 
             if not isinstance(fn_args, dict):
                 tool_result = {"success": False, "error": "INVALID_TOOL_ARGUMENTS"}
-            elif suggestion_only and fn_name in {"quick_add_items", "manage_basket"}:
-                suggest_items = fn_args.get("items", []) if fn_name == "quick_add_items" else fn_args.get("add", [])
+            elif suggestion_only and fn_name == "manage_basket":
+                suggest_items = fn_args.get("add", [])
                 tool_result = await engine.tools.suggest_grocery_items(suggest_items, address_id or "")
-            elif suggestion_only and fn_name in {"update_cart", "clear_cart", "checkout"}:
+            elif suggestion_only and fn_name in {"clear_cart", "checkout"}:
                 tool_result = {"success": False, "error": "SUGGESTION_ONLY"}
             else:
                 if "address_id" in fn_args and not fn_args["address_id"] and address_id:
@@ -419,15 +232,7 @@ async def execute_react_turn_loop(
         for ec in executed_calls:
             part = ec[0].get("functionResponse", {})
             result = part.get("response", {}).get("content", {})
-            if (part.get("name") == "update_cart" and isinstance(result, dict)
-                    and result.get("error") == "VARIANT_SELECTION_REQUIRED"):
-                session.pending_request_text = session.pending_request_text or incoming_text
-                return ReactLoopResult(early_response=NormalizedOutgoingResponse(
-                    recipient_id=message.sender_id, channel=message.channel,
-                    text="Please choose an exact product and pack before I add it. I kept your request; nothing was added.",
-                    conversation_state="NEEDS_DECISION",
-                ))
-            if part.get("name") not in ("quick_add_items", "manage_basket") or not isinstance(result, dict):
+            if part.get("name") != "manage_basket" or not isinstance(result, dict):
                 continue
             if not suggestion_only and result.get("success") and not result.get("formatted_receipt") and not result.get("groups"):
                 missing = result.get("unavailable_items", []) + result.get("restricted_items", [])
@@ -464,7 +269,7 @@ async def execute_react_turn_loop(
                             conversation_state="RECOVERING",
                         )
                     )
-                if fn_call_name in ("quick_add_items", "manage_basket"):
+                if fn_call_name == "manage_basket":
                     unavailable_items.extend(str(item) for item in fn_content.get("unavailable_items", []))
                     reduced_items.extend(str(item) for item in fn_content.get("reduced_items", []))
                     restricted_items.extend(str(item) for item in fn_content.get("restricted_items", []))
@@ -482,7 +287,7 @@ async def execute_react_turn_loop(
 
         if any(
             ec[0].get("functionResponse", {}).get("name")
-            in ("update_cart", "quick_add_items", "select_delivery_address", "clear_cart", "manage_basket")
+            in ("select_delivery_address", "clear_cart", "manage_basket")
             for ec in executed_calls
         ):
             try:
@@ -501,7 +306,7 @@ async def execute_react_turn_loop(
             session.pending_request_text = None
             final_text = ""
             break
-        elif planning_turn and step_idx >= max_iterations:
+        elif step_idx >= max_iterations:
             final_text = "I couldn't finish checking those items. Please tell me which specific item you'd like me to search next."
             session.pending_request_text = planning_request_text
             break

@@ -46,7 +46,7 @@ async def execute_restore_cart(
     )
 
 
-async def execute_update_cart(
+async def _write_cart_items(
     tools: Any,
     items: list[dict[str, Any]],
     address_id: str,
@@ -55,7 +55,7 @@ async def execute_update_cart(
     ingredient_spin_ids: list[str] | None = None,
     expected_cart_state: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Update Swiggy Instamart cart by deterministically merging item updates with active cart items."""
+    """Internal helper to write merged item updates directly to Swiggy Instamart cart."""
     if not isinstance(address_id, str) or not address_id or not isinstance(items, list) or not 1 <= len(items) <= 30:
         return {"success": False, "error": "INVALID_CART_PROPOSAL", "retryable": False}
     seen_spins: set[str] = set()
@@ -244,7 +244,7 @@ async def execute_update_cart(
             "formatted_receipt": format_cart_receipt(verified, delivery_location),
         }
     except CartExpiredError:
-        logger.warning("Cart expired during update_cart.")
+        logger.warning("Cart expired during _write_cart_items.")
         return {
             "success": False,
             "error": "CART_EXPIRED",
@@ -260,7 +260,7 @@ async def execute_update_cart(
     except ProviderAuthError as exc:
         return {"success": False, "error": "AUTH_EXPIRED", "detail": str(exc)}
     except Exception as exc:
-        logger.warning("update_cart failed: %s", exc)
+        logger.warning("_write_cart_items failed: %s", exc)
         return {"success": False, "error": str(exc)}
 
 
@@ -353,7 +353,8 @@ async def execute_add_selected_variants(
             "budget_blocked_items": blocked,
             "message": "None of the selected items fit the stated limit. Your basket was not changed.",
         }
-    result = await tools.update_cart(
+    result = await _write_cart_items(
+        tools,
         accepted,
         address_id,
         delivery_location,

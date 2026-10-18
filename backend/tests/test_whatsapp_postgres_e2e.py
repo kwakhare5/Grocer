@@ -16,15 +16,7 @@ from backend.tests.suites.turn_recovery import (
 )
 
 from backend.tests.suites.planning_and_orders import (
-    test_model_cannot_add_unselected_sku_with_direct_cart_tool,
-    test_new_item_planning_keeps_provider_cart_and_write_tools_out_of_model_request,
-    test_new_item_plan_cannot_switch_address_or_migrate_existing_cart,
-    test_cart_edit_cannot_change_a_different_item_than_customer_named,
-    test_cart_edit_supports_ordinal_references_like_second_one_to_two,
-    test_new_item_plan_keeps_only_the_explicit_list_in_customer_order,
-    test_planning_reply_cannot_claim_an_unchecked_item_was_added,
     test_planning_clarification_reaches_customer_without_false_cart_claim,
-    test_invalid_model_plan_is_repaired_before_catalog_search,
     test_hinglish_groceries_search_english_catalog_without_losing_user_items,
 )
 
@@ -92,15 +84,7 @@ __all__ = [
     "test_greeting_does_not_ask_for_delivery_address_or_use_swiggy",
     "test_show_cart_does_not_demand_an_address",
     "test_food_already_at_home_does_not_select_home_delivery_address",
-    "test_model_cannot_add_unselected_sku_with_direct_cart_tool",
-    "test_new_item_planning_keeps_provider_cart_and_write_tools_out_of_model_request",
-    "test_new_item_plan_cannot_switch_address_or_migrate_existing_cart",
-    "test_cart_edit_cannot_change_a_different_item_than_customer_named",
-    "test_cart_edit_supports_ordinal_references_like_second_one_to_two",
-    "test_new_item_plan_keeps_only_the_explicit_list_in_customer_order",
-    "test_planning_reply_cannot_claim_an_unchecked_item_was_added",
     "test_planning_clarification_reaches_customer_without_false_cart_claim",
-    "test_invalid_model_plan_is_repaired_before_catalog_search",
     "test_hinglish_groceries_search_english_catalog_without_losing_user_items",
     "test_customer_selects_exact_variants_before_one_cart_write_after_restart",
     "test_product_name_used_as_model_pack_hint_does_not_hide_valid_bread",

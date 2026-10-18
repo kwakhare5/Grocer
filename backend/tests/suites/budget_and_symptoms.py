@@ -26,7 +26,7 @@ async def test_plain_language_rupee_cap_never_becomes_unreviewed_payable_overage
 
     async def model_reply(_history, **_kwargs):
         return {"candidates": [{"content": {"parts": [{"functionCall": {
-            "name": "quick_add_items", "args": {"items": [{"query": item} for item in products]},
+            "name": "manage_basket", "args": {"add": [{"query": item} for item in products]},
         }}]}}]}
 
     engine._call_llm = model_reply  # external model boundary
@@ -75,7 +75,7 @@ async def test_missing_requested_item_requires_review_before_checkout(postgres_p
         calls += 1
         if calls == 1:
             return {"candidates": [{"content": {"parts": [{"functionCall": {
-                "name": "quick_add_items", "args": {"items": [
+                "name": "manage_basket", "args": {"add": [
                     {"query": "bread"}, {"query": missing_query},
                 ]},
             }}]}}]}

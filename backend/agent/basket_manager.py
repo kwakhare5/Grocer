@@ -52,10 +52,8 @@ async def execute_manage_basket(
 
     cart_items_by_id: dict[str, Any] = {}
     for ci in current_cart.items:
-        lid = getattr(ci, "cart_line_id", None) or getattr(ci, "line_id", None) or getattr(ci, "id", None) or ci.spin_id
+        lid = getattr(ci, "cart_line_id", None) or getattr(ci, "line_id", None) or ci.spin_id
         cart_items_by_id[lid] = ci
-        if ci.spin_id and ci.spin_id not in cart_items_by_id:
-            cart_items_by_id[ci.spin_id] = ci
 
     # Validation: line IDs in remove and set_quantity must exist in live cart
     if remove and isinstance(remove, list):
@@ -74,10 +72,8 @@ async def execute_manage_basket(
         for sq in set_quantity:
             if not isinstance(sq, dict):
                 continue
-            q_id = str(sq.get("line_id") or sq.get("id") or sq.get("query") or "").strip()
-            if not q_id:
-                continue
-            if q_id not in cart_items_by_id:
+            q_id = str(sq.get("line_id") or "").strip()
+            if not q_id or q_id not in cart_items_by_id:
                 return {
                     "success": False,
                     "error": "INVALID_LINE_ID",
@@ -111,7 +107,7 @@ async def execute_manage_basket(
         for sq in set_quantity:
             if not isinstance(sq, dict):
                 continue
-            q_id = str(sq.get("line_id") or sq.get("id") or sq.get("query") or "").strip()
+            q_id = str(sq.get("line_id") or "").strip()
             t_qty = sq.get("quantity")
             if not q_id or type(t_qty) is not int or not 0 <= t_qty <= 99:
                 continue
@@ -233,8 +229,7 @@ async def execute_manage_basket(
         "item_count": len(current_cart.items),
         "items": [
             {
-                "id": getattr(item, "cart_line_id", None) or getattr(item, "line_id", None) or getattr(item, "id", None) or item.spin_id,
-                "line_id": getattr(item, "cart_line_id", None) or getattr(item, "line_id", None) or getattr(item, "id", None) or item.spin_id,
+                "line_id": getattr(item, "cart_line_id", None) or getattr(item, "line_id", None) or item.spin_id,
                 "spin_id": item.spin_id,
                 "sku_id": item.sku_id,
                 "name": item.name,
@@ -252,28 +247,3 @@ async def execute_manage_basket(
         "unavailable_items": unavailable_items,
         "restricted_items": list(dict.fromkeys(restricted_items)),
     }
-
-
-async def execute_quick_add_items(
-    tools: Any,
-    items: list[dict[str, Any]],
-    address_id: str,
-    current_cart: Optional[CommerceCart] = None,
-    delivery_location: str = "Home",
-    budget_cap_inr: Optional[float] = None,
-    ingredient_budget_inr: Optional[float] = None,
-    ingredient_extras_text: str = "",
-    ingredient_spin_ids: Optional[list[str]] = None,
-) -> dict[str, Any]:
-    """Automatically find and add the best matching in-stock grocery items to the cart."""
-    return await execute_manage_basket(
-        tools=tools,
-        address_id=address_id,
-        add=items,
-        current_cart=current_cart,
-        delivery_location=delivery_location,
-        budget_cap_inr=budget_cap_inr,
-        ingredient_budget_inr=ingredient_budget_inr,
-        ingredient_extras_text=ingredient_extras_text,
-        ingredient_spin_ids=ingredient_spin_ids,
-    )

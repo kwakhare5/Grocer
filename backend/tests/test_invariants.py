@@ -3,10 +3,12 @@ import pytest
 from backend.agent.schemas import RAW_TOOL_DECLARATIONS
 
 
-def test_quick_add_items_in_raw_tool_declarations():
-    """Stage 1 planning requires quick_add_items schema for recipe and meal kit decomposition."""
+def test_manage_basket_in_raw_tool_declarations():
+    """manage_basket must be declared as the basket-write tool; quick_add_items and update_cart must be absent."""
     tool_names = [tool["name"] for tool in RAW_TOOL_DECLARATIONS]
-    assert "quick_add_items" in tool_names, "quick_add_items must be declared in RAW_TOOL_DECLARATIONS"
+    assert "manage_basket" in tool_names, "manage_basket must be declared in RAW_TOOL_DECLARATIONS"
+    assert "quick_add_items" not in tool_names, "quick_add_items must not be in RAW_TOOL_DECLARATIONS"
+    assert "update_cart" not in tool_names, "update_cart must not be in RAW_TOOL_DECLARATIONS"
 
 
 
@@ -64,31 +66,8 @@ async def test_manage_basket_resilient_to_individual_search_failures():
 
 
 @pytest.mark.asyncio
-async def test_engine_planning_turn_includes_quick_add_items():
-    """GroceryAgentEngine must supply quick_add_items on planning turns and never pass empty tools."""
-    from backend.agent.engine import GroceryAgentEngine
-    from backend.integrations.commerce.mock_adapter import MockCommerceAdapter
-
-    commerce = MockCommerceAdapter()
-    engine = GroceryAgentEngine(commerce, gemini_api_key="mock-key")
-
-    passed_tools = []
-
-    async def mock_generate_content(contents, system_text, tools):
-        nonlocal passed_tools
-        passed_tools = tools
-        return {"candidates": []}
-
-    engine.gemini.generate_content = mock_generate_content
-    await engine._call_llm([{"role": "user", "parts": [{"text": "i wanna make pizza"}]}], planning_only=True)
-
-    assert len(passed_tools) == 1, "Planning turn tools must contain exactly quick_add_items, not empty list"
-    assert passed_tools[0]["name"] == "quick_add_items"
-
-
-@pytest.mark.asyncio
-async def test_recipe_planning_turn_executes_quick_add_and_mutates_basket():
-    """Recipe requests like 'make pizza' must decompose into items and populate the basket."""
+async def test_recipe_turn_executes_manage_basket_and_mutates_basket():
+    """Recipe requests like 'make pizza' decompose into items and populate the basket via manage_basket."""
     from backend.agent.engine import GroceryAgentEngine
     from backend.integrations.commerce.mock_adapter import MockCommerceAdapter
     from backend.channels.models import NormalizedIncomingMessage
@@ -100,13 +79,12 @@ async def test_recipe_planning_turn_executes_quick_add_and_mutates_basket():
     engine._customer_address_label[customer_id] = "Home"
     engine._order_address_confirmed[customer_id] = True
 
-    # Mock _call_llm: on planning_only=True, return quick_add_items with pizza base & cheese
     calls_count = 0
 
     async def mock_call_llm(contents, **kwargs):
         nonlocal calls_count
         calls_count += 1
-        if kwargs.get("planning_only"):
+        if calls_count == 1:
             return {
                 "candidates": [
                     {
@@ -114,9 +92,9 @@ async def test_recipe_planning_turn_executes_quick_add_and_mutates_basket():
                             "parts": [
                                 {
                                     "functionCall": {
-                                        "name": "quick_add_items",
+                                        "name": "manage_basket",
                                         "args": {
-                                            "items": [
+                                            "add": [
                                                 {"query": "pizza base", "quantity": 1},
                                                 {"query": "mozzarella cheese", "quantity": 1},
                                             ]
@@ -508,41 +486,6 @@ def test_response_synthesizer_english_guard_preserves_indian_brand_receipts():
     assert "I can only help you shop for groceries" not in result
 
 
-def test_cart_edits_allows_quantity_reduction_phrases():
-    from backend.agent.react_coordinator import validate_cart_edit_calls
-    from unittest.mock import MagicMock
-    item = MagicMock()
-    item.spin_id = "SPIN-MILK"
-    item.name = "Amul Taaza Milk 1L"
-    cart = MagicMock()
-    cart.items = [item]
-
-    calls = [{
-        "name": "update_cart",
-        "args": {"items": [{"spin_id": "SPIN-MILK", "quantity": 2}]}
-    }]
-    # "drop milk from 3 to 2" must be accepted, not rejected
-    assert validate_cart_edit_calls(calls, cart, "drop milk from 3 to 2") is True
-    assert validate_cart_edit_calls(calls, cart, "reduce milk to 2") is True
-
-
-def test_is_invalid_item_plan_allows_branded_spice_recipes():
-    from backend.agent.react_coordinator import is_invalid_item_plan
-    # Branded spice mix containing the word "recipe" must NOT be considered an invalid plan
-    branded_calls = [{
-        "name": "quick_add_items",
-        "args": {"items": [{"query": "Shan Biryani Recipe Masala", "quantity": 1}]}
-    }]
-    assert is_invalid_item_plan(branded_calls) is False
-
-    # Abstract queries like "all ingredients" or "recipe" alone must still be rejected
-    abstract_calls = [{
-        "name": "quick_add_items",
-        "args": {"items": [{"query": "recipe", "quantity": 1}]}
-    }]
-    assert is_invalid_item_plan(abstract_calls) is True
-
-
 @pytest.mark.asyncio
 async def test_checkout_executor_guards_unserviceable_cart():
     from backend.agent.checkout_executor import execute_gated_checkout
@@ -591,6 +534,7 @@ async def test_manage_basket_remove_valid_line_id():
     tools = SwiggyAgentTools(commerce)
 
     item1 = CartItem(
+        line_id="line-milk-1",
         spin_id="SPIN-MILK-1L",
         sku_id="SPIN-MILK-1L",
         name="Amul Taaza Milk 1L Pouch",
@@ -600,6 +544,7 @@ async def test_manage_basket_remove_valid_line_id():
         total_price=66.0,
     )
     item2 = CartItem(
+        line_id="line-bread-1",
         spin_id="SPIN-BREAD-400G",
         sku_id="SPIN-BREAD-400G",
         name="Whole Wheat Bread 400g",
@@ -617,9 +562,19 @@ async def test_manage_basket_remove_valid_line_id():
     )
     commerce._carts["default-cart"] = cart
 
-    result = await tools.manage_basket(
+    # 1. Attempting to remove using spin_id alias fails with INVALID_LINE_ID
+    result_alias = await tools.manage_basket(
         address_id="addr-1",
         remove=["SPIN-MILK-1L"],
+        current_cart=cart,
+    )
+    assert result_alias["success"] is False
+    assert result_alias["error"] == "INVALID_LINE_ID"
+
+    # 2. Removing using exact line_id succeeds
+    result = await tools.manage_basket(
+        address_id="addr-1",
+        remove=["line-milk-1"],
         current_cart=cart,
     )
 
@@ -641,6 +596,7 @@ async def test_manage_basket_unknown_line_id_changes_nothing():
     tools = SwiggyAgentTools(commerce)
 
     item1 = CartItem(
+        line_id="line-milk-1",
         spin_id="SPIN-MILK-1L",
         sku_id="SPIN-MILK-1L",
         name="Amul Taaza Milk 1L Pouch",
@@ -694,6 +650,7 @@ async def test_manage_basket_set_quantity_by_line_id():
     tools = SwiggyAgentTools(commerce)
 
     item1 = CartItem(
+        line_id="line-milk-1",
         spin_id="SPIN-MILK-1L",
         sku_id="SPIN-MILK-1L",
         name="Amul Taaza Milk 1L Pouch",
@@ -713,7 +670,7 @@ async def test_manage_basket_set_quantity_by_line_id():
 
     result = await tools.manage_basket(
         address_id="addr-1",
-        set_quantity=[{"line_id": "SPIN-MILK-1L", "quantity": 3}],
+        set_quantity=[{"line_id": "line-milk-1", "quantity": 3}],
         current_cart=cart,
     )
     assert result["success"] is True
@@ -724,7 +681,7 @@ async def test_manage_basket_set_quantity_by_line_id():
 
 @pytest.mark.asyncio
 async def test_manage_basket_two_identical_lines_not_touched_by_guessed_name():
-    """Two identical lines are not touched when a guessed item name is passed instead of exact line id."""
+    """Two identical lines are not touched when a guessed item name or spin_id alias is passed instead of exact line id."""
     from backend.agent.tools import SwiggyAgentTools
     from backend.integrations.commerce.mock_adapter import MockCommerceAdapter
     from backend.integrations.commerce.models import CartItem, CommerceCart
@@ -771,7 +728,16 @@ async def test_manage_basket_two_identical_lines_not_touched_by_guessed_name():
     assert res_name_remove["success"] is False
     assert res_name_remove["error"] == "INVALID_LINE_ID"
 
-    # 2. Attempting to set quantity using guessed product name fails with INVALID_LINE_ID and touches neither line
+    # 2. Attempting to remove using spin_id alias fails with INVALID_LINE_ID
+    res_spin_remove = await tools.manage_basket(
+        address_id="addr-1",
+        remove=["SPIN-MILK-1L"],
+        current_cart=cart,
+    )
+    assert res_spin_remove["success"] is False
+    assert res_spin_remove["error"] == "INVALID_LINE_ID"
+
+    # 3. Attempting to set quantity using guessed product name fails with INVALID_LINE_ID and touches neither line
     res_name_sq = await tools.manage_basket(
         address_id="addr-1",
         set_quantity=[{"line_id": "Amul Taaza Fresh Toned Milk", "quantity": 2}],
@@ -780,7 +746,25 @@ async def test_manage_basket_two_identical_lines_not_touched_by_guessed_name():
     assert res_name_sq["success"] is False
     assert res_name_sq["error"] == "INVALID_LINE_ID"
 
-    # 3. Passing exact line ID touches only that line and preserves the other identical line
+    # 4. Attempting to set quantity using spin_id alias fails with INVALID_LINE_ID
+    res_spin_sq = await tools.manage_basket(
+        address_id="addr-1",
+        set_quantity=[{"line_id": "SPIN-MILK-1L", "quantity": 2}],
+        current_cart=cart,
+    )
+    assert res_spin_sq["success"] is False
+    assert res_spin_sq["error"] == "INVALID_LINE_ID"
+
+    # 5. Attempting to set quantity using 'id' alias key instead of 'line_id' fails with INVALID_LINE_ID
+    res_alias_key = await tools.manage_basket(
+        address_id="addr-1",
+        set_quantity=[{"id": "line-milk-a", "quantity": 2}],
+        current_cart=cart,
+    )
+    assert res_alias_key["success"] is False
+    assert res_alias_key["error"] == "INVALID_LINE_ID"
+
+    # 6. Passing exact line ID touches only that line and preserves the other identical line
     res_id_remove = await tools.manage_basket(
         address_id="addr-1",
         remove=["line-milk-a"],
@@ -791,6 +775,206 @@ async def test_manage_basket_two_identical_lines_not_touched_by_guessed_name():
     remaining_spins = [it["spin_id"] for it in res_id_remove.get("items", [])]
     assert "SPIN-MILK-1L" not in remaining_spins
     assert "SPIN-MILK-500ML" in remaining_spins
+
+
+@pytest.mark.asyncio
+async def test_manage_basket_rejects_editing_item_customer_did_not_name():
+    """Editing or removing an item line that does not exist or was not named in the live cart is rejected."""
+    from backend.agent.tools import SwiggyAgentTools
+    from backend.integrations.commerce.mock_adapter import MockCommerceAdapter
+    from backend.integrations.commerce.models import CartItem, CommerceCart
+
+    commerce = MockCommerceAdapter()
+    tools = SwiggyAgentTools(commerce)
+
+    cart = CommerceCart(
+        cart_id="default-cart",
+        address_id="addr-1",
+        items=[
+            CartItem(
+                line_id="line-milk-1",
+                spin_id="SPIN-MILK-1L",
+                sku_id="SPIN-MILK-1L",
+                name="Amul Taaza Milk 1L Pouch",
+                pack_size="1 L",
+                unit_price=66.0,
+                quantity=1,
+                total_price=66.0,
+            ),
+        ],
+        item_total=66.0,
+        grand_total=66.0,
+    )
+    commerce._carts["default-cart"] = cart
+
+    # Attempting to edit an unnamed / non-existent item line is rejected
+    res_sq = await tools.manage_basket(
+        address_id="addr-1",
+        set_quantity=[{"line_id": "line-unnamed-biscuit", "quantity": 2}],
+        current_cart=cart,
+    )
+    assert res_sq["success"] is False
+    assert res_sq["error"] == "INVALID_LINE_ID"
+
+    # Attempting to remove an unnamed / non-existent item line is rejected
+    res_rm = await tools.manage_basket(
+        address_id="addr-1",
+        remove=["line-unnamed-biscuit"],
+        current_cart=cart,
+    )
+    assert res_rm["success"] is False
+    assert res_rm["error"] == "INVALID_LINE_ID"
+
+    # Cart remains completely unchanged
+    fresh = await commerce.get_cart("default-cart")
+    assert len(fresh.items) == 1
+    assert fresh.items[0].line_id == "line-milk-1"
+    assert fresh.items[0].quantity == 1
+
+
+@pytest.mark.asyncio
+async def test_manage_basket_resolves_second_item_to_live_cart_line_id():
+    """The ordinal 'second one' in the live cart resolves to the exact line id of the 2nd item."""
+    from backend.agent.tools import SwiggyAgentTools
+    from backend.integrations.commerce.mock_adapter import MockCommerceAdapter
+    from backend.integrations.commerce.models import CartItem, CommerceCart
+
+    commerce = MockCommerceAdapter()
+    tools = SwiggyAgentTools(commerce)
+
+    item1 = CartItem(
+        line_id="line-milk-101",
+        spin_id="SPIN-MILK-1L",
+        sku_id="SPIN-MILK-1L",
+        name="Amul Taaza Fresh Milk",
+        pack_size="1 L",
+        unit_price=66.0,
+        quantity=1,
+        total_price=66.0,
+    )
+    item2 = CartItem(
+        line_id="line-bread-202",
+        spin_id="SPIN-BREAD-400G",
+        sku_id="SPIN-BREAD-400G",
+        name="Whole Wheat Bread 400g",
+        pack_size="400 g",
+        unit_price=50.0,
+        quantity=1,
+        total_price=50.0,
+    )
+    item3 = CartItem(
+        line_id="line-eggs-303",
+        spin_id="SPIN-EGGS-6",
+        sku_id="SPIN-EGGS-6",
+        name="Farm Fresh Eggs 6pcs",
+        pack_size="6 pcs",
+        unit_price=60.0,
+        quantity=1,
+        total_price=60.0,
+    )
+    cart = CommerceCart(
+        cart_id="default-cart",
+        address_id="addr-1",
+        items=[item1, item2, item3],
+        item_total=176.0,
+        grand_total=176.0,
+    )
+    commerce._carts["default-cart"] = cart
+
+    # In the live cart, 'second one' corresponds to index 1 (item2, line-bread-202)
+    second_line_id = cart.items[1].line_id
+    assert second_line_id == "line-bread-202"
+
+    # Updating the second one via manage_basket modifies only item2
+    res_update = await tools.manage_basket(
+        address_id="addr-1",
+        set_quantity=[{"line_id": second_line_id, "quantity": 3}],
+        current_cart=cart,
+    )
+    assert res_update["success"] is True
+    assert any("Whole Wheat Bread 400g -> 3" in mod for mod in res_update.get("modified_items", []))
+    fresh = await commerce.get_cart("default-cart")
+    assert next(i.quantity for i in fresh.items if i.spin_id == "SPIN-BREAD-400G") == 3
+    assert next(i.quantity for i in fresh.items if i.spin_id == "SPIN-MILK-1L") == 1
+    assert next(i.quantity for i in fresh.items if i.spin_id == "SPIN-EGGS-6") == 1
+
+    # Removing the second one via manage_basket removes only item2
+    commerce2 = MockCommerceAdapter()
+    tools2 = SwiggyAgentTools(commerce2)
+    commerce2._carts["default-cart"] = cart
+    res_rm = await tools2.manage_basket(
+        address_id="addr-1",
+        remove=[second_line_id],
+        current_cart=cart,
+    )
+    assert res_rm["success"] is True
+    assert "Whole Wheat Bread 400g" in res_rm["removed_items"]
+    after_rm = await commerce2.get_cart("default-cart")
+    remaining_spins = [i.spin_id for i in after_rm.items]
+    assert "SPIN-BREAD-400G" not in remaining_spins
+    assert "SPIN-MILK-1L" in remaining_spins
+    assert "SPIN-EGGS-6" in remaining_spins
+
+
+@pytest.mark.asyncio
+async def test_reply_cannot_claim_item_added_when_manage_basket_did_not_add():
+    """When manage_basket does not add an item, the synthesized response cannot claim it was added."""
+    from backend.agent.response_synthesizer import synthesize_turn_response
+    from backend.channels.models import ChannelType, NormalizedIncomingMessage
+    from unittest.mock import MagicMock
+
+    engine = MagicMock()
+    session = MagicMock()
+    session.ingredient_budget_inr = None
+    session.budget_blocked_items = []
+    session.pending_approval = None
+    session.pending_cart_clear = None
+    engine.get_session.return_value = session
+    engine.get_history.return_value = []
+
+    message = NormalizedIncomingMessage(
+        message_id="msg-1",
+        channel=ChannelType.WHATSAPP,
+        sender_id="user-1",
+        customer_id="cust-1",
+        text="Add dragonfruit",
+    )
+
+    # manage_basket did not add dragonfruit (item is unavailable)
+    response = await synthesize_turn_response(
+        engine=engine,
+        message=message,
+        customer_id="cust-1",
+        final_text="",
+        actions=[],
+        conv_state="NEEDS_DECISION",
+        last_cart_receipt="Your basket is empty.",
+        last_cart_total=0.0,
+        out_order_id=None,
+        out_order_total=None,
+        out_bridge_url=None,
+        address_changed=False,
+        suggestion_only=False,
+        suggested_items=[],
+        restricted_items=[],
+        search_failed_items=[],
+        budget_blocked_items=[],
+        unavailable_items=["dragonfruit"],
+        reduced_items=[],
+        guarded_change_message=None,
+        pending_request_needs_retry=False,
+        step_limit_reached=False,
+        checkout_executed=False,
+        user_confirmed=False,
+        incoming_text="Add dragonfruit",
+        addr_lbl="Home",
+    )
+
+    # Response must report item as unavailable and must NOT claim it was added
+    assert "dragonfruit" in response.text
+    assert "unavailable" in response.text.casefold()
+    assert "added dragonfruit" not in response.text.casefold()
+    assert response.conversation_state == "NEEDS_DECISION"
 
 
 

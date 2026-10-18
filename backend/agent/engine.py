@@ -33,7 +33,6 @@ from backend.integrations.commerce.models import CommerceCart
 from backend.integrations.commerce.port import CommercePort
 from backend.agent.prompts import (
     build_system_instruction,
-    _SHOPPING_PLAN_PROMPT,
 )
 
 logger = logging.getLogger("grocer.agent.engine")
@@ -364,21 +363,15 @@ class GroceryAgentEngine:
         address_id: Optional[str] = None,
         address_label: Optional[str] = None,
         cart: Optional[CommerceCart] = None,
-        planning_only: bool = False,
         **kwargs: Any,
     ) -> Optional[dict[str, Any]]:
-        if planning_only:
-            system_text = _SHOPPING_PLAN_PROMPT
-            gemini_tools = [tool for tool in RAW_TOOL_DECLARATIONS if tool["name"] == "quick_add_items"]
-        else:
-            system_text = build_system_instruction(
-                address_id=address_id, address_label=address_label, cart=cart,
-            )
-            gemini_tools = RAW_TOOL_DECLARATIONS
+        system_text = build_system_instruction(
+            address_id=address_id, address_label=address_label, cart=cart,
+        )
         return await self.gemini.generate_content(
             contents=contents,
             system_text=system_text,
-            tools=gemini_tools,
+            tools=RAW_TOOL_DECLARATIONS,
         )
 
     async def _read_budget_cap(self, text: str) -> float | None:

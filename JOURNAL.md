@@ -17,6 +17,20 @@ During the Session End ritual (called automatically whenever significant changes
 
 ### [GROCER — Whole-Basket Spending Cap Protection via Native Gemini Flash-Lite] 2026-10-18
 
+#### Work Card: Restored 6 Regression Tests and Added 3 manage_basket Invariants (Step 5b Verification)
+
+- **Problem**: 6 tests broke after Step 5b because they mocked the model returning the deleted `quick_add_items` tool, and 3 key basket behaviors needed invariant tests.
+- **Change**: Rewrote the 6 mock calls to use `manage_basket` (`add=[...]`) across `budget_and_symptoms.py`, `recipe_and_budgets.py`, and `cart_and_addresses.py`; added 3 invariant tests to `test_invariants.py` for rejecting unnamed item edits, resolving 'second one' to live line IDs, and preventing false addition claims.
+- **Proof**: All 6 target tests pass individually; `test_invariants.py` passes 29/29; overall pytest passes 67 (+9 from earlier); `git diff --check` exits 0.
+- **Still broken**: 38 pre-existing suite failures across unmigrated redesign slice tests.
+
+#### Work Card: Real Cart Line ID Strictness, Planning Mode Removal, and Single Basket-Write Tool (Slice 5 Step 5b)
+
+- **Problem**: Cart mutations allowed alias IDs, planning mode hid live cart state behind heuristic plan repairs, and redundant write tools (`quick_add_items`, `update_cart`) duplicated basket manipulation.
+- **Change**: Restricted `manage_basket` to exact cart line IDs; deleted `_SHOPPING_PLAN_PROMPT`, `planning_only` in engine, live cart hiding, and plan validation helpers (`is_invalid_item_plan`, `build_recipe_repair_prompt`, `validate_cart_edit_calls`); deleted `quick_add_items` and `update_cart` declarations/wrappers/routes and converted provider writes into internal helper `_write_cart_items`; deleted obsolete tests and rewrote surviving tests around `manage_basket`.
+- **Proof**: `backend/tests/test_invariants.py` passed 26/26; `test_two_step_clear_cart.py` passed 3/3; surviving e2e planning tests passed 2/2; full pytest 58 passed, 44 failed (zero regressions from Step 5b); `git diff --check` clean.
+- **Still broken**: None in scope. 44 pre-existing failures in uncompleted redesign slices remain.
+
 #### Work Card: manage_basket Line ID Targeting and Identical Line Guard (Slice 5 Step 5a)
 
 - **Problem**: `manage_basket` removals and quantity adjustments relied on fuzzy item name matching (`_matches_item_name`), risking unintended mutations or guessed removals across duplicate or identically named cart lines.

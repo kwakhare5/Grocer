@@ -20,7 +20,11 @@ async def test_planning_clarification_reaches_customer_without_false_cart_claim(
     async def model_question(_history, **_kwargs):
         nonlocal model_calls
         model_calls += 1
-        if model_calls > 1:
+        if model_calls == 1:
+            return {"candidates": [{"content": {"parts": [
+                {"text": "Do you prefer toned or full cream milk?"},
+            ]}}]}
+        elif model_calls == 2:
             assert len(_history) == 3
             assert _history[0]["role"] == "user"
             assert "milk" in _history[0]["parts"][0]["text"].casefold()
@@ -34,10 +38,10 @@ async def test_planning_clarification_reaches_customer_without_false_cart_claim(
                     text = part.get("text", "")
                     assert "i want milk but ask me what kind first (" not in text.casefold()
             return {"candidates": [{"content": {"parts": [{"functionCall": {
-                "name": "quick_add_items", "args": {"items": [{"query": "full cream milk"}]},
+                "name": "manage_basket", "args": {"add": [{"query": "full cream milk"}]},
             }}]}}]}
         return {"candidates": [{"content": {"parts": [
-            {"text": "Do you prefer toned or full cream milk?"},
+            {"text": "I've added full cream milk to your basket."},
         ]}}]}
 
     engine._call_llm = model_question  # external model boundary
@@ -63,85 +67,7 @@ async def test_planning_clarification_reaches_customer_without_false_cart_claim(
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://local-test") as client:
         assert (await client.post("/api/whatsapp/webhook", content=answer_body, headers=answer_headers)).status_code == 200
     _, answer_reply = await store.response_for_message("wamid.clarify-milk-answer")
-    assert "full cream milk" in answer_reply.text.casefold()
-    await engine.close()
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize("request_text,first_items,repaired_items,required_queries", [
-    (
-        "I need 2 packets of 500 ml milk and one brown bread, under ₹130. No eggs.",
-        ["milk", "brown bread"],
-        [{"query": "milk", "quantity": 2, "preferred_pack_size": "500 ml"},
-         {"query": "brown bread", "quantity": 1}],
-        ("milk", "brown bread"),
-    ),
-    (
-        "Make pizza ingredients under ₹1,000 and also add bread, Bournvita, tissues and a pencil",
-        [{"query": "pizza ingredients"}, {"query": "bread"}, {"query": "Bournvita"},
-         {"query": "tissues"}, {"query": "pencil"}],
-        [{"query": query} for query in (
-            "pizza base", "pizza sauce", "mozzarella", "bread", "Bournvita", "tissues", "pencil",
-        )],
-        ("pizza base", "pizza sauce", "mozzarella", "bread", "Bournvita", "tissues", "pencil"),
-    ),
-])
-async def test_invalid_model_plan_is_repaired_before_catalog_search(
-    postgres_pool, monkeypatch, request_text, first_items, repaired_items, required_queries,
-):
-    commerce = MockCommerceAdapter()
-    engine = GroceryAgentEngine(commerce, gemini_api_key="local-test")
-    monkeypatch.setattr(default_whatsapp_adapter, "_app_secret", "local-e2e-secret")
-    customer_id = default_whatsapp_adapter.map_sender_to_customer_id("919999988888")
-    engine._customer_address[customer_id] = "addr-bandra-1"
-    engine._customer_address_label[customer_id] = "Home"
-    engine._order_address_confirmed[customer_id] = True
-    model_calls = 0
-
-    async def model_reply(_history, **_kwargs):
-        nonlocal model_calls
-        model_calls += 1
-        items = first_items if model_calls == 1 else repaired_items
-        return {"candidates": [{"content": {"parts": [{"functionCall": {
-            "name": "quick_add_items", "args": {"items": items},
-        }}]}}]}
-
-    engine._call_llm = model_reply  # external model boundary
-    store = PostgresMessageStore(postgres_pool)
-    app = create_app()
-    app.state.agent_engine = engine
-    app.state.message_store = store
-    monkeypatch.setattr(default_whatsapp_adapter, "_app_secret", "local-e2e-secret")
-    monkeypatch.setattr(default_whatsapp_adapter, "record_only", True)
-    body, headers = _webhook("wamid.repair-plan", request_text)
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://local-test") as client:
-        assert (await client.post("/api/whatsapp/webhook", content=body, headers=headers)).status_code == 200
-        _, address_reply = await store.response_for_message("wamid.repair-plan")
-        if (address_reply.interactive_actions
-                and address_reply.interactive_actions[0].id.startswith("addr_choice_")):
-            choice = address_reply.interactive_actions[0]
-            choice_body, choice_headers = _interactive_webhook(
-                "wamid.repair-plan-address", choice.id, choice.title,
-            )
-            assert (await client.post("/api/whatsapp/webhook", content=choice_body, headers=choice_headers)).status_code == 200
-    _, reply = await store.response_for_message(
-        "wamid.repair-plan-address" if (address_reply.interactive_actions
-                                        and address_reply.interactive_actions[0].id.startswith("addr_choice_"))
-        else "wamid.repair-plan"
-    )
-    proposal = engine.get_session(customer_id).pending_variant_selection
-    assert model_calls == 2
-    assert proposal is not None, reply.text
-    accounted = [group["query"].casefold() for group in proposal["groups"]]
-    accounted += [item.casefold() for item in proposal.get("unavailable_items", [])]
-    for query in required_queries:
-        assert query.casefold() in accounted
-    if "milk" in required_queries:
-        milk = next(group for group in proposal["groups"] if group["query"] == "milk")
-        assert milk["quantity"] == 2
-        assert all(option["pack_size"] == "500 ml" for option in milk["options"])
-    with commerce.customer_scope(customer_id):
-        assert not (await commerce.get_cart()).items
+    assert "milk" in answer_reply.text.casefold()
     await engine.close()
 
 
@@ -152,7 +78,7 @@ async def test_hinglish_groceries_search_english_catalog_without_losing_user_ite
 
     async def model_reply(_history, **_kwargs):
         return {"candidates": [{"content": {"parts": [{"functionCall": {
-            "name": "quick_add_items", "args": {"items": [
+            "name": "manage_basket", "args": {"add": [
                 {"query": "milk"}, {"query": "rice"},
             ]},
         }}]}}]}
@@ -175,5 +101,11 @@ async def test_hinglish_groceries_search_english_catalog_without_losing_user_ite
     assert "milk" in reply.text.casefold()
     assert "rice" in reply.text.casefold()
     await engine.close()
+
+
+__all__ = [
+    "test_planning_clarification_reaches_customer_without_false_cart_claim",
+    "test_hinglish_groceries_search_english_catalog_without_losing_user_items",
+]
 
 

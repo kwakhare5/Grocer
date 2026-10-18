@@ -203,7 +203,7 @@ async def test_catalog_rate_limit_stops_remaining_search_waves(postgres_pool, mo
 
     async def model_reply(_history, **_kwargs):
         return {"candidates": [{"content": {"parts": [{"functionCall": {
-            "name": "quick_add_items", "args": {"items": [{"query": query} for query in (
+            "name": "manage_basket", "args": {"add": [{"query": query} for query in (
                 "milk", "bread", "eggs", "tomato", "coke", "maggi", "atta", "rice",
             )]},
         }}]}}]}

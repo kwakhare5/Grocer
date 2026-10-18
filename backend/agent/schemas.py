@@ -40,29 +40,6 @@ RAW_TOOL_DECLARATIONS = [
         },
     },
     {
-        "name": "quick_add_items",
-        "description": "Search for grocery items, automatically select standard household packs, and add them directly to the Swiggy Instamart basket.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "items": {
-                    "type": "array",
-                    "description": "List of grocery items to search and add to the basket.",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "query": {"type": "string", "description": "Item name to search for (e.g. 'amul milk', 'eggs', 'bread')."},
-                            "quantity": {"type": "integer", "description": "Quantity to add (default 1)."},
-                            "preferred_pack_size": {"type": "string", "description": "Optional pack size preference (e.g. '500ml', '1L', '6 pcs', '12 pcs')."},
-                        },
-                        "required": ["query"],
-                    },
-                },
-            },
-            "required": ["items"],
-        },
-    },
-    {
         "name": "manage_basket",
         "description": "Manage the Swiggy Instamart basket: add new items (searches catalogue and adds best in-stock matches), remove items (by cart line ID), or adjust quantities (by cart line ID). Updates the basket atomically and returns the fresh cart.",
         "parameters": {
@@ -116,34 +93,6 @@ RAW_TOOL_DECLARATIONS = [
         },
     },
     {
-        "name": "update_cart",
-        "description": "Change quantity or remove products already in the basket. New products must go through quick_add_items and the customer's exact variant choice. Both spin_id and sku_id are required.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "items": {
-                    "type": "array",
-                    "description": "List of items to update in the cart.",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "spin_id": {"type": "string", "description": "The variant's spin_id from search results."},
-                            "sku_id": {"type": "string", "description": "The variant's sku_id from search results."},
-                            "quantity": {"type": "integer", "description": "Quantity to set in the cart (0 to remove)."},
-                            "name": {"type": "string", "description": "Human-readable item name."},
-                        },
-                        "required": ["spin_id", "sku_id", "quantity"],
-                    },
-                },
-                "address_id": {
-                    "type": "string",
-                    "description": "The user's Swiggy delivery address ID.",
-                },
-            },
-            "required": ["items", "address_id"],
-        },
-    },
-    {
         "name": "clear_cart",
         "description": "Empty the current Swiggy Instamart cart completely.",
         "parameters": {
@@ -160,7 +109,7 @@ RAW_TOOL_DECLARATIONS = [
             "properties": {
                 "cart_id": {
                     "type": "string",
-                    "description": "The active cart ID from update_cart or get_cart.",
+                    "description": "The active cart ID from manage_basket or get_cart.",
                 },
                 "address_id": {
                     "type": "string",

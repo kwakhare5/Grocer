@@ -49,21 +49,16 @@ async def synthesize_turn_response(
     user_confirmed: bool,
     incoming_text: str,
     addr_lbl: Optional[str],
-    checkout_result: Optional[dict[str, Any]] = None,
 ) -> NormalizedOutgoingResponse:
     """Build and format the final NormalizedOutgoingResponse for WhatsApp."""
     session = engine.get_session(customer_id)
     history = engine.get_history(customer_id)
     current_cart = None
-    checkout_status = (
-        (checkout_result.get("status") if isinstance(checkout_result, dict) else str(checkout_result))
-        if checkout_result
-        else None
-    )
-    is_checkout_turn = (
-        checkout_executed
-        or conv_state in ("ORDER_PLACED", "AWAITING_PAYMENT", "PARTIAL_ORDER", "PAYMENT_CONFIRMED")
-        or checkout_status in ("ORDER_PLACED", "PAYMENT_PENDING", "PARTIAL_ORDER", "PAYMENT_CONFIRMED")
+    is_checkout_turn = conv_state in (
+        "ORDER_PLACED",
+        "AWAITING_PAYMENT",
+        "PARTIAL_ORDER",
+        "PAYMENT_CONFIRMED",
     )
 
     if step_limit_reached:

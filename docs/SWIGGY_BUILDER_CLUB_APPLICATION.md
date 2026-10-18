@@ -72,7 +72,7 @@ The architecture follows clean separation across 8 coordinated stages:
 2. Turn Concurrency & Address Guard: A per-phone asyncio.Lock serializes turns for each customer. On new sessions or >30m inactivity, multi-address disambiguation prompts the customer upfront to select their active delivery destination before cart assembly.
 3. Autonomous ReAct Reasoning: Gemini 3.5 Flash-Lite executes an 8-step procedural shopping workflow: Parse Intent -> Parallel Search -> Select Variants -> Pre-check Diet/Budget -> Batched Cart Update -> Math Verification -> WhatsApp Receipt -> Self-Check.
 4. Swiggy Instamart MCP Layer: The CommercePort abstraction talks to https://mcp.swiggy.com/im via JSON-RPC 2.0 over a persistent HTTP/2 pool, using tools: get_addresses, search_products (top-10 items with pack sizes and savings), update_cart, get_cart, checkout, and track_order.
-5. Invariant Python Guards: Code guards enforce budget constraints, hold sessions on hesitation phrases, reject negations prior to affirmative matching, and preserve multi-turn cart state across user amendments.
+5. Invariant Python Guards: Code guards enforce budget constraints, hold sessions on hesitation phrases; typed yes is decided by a model yes/no check with the receipt as context; button taps carry no text; and preserve multi-turn cart state across user amendments.
 6. WhatsApp Receipt Formatting: Verifiable receipts display line items, pack sizes, taxes, delivery fees, and grand totals. Receipts exceeding 1,000 characters are split into dual sequential messages to prevent Meta's 1,024-character payload truncation.
 7. Server-Side Gated Checkout: Checkout strictly requires affirmative human confirmation. In CHECKOUT_MODE=review, orders and dynamic UPI QR generation are safely simulated (REVIEW_SIMULATED) without live financial mutation.
 8. Rate Limiting & Tracking: Background payment status polling runs strictly at 10-second intervals (PAYMENT_POLL_INTERVAL_SECONDS = 10), respecting Swiggy's 70 req/min rate limit, with exponential backoff on HTTP 429.
@@ -260,7 +260,7 @@ About Grocer:
 Grocer is an English-first WhatsApp grocery assistant for Swiggy Instamart that preserves shopping intent across changing dark-store inventory. It couples an autonomous Gemini 3.5 Flash-Lite ReAct loop (~1.2s turn latency) for conversational discovery, recipe decomposition, and parallel catalog search with deterministic Python safety guards for non-negotiable boundaries.
 
 Key Technical Highlights:
-1. Dual-Core Safety: Hard budget ceilings (total <= budget_inr), dietary exclusions, hesitation pauses ("wait"), and negation-first consent guards are enforced deterministically in Python code.
+1. Dual-Core Safety: Hard budget ceilings (total <= budget_inr), dietary exclusions, hesitation pauses ("wait"), and typed yes is decided by a model yes/no check with the receipt as context; button taps carry no text.
 2. Review Mode Simulation Gate: To guarantee financial safety during demonstrations and evaluation, the backend runs under CHECKOUT_MODE=review, returning simulated dynamic UPI QR responses without triggering live provider charges.
 3. Swiggy Rate Limits: Payment status polling cadence is pinned to 10 seconds (PAYMENT_POLL_INTERVAL_SECONDS = 10), respecting Swiggy's 70 req/min overall quota.
 4. Ephemeral Security & RAM Vault: Plaintext token storage has been eradicated. Tokens are held in RAM isolation with per-customer cryptographic isolation and fail-closed persistence.

@@ -88,24 +88,6 @@ async def execute_preflight(
     if is_retry_command and session.pending_request_text:
         planning_request_text = session.pending_request_text
 
-    if engine.replenishment_store is not None and not any(w in norm_text for w in {"add", "buy", "order", "cart", "basket", "send", "deliver", "get me"}):
-        try:
-            reminder_reply = await engine.replenishment_store.reply(
-                customer_id, incoming_text, engine.commerce
-            )
-        except ProviderAuthError:
-            auth_resp = await engine._auth_expired_response(message)
-            return PreflightResult(early_response=auth_resp)
-        if reminder_reply is not None:
-            return PreflightResult(
-                early_response=NormalizedOutgoingResponse(
-                    recipient_id=message.sender_id,
-                    channel=message.channel,
-                    text=reminder_reply,
-                    conversation_state="NEEDS_DECISION",
-                )
-            )
-
     greet_or_cancel_resp = handle_greeting_or_cancellation_fast_path(
         norm_text=norm_text,
         message=message,

@@ -36,6 +36,13 @@ During the Session End ritual (called automatically whenever significant changes
 - **Proof**: `python -c "from backend.main import create_app; create_app()"` exited 0; `pytest backend/tests/test_invariants.py` passed 33/33 (1.71s); `backend/` search for `check_replenishment` returned zero hits; test suites matched baseline results (11 passed, 12 pre-existing failures).
 - **Still broken**: None in scope. Pre-existing recipe repair, greeting, and address disambiguation failures in uncompleted slices remain unchanged.
 
+#### Work Card: Removed Preflight Replenishment Interception & Retired Restock Tests (Slice 4 Step 2)
+
+- **Problem**: Incoming messages without explicit shopping verbs were intercepted by `preflight_handler.py` via `engine.replenishment_store.reply`, prematurely returning replenishment answers and blocking conversational handling.
+- **Change**: Deleted the `replenishment_store` check and reminder early return from `backend/agent/preflight_handler.py`; deleted 5 restock tests from `backend/tests/suites/replenishment_and_webhooks.py`; pruned unused imports (`datetime/timedelta/timezone`, `PostgresReplenishmentStore`, `ProviderAuthError`, `OrderLineItem`, `OrderSummary`); refocused `test_delete_my_data_purges_task_state_through_signed_whatsapp` on seeding and purging `grocer_internal.task_state`; updated test exports and imports in `backend/tests/test_whatsapp_postgres_e2e.py`.
+- **Proof**: `python -c "from backend.main import create_app; create_app()"` exited 0; `git diff --check` clean; `preflight_handler.py` has 0 replenishment references; `test_invariants.py` passed 33/33; `replenishment_and_webhooks.py` passed 11/11; all retained tests in `planning_repairs`, `planning_and_orders`, `turn_recovery`, `address_disambiguation`, `budget_and_symptoms`, and `test_whatsapp_postgres_e2e` produced identical results to baseline.
+- **Still broken**: None in scope. Pre-existing recipe repair, greeting, and address disambiguation failures in uncompleted slices remain unchanged.
+
 ### [GROCER — Audit Fixes: Cart Writes Unblocked, Devanagari Passthrough & Model Budget Tool] 2026-10-17
 
 #### Work Card: Resolution of Audit Issues Across Tool Execution, Sanitization, and Budget Control

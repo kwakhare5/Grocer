@@ -52,7 +52,7 @@ async def test_customer_selects_exact_variants_before_one_cart_write_after_resta
         model_calls += 1
         if model_calls == 1:
             return {"candidates": [{"content": {"parts": [{"functionCall": {
-                "name": "quick_add_items", "args": {"items": [
+                "name": "manage_basket", "args": {"add": [
                     {"query": "milk"}, {"query": "bread"},
                 ]},
             }}]}}]}
@@ -127,7 +127,7 @@ async def test_product_name_used_as_model_pack_hint_does_not_hide_valid_bread(po
 
     async def model_reply(_history, **_kwargs):
         return {"candidates": [{"content": {"parts": [{"functionCall": {
-            "name": "quick_add_items", "args": {"items": [
+            "name": "manage_basket", "args": {"add": [
                 {"query": "milk", "quantity": 2, "preferred_pack_size": "500ml"},
                 {"query": "brown bread", "quantity": 1, "preferred_pack_size": "brown bread"},
             ]},
@@ -178,7 +178,7 @@ async def test_cart_write_with_failed_readback_never_claims_success_or_retries(p
 
     async def model_reply(_history, **_kwargs):
         return {"candidates": [{"content": {"parts": [{"functionCall": {
-            "name": "quick_add_items", "args": {"items": [{"query": "milk"}]},
+            "name": "manage_basket", "args": {"add": [{"query": "milk"}]},
         }}]}}]}
 
     engine._call_llm = model_reply
@@ -274,7 +274,7 @@ async def test_customer_changes_request_while_product_choices_are_pending(postgr
         model_calls += 1
         queries = ["milk", "bread"] if model_calls == 1 else ["bread"]
         return {"candidates": [{"content": {"parts": [{"functionCall": {
-            "name": "quick_add_items", "args": {"items": [{"query": query} for query in queries]},
+            "name": "manage_basket", "args": {"add": [{"query": query} for query in queries]},
         }}]}}]}
 
     engine._call_llm = model_reply

@@ -43,7 +43,7 @@ from backend.tests.suites.recipe_and_budgets import (
     test_missing_requested_item_requires_review_before_checkout,
     test_recipe_request_cannot_silently_omit_pizza_base,
     test_model_cannot_silently_drop_explicit_shopping_items,
-    test_provider_dropped_quick_add_item_is_named_before_partial_review,
+    test_provider_dropped_manage_basket_item_is_named_before_partial_review,
     test_symptom_message_suggests_groceries_without_adding_medicine,
 )
 
@@ -105,7 +105,7 @@ __all__ = [
     "test_missing_requested_item_requires_review_before_checkout",
     "test_recipe_request_cannot_silently_omit_pizza_base",
     "test_model_cannot_silently_drop_explicit_shopping_items",
-    "test_provider_dropped_quick_add_item_is_named_before_partial_review",
+    "test_provider_dropped_manage_basket_item_is_named_before_partial_review",
     "test_symptom_message_suggests_groceries_without_adding_medicine",
     "test_replayed_signed_webhook_has_one_durable_turn_and_one_reply",
     "test_forged_whatsapp_signature_never_enters_inbox",

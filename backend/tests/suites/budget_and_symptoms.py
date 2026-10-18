@@ -114,7 +114,7 @@ async def test_recipe_request_cannot_silently_omit_pizza_base(postgres_pool, mon
         calls += 1
         if calls == 1:
             return {"candidates": [{"content": {"parts": [{"functionCall": {
-                "name": "quick_add_items", "args": {"items": [
+                "name": "manage_basket", "args": {"add": [
                     {"query": "pizza sauce"}, {"query": "mozzarella"}, {"query": "bread"},
                 ]},
             }}]}}]}
@@ -159,8 +159,8 @@ async def test_model_cannot_silently_drop_explicit_shopping_items(
 
     async def incomplete_model(_history, **_kwargs):
         return {"candidates": [{"content": {"parts": [{"functionCall": {
-            "name": "quick_add_items",
-            "args": {"items": [{"query": query} for query in model_items]},
+            "name": "manage_basket",
+            "args": {"add": [{"query": query} for query in model_items]},
         }}]}}]}
 
     engine._call_llm = incomplete_model  # external model boundary
@@ -199,7 +199,7 @@ async def test_model_cannot_silently_drop_explicit_shopping_items(
 
 
 @pytest.mark.asyncio
-async def test_provider_dropped_quick_add_item_is_named_before_partial_review(postgres_pool, monkeypatch):
+async def test_provider_dropped_manage_basket_item_is_named_before_partial_review(postgres_pool, monkeypatch):
     commerce = MockCommerceAdapter()
     commerce.inject_partial_cart_drop("SPIN-MILK-1L")
     engine = GroceryAgentEngine(commerce, gemini_api_key="local-test")
@@ -210,7 +210,7 @@ async def test_provider_dropped_quick_add_item_is_named_before_partial_review(po
         calls += 1
         if calls == 1:
             return {"candidates": [{"content": {"parts": [{"functionCall": {
-                "name": "quick_add_items", "args": {"items": [
+                "name": "manage_basket", "args": {"add": [
                     {"query": "milk"}, {"query": "bread"},
                 ]},
             }}]}}]}
@@ -260,7 +260,7 @@ async def test_symptom_message_suggests_groceries_without_adding_medicine(
 
     async def model_reply(_history, **_kwargs):
         return {"candidates": [{"content": {"parts": [{"functionCall": {
-            "name": "quick_add_items", "args": {"items": [{"query": "Vicks"}, {"query": "ginger"}]},
+            "name": "manage_basket", "args": {"add": [{"query": "Vicks"}, {"query": "ginger"}]},
         }}]}}]}
 
     engine._call_llm = model_reply  # external model boundary

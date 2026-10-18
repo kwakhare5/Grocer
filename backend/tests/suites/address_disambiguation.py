@@ -60,7 +60,7 @@ async def test_address_choice_model_outage_then_retry_resumes_original_whatsapp_
                     for part in entry.get("parts", []) if "text" in part
                 )
                 return {"candidates": [{"content": {"parts": [{"functionCall": {
-                    "name": "quick_add_items", "args": {"items": [{"query": "milk"}, {"query": "bread"}]},
+                    "name": "manage_basket", "args": {"add": [{"query": "milk"}, {"query": "bread"}]},
                 }}]}}]}
             return None
 
@@ -103,7 +103,7 @@ async def test_retry_preserves_pending_grocery_basket_during_address_disambiguat
         )
         model_prompts.append(prompt)
         return {"candidates": [{"content": {"parts": [{"functionCall": {
-            "name": "quick_add_items", "args": {"items": [{"query": "eggs"}, {"query": "paracetamol"}, {"query": "milk"}]},
+            "name": "manage_basket", "args": {"add": [{"query": "eggs"}, {"query": "paracetamol"}, {"query": "milk"}]},
         }}]}}]}
 
     engine._call_llm = mock_model

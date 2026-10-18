@@ -33,23 +33,23 @@ async def test_long_recipe_request_uses_one_product_choice_batch(postgres_pool, 
     model_calls = 0
     invalid_protocol_calls = 0
 
-    async def model_boundary(contents, planning_only=False, **kwargs):
+    async def model_boundary(contents, **kwargs):
         nonlocal model_calls, invalid_protocol_calls
         model_calls += 1
         if model_calls > 1:
             return {"candidates": [{"content": {"parts": [{"functionCall": {
-                "name": "quick_add_items", "args": {"items": [{"query": "eggs"}]},
+                "name": "manage_basket", "args": {"add": [{"query": "eggs"}]},
             }}]}}]}
 
-        choice_tool = next(tool for tool in RAW_TOOL_DECLARATIONS if tool["name"] == "quick_add_items")
+        choice_tool = next(tool for tool in RAW_TOOL_DECLARATIONS if tool["name"] == "manage_basket")
         assert "budget_cap_inr" not in choice_tool["parameters"]["properties"]
 
         if parallel_calls == "split":
             parts = [
-                {"functionCall": {"name": "quick_add_items", "args": {"items": [
+                {"functionCall": {"name": "manage_basket", "args": {"add": [
                     {"query": "pizza base"}, {"query": "pizza sauce"}, {"query": "mozzarella"},
                 ]}}},
-                {"functionCall": {"name": "quick_add_items", "args": {"items": [
+                {"functionCall": {"name": "manage_basket", "args": {"add": [
                     {"query": "bread"}, {"query": "Bournvita"},
                     {"query": "tissues"}, {"query": "pencil"},
                 ]}}},
@@ -57,7 +57,7 @@ async def test_long_recipe_request_uses_one_product_choice_batch(postgres_pool, 
         elif parallel_calls == "with_cart":
             parts = [
                 {"functionCall": {"name": "get_cart", "args": {}}},
-                {"functionCall": {"name": "quick_add_items", "args": {"items": [
+                {"functionCall": {"name": "manage_basket", "args": {"add": [
                     {"query": "pizza base"}, {"query": "pizza sauce"},
                     {"query": "mozzarella"}, {"query": "bread"},
                     {"query": "Bournvita"}, {"query": "tissues"}, {"query": "pencil"},
@@ -66,7 +66,7 @@ async def test_long_recipe_request_uses_one_product_choice_batch(postgres_pool, 
         elif parallel_calls == "same_address":
             parts = [
                 {"functionCall": {"name": "select_delivery_address", "args": {"address_id": "addr-bandra-1"}}},
-                {"functionCall": {"name": "quick_add_items", "args": {"items": [
+                {"functionCall": {"name": "manage_basket", "args": {"add": [
                     {"query": "pizza base"}, {"query": "pizza sauce"},
                     {"query": "mozzarella"}, {"query": "bread"},
                     {"query": "Bournvita"}, {"query": "tissues"}, {"query": "pencil"},
@@ -74,7 +74,7 @@ async def test_long_recipe_request_uses_one_product_choice_batch(postgres_pool, 
             ]
         else:
             parts = [
-                {"functionCall": {"name": "quick_add_items", "args": {"items": [
+                {"functionCall": {"name": "manage_basket", "args": {"add": [
                     {"query": "pizza base"}, {"query": "pizza sauce"},
                     {"query": "mozzarella"}, {"query": "bread"},
                     {"query": "Bournvita"}, {"query": "tissues"}, {"query": "pencil"},
@@ -153,7 +153,7 @@ async def test_long_list_checks_every_item_in_paced_batches(postgres_pool, monke
 
     async def model_reply(_history, **_kwargs):
         return {"candidates": [{"content": {"parts": [{"functionCall": {
-            "name": "quick_add_items", "args": {"items": [{"query": query} for query in queries]},
+            "name": "manage_basket", "args": {"add": [{"query": query} for query in queries]},
         }}]}}]}
 
     engine._call_llm = model_reply  # external model boundary
@@ -294,7 +294,7 @@ async def test_real_model_presents_recipe_and_extras_choices_over_whatsapp_path(
         engine._call_llm = record_model_call
     else:
         async def mock_gemini_call(*args, **kwargs):
-            call = {"name": "quick_add_items", "args": {"items": _recipe_plan(request_text, required_items)}}
+            call = {"name": "manage_basket", "args": {"add": _recipe_plan(request_text, required_items)}}
             raw_tool_calls.append(call)
             return {"candidates": [{"content": {"parts": [{"functionCall": call}]}}]}
 
@@ -377,7 +377,7 @@ async def test_pizza_ingredient_cap_keeps_extras_even_when_whole_basket_exceeds_
         calls += 1
         if calls == 1:
             return {"candidates": [{"content": {"parts": [{"functionCall": {
-                "name": "quick_add_items", "args": {"items": [
+                "name": "manage_basket", "args": {"add": [
                     {"query": "olive oil", "quantity": 2},
                     {"query": "mozzarella", "quantity": 2},
                     {"query": "tomato", "quantity": 4},
@@ -464,7 +464,7 @@ from backend.tests.suites.budget_and_symptoms import (
     test_missing_requested_item_requires_review_before_checkout,
     test_recipe_request_cannot_silently_omit_pizza_base,
     test_model_cannot_silently_drop_explicit_shopping_items,
-    test_provider_dropped_quick_add_item_is_named_before_partial_review,
+    test_provider_dropped_manage_basket_item_is_named_before_partial_review,
     test_symptom_message_suggests_groceries_without_adding_medicine,
 )
 
@@ -478,6 +478,6 @@ __all__ = [
     "test_missing_requested_item_requires_review_before_checkout",
     "test_recipe_request_cannot_silently_omit_pizza_base",
     "test_model_cannot_silently_drop_explicit_shopping_items",
-    "test_provider_dropped_quick_add_item_is_named_before_partial_review",
+    "test_provider_dropped_manage_basket_item_is_named_before_partial_review",
     "test_symptom_message_suggests_groceries_without_adding_medicine",
 ]

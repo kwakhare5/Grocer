@@ -4,13 +4,33 @@ from __future__ import annotations
 import logging
 from typing import Any, Optional
 
-from backend.agent.formatters import format_cart_receipt
-from backend.agent.guards import _claims_order_success, _explains_failure
+from backend.agent.formatters import _format_inr, format_cart_receipt
 from backend.channels.models import InteractiveAction
-from backend.config import settings
 from backend.integrations.commerce.models import CommerceCart
 
 logger = logging.getLogger("grocer.agent.checkout_outcome")
+
+
+def order_message(result: dict[str, Any]) -> str:
+    """Write customer message deterministically from checkout result."""
+    order_id = result.get("order_id") or ""
+    total = result.get("formatted_grand_total")
+    if not total and result.get("grand_total") is not None:
+        total = _format_inr(result["grand_total"])
+    total_str = f" for {total}" if total else ""
+    order_str = f" {order_id}" if order_id else ""
+    status = result.get("status")
+
+    if status == "ORDER_PLACED":
+        tracking_url = result.get("tracking_url")
+        track_str = f" Track your order here: {tracking_url}" if tracking_url else ""
+        return f"Your order{order_str}{total_str} has been placed!{track_str}".strip()
+    elif status == "PAYMENT_PENDING":
+        pay_link = result.get("bridge_url") or result.get("upi_intent_url")
+        if pay_link:
+            return f"Your order{order_str}{total_str} is ready! Please complete payment to place your order: {pay_link}".strip()
+        return f"Your order{order_str}{total_str} is ready! Please complete payment in your Swiggy app to place your order.".strip()
+    return ""
 
 
 def process_checkout_outcome(
@@ -38,10 +58,27 @@ def process_checkout_outcome(
         if not checkout_result.get("success"):
             if checkout_result.get("error") == "CONFIRMATION_REQUIRED":
                 conv_state = "AWAITING_CHECKOUT_CONFIRMATION"
-                actions = [
-                    InteractiveAction(action_type="button", id="confirm_order", title="Confirm Order"),
-                    InteractiveAction(action_type="button", id="modify_cart", title="Change Items"),
-                ]
+                token = ""
+                session = engine.get_session(customer_id) if hasattr(engine, "get_session") else None
+                if session and getattr(session, "pending_approval", None) and session.pending_approval.token:
+                    token = session.pending_approval.token
+                elif engine and current_cart and hasattr(engine, "_record_pending_approval"):
+                    target_addr = (
+                        getattr(engine, "_customer_address", {}).get(customer_id)
+                        or (current_cart.address_id if current_cart else None)
+                        or addr_lbl
+                        or ""
+                    )
+                    if engine._record_pending_approval(customer_id, current_cart, target_addr):
+                        sess = engine.get_session(customer_id) if hasattr(engine, "get_session") else None
+                        if sess and getattr(sess, "pending_approval", None):
+                            token = sess.pending_approval.token or ""
+
+                actions = []
+                if token:
+                    actions.append(InteractiveAction(action_type="button", id=f"confirm_order:{token}", title="Confirm Order"))
+                actions.append(InteractiveAction(action_type="button", id="modify_cart", title="Change Items"))
+
                 receipt_str = last_cart_receipt or (format_cart_receipt(current_cart, addr_lbl or "Home") if current_cart else "")
                 final_text = (f"{receipt_str}\n\n👉 Reply *Confirm* to place order, or let me know if you'd like to change anything!").strip()
             elif (
@@ -72,27 +109,17 @@ def process_checkout_outcome(
                     conv_state = "NEEDS_DECISION"
             else:
                 error_msg = checkout_result.get("error") or checkout_result.get("message") or "Provider checkout error"
-                if settings.CHECKOUT_MODE == "live":
-                    final_text = (
-                        f"Checkout could not be completed or verified: {error_msg}. "
-                        "Please check the Swiggy order status before trying again."
-                    )
-                else:
-                    disclaimer = "Your order has NOT been placed and your account has not been charged."
-                    if _claims_order_success(final_text):
-                        logger.warning("Fail-closed guard triggered: LLM falsely claimed order success on failed checkout (%s). Overriding response.", error_msg)
-                        final_text = f"I could not complete your order: {error_msg}. {disclaimer} Please check your basket and try again."
-                    elif not _explains_failure(final_text, checkout_result.get("error"), checkout_result.get("message")):
-                        logger.warning("Fail-closed guard triggered: LLM failed to explain failure (%s). Overriding response.", error_msg)
-                        final_text = f"I could not complete your order: {error_msg}. {disclaimer} Please check your basket and try again."
-                    elif disclaimer not in final_text:
-                        final_text = f"{final_text.rstrip()}\n\n{disclaimer}"
+                base_text = (
+                    f"Checkout could not be completed or verified: {error_msg}. "
+                    "Please check the Swiggy order status before trying again."
+                )
+                extra = final_text.strip()
+                final_text = f"{base_text}\n\n{extra}" if extra else base_text
                 conv_state = "FAILED"
         else:
             out_order_id = checkout_result.get("order_id")
             out_order_total = checkout_result.get("grand_total")
             out_bridge_url = checkout_result.get("bridge_url")
-            upi_url = checkout_result.get("upi_intent_url")
             status = checkout_result.get("status")
 
             if status in ("REVIEW_COMPLETE", "REVIEW_SIMULATED") or checkout_result.get("is_simulated"):
@@ -115,33 +142,20 @@ def process_checkout_outcome(
                 )
             elif status == "PAYMENT_PENDING":
                 conv_state = "AWAITING_PAYMENT"
-                engine._order_address_confirmed.pop(customer_id, None)
-                engine._customer_address.pop(customer_id, None)
-                engine._customer_address_label.pop(customer_id, None)
-                pay_link = out_bridge_url or upi_url
-                link_present = False
-                if out_bridge_url and out_bridge_url in final_text:
-                    link_present = True
-                if upi_url and upi_url in final_text:
-                    link_present = True
-
-                if _claims_order_success(final_text) or not final_text.strip():
-                    logger.warning("PAYMENT_PENDING guard triggered: LLM claimed premature order placement or empty response. Overriding response.")
-                    if pay_link:
-                        final_text = f"Your order is ready! Please complete payment to place your order: {pay_link}"
-                    else:
-                        final_text = "Your order is ready! Please complete payment in your Swiggy app to place your order."
-                else:
-                    if pay_link and not link_present:
-                        final_text += f"\n\n👉 Complete payment to place your order: {pay_link}"
-                    elif not pay_link and not link_present:
-                        final_text += "\n\nPlease complete payment in your Swiggy app to finalize your order."
-
+                if hasattr(engine, "_order_address_confirmed"):
+                    engine._order_address_confirmed.pop(customer_id, None)
+                    engine._customer_address.pop(customer_id, None)
+                    engine._customer_address_label.pop(customer_id, None)
+                code_text = order_message(checkout_result)
+                extra = final_text.strip()
+                final_text = f"{code_text}\n\n{extra}" if extra else code_text
             elif status == "ORDER_PLACED":
                 conv_state = "ORDER_PLACED"
-                engine._order_address_confirmed.pop(customer_id, None)
-                engine._customer_address.pop(customer_id, None)
-                engine._customer_address_label.pop(customer_id, None)
+                if hasattr(engine, "_order_address_confirmed"):
+                    engine._order_address_confirmed.pop(customer_id, None)
+                    engine._customer_address.pop(customer_id, None)
+                    engine._customer_address_label.pop(customer_id, None)
+                final_text = order_message(checkout_result)
             else:
                 conv_state = "READY"
 

@@ -17,6 +17,13 @@ During the Session End ritual (called automatically whenever significant changes
 
 ### [GROCER — Whole-Basket Spending Cap Protection via Native Gemini Flash-Lite] 2026-10-18
 
+#### Work Card: Code-Written Order Messages and Removed Success-Claim Guards (Slice 6)
+
+- **Problem**: Checkout outcome responses relied on LLM text guarded by regex pattern matching, bare confirm_order buttons could be emitted, and legacy test mocks used outdated quick_add_items.
+- **Change**: Added deterministic order_message writing code text for ORDER_PLACED and PAYMENT_PENDING; dropped model text on ORDER_PLACED and kept it as an extra line on PAYMENT_PENDING and failure; unified live and non-live failure responses; removed _claims_order_success, _explains_failure, and _ORDER_SUCCESS_PATTERNS from guards.py; replaced bare confirm buttons with tokenized buttons; updated test mocks across test suites to call manage_basket(add=[...]), removed planning_only arg, and renamed tests with quick_add_item; added test_order_messages.py.
+- **Proof**: test_order_messages.py passed 7/7; full pytest ran with 74 passed (7 new tests passing, 0 regressions against baseline 38 failures); git diff --check exits 0.
+- **Still broken**: None in scope. 38 pre-existing suite failures across unmigrated redesign slice tests remain unchanged.
+
 #### Work Card: Restored 6 Regression Tests and Added 3 manage_basket Invariants (Step 5b Verification)
 
 - **Problem**: 6 tests broke after Step 5b because they mocked the model returning the deleted `quick_add_items` tool, and 3 key basket behaviors needed invariant tests.

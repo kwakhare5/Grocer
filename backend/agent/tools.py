@@ -164,13 +164,6 @@ class SwiggyAgentTools:
         batch_results = []
         for i in range(0, len(clean_queries), 3):
             wave = clean_queries[i : i + 3]
-            needs_sleep = i > 0 and any(
-                bypass_cache or (q.casefold().strip(), str(address_id or "")) not in self._catalog_cache
-                or (time.time() - self._catalog_cache[(q.casefold().strip(), str(address_id or ""))][0] >= 300)
-                for q in wave
-            )
-            if needs_sleep:
-                await asyncio.sleep(2.8)
             wave_res = await asyncio.gather(*[_search_one(q) for q in wave])
             batch_results.extend(wave_res)
             critical = next(
@@ -207,9 +200,6 @@ class SwiggyAgentTools:
         current_cart: Optional[CommerceCart] = None,
         delivery_location: str = "Home",
         budget_cap_inr: Optional[float] = None,
-        ingredient_budget_inr: Optional[float] = None,
-        ingredient_extras_text: str = "",
-        ingredient_spin_ids: Optional[list[str]] = None,
     ) -> dict[str, Any]:
         """Atomically manage Swiggy Instamart basket: add items, remove items, or adjust quantities in a single turn."""
         return await execute_manage_basket(
@@ -221,9 +211,6 @@ class SwiggyAgentTools:
             current_cart=current_cart,
             delivery_location=delivery_location,
             budget_cap_inr=budget_cap_inr,
-            ingredient_budget_inr=ingredient_budget_inr,
-            ingredient_extras_text=ingredient_extras_text,
-            ingredient_spin_ids=ingredient_spin_ids,
         )
 
     async def get_saved_addresses(self, customer_id: str) -> dict[str, Any]:
@@ -297,9 +284,6 @@ class SwiggyAgentTools:
         expected_cart_state: dict[str, Any],
         delivery_location: str = "Home",
         budget_cap_inr: float | None = None,
-        ingredient_budget_inr: float | None = None,
-        ingredient_extras_text: str = "",
-        ingredient_spin_ids: list[str] | None = None,
         extra_updates: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         """Apply customer-chosen, freshly verified SKUs and extra updates in one atomic cart update."""
@@ -311,9 +295,6 @@ class SwiggyAgentTools:
             expected_cart_state=expected_cart_state,
             delivery_location=delivery_location,
             budget_cap_inr=budget_cap_inr,
-            ingredient_budget_inr=ingredient_budget_inr,
-            ingredient_extras_text=ingredient_extras_text,
-            ingredient_spin_ids=ingredient_spin_ids,
             extra_updates=extra_updates,
         )
 

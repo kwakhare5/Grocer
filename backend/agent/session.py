@@ -19,9 +19,6 @@ class CustomerSession:
     awaiting_address_choice: Optional[list[dict[str, Any]]] = None
     last_active_ts: float = 0.0
     budget_inr: Optional[float] = None
-    ingredient_budget_inr: Optional[float] = None
-    ingredient_extras_text: Optional[str] = None
-    ingredient_spin_ids: list[str] = field(default_factory=list)
     pending_approval: Optional[PendingApproval] = None
     pending_cart_clear: Optional[PendingApproval] = None
     unresolved_items: list[dict[str, Any]] = field(default_factory=list)
@@ -72,6 +69,3 @@ class CustomerSession:
         self.selected_payment_label = None
         self.last_active_ts = 0.0
         self.budget_inr = None
-        self.ingredient_budget_inr = None
-        self.ingredient_extras_text = None
-        self.ingredient_spin_ids.clear()

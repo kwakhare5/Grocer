@@ -1,6 +1,7 @@
 """Recipe ingredient decomposition, budget caps, and review gating tests."""
 from __future__ import annotations
 
+import asyncio
 import os
 import time
 
@@ -140,14 +141,23 @@ async def test_long_list_checks_every_item_in_paced_batches(postgres_pool, monke
     class TrackingCommerce(MockCommerceAdapter):
         def __init__(self):
             super().__init__()
-            self.search_started = []
+            self.search_calls = []
+            self.active = 0
+            self.waves = []
+            self._current_wave = []
 
         async def search_products(self, address_id, query):
-            self.search_started.append(time.monotonic())
+            self.search_calls.append(query)
+            self._current_wave.append(query)
+            self.active += 1
+            await asyncio.sleep(0.005)
+            self.active -= 1
+            if self.active == 0:
+                self.waves.append(list(self._current_wave))
+                self._current_wave.clear()
             return await super().search_products(address_id, query)
 
-    queries = ["milk", "bread", "eggs", "tomato", "coke", "maggi", "atta",
-               "rice", "dal", "sugar", "oil"]
+    queries = ["milk", "bread", "eggs", "tomato", "coke", "maggi", "atta", "rice", "dal"]
     commerce = TrackingCommerce()
     engine = GroceryAgentEngine(commerce, gemini_api_key="local-test")
 
@@ -165,7 +175,7 @@ async def test_long_list_checks_every_item_in_paced_batches(postgres_pool, monke
     monkeypatch.setattr(default_whatsapp_adapter, "record_only", True)
     default_whatsapp_adapter.outbound_messages.clear()
     customer_id = default_whatsapp_adapter.map_sender_to_customer_id("919999988888")
-    body, headers = _webhook("wamid.long-list", "Add milk, bread, eggs, tomato, coke, maggi, atta, rice, dal, sugar and oil")
+    body, headers = _webhook("wamid.long-list", "Add milk, bread, eggs, tomato, coke, maggi, atta, rice and dal")
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://local-test") as client:
         assert (await client.post("/api/whatsapp/webhook", content=body, headers=headers)).status_code == 200
         _, address_reply = await store.response_for_message("wamid.long-list")
@@ -173,12 +183,18 @@ async def test_long_list_checks_every_item_in_paced_batches(postgres_pool, monke
         choice_body, choice_headers = _interactive_webhook("wamid.long-list-address", choice.id, choice.title)
         assert (await client.post("/api/whatsapp/webhook", content=choice_body, headers=choice_headers)).status_code == 200
     _, reply = await store.response_for_message("wamid.long-list-address")
-    proposal = engine.get_session(customer_id).pending_variant_selection
-    assert proposal is not None, reply.text
-    accounted = [group["query"] for group in proposal["groups"]] + proposal.get("unavailable_items", [])
-    assert accounted == queries
-    assert len(commerce.search_started) == 11
-    assert commerce.search_started[8] - commerce.search_started[0] >= 5.5
+
+    # Assert 9 items are searched in 3 groups of 3
+    assert len(commerce.search_calls) == 9
+    assert len(commerce.waves) == 3
+    for wave in commerce.waves:
+        assert len(wave) == 3
+
+    # Assert all 9 results used in cart
+    with commerce.customer_scope(customer_id):
+        cart = await commerce.get_cart()
+    assert len(cart.items) == 9
+    assert reply.conversation_state == "AWAITING_CHECKOUT_CONFIRMATION"
     await engine.close()
 
 
@@ -359,106 +375,6 @@ async def test_real_model_presents_recipe_and_extras_choices_over_whatsapp_path(
     await engine.close()
 
 
-@pytest.mark.asyncio
-@pytest.mark.parametrize("request_text", [
-    "Make pizza ingredients under ₹1,000 and also add bread, Bournvita, tissues and a pencil",
-    "I want to make pizza. Keep the ingredients under ₹1,000, and add bread, Bournvita, tissues, and a pencil.",
-])
-async def test_pizza_ingredient_cap_keeps_extras_even_when_whole_basket_exceeds_cap(
-    postgres_pool, monkeypatch, request_text,
-):
-    commerce = MockCommerceAdapter()
-    state_store = PostgresTaskStateStore(postgres_pool, Fernet.generate_key().decode())
-    engine = GroceryAgentEngine(commerce, gemini_api_key="local-test", state_store=state_store)
-    calls = 0
-
-    async def model_reply(_history, **_kwargs):
-        nonlocal calls
-        calls += 1
-        if calls == 1:
-            return {"candidates": [{"content": {"parts": [{"functionCall": {
-                "name": "manage_basket", "args": {"add": [
-                    {"query": "olive oil", "quantity": 2},
-                    {"query": "mozzarella", "quantity": 2},
-                    {"query": "tomato", "quantity": 4},
-                    {"query": "bread", "quantity": 5},
-                    {"query": "Bournvita"}, {"query": "tissues"}, {"query": "pencil"},
-                ]},
-            }}]}}]}
-        return None
-
-    engine._call_llm = model_reply  # external model boundary
-    app = create_app()
-    app.state.agent_engine = engine
-    store = PostgresMessageStore(postgres_pool)
-    app.state.message_store = store
-    monkeypatch.setattr(default_whatsapp_adapter, "_app_secret", "local-e2e-secret")
-    monkeypatch.setattr(default_whatsapp_adapter, "record_only", True)
-    default_whatsapp_adapter.outbound_messages.clear()
-    first_body, first_headers = _webhook(
-        "wamid.pizza-request",
-        request_text,
-    )
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://local-test") as client:
-        first = await client.post("/api/whatsapp/webhook", content=first_body, headers=first_headers)
-        assert first.status_code == 200
-        _, address_reply = await store.response_for_message("wamid.pizza-request")
-        assert address_reply.interactive_actions
-        choice = address_reply.interactive_actions[0]
-        choice_body, choice_headers = _interactive_webhook(
-            "wamid.pizza-address", choice.id, choice.title,
-        )
-        second = await client.post("/api/whatsapp/webhook", content=choice_body, headers=choice_headers)
-        assert second.status_code == 200
-        _, variant_reply = await store.response_for_message("wamid.pizza-address")
-        assert variant_reply.conversation_state == "NEEDS_DECISION"
-        variant_body, variant_headers = _webhook("wamid.pizza-variants", "2A 3A 4A 5A")
-        assert (await client.post("/api/whatsapp/webhook", content=variant_body, headers=variant_headers)).status_code == 200
-    _, reply = await store.response_for_message("wamid.pizza-variants")
-    customer_id = default_whatsapp_adapter.map_sender_to_customer_id("919999988888")
-    with commerce.customer_scope(customer_id):
-        cart = await commerce.get_cart()
-    by_id = {item.spin_id: item for item in cart.items}
-    pizza_ids = {"SPIN-OLIVEOIL-250ML", "SPIN-CHEESE-200G", "SPIN-TOMATO-500G"}
-    assert sum(by_id[spin].total_price for spin in pizza_ids if spin in by_id) <= 1000
-    assert "SPIN-OLIVEOIL-250ML" in by_id and "SPIN-CHEESE-200G" in by_id
-    assert "SPIN-TOMATO-500G" not in by_id
-    assert by_id["SPIN-BREAD-400G"].quantity == 5
-    assert cart.grand_total > 1000
-    assert "tomato" in reply.text.casefold()
-    assert "bournvita" in reply.text.casefold()
-    assert "tissue" in reply.text.casefold()
-    assert "pencil" in reply.text.casefold()
-    assert reply.conversation_state == "NEEDS_DECISION"
-
-    update_calls = 0
-
-    async def increase_ingredient(_history, **_kwargs):
-        nonlocal update_calls
-        update_calls += 1
-        if update_calls == 1:
-            return {"candidates": [{"content": {"parts": [{"functionCall": {
-                "name": "update_cart", "args": {"items": [{
-                    "spin_id": "SPIN-OLIVEOIL-250ML",
-                    "sku_id": "SPIN-OLIVEOIL-250ML",
-                    "quantity": 3,
-                }]},
-            }}]}}]}
-        return None
-
-    engine._call_llm = increase_ingredient
-    change_body, change_headers = _webhook("wamid.pizza-over-cap", "Increase olive oil to 3")
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://local-test") as client:
-        change = await client.post("/api/whatsapp/webhook", content=change_body, headers=change_headers)
-        assert change.status_code == 200
-    _, change_reply = await store.response_for_message("wamid.pizza-over-cap")
-    with commerce.customer_scope(customer_id):
-        unchanged = await commerce.get_cart()
-    assert next(item.quantity for item in unchanged.items if item.spin_id == "SPIN-OLIVEOIL-250ML") == 2
-    assert "limit" in change_reply.text.casefold() or "budget" in change_reply.text.casefold()
-    assert not any(action.id == "confirm_order" for action in change_reply.interactive_actions)
-
-
 from backend.tests.suites.budget_and_symptoms import (
     test_plain_language_rupee_cap_never_becomes_unreviewed_payable_overage,
     test_missing_requested_item_requires_review_before_checkout,
@@ -473,7 +389,6 @@ __all__ = [
     "test_long_list_checks_every_item_in_paced_batches",
     "test_catalog_rate_limit_stops_remaining_search_waves",
     "test_real_model_presents_recipe_and_extras_choices_over_whatsapp_path",
-    "test_pizza_ingredient_cap_keeps_extras_even_when_whole_basket_exceeds_cap",
     "test_plain_language_rupee_cap_never_becomes_unreviewed_payable_overage",
     "test_missing_requested_item_requires_review_before_checkout",
     "test_recipe_request_cannot_silently_omit_pizza_base",

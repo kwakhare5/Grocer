@@ -76,9 +76,6 @@ async def execute_preflight(
     budget_cap = await engine._read_budget_cap(incoming_text)
     if budget_cap is not None:
         session.budget_inr = float(budget_cap)
-        session.ingredient_budget_inr = None
-        session.ingredient_extras_text = None
-        session.ingredient_spin_ids.clear()
         logger.info("Captured whole-basket budget cap: ₹%.2f for %s", budget_cap, customer_id)
 
     norm_text = incoming_text.casefold().strip("!.? \t\n")
@@ -178,9 +175,6 @@ async def execute_preflight(
             session.known_cart_fingerprint = None
             session.external_cart_pending = False
             session.budget_inr = None
-            session.ingredient_budget_inr = None
-            session.ingredient_extras_text = None
-            session.ingredient_spin_ids.clear()
             session.pending_cart_clear = None
             session.pending_approval = None
             engine.reset_customer_order_address(customer_id)

@@ -73,8 +73,8 @@ S2 Queue and workers: KEEP, fix one bug, add monitoring
 S3 Engine, state and locks: SIMPLIFY (A and B final, C confirmed after S4)
 - A: replace the long database lock with an in-process lock plus a short database claim that expires after 90 seconds, and a 60 second cap per turn.
 - B: one typed CustomerState saved and loaded whole. Delete the dict wrapper, the two leftover dicts, the copy-back, the dump and restore functions.
-  Keep: history, address, pending approval, cart fingerprint, budget, payment choice, pending_request_text (the "try again" memory), unresolved_items (blocks checkout when Swiggy changed or dropped items), budget_blocked_items (the "Keep These Items" step), ingredient budget and ids (recipe cap, both together).
-  Cut: pending_variant_selection, ingredient_extras_text, _pending_checkout and pending_clarification. The last 10 turns hold the open question. Before removing pending_clarification, inspect its dependencies and the existing answer-plus-original-request path. Report any behaviour that would be lost before deleting it; do not guess that history already replaces every use.
+  Keep: history, address, pending approval, cart fingerprint, budget, payment choice, pending_request_text (the "try again" memory), unresolved_items (blocks checkout when Swiggy changed or dropped items), budget_blocked_items (the "Keep These Items" step).
+  Cut: pending_variant_selection, ingredient budget, ingredient extras, _pending_checkout and pending_clarification. The last 10 turns hold the open question. Before removing pending_clarification, inspect its dependencies and the existing answer-plus-original-request path. Report any behaviour that would be lost before deleting it; do not guess that history already replaces every use.
   Keep the 30 minute reset that drops a pending approval (move it into the new state, do not delete it).
 - C: a small separate agent/loop.py owns the Gemini client, prompt and loop. Engine just calls it. Money gates stay in code inside the tools. No framework like LangGraph. Step cap 8.
 - History: last 10 user turns word for word (a judgment, not a sourced number), live cart and address re-added every turn, no summary calls, old tool results shortened to one line.
@@ -102,9 +102,9 @@ S6 Tools: one basket-write tool
 - Remove and change use the cart line id (Q16). The brain must read the cart first. Wrong id is rejected. Two identical lines: the brain asks which one (needs a test).
 - Weak point: the one write tool becomes the most important, so it gets the most tests.
 
-S7 Budget code: delete budget.py
-- budget.py (55 lines) is imported but never called. Delete it and its dead import. Keep set_budget as the only way in and keep the code checks (exact decimal compare against the real total, rollback if over).
-- Do it after the money tests exist. The budget cap is broken today (see section 7).
+S7 Budget code: clean budget.py
+- budget.py holds read_budget_cap (live, used by _read_budget_cap and preflight). Dead regex parsers (extract_total_budget, extract_ingredient_budget, is_explicit_extra) were deleted. Keep set_budget as the only way in and keep the code checks (exact decimal compare against the real total, rollback if over).
+- The budget cap code checks remain active.
 
 S8 Gemini connection and history: delete the salvage retry, fix the history
 - Delete the 400 "strip all tool parts and retry" hack in gemini.py. On a 400, stop the turn and use the existing "I saved your request, try again" path. Log the full error body.
@@ -222,17 +222,17 @@ D. State wrapper (S3), one careful commit
 - _pending_checkout, pending_variant_selection, ingredient_extras_text, pending_clarification. Check pending_clarification dependencies and preserve necessary clarification behaviour before removal.
 - The "last spoke" time: move it into the new state, do not delete (powers the 30 minute approval reset).
 
-E. Dead budget.py (S7), after the money tests are written.
+E. Dead budget regex in budget.py (S7): deleted regex parsers; kept read_budget_cap (live).
 
 F. Tools (S6): quick_add_items, update_cart, check_replenishment, once manage_basket handles cart line ids.
 
 G. Product ranker (S5): catalog_ranker.py and the word rules in tools.py. ONLY after the ranker experiment passes (section 8). Do not delete before.
 
-H. Search pacing (Q22): delete the fixed 2.8 second sleep in batch_search_products (backend/agent/tools.py). Keep searches in groups of 3. Rely on Swiggy's 429 handling (the code already waits Retry-After and stops the remaining groups). The sleep was written to pass a test, not from a Swiggy limit. Swiggy publishes no numbers: https://mcp.swiggy.com/builders/docs/operate/rate-limits.md. The "70 per minute" figure in your application doc is not in any current official page, treat as unverified. The earlier 2 to 7 second estimate for a 20-item list is unmeasured; verify speed after the change.
+H. Search pacing (Q22): fixed 2.8 second sleep in batch_search_products (backend/agent/tools.py) deleted. Searches kept in groups of 3. Rely on Swiggy's 429 handling (the code already waits Retry-After and stops the remaining groups). The sleep was written to pass a test, not from a Swiggy limit. Swiggy publishes no numbers: https://mcp.swiggy.com/builders/docs/operate/rate-limits.md. The "70 per minute" figure in your application doc is not in any current official page, treat as unverified.
 
 I. Repo files: "Grocer Audit.md" now. README and spec rewrites last (S12).
 
-Do NOT delete (I was wrong earlier): pending_request_text, unresolved_items, budget_blocked_items, ingredient budget and ids (only together, only if you drop that feature).
+Do NOT delete (I was wrong earlier): pending_request_text, unresolved_items, budget_blocked_items.
 
 No temporary patch: the existing fast-path deletion plan addresses "don't clear my cart". This decision is closed.
 

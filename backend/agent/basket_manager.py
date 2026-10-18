@@ -22,9 +22,6 @@ async def execute_manage_basket(
     current_cart: Optional[CommerceCart] = None,
     delivery_location: str = "Home",
     budget_cap_inr: Optional[float] = None,
-    ingredient_budget_inr: Optional[float] = None,
-    ingredient_extras_text: str = "",
-    ingredient_spin_ids: Optional[list[str]] = None,
 ) -> dict[str, Any]:
     """Atomically manage Swiggy Instamart basket: add items, remove items, or adjust quantities in a single turn."""
     if not address_id:
@@ -202,9 +199,6 @@ async def execute_manage_basket(
             expected_cart_state=expected_cart_state,
             delivery_location=delivery_location,
             budget_cap_inr=budget_cap_inr,
-            ingredient_budget_inr=ingredient_budget_inr,
-            ingredient_extras_text=ingredient_extras_text,
-            ingredient_spin_ids=ingredient_spin_ids,
             extra_updates=extra_updates,
         )
         if not mutation.get("success"):

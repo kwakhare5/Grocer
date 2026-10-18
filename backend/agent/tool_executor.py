@@ -86,14 +86,9 @@ async def execute_engine_tool(
             current_cart=current_cart,
             delivery_location=loc,
             budget_cap_inr=session.budget_inr,
-            ingredient_budget_inr=session.ingredient_budget_inr,
-            ingredient_extras_text=session.ingredient_extras_text or "",
-            ingredient_spin_ids=session.ingredient_spin_ids,
         )
         if result.get("verified_fingerprint"):
             session.known_cart_fingerprint = result["verified_fingerprint"]
-        if result.get("ingredient_spin_ids"):
-            session.ingredient_spin_ids = result["ingredient_spin_ids"]
         return result
     elif name == "clear_cart":
         session = engine.get_session(customer_id)
@@ -155,17 +150,6 @@ async def execute_engine_tool(
                 "retryable": False,
                 "message": "Your basket or total changed. Please review it again.",
             }
-        if sess.ingredient_budget_inr is not None:
-            ingredient_total = sum(
-                item.total_price for item in cart.items if item.spin_id in sess.ingredient_spin_ids
-            )
-            if ingredient_total > sess.ingredient_budget_inr:
-                return {
-                    "success": False,
-                    "error": "INGREDIENT_BUDGET_EXCEEDED",
-                    "retryable": False,
-                    "message": "Recipe ingredients exceed the agreed price limit. Please review the basket.",
-                }
         attempt_id = None
         if settings.CHECKOUT_MODE == "live":
             if engine.attempt_store is None:
@@ -228,8 +212,5 @@ async def execute_engine_tool(
         if not isinstance(amount, (int, float)) or amount <= 0:
             return {"success": False, "error": "Invalid budget amount"}
         session.budget_inr = float(amount)
-        session.ingredient_budget_inr = None
-        session.ingredient_extras_text = None
-        session.ingredient_spin_ids.clear()
         return {"success": True, "budget_inr": amount, "message": f"Budget set to ₹{amount}"}
     return {"error": f"Unknown tool: {name}"}

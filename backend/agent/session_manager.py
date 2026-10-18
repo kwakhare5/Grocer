@@ -132,9 +132,6 @@ def restore_task_state_dict(
         awaiting_address_choice=state.get("awaiting_address_choice"),
         last_active_ts=float(state.get("last_active_ts") or 0.0),
         budget_inr=state.get("budget_inr"),
-        ingredient_budget_inr=state.get("ingredient_budget_inr"),
-        ingredient_extras_text=state.get("ingredient_extras_text"),
-        ingredient_spin_ids=state.get("ingredient_spin_ids") or [],
         pending_approval=PendingApproval(**approval) if approval else None,
         pending_cart_clear=PendingApproval(**cart_clear) if cart_clear else None,
         unresolved_items=state.get("unresolved_items") or [],
@@ -172,9 +169,6 @@ def dump_task_state_dict(
         "awaiting_address_choice": awaiting_address_choice,
         "last_active_ts": last_active_ts,
         "budget_inr": session.budget_inr,
-        "ingredient_budget_inr": session.ingredient_budget_inr,
-        "ingredient_extras_text": session.ingredient_extras_text,
-        "ingredient_spin_ids": session.ingredient_spin_ids,
         "pending_approval": (
             {
                 "fingerprint": approval.fingerprint,

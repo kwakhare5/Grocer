@@ -440,22 +440,6 @@ def test_matches_requested_product_relaxed_for_common_descriptors():
     assert _matches_requested_product("egg", eggless) is False
 
 
-def test_budget_negative_lookahead_handles_grams_and_volume_units():
-    from backend.agent.budget import extract_total_budget
-    # Unit weights must not be parsed as budget caps
-    assert extract_total_budget("under 500 grams of paneer") is None
-    assert extract_total_budget("under 500 gms of paneer") is None
-    assert extract_total_budget("below 250 ml milk") is None
-
-    # Plain number and genuine rupee budgets must be extracted
-    assert extract_total_budget("under 80") == 80.0
-    assert extract_total_budget("within 180") == 180.0
-    assert extract_total_budget("at most 100") == 100.0
-    assert extract_total_budget("under 500 rupees") == 500.0
-    assert extract_total_budget("under ₹500") == 500.0
-    assert extract_total_budget("under Rs 350 for all items") == 350.0
-
-
 def test_address_resolver_avoids_false_positives_on_shopping_verbs():
     from backend.agent.address_resolver import match_explicit_address
     addresses = [
@@ -925,7 +909,6 @@ async def test_reply_cannot_claim_item_added_when_manage_basket_did_not_add():
 
     engine = MagicMock()
     session = MagicMock()
-    session.ingredient_budget_inr = None
     session.budget_blocked_items = []
     session.pending_approval = None
     session.pending_cart_clear = None

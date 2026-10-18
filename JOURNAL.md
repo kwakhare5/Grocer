@@ -17,6 +17,13 @@ During the Session End ritual (called automatically whenever significant changes
 
 ### [GROCER — Whole-Basket Spending Cap Protection via Native Gemini Flash-Lite] 2026-10-18
 
+#### Work Card: Delete Scoped Ingredient Budget, Dead Budget Regex, and Search Sleep (Slice B2)
+
+- **Problem**: Dead regex budget parsers and unused scoped ingredient budget fields/gates cluttered codebase; fixed 2.8s artificial sleep slowed parallel catalog search.
+- **Change**: Deleted `extract_total_budget`, `extract_ingredient_budget`, `is_explicit_extra` from `budget.py` (retained live `read_budget_cap`); removed `session.ingredient_*` fields across session, session_manager, preflight_handler, tool_executor, response_synthesizer, cart_actions, basket_manager, and tools; deleted artificial 2.8s sleep in `batch_search_products` (kept wave batching of 3); rewrote `test_long_list_checks_every_item_in_paced_batches` to assert 3 groups of 3 with all 9 results added; deleted 2 `test_pizza_ingredient_cap` test cases and 1 budget regex invariant test; updated `GROCER_REDESIGN.md`.
+- **Proof**: `test_long_list_checks_every_item_in_paced_batches` and `test_catalog_rate_limit_stops_remaining_search_waves` passed; `grep` for deleted symbols returned zero hits in `backend/`; full pytest ran with 85 passed, 36 failed (38 minus 2 deleted tests, 0 regressions); `git diff --check` exits 0.
+- **Still broken**: None in scope. 36 pre-existing suite failures across unmigrated redesign slice tests remain unchanged.
+
 #### Work Card: Suppress Receipt and Confirm Button on All Checkout Outcomes Except Confirmation-Required (Slice 6d)
 
 - **Problem**: is_checkout_turn only listed 4 placed states; other real checkout outcomes (REVIEW_COMPLETE, FAILED, RECOVERING, NEEDS_DECISION) appended receipts and issued fresh confirm buttons if get_cart was called in the same turn.

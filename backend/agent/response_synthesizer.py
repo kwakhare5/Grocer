@@ -149,23 +149,6 @@ async def synthesize_turn_response(
         session.budget_blocked_items = blocked + unavailable + reduced
         session.pending_approval = None
         receipt = last_cart_receipt or "Your basket is empty."
-        scoped_note = ""
-        if session.ingredient_budget_inr is not None:
-            try:
-                current_cart = await engine.commerce.get_cart()
-            except Exception:
-                current_cart = None
-            if current_cart:
-                ingredient_total = sum(
-                    item.total_price
-                    for item in current_cart.items
-                    if item.spin_id in session.ingredient_spin_ids
-                )
-                scoped_note = (
-                    f"Ingredient items: ₹{ingredient_total:,.2f} of "
-                    f"₹{session.ingredient_budget_inr:,.2f}. "
-                    "Extras and shared fees are outside that limit; the full payable total is below. "
-                )
         has_items_in_basket = bool(last_cart_receipt and "Your Basket is empty" not in last_cart_receipt and last_cart_total)
         if has_items_in_basket:
             basket_followup = (
@@ -190,18 +173,11 @@ async def synthesize_turn_response(
 
         intro_parts = []
         if blocked:
-            prefix = (
-                "These recipe ingredients did not fit your ingredient-price limit: "
-                if session.ingredient_budget_inr is not None
-                else "These requested items did not fit your budget: "
-            )
-            intro_parts.append(f"{prefix}{', '.join(blocked)}.")
+            intro_parts.append(f"These requested items did not fit your budget: {', '.join(blocked)}.")
         if unavailable:
             intro_parts.append(f"These requested items were unavailable on Swiggy: {', '.join(unavailable)}.")
         if reduced:
             intro_parts.append(f"Swiggy reduced these quantities: {', '.join(reduced)}.")
-        if scoped_note:
-            intro_parts.append(scoped_note.strip())
 
         final_text = "\n\n".join(intro_parts + [basket_followup]).strip()
 

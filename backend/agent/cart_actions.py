@@ -6,7 +6,6 @@ from decimal import Decimal
 from typing import Any, Optional
 
 from backend.agent.approval import cart_fingerprint
-from backend.agent.budget import is_explicit_extra
 from backend.agent.formatters import _format_inr, format_cart_receipt
 from backend.integrations.commerce.exceptions import (
     CartExpiredError,
@@ -51,8 +50,6 @@ async def _write_cart_items(
     items: list[dict[str, Any]],
     address_id: str,
     delivery_location: str = "Home",
-    ingredient_budget_inr: Optional[float] = None,
-    ingredient_spin_ids: list[str] | None = None,
     expected_cart_state: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Internal helper to write merged item updates directly to Swiggy Instamart cart."""
@@ -114,15 +111,6 @@ async def _write_cart_items(
                 "message": "I couldn't read the current basket, so I didn't change it.",
             }
 
-        if ingredient_budget_inr is not None:
-            existing_spins = {item.spin_id for item in existing_cart.items}
-            if any(item["quantity"] > 0 and item["spin_id"] not in existing_spins for item in items):
-                return {
-                    "success": False,
-                    "error": "SCOPED_BUDGET_USE_SEARCH",
-                    "retryable": False,
-                    "message": "I need to search new items so I can keep the ingredient limit accurate.",
-                }
 
         for it in items:
             spin = str(it["spin_id"])
@@ -147,24 +135,6 @@ async def _write_cart_items(
                 "error": "CART_WRITE_UNVERIFIED",
                 "retryable": False,
                 "message": "Swiggy may have changed your basket, but I couldn't verify it. Please show your basket before trying again.",
-            }
-        if ingredient_budget_inr is not None and sum(
-            Decimal(str(item.total_price))
-            for item in verified.items
-            if item.spin_id in (ingredient_spin_ids or [])
-        ) > Decimal(str(ingredient_budget_inr)):
-            if not await execute_restore_cart(tools.commerce, existing_cart, verified, address_id):
-                return {
-                    "success": False,
-                    "error": "BUDGET_ROLLBACK_UNVERIFIED",
-                    "retryable": False,
-                    "message": "I couldn't verify the basket after a budget check. Please review it before ordering.",
-                }
-            return {
-                "success": False,
-                "error": "INGREDIENT_BUDGET_EXCEEDED",
-                "retryable": False,
-                "message": "That change exceeds your ingredient-price limit. I kept the previous basket.",
             }
         actual_by_spin = {item.spin_id: item for item in verified.items}
         unresolved_items = []
@@ -272,18 +242,10 @@ async def execute_add_selected_variants(
     expected_cart_state: dict[str, Any],
     delivery_location: str = "Home",
     budget_cap_inr: float | None = None,
-    ingredient_budget_inr: float | None = None,
-    ingredient_extras_text: str = "",
-    ingredient_spin_ids: list[str] | None = None,
     extra_updates: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Apply customer-chosen, freshly verified SKUs and extra updates in one atomic cart update."""
     existing_by_spin = {item.spin_id: item for item in current_cart.items}
-    ingredient_ids = set(ingredient_spin_ids or [])
-    ingredient_total = sum(
-        (Decimal(str(item.total_price)) for item in current_cart.items if item.spin_id in ingredient_ids),
-        Decimal(0),
-    )
     predicted_total = Decimal(str(current_cart.grand_total))
     accepted: list[dict[str, Any]] = []
     blocked: list[str] = []
@@ -309,26 +271,11 @@ async def execute_add_selected_variants(
         unit_price = Decimal(str(option["price"]))
         delta = unit_price * quantity
 
-        is_ingredient = ingredient_budget_inr is not None and not is_explicit_extra(
-            query, ingredient_extras_text,
-        )
-        proposed_ingredient_total = (
-            ingredient_total + delta
-            if is_ingredient
-            else ingredient_total
-        )
-        if (budget_cap_inr is not None and predicted_total + delta > Decimal(str(budget_cap_inr))) or (
-            ingredient_budget_inr is not None
-            and is_ingredient
-            and proposed_ingredient_total > Decimal(str(ingredient_budget_inr))
-        ):
+        if budget_cap_inr is not None and predicted_total + delta > Decimal(str(budget_cap_inr)):
             blocked.append(query)
             continue
         accepted.append({"spin_id": spin, "sku_id": option["sku_id"], "quantity": final_quantity})
         predicted_total += delta
-        ingredient_total = proposed_ingredient_total
-        if is_ingredient:
-            ingredient_ids.add(spin)
     if extra_updates:
         for u in extra_updates:
             spin = u["spin_id"]
@@ -376,16 +323,9 @@ async def execute_add_selected_variants(
                 + result.get("formatted_receipt", "")
             )
         return result
-    actual_ingredient_total = sum(
-        (Decimal(str(item["total_price"])) for item in result["items"] if item["spin_id"] in ingredient_ids),
-        Decimal(0),
-    )
     over_limit = (
         budget_cap_inr is not None
         and Decimal(str(result["grand_total"])) > Decimal(str(budget_cap_inr))
-    ) or (
-        ingredient_budget_inr is not None
-        and actual_ingredient_total > Decimal(str(ingredient_budget_inr))
     )
     if over_limit:
         try:
@@ -404,6 +344,5 @@ async def execute_add_selected_variants(
             "budget_blocked_items": blocked,
         }
     result["budget_blocked_items"] = blocked
-    result["ingredient_spin_ids"] = list(ingredient_ids)
     result["added_items"] = [item["option"]["name"] for item in selected if item["query"] not in blocked]
     return result

@@ -29,6 +29,13 @@ During the Session End ritual (called automatically whenever significant changes
 - **Proof**: `test_planning_clarification_reaches_customer_without_false_cart_claim` passed; `pytest backend/tests/test_invariants.py` passed 33/33 (1.46s); `npm run lint` exited 0 with no lint errors.
 - **Still broken**: None in scope. Pre-existing recipe repair and address disambiguation tests in uncompleted slices require their respective repairs.
 
+#### Work Card: Removed check_replenishment Tool (Retirement Step 1)
+
+- **Problem**: The assistant exposed `check_replenishment` in its tool declarations and executor, keeping an active path for a feature slated for retirement.
+- **Change**: Deleted the `check_replenishment` tool schema from `backend/agent/schemas.py` and its execution branch from `backend/agent/tool_executor.py`.
+- **Proof**: `python -c "from backend.main import create_app; create_app()"` exited 0; `pytest backend/tests/test_invariants.py` passed 33/33 (1.71s); `backend/` search for `check_replenishment` returned zero hits; test suites matched baseline results (11 passed, 12 pre-existing failures).
+- **Still broken**: None in scope. Pre-existing recipe repair, greeting, and address disambiguation failures in uncompleted slices remain unchanged.
+
 ### [GROCER — Audit Fixes: Cart Writes Unblocked, Devanagari Passthrough & Model Budget Tool] 2026-10-17
 
 #### Work Card: Resolution of Audit Issues Across Tool Execution, Sanitization, and Budget Control

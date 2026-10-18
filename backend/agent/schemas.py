@@ -201,15 +201,6 @@ RAW_TOOL_DECLARATIONS = [
         },
     },
     {
-        "name": "check_replenishment",
-        "description": "Check what recurring grocery staples (e.g. milk, eggs, bread) may be running low for this household based on consented past Swiggy purchase history.",
-        "parameters": {
-            "type": "object",
-            "properties": {},
-            "required": [],
-        },
-    },
-    {
         "name": "set_budget",
         "description": "Set the customer's maximum spending limit for this order. Call this when the customer mentions a budget, spending limit, or says they only have a certain amount of money.",
         "parameters": {

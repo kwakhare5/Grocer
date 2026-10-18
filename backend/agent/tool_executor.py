@@ -299,34 +299,6 @@ async def execute_engine_tool(
             return fallback
     elif name == "track_order":
         return await engine.tools.track_order(args.get("order_id", ""))
-    elif name == "check_replenishment":
-        if getattr(engine, "replenishment_store", None) is None:
-            return {"success": False, "message": "Household replenishment is not configured."}
-        try:
-            rep_store = engine.replenishment_store
-            state = await rep_store._load(customer_id)
-            if state is None:
-                return {
-                    "success": False,
-                    "opted_in": False,
-                    "message": "Household reminders are currently off. You can opt in anytime by asking to turn on grocery reminders.",
-                }
-            await rep_store._sync_orders(customer_id, engine.commerce)
-            state = await rep_store._load(customer_id) or state
-            due = rep_store._due_items(state)
-            return {
-                "success": True,
-                "opted_in": True,
-                "due_items": due,
-                "message": (
-                    f"Based on your past purchase intervals, you may be running low on: {', '.join(due[:5])}."
-                    if due
-                    else "All recurring essentials look well-stocked based on past delivery intervals."
-                ),
-            }
-        except Exception as exc:
-            logger.warning("check_replenishment failed for customer=%s: %s", customer_id, exc)
-            return {"success": False, "error": str(exc), "message": "Could not check replenishment right now."}
     elif name == "set_budget":
         amount = args.get("amount_inr")
         if not isinstance(amount, (int, float)) or amount <= 0:

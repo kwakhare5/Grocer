@@ -3,8 +3,7 @@ from __future__ import annotations
 
 import logging
 import time
-from collections.abc import Awaitable, Callable
-from typing import Any, Optional, TypeVar
+from typing import Any, Optional
 
 from backend.agent.approval import cart_fingerprint
 from backend.agent.session_manager import record_pending_cart_clear
@@ -13,28 +12,6 @@ from backend.integrations.commerce.exceptions import ProviderAuthError, Provider
 from backend.integrations.commerce.models import CommerceCart
 
 logger = logging.getLogger("grocer.agent.tool_executor")
-
-T = TypeVar("T")
-
-
-async def execute_tool_calls(
-    calls: list[dict[str, Any]], execute: Callable[[dict[str, Any]], Awaitable[T]]
-) -> list[T]:
-    """Execute tool calls sequentially in model order without race conditions."""
-    results: list[T] = []
-    for call in calls:
-        try:
-            results.append(await execute(call))
-        except Exception as exc:
-            tool_name = call.get("name", "unknown")
-            logger.warning("Tool execution error for %s: %s", tool_name, exc)
-            results.append({  # type: ignore[arg-type]
-                "success": False,
-                "error": "TOOL_EXECUTION_ERROR",
-                "tool": tool_name,
-                "message": f"Tool {tool_name} failed: {exc}",
-            })
-    return results
 
 
 async def execute_engine_tool(

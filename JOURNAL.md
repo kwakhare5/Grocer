@@ -17,6 +17,13 @@ During the Session End ritual (called automatically whenever significant changes
 
 ### [GROCER — Whole-Basket Spending Cap Protection via Native Gemini Flash-Lite] 2026-10-18
 
+#### Work Card: Loop Behaviour Fixes, Turn Caps, and Resume from Saved Request (Slice 7c)
+
+- **Problem**: React loop was bounded by local 3-step iteration limit with no turn elapsed time cap, and interrupted turns could not pass saved context cleanly to the model on resumption without hardcoded keyword matching.
+- **Change**: Replaced local loop count with module constant `MAX_TOOL_STEPS = 8` and added `TURN_TIME_LIMIT_SECONDS = 60` with patchable clock `_now()`; injected saved `pending_request_text` as model input note on turn resume without storing in history or using keyword regex and cleared it on completion; removed dead condition `not result.get("groups")` in `react_coordinator.py`; deleted dead `execute_tool_calls` in `tool_executor.py` and its invariant test; added `test_slice_7c.py` (4 tests).
+- **Proof**: `test_slice_7c.py` passed 4/4; `test_invariants.py` passed 27/27; full pytest ran with 91 passed, 34 failed (exact same 34 failures as Slice 7b); `git diff --check` exits 0.
+- **Still broken**: None in scope. 34 pre-existing suite failures across unmigrated redesign slice tests remain.
+
 #### Work Card: Remove Dict Views, Session Is the Single State (Slice 7b)
 
 - **Problem**: `GroceryAgentEngine` kept shadow dictionary views (`_SessionDictView`, `_customer_address`, `_customer_address_label`, `_order_address_confirmed`, `_awaiting_address_choice`, `_history`, `_last_interaction_time`) alongside atomic `CustomerSession` objects, creating duplicate state synchronization and scattered call sites.

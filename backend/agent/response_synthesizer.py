@@ -301,10 +301,10 @@ async def synthesize_turn_response(
         ]
 
     if (
-        last_cart_receipt
-        and not session.unresolved_items
+        not step_limit_reached
         and not pending_request_needs_retry
         and not search_failed_items
+        and conv_state != "RECOVERING"
     ):
         session.pending_request_text = None
 

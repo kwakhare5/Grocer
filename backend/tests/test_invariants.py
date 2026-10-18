@@ -220,27 +220,6 @@ def test_get_commerce_adapter_reuses_swiggy_singleton():
         settings.COMMERCE_ADAPTER_TYPE = orig_type
 
 
-@pytest.mark.asyncio
-async def test_tool_scheduler_survives_partial_read_failure():
-    """Fault-tolerant tool scheduler must not crash entire batch when an optional read tool throws."""
-    from backend.agent.tool_executor import execute_tool_calls
-
-    async def mock_execute(call):
-        if call.get("name") == "get_saved_addresses":
-            raise RuntimeError("Provider network timeout")
-        return {"status": "ok", "tool": call.get("name")}
-
-    calls = [
-        {"name": "get_saved_addresses", "args": {}},
-        {"name": "get_cart", "args": {}},
-    ]
-    results = await execute_tool_calls(calls, mock_execute)
-    assert len(results) == 2, f"Expected 2 results but got {len(results)}"
-    # First result should capture the error gracefully rather than crashing the loop
-    assert results[0].get("success") is False or "error" in results[0] or "exception" in results[0]
-    assert results[1].get("status") == "ok"
-
-
 def test_inbound_burst_message_concatenation():
     """Rapid bursts from the same customer must be concatenated into a unified prompt."""
     from backend.channels.models import NormalizedIncomingMessage

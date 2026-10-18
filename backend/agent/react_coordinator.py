@@ -18,6 +18,13 @@ from backend.integrations.commerce.models import CommerceCart
 
 logger = logging.getLogger("grocer.agent.react_coordinator")
 
+MAX_TOOL_STEPS = 8
+TURN_TIME_LIMIT_SECONDS = 60
+
+
+def _now() -> float:
+    return time.monotonic()
+
 
 @dataclass
 class ReactLoopResult:
@@ -62,6 +69,12 @@ async def execute_react_turn_loop(
     session = engine.get_session(customer_id)
     history = session.history
 
+    saved_request = session.pending_request_text
+    extra_context_note = (
+        f"Saved unfinished request from earlier: {saved_request}. "
+        "If the customer's new message asks to continue or retry, resume it. Otherwise ignore this note."
+    ) if saved_request and not incoming_text.startswith(saved_request) else None
+
     # Append user message
     history.append({
         "role": "user",
@@ -69,7 +82,6 @@ async def execute_react_turn_loop(
         "recorded_at": time.time(),
     })
 
-    max_iterations = 3
     final_text = ""
     actions: list[InteractiveAction] = []
     checkout_executed = False
@@ -89,9 +101,29 @@ async def execute_react_turn_loop(
     reduced_items: list[str] = []
     guarded_change_message: str | None = None
 
-    for step_idx in range(1, max_iterations + 1):
+    start_time = _now()
+    for step_idx in range(1, MAX_TOOL_STEPS + 2):
+        if step_idx > MAX_TOOL_STEPS or (_now() - start_time > TURN_TIME_LIMIT_SECONDS):
+            step_limit_reached = True
+            session.pending_request_text = planning_request_text
+            final_text = "I couldn't finish checking those items. Please tell me which specific item you'd like me to search next."
+            break
+
+        if extra_context_note:
+            model_contents = []
+            for entry in history:
+                if entry.get("role") == "user" and entry.get("parts") and entry["parts"][0].get("text") == incoming_text:
+                    model_contents.append({
+                        **entry,
+                        "parts": [{"text": f"{extra_context_note}\n\n{incoming_text}"}],
+                    })
+                else:
+                    model_contents.append(entry)
+        else:
+            model_contents = history
+
         response_data = await engine._call_llm(
-            history,
+            model_contents,
             address_id=address_id,
             address_label=addr_lbl,
             cart=current_cart,
@@ -134,6 +166,7 @@ async def execute_react_turn_loop(
                     "parts": parts,
                     "recorded_at": time.time(),
                 })
+                session.pending_request_text = None
                 break
             final_text = "I couldn't process that request right now. Please tell me what you'd like to do."
             break
@@ -234,7 +267,7 @@ async def execute_react_turn_loop(
             result = part.get("response", {}).get("content", {})
             if part.get("name") != "manage_basket" or not isinstance(result, dict):
                 continue
-            if not suggestion_only and result.get("success") and not result.get("formatted_receipt") and not result.get("groups"):
+            if not suggestion_only and result.get("success") and not result.get("formatted_receipt"):
                 missing = result.get("unavailable_items", []) + result.get("restricted_items", [])
                 if missing:
                     session.pending_request_text = None
@@ -299,16 +332,9 @@ async def execute_react_turn_loop(
             auth_resp = await engine._auth_expired_response(message)
             return ReactLoopResult(early_response=auth_resp)
 
-        if step_idx == max_iterations:
-            step_limit_reached = True
-
         if last_cart_receipt:
             session.pending_request_text = None
             final_text = ""
-            break
-        elif step_idx >= max_iterations:
-            final_text = "I couldn't finish checking those items. Please tell me which specific item you'd like me to search next."
-            session.pending_request_text = planning_request_text
             break
 
     (

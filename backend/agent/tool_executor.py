@@ -56,11 +56,11 @@ async def execute_engine_tool(
         session.pending_approval = None
         res = await engine.tools.select_delivery_address(customer_id, args.get("address_id", ""))
         if res.get("success") and res.get("address_id"):
-            engine._customer_address[customer_id] = res["address_id"]
-            engine._customer_address_label[customer_id] = (
+            session.address_id = res["address_id"]
+            session.address_label = (
                 res.get("clean_address") or res.get("label") or "Selected Address"
             )
-            engine._order_address_confirmed[customer_id] = True
+            session.order_address_confirmed = True
         return res
     elif name == "get_go_to_items":
         addr = args.get("address_id") or address_id
@@ -72,12 +72,12 @@ async def execute_engine_tool(
         addr = args.get("address_id") or address_id
         return await engine.tools.batch_search_products(args.get("queries", []), address_id=addr)
     elif name == "get_cart":
-        loc = engine._customer_address_label.get(customer_id, "Home")
+        loc = session.address_label or "Home"
         return await engine.tools.get_cart(delivery_location=loc)
     elif name == "manage_basket":
         session = engine.get_session(customer_id)
         session.pending_approval = None
-        loc = engine._customer_address_label.get(customer_id, "Home")
+        loc = session.address_label or "Home"
         result = await engine.tools.manage_basket(
             address_id=args.get("address_id") or address_id or "",
             add=args.get("add"),
@@ -97,8 +97,7 @@ async def execute_engine_tool(
         except Exception:
             cart = None
         address_id = (
-            engine._customer_address.get(customer_id)
-            or (session.address_id if session else None)
+            session.address_id
             or (cart.address_id if cart else None)
             or ""
         )

@@ -405,9 +405,10 @@ async def test_search_rate_limit_stops_model_loop_without_retrying_mcp(postgres_
 
     commerce._client._client = AsyncClient(transport=MockTransport(swiggy_boundary))
     engine = GroceryAgentEngine(commerce, gemini_api_key="local-test")
-    engine._customer_address[customer_id] = "addr-selected"
-    engine._customer_address_label[customer_id] = "Selected address"
-    engine._order_address_confirmed[customer_id] = True
+    session = engine.get_session(customer_id)
+    session.address_id = "addr-selected"
+    session.address_label = "Selected address"
+    session.order_address_confirmed = True
     model_calls = 0
 
     async def one_search(_history, **_kwargs):

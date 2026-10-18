@@ -51,6 +51,7 @@ def process_checkout_outcome(
     out_order_total: float | None = None
     out_bridge_url: str | None = None
     conv_state = "READY"
+    session = engine.get_session(customer_id) if hasattr(engine, "get_session") else None
     if pending_request_needs_retry:
         conv_state = "NEEDS_DECISION"
 
@@ -59,12 +60,11 @@ def process_checkout_outcome(
             if checkout_result.get("error") == "CONFIRMATION_REQUIRED":
                 conv_state = "AWAITING_CHECKOUT_CONFIRMATION"
                 token = ""
-                session = engine.get_session(customer_id) if hasattr(engine, "get_session") else None
                 if session and getattr(session, "pending_approval", None) and session.pending_approval.token:
                     token = session.pending_approval.token
                 elif engine and current_cart and hasattr(engine, "_record_pending_approval"):
                     target_addr = (
-                        getattr(engine, "_customer_address", {}).get(customer_id)
+                        (session.address_id if session else None)
                         or (current_cart.address_id if current_cart else None)
                         or addr_lbl
                         or ""
@@ -142,19 +142,15 @@ def process_checkout_outcome(
                 )
             elif status == "PAYMENT_PENDING":
                 conv_state = "AWAITING_PAYMENT"
-                if hasattr(engine, "_order_address_confirmed"):
-                    engine._order_address_confirmed.pop(customer_id, None)
-                    engine._customer_address.pop(customer_id, None)
-                    engine._customer_address_label.pop(customer_id, None)
+                if session is not None:
+                    session.reset_order_address()
                 code_text = order_message(checkout_result)
                 extra = final_text.strip()
                 final_text = f"{code_text}\n\n{extra}" if extra else code_text
             elif status == "ORDER_PLACED":
                 conv_state = "ORDER_PLACED"
-                if hasattr(engine, "_order_address_confirmed"):
-                    engine._order_address_confirmed.pop(customer_id, None)
-                    engine._customer_address.pop(customer_id, None)
-                    engine._customer_address_label.pop(customer_id, None)
+                if session is not None:
+                    session.reset_order_address()
                 final_text = order_message(checkout_result)
             else:
                 conv_state = "READY"

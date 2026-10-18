@@ -52,7 +52,7 @@ async def synthesize_turn_response(
 ) -> NormalizedOutgoingResponse:
     """Build and format the final NormalizedOutgoingResponse for WhatsApp."""
     session = engine.get_session(customer_id)
-    history = engine.get_history(customer_id)
+    history = session.history
     is_checkout_turn = (
         checkout_executed
         and conv_state != "AWAITING_CHECKOUT_CONFIRMATION"
@@ -215,7 +215,7 @@ async def synthesize_turn_response(
                 reviewed_cart = await engine.commerce.get_cart()
             except Exception:
                 reviewed_cart = None
-            approved_address = engine._customer_address.get(customer_id) or (
+            approved_address = session.address_id or (
                 reviewed_cart.address_id if reviewed_cart else None
             )
             if reviewed_cart and not reviewed_cart.address_id and approved_address:
@@ -228,7 +228,7 @@ async def synthesize_turn_response(
             )
 
             if not approval_ok:
-                engine.get_session(customer_id).pending_approval = None
+                session.pending_approval = None
                 actions = [action for action in actions if action.id != "confirm_order" and not action.id.startswith("confirm_order:")]
                 if user_confirmed:
                     conv_state = "NEEDS_DECISION"
@@ -248,7 +248,7 @@ async def synthesize_turn_response(
                     for action in actions
                 ]
                 receipt = format_cart_receipt(
-                    reviewed_cart, engine._customer_address_label.get(customer_id) or approved_address
+                    reviewed_cart, session.address_label or approved_address
                 )
                 basket_pattern = r"🛒\s*\*?Your Basket.*"
                 if re.search(basket_pattern, final_text, flags=re.DOTALL | re.IGNORECASE):

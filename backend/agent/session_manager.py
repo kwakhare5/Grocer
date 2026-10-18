@@ -100,27 +100,10 @@ def prune_history_entries(
 def restore_task_state_dict(
     customer_id: str,
     state: dict[str, Any] | None,
-    customer_address: dict[str, str],
-    customer_address_label: dict[str, str],
-    order_address_confirmed: dict[str, bool],
-    awaiting_address_choice: dict[str, Any],
-    last_interaction_time: dict[str, float],
 ) -> tuple[CustomerSession, list[dict[str, Any]]]:
-    """Restore customer session and address lock mappings from persistent task state."""
+    """Restore customer session from persistent task state."""
     state = state or {}
     history = state.get("history") or []
-
-    for mapping, field in (
-        (customer_address, "address_id"),
-        (customer_address_label, "address_label"),
-        (order_address_confirmed, "order_address_confirmed"),
-        (awaiting_address_choice, "awaiting_address_choice"),
-        (last_interaction_time, "last_active_ts"),
-    ):
-        mapping.pop(customer_id, None)
-        if state.get(field) is not None:
-            mapping[customer_id] = state[field]
-
     approval = state.get("pending_approval")
     cart_clear = state.get("pending_cart_clear")
     session = CustomerSession(
@@ -147,25 +130,17 @@ def restore_task_state_dict(
     return session, history
 
 
-def dump_task_state_dict(
-    session: CustomerSession,
-    history: list[dict[str, Any]],
-    address_id: Optional[str],
-    address_label: Optional[str],
-    order_address_confirmed: bool,
-    awaiting_address_choice: Any,
-    last_active_ts: Optional[float],
-) -> dict[str, Any]:
+def dump_task_state_dict(session: CustomerSession) -> dict[str, Any]:
     """Serialize customer session state into JSON-safe dictionary for Postgres."""
     approval = session.pending_approval
     cart_clear = session.pending_cart_clear
     return {
-        "history": history,
-        "address_id": address_id,
-        "address_label": address_label,
-        "order_address_confirmed": order_address_confirmed,
-        "awaiting_address_choice": awaiting_address_choice,
-        "last_active_ts": last_active_ts,
+        "history": session.history or [],
+        "address_id": session.address_id,
+        "address_label": session.address_label,
+        "order_address_confirmed": session.order_address_confirmed,
+        "awaiting_address_choice": session.awaiting_address_choice,
+        "last_active_ts": session.last_active_ts,
         "budget_inr": session.budget_inr,
         "pending_approval": (
             {

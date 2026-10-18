@@ -21,10 +21,9 @@ def _make_dummy_engine(token: str = ""):
             expires_at=9999999999.0,
             token=token,
         )
+    session.address_id = "addr-1"
+    session.address_label = "Home"
     engine.get_session.return_value = session
-    engine._order_address_confirmed = {}
-    engine._customer_address = {"cust-123": "addr-1"}
-    engine._customer_address_label = {"cust-123": "Home"}
     return engine, session
 
 

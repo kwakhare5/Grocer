@@ -45,9 +45,10 @@ async def test_local_simulator_clear_failure_never_claims_empty_basket(postgres_
     sender = "919999988888"
     customer_id = default_whatsapp_adapter.map_sender_to_customer_id(sender)
     address_id = "addr-bandra-1"
-    engine._customer_address[customer_id] = address_id
-    engine._customer_address_label[customer_id] = "Home"
-    engine._order_address_confirmed[customer_id] = True
+    session = engine.get_session(customer_id)
+    session.address_id = address_id
+    session.address_label = "Home"
+    session.order_address_confirmed = True
 
     with commerce.customer_scope(customer_id):
         await commerce.update_cart(
@@ -81,9 +82,10 @@ async def test_preflight_resets_stale_clear_cart_ask_on_unrelated_turn():
     engine = GroceryAgentEngine(commerce, gemini_api_key="local-test")
     customer_id = "919999988888"
     address_id = "addr-bandra-1"
-    engine._customer_address[customer_id] = address_id
-    engine._customer_address_label[customer_id] = "Home"
-    engine._order_address_confirmed[customer_id] = True
+    session = engine.get_session(customer_id)
+    session.address_id = address_id
+    session.address_label = "Home"
+    session.order_address_confirmed = True
 
     with commerce.customer_scope(customer_id):
         await commerce.update_cart(
@@ -115,9 +117,10 @@ async def test_missing_known_fingerprint_clears_pending_approval_and_sets_extern
     engine = GroceryAgentEngine(commerce, gemini_api_key="local-test")
     customer_id = "919999988888"
     address_id = "addr-bandra-1"
-    engine._customer_address[customer_id] = address_id
-    engine._customer_address_label[customer_id] = "Home"
-    engine._order_address_confirmed[customer_id] = True
+    session = engine.get_session(customer_id)
+    session.address_id = address_id
+    session.address_label = "Home"
+    session.order_address_confirmed = True
 
     with commerce.customer_scope(customer_id):
         await commerce.update_cart(
@@ -268,11 +271,11 @@ async def test_confirmed_whatsapp_checkout_is_reconciled_and_notified_after_rest
             [CartItemUpdate(spin_id="SPIN-MILK-1L", sku_id="SPIN-MILK-1L", quantity=1)],
             address_id="addr-bandra-1",
         )
-    engine._customer_address[customer_id] = "addr-bandra-1"
-    engine._customer_address_label[customer_id] = "Home"
-    engine._order_address_confirmed[customer_id] = True
-    assert engine._record_pending_approval(customer_id, cart, "addr-bandra-1")
     session = engine.get_session(customer_id)
+    session.address_id = "addr-bandra-1"
+    session.address_label = "Home"
+    session.order_address_confirmed = True
+    assert engine._record_pending_approval(customer_id, cart, "addr-bandra-1")
     session.selected_payment_id = "upi-app-test"
     session.selected_payment_kind = "intent"
     session.selected_payment_method = "UPI"

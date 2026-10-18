@@ -19,9 +19,10 @@ async def test_clear_cart_tool_leaves_items_untouched_and_records_pending_clear(
     customer_id = "919876543210"
     address_id = "addr-bandra-1"
 
-    engine._customer_address[customer_id] = address_id
-    engine._customer_address_label[customer_id] = "Home"
-    engine._order_address_confirmed[customer_id] = True
+    session = engine.get_session(customer_id)
+    session.address_id = address_id
+    session.address_label = "Home"
+    session.order_address_confirmed = True
 
     with commerce.customer_scope(customer_id):
         await commerce.update_cart(
@@ -63,9 +64,10 @@ async def test_clear_cart_confirm_tap_validation_and_execution():
     customer_id = "919876543210"
     address_id = "addr-bandra-1"
 
-    engine._customer_address[customer_id] = address_id
-    engine._customer_address_label[customer_id] = "Home"
-    engine._order_address_confirmed[customer_id] = True
+    session = engine.get_session(customer_id)
+    session.address_id = address_id
+    session.address_label = "Home"
+    session.order_address_confirmed = True
 
     with commerce.customer_scope(customer_id):
         await commerce.update_cart(
@@ -164,9 +166,10 @@ async def test_typed_reset_leaves_cart_non_empty_and_produces_clear_cart_ask():
     customer_id = "919876543210"
     address_id = "addr-bandra-1"
 
-    engine._customer_address[customer_id] = address_id
-    engine._customer_address_label[customer_id] = "Home"
-    engine._order_address_confirmed[customer_id] = True
+    session = engine.get_session(customer_id)
+    session.address_id = address_id
+    session.address_label = "Home"
+    session.order_address_confirmed = True
 
     with commerce.customer_scope(customer_id):
         await commerce.update_cart(

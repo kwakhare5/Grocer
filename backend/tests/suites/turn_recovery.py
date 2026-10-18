@@ -91,8 +91,9 @@ async def test_greeting_does_not_ask_for_delivery_address_or_use_swiggy(postgres
     engine._read_budget_cap = mock_read_budget_cap
 
     customer_id = default_whatsapp_adapter.map_sender_to_customer_id("919999988888")
-    engine._customer_address[customer_id] = "addr-bandra-1"
-    engine._customer_address_label[customer_id] = "Home"
+    session = engine.get_session(customer_id)
+    session.address_id = "addr-bandra-1"
+    session.address_label = "Home"
 
     store = PostgresMessageStore(postgres_pool)
     app = create_app()
@@ -167,8 +168,9 @@ async def test_show_cart_does_not_demand_an_address(postgres_pool, monkeypatch, 
     default_whatsapp_adapter.outbound_messages.clear()
 
     customer_id = default_whatsapp_adapter.map_sender_to_customer_id("919999988888")
-    engine._customer_address[customer_id] = "addr-bandra-1"
-    engine._customer_address_label[customer_id] = "Home"
+    session = engine.get_session(customer_id)
+    session.address_id = "addr-bandra-1"
+    session.address_label = "Home"
 
     if populated:
         with commerce.customer_scope(customer_id):

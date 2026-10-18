@@ -59,8 +59,8 @@ async def execute_react_turn_loop(
     address_id: Optional[str],
 ) -> ReactLoopResult:
     """Execute the bounded ReAct iteration loop with LLM calls, tool execution, and guardrails."""
-    history = engine.get_history(customer_id)
     session = engine.get_session(customer_id)
+    history = session.history
 
     # Append user message
     history.append({
@@ -76,7 +76,7 @@ async def execute_react_turn_loop(
     checkout_result: dict[str, Any] | None = None
     last_cart_receipt: str | None = None
     last_cart_total: float | None = None
-    addr_lbl = engine._customer_address_label.get(customer_id)
+    addr_lbl = session.address_label
     address_changed = False
     step_limit_reached = False
     pending_request_needs_retry = False
@@ -255,7 +255,7 @@ async def execute_react_turn_loop(
                 address_changed = True
                 if isinstance(fn_content, dict) and fn_content.get("success"):
                     address_id = fn_content.get("address_id") or address_id
-                    addr_lbl = engine._customer_address_label.get(customer_id) or addr_lbl
+                    addr_lbl = session.address_label or addr_lbl
             if isinstance(fn_content, dict):
                 if fn_content.get("error") in {"INGREDIENT_BUDGET_EXCEEDED", "SCOPED_BUDGET_USE_SEARCH"}:
                     guarded_change_message = str(fn_content.get("message") or "That change needs another review.")

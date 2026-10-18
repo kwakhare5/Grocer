@@ -75,9 +75,10 @@ async def test_recipe_turn_executes_manage_basket_and_mutates_basket():
     commerce = MockCommerceAdapter()
     engine = GroceryAgentEngine(commerce, gemini_api_key="mock-key")
     customer_id = "919876543210"
-    engine._customer_address[customer_id] = "addr-bandra-1"
-    engine._customer_address_label[customer_id] = "Home"
-    engine._order_address_confirmed[customer_id] = True
+    session = engine.get_session(customer_id)
+    session.address_id = "addr-bandra-1"
+    session.address_label = "Home"
+    session.order_address_confirmed = True
 
     calls_count = 0
 

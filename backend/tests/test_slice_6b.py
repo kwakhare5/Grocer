@@ -17,11 +17,10 @@ from backend.integrations.commerce.models import CartItem, CommerceCart
 def _setup_engine(customer_id: str = "cust-123"):
     engine = MagicMock()
     session = CustomerSession(customer_id=customer_id)
+    session.address_id = "addr-bandra-1"
+    session.address_label = "Home"
     engine.get_session.return_value = session
-    engine.get_history.return_value = []
-    engine._customer_address = {customer_id: "addr-bandra-1"}
-    engine._customer_address_label = {customer_id: "Home"}
-    engine._last_interaction_time = {}
+    engine.get_history.return_value = session.history
     engine._read_budget_cap = AsyncMock(return_value=None)
     fake_gemini = MagicMock()
     fake_gemini.api_key = "fake-api-key"

@@ -40,9 +40,8 @@ class PreflightResult:
 async def execute_preflight(
     engine: Any, message: NormalizedIncomingMessage, customer_id: str
 ) -> PreflightResult:
-    """Execute pre-turn validation, fast paths, cart inspection, and address resolution."""
-    history = engine.get_history(customer_id)
     session = engine.get_session(customer_id)
+    history = session.history
 
     is_clear_confirm_tap = (
         message.interactive_id == "clear_cart_confirm"
@@ -63,13 +62,14 @@ async def execute_preflight(
         incoming_text = action_map[message.interactive_id]
 
     current_time = time.time()
-    last_seen = engine._last_interaction_time.get(customer_id)
-    engine._last_interaction_time[customer_id] = current_time
+    last_seen = session.last_active_ts if session.last_active_ts > 0 else None
+    session.last_active_ts = current_time
     is_inactive_session = last_seen is not None and (current_time - last_seen) > 1800
     if is_inactive_session:
-        engine._order_address_confirmed.pop(customer_id, None)
-        engine._awaiting_address_choice.pop(customer_id, None)
-        engine._customer_address.pop(customer_id, None)
+        session.order_address_confirmed = False
+        session.awaiting_address_choice = None
+        session.address_id = None
+        session.address_label = None
         session.pending_approval = None
         session.selected_payment_id = None
 
@@ -105,9 +105,9 @@ async def execute_preflight(
 
     if is_inactive_session and (not current_cart or not current_cart.items):
         history = []
-        engine._history[customer_id] = history
+        session.history = history
 
-    approved_address = engine._customer_address.get(customer_id) or (
+    approved_address = session.address_id or (
         current_cart.address_id if current_cart else ""
     ) or ""
     if current_cart and not current_cart.address_id and approved_address:
@@ -178,7 +178,7 @@ async def execute_preflight(
             session.pending_cart_clear = None
             session.pending_approval = None
             engine.reset_customer_order_address(customer_id)
-            engine._history.pop(customer_id, None)
+            session.history.clear()
             if getattr(engine, "attempt_store", None):
                 try:
                     await engine.attempt_store.clear_unresolved_hold(customer_id, commerce=engine.commerce)
@@ -236,7 +236,7 @@ async def execute_preflight(
                 current_cart = await engine.commerce.get_cart()
             except Exception:
                 pass
-            approved_address = engine._customer_address.get(customer_id) or (
+            approved_address = session.address_id or (
                 current_cart.address_id if current_cart else ""
             ) or ""
             if current_cart and not current_cart.address_id and approved_address:
@@ -249,7 +249,7 @@ async def execute_preflight(
             if approval_ok:
                 new_token = session.pending_approval.token
                 receipt = format_cart_receipt(
-                    current_cart, engine._customer_address_label.get(customer_id) or approved_address
+                    current_cart, session.address_label or approved_address
                 )
                 return PreflightResult(
                     early_response=NormalizedOutgoingResponse(
@@ -410,29 +410,29 @@ async def execute_preflight(
             order_total=current_cart.grand_total,
         ))
 
-    if customer_id in engine._awaiting_address_choice:
-        pending_addrs = engine._awaiting_address_choice[customer_id]
+    if session.awaiting_address_choice:
+        pending_addrs = session.awaiting_address_choice
         chosen_addr = match_pending_address_choice(
             pending_addrs, norm_text, message.interactive_id
         )
         if not chosen_addr:
             return PreflightResult(early_response=engine._address_choice_response(message, pending_addrs))
 
-        engine._awaiting_address_choice.pop(customer_id, None)
+        session.awaiting_address_choice = None
         address_id = chosen_addr["address_id"]
-        engine._customer_address[customer_id] = address_id
-        engine._customer_address_label[customer_id] = (
+        session.address_id = address_id
+        session.address_label = (
             chosen_addr.get("clean_address") or chosen_addr.get("street") or chosen_addr.get("label") or "Home"
         )
-        engine._order_address_confirmed[customer_id] = True
+        session.order_address_confirmed = True
         if session.pending_request_text:
             planning_request_text = session.pending_request_text
             incoming_text = (
                 f"{session.pending_request_text}\n"
-                f"Use delivery address: {engine._customer_address_label[customer_id]} (ID: {address_id})."
+                f"Use delivery address: {session.address_label} (ID: {address_id})."
             )
 
-    address_id = engine._customer_address.get(customer_id)
+    address_id = session.address_id
     if not address_id:
         try:
             addr_res = await engine.tools.get_saved_addresses(customer_id)
@@ -445,11 +445,11 @@ async def execute_preflight(
                 if matched_explicit:
                     chosen_addr = matched_explicit
                     address_id = chosen_addr["address_id"]
-                    engine._customer_address[customer_id] = address_id
-                    engine._customer_address_label[customer_id] = (
+                    session.address_id = address_id
+                    session.address_label = (
                         chosen_addr.get("clean_address") or chosen_addr.get("label") or "Home"
                     )
-                    engine._order_address_confirmed[customer_id] = True
+                    session.order_address_confirmed = True
                 elif (
                     len(addresses) > 1
                     and not (current_cart and current_cart.items)
@@ -459,18 +459,18 @@ async def execute_preflight(
                         {**a, "_choice_code": secrets.token_hex(3), "_choice_index": str(idx)}
                         for idx, a in enumerate(addresses, 1)
                     ]
-                    engine._awaiting_address_choice[customer_id] = choices
+                    session.awaiting_address_choice = choices
                     return PreflightResult(
                         early_response=engine._address_choice_response(message, choices)
                     )
                 elif not address_id:
                     chosen_addr = next((a for a in addresses if a.get("is_default")), addresses[0])
                     address_id = chosen_addr["address_id"]
-                    engine._customer_address[customer_id] = address_id
-                    engine._customer_address_label[customer_id] = (
+                    session.address_id = address_id
+                    session.address_label = (
                         chosen_addr.get("clean_address") or chosen_addr.get("label") or "Home"
                     )
-                    engine._order_address_confirmed[customer_id] = True
+                    session.order_address_confirmed = True
         except Exception:
             pass
 

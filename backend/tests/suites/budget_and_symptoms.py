@@ -241,9 +241,10 @@ async def test_symptom_message_suggests_groceries_without_adding_medicine(
     engine = GroceryAgentEngine(commerce, gemini_api_key="local-test")
     monkeypatch.setattr(default_whatsapp_adapter, "_app_secret", "local-e2e-secret")
     customer_id = default_whatsapp_adapter.map_sender_to_customer_id("919999988888")
-    engine._customer_address[customer_id] = "addr-bandra-1"
-    engine._customer_address_label[customer_id] = "Home"
-    engine._order_address_confirmed[customer_id] = True
+    session = engine.get_session(customer_id)
+    session.address_id = "addr-bandra-1"
+    session.address_label = "Home"
+    session.order_address_confirmed = True
 
     async def model_reply(_history, **_kwargs):
         return {"candidates": [{"content": {"parts": [{"functionCall": {

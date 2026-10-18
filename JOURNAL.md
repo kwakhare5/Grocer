@@ -17,6 +17,13 @@ During the Session End ritual (called automatically whenever significant changes
 
 ### [GROCER — Whole-Basket Spending Cap Protection via Native Gemini Flash-Lite] 2026-10-18
 
+#### Work Card: Remove Dict Views, Session Is the Single State (Slice 7b)
+
+- **Problem**: `GroceryAgentEngine` kept shadow dictionary views (`_SessionDictView`, `_customer_address`, `_customer_address_label`, `_order_address_confirmed`, `_awaiting_address_choice`, `_history`, `_last_interaction_time`) alongside atomic `CustomerSession` objects, creating duplicate state synchronization and scattered call sites.
+- **Change**: Deleted class `_SessionDictView` and all dict view instances from `engine.py`; moved `_last_interaction_time` into `session.last_active_ts`; simplified `session_manager.py`'s `dump_task_state_dict` and `restore_task_state_dict` to read and write only the `CustomerSession`; replaced view lookups and mutations across `preflight_handler.py`, `tool_executor.py`, `checkout_outcome.py`, `response_synthesizer.py`, `react_coordinator.py`, and test suites with direct `session` attributes.
+- **Proof**: `git grep -n "_SessionDictView\|_customer_address\b\|_customer_address_label\|_order_address_confirmed\|_awaiting_address_choice\|_history\b" backend` returned no engine view occurrences; `git diff --check` exits 0; full pytest ran with 88 passed, 34 failed (exact same 34 failures as Slice 7a).
+- **Still broken**: None in scope. 34 pre-existing suite failures across unmigrated redesign slice tests remain.
+
 #### Work Card: Delete Dead State Fields and Paths (Slice 7a)
 
 - **Problem**: Dead session and engine state fields (`pending_variant_selection`, `_pending_checkout`, `pending_clarification`, `known_cart_total`) and dead imports cluttered runtime models and preflight branches.

@@ -57,11 +57,10 @@ async def _setup_engine_and_cart(postgres_pool, monkeypatch):
             [CartItemUpdate(spin_id="SPIN-MILK-1L", sku_id="SPIN-MILK-1L", quantity=1)],
             address_id="addr-bandra-1",
         )
-    engine._customer_address[customer_id] = "addr-bandra-1"
-    engine._customer_address_label[customer_id] = "Home"
-    engine._order_address_confirmed[customer_id] = True
-
     session = engine.get_session(customer_id)
+    session.address_id = "addr-bandra-1"
+    session.address_label = "Home"
+    session.order_address_confirmed = True
     session.selected_payment_id = "upi-app-test"
     session.selected_payment_kind = "intent"
     session.selected_payment_method = "UPI"

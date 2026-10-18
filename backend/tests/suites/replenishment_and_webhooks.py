@@ -99,6 +99,13 @@ async def test_delete_my_data_purges_task_state_through_signed_whatsapp(postgres
     assert await postgres_pool.fetchval(
         "SELECT count(*) FROM grocer_internal.task_state WHERE customer_id=$1", customer_id,
     ) == 1
+    await postgres_pool.execute(
+        "INSERT INTO grocer_internal.oauth_tokens (customer_id, ciphertext, expires_at) VALUES ($1, $2, now())",
+        customer_id, b"encrypted-token",
+    )
+    assert await postgres_pool.fetchval(
+        "SELECT count(*) FROM grocer_internal.oauth_tokens WHERE customer_id=$1", customer_id,
+    ) == 1
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://local-test") as client:
         body, headers = _webhook("wamid.delete-all", "delete my data")
         response = await client.post("/api/whatsapp/webhook", content=body, headers=headers)
@@ -106,6 +113,12 @@ async def test_delete_my_data_purges_task_state_through_signed_whatsapp(postgres
     assert await postgres_pool.fetchval(
         "SELECT count(*) FROM grocer_internal.task_state WHERE customer_id=$1", customer_id,
     ) == 0
+    assert await postgres_pool.fetchval(
+        "SELECT count(*) FROM grocer_internal.oauth_tokens WHERE customer_id=$1", customer_id,
+    ) == 0
+    assert await postgres_pool.fetchval(
+        "SELECT to_regclass('grocer_internal.replenishment')"
+    ) is None
     assert "deleted" in str(default_whatsapp_adapter.outbound_messages[-1]).casefold()
 
 

@@ -39,10 +39,11 @@ async def postgres_pool():
             "007_outbound_sending_started_at.up.sql",
             "008_payment_followups.up.sql",
             "009_replenishment.up.sql",
+            "010_drop_replenishment.up.sql",
         ):
             await conn.execute((root / name).read_text(encoding="utf-8"))
         await conn.execute(
-            "TRUNCATE grocer_internal.replenishment, grocer_internal.task_state, grocer_internal.checkout_attempts, grocer_internal.outbound_messages, grocer_internal.inbound_messages RESTART IDENTITY CASCADE"
+            "TRUNCATE grocer_internal.task_state, grocer_internal.checkout_attempts, grocer_internal.outbound_messages, grocer_internal.inbound_messages RESTART IDENTITY CASCADE"
         )
     try:
         yield pool

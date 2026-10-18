@@ -17,6 +17,13 @@ During the Session End ritual (called automatically whenever significant changes
 
 ### [GROCER — Whole-Basket Spending Cap Protection via Native Gemini Flash-Lite] 2026-10-18
 
+#### Work Card: Dropped Retired Replenishment Table (Slice 4 Step 5)
+
+- **Problem**: Forward migration history and test fixtures still retained and truncated the retired replenishment table after feature removal.
+- **Change**: Added forward-only migration `010_drop_replenishment.up.sql` to drop `grocer_internal.replenishment`; updated `helpers.py` to run 010 and exclude replenishment from fixture truncation; added assertions in `replenishment_and_webhooks.py` verifying table absence and saved token/task-state purge.
+- **Proof**: `pytest backend/tests/test_whatsapp_postgres_e2e.py -k test_delete_my_data_purges_task_state_through_signed_whatsapp` passed (1/1); webhook test suite passed (11/11); `test_invariants.py` passed (33/33); `npm run lint` exited 0.
+- **Still broken**: None in scope. Applying migration 010 to production requires Karan's explicit approval because it drops table data.
+
 #### Work Card: Restored Spending Cap Protection with Flash-Lite Structured Output
 
 - **Problem**: Removing regex parsing deleted preflight budget capture, allowing baskets to exceed customer spending caps unless the model invoked `set_budget`.

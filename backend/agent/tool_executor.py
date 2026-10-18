@@ -7,6 +7,7 @@ from collections.abc import Awaitable, Callable
 from typing import Any, Optional, TypeVar
 
 from backend.agent.approval import cart_fingerprint
+from backend.agent.session_manager import record_pending_cart_clear
 from backend.config import settings
 from backend.integrations.commerce.exceptions import ProviderAuthError, ProviderRateLimitedError
 from backend.integrations.commerce.models import CommerceCart
@@ -171,23 +172,22 @@ async def execute_engine_tool(
             session.known_cart_fingerprint = result["verified_fingerprint"]
         return result
     elif name == "clear_cart":
-        result = await engine.tools.clear_cart()
-        if result.get("success"):
-            try:
-                cart = await engine.commerce.get_cart()
-            except Exception:
-                cart = None
-            if cart is None or cart.items:
-                return {"success": False, "error": "CLEAR_UNVERIFIED"}
-            engine.get_session(customer_id).unresolved_items.clear()
-            engine.get_session(customer_id).known_cart_fingerprint = None
-            engine.get_session(customer_id).external_cart_pending = False
-            engine.get_session(customer_id).budget_inr = None
-            engine.get_session(customer_id).ingredient_budget_inr = None
-            engine.get_session(customer_id).ingredient_extras_text = None
-            engine.get_session(customer_id).ingredient_spin_ids.clear()
-            engine.reset_customer_order_address(customer_id)
-        return result
+        session = engine.get_session(customer_id)
+        try:
+            cart = await engine.commerce.get_cart()
+        except Exception:
+            cart = None
+        address_id = (
+            engine._customer_address.get(customer_id)
+            or (session.address_id if session else None)
+            or (cart.address_id if cart else None)
+            or ""
+        )
+        if cart and not cart.address_id and address_id:
+            cart.address_id = address_id
+        if cart and cart.items and session:
+            record_pending_cart_clear(session, cart, address_id)
+        return {"success": False, "error": "CLEAR_CONFIRMATION_REQUIRED"}
     elif name == "checkout":
         sess = engine.get_session(customer_id)
         confirmed_by_user = bool(user_confirmed)

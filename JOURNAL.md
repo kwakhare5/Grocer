@@ -17,6 +17,13 @@ During the Session End ritual (called automatically whenever significant changes
 
 ### [GROCER — Whole-Basket Spending Cap Protection via Native Gemini Flash-Lite] 2026-10-18
 
+#### Work Card: Two-Step Clear Cart Bound by Token (Slice 5 Step 3)
+
+- **Problem**: Typed reset requests, model calls to `clear_cart`, and interactive buttons immediately cleared the Swiggy basket without requiring explicit confirmation.
+- **Change**: Added `pending_cart_clear` with 900s TTL and cart fingerprint binding in `session.py` and `session_manager.py`; changed `handle_reset_fast_path` and `clear_cart` tool to return a confirmation prompt with `clear_cart_confirm:<token>` instead of clearing; added token and fingerprint validation in `preflight_handler.py` so only a valid button tap clears the basket; attached the token button in `response_synthesizer.py`; added 3 regression tests in `test_two_step_clear_cart.py`.
+- **Proof**: `pytest backend/tests/test_two_step_clear_cart.py` passed 3/3; `pytest backend/tests/test_invariants.py` passed 33/33; full test suite ran with 72 passed, 47 failed (the 46 pre-existing failures from later slices plus `test_local_simulator_clear_failure_never_claims_empty_basket` which assumed 1-step clear).
+- **Still broken**: None in scope. 46 pre-existing failures in uncompleted redesign slices remain.
+
 #### Work Card: Removed Rs 10 Price Tolerance in Drift Guard (Slice 5 Step 2)
 
 - **Problem**: `drift_guard.py` permitted price fluctuations up to ₹10 to silently update the approval fingerprint and preserve the active approval token instead of requiring customer review.

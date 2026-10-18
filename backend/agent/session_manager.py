@@ -26,6 +26,20 @@ def record_pending_approval(
     return fingerprint is not None
 
 
+def record_pending_cart_clear(
+    session: CustomerSession, cart: CommerceCart, address_id: str
+) -> bool:
+    """Record pending cart clear with 15-minute TTL and random token bound to current cart."""
+    fingerprint = cart_fingerprint(cart, address_id)
+    if not fingerprint:
+        return False
+    token = secrets.token_hex()
+    session.pending_cart_clear = PendingApproval(
+        fingerprint=fingerprint, expires_at=time.time() + 900, token=token
+    )
+    return True
+
+
 def prune_history_entries(
     history: list[dict[str, Any]],
     has_state_store: bool = False,
@@ -108,6 +122,7 @@ def restore_task_state_dict(
             mapping[customer_id] = state[field]
 
     approval = state.get("pending_approval")
+    cart_clear = state.get("pending_cart_clear")
     session = CustomerSession(
         customer_id=customer_id,
         history=history,
@@ -121,6 +136,7 @@ def restore_task_state_dict(
         ingredient_extras_text=state.get("ingredient_extras_text"),
         ingredient_spin_ids=state.get("ingredient_spin_ids") or [],
         pending_approval=PendingApproval(**approval) if approval else None,
+        pending_cart_clear=PendingApproval(**cart_clear) if cart_clear else None,
         unresolved_items=state.get("unresolved_items") or [],
         budget_blocked_items=state.get("budget_blocked_items") or [],
         known_cart_fingerprint=state.get("known_cart_fingerprint"),
@@ -147,6 +163,7 @@ def dump_task_state_dict(
 ) -> dict[str, Any]:
     """Serialize customer session state into JSON-safe dictionary for Postgres."""
     approval = session.pending_approval
+    cart_clear = session.pending_cart_clear
     return {
         "history": history,
         "address_id": address_id,
@@ -165,6 +182,15 @@ def dump_task_state_dict(
                 "token": approval.token,
             }
             if approval
+            else None
+        ),
+        "pending_cart_clear": (
+            {
+                "fingerprint": cart_clear.fingerprint,
+                "expires_at": cart_clear.expires_at,
+                "token": cart_clear.token,
+            }
+            if cart_clear
             else None
         ),
         "unresolved_items": session.unresolved_items,

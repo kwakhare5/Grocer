@@ -310,6 +310,34 @@ async def synthesize_turn_response(
             if action.id != "confirm_order" and not action.id.startswith("confirm_order:")
         ]
 
+    if session.pending_cart_clear and session.pending_cart_clear.expires_at > time.time():
+        token = session.pending_cart_clear.token
+        has_clear = any(
+            action.id in {"start_fresh", "clear_cart", "clear_cart_confirm"}
+            or action.id.startswith("clear_cart_confirm:")
+            for action in actions
+        )
+        if has_clear:
+            actions = [
+                InteractiveAction(action_type="button", id=f"clear_cart_confirm:{token}", title="Clear Cart")
+                if action.id in {"start_fresh", "clear_cart", "clear_cart_confirm"}
+                or action.id.startswith("clear_cart_confirm:")
+                else action
+                for action in actions
+            ]
+        else:
+            actions = [
+                InteractiveAction(action_type="button", id=f"clear_cart_confirm:{token}", title="Clear Cart"),
+                InteractiveAction(action_type="button", id="modify_cart", title="Keep Cart"),
+            ]
+        conv_state = "AWAITING_CHECKOUT_CONFIRMATION"
+    else:
+        actions = [
+            action
+            for action in actions
+            if not action.id.startswith("clear_cart_confirm")
+        ]
+
     if (
         last_cart_receipt
         and not session.unresolved_items

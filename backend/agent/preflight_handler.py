@@ -129,6 +129,7 @@ async def execute_preflight(
             if getattr(engine, "attempt_store", None)
             else None
         ),
+        address_id=engine._customer_address.get(customer_id) or session.address_id,
     )
     if reset_resp is not None:
         return PreflightResult(early_response=reset_resp)
@@ -163,6 +164,8 @@ async def execute_preflight(
     approved_address = engine._customer_address.get(customer_id) or (
         current_cart.address_id if current_cart else ""
     ) or ""
+    if current_cart and not current_cart.address_id and approved_address:
+        current_cart.address_id = approved_address
     observed_fingerprint = cart_fingerprint(current_cart, approved_address) if current_cart else None
 
     if session.pending_approval is not None:
@@ -175,6 +178,88 @@ async def execute_preflight(
         if not fingerprint_valid:
             session.pending_approval = None
             session.selected_payment_id = None
+
+    is_clear_confirm_tap = (
+        message.interactive_id == "clear_cart_confirm"
+        or (message.interactive_id is not None and message.interactive_id.startswith("clear_cart_confirm:"))
+    )
+    if is_clear_confirm_tap:
+        incoming_token = (
+            message.interactive_id.removeprefix("clear_cart_confirm:")
+            if message.interactive_id.startswith("clear_cart_confirm:")
+            else ""
+        )
+        clear_approval = session.pending_cart_clear
+        is_token_valid = (
+            bool(incoming_token)
+            and clear_approval is not None
+            and clear_approval.token == incoming_token
+            and clear_approval.expires_at > current_time
+        )
+        fingerprint_matches = (
+            is_token_valid
+            and observed_fingerprint is not None
+            and clear_approval is not None
+            and clear_approval.fingerprint == observed_fingerprint
+        )
+        if fingerprint_matches and not has_burst_negation:
+            try:
+                clear_res = await engine.tools.clear_cart()
+                verified_cart = await engine.commerce.get_cart() if clear_res.get("success") else None
+            except Exception as exc:
+                logger.warning("Clear cart failed: %s", exc)
+                clear_res = {"success": False}
+                verified_cart = None
+
+            if not clear_res.get("success") or verified_cart is None or verified_cart.items:
+                return PreflightResult(
+                    early_response=NormalizedOutgoingResponse(
+                        recipient_id=message.sender_id,
+                        channel=message.channel,
+                        text="I couldn't verify that your basket is empty. Please check it before trying again.",
+                        conversation_state="FAILED",
+                    ),
+                    current_cart=verified_cart or current_cart,
+                )
+
+            session.clear_all()
+            session.unresolved_items.clear()
+            session.known_cart_fingerprint = None
+            session.external_cart_pending = False
+            session.budget_inr = None
+            session.ingredient_budget_inr = None
+            session.ingredient_extras_text = None
+            session.ingredient_spin_ids.clear()
+            session.pending_cart_clear = None
+            session.pending_approval = None
+            engine.reset_customer_order_address(customer_id)
+            engine._history.pop(customer_id, None)
+            if getattr(engine, "attempt_store", None):
+                try:
+                    await engine.attempt_store.clear_unresolved_hold(customer_id, commerce=engine.commerce)
+                except Exception as exc:
+                    logger.warning("Clear hold failed: %s", exc)
+
+            return PreflightResult(
+                early_response=NormalizedOutgoingResponse(
+                    recipient_id=message.sender_id,
+                    channel=message.channel,
+                    text="🗑️ *Basket Cleared!*\n\nYour basket is now completely empty. What groceries can I get for you today?",
+                    conversation_state="READY",
+                ),
+                current_cart=verified_cart,
+            )
+        else:
+            session.pending_cart_clear = None
+            return PreflightResult(
+                early_response=NormalizedOutgoingResponse(
+                    recipient_id=message.sender_id,
+                    channel=message.channel,
+                    text="Your basket changed or the request expired. Please review your basket before trying again.",
+                    conversation_state="NEEDS_DECISION",
+                ),
+                current_cart=current_cart,
+            )
 
     is_awaiting_checkout = (
         session.pending_approval is not None

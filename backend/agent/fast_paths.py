@@ -27,40 +27,61 @@ async def handle_reset_fast_path(
     reset_order_address_fn: Callable[[str], None],
     clear_history_fn: Callable[[str], None],
     clear_hold_fn: Optional[Callable[[str], Any]] = None,
+    address_id: Optional[str] = None,
 ) -> Optional[NormalizedOutgoingResponse]:
-    """If user issued a reset/clear basket command, execute 0ms deterministic wipe."""
-    if not is_reset_command(norm_text):
+    """If user issued a reset/clear basket command, propose confirmation button bound to current cart."""
+    is_clear_intent = (
+        is_reset_command(norm_text)
+        or message.interactive_id in {"start_fresh", "clear_cart"}
+    )
+    if not is_clear_intent:
         return None
 
     try:
-        clear_result = await tools.clear_cart()
-        verified_cart = await commerce.get_cart() if clear_result.get("success") else None
+        current_cart = await commerce.get_cart()
     except Exception as exc:
-        logger.warning("Fast-path clear_cart failed: %s", exc)
-        clear_result = {"success": False}
-        verified_cart = None
+        logger.warning("Fast-path get_cart failed: %s", exc)
+        current_cart = None
 
-    if not clear_result.get("success") or verified_cart is None or verified_cart.items:
+    if not current_cart or not current_cart.items:
         return NormalizedOutgoingResponse(
             recipient_id=message.sender_id,
             channel=message.channel,
-            text="I couldn't verify that your basket is empty. Please check it before trying again.",
+            text="Your basket is already empty. What groceries would you like to add?",
+            conversation_state="READY",
+        )
+
+    target_address = (
+        address_id
+        or getattr(session, "address_id", None)
+        or (current_cart.address_id if current_cart else None)
+        or ""
+    )
+    if current_cart and not current_cart.address_id and target_address:
+        current_cart.address_id = target_address
+
+    from backend.agent.session_manager import record_pending_cart_clear
+
+    if not record_pending_cart_clear(session, current_cart, target_address) or not getattr(session, "pending_cart_clear", None):
+        return NormalizedOutgoingResponse(
+            recipient_id=message.sender_id,
+            channel=message.channel,
+            text="I couldn't verify your basket right now. Please check your basket and try again.",
             conversation_state="FAILED",
         )
 
-    clear_history_fn(customer_id)
-    session.clear_all()
-    reset_order_address_fn(customer_id)
-    if clear_hold_fn is not None:
-        try:
-            await clear_hold_fn(customer_id)
-        except Exception as exc:
-            logger.warning("Fast-path clear_hold failed: %s", exc)
+    token = session.pending_cart_clear.token
     return NormalizedOutgoingResponse(
         recipient_id=message.sender_id,
         channel=message.channel,
-        text="🗑️ *Basket Cleared!*\n\nYour basket is now completely empty. What groceries can I get for you today?",
-        conversation_state="READY",
+        text="Clear cart? This will remove all items from your basket.",
+        interactive_actions=[
+            InteractiveAction(action_type="button", id=f"clear_cart_confirm:{token}", title="Clear Cart"),
+            InteractiveAction(action_type="button", id="modify_cart", title="Keep Cart"),
+        ],
+        requires_confirmation=True,
+        conversation_state="AWAITING_CHECKOUT_CONFIRMATION",
+        order_total=current_cart.grand_total,
     )
 
 

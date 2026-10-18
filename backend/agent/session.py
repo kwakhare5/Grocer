@@ -23,6 +23,7 @@ class CustomerSession:
     ingredient_extras_text: Optional[str] = None
     ingredient_spin_ids: list[str] = field(default_factory=list)
     pending_approval: Optional[PendingApproval] = None
+    pending_cart_clear: Optional[PendingApproval] = None
     unresolved_items: list[dict[str, Any]] = field(default_factory=list)
     budget_blocked_items: list[str] = field(default_factory=list)
     known_cart_fingerprint: Optional[str] = None
@@ -57,6 +58,7 @@ class CustomerSession:
             self.history = []
         self.reset_order_address()
         self.pending_approval = None
+        self.pending_cart_clear = None
         self.unresolved_items.clear()
         self.budget_blocked_items.clear()
         self.known_cart_fingerprint = None

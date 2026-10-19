@@ -30,6 +30,7 @@ class CustomerSession:
     selected_payment_kind: Optional[str] = None
     selected_payment_method: Optional[str] = None
     selected_payment_label: Optional[str] = None
+    recent_product_facts: list[dict[str, Any]] = field(default_factory=list)
 
     def set_address(self, address_id: str, label: str, confirmed: bool = True) -> None:
         """Atomically lock the active delivery address and label."""
@@ -38,12 +39,44 @@ class CustomerSession:
         self.order_address_confirmed = confirmed
         self.awaiting_address_choice = None
 
+    def update_product_facts(self, products: list[dict[str, Any]]) -> None:
+        """Store or update recent product facts up to a cap of 50 items."""
+        for p in products:
+            if not isinstance(p, dict):
+                continue
+            pid = p.get("product_id") or p.get("id")
+            spin = p.get("spin_id")
+
+            idx = -1
+            for i, existing in enumerate(self.recent_product_facts):
+                ex_pid = existing.get("product_id") or existing.get("id")
+                ex_spin = existing.get("spin_id")
+                if (pid and ex_pid and pid == ex_pid) or (spin and ex_spin and spin == ex_spin):
+                    idx = i
+                    break
+                if not pid and not spin and p.get("name") and existing.get("name") == p.get("name") and existing.get("pack_size") == p.get("pack_size"):
+                    idx = i
+                    break
+
+            if idx >= 0:
+                self.recent_product_facts[idx] = p
+            else:
+                self.recent_product_facts.append(p)
+
+        if len(self.recent_product_facts) > 50:
+            self.recent_product_facts = self.recent_product_facts[-50:]
+
+    def clear_product_facts(self) -> None:
+        """Clear session-bounded product facts."""
+        self.recent_product_facts.clear()
+
     def reset_order_address(self) -> None:
         """Reset address confirmation after checkout or cart clear so next new order asks again."""
         self.address_id = None
         self.address_label = None
         self.order_address_confirmed = False
         self.awaiting_address_choice = None
+        self.clear_product_facts()
 
     def clear_all(self) -> None:
         """Completely reset session history and address state."""
@@ -52,6 +85,7 @@ class CustomerSession:
         else:
             self.history = []
         self.reset_order_address()
+        self.clear_product_facts()
         self.pending_approval = None
         self.pending_cart_clear = None
         self.unresolved_items.clear()

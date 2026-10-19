@@ -135,7 +135,7 @@ async def test_resume_from_saved_request_note_and_cleared_on_success():
         message_id="msg-continue",
         text="continue",
     )
-    with patch("backend.agent.react_coordinator.check_reply_claims", new=AsyncMock(return_value="no")):
+    with patch("backend.agent.react_coordinator.check_reply_claims", new=AsyncMock(return_value="no_claim")):
         resp = await engine.handle_message(msg)
 
     assert resp.conversation_state == "READY"

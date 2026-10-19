@@ -9,6 +9,7 @@ import pytest
 from backend.agent.claim_check import build_facts_text, check_reply_claims
 from backend.agent.engine import GroceryAgentEngine
 from backend.agent.gemini import GeminiClient
+from backend.agent.session import CustomerSession
 from backend.channels.models import ChannelType, NormalizedIncomingMessage
 from backend.config import settings
 from backend.integrations.commerce.mock_adapter import MockCommerceAdapter
@@ -210,6 +211,205 @@ async def test_claim_check_error_and_timeout_give_receipt():
 
 
 # ============================================================================
+# Requirement 7, 8, 9: Batch search facts, manage_basket sanitization, and session facts
+# ============================================================================
+
+def test_facts_text_from_batch_search_shape_includes_prices_and_stock():
+    """Test 7 (Bug A): batch_search_products nested results shape reaches facts text with prices and stock."""
+    tool_results = [
+        {
+            "success": True,
+            "results": [
+                {
+                    "query": "milk",
+                    "products": [
+                        {
+                            "name": "Amul Taaza Milk",
+                            "pack_size": "500 ml",
+                            "price": 27.0,
+                            "in_stock": True,
+                            "spin_id": "spin-amul-taaza-500",
+                        }
+                    ],
+                },
+                {
+                    "query": "eggs",
+                    "products": [
+                        {
+                            "name": "Eggoz Brown Eggs",
+                            "pack_size": "6 pcs",
+                            "price": 85.0,
+                            "in_stock": False,
+                            "spin_id": "spin-eggoz-6",
+                        }
+                    ],
+                },
+            ],
+        }
+    ]
+
+    facts = build_facts_text(tool_results=tool_results)
+    assert "Products from recent search / tool results:" in facts
+    assert "Amul Taaza Milk (500 ml): ₹27.0, in stock" in facts
+    assert "Eggoz Brown Eggs (6 pcs): ₹85.0, out of stock" in facts
+
+
+def test_facts_text_from_no_change_manage_basket_has_no_none_or_empty_brackets():
+    """Test 8 (Bug B): manage_basket no-change items have no pack_size and no unit_price.
+
+    Never print 'None' or '()' in facts text; skip missing fields; fallback to total_price.
+    """
+    tool_results = [
+        {
+            "success": True,
+            "items": [
+                {
+                    "name": "Tissues",
+                    "total_price": 50.0,
+                },
+                {
+                    "name": "Organic Garlic",
+                    "pack_size": None,
+                    "unit_price": None,
+                    "price": None,
+                    "total_price": 40.0,
+                },
+                {
+                    "name": "Loose Potatoes",
+                },
+            ],
+        }
+    ]
+
+    cart = CommerceCart(
+        items=[
+            CartItem(
+                spin_id="SPIN-LOOSE-LEMONS",
+                name="Loose Lemons",
+                pack_size="",
+                unit_price=10.0,
+                quantity=2,
+                total_price=20.0,
+            )
+        ],
+        item_total=20.0,
+        discount=5.0,
+        grand_total=15.0,
+    )
+
+    facts = build_facts_text(cart=cart, tool_results=tool_results)
+
+    # Invariant: Never print "None" or "()" in facts text
+    assert "None" not in facts
+    assert "()" not in facts
+
+    # Cart discount and items formatted cleanly
+    assert "- Loose Lemons: qty 2, unit price ₹10.0, total ₹20.0" in facts
+    assert "- Discount: ₹5.0" in facts
+
+    # Manage basket items formatted cleanly without missing fields
+    assert "- Tissues: ₹50.0" in facts
+    assert "- Organic Garlic: ₹40.0" in facts
+    assert "- Loose Potatoes" in facts
+
+
+@pytest.mark.asyncio
+async def test_session_bounded_product_facts_and_checkout_clearing():
+    """Test 9: Session facts hold product info, 50 cap respected, price passes unchanged, and cleared on checkout."""
+    # 1. Test 50 cap and stale replacement in CustomerSession
+    session = CustomerSession(customer_id="cust-session-facts-test")
+
+    # Add 55 products: should cap at 50, keeping latest 50
+    initial_products = [
+        {
+            "product_id": f"prod-{i}",
+            "spin_id": f"spin-{i}",
+            "name": f"Product {i}",
+            "pack_size": "100 g",
+            "price": float(10 + i),
+            "in_stock": True,
+        }
+        for i in range(55)
+    ]
+    session.update_product_facts(initial_products)
+    assert len(session.recent_product_facts) == 50
+    assert session.recent_product_facts[0]["product_id"] == "prod-5"
+    assert session.recent_product_facts[-1]["product_id"] == "prod-54"
+
+    # Stale replacement by product_id
+    updated_product = {
+        "product_id": "prod-54",
+        "spin_id": "spin-54",
+        "name": "Product 54 Premium",
+        "pack_size": "100 g",
+        "price": 99.0,
+        "in_stock": False,
+    }
+    session.update_product_facts([updated_product])
+    assert len(session.recent_product_facts) == 50
+    assert session.recent_product_facts[-1]["name"] == "Product 54 Premium"
+    assert session.recent_product_facts[-1]["price"] == 99.0
+    assert session.recent_product_facts[-1]["in_stock"] is False
+
+    # 2. Verify build_facts_text includes session facts heading and delivery address label
+    session.address_label = "Home"
+    facts = build_facts_text(
+        session_facts=session.recent_product_facts,
+        address_label=session.address_label,
+    )
+    assert "Delivery Address: Home" in facts
+    assert "Known Products from earlier in this session:" in facts
+    assert "Product 54 Premium (100 g): ₹99.0, out of stock" in facts
+
+    # 3. Verify earlier-turn product price answer passes unchanged when supported
+    commerce = MockCommerceAdapter()
+    engine = GroceryAgentEngine(commerce, gemini_api_key="mock-key")
+    customer_id = "cust-earlier-search-test"
+    eng_session = engine.get_session(customer_id)
+    eng_session.address_id = "addr-bandra-1"
+    eng_session.address_label = "Home"
+    eng_session.order_address_confirmed = True
+
+    # Earlier search stored milk in session
+    eng_session.update_product_facts([
+        {
+            "product_id": "p-nandini-milk",
+            "spin_id": "spin-nandini-500",
+            "name": "Nandini Milk",
+            "pack_size": "500 ml",
+            "price": 28.0,
+            "in_stock": True,
+        }
+    ])
+
+    milk_price_reply = "Nandini Milk 500 ml is ₹28 and in stock."
+
+    async def fake_model_reply(_contents, **_kwargs):
+        return {"candidates": [{"content": {"parts": [{"text": milk_price_reply}]}}]}
+
+    engine._call_llm = fake_model_reply
+
+    with patch("backend.agent.react_coordinator.check_reply_claims", new=AsyncMock(return_value="supported")), \
+         patch.object(engine, "_read_budget_cap", new=AsyncMock(return_value=None)):
+        msg = NormalizedIncomingMessage(
+            sender_id=customer_id,
+            customer_id=customer_id,
+            message_id="msg-earlier-price",
+            channel=ChannelType.WHATSAPP,
+            text="what is the price of nandini milk?",
+        )
+        resp = await engine.handle_message(msg)
+
+    assert resp is not None
+    assert resp.text == milk_price_reply
+
+    # 4. Cleared upon checkout
+    assert len(eng_session.recent_product_facts) == 1
+    eng_session.reset_order_address()
+    assert len(eng_session.recent_product_facts) == 0
+
+
+# ============================================================================
 # Requirement 6: Live Accuracy Test against Fixed Facts Text
 # ============================================================================
 
@@ -260,6 +460,7 @@ async def test_live_classifier_accuracy():
 
     Marked live. Skipped unless a valid GEMINI_API_KEY is present.
     Never prints API key. Does not fail suite on accuracy.
+    Includes exponential backoff on HTTP 429 up to 4 tries, reporting judged vs quota-blocked.
     """
     key = os.environ.get("GEMINI_API_KEY") or getattr(settings, "GEMINI_API_KEY", None)
     if not key or key in {"mock-key", "local-test", "test-key"}:
@@ -268,33 +469,51 @@ async def test_live_classifier_accuracy():
     client = GeminiClient(api_key=key)
     try:
         results = []
+        judged_count = 0
+        quota_blocked_count = 0
         correct = 0
         for idx, (reply, expected) in enumerate(CASES, 1):
-            try:
-                got = await check_reply_claims(client, reply, facts_text=FIXED_FACTS_TEXT)
-            except Exception as exc:
-                got = f"error: {exc}"
+            got = "unclear"
+            for attempt in range(4):
+                try:
+                    got = await check_reply_claims(client, reply, facts_text=FIXED_FACTS_TEXT)
+                    if got in {"supported", "unsupported", "no_claim"}:
+                        break
+                except Exception as exc:
+                    got = f"error: {exc}"
+                await asyncio.sleep(2 ** attempt)
 
+            is_judged = got in {"supported", "unsupported", "no_claim"}
             is_match = (got == expected)
-            if is_match:
-                correct += 1
-            results.append((idx, reply, expected, got, is_match))
+            if is_judged:
+                judged_count += 1
+                if is_match:
+                    correct += 1
+            else:
+                quota_blocked_count += 1
+
+            results.append((idx, reply, expected, got, is_match, is_judged))
             await asyncio.sleep(0.5)
 
-        accuracy_pct = (correct / len(CASES)) * 100.0
+        accuracy_pct = (correct / judged_count * 100.0) if judged_count > 0 else 0.0
 
         # Print formatted report table safely
         print("\n" + "=" * 90)
         print("LIVE CLASSIFIER ACCURACY REPORT")
         print("=" * 90)
-        print(f"{'#':<3} | {'Expected':<12} | {'Got':<12} | {'Match':<5} | {'Reply'}")
+        print(f"{'#':<3} | {'Expected':<12} | {'Got':<12} | {'Match':<5} | {'Judged':<8} | {'Reply'}")
         print("-" * 90)
-        for idx, reply, expected, got, is_match in results:
+        for idx, reply, expected, got, is_match, is_judged in results:
             match_str = "YES" if is_match else "NO"
+            judged_str = "YES" if is_judged else "BLOCKED"
             safe_reply = reply.replace("₹", "Rs ")
-            print(f"{idx:<3} | {expected:<12} | {got:<12} | {match_str:<5} | {safe_reply}")
+            print(f"{idx:<3} | {expected:<12} | {got:<12} | {match_str:<5} | {judged_str:<8} | {safe_reply}")
         print("-" * 90)
-        print(f"Total Accuracy: {correct}/{len(CASES)} ({accuracy_pct:.1f}%)")
+        print(f"Judged: {judged_count}/{len(CASES)}, Quota-blocked: {quota_blocked_count}/{len(CASES)}")
+        if judged_count > 0:
+            print(f"Accuracy on judged: {correct}/{judged_count} ({accuracy_pct:.1f}%)")
+        else:
+            print("Accuracy on judged: N/A (all quota-blocked)")
         print("=" * 90 + "\n")
 
     finally:

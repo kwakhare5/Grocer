@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from typing import Any, Optional
 
 from backend.agent.checkout_outcome import process_checkout_outcome
-from backend.agent.claim_check import build_facts_text, check_reply_claims
+from backend.agent.claim_check import build_facts_text, check_reply_claims, extract_product_facts
 from backend.agent.formatters import format_cart_receipt
 from backend.agent.product_policy import is_symptom_suggestion_request
 from backend.channels.models import (
@@ -175,7 +175,12 @@ async def execute_react_turn_loop(
                     or bool(budget_blocked_items)
                 )
                 if not state_changed:
-                    facts_text = build_facts_text(cart=current_cart, tool_results=turn_tool_results)
+                    facts_text = build_facts_text(
+                        cart=current_cart,
+                        tool_results=turn_tool_results,
+                        session_facts=getattr(session, "recent_product_facts", None),
+                        address_label=addr_lbl or (session.address_label if session else None),
+                    )
                     try:
                         claim = await check_reply_claims(
                             getattr(engine, "gemini", None),
@@ -184,7 +189,7 @@ async def execute_react_turn_loop(
                         )
                     except Exception:
                         claim = "unclear"
-                    if claim in {"supported", "no_claim", "no"}:
+                    if claim in {"supported", "no_claim"}:
                         final_text = response_text
                     else:
                         if current_cart is None:
@@ -289,6 +294,10 @@ async def execute_react_turn_loop(
             c = nc[0].get("functionResponse", {}).get("response", {}).get("content")
             if isinstance(c, dict):
                 turn_tool_results.append(c)
+                if session is not None and hasattr(session, "update_product_facts"):
+                    prods = extract_product_facts(c)
+                    if prods:
+                        session.update_product_facts(prods)
         tool_responses = [nc[0] for nc in normalized_calls]
         history.append({
             "role": "user",
@@ -410,6 +419,9 @@ async def execute_react_turn_loop(
         actions=actions,
         pending_request_needs_retry=pending_request_needs_retry,
     )
+
+    if checkout_executed and session is not None and hasattr(session, "clear_product_facts"):
+        session.clear_product_facts()
 
     return ReactLoopResult(
         early_response=None,

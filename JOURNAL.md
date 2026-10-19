@@ -17,6 +17,13 @@ During the Session End ritual (called automatically whenever significant changes
 
 ### [GROCER — Ground-Truth Claim Verification via Facts Text & Accuracy Suite] 2026-10-19
 
+#### Work Card: Nested Batch Search Facts, Sanitized Items, Session-Bounded Facts & Prompt Hardening (Slice D2d)
+
+- **Problem**: `build_facts_text` missed nested products in `batch_search_products` results and printed `"None"` / `"()"` for `manage_basket` no-change items; cart discount was omitted; product knowledge was turn-bound causing earlier-searched product answers to be judged unsupported; `claim_check.py` and `react_coordinator.py` retained legacy `"yes"`/`"no"` aliases; in D2c the per-step equality check on model text was removed during the schema transition and needed restoration for non-lie steps.
+- **Change**: Extracted products from nested `results` in `batch_search_products` and formatted without `"None"` or empty `"()"` brackets (falling back to `total_price`); added cart discount and delivery address label to `build_facts_text`; added `recent_product_facts` with 50-item cap, stale deduplication by `product_id`/`spin_id`, and post-checkout clearing in `CustomerSession` (`backend/agent/session.py`) and wired it into `react_coordinator.py`; removed legacy `"yes"`/`"no"` aliases from `claim_check.py` and `react_coordinator.py` pass set (`{"supported", "no_claim"}`); fenced untrusted reply text with prompt injection defense in `CLAIM_CHECK_PROMPT`; restored per-step scripted model text equality assertion on non-lie steps with no state change in `test_slice_d2a.py` (which replaced the D2c verdict-only assertion); added Tests 7, 8, 9 in `test_slice_d2c.py`; added exponential backoff on HTTP 429 up to 4 tries and separate judged vs quota-blocked reporting in `test_live_classifier_accuracy`; registered `live` marker in `pytest.ini`.
+- **Proof**: `pytest backend/tests/test_slice_d2a.py backend/tests/test_slice_d2c.py` passed 16/16; full pytest ran with 112 passed, 34 failed (exact same 34 baseline failures in `test_whatsapp_postgres_e2e.py`); `git diff --check` exits 0.
+- **Still broken**: 34 pre-existing baseline e2e failures remain untouched; word lists and regex remain in `response_synthesizer.py`.
+
 #### Work Card: Truth-Based Claim Check, Plain Facts Text & Accuracy Test (Slice D2c)
 
 - **Problem**: Claim check only judged whether a reply made a claim rather than whether it was true, replacing correct price answers with a receipt; 50-step invariant test used a stand-in with fixed item lists and rupee regex.

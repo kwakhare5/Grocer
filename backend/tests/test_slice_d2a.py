@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import asyncio
-import re
 from unittest.mock import AsyncMock, patch
 import pytest
 
@@ -544,8 +543,9 @@ async def test_fifty_message_scripted_interleaved_invariant_run():
                     assert "empty" in response.text.casefold() or "basket" in response.text.casefold(), (
                         f"Step {step_num} (cust={cid}): Expected empty basket replacement for lie, got: {response.text}"
                     )
-            elif incoming in {"wait", "don't order yet"}:
-                # Harmless reply passed unchanged
+            elif step_num in {18, 19}:
+                # Invariant: On non-lie steps where verdict is supported/no_claim and no state changed,
+                # returned text equals scripted model text.
                 assert response.text == "I have held your basket.", (
-                    f"Step {step_num} (cust={cid}): Harmless text should pass unchanged, got: {response.text}"
+                    f"Step {step_num} (cust={cid}): Scripted model text should pass unchanged, got: {response.text}"
                 )

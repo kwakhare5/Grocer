@@ -225,7 +225,7 @@ async def test_typed_reset_leaves_cart_non_empty_and_produces_clear_cart_ask():
         text="clear my cart",
         timestamp=int(time.time()),
     )
-    with patch("backend.agent.react_coordinator.check_reply_claims", new=AsyncMock(return_value="no")):
+    with patch("backend.agent.react_coordinator.check_reply_claims", new=AsyncMock(return_value="no_claim")):
         resp = await engine.handle_message(msg)
 
     # 1. Cart must remain non-empty

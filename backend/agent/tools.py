@@ -22,7 +22,7 @@ logger = logging.getLogger("grocer.agent.tools")
 _CATALOG_CACHE: dict[tuple[str, str], tuple[float, list[dict[str, Any]]]] = {}
 
 from backend.agent.formatters import _format_inr, format_cart_receipt
-from backend.agent.catalog_ranker import rank_and_select_best_variant
+from backend.agent.gemini import GeminiClient
 from backend.agent.checkout_executor import execute_gated_checkout
 from backend.agent.basket_manager import execute_manage_basket
 from backend.agent.cart_actions import (
@@ -32,13 +32,153 @@ from backend.agent.address_tools import (
     execute_get_saved_addresses,
     execute_select_delivery_address,
 )
+from backend.config import settings
+
+PRODUCT_SELECTION_SCHEMA = {
+    "type": "OBJECT",
+    "properties": {
+        "action": {
+            "type": "STRING",
+            "enum": ["pick", "ask"],
+            "description": "'pick' to select a candidate ID, or 'ask' if clarification is needed from the customer.",
+        },
+        "candidate_id": {
+            "type": "STRING",
+            "description": "The candidate ID (e.g. '1', '2', ...) chosen when action is 'pick'.",
+        },
+        "question": {
+            "type": "STRING",
+            "description": "The concise clarification question to ask the customer when action is 'ask'.",
+        },
+        "reason": {
+            "type": "STRING",
+            "description": "Short explanation for why this item was picked or why clarification is needed.",
+        },
+    },
+    "required": ["action", "reason"],
+}
+
+
+def _extract_candidates(raw_prods: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    candidates = []
+    cand_id = 1
+    for p in raw_prods:
+        variants = p.get("variants")
+        if variants and isinstance(variants, list):
+            for v in variants:
+                if not isinstance(v, dict):
+                    continue
+                if is_restricted_medical_product(str(v.get("name") or p.get("name") or ""), str(p.get("category") or "")):
+                    continue
+                in_stock_val = v.get("in_stock")
+                if in_stock_val is None:
+                    in_stock_val = v.get("is_available")
+
+                raw_price = v.get("price")
+                try:
+                    price_float = float(raw_price) if raw_price is not None else 0.0
+                except (ValueError, TypeError):
+                    price_float = 0.0
+
+                candidates.append({
+                    "candidate_id": str(cand_id),
+                    "product_id": p.get("product_id"),
+                    "name": v.get("name") or p.get("name") or "",
+                    "brand": p.get("brand"),
+                    "category": p.get("category"),
+                    "pack_size": v.get("pack_size") or "",
+                    "price": price_float,
+                    "in_stock": in_stock_val,
+                    "spin_id": v.get("spin_id") or p.get("spin_id"),
+                    "sku_id": v.get("sku_id") or v.get("spin_id") or p.get("sku_id"),
+                    "max_quantity": v.get("max_quantity"),
+                })
+                cand_id += 1
+                if len(candidates) >= 10:
+                    break
+        else:
+            if is_restricted_medical_product(str(p.get("name") or ""), str(p.get("category") or "")):
+                continue
+            in_stock_val = p.get("in_stock")
+            if in_stock_val is None:
+                in_stock_val = p.get("is_available")
+
+            raw_price = p.get("price")
+            try:
+                price_float = float(raw_price) if raw_price is not None else 0.0
+            except (ValueError, TypeError):
+                price_float = 0.0
+
+            candidates.append({
+                "candidate_id": str(cand_id),
+                "product_id": p.get("product_id"),
+                "name": p.get("name") or "",
+                "brand": p.get("brand"),
+                "category": p.get("category"),
+                "pack_size": p.get("pack_size") or "",
+                "price": price_float,
+                "in_stock": in_stock_val,
+                "spin_id": p.get("spin_id"),
+                "sku_id": p.get("sku_id") or p.get("spin_id"),
+                "max_quantity": p.get("max_quantity"),
+            })
+            cand_id += 1
+        if len(candidates) >= 10:
+            break
+    return candidates
+
+
+def _build_product_selection_prompt(
+    query: str,
+    candidates: list[dict[str, Any]],
+    preferred_pack_size: str = "",
+) -> str:
+    cand_lines = []
+    for c in candidates:
+        stock_val = c.get("in_stock")
+        if stock_val is True:
+            stock_info = " | Status: In Stock"
+        elif stock_val is False:
+            stock_info = " | Status: OUT OF STOCK"
+        else:
+            stock_info = ""  # unknown stock is None, show to the model only when known
+        brand_str = f" | Brand: {c['brand']}" if c.get("brand") else ""
+        pack_str = f" | Pack: {c['pack_size']}" if c.get("pack_size") else ""
+        price_str = f" | Price: ₹{c['price']}" if c.get("price") is not None else ""
+        cand_lines.append(
+            f"ID: {c['candidate_id']} | Name: {c['name']}{brand_str}{pack_str}{price_str}{stock_info}"
+        )
+    candidates_text = "\n".join(cand_lines)
+    pref_text = f"\nPreferred pack size: {preferred_pack_size}" if preferred_pack_size else ""
+
+    return (
+        "You are selecting the best matching grocery product candidate for a customer's request.\n\n"
+        f"Customer request: '{query}'{pref_text}\n\n"
+        f"Available product candidates:\n{candidates_text}\n\n"
+        "Principles:\n"
+        "1. Clear request: Pick the single best candidate that fulfills what the customer asked for.\n"
+        "2. Ask a question only when:\n"
+        "   - The requested size, weight, or count does not exist in the candidates.\n"
+        "   - The top candidates represent completely different kinds of products or purposes.\n"
+        "3. Never ask simply because multiple brands exist: Pick the best matching brand and option.\n"
+        "4. Respect the requested size and count: Honor the exact size, weight, or count specified by the customer. "
+        "Prefer the standard single unit over multi-packs or bundled quantities unless the customer explicitly asked for a count.\n\n"
+        "Return structured output:\n"
+        "- If picking: action='pick', candidate_id='<id>', reason='<short explanation>'\n"
+        "- If asking: action='ask', question='<concise question>', reason='<short explanation>'"
+    )
 
 
 class SwiggyAgentTools:
     """Wraps CommercePort into clean, high-signal tools for the LLM agent."""
 
-    def __init__(self, commerce: CommercePort) -> None:
+    def __init__(
+        self,
+        commerce: CommercePort,
+        gemini_client: Optional[GeminiClient] = None,
+    ) -> None:
         self.commerce = commerce
+        self.gemini_client = gemini_client
         self._catalog_cache: dict[tuple[str, str], tuple[float, list[dict[str, Any]]]] = {}
 
     async def search_products(
@@ -182,14 +322,103 @@ class SwiggyAgentTools:
             "results": list(batch_results),
         }
 
-    def select_best_variant(
+    async def select_best_variant(
         self,
         query: str,
         products: list[dict[str, Any]],
         preferred_pack_size: str = "",
     ) -> Optional[dict[str, Any]]:
-        """Deterministically score and pick the single best product variant."""
-        return rank_and_select_best_variant(query, products, preferred_pack_size)
+        """Select product variant using SMALL_CHECK_MODEL, returning pick or ask with reason."""
+        candidates = _extract_candidates(products)
+        if not candidates:
+            return None
+
+        client = self.gemini_client
+        if client is None:
+            api_key = getattr(settings, "GEMINI_API_KEY", None) or ""
+            if api_key:
+                client = GeminiClient(api_key=api_key)
+
+        if client is None:
+            logger.warning("No Gemini client available for product selection on query '%s'", query)
+            return {
+                "action": "fallback_candidates",
+                "candidates": candidates,
+                "query": query,
+                "error": "no_gemini_client",
+            }
+
+        prompt = _build_product_selection_prompt(query, candidates, preferred_pack_size)
+        model_name = settings.GEMINI_SMALL_CHECK_MODEL
+
+        try:
+            res, reason = await client.generate_structured_with_reason(
+                model=model_name,
+                prompt=prompt,
+                response_schema=PRODUCT_SELECTION_SCHEMA,
+            )
+            if not res:
+                logger.warning("Product selection model call failed for query '%s': %s", query, reason)
+                return {
+                    "action": "fallback_candidates",
+                    "candidates": candidates,
+                    "query": query,
+                    "error": reason or "model_no_result",
+                }
+
+            action = str(res.get("action") or "").strip().lower()
+            reason_text = str(res.get("reason") or "").strip()
+
+            if action == "ask":
+                question = str(res.get("question") or "").strip()
+                return {
+                    "action": "ask",
+                    "question": question or f"Which option would you like for {query}?",
+                    "reason": reason_text,
+                    "candidates": candidates,
+                    "query": query,
+                }
+
+            chosen_id = str(res.get("candidate_id") or "").strip()
+            matched = next((c for c in candidates if c["candidate_id"] == chosen_id), None)
+            if not matched:
+                import re
+                m_num = re.search(r"\b(\d+)\b", chosen_id)
+                if m_num:
+                    matched = next((c for c in candidates if c["candidate_id"] == m_num.group(1)), None)
+
+            if matched:
+                return {
+                    "action": "pick",
+                    "candidate_id": matched["candidate_id"],
+                    "option": matched,
+                    "spin_id": matched["spin_id"],
+                    "sku_id": matched["sku_id"],
+                    "name": matched["name"],
+                    "pack_size": matched["pack_size"],
+                    "price": matched["price"],
+                    "reason": reason_text,
+                }
+
+            logger.warning(
+                "Product selection model candidate_id '%s' not found in candidates for query '%s'",
+                chosen_id, query
+            )
+            return {
+                "action": "fallback_candidates",
+                "candidates": candidates,
+                "query": query,
+                "error": "candidate_id_not_found",
+            }
+
+        except Exception as exc:
+            logger.warning("Product selection model call exception for query '%s': %s", query, exc)
+            return {
+                "action": "fallback_candidates",
+                "candidates": candidates,
+                "query": query,
+                "error": str(exc),
+            }
 
     async def manage_basket(
         self,
@@ -396,7 +625,7 @@ class SwiggyAgentTools:
                         "mrp": v.mrp,
                     }
                     for v in item.variants
-                    if v.in_stock
+                    if v.in_stock is not False
                 ]
                 if in_stock_variants:
                     formatted_products.append(

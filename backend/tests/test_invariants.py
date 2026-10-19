@@ -20,7 +20,11 @@ async def test_manage_basket_resilient_to_individual_search_failures():
     from backend.agent.tools import SwiggyAgentTools
 
     commerce = MockCommerceAdapter()
-    tools = SwiggyAgentTools(commerce)
+    async def mock_variant_picker(*args, **kwargs):
+        return {"action": "pick", "candidate_id": "1", "reason": "first match"}, None
+
+    mock_client = type("MockGemini", (), {"generate_structured_with_reason": mock_variant_picker, "api_key": "mock"})()
+    tools = SwiggyAgentTools(commerce, gemini_client=mock_client)
 
     # Mock batch_search_products to return 1 success and 1 error
     async def mock_batch_search(queries, address_id):
@@ -936,9 +940,20 @@ async def test_basket_execution_preserves_quantity_pack_size_and_items_with_scri
     commerce = MockCommerceAdapter()
     engine = GroceryAgentEngine(commerce, gemini_api_key="local-test")
 
-    async def mock_structured(*args, **kwargs):
-        return {"has_whole_order_cap": False, "amount": None}
+    async def mock_structured_with_reason(*args, **kwargs):
+        prompt = kwargs.get("prompt") or (args[1] if len(args) > 1 else "")
+        schema = kwargs.get("response_schema") or (args[2] if len(args) > 2 else {})
+        if "candidate_id" in schema.get("properties", {}):
+            if "500 ml" in prompt:
+                return {"action": "pick", "candidate_id": "2", "reason": "preferred 500ml"}, None
+            return {"action": "pick", "candidate_id": "1", "reason": "first match"}, None
+        return {"has_whole_order_cap": False, "amount": None}, None
 
+    async def mock_structured(*args, **kwargs):
+        res, _ = await mock_structured_with_reason(*args, **kwargs)
+        return res
+
+    engine.gemini.generate_structured_with_reason = mock_structured_with_reason
     engine.gemini.generate_structured = mock_structured
 
     # 1. Milk, bread, tissues: quantity 2 with 500 ml pack size, no eggs

@@ -4,7 +4,6 @@ from __future__ import annotations
 import logging
 from typing import Any, Optional
 
-from backend.agent.catalog_ranker import _matches_requested_product
 from backend.agent.formatters import format_cart_receipt
 from backend.agent.product_policy import is_restricted_medical_product
 from backend.integrations.commerce.exceptions import ProviderAuthError
@@ -83,6 +82,7 @@ async def execute_manage_basket(
     modified_items: list[str] = []
     unavailable_items: list[str] = []
     restricted_items: list[str] = []
+    clarifications_needed: list[dict[str, Any]] = []
 
     # 1. Process Removals
     if remove and isinstance(remove, list):
@@ -172,16 +172,38 @@ async def execute_manage_basket(
                     is_restricted_medical_product(str(p.get("name") or ""), str(p.get("category") or ""))
                     for p in raw_prods
                 )
-                if has_medical and not any(
-                    _matches_requested_product(item["query"], p)
-                    and not is_restricted_medical_product(str(p.get("name") or ""), str(p.get("category") or ""))
-                    for p in raw_prods
-                ):
+                non_medical = [
+                    p for p in raw_prods
+                    if not is_restricted_medical_product(str(p.get("name") or ""), str(p.get("category") or ""))
+                ]
+                if has_medical and not non_medical:
                     restricted_items.append(item["query"])
                     continue
 
-                best = tools.select_best_variant(item["query"], raw_prods, item["preferred_pack_size"])
-                if best:
+                best = await tools.select_best_variant(item["query"], raw_prods, item["preferred_pack_size"])
+                if not best:
+                    unavailable_items.append(item["query"])
+                elif best.get("action") == "pick" and best.get("option"):
+                    selected_for_add.append({
+                        "option": best["option"],
+                        "query": item["query"],
+                        "quantity": item["quantity"],
+                    })
+                elif best.get("action") == "ask":
+                    clarifications_needed.append({
+                        "query": item["query"],
+                        "question": best.get("question"),
+                        "reason": best.get("reason"),
+                        "candidates": best.get("candidates", []),
+                    })
+                elif best.get("action") == "fallback_candidates":
+                    clarifications_needed.append({
+                        "query": item["query"],
+                        "question": f"Which option would you like for {item['query']}?",
+                        "reason": "Model selection unavailable; returning store candidates",
+                        "candidates": best.get("candidates", []),
+                    })
+                elif best.get("spin_id"):
                     selected_for_add.append({
                         "option": best,
                         "query": item["query"],
@@ -213,11 +235,17 @@ async def execute_manage_basket(
         mutation["modified_items"] = modified_items
         mutation["unavailable_items"] = unavailable_items
         mutation["restricted_items"] = list(dict.fromkeys(restricted_items))
+        if clarifications_needed:
+            mutation["clarifications_needed"] = clarifications_needed
+            mutation["questions"] = [c["question"] for c in clarifications_needed if c.get("question")]
+            mutation["candidates_for_clarification"] = {
+                c["query"]: c.get("candidates", []) for c in clarifications_needed
+            }
         return mutation
 
     # Nothing changed
     receipt = format_cart_receipt(current_cart, delivery_location)
-    return {
+    res = {
         "success": True,
         "cart_id": current_cart.cart_id,
         "item_count": len(current_cart.items),
@@ -241,3 +269,10 @@ async def execute_manage_basket(
         "unavailable_items": unavailable_items,
         "restricted_items": list(dict.fromkeys(restricted_items)),
     }
+    if clarifications_needed:
+        res["clarifications_needed"] = clarifications_needed
+        res["questions"] = [c["question"] for c in clarifications_needed if c.get("question")]
+        res["candidates_for_clarification"] = {
+            c["query"]: c.get("candidates", []) for c in clarifications_needed
+        }
+    return res

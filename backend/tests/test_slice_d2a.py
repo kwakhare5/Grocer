@@ -469,8 +469,12 @@ async def test_fifty_message_scripted_interleaved_invariant_run():
             return "unsupported"
         return "no_claim"
 
+    async def scripted_gemini_structured(*args, **kwargs):
+        return {"action": "pick", "candidate_id": "1", "reason": "scripted pick"}, None
+
     with patch("backend.agent.confirmation_check.is_confirmed", side_effect=mock_is_confirmed), \
          patch("backend.agent.react_coordinator.check_reply_claims", side_effect=scripted_check_claims), \
+         patch.object(engine.gemini, "generate_structured_with_reason", side_effect=scripted_gemini_structured), \
          patch.object(engine, "_read_budget_cap", new=AsyncMock(return_value=None)):
 
         tested_unchanged_steps = set()

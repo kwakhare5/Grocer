@@ -17,6 +17,13 @@ During the Session End ritual (called automatically whenever significant changes
 
 ### [GROCER — Ground-Truth Claim Verification via Facts Text & Accuracy Suite] 2026-10-19
 
+#### Work Card: Model-Driven Variant Selection & Decoupled Search Word Lists (Slice E2)
+
+- **Problem**: Product candidate selection in search and basket additions relied on hardcoded word lists and regex in `catalog_ranker.py` (`_matches_requested_product`), rejecting or miss-selecting variants that did not conform to rigid token matches.
+- **Change**: Replaced word-list ranking in `SwiggyAgentTools.select_best_variant` with `SMALL_CHECK_MODEL` (`gemini-3.5-flash-lite`) structured output expressing locked product rules A–D (clear request picks 1 item and names it; ask only if requested size/count missing or candidates are fundamentally different kinds of products; never ask just because multiple brands exist; respect requested size/count and prefer single units over multi-packs); preserved unknown stock as `None` (omitted from model prompt) and updated `get_go_to_items` stock check (`is not False`); handled model failures and timeouts by gracefully returning raw candidates to main brain without crashing; decoupled `basket_manager.py` from `catalog_ranker.py` while keeping `catalog_ranker.py` for invariant tests; added 5 mock unit tests in `backend/tests/test_slice_e2.py`.
+- **Proof**: `pytest backend/tests/test_slice_e2.py` passed 5/5; `pytest backend/tests/test_invariants.py` passed 27/27; full unit suite passed 96/96 with 0 newly red tests (only the 73 pre-existing DB fixture errors in `test_whatsapp_postgres_e2e.py` / `test_slice_7d.py`); `git diff --check` exits 0.
+- **Still broken**: 34 pre-existing baseline e2e failures remain untouched; word lists and regex remain in `catalog_ranker.py` (kept for invariant tests) and `response_synthesizer.py`.
+
 #### Work Card: Fair Ranker vs. Model Experiment Execution across 31 Live Queries (Slice E1b)
 
 - **Problem**: Previous experiment falsified stock status as `OUT OF STOCK` for unknown stock, hardcoded model imports, exceeded Gemini free-tier RPM without spacing/retries, and missed query 31 (`coffee`) and Swiggy's plain search order baseline.

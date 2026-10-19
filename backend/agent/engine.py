@@ -54,7 +54,6 @@ class GroceryAgentEngine:
         **_kwargs: Any,
     ) -> None:
         self.commerce = commerce
-        self.tools = SwiggyAgentTools(commerce)
         self.attempt_store = attempt_store
         self.state_store = state_store
         self.gemini_api_key = gemini_api_key or getattr(settings, "GEMINI_API_KEY", None)
@@ -73,6 +72,7 @@ class GroceryAgentEngine:
             fallback_model=self.gemini_fallback_model,
             timeout=self.timeout,
         )
+        self.tools = SwiggyAgentTools(commerce, gemini_client=self.gemini)
 
     def get_session(self, customer_id: str) -> Any:
         """Return the atomic CustomerSession for customer_id."""

@@ -58,8 +58,8 @@ class GroceryAgentEngine:
         self.attempt_store = attempt_store
         self.state_store = state_store
         self.gemini_api_key = gemini_api_key or getattr(settings, "GEMINI_API_KEY", None)
-        self.gemini_model = gemini_model or getattr(settings, "GEMINI_MODEL", BRAIN_MODEL)
-        self.gemini_fallback_model = gemini_fallback_model or getattr(settings, "GEMINI_FALLBACK_MODEL", BRAIN_FALLBACK_MODEL)
+        self.gemini_model = gemini_model or BRAIN_MODEL
+        self.gemini_fallback_model = gemini_fallback_model or BRAIN_FALLBACK_MODEL
         self.timeout = timeout
         # Single authoritative CustomerSession map
         self._sessions: dict[str, Any] = {}

@@ -17,6 +17,13 @@ During the Session End ritual (called automatically whenever significant changes
 
 ### [GROCER — Ground-Truth Claim Verification via Facts Text & Accuracy Suite] 2026-10-19
 
+#### Work Card: Single Model Source of Truth, Non-Destructive Fact Merging & Backend-Wide Model Scan (Slice D2h)
+
+- **Problem**: Model config was split across duplicate `GROCER_*` env channels; `update_product_facts` erased real data when incoming facts contained `None` or `""` values; pack size comparison lacked casefolding; model string tests only checked 4 files rather than scanning all backend production code.
+- **Change**: Made `backend/config.py` the single source of truth (`GEMINI_MODEL=gemini-3.5-flash`, `GEMINI_SMALL_CHECK_MODEL=gemini-3.5-flash-lite`, `GEMINI_FALLBACK_MODEL=gemini-3-flash-preview`) with re-exports in `backend/agent/config.py` and constructor defaults in `backend/agent/gemini.py` and `backend/agent/engine.py`; updated `CustomerSession.update_product_facts` in `backend/agent/session.py` to casefold/trim pack sizes and drop `None`/`""` keys before merging key by key; added production-shape 6-key dedupe test, Settings defaults test with monkeypatched env, and backend-wide 60-file model string scan in `backend/tests/test_slice_d2g.py`.
+- **Proof**: `pytest backend/tests/test_slice_d2a.py backend/tests/test_slice_d2c.py backend/tests/test_slice_d2f.py backend/tests/test_slice_d2g.py -m "not live"` passed 32/32; full pytest ran with local Postgres container (`grocer-test-pg`) on port 55432, passing 129/163 with 34 failed (exact same 34 baseline failures in `test_whatsapp_postgres_e2e.py`); `git diff --check` exits 0.
+- **Still broken**: 34 pre-existing baseline e2e failures remain untouched; word lists and regex remain in `response_synthesizer.py`.
+
 #### Work Card: Ranker Experiment Tooling & Live Swiggy MCP Auth Failure Handling (Slice E1)
 
 - **Problem**: Need to evaluate whether deterministic `catalog_ranker` heuristics are necessary or if `SMALL_CHECK_MODEL` (`gemini-3.5-flash-lite`) can select product variants from raw search hits across 30 customer queries without mocks.

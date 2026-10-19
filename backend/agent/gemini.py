@@ -7,6 +7,8 @@ import logging
 from typing import Any, Optional
 import httpx
 
+from backend.agent.config import BRAIN_FALLBACK_MODEL, BRAIN_MODEL
+
 logger = logging.getLogger(__name__)
 
 
@@ -16,8 +18,8 @@ class GeminiClient:
     def __init__(
         self,
         api_key: str,
-        primary_model: str = "gemini-3.5-flash",
-        fallback_model: str = "gemini-3-flash-preview",
+        primary_model: str = BRAIN_MODEL,
+        fallback_model: str = BRAIN_FALLBACK_MODEL,
         timeout: float = 30.0,
     ) -> None:
         self.api_key = api_key

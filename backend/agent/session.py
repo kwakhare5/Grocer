@@ -49,7 +49,7 @@ class CustomerSession:
             name = p.get("name")
             pack_size = p.get("pack_size")
             norm_name = " ".join(str(name).split()).casefold() if name else ""
-            p_pack_norm = str(pack_size).strip() if pack_size else None
+            p_pack_norm = str(pack_size).strip().casefold() if pack_size and str(pack_size).strip() else None
 
             idx = -1
             for i, existing in enumerate(self.recent_product_facts):
@@ -58,7 +58,7 @@ class CustomerSession:
                 ex_name = existing.get("name")
                 ex_pack_size = existing.get("pack_size")
                 norm_ex_name = " ".join(str(ex_name).split()).casefold() if ex_name else ""
-                ex_pack_norm = str(ex_pack_size).strip() if ex_pack_size else None
+                ex_pack_norm = str(ex_pack_size).strip().casefold() if ex_pack_size and str(ex_pack_size).strip() else None
 
                 if spin:
                     if ex_spin:
@@ -99,10 +99,15 @@ class CustomerSession:
 
             if idx >= 0:
                 merged = dict(self.recent_product_facts[idx])
-                merged.update(p)
+                incoming_clean = {
+                    k: v for k, v in p.items()
+                    if v is not None and not (isinstance(v, str) and v.strip() == "")
+                }
+                for k, v in incoming_clean.items():
+                    merged[k] = v
                 self.recent_product_facts[idx] = merged
             else:
-                self.recent_product_facts.append(p)
+                self.recent_product_facts.append(dict(p))
 
         if len(self.recent_product_facts) > 50:
             self.recent_product_facts = self.recent_product_facts[-50:]

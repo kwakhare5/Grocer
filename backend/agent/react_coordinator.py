@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from typing import Any, Optional
 
 from backend.agent.checkout_outcome import process_checkout_outcome
-from backend.agent.claim_check import check_reply_claims
+from backend.agent.claim_check import build_facts_text, check_reply_claims
 from backend.agent.formatters import format_cart_receipt
 from backend.agent.product_policy import is_symptom_suggestion_request
 from backend.channels.models import (
@@ -101,6 +101,7 @@ async def execute_react_turn_loop(
     unavailable_items: list[str] = []
     reduced_items: list[str] = []
     guarded_change_message: str | None = None
+    turn_tool_results: list[dict[str, Any]] = []
 
     initial_cart_items = tuple((it.spin_id or it.product_id, it.quantity) for it in current_cart.items) if current_cart else ()
     initial_budget = getattr(session, "budget_inr", None)
@@ -174,11 +175,16 @@ async def execute_react_turn_loop(
                     or bool(budget_blocked_items)
                 )
                 if not state_changed:
+                    facts_text = build_facts_text(cart=current_cart, tool_results=turn_tool_results)
                     try:
-                        claim = await check_reply_claims(getattr(engine, "gemini", None), response_text)
+                        claim = await check_reply_claims(
+                            getattr(engine, "gemini", None),
+                            response_text,
+                            facts_text=facts_text,
+                        )
                     except Exception:
                         claim = "unclear"
-                    if claim == "no":
+                    if claim in {"supported", "no_claim", "no"}:
                         final_text = response_text
                     else:
                         if current_cart is None:
@@ -279,6 +285,10 @@ async def execute_react_turn_loop(
                     None,
                 ))
         normalized_calls = executed_calls
+        for nc in normalized_calls:
+            c = nc[0].get("functionResponse", {}).get("response", {}).get("content")
+            if isinstance(c, dict):
+                turn_tool_results.append(c)
         tool_responses = [nc[0] for nc in normalized_calls]
         history.append({
             "role": "user",

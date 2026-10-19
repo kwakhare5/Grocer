@@ -15,6 +15,15 @@ During the Session End ritual (called automatically whenever significant changes
 
 ## Log Entries
 
+### [GROCER — Ground-Truth Claim Verification via Facts Text & Accuracy Suite] 2026-10-19
+
+#### Work Card: Truth-Based Claim Check, Plain Facts Text & Accuracy Test (Slice D2c)
+
+- **Problem**: Claim check only judged whether a reply made a claim rather than whether it was true, replacing correct price answers with a receipt; 50-step invariant test used a stand-in with fixed item lists and rupee regex.
+- **Change**: Replaced yes/no claim check with truth judgment (`supported`, `unsupported`, `no_claim`) against code-built plain facts text (`build_facts_text`) combining cart state (items, quantities, unit/total prices, fees, totals) and turn tool results (product names, variants, prices, availability) in `claim_check.py`; updated `react_coordinator.py` to keep model text on `supported` or `no_claim` and replace only on `unsupported`, `unclear`, or errors while collecting turn tool results; replaced regex/item stand-in in `test_slice_d2a.py` with scripted per-step verdicts verifying lie replacement and harmless reply passthrough; added `test_slice_d2c.py` with facts text unit tests, supported price passthrough, error fallback, and a 20-case live classifier accuracy test.
+- **Proof**: `pytest backend/tests/test_slice_d2a.py backend/tests/test_slice_d2c.py` passed 13/13; full test suite ran with 106 passed, 34 failed (exact same 34 baseline failures); `git diff --check` exits 0.
+- **Still broken**: Regex and word lists remain in `response_synthesizer.py` on the approval and suggestion paths; 34 e2e tests red.
+
 ### [GROCER — Whole-Basket Spending Cap Protection via Native Gemini Flash-Lite] 2026-10-18
 
 #### Work Card: Claim Check Test Decoupling, History Non-Empty Guard & Invariant Hardening (Slice D2b)

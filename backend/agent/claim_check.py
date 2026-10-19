@@ -73,7 +73,7 @@ def extract_product_facts(tool_result: dict[str, Any]) -> list[dict[str, Any]]:
                     v_name = v.get("name") or p_name
                     v_pack = v.get("pack_size")
                     v_price = v.get("price") if v.get("price") is not None else v.get("offer_price")
-                    v_stock = v.get("in_stock") if v.get("in_stock") is not None else (v.get("is_available") if v.get("is_available") is not None else True)
+                    v_stock = v.get("in_stock") if v.get("in_stock") is not None else v.get("is_available")
                     facts.append({
                         "product_id": pid or v.get("sku_id") or v.get("spin_id"),
                         "spin_id": v.get("spin_id"),
@@ -86,7 +86,7 @@ def extract_product_facts(tool_result: dict[str, Any]) -> list[dict[str, Any]]:
             p_name = p.get("name", "")
             p_pack = p.get("pack_size")
             p_price = p.get("price") if p.get("price") is not None else (p.get("unit_price") if p.get("unit_price") is not None else p.get("total_price"))
-            p_stock = p.get("in_stock") if p.get("in_stock") is not None else (p.get("is_available") if p.get("is_available") is not None else True)
+            p_stock = p.get("in_stock") if p.get("in_stock") is not None else p.get("is_available")
             facts.append({
                 "product_id": p.get("product_id") or p.get("id") or p.get("sku_id") or p.get("spin_id"),
                 "spin_id": p.get("spin_id"),
@@ -165,10 +165,11 @@ def build_facts_text(
                     p_name = p.get("name", "")
                     p_pack = p.get("pack_size")
                     p_price = p.get("price")
-                    p_stock = "in stock" if p.get("in_stock") is not False else "out of stock"
+                    p_stock = p.get("in_stock")
+                    stock_suffix = ", in stock" if p_stock is True else (", out of stock" if p_stock is False else "")
                     pack_str = f" ({p_pack})" if p_pack and str(p_pack).strip() and str(p_pack).strip() != "None" else ""
                     price_str = f": ₹{p_price}" if p_price is not None and str(p_price).strip() != "None" else ""
-                    product_lines.append(f"- {p_name}{pack_str}{price_str}, {p_stock}")
+                    product_lines.append(f"- {p_name}{pack_str}{price_str}{stock_suffix}")
             # manage_basket or items list
             elif isinstance(res.get("items"), list):
                 for it in res["items"]:
@@ -194,11 +195,11 @@ def build_facts_text(
             pack = item.get("pack_size") or item.get("pack")
             price = item.get("price") if item.get("price") is not None else item.get("unit_price")
             in_stock = item.get("in_stock")
-            stock_str = "in stock" if in_stock is not False else "out of stock"
+            stock_suffix = ", in stock" if in_stock is True else (", out of stock" if in_stock is False else "")
 
             pack_str = f" ({pack})" if pack and str(pack).strip() and str(pack).strip() != "None" else ""
             price_str = f": ₹{price}" if price is not None and str(price).strip() != "None" else ""
-            session_lines.append(f"- {name}{pack_str}{price_str}, {stock_str}")
+            session_lines.append(f"- {name}{pack_str}{price_str}{stock_suffix}")
         if session_lines:
             lines.append("Known Products from earlier in this session:")
             lines.extend(session_lines)

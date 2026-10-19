@@ -48,8 +48,13 @@ class Settings(BaseSettings):
     @field_validator("GEMINI_FALLBACK_MODEL", mode="before")
     @classmethod
     def sanitize_fallback_model(cls, v: str | None) -> str:
-        if not v or v == "gemini-3.5-flash-lite":
+        if not v:
             return "gemini-3-flash-preview"
+        if v == "gemini-3.5-flash-lite":
+            import logging
+            logging.getLogger("grocer.config").warning(
+                "GEMINI_FALLBACK_MODEL is configured as 'gemini-3.5-flash-lite'; expected default is 'gemini-3-flash-preview'."
+            )
         return v
 
     model_config = SettingsConfigDict(env_file='.env', env_file_encoding='utf-8', extra='ignore')

@@ -68,7 +68,7 @@ Swiggy Instamart Live MCP Gateway (https://mcp.swiggy.com/im)
 
 ## Intelligence and deterministic enforcement
 
-The Gemini model (`gemini-3.5-flash-lite`) interprets language, infers ingredient lists from open-ended recipes, selects in-stock pack sizes within budget, and proposes actions through function calling.
+The Gemini brain model (`gemini-3.5-flash`, with `gemini-3.5-flash-lite` for small checks and `gemini-3-flash-preview` fallback) interprets language, infers ingredient lists from open-ended recipes, selects in-stock pack sizes within budget, and proposes actions through function calling.
 
 Deterministic Python code strictly enforces:
 1. **Server-Side Checkout Gating**: `SwiggyAgentTools.checkout` enforces `is_user_confirmed: True`. If an LLM calls checkout without user confirmation, the tool immediately aborts with `CONFIRMATION_REQUIRED`.

@@ -286,6 +286,7 @@ pytest
 | `DATA_ENCRYPTION_KEY` | Yes | - | 32-byte Fernet key for encrypting stored OAuth credentials |
 | `GEMINI_API_KEY` | Yes | - | Google AI Studio API key |
 | `GEMINI_MODEL` | No | `gemini-3.5-flash` | Gemini model for intent parsing and planning |
+| `GEMINI_SMALL_CHECK_MODEL` | No | `gemini-3.5-flash-lite` | Small checks model for confirmation checks, budget reading, and claim verification |
 | `GEMINI_FALLBACK_MODEL` | No | `gemini-3-flash-preview` | Fallback model used if the primary model hits transient quotas |
 | `COMMERCE_ADAPTER_TYPE` | No | `swiggy` | Adapter implementation (`swiggy` for live MCP, `mock` for offline dev) |
 | `WHATSAPP_PHONE_NUMBER_ID` | Yes (Prod) | - | Meta WhatsApp Cloud API Phone Number ID |

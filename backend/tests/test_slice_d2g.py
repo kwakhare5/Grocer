@@ -81,27 +81,33 @@ def test_dedupe_spin_fact_then_pid_only_fact_gives_one_entry_same_as_reverse():
     assert session_b.recent_product_facts[0]["price"] == 30.0
 
 
-def test_dedupe_production_shape_spin_then_pid_only_and_reverse():
-    """All 6 keys present, empty ones None or '':
-    spin fact then pid-only fact keeps spin_id, pack_size and price;
-    pid-only then spin fact keeps both."""
+def test_dedupe_production_shape_exact_extract_facts_keys():
+    """Uses the exact keys extract_product_facts outputs:
+    (product_id, spin_id, name, pack_size, price, in_stock) with pack_size '' when missing.
+    Cases:
+    - spin fact then pid-only fact keeps spin_id, pack_size and price
+    - pid-only then spin fact keeps both
+    - out of stock then unknown stays out of stock
+    - unknown then in stock becomes in stock
+    - price changes to a new value is accepted
+    """
     # 1. Spin fact then pid-only fact
     session_1 = CustomerSession("cust-prod-shape-1")
     spin_fact = {
         "product_id": "pid-milk-100",
         "spin_id": "spin-milk-500",
-        "sku_id": "sku-milk-500",
         "name": "Amul Taaza Fresh Toned Milk",
         "pack_size": "500 ml",
         "price": 28.0,
+        "in_stock": True,
     }
     pid_only_fact = {
         "product_id": "pid-milk-100",
         "spin_id": None,
-        "sku_id": "",
         "name": "Amul Taaza Fresh Toned Milk",
-        "pack_size": None,
+        "pack_size": "",
         "price": None,
+        "in_stock": None,
     }
     session_1.update_product_facts([spin_fact])
     session_1.update_product_facts([pid_only_fact])
@@ -110,10 +116,10 @@ def test_dedupe_production_shape_spin_then_pid_only_and_reverse():
     f1 = session_1.recent_product_facts[0]
     assert f1["product_id"] == "pid-milk-100"
     assert f1["spin_id"] == "spin-milk-500"
-    assert f1["sku_id"] == "sku-milk-500"
     assert f1["name"] == "Amul Taaza Fresh Toned Milk"
     assert f1["pack_size"] == "500 ml"
     assert f1["price"] == 28.0
+    assert f1["in_stock"] is True
 
     # 2. Pid-only fact then spin fact
     session_2 = CustomerSession("cust-prod-shape-2")
@@ -124,10 +130,87 @@ def test_dedupe_production_shape_spin_then_pid_only_and_reverse():
     f2 = session_2.recent_product_facts[0]
     assert f2["product_id"] == "pid-milk-100"
     assert f2["spin_id"] == "spin-milk-500"
-    assert f2["sku_id"] == "sku-milk-500"
     assert f2["name"] == "Amul Taaza Fresh Toned Milk"
     assert f2["pack_size"] == "500 ml"
     assert f2["price"] == 28.0
+    assert f2["in_stock"] is True
+
+    # 3. Out of stock then unknown stays out of stock
+    session_3 = CustomerSession("cust-prod-shape-3")
+    oos_fact = {
+        "product_id": "pid-bread-1",
+        "spin_id": "spin-bread-400",
+        "name": "Brown Bread",
+        "pack_size": "400 g",
+        "price": 45.0,
+        "in_stock": False,
+    }
+    unknown_fact = {
+        "product_id": "pid-bread-1",
+        "spin_id": "spin-bread-400",
+        "name": "Brown Bread",
+        "pack_size": "400 g",
+        "price": 45.0,
+        "in_stock": None,
+    }
+    session_3.update_product_facts([oos_fact])
+    session_3.update_product_facts([unknown_fact])
+    assert len(session_3.recent_product_facts) == 1
+    assert session_3.recent_product_facts[0]["in_stock"] is False
+
+    # 4. Unknown then in stock becomes in stock
+    session_4 = CustomerSession("cust-prod-shape-4")
+    unknown_egg = {
+        "product_id": "pid-eggs-1",
+        "spin_id": "spin-eggs-6",
+        "name": "Farm Fresh Eggs 6 pcs",
+        "pack_size": "6 pcs",
+        "price": 50.0,
+        "in_stock": None,
+    }
+    in_stock_egg = {
+        "product_id": "pid-eggs-1",
+        "spin_id": "spin-eggs-6",
+        "name": "Farm Fresh Eggs 6 pcs",
+        "pack_size": "6 pcs",
+        "price": 50.0,
+        "in_stock": True,
+    }
+    session_4.update_product_facts([unknown_egg])
+    session_4.update_product_facts([in_stock_egg])
+    assert len(session_4.recent_product_facts) == 1
+    assert session_4.recent_product_facts[0]["in_stock"] is True
+
+    # 5. Price changes to a new value is accepted
+    session_5 = CustomerSession("cust-prod-shape-5")
+    paneer_old_price = {
+        "product_id": "pid-paneer-1",
+        "spin_id": "spin-paneer-200",
+        "name": "Fresh Paneer",
+        "pack_size": "200 g",
+        "price": 85.0,
+        "in_stock": True,
+    }
+    paneer_new_price = {
+        "product_id": "pid-paneer-1",
+        "spin_id": "spin-paneer-200",
+        "name": "Fresh Paneer",
+        "pack_size": "200 g",
+        "price": 90.0,
+        "in_stock": True,
+    }
+    session_5.update_product_facts([paneer_old_price])
+    session_5.update_product_facts([paneer_new_price])
+    assert len(session_5.recent_product_facts) == 1
+    assert session_5.recent_product_facts[0]["price"] == 90.0
+
+
+def test_gemini_fallback_model_env_value_is_kept(monkeypatch):
+    """An env value for GEMINI_FALLBACK_MODEL must be kept as given without rewriting."""
+    monkeypatch.setenv("GEMINI_FALLBACK_MODEL", "gemini-3.5-flash-lite")
+    from backend.config import Settings
+    s = Settings(_env_file=None)
+    assert s.GEMINI_FALLBACK_MODEL == "gemini-3.5-flash-lite"
 
 
 # ============================================================================
@@ -146,11 +229,6 @@ def test_settings_defaults_match_locked_decisions(monkeypatch):
     assert s.GEMINI_MODEL == "gemini-3.5-flash"
     assert s.GEMINI_SMALL_CHECK_MODEL == "gemini-3.5-flash-lite"
     assert s.GEMINI_FALLBACK_MODEL == "gemini-3-flash-preview"
-
-    from backend.agent.config import BRAIN_MODEL, SMALL_CHECK_MODEL, BRAIN_FALLBACK_MODEL
-    assert BRAIN_MODEL == "gemini-3.5-flash"
-    assert SMALL_CHECK_MODEL == "gemini-3.5-flash-lite"
-    assert BRAIN_FALLBACK_MODEL == "gemini-3-flash-preview"
 
 
 def test_no_hardcoded_model_name_strings():

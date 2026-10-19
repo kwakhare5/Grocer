@@ -17,6 +17,13 @@ During the Session End ritual (called automatically whenever significant changes
 
 ### [GROCER — Ground-Truth Claim Verification via Facts Text & Accuracy Suite] 2026-10-19
 
+#### Work Card: Stock Truth-Preservation, Fallback Env Honesty & Docs Harmonization (Slice D2i)
+
+- **Problem**: `backend/config.py` silently rewrote `GEMINI_FALLBACK_MODEL` env values; `extract_product_facts` invented `in_stock=True` when stock was omitted; `build_facts_text` printed `in stock` for unknown stock; dedupe tests did not reflect `extract_product_facts` 6-key output; docs were missing model configurations.
+- **Change**: Preserved `GEMINI_FALLBACK_MODEL` env values with non-rewriting warning logging; updated `extract_product_facts` and `build_facts_text` in `backend/agent/claim_check.py` to use `None` for unknown stock and omit "in stock" string; updated `CustomerSession.update_product_facts` to ensure known stock states survive unknown inputs; updated production-shape test in `backend/tests/test_slice_d2g.py` with exact 6 keys, out-of-stock survival, unknown-to-stock promotion, and price update cases; harmonized `.env.example`, `README.md`, `docs/SWIGGY_BUILDER_CLUB_APPLICATION.md`, and `GROCER_V2_MASTER_SPEC.md`.
+- **Proof**: `pytest backend/tests/test_slice_d2a.py backend/tests/test_slice_d2c.py backend/tests/test_slice_d2f.py backend/tests/test_slice_d2g.py -m "not live"` passed 33/33; full pytest passed 130/164 with 34 failed (exact same 34 baseline failures in `test_whatsapp_postgres_e2e.py`); `git diff --check` exits 0.
+- **Still broken**: 34 pre-existing baseline e2e failures remain untouched; word lists and regex remain in `response_synthesizer.py`.
+
 #### Work Card: Single Model Source of Truth, Non-Destructive Fact Merging & Backend-Wide Model Scan (Slice D2h)
 
 - **Problem**: Model config was split across duplicate `GROCER_*` env channels; `update_product_facts` erased real data when incoming facts contained `None` or `""` values; pack size comparison lacked casefolding; model string tests only checked 4 files rather than scanning all backend production code.

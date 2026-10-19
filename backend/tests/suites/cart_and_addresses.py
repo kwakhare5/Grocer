@@ -222,6 +222,11 @@ async def test_changed_live_state_requires_fresh_review_before_selected_cart_wri
     commerce = CountingCommerce()
     engine = GroceryAgentEngine(commerce, gemini_api_key="local-test")
 
+    async def mock_variant_picker(*args, **kwargs):
+        return {"action": "pick", "candidate_id": "1", "reason": "mock: default milk pick"}, None
+
+    engine.gemini.generate_structured_with_reason = mock_variant_picker
+
     async def model_reply(_history, **_kwargs):
         return {"candidates": [{"content": {"parts": [{"functionCall": {
             "name": "manage_basket", "args": {"add": [{"query": "milk"}]},

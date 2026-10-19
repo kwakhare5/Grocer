@@ -17,6 +17,13 @@ During the Session End ritual (called automatically whenever significant changes
 
 ### [GROCER — Ground-Truth Claim Verification via Facts Text & Accuracy Suite] 2026-10-19
 
+#### Work Card: Transient Outage Resilience, Stock Pre-Filtering, and E2 Baseline Restoration (Slice E2b)
+
+- **Problem**: In Slice E2, 6 integration tests newly failed because product variant selection calls were unmocked against dummy API keys (HTTP 400); model outages turned into clarification questions for every item; out-of-stock variants (`in_stock=False`) reached the selection model; and pick reasons were not propagated into added items.
+- **Change**: Updated `SwiggyAgentTools.select_best_variant` to filter out candidates with `in_stock is False` before prompting the model (returning `out_of_stock` when all are false, while unknown `None` stock remains), added transient 429/timeout retry with a 6.0s timeout, and returned `selection_unavailable` state on persistent failure; updated `basket_manager.py` to route `selection_unavailable` cleanly without generating clarification questions and introduced `AddedItem` to pass the model's reason with each pick into `added_items`; updated `react_coordinator.py` to inform the customer plainly of temporary picking unavailability and offer top options for one item; added mock variant pickers to the 6 newly failing tests across `planning_repairs.py`, `cart_and_addresses.py`, `recipe_and_budgets.py`, and `budget_and_symptoms.py`, plus `test_slice_7c.py`; added 4 mock unit tests in `backend/tests/test_slice_e2.py`.
+- **Proof**: `pytest backend/tests/test_slice_e2.py` passed 9/9; `pytest backend/tests/test_invariants.py` passed 27/27; targeted suite of all 6 newly failing tests passed; full test suite with PostgreSQL exited with 139 passed, 34 failed (the exact 34 baseline failures from commit 6dc626b, 0 new failures); `git diff --check` exits 0.
+- **Still broken**: 34 pre-existing baseline e2e failures remain untouched; word lists and regex remain in `catalog_ranker.py` and `response_synthesizer.py`.
+
 #### Work Card: Model-Driven Variant Selection & Decoupled Search Word Lists (Slice E2)
 
 - **Problem**: Product candidate selection in search and basket additions relied on hardcoded word lists and regex in `catalog_ranker.py` (`_matches_requested_product`), rejecting or miss-selecting variants that did not conform to rigid token matches.

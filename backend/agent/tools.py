@@ -34,6 +34,40 @@ from backend.agent.address_tools import (
 )
 from backend.config import settings
 
+
+class AddedItem(str):
+    """Product name string preserving candidate pick reason, query, and dictionary access."""
+    name: str
+    reason: str
+    query: str
+
+    def __new__(cls, name: str, reason: str = "", query: str = ""):
+        obj = super().__new__(cls, name)
+        obj.name = name
+        obj.reason = reason
+        obj.query = query
+        return obj
+
+    def get(self, key: str, default: Any = None) -> Any:
+        if key == "name":
+            return self.name
+        if key == "reason":
+            return self.reason
+        if key == "query":
+            return self.query
+        return default
+
+    def __getitem__(self, key: Any) -> Any:
+        if isinstance(key, str):
+            if key == "name":
+                return self.name
+            if key == "reason":
+                return self.reason
+            if key == "query":
+                return self.query
+        return super().__getitem__(key)
+
+
 PRODUCT_SELECTION_SCHEMA = {
     "type": "OBJECT",
     "properties": {
@@ -138,10 +172,8 @@ def _build_product_selection_prompt(
         stock_val = c.get("in_stock")
         if stock_val is True:
             stock_info = " | Status: In Stock"
-        elif stock_val is False:
-            stock_info = " | Status: OUT OF STOCK"
         else:
-            stock_info = ""  # unknown stock is None, show to the model only when known
+            stock_info = ""  # unknown stock is None, shown only when known True
         brand_str = f" | Brand: {c['brand']}" if c.get("brand") else ""
         pack_str = f" | Pack: {c['pack_size']}" if c.get("pack_size") else ""
         price_str = f" | Price: ₹{c['price']}" if c.get("price") is not None else ""
@@ -329,9 +361,24 @@ class SwiggyAgentTools:
         preferred_pack_size: str = "",
     ) -> Optional[dict[str, Any]]:
         """Select product variant using SMALL_CHECK_MODEL, returning pick or ask with reason."""
-        candidates = _extract_candidates(products)
-        if not candidates:
+        raw_candidates = _extract_candidates(products)
+        if not raw_candidates:
             return None
+
+        # Candidates whose in_stock is exactly False are removed before the model sees them. None (unknown) stays.
+        candidates = [c for c in raw_candidates if c.get("in_stock") is not False]
+        if not candidates:
+            # If all candidates are False, say it is out of stock.
+            return {
+                "action": "out_of_stock",
+                "query": query,
+                "reason": f"{query} is out of stock",
+                "candidates": [],
+            }
+
+        # Renumber candidates 1..N for prompt clarity
+        for idx, c in enumerate(candidates, 1):
+            c["candidate_id"] = str(idx)
 
         client = self.gemini_client
         if client is None:
@@ -340,9 +387,9 @@ class SwiggyAgentTools:
                 client = GeminiClient(api_key=api_key)
 
         if client is None:
-            logger.warning("No Gemini client available for product selection on query '%s'", query)
+            logger.error("No Gemini client available for product selection on query '%s'", query)
             return {
-                "action": "fallback_candidates",
+                "action": "selection_unavailable",
                 "candidates": candidates,
                 "query": query,
                 "error": "no_gemini_client",
@@ -350,17 +397,46 @@ class SwiggyAgentTools:
 
         prompt = _build_product_selection_prompt(query, candidates, preferred_pack_size)
         model_name = settings.GEMINI_SMALL_CHECK_MODEL
+        MODEL_TIMEOUT = 6.0
+
+        async def _call_model() -> tuple[Optional[dict[str, Any]], Optional[str]]:
+            try:
+                return await asyncio.wait_for(
+                    client.generate_structured_with_reason(
+                        model=model_name,
+                        prompt=prompt,
+                        response_schema=PRODUCT_SELECTION_SCHEMA,
+                    ),
+                    timeout=MODEL_TIMEOUT,
+                )
+            except (asyncio.TimeoutError, TimeoutError):
+                return None, "timeout"
+            except Exception as exc:
+                return None, str(exc)
 
         try:
-            res, reason = await client.generate_structured_with_reason(
-                model=model_name,
-                prompt=prompt,
-                response_schema=PRODUCT_SELECTION_SCHEMA,
+            res, reason = await _call_model()
+            is_transient = (
+                not res
+                and reason
+                and (
+                    "429" in str(reason).lower()
+                    or "timeout" in str(reason).lower()
+                    or "quota" in str(reason).lower()
+                )
             )
+            if is_transient:
+                logger.warning(
+                    "Product selection model transient error (%s) for query '%s', retrying once after wait",
+                    reason, query,
+                )
+                await asyncio.sleep(0.5)
+                res, reason = await _call_model()
+
             if not res:
-                logger.warning("Product selection model call failed for query '%s': %s", query, reason)
+                logger.error("Product selection model call failed for query '%s': %s", query, reason)
                 return {
-                    "action": "fallback_candidates",
+                    "action": "selection_unavailable",
                     "candidates": candidates,
                     "query": query,
                     "error": reason or "model_no_result",
@@ -400,21 +476,21 @@ class SwiggyAgentTools:
                     "reason": reason_text,
                 }
 
-            logger.warning(
+            logger.error(
                 "Product selection model candidate_id '%s' not found in candidates for query '%s'",
-                chosen_id, query
+                chosen_id, query,
             )
             return {
-                "action": "fallback_candidates",
+                "action": "selection_unavailable",
                 "candidates": candidates,
                 "query": query,
                 "error": "candidate_id_not_found",
             }
 
         except Exception as exc:
-            logger.warning("Product selection model call exception for query '%s': %s", query, exc)
+            logger.error("Product selection model call exception for query '%s': %s", query, exc)
             return {
-                "action": "fallback_candidates",
+                "action": "selection_unavailable",
                 "candidates": candidates,
                 "query": query,
                 "error": str(exc),

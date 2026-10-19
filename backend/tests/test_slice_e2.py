@@ -178,7 +178,7 @@ async def test_mock_model_failure_returns_candidates_and_does_not_crash():
 
     res = await tools.select_best_variant("eggs 6", raw_products)
     assert res is not None
-    assert res["action"] == "fallback_candidates"
+    assert res["action"] == "selection_unavailable"
     assert len(res["candidates"]) == 2
     assert res["candidates"][0]["name"] == "Farm Eggs 6 pcs"
     assert res["candidates"][1]["name"] == "Farm Eggs 12 pcs"
@@ -250,3 +250,165 @@ async def test_mock_manage_basket_integration_pick_and_ask():
     assert mutation_ask["success"] is True
     assert "clarifications_needed" in mutation_ask
     assert mutation_ask["questions"] == ["Which bread do you prefer?"]
+
+
+@pytest.mark.asyncio
+async def test_mock_retry_then_success():
+    """Verify that transient 429 or timeout retries once after short wait and succeeds."""
+    call_count = 0
+
+    class RetryFakeClient:
+        async def generate_structured_with_reason(self, model, prompt, response_schema):
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                return None, "quota 429"
+            return {"action": "pick", "candidate_id": "1", "reason": "picked after retry"}, None
+
+    commerce = MockCommerceAdapter()
+    tools = SwiggyAgentTools(commerce, gemini_client=RetryFakeClient())
+    raw_products = [
+        {
+            "product_id": "PID-BREAD",
+            "name": "White Bread",
+            "variants": [
+                {"spin_id": "SPIN-B1", "sku_id": "SKU-B1", "name": "White Bread 400g", "price": 40.0}
+            ],
+        }
+    ]
+
+    res = await tools.select_best_variant("bread", raw_products)
+    assert call_count == 2
+    assert res is not None
+    assert res["action"] == "pick"
+    assert res["name"] == "White Bread 400g"
+    assert res["reason"] == "picked after retry"
+
+
+@pytest.mark.asyncio
+async def test_mock_failure_gives_selection_unavailable_not_a_question():
+    """Verify model outage returns selection_unavailable and does not turn into questions for items."""
+    fake_client = FakeGeminiClient(should_raise=True)
+    commerce = MockCommerceAdapter()
+    tools = SwiggyAgentTools(commerce, gemini_client=fake_client)
+
+    async def mock_batch_search(queries, address_id):
+        return {
+            "success": True,
+            "results": [
+                {
+                    "query": "milk",
+                    "products": [
+                        {
+                            "product_id": "prod-milk",
+                            "name": "Milk",
+                            "variants": [{"spin_id": "SPIN-M1", "sku_id": "SKU-M1", "name": "Milk 1L", "price": 50.0}],
+                        }
+                    ],
+                },
+                {
+                    "query": "bread",
+                    "products": [
+                        {
+                            "product_id": "prod-bread",
+                            "name": "Bread",
+                            "variants": [{"spin_id": "SPIN-B1", "sku_id": "SKU-B1", "name": "Bread 400g", "price": 40.0}],
+                        }
+                    ],
+                },
+            ],
+        }
+
+    tools.batch_search_products = mock_batch_search
+    result = await tools.manage_basket(
+        address_id="addr-1",
+        add=[{"query": "milk", "quantity": 1}, {"query": "bread", "quantity": 1}],
+    )
+    assert result.get("selection_unavailable") is True
+    assert len(result.get("selection_unavailable_items", [])) == 2
+    assert "clarifications_needed" not in result
+    assert "questions" not in result
+
+
+@pytest.mark.asyncio
+async def test_mock_out_of_stock_filtered():
+    """Verify in_stock=False candidates are filtered before model, None stays, and all False gives out_of_stock."""
+    fake_client = FakeGeminiClient(
+        response={"action": "pick", "candidate_id": "1", "reason": "in stock pick"},
+        reason=None,
+    )
+    commerce = MockCommerceAdapter()
+    tools = SwiggyAgentTools(commerce, gemini_client=fake_client)
+
+    raw_mixed = [
+        {
+            "product_id": "PID-APPLES",
+            "name": "Apples",
+            "variants": [
+                {"spin_id": "SPIN-A1", "sku_id": "SKU-A1", "name": "Red Apples", "price": 100.0, "in_stock": False},
+                {"spin_id": "SPIN-A2", "sku_id": "SKU-A2", "name": "Green Apples", "price": 120.0, "in_stock": None},
+                {"spin_id": "SPIN-A3", "sku_id": "SKU-A3", "name": "Fuji Apples", "price": 140.0, "in_stock": True},
+            ],
+        }
+    ]
+
+    res = await tools.select_best_variant("apples", raw_mixed)
+    assert res is not None
+    prompt = fake_client.last_prompt
+    assert "Red Apples" not in prompt  # in_stock=False filtered out
+    assert "Green Apples" in prompt    # in_stock=None kept
+    assert "Fuji Apples" in prompt     # in_stock=True kept
+
+    raw_all_false = [
+        {
+            "product_id": "PID-MANGO",
+            "name": "Alphonso Mango",
+            "variants": [
+                {"spin_id": "SPIN-M1", "sku_id": "SKU-M1", "name": "Mango 1kg", "price": 300.0, "in_stock": False},
+            ],
+        }
+    ]
+    res_oos = await tools.select_best_variant("mango", raw_all_false)
+    assert res_oos is not None
+    assert res_oos["action"] == "out_of_stock"
+    assert "mango is out of stock" in res_oos["reason"].lower()
+
+
+@pytest.mark.asyncio
+async def test_mock_reason_passed_on_into_added_items():
+    """Verify model pick reason is preserved with each pick in added_items."""
+    fake_client = FakeGeminiClient(
+        response={"action": "pick", "candidate_id": "1", "reason": "Single unit 500g pouch as requested"},
+        reason=None,
+    )
+    commerce = MockCommerceAdapter()
+    tools = SwiggyAgentTools(commerce, gemini_client=fake_client)
+
+    async def mock_batch_search(queries, address_id):
+        return {
+            "success": True,
+            "results": [
+                {
+                    "query": "milk",
+                    "products": [
+                        {
+                            "product_id": "prod-milk",
+                            "name": "Amul Taaza Milk",
+                            "variants": [
+                                {"spin_id": "SPIN-MILK-1L", "sku_id": "SPIN-MILK-1L", "name": "Amul Taaza Milk 1L Pouch", "price": 66.0}
+                            ],
+                        }
+                    ],
+                }
+            ],
+        }
+
+    tools.batch_search_products = mock_batch_search
+    mutation = await tools.manage_basket(address_id="addr-1", add=[{"query": "milk", "quantity": 1}])
+    assert mutation["success"] is True
+    assert len(mutation.get("added_items", [])) == 1
+    added = mutation["added_items"][0]
+    assert added == "Amul Taaza Milk 1L Pouch"
+    assert added.reason == "Single unit 500g pouch as requested"
+    assert added["reason"] == "Single unit 500g pouch as requested"
+    assert added.get("reason") == "Single unit 500g pouch as requested"

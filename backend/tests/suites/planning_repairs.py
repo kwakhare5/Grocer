@@ -16,6 +16,11 @@ from backend.tests.suites.helpers import _interactive_webhook, _webhook
 async def test_planning_clarification_reaches_customer_without_false_cart_claim(postgres_pool, monkeypatch):
     commerce = MockCommerceAdapter()
     engine = GroceryAgentEngine(commerce, gemini_api_key="local-test")
+
+    async def mock_variant_picker(*args, **kwargs):
+        return {"action": "pick", "candidate_id": "1", "reason": "mock: full cream milk picked"}, None
+
+    engine.gemini.generate_structured_with_reason = mock_variant_picker
     model_calls = 0
 
     async def model_question(_history, **_kwargs):
@@ -77,6 +82,11 @@ async def test_planning_clarification_reaches_customer_without_false_cart_claim(
 async def test_hinglish_groceries_search_english_catalog_without_losing_user_items(postgres_pool, monkeypatch):
     commerce = MockCommerceAdapter()
     engine = GroceryAgentEngine(commerce, gemini_api_key="local-test")
+
+    async def mock_variant_picker(*args, **kwargs):
+        return {"action": "pick", "candidate_id": "1", "reason": "mock: candidate picked"}, None
+
+    engine.gemini.generate_structured_with_reason = mock_variant_picker
 
     async def model_reply(_history, **_kwargs):
         return {"candidates": [{"content": {"parts": [{"functionCall": {

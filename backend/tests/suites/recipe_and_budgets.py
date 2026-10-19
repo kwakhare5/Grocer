@@ -156,6 +156,11 @@ async def test_long_list_checks_every_item_in_paced_batches(postgres_pool, monke
     commerce = TrackingCommerce()
     engine = GroceryAgentEngine(commerce, gemini_api_key="local-test")
 
+    async def mock_variant_picker(*args, **kwargs):
+        return {"action": "pick", "candidate_id": "1", "reason": "mock: default item pick"}, None
+
+    engine.gemini.generate_structured_with_reason = mock_variant_picker
+
     async def model_reply(_history, **_kwargs):
         return {"candidates": [{"content": {"parts": [{"functionCall": {
             "name": "manage_basket", "args": {"add": [{"query": query} for query in queries]},

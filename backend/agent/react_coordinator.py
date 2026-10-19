@@ -330,6 +330,22 @@ async def execute_react_turn_loop(
             result = part.get("response", {}).get("content", {})
             if part.get("name") != "manage_basket" or not isinstance(result, dict):
                 continue
+            if not suggestion_only and result.get("selection_unavailable_items"):
+                unavail = result["selection_unavailable_items"]
+                first_query = unavail[0].get("query", "your items")
+                logger.warning(
+                    "Product selection model unavailable during basket management for %s",
+                    [u.get("query") for u in unavail],
+                )
+                session.pending_request_text = None
+                return ReactLoopResult(
+                    early_response=NormalizedOutgoingResponse(
+                        recipient_id=message.sender_id,
+                        channel=message.channel,
+                        text=f"Product picking is temporarily unavailable. Would you like me to show the top options for {first_query}?",
+                        conversation_state="NEEDS_DECISION",
+                    )
+                )
             if not suggestion_only and result.get("success") and not result.get("formatted_receipt"):
                 missing = result.get("unavailable_items", []) + result.get("restricted_items", [])
                 if missing:

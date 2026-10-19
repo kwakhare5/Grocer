@@ -24,6 +24,11 @@ async def test_plain_language_rupee_cap_never_becomes_unreviewed_payable_overage
     commerce = MockCommerceAdapter()
     engine = GroceryAgentEngine(commerce, gemini_api_key="local-test")
 
+    async def mock_variant_picker(*args, **kwargs):
+        return {"action": "pick", "candidate_id": "1", "reason": "mock: budget item pick"}, None
+
+    engine.gemini.generate_structured_with_reason = mock_variant_picker
+
     async def model_reply(_history, **_kwargs):
         return {"candidates": [{"content": {"parts": [{"functionCall": {
             "name": "manage_basket", "args": {"add": [{"query": item} for item in products]},
@@ -68,6 +73,11 @@ async def test_plain_language_rupee_cap_never_becomes_unreviewed_payable_overage
 async def test_missing_requested_item_requires_review_before_checkout(postgres_pool, monkeypatch, missing_query):
     commerce = MockCommerceAdapter()
     engine = GroceryAgentEngine(commerce, gemini_api_key="local-test")
+
+    async def mock_variant_picker(*args, **kwargs):
+        return {"action": "pick", "candidate_id": "1", "reason": "mock: bread pick"}, None
+
+    engine.gemini.generate_structured_with_reason = mock_variant_picker
     calls = 0
 
     async def model_reply(_history, **_kwargs):

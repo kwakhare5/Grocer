@@ -83,6 +83,8 @@ async def execute_manage_basket(
     unavailable_items: list[str] = []
     restricted_items: list[str] = []
     clarifications_needed: list[dict[str, Any]] = []
+    selection_unavailable_items: list[dict[str, Any]] = []
+    from backend.agent.tools import AddedItem
 
     # 1. Process Removals
     if remove and isinstance(remove, list):
@@ -183,11 +185,14 @@ async def execute_manage_basket(
                 best = await tools.select_best_variant(item["query"], raw_prods, item["preferred_pack_size"])
                 if not best:
                     unavailable_items.append(item["query"])
+                elif best.get("action") == "out_of_stock":
+                    unavailable_items.append(item["query"])
                 elif best.get("action") == "pick" and best.get("option"):
                     selected_for_add.append({
                         "option": best["option"],
                         "query": item["query"],
                         "quantity": item["quantity"],
+                        "reason": best.get("reason", ""),
                     })
                 elif best.get("action") == "ask":
                     clarifications_needed.append({
@@ -196,18 +201,18 @@ async def execute_manage_basket(
                         "reason": best.get("reason"),
                         "candidates": best.get("candidates", []),
                     })
-                elif best.get("action") == "fallback_candidates":
-                    clarifications_needed.append({
+                elif best.get("action") == "selection_unavailable":
+                    selection_unavailable_items.append({
                         "query": item["query"],
-                        "question": f"Which option would you like for {item['query']}?",
-                        "reason": "Model selection unavailable; returning store candidates",
                         "candidates": best.get("candidates", []),
+                        "error": best.get("error"),
                     })
                 elif best.get("spin_id"):
                     selected_for_add.append({
                         "option": best,
                         "query": item["query"],
                         "quantity": item["quantity"],
+                        "reason": best.get("reason", ""),
                     })
                 else:
                     unavailable_items.append(item["query"])
@@ -227,7 +232,8 @@ async def execute_manage_basket(
             return mutation
         verified_spins = {item.get("spin_id") for item in mutation.get("items", [])}
         mutation["added_items"] = [
-            s["option"]["name"] for s in selected_for_add
+            AddedItem(s["option"]["name"], reason=s.get("reason", ""), query=s.get("query", ""))
+            for s in selected_for_add
             if s["option"].get("spin_id") in verified_spins
         ]
         mutation["removed_items"] = removed_items
@@ -235,6 +241,9 @@ async def execute_manage_basket(
         mutation["modified_items"] = modified_items
         mutation["unavailable_items"] = unavailable_items
         mutation["restricted_items"] = list(dict.fromkeys(restricted_items))
+        if selection_unavailable_items:
+            mutation["selection_unavailable"] = True
+            mutation["selection_unavailable_items"] = selection_unavailable_items
         if clarifications_needed:
             mutation["clarifications_needed"] = clarifications_needed
             mutation["questions"] = [c["question"] for c in clarifications_needed if c.get("question")]
@@ -269,6 +278,9 @@ async def execute_manage_basket(
         "unavailable_items": unavailable_items,
         "restricted_items": list(dict.fromkeys(restricted_items)),
     }
+    if selection_unavailable_items:
+        res["selection_unavailable"] = True
+        res["selection_unavailable_items"] = selection_unavailable_items
     if clarifications_needed:
         res["clarifications_needed"] = clarifications_needed
         res["questions"] = [c["question"] for c in clarifications_needed if c.get("question")]

@@ -18,6 +18,11 @@ def _setup_test_engine(customer_id: str = "919876543210"):
     session.address_label = "Home"
     session.order_address_confirmed = True
     engine._read_budget_cap = AsyncMock(return_value=None)
+
+    async def mock_variant_picker(*args, **kwargs):
+        return {"action": "pick", "candidate_id": "1", "reason": "mock: test_slice_7c pick"}, None
+
+    engine.gemini.generate_structured_with_reason = mock_variant_picker
     return engine, session, commerce
 
 

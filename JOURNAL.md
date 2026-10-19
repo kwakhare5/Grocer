@@ -17,6 +17,13 @@ During the Session End ritual (called automatically whenever significant changes
 
 ### [GROCER — Ground-Truth Claim Verification via Facts Text & Accuracy Suite] 2026-10-19
 
+#### Work Card: Ranker Experiment Tooling & Live Swiggy MCP Auth Failure Handling (Slice E1)
+
+- **Problem**: Need to evaluate whether deterministic `catalog_ranker` heuristics are necessary or if `SMALL_CHECK_MODEL` (`gemini-3.5-flash-lite`) can select product variants from raw search hits across 30 customer queries without mocks.
+- **Change**: Created `backend/experiments/ranker_experiment.py` running live Instamart searches, candidate extraction, `catalog_ranker` comparison, and Gemini structured output picking with explicit fatal exit on MCP auth/availability errors.
+- **Proof**: Executed `python backend/experiments/ranker_experiment.py`; halted immediately at Step 2 with fatal error: `HTTP 401 Unauthorized: {"error": "invalid_token", "error_description": "JWT has expired"}` (`SWIGGY_AUTH_TOKEN` expired on 2026-09-22 11:17:24 UTC).
+- **Still broken**: Live Swiggy MCP search blocked until a fresh Swiggy session/token is provided; 34 pre-existing baseline e2e failures remain untouched.
+
 #### Work Card: Strict Claim Check Branching, Symmetric Session Dedupe & Model Constants (Slice D2g)
 
 - **Problem**: `claim_check.py` allowed fall-through across client call styles; session deduplication merged items when only one side had a pack size, and spin/pid-only matching was order-dependent; model strings (`gemini-3.5-flash`, `gemini-3.5-flash-lite`, `gemini-3-flash-preview`) were hardcoded across multiple agent modules.

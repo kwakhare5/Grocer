@@ -17,6 +17,13 @@ During the Session End ritual (called automatically whenever significant changes
 
 ### [GROCER — Ground-Truth Claim Verification via Facts Text & Accuracy Suite] 2026-10-19
 
+#### Work Card: Live Ranker Experiment Execution & Swiggy Catalog Analysis (Slice E1 Re-Run)
+
+- **Problem**: Need empirical proof on whether `catalog_ranker` heuristics are needed over plain Swiggy Instamart search results across 30 live queries using a fresh Swiggy session.
+- **Change**: Executed `backend/experiments/ranker_experiment.py` against live Swiggy MCP, capturing top-8 candidates for all 30 queries and recording ranker picks vs. Gemini candidate picks in `backend/experiments/ranker_experiment_results.json`.
+- **Proof**: 30/30 live searches ran and returned candidates; ranker beat plain search order in 12 queries by demoting inflated multi-packs (`x 2`, `x 4`), tied in 11 queries, and did worse in 7 queries (including returning `None` on `chai patti` and `bananas`, and choosing a 10-pack on `eggs 6`).
+- **Still broken**: 34 pre-existing baseline e2e failures remain untouched; word lists and regex remain in `catalog_ranker.py` and `response_synthesizer.py`.
+
 #### Work Card: Stock Truth-Preservation, Fallback Env Honesty & Docs Harmonization (Slice D2i)
 
 - **Problem**: `backend/config.py` silently rewrote `GEMINI_FALLBACK_MODEL` env values; `extract_product_facts` invented `in_stock=True` when stock was omitted; `build_facts_text` printed `in stock` for unknown stock; dedupe tests did not reflect `extract_product_facts` 6-key output; docs were missing model configurations.

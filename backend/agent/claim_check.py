@@ -5,6 +5,8 @@ import asyncio
 import logging
 from typing import Any
 
+from backend.agent.config import SMALL_CHECK_MODEL
+
 logger = logging.getLogger("grocer.agent.claim_check")
 
 CLAIM_CHECK_SCHEMA: dict[str, Any] = {
@@ -239,12 +241,9 @@ async def check_reply_claims_with_reason(
 
     try:
         async with asyncio.timeout(timeout):
-            meth = getattr(target_client, "generate_structured_with_reason", None)
-            res = None
-            reason = None
-            if meth is not None:
-                out = await meth(
-                    model="gemini-3.5-flash-lite",
+            if "generate_structured_with_reason" in dir(target_client):
+                out = await target_client.generate_structured_with_reason(
+                    model=SMALL_CHECK_MODEL,
                     prompt=prompt,
                     response_schema=CLAIM_CHECK_SCHEMA,
                 )
@@ -252,15 +251,11 @@ async def check_reply_claims_with_reason(
                     res, reason = out
                 elif isinstance(out, dict):
                     res, reason = out, None
-                elif hasattr(target_client, "generate_structured"):
-                    res = await target_client.generate_structured(
-                        model="gemini-3.5-flash-lite",
-                        prompt=prompt,
-                        response_schema=CLAIM_CHECK_SCHEMA,
-                    )
-            elif hasattr(target_client, "generate_structured"):
+                else:
+                    return "unclear", "other"
+            elif "generate_structured" in dir(target_client):
                 res = await target_client.generate_structured(
-                    model="gemini-3.5-flash-lite",
+                    model=SMALL_CHECK_MODEL,
                     prompt=prompt,
                     response_schema=CLAIM_CHECK_SCHEMA,
                 )

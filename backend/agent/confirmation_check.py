@@ -4,6 +4,8 @@ from __future__ import annotations
 import logging
 from typing import Any, Optional
 
+from backend.agent.config import SMALL_CHECK_MODEL
+
 logger = logging.getLogger("grocer.agent.confirmation_check")
 
 CONFIRMATION_SCHEMA: dict[str, Any] = {
@@ -26,7 +28,7 @@ async def is_confirmed(
     *,
     client: Any = None,
 ) -> bool:
-    """Judge if customer confirmed this exact order via gemini-3.5-flash-lite structured output.
+    """Judge if customer confirmed this exact order via small check model structured output.
 
     Returns True only when the model answers 'yes'. Any error or 'unclear' counts as no (False).
     """
@@ -52,7 +54,7 @@ async def is_confirmed(
 
     try:
         res = await target_client.generate_structured(
-            model="gemini-3.5-flash-lite",
+            model=SMALL_CHECK_MODEL,
             prompt=prompt,
             response_schema=CONFIRMATION_SCHEMA,
         )

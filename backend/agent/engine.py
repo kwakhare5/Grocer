@@ -5,6 +5,7 @@ import asyncio
 import logging
 from typing import Any, Optional
 
+from backend.agent.config import BRAIN_MODEL, BRAIN_FALLBACK_MODEL
 from backend.agent.schemas import RAW_TOOL_DECLARATIONS
 from backend.agent.tools import SwiggyAgentTools
 from backend.agent.gemini import GeminiClient
@@ -57,8 +58,8 @@ class GroceryAgentEngine:
         self.attempt_store = attempt_store
         self.state_store = state_store
         self.gemini_api_key = gemini_api_key or getattr(settings, "GEMINI_API_KEY", None)
-        self.gemini_model = gemini_model or getattr(settings, "GEMINI_MODEL", "gemini-3.5-flash")
-        self.gemini_fallback_model = gemini_fallback_model or getattr(settings, "GEMINI_FALLBACK_MODEL", "gemini-3-flash-preview")
+        self.gemini_model = gemini_model or getattr(settings, "GEMINI_MODEL", BRAIN_MODEL)
+        self.gemini_fallback_model = gemini_fallback_model or getattr(settings, "GEMINI_FALLBACK_MODEL", BRAIN_FALLBACK_MODEL)
         self.timeout = timeout
         # Single authoritative CustomerSession map
         self._sessions: dict[str, Any] = {}

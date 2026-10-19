@@ -49,6 +49,7 @@ class CustomerSession:
             name = p.get("name")
             pack_size = p.get("pack_size")
             norm_name = " ".join(str(name).split()).casefold() if name else ""
+            p_pack_norm = str(pack_size).strip() if pack_size else None
 
             idx = -1
             for i, existing in enumerate(self.recent_product_facts):
@@ -57,6 +58,7 @@ class CustomerSession:
                 ex_name = existing.get("name")
                 ex_pack_size = existing.get("pack_size")
                 norm_ex_name = " ".join(str(ex_name).split()).casefold() if ex_name else ""
+                ex_pack_norm = str(ex_pack_size).strip() if ex_pack_size else None
 
                 if spin:
                     if ex_spin:
@@ -66,23 +68,39 @@ class CustomerSession:
                     else:
                         # Existing fact saved with product_id only
                         if pid and ex_pid and pid == ex_pid:
-                            idx = i
-                            break
+                            name_compat = not norm_name or not norm_ex_name or norm_name == norm_ex_name
+                            pack_compat = not p_pack_norm or not ex_pack_norm or p_pack_norm == ex_pack_norm
+                            if name_compat and pack_compat:
+                                idx = i
+                                break
                 else:
-                    # No-spin fallback
-                    if not ex_spin:
+                    # New fact has no spin
+                    if ex_spin:
+                        # Existing fact has spin: match by same pid + normalized name + compatible pack size
                         if pid and ex_pid and pid == ex_pid:
-                            if not norm_name or not norm_ex_name or norm_name == norm_ex_name:
-                                if not pack_size or not ex_pack_size or pack_size == ex_pack_size:
-                                    idx = i
-                                    break
+                            name_compat = not norm_name or not norm_ex_name or norm_name == norm_ex_name
+                            pack_compat = not p_pack_norm or not ex_pack_norm or p_pack_norm == ex_pack_norm
+                            if name_compat and pack_compat:
+                                idx = i
+                                break
+                    else:
+                        # Existing fact has no spin either
+                        if pid and ex_pid and pid == ex_pid:
+                            name_compat = not norm_name or not norm_ex_name or norm_name == norm_ex_name
+                            pack_compat = not p_pack_norm or not ex_pack_norm or p_pack_norm == ex_pack_norm
+                            if name_compat and pack_compat:
+                                idx = i
+                                break
                         elif (not pid or not ex_pid) and norm_name and norm_name == norm_ex_name:
-                            if not pack_size or not ex_pack_size or pack_size == ex_pack_size:
+                            # In the no-pid name match, merge only when pack sizes are equal, or both are missing. Never merge when only one side has a pack size.
+                            if p_pack_norm == ex_pack_norm:
                                 idx = i
                                 break
 
             if idx >= 0:
-                self.recent_product_facts[idx] = p
+                merged = dict(self.recent_product_facts[idx])
+                merged.update(p)
+                self.recent_product_facts[idx] = merged
             else:
                 self.recent_product_facts.append(p)
 

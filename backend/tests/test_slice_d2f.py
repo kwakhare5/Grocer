@@ -8,6 +8,7 @@ import httpx
 import pytest
 
 from backend.agent.claim_check import check_reply_claims_with_reason
+from backend.agent.config import SMALL_CHECK_MODEL
 from backend.agent.gemini import GeminiClient
 from backend.agent.session import CustomerSession
 
@@ -114,7 +115,7 @@ async def test_claim_check_offline_assert_spacing_path_used():
     try:
         # First call sets _last_call_time
         res1, reason1 = await client.generate_structured_with_reason(
-            model="gemini-3.5-flash-lite",
+            model=SMALL_CHECK_MODEL,
             prompt="test",
             response_schema={},
         )
@@ -132,7 +133,7 @@ async def test_claim_check_offline_assert_spacing_path_used():
 
         with patch("asyncio.sleep", side_effect=capture_sleep):
             res2, reason2 = await client.generate_structured_with_reason(
-                model="gemini-3.5-flash-lite",
+                model=SMALL_CHECK_MODEL,
                 prompt="test 2",
                 response_schema={},
             )

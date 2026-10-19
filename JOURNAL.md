@@ -17,6 +17,13 @@ During the Session End ritual (called automatically whenever significant changes
 
 ### [GROCER — Ground-Truth Claim Verification via Facts Text & Accuracy Suite] 2026-10-19
 
+#### Work Card: Strict Claim Check Branching, Symmetric Session Dedupe & Model Constants (Slice D2g)
+
+- **Problem**: `claim_check.py` allowed fall-through across client call styles; session deduplication merged items when only one side had a pack size, and spin/pid-only matching was order-dependent; model strings (`gemini-3.5-flash`, `gemini-3.5-flash-lite`, `gemini-3-flash-preview`) were hardcoded across multiple agent modules.
+- **Change**: Updated `check_reply_claims_with_reason` in `backend/agent/claim_check.py` to enforce strict two-branch execution without fall-through, returning `("unclear", "other")` when `generate_structured_with_reason` returns non-dict/non-tuple; updated `CustomerSession.update_product_facts` in `backend/agent/session.py` to only merge no-pid items when pack sizes are equal or both missing, and symmetrically match no-spin facts with existing spin facts by pid, normalized name, and compatible pack size; created `backend/agent/config.py` declaring `BRAIN_MODEL`, `SMALL_CHECK_MODEL`, and `BRAIN_FALLBACK_MODEL`, replacing hardcoded model strings in `claim_check.py`, `budget.py`, `confirmation_check.py`, and `engine.py`; added 5 tests in `backend/tests/test_slice_d2g.py`.
+- **Proof**: `pytest backend/tests/test_slice_d2a.py backend/tests/test_slice_d2c.py backend/tests/test_slice_d2f.py backend/tests/test_slice_d2g.py -m "not live"` passed 31/31; full pytest ran with local Postgres container (`grocer-test-pg`) on port 55432, passing 127/161 with 34 failed (exact same 34 baseline failures in `test_whatsapp_postgres_e2e.py`); `git diff --check` exits 0.
+- **Still broken**: 34 pre-existing baseline e2e failures remain untouched; word lists and regex remain in `response_synthesizer.py`.
+
 #### Work Card: Client-Path Structured Calls, Session Dedupe Normalization & Resilient Heartbeat Mock (Slice D2f)
 
 - **Problem**: `claim_check.py` made direct `httpx` POST calls bypassing `GeminiClient` rate-spacing and model routing; session deduplication failed when a product_id-only fact was followed by a spin_id fact or when names had whitespace/casing differences; `test_slice_7d.py` broke on fast machines due to finite mock side-effects in heartbeat processing.

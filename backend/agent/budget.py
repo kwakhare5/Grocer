@@ -5,6 +5,8 @@ import logging
 import math
 from typing import TYPE_CHECKING
 
+from backend.agent.config import SMALL_CHECK_MODEL
+
 if TYPE_CHECKING:
     from backend.agent.gemini import GeminiClient
 
@@ -12,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 async def read_budget_cap(text: str, client: GeminiClient) -> float | None:
-    """Read whole-basket spending cap in rupees using Gemini flash-lite structured output."""
+    """Read whole-basket spending cap in rupees using Gemini structured output."""
     try:
         prompt = (
             f"Customer message:\n\"{text}\"\n\n"
@@ -34,7 +36,7 @@ async def read_budget_cap(text: str, client: GeminiClient) -> float | None:
             "required": ["has_whole_order_cap"],
         }
         res = await client.generate_structured(
-            model="gemini-3.5-flash-lite",
+            model=SMALL_CHECK_MODEL,
             prompt=prompt,
             response_schema=schema,
         )

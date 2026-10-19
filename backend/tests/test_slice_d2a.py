@@ -368,21 +368,37 @@ async def test_fifty_message_scripted_interleaved_invariant_run():
 
     current_step = 0
     current_cid = ""
+    current_turn_model_text = None
+    current_turn_had_tool_call = False
 
     async def scripted_llm(contents, **kwargs):
+        nonlocal current_turn_model_text, current_turn_had_tool_call
+
+        def _record(res):
+            nonlocal current_turn_model_text, current_turn_had_tool_call
+            parts = res.get("candidates", [{}])[0].get("content", {}).get("parts", [])
+            if any("functionCall" in p for p in parts):
+                current_turn_had_tool_call = True
+                current_turn_model_text = None
+            else:
+                texts = [p["text"] for p in parts if "text" in p]
+                if texts:
+                    current_turn_model_text = "".join(texts)
+            return res
+
         # Adversarial false claims at specific steps
         if current_step == 1:
-            return {"candidates": [{"content": {"parts": [{"text": "Your total is ₹9999 with Alphonso Mangoes."}]}}]}
+            return _record({"candidates": [{"content": {"parts": [{"text": "Your total is ₹9999 with Alphonso Mangoes."}]}}]})
         if current_step == 2:
-            return {"candidates": [{"content": {"parts": [{"text": "Added Belgian Chocolate Ice Cream for ₹450 to your basket."}]}}]}
+            return _record({"candidates": [{"content": {"parts": [{"text": "Added Belgian Chocolate Ice Cream for ₹450 to your basket."}]}}]})
         if current_step == 3:
-            return {"candidates": [{"content": {"parts": [{"text": "Your order has been placed for 500 rupees!"}]}}]}
+            return _record({"candidates": [{"content": {"parts": [{"text": "Your order has been placed for 500 rupees!"}]}}]})
         if current_step == 20:
-            return {"candidates": [{"content": {"parts": [{"text": "Your total is ₹9999 with Alphonso Mangoes."}]}}]}
+            return _record({"candidates": [{"content": {"parts": [{"text": "Your total is ₹9999 with Alphonso Mangoes."}]}}]})
         if current_step == 36:
-            return {"candidates": [{"content": {"parts": [{"text": "Your order is placed and will arrive shortly for ₹250."}]}}]}
+            return _record({"candidates": [{"content": {"parts": [{"text": "Your order is placed and will arrive shortly for ₹250."}]}}]})
         if current_step == 46:
-            return {"candidates": [{"content": {"parts": [{"text": "Added 5 packets of Saffron for ₹1500."}]}}]}
+            return _record({"candidates": [{"content": {"parts": [{"text": "Added 5 packets of Saffron for ₹1500."}]}}]})
 
         last_user_text = ""
         for entry in reversed(contents):
@@ -393,20 +409,20 @@ async def test_fifty_message_scripted_interleaved_invariant_run():
         first_line = last_user_text.splitlines()[0].strip() if last_user_text else ""
 
         if "confirm order" in first_line or first_line == "confirm":
-            return {"candidates": [{"content": {"parts": [{"functionCall": {
+            return _record({"candidates": [{"content": {"parts": [{"functionCall": {
                 "name": "checkout", "args": {},
-            }}]}}]}
+            }}]}}]})
 
         if "clear cart" in first_line or first_line == "cancel":
-            return {"candidates": [{"content": {"parts": [{"functionCall": {
+            return _record({"candidates": [{"content": {"parts": [{"functionCall": {
                 "name": "clear_cart", "args": {},
-            }}]}}]}
+            }}]}}]})
 
         if first_line.startswith("add "):
             item = first_line.replace("add ", "").strip()
-            return {"candidates": [{"content": {"parts": [{"functionCall": {
+            return _record({"candidates": [{"content": {"parts": [{"functionCall": {
                 "name": "manage_basket", "args": {"add": [{"query": item}]},
-            }}]}}]}
+            }}]}}]})
 
         if first_line.startswith("remove "):
             item = first_line.replace("remove ", "").strip()
@@ -416,9 +432,9 @@ async def test_fifty_message_scripted_interleaved_invariant_run():
                 ci = next((it for it in cart.items if item in it.name.casefold()), None)
                 if ci:
                     lid = getattr(ci, "cart_line_id", None) or getattr(ci, "line_id", None) or ci.spin_id
-            return {"candidates": [{"content": {"parts": [{"functionCall": {
+            return _record({"candidates": [{"content": {"parts": [{"functionCall": {
                 "name": "manage_basket", "args": {"remove": [lid]},
-            }}]}}]}
+            }}]}}]})
 
         if first_line.startswith("make "):
             parts = first_line.split()
@@ -430,14 +446,14 @@ async def test_fifty_message_scripted_interleaved_invariant_run():
                 ci = next((it for it in cart.items if item in it.name.casefold()), None)
                 if ci:
                     lid = getattr(ci, "cart_line_id", None) or getattr(ci, "line_id", None) or ci.spin_id
-            return {"candidates": [{"content": {"parts": [{"functionCall": {
+            return _record({"candidates": [{"content": {"parts": [{"functionCall": {
                 "name": "manage_basket", "args": {"set_quantity": [{"line_id": lid, "quantity": qty}]},
-            }}]}}]}
+            }}]}}]})
 
         if any(w in first_line for w in ["wait", "hold", "don't order"]):
-            return {"candidates": [{"content": {"parts": [{"text": "I have held your basket."}]}}]}
+            return _record({"candidates": [{"content": {"parts": [{"text": "I have held your basket."}]}}]})
 
-        return {"candidates": [{"content": {"parts": [{"text": "Hello! How can I help you today?"}]}}]}
+        return _record({"candidates": [{"content": {"parts": [{"text": "Hello! How can I help you today?"}]}}]})
 
     engine._call_llm = scripted_llm
 
@@ -457,14 +473,26 @@ async def test_fifty_message_scripted_interleaved_invariant_run():
          patch("backend.agent.react_coordinator.check_reply_claims", side_effect=scripted_check_claims), \
          patch.object(engine, "_read_budget_cap", new=AsyncMock(return_value=None)):
 
+        tested_unchanged_steps = set()
         for step_num, (cid, incoming, expected_items, expected_checkout) in enumerate(steps, 1):
             current_step = step_num
             current_cid = cid
+            current_turn_model_text = None
+            current_turn_had_tool_call = False
             sess = engine.get_session(cid)
             if step_num in {36, 46}:
                 sess.address_id = "addr-bandra-1"
                 sess.address_label = "Home"
                 sess.order_address_confirmed = True
+
+            with commerce.customer_scope(cid):
+                pre_cart = await commerce.get_cart()
+            pre_cart_items = {it.spin_id: it.quantity for it in pre_cart.items}
+            pre_addr_id = sess.address_id
+            pre_addr_label = sess.address_label
+            pre_addr_confirmed = sess.order_address_confirmed
+            pre_budget = sess.budget_inr
+
             if incoming == "confirm_order_tap":
                 token = sess.pending_approval.token if sess.pending_approval else ""
                 msg = NormalizedIncomingMessage(
@@ -543,9 +571,22 @@ async def test_fifty_message_scripted_interleaved_invariant_run():
                     assert "empty" in response.text.casefold() or "basket" in response.text.casefold(), (
                         f"Step {step_num} (cust={cid}): Expected empty basket replacement for lie, got: {response.text}"
                     )
-            elif step_num in {18, 19}:
-                # Invariant: On non-lie steps where verdict is supported/no_claim and no state changed,
-                # returned text equals scripted model text.
-                assert response.text == "I have held your basket.", (
-                    f"Step {step_num} (cust={cid}): Scripted model text should pass unchanged, got: {response.text}"
+            else:
+                post_cart_items = {it.spin_id: it.quantity for it in cart.items}
+                state_changed = (
+                    (post_cart_items != pre_cart_items)
+                    or (sess.address_id != pre_addr_id)
+                    or (sess.address_label != pre_addr_label)
+                    or (sess.order_address_confirmed != pre_addr_confirmed)
+                    or (sess.budget_inr != pre_budget)
+                    or (response.order_id is not None)
+                    or bool(sess.budget_blocked_items)
                 )
+                is_text_only_model_reply = (current_turn_model_text is not None and not current_turn_had_tool_call)
+                if not state_changed and is_text_only_model_reply:
+                    tested_unchanged_steps.add(step_num)
+                    assert response.text == current_turn_model_text, (
+                        f"Step {step_num} (cust={cid}): Scripted model text should pass unchanged, got: {response.text}"
+                    )
+
+        assert len(tested_unchanged_steps) > 0, "Expected non-lie text-only model steps with no state change to be tested"

@@ -44,19 +44,25 @@ class CustomerSession:
         for p in products:
             if not isinstance(p, dict):
                 continue
+            spin = p.get("spin_id") or p.get("sku_id")
             pid = p.get("product_id") or p.get("id")
-            spin = p.get("spin_id")
+            name = p.get("name")
+            pack_size = p.get("pack_size")
 
             idx = -1
             for i, existing in enumerate(self.recent_product_facts):
-                ex_pid = existing.get("product_id") or existing.get("id")
-                ex_spin = existing.get("spin_id")
-                if (pid and ex_pid and pid == ex_pid) or (spin and ex_spin and spin == ex_spin):
-                    idx = i
-                    break
-                if not pid and not spin and p.get("name") and existing.get("name") == p.get("name") and existing.get("pack_size") == p.get("pack_size"):
-                    idx = i
-                    break
+                if spin:
+                    ex_spin = existing.get("spin_id") or existing.get("sku_id")
+                    if ex_spin and ex_spin == spin:
+                        idx = i
+                        break
+                else:
+                    ex_pid = existing.get("product_id") or existing.get("id")
+                    ex_name = existing.get("name")
+                    ex_pack_size = existing.get("pack_size")
+                    if (pid or name) and (ex_pid, ex_name, ex_pack_size) == (pid, name, pack_size):
+                        idx = i
+                        break
 
             if idx >= 0:
                 self.recent_product_facts[idx] = p

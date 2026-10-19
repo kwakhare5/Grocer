@@ -126,6 +126,7 @@ def restore_task_state_dict(
         selected_payment_kind=state.get("selected_payment_kind"),
         selected_payment_method=state.get("selected_payment_method"),
         selected_payment_label=state.get("selected_payment_label"),
+        recent_product_facts=list(state.get("recent_product_facts") or []),
     )
     return session, history
 
@@ -169,4 +170,5 @@ def dump_task_state_dict(session: CustomerSession) -> dict[str, Any]:
         "selected_payment_kind": session.selected_payment_kind,
         "selected_payment_method": session.selected_payment_method,
         "selected_payment_label": session.selected_payment_label,
+        "recent_product_facts": session.recent_product_facts or [],
     }

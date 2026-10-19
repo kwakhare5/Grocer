@@ -3,13 +3,21 @@ from __future__ import annotations
 
 import asyncio
 import os
+import time
 from unittest.mock import AsyncMock, patch
 import pytest
 
-from backend.agent.claim_check import build_facts_text, check_reply_claims
+from backend.agent.approval import PendingApproval, cart_fingerprint
+from backend.agent.claim_check import (
+    build_facts_text,
+    check_reply_claims,
+    check_reply_claims_with_reason,
+    extract_product_facts,
+)
 from backend.agent.engine import GroceryAgentEngine
 from backend.agent.gemini import GeminiClient
 from backend.agent.session import CustomerSession
+from backend.agent.session_manager import dump_task_state_dict, restore_task_state_dict
 from backend.channels.models import ChannelType, NormalizedIncomingMessage
 from backend.config import settings
 from backend.integrations.commerce.mock_adapter import MockCommerceAdapter
@@ -389,24 +397,253 @@ async def test_session_bounded_product_facts_and_checkout_clearing():
 
     engine._call_llm = fake_model_reply
 
-    with patch("backend.agent.react_coordinator.check_reply_claims", new=AsyncMock(return_value="supported")), \
-         patch.object(engine, "_read_budget_cap", new=AsyncMock(return_value=None)):
-        msg = NormalizedIncomingMessage(
-            sender_id=customer_id,
-            customer_id=customer_id,
-            message_id="msg-earlier-price",
-            channel=ChannelType.WHATSAPP,
-            text="what is the price of nandini milk?",
-        )
+    captured_prompts = []
+    stub_gemini = AsyncMock()
+    stub_gemini.api_key = "stub-api-key"
+    async def fake_generate_structured(*_args, **kwargs):
+        captured_prompts.append(kwargs.get("prompt", ""))
+        return {"verdict": "supported"}
+    stub_gemini.generate_structured = fake_generate_structured
+    engine.gemini = stub_gemini
+
+    msg = NormalizedIncomingMessage(
+        sender_id=customer_id,
+        customer_id=customer_id,
+        message_id="msg-earlier-price",
+        channel=ChannelType.WHATSAPP,
+        text="what is the price of nandini milk?",
+    )
+    with patch.object(engine, "_read_budget_cap", new=AsyncMock(return_value=None)):
         resp = await engine.handle_message(msg)
 
     assert resp is not None
     assert resp.text == milk_price_reply
+    assert len(captured_prompts) == 1
+    assert "Nandini Milk (500 ml): ₹28.0, in stock" in captured_prompts[0]
 
-    # 4. Cleared upon checkout
+    # Second case: empty session - captured facts_text does not contain it
+    empty_cust_id = "cust-empty-session"
+    empty_sess = engine.get_session(empty_cust_id)
+    empty_sess.address_id = "addr-bandra-1"
+    empty_sess.address_label = "Home"
+    empty_sess.order_address_confirmed = True
+    captured_prompts.clear()
+
+    msg_empty = NormalizedIncomingMessage(
+        sender_id=empty_cust_id,
+        customer_id=empty_cust_id,
+        message_id="msg-empty-price",
+        channel=ChannelType.WHATSAPP,
+        text="what is the price of nandini milk?",
+    )
+    with patch.object(engine, "_read_budget_cap", new=AsyncMock(return_value=None)):
+        await engine.handle_message(msg_empty)
+
+    assert len(captured_prompts) == 1
+    facts_part = captured_prompts[0].split("Assistant reply to customer")[0]
+    assert "Nandini Milk" not in facts_part
+
+    # 4. Cleared upon reset_order_address
     assert len(eng_session.recent_product_facts) == 1
     eng_session.reset_order_address()
     assert len(eng_session.recent_product_facts) == 0
+
+
+@pytest.mark.asyncio
+async def test_variants_dedupe_by_spin_and_non_last_variant_price_passes():
+    """Requirement 4: 1 search result with 1 product and 3 variants; all retained and non-last variant passes."""
+    tool_results = [
+        {
+            "success": True,
+            "products": [
+                {
+                    "product_id": "prod-bread-100",
+                    "name": "Britannia Whole Wheat Bread",
+                    "variants": [
+                        {
+                            "spin_id": "spin-bread-400",
+                            "name": "Britannia Whole Wheat Bread",
+                            "pack_size": "400 g",
+                            "price": 35.0,
+                            "in_stock": True,
+                        },
+                        {
+                            "spin_id": "spin-bread-800",
+                            "name": "Britannia Whole Wheat Bread",
+                            "pack_size": "800 g",
+                            "price": 65.0,
+                            "in_stock": True,
+                        },
+                        {
+                            "spin_id": "spin-bread-200",
+                            "name": "Britannia Whole Wheat Bread",
+                            "pack_size": "200 g",
+                            "price": 20.0,
+                            "in_stock": True,
+                        },
+                    ],
+                }
+            ],
+        }
+    ]
+
+    session = CustomerSession(customer_id="cust-variants-keep")
+    prods = extract_product_facts(tool_results[0])
+    session.update_product_facts(prods)
+
+    # After update_product_facts all 3 variants are present
+    assert len(session.recent_product_facts) == 3
+    spins = [p["spin_id"] for p in session.recent_product_facts]
+    assert spins == ["spin-bread-400", "spin-bread-800", "spin-bread-200"]
+
+    # Price answer about a non-last variant (400 g) in a later turn passes unchanged
+    commerce = MockCommerceAdapter()
+    engine = GroceryAgentEngine(commerce, gemini_api_key="mock-key")
+    customer_id = "cust-variants-keep"
+    eng_session = engine.get_session(customer_id)
+    eng_session.address_id = "addr-bandra-1"
+    eng_session.address_label = "Home"
+    eng_session.order_address_confirmed = True
+    eng_session.update_product_facts(prods)
+
+    non_last_reply = "Britannia Whole Wheat Bread (400 g) is ₹35.0 and in stock."
+    async def fake_model_reply(_contents, **_kwargs):
+        return {"candidates": [{"content": {"parts": [{"text": non_last_reply}]}}]}
+
+    engine._call_llm = fake_model_reply
+
+    stub_gemini = AsyncMock()
+    stub_gemini.api_key = "stub-api-key"
+    captured_prompts = []
+    async def fake_structured(*_args, **kwargs):
+        captured_prompts.append(kwargs.get("prompt", ""))
+        return {"verdict": "supported"}
+    stub_gemini.generate_structured = fake_structured
+    engine.gemini = stub_gemini
+
+    msg = NormalizedIncomingMessage(
+        sender_id=customer_id,
+        customer_id=customer_id,
+        message_id="msg-non-last-variant-price",
+        channel=ChannelType.WHATSAPP,
+        text="how much is 400g bread?",
+    )
+    with patch.object(engine, "_read_budget_cap", new=AsyncMock(return_value=None)):
+        resp = await engine.handle_message(msg)
+
+    assert resp is not None
+    assert resp.text == non_last_reply
+    assert len(captured_prompts) == 1
+    assert "Britannia Whole Wheat Bread (400 g): ₹35.0, in stock" in captured_prompts[0]
+
+
+@pytest.mark.asyncio
+async def test_checkout_through_engine_path_clears_recent_product_facts():
+    """Requirement 6: Run a checkout through the engine path and assert recent_product_facts is empty after it."""
+    commerce = MockCommerceAdapter()
+    engine = GroceryAgentEngine(commerce, gemini_api_key="mock-key")
+    customer_id = "cust-checkout-clears-facts"
+    session = engine.get_session(customer_id)
+    session.address_id = "addr-bandra-1"
+    session.address_label = "Home"
+    session.order_address_confirmed = True
+
+    # Pre-populate cart with 1 milk
+    with commerce.customer_scope(customer_id):
+        await commerce.update_cart([
+            CartItem(spin_id="SPIN-MILK-1L", product_id="p-milk", name="Amul Taaza Milk", pack_size="1 L", unit_price=68.0, quantity=1, total_price=68.0)
+        ])
+        cart = await commerce.get_cart()
+
+    session.known_cart_fingerprint = cart_fingerprint(cart, session.address_id)
+    session.pending_approval = PendingApproval(
+        fingerprint=session.known_cart_fingerprint,
+        expires_at=time.time() + 900,
+        token="test-token-checkout",
+    )
+
+    # Add product facts to session
+    session.update_product_facts([
+        {"product_id": "prod-1", "spin_id": "spin-1", "name": "Milk", "price": 68.0, "in_stock": True}
+    ])
+    assert len(session.recent_product_facts) == 1
+
+    # Send confirm button tap through handle_message
+    msg = NormalizedIncomingMessage(
+        sender_id=customer_id,
+        customer_id=customer_id,
+        message_id="msg-checkout-tap",
+        channel=ChannelType.WHATSAPP,
+        text="Confirm Order",
+        interactive_id=f"confirm_order:{session.pending_approval.token}",
+    )
+
+    called_tool = False
+    async def fake_checkout_llm(_contents, **_kwargs):
+        nonlocal called_tool
+        if not called_tool:
+            called_tool = True
+            return {"candidates": [{"content": {"parts": [{"functionCall": {"name": "checkout", "args": {}}}]}}]}
+        return {"candidates": [{"content": {"parts": [{"text": "Your order has been placed!"}]}}]}
+
+    engine._call_llm = fake_checkout_llm
+
+    with patch.object(engine, "_read_budget_cap", new=AsyncMock(return_value=None)):
+        resp = await engine.handle_message(msg)
+
+    assert resp is not None
+    assert resp.order_id is not None
+    assert len(session.recent_product_facts) == 0
+
+
+def test_recent_product_facts_persistence_dump_and_restore():
+    """Requirement 7: dump, restore, assert facts survive; and a dict without the field loads with empty list."""
+    session = CustomerSession(customer_id="cust-persist-test")
+    session.update_product_facts([
+        {
+            "product_id": "prod-tea-1",
+            "spin_id": "spin-tea-250",
+            "name": "Tata Tea Gold",
+            "pack_size": "250 g",
+            "price": 140.0,
+            "in_stock": True,
+        },
+        {
+            "product_id": "prod-tea-1",
+            "spin_id": "spin-tea-500",
+            "name": "Tata Tea Gold Large",
+            "pack_size": "500 g",
+            "price": 270.0,
+            "in_stock": True,
+        },
+    ])
+    assert len(session.recent_product_facts) == 2
+
+    dumped = dump_task_state_dict(session)
+    assert "recent_product_facts" in dumped
+    assert len(dumped["recent_product_facts"]) == 2
+    assert dumped["recent_product_facts"][0]["spin_id"] == "spin-tea-250"
+    assert dumped["recent_product_facts"][1]["spin_id"] == "spin-tea-500"
+
+    # Restore from dumped state
+    restored, _ = restore_task_state_dict("cust-persist-test", dumped)
+    assert len(restored.recent_product_facts) == 2
+    assert restored.recent_product_facts[0]["spin_id"] == "spin-tea-250"
+    assert restored.recent_product_facts[1]["spin_id"] == "spin-tea-500"
+
+    # Old saved state without the field loads with an empty list
+    old_state = {
+        "address_id": "addr-1",
+        "address_label": "Home",
+        "order_address_confirmed": True,
+        "history": [],
+    }
+    loaded_old, _ = restore_task_state_dict("cust-old-test", old_state)
+    assert loaded_old.recent_product_facts == []
+
+    # None state loads with an empty list
+    loaded_none, _ = restore_task_state_dict("cust-none-test", None)
+    assert loaded_none.recent_product_facts == []
 
 
 # ============================================================================
@@ -471,16 +708,20 @@ async def test_live_classifier_accuracy():
         results = []
         judged_count = 0
         quota_blocked_count = 0
+        other_unclear_count = 0
         correct = 0
         for idx, (reply, expected) in enumerate(CASES, 1):
             got = "unclear"
+            last_reason = "other"
             for attempt in range(4):
                 try:
-                    got = await check_reply_claims(client, reply, facts_text=FIXED_FACTS_TEXT)
+                    got, reason = await check_reply_claims_with_reason(client, reply, facts_text=FIXED_FACTS_TEXT)
+                    last_reason = reason
                     if got in {"supported", "unsupported", "no_claim"}:
                         break
                 except Exception as exc:
-                    got = f"error: {exc}"
+                    got = "unclear"
+                    last_reason = f"error: {exc}"
                 await asyncio.sleep(2 ** attempt)
 
             is_judged = got in {"supported", "unsupported", "no_claim"}
@@ -489,32 +730,35 @@ async def test_live_classifier_accuracy():
                 judged_count += 1
                 if is_match:
                     correct += 1
-            else:
+            elif last_reason == "quota 429":
                 quota_blocked_count += 1
+            else:
+                other_unclear_count += 1
 
-            results.append((idx, reply, expected, got, is_match, is_judged))
+            results.append((idx, reply, expected, got, last_reason, is_match, is_judged))
             await asyncio.sleep(0.5)
 
         accuracy_pct = (correct / judged_count * 100.0) if judged_count > 0 else 0.0
 
         # Print formatted report table safely
-        print("\n" + "=" * 90)
+        print("\n" + "=" * 105)
         print("LIVE CLASSIFIER ACCURACY REPORT")
-        print("=" * 90)
-        print(f"{'#':<3} | {'Expected':<12} | {'Got':<12} | {'Match':<5} | {'Judged':<8} | {'Reply'}")
-        print("-" * 90)
-        for idx, reply, expected, got, is_match, is_judged in results:
+        print("=" * 105)
+        print(f"{'#':<3} | {'Expected':<12} | {'Got':<12} | {'Reason':<14} | {'Match':<5} | {'Judged':<8} | {'Reply'}")
+        print("-" * 105)
+        for idx, reply, expected, got, last_reason, is_match, is_judged in results:
             match_str = "YES" if is_match else "NO"
             judged_str = "YES" if is_judged else "BLOCKED"
+            reason_str = str(last_reason or "-")
             safe_reply = reply.replace("₹", "Rs ")
-            print(f"{idx:<3} | {expected:<12} | {got:<12} | {match_str:<5} | {judged_str:<8} | {safe_reply}")
-        print("-" * 90)
-        print(f"Judged: {judged_count}/{len(CASES)}, Quota-blocked: {quota_blocked_count}/{len(CASES)}")
+            print(f"{idx:<3} | {expected:<12} | {got:<12} | {reason_str:<14} | {match_str:<5} | {judged_str:<8} | {safe_reply}")
+        print("-" * 105)
+        print(f"Judged: {judged_count}/{len(CASES)}, Quota-blocked: {quota_blocked_count}/{len(CASES)}, Other-unclear: {other_unclear_count}/{len(CASES)}")
         if judged_count > 0:
             print(f"Accuracy on judged: {correct}/{judged_count} ({accuracy_pct:.1f}%)")
         else:
-            print("Accuracy on judged: N/A (all quota-blocked)")
-        print("=" * 90 + "\n")
+            print("Accuracy on judged: N/A (all quota-blocked or unclear)")
+        print("=" * 105 + "\n")
 
     finally:
         await client.close()

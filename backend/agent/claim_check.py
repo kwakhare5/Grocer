@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 from typing import Any
 
@@ -204,18 +205,20 @@ def build_facts_text(
     return "\n".join(lines)
 
 
-async def check_reply_claims(
+async def check_reply_claims_with_reason(
     client_or_text: Any = None,
     text: str = "",
     *,
     client: Any = None,
     facts_text: str = "",
     timeout: float = 5.0,
-) -> str:
+) -> tuple[str, str | None]:
     """Judge if an assistant reply's claims are supported, unsupported, or make no claim.
 
-    Returns 'supported', 'unsupported', or 'no_claim'.
-    Any error, timeout, or missing configuration returns 'unclear'.
+    Returns:
+        tuple[verdict, reason]
+        verdict: 'supported', 'unsupported', 'no_claim', or 'unclear'.
+        reason: None if judged, or 'quota 429', 'timeout', 'parse error', 'other'.
     """
     if isinstance(client_or_text, str):
         target_client = client
@@ -225,10 +228,10 @@ async def check_reply_claims(
         reply_text = text
 
     if not reply_text or not reply_text.strip():
-        return "no_claim"
+        return "no_claim", None
 
     if not target_client or not getattr(target_client, "api_key", None):
-        return "unclear"
+        return "unclear", "other"
 
     prompt = CLAIM_CHECK_PROMPT.format(
         facts_text=facts_text.strip() if facts_text else "Current Basket: empty",
@@ -237,19 +240,87 @@ async def check_reply_claims(
 
     try:
         async with asyncio.timeout(timeout):
-            res = await target_client.generate_structured(
-                model="gemini-3.5-flash-lite",
-                prompt=prompt,
-                response_schema=CLAIM_CHECK_SCHEMA,
-            )
+            if hasattr(target_client, "get_http_client") and getattr(type(target_client), "__name__", "") == "GeminiClient":
+                url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent"
+                headers = {
+                    "Content-Type": "application/json",
+                    "x-goog-api-key": target_client.api_key,
+                }
+                payload = {
+                    "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+                    "generationConfig": {
+                        "responseMimeType": "application/json",
+                        "responseSchema": CLAIM_CHECK_SCHEMA,
+                        "thinkingConfig": {"thinkingLevel": "low"},
+                    },
+                }
+                http_client = await target_client.get_http_client()
+                resp = await http_client.post(url, json=payload, headers=headers)
+                if resp.status_code == 429:
+                    return "unclear", "quota 429"
+                if resp.status_code != 200:
+                    return "unclear", "other"
+                try:
+                    data = resp.json()
+                    candidates = data.get("candidates", [])
+                    if not candidates:
+                        return "unclear", "parse error"
+                    parts = candidates[0].get("content", {}).get("parts", [])
+                    res = None
+                    for part in parts:
+                        p_text = part.get("text")
+                        if p_text:
+                            res = json.loads(p_text)
+                            break
+                    if not isinstance(res, dict):
+                        return "unclear", "parse error"
+                except Exception:
+                    return "unclear", "parse error"
+            else:
+                res = await target_client.generate_structured(
+                    model="gemini-3.5-flash-lite",
+                    prompt=prompt,
+                    response_schema=CLAIM_CHECK_SCHEMA,
+                )
+
         if isinstance(res, dict):
             val = str(res.get("verdict") or res.get("claims_cart_or_order", "")).strip().casefold()
             if val in {"supported", "unsupported", "no_claim"}:
-                return val
-        return "unclear"
+                return val, None
+            return "unclear", "parse error"
+        return "unclear", "other"
+    except (TimeoutError, asyncio.TimeoutError):
+        return "unclear", "timeout"
     except Exception as exc:
         logger.warning("Claim check failed: %r", exc)
-        return "unclear"
+        status = getattr(exc, "status_code", None) or getattr(getattr(exc, "response", None), "status_code", None)
+        if status == 429:
+            return "unclear", "quota 429"
+        if isinstance(exc, (TimeoutError, asyncio.TimeoutError)):
+            return "unclear", "timeout"
+        return "unclear", "other"
+
+
+async def check_reply_claims(
+    client_or_text: Any = None,
+    text: str = "",
+    *,
+    client: Any = None,
+    facts_text: str = "",
+    timeout: float = 5.0,
+    return_reason: bool = False,
+) -> str | tuple[str, str | None]:
+    """Judge if an assistant reply's claims are supported, unsupported, or make no claim.
+
+    Returns 'supported', 'unsupported', or 'no_claim'.
+    Any error, timeout, or missing configuration returns 'unclear'.
+    """
+    verdict, reason = await check_reply_claims_with_reason(
+        client_or_text, text, client=client, facts_text=facts_text, timeout=timeout
+    )
+    if return_reason:
+        return verdict, reason
+    return verdict
 
 
 async def is_unclaimed_chat(

@@ -2,16 +2,18 @@
 from __future__ import annotations
 
 import asyncio
+import re
 from unittest.mock import AsyncMock, patch
 import pytest
 
 from backend.agent import claim_check, confirmation_check
+from backend.agent.approval import cart_fingerprint
 from backend.agent.claim_check import CLAIM_CHECK_PROMPT, CLAIM_CHECK_SCHEMA, check_reply_claims, is_unclaimed_chat
 from backend.agent.engine import GroceryAgentEngine
 from backend.agent.formatters import format_cart_receipt
 from backend.channels.models import ChannelType, NormalizedIncomingMessage
 from backend.integrations.commerce.mock_adapter import MockCommerceAdapter
-from backend.integrations.commerce.models import CartItemUpdate
+from backend.integrations.commerce.models import CartItem, CartItemUpdate
 
 
 # ============================================================================
@@ -170,6 +172,98 @@ async def test_claim_replacement_never_states_anything_not_in_cart():
     assert "order placed" not in resp.text.casefold()
 
 
+@pytest.mark.asyncio
+async def test_claim_check_no_passes_text_unchanged_with_real_cart():
+    """When claim check explicitly returns 'no', model text passes unchanged even with items in cart."""
+    commerce = MockCommerceAdapter()
+    engine = GroceryAgentEngine(commerce, gemini_api_key="mock-key")
+    customer_id = "test-cust-no-pass"
+    session = engine.get_session(customer_id)
+    session.address_id = "addr-home"
+    session.address_label = "Home"
+    session.order_address_confirmed = True
+
+    with commerce.customer_scope(customer_id):
+        await commerce.update_cart(items=[
+            CartItem(spin_id="SPIN-MILK-500ML", product_id="p-milk", name="Nandini GoodLife Milk", pack_size="500 ml", unit_price=30.0, quantity=1, total_price=30.0)
+        ])
+        cart = await commerce.get_cart()
+    session.known_cart_fingerprint = cart_fingerprint(cart, session.address_id)
+
+    model_chat_text = "We deliver every day between 6 AM and 11 PM."
+    async def fake_call_llm(_contents, **_kwargs):
+        return {"candidates": [{"content": {"parts": [{"text": model_chat_text}]}}]}
+
+    engine._call_llm = fake_call_llm
+
+    fake_gemini = AsyncMock()
+    fake_gemini.api_key = "valid-test-key"
+    fake_gemini.generate_structured = AsyncMock(return_value={"claims_cart_or_order": "no"})
+    engine.gemini = fake_gemini
+
+    msg = NormalizedIncomingMessage(
+        sender_id=customer_id,
+        customer_id=customer_id,
+        message_id="msg-hours-1",
+        channel=ChannelType.WHATSAPP,
+        text="What are your delivery hours?",
+    )
+
+    with patch.object(engine, "_read_budget_cap", new=AsyncMock(return_value=None)):
+        response = await engine.handle_message(msg)
+
+    assert response is not None
+    assert response.text == model_chat_text
+    assert response.order_id is None
+
+
+@pytest.mark.asyncio
+async def test_claim_check_raising_exception_replaces_with_real_receipt():
+    """When claim check raises an exception, turn safely replaces reply with real cart receipt."""
+    commerce = MockCommerceAdapter()
+    engine = GroceryAgentEngine(commerce, gemini_api_key="mock-key")
+    customer_id = "test-cust-err-receipt"
+    session = engine.get_session(customer_id)
+    session.address_id = "addr-home"
+    session.address_label = "Home"
+    session.order_address_confirmed = True
+
+    with commerce.customer_scope(customer_id):
+        await commerce.update_cart(items=[
+            CartItem(spin_id="SPIN-MILK-500ML", product_id="p-milk", name="Nandini GoodLife Milk", pack_size="500 ml", unit_price=30.0, quantity=1, total_price=30.0)
+        ])
+        cart = await commerce.get_cart()
+    session.known_cart_fingerprint = cart_fingerprint(cart, session.address_id)
+
+    async def fake_call_llm(_contents, **_kwargs):
+        return {"candidates": [{"content": {"parts": [{"text": "Your order has been placed for 30 rupees."}]}}]}
+
+    engine._call_llm = fake_call_llm
+
+    fake_gemini = AsyncMock()
+    fake_gemini.api_key = "valid-test-key"
+    fake_gemini.generate_structured = AsyncMock(side_effect=RuntimeError("Structured generation service timeout"))
+    engine.gemini = fake_gemini
+
+    msg = NormalizedIncomingMessage(
+        sender_id=customer_id,
+        customer_id=customer_id,
+        message_id="msg-err-1",
+        channel=ChannelType.WHATSAPP,
+        text="status",
+    )
+
+    with patch.object(engine, "_read_budget_cap", new=AsyncMock(return_value=None)):
+        response = await engine.handle_message(msg)
+
+    assert response is not None
+    assert "🛒" in response.text
+    assert "Amul Taaza Milk" in response.text
+    assert "₹34" in response.text
+    assert "placed" not in response.text.casefold()
+    assert response.order_id is None
+
+
 # ============================================================================
 # Part 2: 50-Message Scripted Interleaved Run
 # ============================================================================
@@ -272,7 +366,24 @@ async def test_fifty_message_scripted_interleaved_invariant_run():
 
     assert len(steps) == 50, f"Expected 50 steps, got {len(steps)}"
 
+    current_step = 0
+    current_cid = ""
+
     async def scripted_llm(contents, **kwargs):
+        # Adversarial false claims at specific steps
+        if current_step == 1:
+            return {"candidates": [{"content": {"parts": [{"text": "Your total is ₹9999 with Alphonso Mangoes."}]}}]}
+        if current_step == 2:
+            return {"candidates": [{"content": {"parts": [{"text": "Added Belgian Chocolate Ice Cream for ₹450 to your basket."}]}}]}
+        if current_step == 3:
+            return {"candidates": [{"content": {"parts": [{"text": "Your order has been placed for 500 rupees!"}]}}]}
+        if current_step == 20:
+            return {"candidates": [{"content": {"parts": [{"text": "Your total is ₹9999 with Alphonso Mangoes."}]}}]}
+        if current_step == 36:
+            return {"candidates": [{"content": {"parts": [{"text": "Your order is placed and will arrive shortly for ₹250."}]}}]}
+        if current_step == 46:
+            return {"candidates": [{"content": {"parts": [{"text": "Added 5 packets of Saffron for ₹1500."}]}}]}
+
         last_user_text = ""
         for entry in reversed(contents):
             if entry.get("role") == "user" and entry.get("parts"):
@@ -334,17 +445,58 @@ async def test_fifty_message_scripted_interleaved_invariant_run():
     async def mock_is_confirmed(_client, text="", context=""):
         return "confirm" in text.casefold()
 
-    # Claim check mock: returns 'no' for plain chat / wait replies
-    async def mock_check_claims(_client, text="", **_kwargs):
-        if any(claim_word in text.casefold() for claim_word in ["total", "rupees", "₹", "order has been placed"]):
+    # Scripted stand-in that judges by comparing against real cart data, not by phrases
+    async def stand_in_check_claims(_client, text="", **_kwargs):
+        with commerce.customer_scope(current_cid):
+            real_cart = await commerce.get_cart()
+
+        real_cart_names = [it.name.casefold() for it in real_cart.items]
+        real_cart_prices = set()
+        for it in real_cart.items:
+            real_cart_prices.add(int(it.unit_price))
+            real_cart_prices.add(int(it.total_price))
+        if real_cart.items:
+            real_cart_prices.add(int(real_cart.item_total))
+            real_cart_prices.add(int(real_cart.grand_total))
+            real_cart_prices.add(int(real_cart.delivery_fee or 0))
+            real_cart_prices.add(int(real_cart.packaging_fee or 0))
+            real_cart_prices.add(int(real_cart.handling_fee or 0))
+            real_cart_prices.add(int(real_cart.taxes or 0))
+
+        prices_in_text = [
+            int(p) for p in re.findall(r"₹\s*(\d+)", text)
+        ] + [
+            int(p) for p in re.findall(r"(\d+)\s*(?:rupees|rs)", text, re.IGNORECASE)
+        ]
+
+        # Any price in text not in real cart prices is an unverified claim
+        for p in prices_in_text:
+            if p not in real_cart_prices:
+                return "yes"
+
+        # Check for uncarted items
+        for false_item in ["belgian chocolate", "alphonso mango", "saffron", "ice cream"]:
+            if false_item in text.casefold() and not any(false_item in rn for rn in real_cart_names):
+                return "yes"
+
+        # Check for false order placed claims when checkout hasn't occurred
+        sess = engine.get_session(current_cid)
+        if "order" in text.casefold() and ("placed" in text.casefold() or "confirm" in text.casefold()):
+            if not getattr(sess, "order_address_confirmed", False) or not real_cart.items:
+                return "yes"
+
+        if prices_in_text or any(rn in text.casefold() for rn in real_cart_names if len(rn) > 3):
             return "yes"
+
         return "no"
 
     with patch("backend.agent.confirmation_check.is_confirmed", side_effect=mock_is_confirmed), \
-         patch("backend.agent.react_coordinator.check_reply_claims", side_effect=mock_check_claims), \
+         patch("backend.agent.react_coordinator.check_reply_claims", side_effect=stand_in_check_claims), \
          patch.object(engine, "_read_budget_cap", new=AsyncMock(return_value=None)):
 
         for step_num, (cid, incoming, expected_items, expected_checkout) in enumerate(steps, 1):
+            current_step = step_num
+            current_cid = cid
             sess = engine.get_session(cid)
             if incoming == "confirm_order_tap":
                 token = sess.pending_approval.token if sess.pending_approval else ""
@@ -389,13 +541,13 @@ async def test_fifty_message_scripted_interleaved_invariant_run():
             assert response is not None, f"Step {step_num} (cust={cid}, msg='{incoming}'): Response is None"
             assert getattr(response, "text", "").strip() != "", f"Step {step_num} (cust={cid}, msg='{incoming}'): Response text is empty"
 
-            # Invariant 2: No checkout without explicit confirmation turn
+            # Invariant 2: No checkout without explicit confirmation turn (strict non-OR assertion)
             if expected_checkout:
-                assert response.order_id is not None or "placed" in response.text.casefold() or "ready" in response.text.casefold(), \
-                    f"Step {step_num}: Expected checkout order placement, but none occurred."
+                assert response.order_id is not None, \
+                    f"Step {step_num}: Expected checkout order placement (order_id is not None), but got None."
             else:
                 assert response.order_id is None, \
-                    f"Step {step_num}: Unexpected checkout execution without explicit confirmation turn."
+                    f"Step {step_num}: Unexpected checkout execution without explicit confirmation turn, got {response.order_id}."
                 assert "order has been placed" not in response.text.casefold(), \
                     f"Step {step_num}: Text claimed 'order has been placed' without explicit confirmation turn."
 
@@ -414,8 +566,55 @@ async def test_fifty_message_scripted_interleaved_invariant_run():
             assert len(cart.items) == len(expected_items), \
                 f"Step {step_num} (cust={cid}): Cart item count mismatch. Got {len(cart.items)}, expected {len(expected_items)}"
 
-            # Invariant 1: Reply never states a cart total or item that is not in the cart
+            # Invariant 1: Reply never contains a price or item name not in the real cart
             reply_lower = response.text.casefold()
+            real_cart_prices = set()
+            if expected_checkout and response.order_id:
+                placed_order = commerce._orders.get(response.order_id)
+                if placed_order:
+                    real_cart_prices.add(int(placed_order.grand_total))
+                    for oit in placed_order.items:
+                        real_cart_prices.add(int(oit.unit_price))
+                        real_cart_prices.add(int(oit.total_price))
+                    subtotal = sum(int(oit.total_price) for oit in placed_order.items)
+                    real_cart_prices.add(subtotal)
+                    real_cart_prices.add(0)
+                    real_cart_prices.add(5)
+                    real_cart_prices.add(30)
+                if response.order_total is not None:
+                    real_cart_prices.add(int(response.order_total))
+            for it in cart.items:
+                real_cart_prices.add(int(it.unit_price))
+                real_cart_prices.add(int(it.total_price))
+            if cart.items:
+                real_cart_prices.add(int(cart.item_total))
+                real_cart_prices.add(int(cart.grand_total))
+                real_cart_prices.add(int(cart.delivery_fee or 0))
+                real_cart_prices.add(int(cart.packaging_fee or 0))
+                real_cart_prices.add(int(cart.handling_fee or 0))
+                real_cart_prices.add(int(cart.taxes or 0))
+
+            mentioned_prices = [
+                int(p) for p in re.findall(r"₹\s*(\d+)", response.text)
+            ] + [
+                int(p) for p in re.findall(r"(\d+)\s*(?:rupees|rs)", response.text, re.IGNORECASE)
+            ]
+            for p in mentioned_prices:
+                assert p in real_cart_prices, (
+                    f"Step {step_num} (cust={cid}): Reply contains price ₹{p} not in real cart prices {real_cart_prices}. "
+                    f"Reply: {response.text}"
+                )
+
+            for fi in ["belgian chocolate", "alphonso mango", "saffron", "ice cream"]:
+                assert fi not in reply_lower, (
+                    f"Step {step_num} (cust={cid}): Reply contains false item '{fi}' not in cart! "
+                    f"Reply: {response.text}"
+                )
+
             if not cart.items and not expected_checkout:
-                assert "order has been placed" not in reply_lower, \
+                assert not mentioned_prices, (
+                    f"Step {step_num} (cust={cid}): Empty cart response contained prices: {mentioned_prices}"
+                )
+                assert "order has been placed" not in reply_lower, (
                     f"Step {step_num}: Empty cart response claimed unbacked state: {response.text}"
+                )

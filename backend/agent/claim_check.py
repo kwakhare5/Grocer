@@ -51,13 +51,6 @@ async def check_reply_claims(
     if not target_client or not getattr(target_client, "api_key", None):
         return "unclear"
 
-    api_key = str(getattr(target_client, "api_key", ""))
-    is_mock = getattr(target_client, "generate_structured", None) is not None and type(
-        getattr(target_client, "generate_structured")
-    ).__name__ in {"AsyncMock", "MagicMock", "Mock"}
-    if not is_mock and api_key in {"mock-key", "local-test", "test-key", "test-api-key"}:
-        return "no"
-
     prompt = CLAIM_CHECK_PROMPT.format(reply_text=reply_text.strip())
 
     try:

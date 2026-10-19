@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import time
+from unittest.mock import AsyncMock, patch
 import pytest
 
 from backend.agent.engine import GroceryAgentEngine
@@ -224,7 +225,8 @@ async def test_typed_reset_leaves_cart_non_empty_and_produces_clear_cart_ask():
         text="clear my cart",
         timestamp=int(time.time()),
     )
-    resp = await engine.handle_message(msg)
+    with patch("backend.agent.react_coordinator.check_reply_claims", new=AsyncMock(return_value="no")):
+        resp = await engine.handle_message(msg)
 
     # 1. Cart must remain non-empty
     with commerce.customer_scope(customer_id):

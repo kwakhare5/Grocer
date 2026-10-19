@@ -1,6 +1,7 @@
 """Planning clarification, plan repair, and English catalog search tests."""
 from __future__ import annotations
 
+from unittest.mock import AsyncMock
 import pytest
 from httpx import ASGITransport, AsyncClient
 
@@ -51,6 +52,7 @@ async def test_planning_clarification_reaches_customer_without_false_cart_claim(
     app.state.message_store = store
     monkeypatch.setattr(default_whatsapp_adapter, "_app_secret", "local-e2e-secret")
     monkeypatch.setattr(default_whatsapp_adapter, "record_only", True)
+    monkeypatch.setattr("backend.agent.react_coordinator.check_reply_claims", AsyncMock(return_value="no"))
     body, headers = _webhook("wamid.clarify-milk", "I want milk but ask me what kind first")
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://local-test") as client:
         assert (await client.post("/api/whatsapp/webhook", content=body, headers=headers)).status_code == 200

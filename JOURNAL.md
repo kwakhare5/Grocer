@@ -17,12 +17,19 @@ During the Session End ritual (called automatically whenever significant changes
 
 ### [GROCER — Whole-Basket Spending Cap Protection via Native Gemini Flash-Lite] 2026-10-18
 
+#### Work Card: Claim Check Test Decoupling, History Non-Empty Guard & Invariant Hardening (Slice D2b)
+
+- **Problem**: Production claim check contained mock-type and test-key shortcuts; empty model text turns were appended to history; `react_coordinator.py` had unused `re` and `any_tool_called`; 50-step invariant test used soft OR in checkout assertion and lacked adversarial false claims.
+- **Change**: Removed test key shortcuts and mock inspections from `claim_check.py`; guarded history appends to skip empty model turns and removed unused `re` and `any_tool_called` in `react_coordinator.py`; added adversarial false claims (made-up prices, uncarted items, unbacked order placement) to 50-step run with real-cart stand-in and strict non-OR checkout assertion; added tests for unchanged text passthrough on 'no' with cart items and real receipt fallback on claim check exceptions in `test_slice_d2a.py`.
+- **Proof**: `pytest backend/tests/test_slice_d2a.py` passed 9/9; full test suite ran with 105 passed, 34 failed (exact same 34 baseline failures); `git diff --check` exits 0.
+- **Still broken**: Classifier only judges that a claim exists not that it is true, correct price answers get replaced by a receipt, regex and word lists remain in response_synthesizer.py on the approval and suggestion paths, 34 e2e tests red.
+
 #### Work Card: Landing Honesty, Reply Claim Check, 50-Message Scripted Invariant Run (Slice D2a)
 
 - **Problem**: When the model replied with text only and no tool call, unbacked claims about items, totals, or order status could reach the customer; retained cart fingerprint after checkout triggered false external drift on subsequent turns.
 - **Change**: Created `backend/agent/claim_check.py` with structured output schema judging claims on text-only turns; replaced unbacked claims with safe real-state replies in `react_coordinator.py`; built customer text by code on state changes and cleared post-checkout fingerprint and pending state in `response_synthesizer.py`; added 7 unit and integration tests in `backend/tests/test_slice_d2a.py` including a 50-step interleaved invariant run.
 - **Proof**: `pytest backend/tests/test_slice_d2a.py` passed 7/7; full pytest ran with 103 passed, 34 failed (exact same 34 baseline failures in `test_whatsapp_postgres_e2e.py`); `git diff --check` exits 0.
-- **Still broken**: None in scope. 34 pre-existing failures in `test_whatsapp_postgres_e2e.py` remain unchanged.
+- **Still broken**: Classifier only judges that a claim exists not that it is true, correct price answers get replaced by a receipt, regex and word lists remain in response_synthesizer.py on the approval and suggestion paths, 34 e2e tests red.
 
 #### Work Card: Doc Audit Fixes, Invariant Test Rename, Code-Backed Claims Only (Slice D1c)
 

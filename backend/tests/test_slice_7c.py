@@ -1,7 +1,7 @@
 """Tests for Slice 7c: step cap 8, 60s turn cap, resume from saved request, and dead loop code cleanup."""
 from __future__ import annotations
 
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 import pytest
 
 from backend.agent import react_coordinator
@@ -135,7 +135,8 @@ async def test_resume_from_saved_request_note_and_cleared_on_success():
         message_id="msg-continue",
         text="continue",
     )
-    resp = await engine.handle_message(msg)
+    with patch("backend.agent.react_coordinator.check_reply_claims", new=AsyncMock(return_value="no")):
+        resp = await engine.handle_message(msg)
 
     assert resp.conversation_state == "READY"
     assert "Resumed and added" in resp.text

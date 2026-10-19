@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import logging
-import re
 import time
 from dataclasses import dataclass, field
 from typing import Any, Optional
@@ -106,7 +105,6 @@ async def execute_react_turn_loop(
     initial_cart_items = tuple((it.spin_id or it.product_id, it.quantity) for it in current_cart.items) if current_cart else ()
     initial_budget = getattr(session, "budget_inr", None)
     initial_address_id = session.address_id
-    any_tool_called = False
 
     start_time = _now()
     for step_idx in range(1, MAX_TOOL_STEPS + 2):
@@ -206,17 +204,17 @@ async def execute_react_turn_loop(
                     else:
                         final_text = "Your basket is empty. What groceries would you like to add?"
 
-                history.append({
-                    "role": "model",
-                    "parts": [{"text": final_text}],
-                    "recorded_at": time.time(),
-                })
+                if final_text and final_text.strip():
+                    history.append({
+                        "role": "model",
+                        "parts": [{"text": final_text}],
+                        "recorded_at": time.time(),
+                    })
                 session.pending_request_text = None
                 break
             final_text = "I couldn't process that request right now. Please tell me what you'd like to do."
             break
 
-        any_tool_called = True
         history.append({
             "role": "model",
             "parts": parts,

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+from unittest.mock import AsyncMock
 import pytest
 from httpx import ASGITransport, AsyncClient
 
@@ -101,6 +102,7 @@ async def test_greeting_does_not_ask_for_delivery_address_or_use_swiggy(postgres
     app.state.message_store = store
     monkeypatch.setattr(default_whatsapp_adapter, "_app_secret", "local-e2e-secret")
     monkeypatch.setattr(default_whatsapp_adapter, "record_only", True)
+    monkeypatch.setattr("backend.agent.react_coordinator.check_reply_claims", AsyncMock(return_value="no"))
     default_whatsapp_adapter.outbound_messages.clear()
     body, headers = _webhook("wamid.greeting", "Hi")
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://local-test") as client:

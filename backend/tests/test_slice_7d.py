@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import itertools
 import json
 from unittest.mock import AsyncMock, MagicMock
 
@@ -230,8 +231,10 @@ async def test_heartbeat_single_error_retries_and_completes_turn(monkeypatch):
     mock_store.recover_stale_outbound = AsyncMock(return_value=0)
     mock_store.claim_outbound = AsyncMock(return_value=None)
     mock_store.claim_next = fake_claim_next
-    # First tick errors, next ticks succeed
-    mock_store.heartbeat_processing = AsyncMock(side_effect=[RuntimeError("transient db blip"), 1, 1, 1])
+    # First tick errors, all subsequent ticks succeed forever
+    mock_store.heartbeat_processing = AsyncMock(
+        side_effect=itertools.chain([RuntimeError("transient db blip")], itertools.repeat(1))
+    )
     mock_store.stage_response = AsyncMock()
     mock_store.mark_processing_failed = AsyncMock()
 

@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 from typing import Any
 
@@ -240,55 +239,40 @@ async def check_reply_claims_with_reason(
 
     try:
         async with asyncio.timeout(timeout):
-            if hasattr(target_client, "get_http_client") and getattr(type(target_client), "__name__", "") == "GeminiClient":
-                url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent"
-                headers = {
-                    "Content-Type": "application/json",
-                    "x-goog-api-key": target_client.api_key,
-                }
-                payload = {
-                    "contents": [{"role": "user", "parts": [{"text": prompt}]}],
-                    "generationConfig": {
-                        "responseMimeType": "application/json",
-                        "responseSchema": CLAIM_CHECK_SCHEMA,
-                        "thinkingConfig": {"thinkingLevel": "low"},
-                    },
-                }
-                http_client = await target_client.get_http_client()
-                resp = await http_client.post(url, json=payload, headers=headers)
-                if resp.status_code == 429:
-                    return "unclear", "quota 429"
-                if resp.status_code != 200:
-                    return "unclear", "other"
-                try:
-                    data = resp.json()
-                    candidates = data.get("candidates", [])
-                    if not candidates:
-                        return "unclear", "parse error"
-                    parts = candidates[0].get("content", {}).get("parts", [])
-                    res = None
-                    for part in parts:
-                        p_text = part.get("text")
-                        if p_text:
-                            res = json.loads(p_text)
-                            break
-                    if not isinstance(res, dict):
-                        return "unclear", "parse error"
-                except Exception:
-                    return "unclear", "parse error"
-            else:
+            meth = getattr(target_client, "generate_structured_with_reason", None)
+            res = None
+            reason = None
+            if meth is not None:
+                out = await meth(
+                    model="gemini-3.5-flash-lite",
+                    prompt=prompt,
+                    response_schema=CLAIM_CHECK_SCHEMA,
+                )
+                if isinstance(out, tuple) and len(out) == 2:
+                    res, reason = out
+                elif isinstance(out, dict):
+                    res, reason = out, None
+                elif hasattr(target_client, "generate_structured"):
+                    res = await target_client.generate_structured(
+                        model="gemini-3.5-flash-lite",
+                        prompt=prompt,
+                        response_schema=CLAIM_CHECK_SCHEMA,
+                    )
+            elif hasattr(target_client, "generate_structured"):
                 res = await target_client.generate_structured(
                     model="gemini-3.5-flash-lite",
                     prompt=prompt,
                     response_schema=CLAIM_CHECK_SCHEMA,
                 )
+            else:
+                return "unclear", "other"
 
         if isinstance(res, dict):
             val = str(res.get("verdict") or res.get("claims_cart_or_order", "")).strip().casefold()
             if val in {"supported", "unsupported", "no_claim"}:
                 return val, None
             return "unclear", "parse error"
-        return "unclear", "other"
+        return "unclear", reason or "other"
     except (TimeoutError, asyncio.TimeoutError):
         return "unclear", "timeout"
     except Exception as exc:

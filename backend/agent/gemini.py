@@ -152,16 +152,19 @@ class GeminiClient:
 
         return None
 
-    async def generate_structured(
+    async def generate_structured_with_reason(
         self,
         model: str,
         prompt: str,
         response_schema: dict[str, Any],
-    ) -> Optional[dict[str, Any]]:
-        """Call Gemini generateContent for small structured-output responses."""
+    ) -> tuple[Optional[dict[str, Any]], Optional[str]]:
+        """Call Gemini generateContent for structured output, returning (result, reason).
+
+        reason is None on success, or one of: 'quota 429', 'timeout', 'parse error', 'other'.
+        """
         if not self.api_key:
             logger.error("No Gemini API key configured.")
-            return None
+            return None, "other"
 
         # Rate throttle (minimum 200ms spacing between turns)
         now = asyncio.get_running_loop().time()
@@ -189,23 +192,52 @@ class GeminiClient:
         try:
             client = await self.get_http_client()
             resp = await client.post(url, json=payload, headers=headers)
+            if resp.status_code == 429:
+                return None, "quota 429"
             if resp.status_code != 200:
                 logger.warning(
                     "Gemini %s structured call returned %d: %s",
                     model, resp.status_code, resp.text[:200]
                 )
-                return None
+                return None, "other"
 
-            data = resp.json()
+            try:
+                data = resp.json()
+            except Exception:
+                return None, "parse error"
+
             candidates = data.get("candidates", [])
             if not candidates:
-                return None
+                return None, "parse error"
             parts = candidates[0].get("content", {}).get("parts", [])
             for part in parts:
                 text = part.get("text")
                 if text:
-                    return json.loads(text)
-            return None
+                    try:
+                        parsed = json.loads(text)
+                        if isinstance(parsed, dict):
+                            return parsed, None
+                        return None, "parse error"
+                    except Exception:
+                        return None, "parse error"
+            return None, "parse error"
+        except (TimeoutError, asyncio.TimeoutError, httpx.TimeoutException):
+            return None, "timeout"
         except Exception as exc:
             logger.warning("Gemini %s structured call exception: %r", model, exc)
-            return None
+            status = getattr(exc, "status_code", None) or getattr(getattr(exc, "response", None), "status_code", None)
+            if status == 429:
+                return None, "quota 429"
+            if isinstance(exc, (TimeoutError, asyncio.TimeoutError, httpx.TimeoutException)):
+                return None, "timeout"
+            return None, "other"
+
+    async def generate_structured(
+        self,
+        model: str,
+        prompt: str,
+        response_schema: dict[str, Any],
+    ) -> Optional[dict[str, Any]]:
+        """Call Gemini generateContent for small structured-output responses."""
+        res, _ = await self.generate_structured_with_reason(model, prompt, response_schema)
+        return res

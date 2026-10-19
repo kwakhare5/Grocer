@@ -48,21 +48,38 @@ class CustomerSession:
             pid = p.get("product_id") or p.get("id")
             name = p.get("name")
             pack_size = p.get("pack_size")
+            norm_name = " ".join(str(name).split()).casefold() if name else ""
 
             idx = -1
             for i, existing in enumerate(self.recent_product_facts):
+                ex_spin = existing.get("spin_id") or existing.get("sku_id")
+                ex_pid = existing.get("product_id") or existing.get("id")
+                ex_name = existing.get("name")
+                ex_pack_size = existing.get("pack_size")
+                norm_ex_name = " ".join(str(ex_name).split()).casefold() if ex_name else ""
+
                 if spin:
-                    ex_spin = existing.get("spin_id") or existing.get("sku_id")
-                    if ex_spin and ex_spin == spin:
-                        idx = i
-                        break
+                    if ex_spin:
+                        if ex_spin == spin:
+                            idx = i
+                            break
+                    else:
+                        # Existing fact saved with product_id only
+                        if pid and ex_pid and pid == ex_pid:
+                            idx = i
+                            break
                 else:
-                    ex_pid = existing.get("product_id") or existing.get("id")
-                    ex_name = existing.get("name")
-                    ex_pack_size = existing.get("pack_size")
-                    if (pid or name) and (ex_pid, ex_name, ex_pack_size) == (pid, name, pack_size):
-                        idx = i
-                        break
+                    # No-spin fallback
+                    if not ex_spin:
+                        if pid and ex_pid and pid == ex_pid:
+                            if not norm_name or not norm_ex_name or norm_name == norm_ex_name:
+                                if not pack_size or not ex_pack_size or pack_size == ex_pack_size:
+                                    idx = i
+                                    break
+                        elif (not pid or not ex_pid) and norm_name and norm_name == norm_ex_name:
+                            if not pack_size or not ex_pack_size or pack_size == ex_pack_size:
+                                idx = i
+                                break
 
             if idx >= 0:
                 self.recent_product_facts[idx] = p

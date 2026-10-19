@@ -17,6 +17,13 @@ During the Session End ritual (called automatically whenever significant changes
 
 ### [GROCER — Ground-Truth Claim Verification via Facts Text & Accuracy Suite] 2026-10-19
 
+#### Work Card: Client-Path Structured Calls, Session Dedupe Normalization & Resilient Heartbeat Mock (Slice D2f)
+
+- **Problem**: `claim_check.py` made direct `httpx` POST calls bypassing `GeminiClient` rate-spacing and model routing; session deduplication failed when a product_id-only fact was followed by a spin_id fact or when names had whitespace/casing differences; `test_slice_7d.py` broke on fast machines due to finite mock side-effects in heartbeat processing.
+- **Change**: Added `generate_structured_with_reason` to `GeminiClient` (`backend/agent/gemini.py`) maintaining 200ms spacing and returning `(result, reason)` with reasons in (`quota 429`, `timeout`, `parse error`, `other`), and updated `check_reply_claims_with_reason` (`backend/agent/claim_check.py`) to call it without type-name checks; updated `CustomerSession.update_product_facts` (`backend/agent/session.py`) to update product_id-only facts when a spin_id arrives and normalize names in the no-spin fallback; updated `test_slice_7d.py` to use `itertools.chain` and `itertools.repeat(1)` for perpetual heartbeat mock responses; added 8 offline and invariant tests in `backend/tests/test_slice_d2f.py`.
+- **Proof**: `pytest backend/tests/test_slice_d2a.py backend/tests/test_slice_d2c.py backend/tests/test_slice_d2f.py -m "not live"` passed 26/26; `pytest backend/tests/test_slice_7d.py` passed 5/5; full pytest suite passed with 122 passed, 34 failed (exact same 34 baseline failures in `test_whatsapp_postgres_e2e.py`); `git diff --check` exits 0.
+- **Still broken**: 34 pre-existing baseline e2e failures remain untouched; word lists and regex remain in `response_synthesizer.py`.
+
 #### Work Card: Variant Deduplication by Spin, Session Facts Persistence, Unclear Reason Diagnostics & Dynamic Invariant Verification (Slice D2e)
 
 - **Problem**: Multi-variant products sharing `product_id` had earlier variants overwritten in `CustomerSession.update_product_facts`; `recent_product_facts` was lost across `dump_task_state_dict` and `restore_task_state_dict`; classifier `unclear` verdicts did not distinguish quota limits (429) from timeouts or parsing failures; earlier-turn factual test was unit-mocked instead of driven through the engine; post-checkout fact clearing was only tested at session level; 50-step invariant test tested a hardcoded subset of steps `{18, 19}` instead of computing every non-lie step with no state change.

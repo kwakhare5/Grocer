@@ -135,8 +135,7 @@ async def synthesize_turn_response(
         final_text = guarded_change_message
         actions = []
         conv_state = "NEEDS_DECISION"
-
-    if budget_blocked_items or unavailable_items or reduced_items:
+    elif budget_blocked_items or unavailable_items or reduced_items:
         blocked = list(dict.fromkeys(budget_blocked_items))
         unavailable = list(dict.fromkeys(unavailable_items))
         reduced = list(dict.fromkeys(reduced_items))
@@ -243,7 +242,7 @@ async def synthesize_turn_response(
                     for action in actions
                 ]
                 receipt = format_cart_receipt(
-                    reviewed_cart, session.address_label or approved_address
+                    reviewed_cart, session.address_label or approved_address, item_reasons=getattr(session, "item_reasons", None)
                 )
                 basket_pattern = r"🛒\s*\*?Your Basket.*"
                 if re.search(basket_pattern, final_text, flags=re.DOTALL | re.IGNORECASE):

@@ -51,6 +51,7 @@ async def _write_cart_items(
     address_id: str,
     delivery_location: str = "Home",
     expected_cart_state: dict[str, Any] | None = None,
+    item_reasons: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     """Internal helper to write merged item updates directly to Swiggy Instamart cart."""
     if not isinstance(address_id, str) or not address_id or not isinstance(items, list) or not 1 <= len(items) <= 30:
@@ -156,6 +157,12 @@ async def _write_cart_items(
                     "actual_quantity": actual_quantity,
                     "actual_sku_id": actual.sku_id if actual else None,
                 })
+        if item_reasons:
+            for it in verified.items:
+                r = item_reasons.get(it.spin_id) or item_reasons.get(it.name)
+                if r:
+                    it.reason = r
+
         if unresolved_items:
             return {
                 "success": False,
@@ -164,7 +171,7 @@ async def _write_cart_items(
                 "cart_id": verified.cart_id,
                 "verified_fingerprint": cart_fingerprint(verified, address_id),
                 "unresolved_items": unresolved_items,
-                "formatted_receipt": format_cart_receipt(verified, delivery_location),
+                "formatted_receipt": format_cart_receipt(verified, delivery_location, item_reasons=item_reasons),
                 "message": "Swiggy changed or omitted an item. Please resolve each difference before approval.",
             }
         items_summary = [
@@ -211,7 +218,7 @@ async def _write_cart_items(
             "formatted_taxes": _format_inr(verified.taxes),
             "formatted_total_fees": _format_inr(total_fees),
             "formatted_grand_total": _format_inr(verified.grand_total),
-            "formatted_receipt": format_cart_receipt(verified, delivery_location),
+            "formatted_receipt": format_cart_receipt(verified, delivery_location, item_reasons=item_reasons),
         }
     except CartExpiredError:
         logger.warning("Cart expired during _write_cart_items.")
@@ -300,12 +307,24 @@ async def execute_add_selected_variants(
             "budget_blocked_items": blocked,
             "message": "None of the selected items fit the stated limit. Your basket was not changed.",
         }
+    reasons_map: dict[str, str] = {}
+    for item in selected:
+        r = item.get("reason")
+        if r and isinstance(item.get("option"), dict):
+            spin = item["option"].get("spin_id")
+            name = item["option"].get("name")
+            if spin:
+                reasons_map[spin] = r
+            if name:
+                reasons_map[name] = r
+
     result = await _write_cart_items(
         tools,
         accepted,
         address_id,
         delivery_location,
         expected_cart_state=expected_cart_state,
+        item_reasons=reasons_map,
     )
     if not result.get("success"):
         if result.get("error") == "CART_ITEMS_UNRESOLVED":

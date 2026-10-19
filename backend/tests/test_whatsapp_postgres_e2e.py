@@ -24,6 +24,7 @@ from backend.tests.suites.cart_and_addresses import (
     test_customer_selects_exact_variants_before_one_cart_write_after_restart,
     test_product_name_used_as_model_pack_hint_does_not_hide_valid_bread,
     test_cart_write_with_failed_readback_never_claims_success_or_retries,
+    test_cart_items_unresolved_guarded_message,
     test_changed_live_state_requires_fresh_review_before_selected_cart_write,
     test_customer_changes_request_while_product_choices_are_pending,
     test_basket_read_without_swiggy_token_sends_reconnect_link,
@@ -42,6 +43,7 @@ from backend.tests.suites.recipe_and_budgets import (
     test_model_cannot_silently_drop_explicit_shopping_items,
     test_provider_dropped_manage_basket_item_is_named_before_partial_review,
     test_symptom_message_suggests_groceries_without_adding_medicine,
+    test_recipe_and_extras_request_texts_with_mock_drop_guard,
 )
 
 from backend.tests.suites.replenishment_and_webhooks import (
@@ -86,6 +88,7 @@ __all__ = [
     "test_customer_selects_exact_variants_before_one_cart_write_after_restart",
     "test_product_name_used_as_model_pack_hint_does_not_hide_valid_bread",
     "test_cart_write_with_failed_readback_never_claims_success_or_retries",
+    "test_cart_items_unresolved_guarded_message",
     "test_changed_live_state_requires_fresh_review_before_selected_cart_write",
     "test_customer_changes_request_while_product_choices_are_pending",
     "test_basket_read_without_swiggy_token_sends_reconnect_link",

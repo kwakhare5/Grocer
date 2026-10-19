@@ -9,6 +9,7 @@ from typing import Any, Optional
 from backend.agent.checkout_outcome import process_checkout_outcome
 from backend.agent.claim_check import build_facts_text, check_reply_claims, extract_product_facts
 from backend.agent.formatters import format_cart_receipt
+from backend.agent.item_drop_guard import check_for_dropped_items
 from backend.agent.product_policy import is_symptom_suggestion_request
 from backend.channels.models import (
     InteractiveAction,
@@ -102,6 +103,9 @@ async def execute_react_turn_loop(
     reduced_items: list[str] = []
     guarded_change_message: str | None = None
     turn_tool_results: list[dict[str, Any]] = []
+    session.current_turn_original_message = planning_request_text or incoming_text or (message.text if message else "")
+    basket_step_executed = False
+    manage_basket_contents: list[dict[str, Any]] = []
 
     initial_cart_items = tuple((it.spin_id or it.product_id, it.quantity) for it in current_cart.items) if current_cart else ()
     initial_budget = getattr(session, "budget_inr", None)
@@ -198,7 +202,9 @@ async def execute_react_turn_loop(
                             except Exception:
                                 current_cart = None
                         if current_cart and current_cart.items:
-                            safe_receipt = format_cart_receipt(current_cart, addr_lbl or session.address_label)
+                            safe_receipt = format_cart_receipt(
+                                current_cart, addr_lbl or session.address_label, item_reasons=getattr(session, "item_reasons", None)
+                            )
                             final_text = safe_receipt
                             last_cart_receipt = safe_receipt
                         else:
@@ -207,7 +213,9 @@ async def execute_react_turn_loop(
                     if last_cart_receipt:
                         final_text = ""
                     elif current_cart and current_cart.items:
-                        safe_receipt = format_cart_receipt(current_cart, addr_lbl or session.address_label)
+                        safe_receipt = format_cart_receipt(
+                            current_cart, addr_lbl or session.address_label, item_reasons=getattr(session, "item_reasons", None)
+                        )
                         final_text = safe_receipt
                         last_cart_receipt = safe_receipt
                     elif address_changed:
@@ -387,6 +395,14 @@ async def execute_react_turn_loop(
                         )
                     )
                 if fn_call_name == "manage_basket":
+                    basket_step_executed = True
+                    if isinstance(fn_content, dict):
+                        manage_basket_contents.append(fn_content)
+                        for ai in fn_content.get("added_items", []):
+                            r = getattr(ai, "reason", None) or (ai.get("reason") if isinstance(ai, dict) else None)
+                            name = getattr(ai, "name", None) or (ai.get("name") if isinstance(ai, dict) else str(ai))
+                            if r and name and session is not None and hasattr(session, "item_reasons"):
+                                session.item_reasons[str(name)] = str(r)
                     unavailable_items.extend(str(item) for item in fn_content.get("unavailable_items", []))
                     reduced_items.extend(str(item) for item in fn_content.get("reduced_items", []))
                     restricted_items.extend(str(item) for item in fn_content.get("restricted_items", []))
@@ -443,6 +459,56 @@ async def execute_react_turn_loop(
 
     if checkout_executed and session is not None and hasattr(session, "clear_product_facts"):
         session.clear_product_facts()
+
+    if basket_step_executed:
+        added_names: list[str] = []
+        for mb in manage_basket_contents:
+            for item in mb.get("added_items", []):
+                name = getattr(item, "name", None) or (item.get("name") if isinstance(item, dict) else str(item))
+                if name:
+                    added_names.append(str(name))
+        if current_cart:
+            for it in current_cart.items:
+                added_names.append(it.name)
+
+        unavailable_names = list(unavailable_items)
+        for mb in manage_basket_contents:
+            for u in mb.get("unavailable_items", []):
+                unavailable_names.append(str(u))
+
+        restricted_names = list(restricted_items)
+        for mb in manage_basket_contents:
+            for r in mb.get("restricted_items", []):
+                restricted_names.append(str(r))
+
+        pending_names: list[str] = []
+        for mb in manage_basket_contents:
+            for c in mb.get("clarifications_needed", []):
+                if isinstance(c, dict) and c.get("query"):
+                    pending_names.append(str(c["query"]))
+            for s in mb.get("selection_unavailable_items", []):
+                if isinstance(s, dict) and s.get("query"):
+                    pending_names.append(str(s["query"]))
+            for b in mb.get("budget_blocked_items", []):
+                pending_names.append(str(b))
+
+        dropped = await check_for_dropped_items(
+            getattr(engine, "gemini", None),
+            customer_message=session.current_turn_original_message or planning_request_text or incoming_text,
+            added_items=list(dict.fromkeys(added_names)),
+            unavailable_items=list(dict.fromkeys(unavailable_names)),
+            restricted_items=list(dict.fromkeys(restricted_names)),
+            pending_items=list(dict.fromkeys(pending_names)),
+        )
+        if dropped:
+            session.dropped_requested_items = list(dropped)
+            session.pending_approval = None
+            dropped_str = ", ".join(dropped)
+            notice = f"I noticed some requested items were not added: {dropped_str}. Please review your basket or tell me what to change."
+            guarded_change_message = f"{notice}\n\n{last_cart_receipt}" if last_cart_receipt else notice
+            final_text = guarded_change_message
+            actions = [InteractiveAction(action_type="button", id="modify_cart", title="Change Items")]
+            conv_state = "NEEDS_DECISION"
 
     return ReactLoopResult(
         early_response=None,

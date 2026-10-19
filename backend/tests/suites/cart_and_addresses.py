@@ -184,9 +184,9 @@ async def test_cart_write_with_failed_readback_never_claims_success_or_retries(p
         assert (await client.post("/api/whatsapp/webhook", content=body, headers=headers)).status_code == 200
     _, reply = await store.response_for_message("wamid.uncertain-start")
     assert commerce.cart_writes == 1
-    assert "couldn't verify" in reply.text.casefold() or "trouble" in reply.text.casefold() or "uncertain" in reply.text.casefold() or reply.conversation_state != "AWAITING_CHECKOUT_CONFIRMATION"
-    assert not any(action.id == "confirm_order" for action in reply.interactive_actions)
-    assert reply.conversation_state != "AWAITING_CHECKOUT_CONFIRMATION"
+    assert "couldn't verify" in reply.text.casefold() or "could not verify" in reply.text.casefold()
+    assert not any(action.id == "confirm_order" or action.id.startswith("confirm_order:") for action in reply.interactive_actions)
+    assert reply.conversation_state == "RECOVERING"
     assert engine.get_session(customer_id).external_cart_pending
     await engine.close()
 
@@ -431,6 +431,52 @@ async def test_search_rate_limit_stops_model_loop_without_retrying_mcp(postgres_
     await commerce._client.close()
 
 
+@pytest.mark.asyncio
+async def test_cart_items_unresolved_guarded_message(postgres_pool, monkeypatch):
+    class DropCommerce(MockCommerceAdapter):
+        def __init__(self):
+            super().__init__()
+            self.inject_partial_cart_drop("SPIN-MILK-1L")
+
+    commerce = DropCommerce()
+    engine = GroceryAgentEngine(commerce, gemini_api_key="local-test")
+    customer_id = default_whatsapp_adapter.map_sender_to_customer_id("919999988888")
+    session = engine.get_session(customer_id)
+    session.address_id = "addr-bandra-1"
+    session.address_label = "Home"
+    session.order_address_confirmed = True
+
+    async def mock_variant_picker(*args, **kwargs):
+        return {"action": "pick", "candidate_id": "1", "reason": "mock: pick item"}, None
+
+    engine.gemini.generate_structured_with_reason = mock_variant_picker
+
+    async def model_reply(_history, **_kwargs):
+        return {"candidates": [{"content": {"parts": [{"functionCall": {
+            "name": "manage_basket", "args": {"add": [{"query": "milk"}, {"query": "bread"}]},
+        }}]}}]}
+
+    engine._call_llm = model_reply
+    store = PostgresMessageStore(postgres_pool)
+    app = create_app()
+    app.state.agent_engine = engine
+    app.state.message_store = store
+    monkeypatch.setattr(default_whatsapp_adapter, "_app_secret", "local-e2e-secret")
+    monkeypatch.setattr(default_whatsapp_adapter, "record_only", True)
+    default_whatsapp_adapter.outbound_messages.clear()
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://local-test") as client:
+        body, headers = _webhook("wamid.unresolved-guarded", "Add milk and bread")
+        assert (await client.post("/api/whatsapp/webhook", content=body, headers=headers)).status_code == 200
+
+    _, reply = await store.response_for_message("wamid.unresolved-guarded")
+    assert "omitted or changed" in reply.text.casefold() or "changed or omitted" in reply.text.casefold()
+    assert "milk" in reply.text.casefold()
+    assert reply.conversation_state == "NEEDS_DECISION"
+    assert not any(action.id == "confirm_order" or action.id.startswith("confirm_order:") for action in reply.interactive_actions)
+    await engine.close()
+
+
 from backend.tests.suites.address_disambiguation import (
     test_address_choice_model_outage_then_retry_resumes_original_whatsapp_request,
     test_retry_preserves_pending_grocery_basket_during_address_disambiguation,
@@ -440,6 +486,7 @@ __all__ = [
     "test_customer_selects_exact_variants_before_one_cart_write_after_restart",
     "test_product_name_used_as_model_pack_hint_does_not_hide_valid_bread",
     "test_cart_write_with_failed_readback_never_claims_success_or_retries",
+    "test_cart_items_unresolved_guarded_message",
     "test_changed_live_state_requires_fresh_review_before_selected_cart_write",
     "test_customer_changes_request_while_product_choices_are_pending",
     "test_basket_read_without_swiggy_token_sends_reconnect_link",

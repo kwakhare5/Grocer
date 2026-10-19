@@ -290,6 +290,58 @@ async def test_catalog_rate_limit_stops_remaining_search_waves(postgres_pool, mo
     await engine.close()
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize("request_text, items", RECIPE_AND_EXTRAS_REQUEST_TEXTS)
+async def test_recipe_and_extras_request_texts_with_mock_drop_guard(
+    postgres_pool, monkeypatch, request_text, items,
+):
+    commerce = MockCommerceAdapter()
+    engine = GroceryAgentEngine(commerce, gemini_api_key="local-test")
+
+    included = [items[0]]
+    omitted = list(items[1:])
+
+    async def mock_gemini_structured(*args, **kwargs):
+        # mock: variant picker and item drop guard
+        schema = kwargs.get("response_schema") or (args[2] if len(args) > 2 else {})
+        props = schema.get("properties", {}) if isinstance(schema, dict) else {}
+        if "missing_items" in props:
+            return {"missing_items": omitted}, None
+        return {"action": "pick", "candidate_id": "1", "reason": "mock: pick item"}, None
+
+    engine.gemini.generate_structured_with_reason = mock_gemini_structured
+
+    async def partial_model(_history, **_kwargs):
+        return {"candidates": [{"content": {"parts": [{"functionCall": {
+            "name": "manage_basket",
+            "args": {"add": [{"query": query} for query in included]},
+        }}]}}]}
+
+    engine._call_llm = partial_model  # external model boundary
+    app = create_app()
+    app.state.agent_engine = engine
+    store = PostgresMessageStore(postgres_pool)
+    app.state.message_store = store
+    monkeypatch.setattr(default_whatsapp_adapter, "_app_secret", "local-e2e-secret")
+    monkeypatch.setattr(default_whatsapp_adapter, "record_only", True)
+    default_whatsapp_adapter.outbound_messages.clear()
+    body, headers = _webhook("wamid.recipe-extras-guard", request_text)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://local-test") as client:
+        assert (await client.post("/api/whatsapp/webhook", content=body, headers=headers)).status_code == 200
+        _, address_reply = await store.response_for_message("wamid.recipe-extras-guard")
+        choice = address_reply.interactive_actions[0]
+        choice_body, choice_headers = _interactive_webhook(
+            "wamid.recipe-extras-guard-address", choice.id, choice.title
+        )
+        assert (await client.post("/api/whatsapp/webhook", content=choice_body, headers=choice_headers)).status_code == 200
+    _, reply = await store.response_for_message("wamid.recipe-extras-guard-address")
+    for item in omitted:
+        assert item.casefold() in reply.text.casefold()
+    assert not any(action.id == "confirm_order" for action in reply.interactive_actions)
+    assert reply.conversation_state == "NEEDS_DECISION"
+    await engine.close()
+
+
 from backend.tests.suites.budget_and_symptoms import (
     test_plain_language_rupee_cap_never_becomes_unreviewed_payable_overage,
     test_missing_requested_item_requires_review_before_checkout,
@@ -303,6 +355,7 @@ __all__ = [
     "test_long_recipe_request_uses_one_product_choice_batch",
     "test_long_list_checks_every_item_in_paced_batches",
     "test_catalog_rate_limit_stops_remaining_search_waves",
+    "test_recipe_and_extras_request_texts_with_mock_drop_guard",
     "test_plain_language_rupee_cap_never_becomes_unreviewed_payable_overage",
     "test_missing_requested_item_requires_review_before_checkout",
     "test_model_cannot_silently_drop_explicit_shopping_items",

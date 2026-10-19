@@ -86,6 +86,7 @@ def format_cart_receipt(
     cart: CommerceCart,
     delivery_location: str = "Home",
     allow_checkout_prompt: bool = True,
+    item_reasons: Optional[dict[str, str]] = None,
 ) -> str:
     """Deterministically format verified cart state into a clean WhatsApp receipt card."""
     if not cart.items:
@@ -94,10 +95,13 @@ def format_cart_receipt(
         return "⚠️ The provider basket is not priced in INR. Checkout is unavailable."
 
     clean_loc = delivery_location if ("(" in delivery_location and ")" in delivery_location) else clean_address(delivery_location)
-    item_lines = [
-        f"• {it.quantity}x {it.name} ({it.pack_size}) — {_format_inr(it.total_price)}"
-        for it in cart.items
-    ]
+    item_lines = []
+    for it in cart.items:
+        r = (item_reasons.get(it.spin_id) or item_reasons.get(it.name)) if item_reasons else getattr(it, "reason", None)
+        line = f"• {it.quantity}x {it.name} ({it.pack_size}) — {_format_inr(it.total_price)}"
+        if r:
+            line += f" — {r}"
+        item_lines.append(line)
     items_block = "\n".join(item_lines)
 
     lines = [

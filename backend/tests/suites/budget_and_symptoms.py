@@ -120,7 +120,6 @@ async def test_missing_requested_item_requires_review_before_checkout(postgres_p
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(reason="item drop guard not built yet (Slice G)")
 @pytest.mark.parametrize("request_text, model_items, omitted", [
     ("Add milk, bread and tissues", ["milk", "bread"], ["tissues"]),
     ("Get dal, sugar and garlic for dinner", ["dal", "garlic", "eggs"], ["sugar"]),
@@ -134,6 +133,16 @@ async def test_model_cannot_silently_drop_explicit_shopping_items(
 ):
     commerce = MockCommerceAdapter()
     engine = GroceryAgentEngine(commerce, gemini_api_key="local-test")
+
+    async def mock_gemini_structured(*args, **kwargs):
+        # mock: variant picker and item drop guard
+        schema = kwargs.get("response_schema") or (args[2] if len(args) > 2 else {})
+        props = schema.get("properties", {}) if isinstance(schema, dict) else {}
+        if "missing_items" in props:
+            return {"missing_items": omitted}, None
+        return {"action": "pick", "candidate_id": "1", "reason": "mock: pick item"}, None
+
+    engine.gemini.generate_structured_with_reason = mock_gemini_structured
 
     async def incomplete_model(_history, **_kwargs):
         return {"candidates": [{"content": {"parts": [{"functionCall": {
@@ -159,7 +168,18 @@ async def test_model_cannot_silently_drop_explicit_shopping_items(
     _, reply = await store.response_for_message("wamid.omitted-address")
     for item in omitted:
         assert item.casefold() in reply.text.casefold()
-    assert not any(action.id == "confirm_order" for action in reply.interactive_actions)
+    if omitted:
+        assert not any(
+            action.id == "confirm_order" or action.id.startswith("confirm_order:")
+            for action in reply.interactive_actions
+        )
+        assert reply.conversation_state == "NEEDS_DECISION"
+    else:
+        assert any(
+            action.id == "confirm_order" or action.id.startswith("confirm_order:")
+            for action in reply.interactive_actions
+        )
+        assert reply.conversation_state == "AWAITING_CHECKOUT_CONFIRMATION"
     await engine.close()
 
 

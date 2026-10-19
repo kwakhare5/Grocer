@@ -17,6 +17,13 @@ During the Session End ritual (called automatically whenever significant changes
 
 ### [GROCER — Ground-Truth Claim Verification via Facts Text & Accuracy Suite] 2026-10-19
 
+#### Work Card: Item Drop Guard with Small Check Model (Slice G)
+
+- **Problem**: When a customer sent a multi-item shopping list, any item the model silently omitted from its basket additions vanished without detection, allowing confirmable carts that missed requested items.
+- **Change**: Built `backend/agent/item_drop_guard.py` using `SMALL_CHECK_MODEL` (`gemini-3.5-flash-lite`) with structured output (`missing_items`) and a prompt written purely from plain principles (no example words or product names); passes original turn text into `CustomerSession.current_turn_original_message`; runs exactly one small model call per shopping turn following basket execution, retrying once on failure before logging a warning and continuing safely; if dropped items are detected, strips the Confirm button, alerts the customer plainly, places conversation into `NEEDS_DECISION`, and persists missing items for subsequent turns; displays candidate pick reasons one line per item in receipt card alongside item name, pack size, and price; added `xfail_strict = true` to `pytest.ini`; un-xfailed `test_model_cannot_silently_drop_explicit_shopping_items` with mocked picker ensuring normal checkout on zero omissions (the "No eggs" case); restored strict verification assertion for failed readback in `test_cart_write_with_failed_readback_never_claims_success_or_retries`; added `test_cart_items_unresolved_guarded_message` and `test_pick_reason_appears_in_customer_reply`.
+- **Proof**: Full test suite against local PostgreSQL (`127.0.0.1:55432`) passed with 178 passed, 0 failed, 0 xfailed, 0 xpassed across 178 items; `git diff --check` exits 0.
+- **Still broken**: None in scope. Full test suite is 100% green.
+
 #### Work Card: Legacy Test Suite Migration to Single-Turn Architecture (Slice T1)
 
 - **Problem**: 34 pre-existing test failures at baseline 6dc626b stemmed from obsolete multi-turn assumptions (interactive "1A 2A" codes, pending choice buffers, and "nothing has been added" assertions) conflicting with the new single-turn model-pick design.

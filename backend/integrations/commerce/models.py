@@ -77,6 +77,7 @@ class CartItem(BaseModel):
     brand: Optional[str] = None
     max_quantity: Optional[int] = None
     max_quantity_message: Optional[str] = None
+    reason: Optional[str] = None
 
     @property
     def cart_line_id(self) -> str:

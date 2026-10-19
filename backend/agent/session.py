@@ -31,6 +31,9 @@ class CustomerSession:
     selected_payment_method: Optional[str] = None
     selected_payment_label: Optional[str] = None
     recent_product_facts: list[dict[str, Any]] = field(default_factory=list)
+    current_turn_original_message: Optional[str] = None
+    dropped_requested_items: list[str] = field(default_factory=list)
+    item_reasons: dict[str, str] = field(default_factory=dict)
 
     def set_address(self, address_id: str, label: str, confirmed: bool = True) -> None:
         """Atomically lock the active delivery address and label."""
@@ -123,6 +126,7 @@ class CustomerSession:
         self.order_address_confirmed = False
         self.awaiting_address_choice = None
         self.clear_product_facts()
+        self.item_reasons.clear()
 
     def clear_all(self) -> None:
         """Completely reset session history and address state."""
@@ -145,3 +149,6 @@ class CustomerSession:
         self.selected_payment_label = None
         self.last_active_ts = 0.0
         self.budget_inr = None
+        self.current_turn_original_message = None
+        self.dropped_requested_items.clear()
+        self.item_reasons.clear()

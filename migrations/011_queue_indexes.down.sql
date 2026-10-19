@@ -1,0 +1,6 @@
+DROP INDEX IF EXISTS grocer_internal.connect_tickets_customer_status_idx;
+DROP INDEX IF EXISTS grocer_internal.checkout_attempts_customer_status_idx;
+DROP INDEX IF EXISTS grocer_internal.outbound_messages_stale_sending_idx;
+DROP INDEX IF EXISTS grocer_internal.outbound_messages_customer_status_id_idx;
+DROP INDEX IF EXISTS grocer_internal.inbound_messages_stale_processing_idx;
+DROP INDEX IF EXISTS grocer_internal.inbound_messages_customer_status_id_idx;

@@ -12,18 +12,24 @@ from collections.abc import Iterator
 from typing import Optional
 
 from backend.integrations.commerce.models import (
-    DeliveryAddress,
-    CommerceProductItem,
+    AddressRecommendation,
     CartItemUpdate,
     CommerceCart,
-    PaymentOption,
     CommerceOrderResult,
-    DeliveryTrackingStatus,
-    PaymentStatusResult,
+    CommerceProductItem,
+    Coupon,
+    CouponApplyResult,
+    DeliveryAddress,
     DeliveryStatusResult,
+    DeliveryTrackingStatus,
+    ErrorReportResult,
     OrderDetails,
     OrderSummary,
+    PaymentOption,
+    PaymentStatusResult,
 )
+
+SWIGGY_CUSTOMER_CARE_PHONE = "080-67466729" 
 
 
 class CommercePort(ABC):
@@ -110,7 +116,7 @@ class CommercePort(ABC):
 
     @abstractmethod
     async def get_delivery_status(
-        self, order_id: str, address_id: str
+        self, order_id: str, address_id: Optional[str] = None
     ) -> DeliveryStatusResult:
         """Return one structured delivery-status observation."""
         raise NotImplementedError
@@ -122,7 +128,56 @@ class CommercePort(ABC):
         lat: Optional[float] = None,
         lng: Optional[float] = None,
     ) -> DeliveryTrackingStatus:
-        """Fetch rich real-time tracking when delivery coordinates are available."""
+        """Fetch rich real-time tracking for an active order."""
+        raise NotImplementedError
+
+    @abstractmethod
+    async def create_address(
+        self,
+        customer_id: str,
+        label: str,
+        street: str,
+        area: Optional[str] = None,
+        city: Optional[str] = None,
+        postal_code: Optional[str] = None,
+        latitude: Optional[float] = None,
+        longitude: Optional[float] = None,
+        phone_number: Optional[str] = None,
+        landmark: Optional[str] = None,
+        address_tag: Optional[str] = None,
+    ) -> DeliveryAddress:
+        """Create a new delivery address for the customer."""
+        raise NotImplementedError
+
+    @abstractmethod
+    async def delete_address(self, address_id: str) -> bool:
+        """Delete a saved delivery address."""
+        raise NotImplementedError
+
+    @abstractmethod
+    async def list_coupons(self, cart_id: Optional[str] = None) -> list[Coupon]:
+        """Fetch available coupons for current active cart."""
+        raise NotImplementedError
+
+    @abstractmethod
+    async def apply_coupon(
+        self, code: str, cart_id: Optional[str] = None
+    ) -> CouponApplyResult:
+        """Apply a coupon code to the active cart."""
+        raise NotImplementedError
+
+    @abstractmethod
+    async def recommend_address(
+        self, latitude: Optional[float] = None, longitude: Optional[float] = None
+    ) -> AddressRecommendation:
+        """Recommend best delivery address based on location or order history."""
+        raise NotImplementedError
+
+    @abstractmethod
+    async def report_error(
+        self, report_id: str, context: Optional[dict[str, Any]] = None
+    ) -> ErrorReportResult:
+        """Submit diagnostic context for a provider error."""
         raise NotImplementedError
 
     @contextmanager

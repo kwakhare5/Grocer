@@ -75,10 +75,13 @@ async def drain_message_queue(store: PostgresMessageStore, engine: Any) -> None:
             try:
                 bursts = await store.absorb_subsequent_pending(task_message.customer_id)
                 for burst in bursts:
+                    updates = {}
                     if burst.text.strip():
-                        task_message = task_message.model_copy(
-                            update={"text": f"{task_message.text}\n{burst.text}"}
-                        )
+                        updates["text"] = f"{task_message.text}\n{burst.text}"
+                    if not task_message.interactive_id and burst.interactive_id:
+                        updates["interactive_id"] = burst.interactive_id
+                    if updates:
+                        task_message = task_message.model_copy(update=updates)
             except Exception:
                 logger.warning("Could not absorb burst messages for inbound_id=%s", inbound_id)
 

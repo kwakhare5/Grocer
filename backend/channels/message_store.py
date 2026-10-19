@@ -156,7 +156,9 @@ class PostgresMessageStore:
 
     async def heartbeat_processing(self, inbound_id: int) -> int:
         result = await self.pool.execute(
-            "UPDATE grocer_internal.inbound_messages SET claimed_at=now() WHERE id=$1 AND status='PROCESSING'",
+            """UPDATE grocer_internal.inbound_messages SET claimed_at=now()
+               WHERE (id=$1 OR customer_id=(SELECT customer_id FROM grocer_internal.inbound_messages WHERE id=$1))
+                 AND status='PROCESSING'""",
             inbound_id,
         )
         if isinstance(result, str) and result.startswith("UPDATE "):
@@ -217,16 +219,6 @@ class PostgresMessageStore:
                WHERE status='SENDING' AND sending_started_at < now()-interval '2 minutes'"""
         )
         return int(result.removeprefix("UPDATE "))
-
-    async def counts(self) -> dict[str, int]:
-        row = await self.pool.fetchrow(
-            """SELECT
-                 (SELECT count(*) FROM grocer_internal.inbound_messages
-                   WHERE status IN ('PROCESSING', 'NEEDS_REVIEW')) AS unsettled_inbound,
-                 (SELECT count(*) FROM grocer_internal.outbound_messages
-                   WHERE status IN ('SENDING', 'UNKNOWN')) AS unsettled_outbound"""
-        )
-        return {key: int(row[key]) for key in ("unsettled_inbound", "unsettled_outbound")}
 
     async def response_for_message(self, message_id: str) -> tuple[str, NormalizedOutgoingResponse] | None:
         row = await self.pool.fetchrow(

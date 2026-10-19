@@ -15,20 +15,24 @@ _mock_current_customer: contextvars.ContextVar[Optional[str]] = contextvars.Cont
 
 from backend.integrations.commerce.port import CommercePort
 from backend.integrations.commerce.models import (
-    DeliveryAddress,
-    CommerceProductItem,
-    ProductVariant,
+    AddressRecommendation,
     CartItemUpdate,
     CartItem,
     CommerceCart,
-    PaymentOption,
     CommerceOrderResult,
-    DeliveryTrackingStatus,
-    PaymentStatusResult,
+    CommerceProductItem,
+    Coupon,
+    CouponApplyResult,
+    DeliveryAddress,
     DeliveryStatusResult,
+    DeliveryTrackingStatus,
+    ErrorReportResult,
     OrderDetails,
     OrderLineItem,
     OrderSummary,
+    PaymentOption,
+    PaymentStatusResult,
+    ProductVariant,
 )
 from backend.integrations.commerce.exceptions import (
     CommerceError,
@@ -389,6 +393,7 @@ class MockCommerceAdapter(CommercePort):
         )
         status = "PAYMENT_PENDING" if is_qr else "ORDER_PLACED"
 
+        qr_url = f"https://instamart.swiggy.com/pay/qr/{paas_id}" if is_qr else None
         order_result = CommerceOrderResult(
             order_id=order_id,
             cart_id=cart_id,
@@ -400,15 +405,13 @@ class MockCommerceAdapter(CommercePort):
             delivery_address=addr,
             placed_at=datetime.now(timezone.utc),
             tracking_url=f"/orders/{order_id}/track",
-            order_count=1,
-            success_count=1,
-            all_succeeded=True,
             paas_id=paas_id,
             bridge_url=bridge_url,
             upi_intent_url=upi_intent_url,
+            qr_code_url=qr_url,
             is_qr_flow=is_qr,
-            polling_interval_ms=3000 if is_qr else None,
-            max_time_to_poll_ms=300000 if is_qr else None,
+            polling_interval_ms=15000 if is_qr else None,
+            max_time_to_poll_ms=600000 if is_qr else None,
         )
         self._orders[order_id] = order_result
         # Clear cart on successful order
@@ -480,7 +483,7 @@ class MockCommerceAdapter(CommercePort):
         )
 
     async def get_delivery_status(
-        self, order_id: str, address_id: str
+        self, order_id: str, address_id: Optional[str] = None
     ) -> DeliveryStatusResult:
         if order_id not in self._orders:
             raise CommerceError("Simulated order not found", code="ORDER_NOT_FOUND")
@@ -512,4 +515,97 @@ class MockCommerceAdapter(CommercePort):
             eta_minutes=12,
             driver_name="Ramesh Kamble",
             driver_phone="+91 98201 12345",
+        )
+
+    async def create_address(
+        self,
+        customer_id: str,
+        label: str,
+        street: str,
+        area: Optional[str] = None,
+        city: Optional[str] = None,
+        postal_code: Optional[str] = None,
+        latitude: Optional[float] = None,
+        longitude: Optional[float] = None,
+        phone_number: Optional[str] = None,
+        landmark: Optional[str] = None,
+        address_tag: Optional[str] = None,
+    ) -> DeliveryAddress:
+        new_addr = DeliveryAddress(
+            id=f"addr-{uuid.uuid4().hex[:6]}",
+            label=label,
+            street=street,
+            area=area,
+            city=city or "Mumbai",
+            postal_code=postal_code or "400050",
+            latitude=latitude or 19.0596,
+            longitude=longitude or 72.8295,
+            phone_number=phone_number,
+            landmark=landmark,
+            address_tag=address_tag,
+            is_serviceable=True,
+        )
+        return new_addr
+
+    async def delete_address(self, address_id: str) -> bool:
+        del address_id
+        return True
+
+    async def list_coupons(self, cart_id: Optional[str] = None) -> list[Coupon]:
+        del cart_id
+        return [
+            Coupon(
+                code="INSTA50",
+                description="Flat ₹50 off on orders above ₹299",
+                discount_amount=50.0,
+                min_cart_value=299.0,
+                is_applicable=True,
+            ),
+            Coupon(
+                code="GROCER100",
+                description="₹100 off on first three replenishment orders",
+                discount_amount=100.0,
+                min_cart_value=499.0,
+                is_applicable=True,
+            ),
+        ]
+
+    async def apply_coupon(
+        self, code: str, cart_id: Optional[str] = None
+    ) -> CouponApplyResult:
+        del cart_id
+        if code.upper() in ("INSTA50", "GROCER100"):
+            return CouponApplyResult(
+                applied=True,
+                code=code.upper(),
+                discount_amount=50.0 if code.upper() == "INSTA50" else 100.0,
+                message=f"Coupon {code.upper()} applied successfully!",
+            )
+        return CouponApplyResult(
+            applied=False,
+            code=code,
+            discount_amount=0.0,
+            message=f"Coupon {code} is invalid or expired.",
+        )
+
+    async def recommend_address(
+        self, latitude: Optional[float] = None, longitude: Optional[float] = None
+    ) -> AddressRecommendation:
+        del latitude, longitude
+        addr = MOCK_ADDRESSES[0] if MOCK_ADDRESSES else None
+        return AddressRecommendation(
+            recommended_address_id=addr.id if addr else "addr-bandra-1",
+            confidence=0.95,
+            reason="Nearest saved address to current location",
+            matched_address=addr,
+        )
+
+    async def report_error(
+        self, report_id: str, context: Optional[dict[str, Any]] = None
+    ) -> ErrorReportResult:
+        del context
+        return ErrorReportResult(
+            report_id=report_id,
+            status="received",
+            message="Diagnostic report recorded successfully.",
         )

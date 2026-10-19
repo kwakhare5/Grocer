@@ -40,6 +40,7 @@ async def postgres_pool():
             "008_payment_followups.up.sql",
             "009_replenishment.up.sql",
             "010_drop_replenishment.up.sql",
+            "011_queue_indexes.up.sql",
         ):
             await conn.execute((root / name).read_text(encoding="utf-8"))
         await conn.execute(

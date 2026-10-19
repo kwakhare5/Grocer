@@ -28,21 +28,25 @@ from backend.integrations.commerce.exceptions import (
     UpstreamTimeoutError,
 )
 from backend.integrations.commerce.models import (
+    AddressRecommendation,
     CartItemUpdate,
     CommerceCart,
     CommerceOrderResult,
     CommerceProductItem,
+    Coupon,
+    CouponApplyResult,
     DeliveryAddress,
     DeliveryStatusResult,
     DeliveryTrackingStatus,
+    ErrorReportResult,
     OrderDetails,
     OrderSummary,
     PaymentOption,
     PaymentStatusResult,
 )
-from backend.integrations.commerce.port import CommercePort
+from backend.integrations.commerce.port import CommercePort, SWIGGY_CUSTOMER_CARE_PHONE
 from backend.integrations.commerce.swiggy_client import SwiggyMcpClient
-from backend.integrations.commerce.catalog_parsers import parse_swiggy_products
+from backend.integrations.commerce.catalog_parsers import parse_coupons, parse_swiggy_products
 from backend.integrations.commerce.cart_parsers import build_commerce_cart
 from backend.integrations.commerce.order_parsers import (
     build_checkout_order_result,
@@ -112,10 +116,11 @@ class SwiggyMCPAdapter(CommercePort):
         tool_name: str,
         arguments: dict[str, Any],
         customer_id: Optional[str] = None,
+        timeout: Optional[float] = None,
     ) -> dict[str, Any]:
         """Execute JSON-RPC 2.0 tool call against Swiggy Instamart MCP endpoint."""
         effective_customer = customer_id or self._customer_context.get()
-        return await self._client.call_tool(tool_name, arguments, customer_id=effective_customer)
+        return await self._client.call_tool(tool_name, arguments, customer_id=effective_customer, timeout=timeout)
 
     def _parse_error_if_failed(self, response_data: dict[str, Any]) -> None:
         """Classify errors from Swiggy envelope per official error taxonomy."""
@@ -148,7 +153,7 @@ class SwiggyMCPAdapter(CommercePort):
             )
         res = await self._call_mcp_tool(
             "search_products",
-            {"addressId": address_id, "query": query, "offset": 0},
+            {"addressId": address_id, "query": query},
         )
         self._parse_error_if_failed(res)
         data = res.get("data", {})
@@ -267,11 +272,7 @@ class SwiggyMCPAdapter(CommercePort):
         elif payment_option_kind == "qr":
             args["generateUPIQR"] = True
         elif payment_method.upper() == "UPI":
-            raise CommerceError(
-                "UPI checkout requires an exact intent-app or QR selection.",
-                provider="swiggy",
-                code="AMBIGUOUS_PAYMENT_OPTION",
-            )
+            args["generateUPIQR"] = True
 
         from backend.config import settings
         if settings.CHECKOUT_MODE == "review":
@@ -296,7 +297,6 @@ class SwiggyMCPAdapter(CommercePort):
                 items=cart_items,
                 grand_total=total_amt,
                 payment_method=payment_method,
-                all_succeeded=True,
                 is_simulated=True,
                 message="[REVIEW MODE] Order simulated safely. No financial charge was made.",
                 provider_message="Review mode simulated checkout successful.",
@@ -362,10 +362,6 @@ class SwiggyMCPAdapter(CommercePort):
                         cart_id=cart_id,
                         status=normalize_order_status(
                             str(raw_status).upper() if raw_status is not None else None,
-                            order_count=1,
-                            success_count=1 if order_id else 0,
-                            failure_count=0,
-                            all_succeeded=bool(order_id),
                         ),
                         raw_status=str(raw_status) if raw_status is not None else None,
                         payment_method=str(correlated.get("paymentMethod") or ""),
@@ -375,9 +371,6 @@ class SwiggyMCPAdapter(CommercePort):
                             else None
                         ),
                         delivery_address=DeliveryAddress(id=address_id),
-                        order_count=1,
-                        success_count=1 if order_id else 0,
-                        all_succeeded=bool(order_id),
                     )
         except Exception as exc:
             logger.warning("Failed to probe order status: %s", exc)
@@ -390,7 +383,7 @@ class SwiggyMCPAdapter(CommercePort):
         args: dict[str, Any] = {"paasId": paas_id}
         if order_id:
             args["orderId"] = order_id
-        res = await self._call_mcp_tool("check_payment_status", args)
+        res = await self._call_mcp_tool("check_payment_status", args, timeout=25.0)
         self._parse_error_if_failed(res)
         data = res.get("data", {})
         raw_status = data.get("status")
@@ -438,10 +431,6 @@ class SwiggyMCPAdapter(CommercePort):
         else:
             normalized = normalize_order_status(
                 str(order_status).upper() if order_status is not None else None,
-                order_count=1,
-                success_count=0,
-                failure_count=0,
-                all_succeeded=False,
             )
         return CommerceOrderResult(
             order_id=data.get("orderId") or order_id,
@@ -457,10 +446,6 @@ class SwiggyMCPAdapter(CommercePort):
                 else None
             ),
             paas_id=str(data.get("paasId") or paas_id),
-            order_count=1,
-            success_count=1 if normalized == "ORDER_PLACED" else 0,
-            failure_count=1 if normalized == "FAILED" else 0,
-            all_succeeded=normalized == "ORDER_PLACED",
         )
 
     async def get_orders(
@@ -469,7 +454,6 @@ class SwiggyMCPAdapter(CommercePort):
         """List past or active Instamart orders."""
         args: dict[str, Any] = {
             "count": max(1, min(count, 20)),
-            "orderType": "INSTAMART",
         }
         if active_only:
             args["activeOnly"] = True
@@ -484,12 +468,13 @@ class SwiggyMCPAdapter(CommercePort):
         return parse_order_details_response(res.get("data", {}))
 
     async def get_delivery_status(
-        self, order_id: str, address_id: str
+        self, order_id: str, address_id: Optional[str] = None
     ) -> DeliveryStatusResult:
         """Fetch basic delivery ETA and cancellation status."""
-        res = await self._call_mcp_tool(
-            "get_delivery_status", {"orderId": order_id, "addressId": address_id}
-        )
+        args: dict[str, Any] = {"orderId": order_id}
+        if address_id:
+            args["addressId"] = address_id
+        res = await self._call_mcp_tool("get_delivery_status", args)
         self._parse_error_if_failed(res)
         return parse_delivery_status_response(res.get("data", {}))
 
@@ -497,13 +482,127 @@ class SwiggyMCPAdapter(CommercePort):
         self, order_id: str, lat: Optional[float] = None, lng: Optional[float] = None
     ) -> DeliveryTrackingStatus:
         """Fetch real-time delivery tracking status and ETA per official track_order schema."""
-        if lat is None or lng is None:
-            raise CommerceError(
-                "Tracking requires provider-returned delivery coordinates.",
-                provider="swiggy",
-                code="MISSING_TRACKING_COORDINATES",
-            )
-        args: dict[str, Any] = {"orderId": order_id, "lat": lat, "lng": lng}
+        args: dict[str, Any] = {"orderId": order_id}
+        if lat is not None and lng is not None:
+            args["lat"] = lat
+            args["lng"] = lng
         res = await self._call_mcp_tool("track_order", args)
         self._parse_error_if_failed(res)
         return parse_delivery_tracking_response(res.get("data", {}), order_id)
+
+    async def create_address(
+        self,
+        customer_id: str,
+        label: str,
+        street: str,
+        area: Optional[str] = None,
+        city: Optional[str] = None,
+        postal_code: Optional[str] = None,
+        latitude: Optional[float] = None,
+        longitude: Optional[float] = None,
+        phone_number: Optional[str] = None,
+        landmark: Optional[str] = None,
+        address_tag: Optional[str] = None,
+    ) -> DeliveryAddress:
+        """Create a new saved delivery address."""
+        args: dict[str, Any] = {
+            "addressLine": street,
+            "label": label,
+        }
+        if area:
+            args["area"] = area
+        if city:
+            args["city"] = city
+        if postal_code:
+            args["pincode"] = postal_code
+        if latitude is not None and longitude is not None:
+            args["latitude"] = latitude
+            args["longitude"] = longitude
+        if phone_number:
+            args["phoneNumber"] = phone_number
+        if landmark:
+            args["landmark"] = landmark
+        if address_tag:
+            args["addressTag"] = address_tag
+        res = await self._call_mcp_tool("create_address", args, customer_id=customer_id)
+        self._parse_error_if_failed(res)
+        data = res.get("data", {})
+        addrs = parse_delivery_addresses([data] if isinstance(data, dict) and "addresses" not in data else data)
+        if addrs:
+            return addrs[0]
+        return DeliveryAddress(
+            id=str(data.get("id") or data.get("addressId") or "created"),
+            label=label,
+            street=street,
+            area=area,
+            city=city,
+            postal_code=postal_code,
+            latitude=latitude,
+            longitude=longitude,
+            phone_number=phone_number,
+            landmark=landmark,
+            address_tag=address_tag,
+        )
+
+    async def delete_address(self, address_id: str) -> bool:
+        """Delete a saved delivery address."""
+        res = await self._call_mcp_tool("delete_address", {"addressId": address_id})
+        self._parse_error_if_failed(res)
+        return True
+
+    async def list_coupons(self, cart_id: Optional[str] = None) -> list[Coupon]:
+        """Fetch available coupons for current active cart."""
+        del cart_id
+        res = await self._call_mcp_tool("list_coupons", {})
+        self._parse_error_if_failed(res)
+        return parse_coupons(res.get("data", {}))
+
+    async def apply_coupon(
+        self, code: str, cart_id: Optional[str] = None
+    ) -> CouponApplyResult:
+        """Apply a coupon code to the active cart."""
+        del cart_id
+        res = await self._call_mcp_tool("apply_coupon", {"couponCode": code})
+        self._parse_error_if_failed(res)
+        data = res.get("data", {})
+        discount = float(data.get("discountAmount", data.get("discount", 0.0)))
+        return CouponApplyResult(
+            applied=bool(data.get("applied", True)),
+            code=code,
+            discount_amount=discount,
+            message=data.get("message"),
+        )
+
+    async def recommend_address(
+        self, latitude: Optional[float] = None, longitude: Optional[float] = None
+    ) -> AddressRecommendation:
+        """Recommend best delivery address based on location or order history."""
+        args: dict[str, Any] = {}
+        if latitude is not None and longitude is not None:
+            args["latitude"] = latitude
+            args["longitude"] = longitude
+        res = await self._call_mcp_tool("recommend_address", args)
+        self._parse_error_if_failed(res)
+        data = res.get("data", {})
+        addr_data = data.get("address")
+        matched = parse_delivery_addresses([addr_data])[0] if isinstance(addr_data, dict) else None
+        return AddressRecommendation(
+            recommended_address_id=data.get("recommendedAddressId") or data.get("addressId"),
+            confidence=float(data["confidence"]) if data.get("confidence") is not None else None,
+            reason=data.get("reason"),
+            matched_address=matched,
+        )
+
+    async def report_error(
+        self, report_id: str, context: Optional[dict[str, Any]] = None
+    ) -> ErrorReportResult:
+        """Submit diagnostic context for a provider error."""
+        args: dict[str, Any] = {"reportId": report_id, "context": context or {}}
+        res = await self._call_mcp_tool("report_error", args)
+        self._parse_error_if_failed(res)
+        data = res.get("data", {})
+        return ErrorReportResult(
+            report_id=report_id,
+            status=str(data.get("status") or "received"),
+            message=data.get("message"),
+        )

@@ -42,8 +42,7 @@ logger = logging.getLogger("grocer.channels.whatsapp")
 META_GRAPH_API_URL = "https://graph.facebook.com/v20.0"
 
 
-def _mask_recipient(phone: str) -> str:
-    return mask_recipient(phone)
+
 
 
 class WhatsAppChannelAdapter:
@@ -68,7 +67,6 @@ class WhatsAppChannelAdapter:
 
         # Record of outbound messages for testing and inspection
         self.outbound_messages: list[dict[str, Any]] = []
-        self._sent_payload_hashes: set[str] = set()
         # Persistent HTTP/2 client for outbound messages and status updates
         self._client: Optional[httpx.AsyncClient] = None
 
@@ -190,7 +188,7 @@ class WhatsAppChannelAdapter:
 
         if self.record_only or response.recipient_id.endswith(("_silent", "_test")):
             self.outbound_messages.extend(payloads)
-            logger.info("Silent test delivery recorded for %s; skipping Meta Graph API outbound.", _mask_recipient(response.recipient_id))
+            logger.info("Silent test delivery recorded for %s; skipping Meta Graph API outbound.", mask_recipient(response.recipient_id))
             return True
 
         if not self.phone_number_id or not self.access_token:
@@ -206,15 +204,11 @@ class WhatsAppChannelAdapter:
         try:
             client = await self._get_client()
             for payload in payloads:
-                payload_key = hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()
-                if payload_key in self._sent_payload_hashes:
-                    continue
                 res = await client.post(url, json=payload, headers=headers)
                 if res.status_code in (200, 201):
-                    self._sent_payload_hashes.add(payload_key)
-                    logger.info("WhatsApp message delivered to %s.", _mask_recipient(response.recipient_id))
+                    logger.info("WhatsApp message delivered to %s.", mask_recipient(response.recipient_id))
                 else:
-                    logger.error("WhatsApp API returned HTTP %d for %s", res.status_code, _mask_recipient(response.recipient_id))
+                    logger.error("WhatsApp API returned HTTP %d for %s", res.status_code, mask_recipient(response.recipient_id))
                     return False
             return True
         except Exception as exc:
@@ -227,6 +221,5 @@ default_whatsapp_adapter = WhatsAppChannelAdapter()
 
 __all__ = [
     "WhatsAppChannelAdapter",
-    "_mask_recipient",
     "default_whatsapp_adapter",
 ]

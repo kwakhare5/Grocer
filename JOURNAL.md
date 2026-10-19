@@ -17,6 +17,13 @@ During the Session End ritual (called automatically whenever significant changes
 
 ### [GROCER — Ground-Truth Claim Verification via Facts Text & Accuracy Suite] 2026-10-19
 
+#### Work Card: Fair Ranker vs. Model Experiment Execution across 31 Live Queries (Slice E1b)
+
+- **Problem**: Previous experiment falsified stock status as `OUT OF STOCK` for unknown stock, hardcoded model imports, exceeded Gemini free-tier RPM without spacing/retries, and missed query 31 (`coffee`) and Swiggy's plain search order baseline.
+- **Change**: Updated `backend/experiments/ranker_experiment.py` to truthfully omit unknown stock from model prompts, load `settings.GEMINI_SMALL_CHECK_MODEL` dynamically, throttle calls to <= 8/min with 30s backoff for 429s, capture Swiggy plain order (#1 candidate), run all 31 customer queries, and record API errors separately in `ranker_experiment_results.json`.
+- **Proof**: 31/31 live searches ran without errors; 31 Gemini calls completed with 0 API errors; Agreed: 5, Disagreed: 26, Model asked customer: 23; Model matched candidate directly on 8 queries (5 agreed with ranker, 3 outperformed ranker: `2 amul taaza 500ml` [2-pack vs single], `eggs 6` [6-pack vs 10-pack], `curd 400g` [400g cup vs 450g]); `git diff --check` exits 0.
+- **Still broken**: 34 pre-existing baseline e2e failures remain untouched; word lists and regex remain in `catalog_ranker.py` and `response_synthesizer.py`.
+
 #### Work Card: Live Ranker Experiment Execution & Swiggy Catalog Analysis (Slice E1 Re-Run)
 
 - **Problem**: Need empirical proof on whether `catalog_ranker` heuristics are needed over plain Swiggy Instamart search results across 30 live queries using a fresh Swiggy session.

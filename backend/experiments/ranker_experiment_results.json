@@ -107,6 +107,12 @@
         "sku_id": "Y07CB5288W"
       }
     ],
+    "plain_order_pick": {
+      "candidate_id": "1",
+      "name": "Amul Taaza Milky Milk",
+      "pack_size": "500 ml x 4",
+      "price": 120.0
+    },
     "ranker_pick": {
       "candidate_id": "3",
       "name": "Amul Taaza Milky Milk",
@@ -114,9 +120,10 @@
       "price": 30.0
     },
     "model_pick": "ask the customer",
-    "model_reason": "All available milk products matching the query are currently out of stock.",
+    "model_reason": "The customer simply asked for 'milk', and there are multiple types (Toned, Skimmed, Full Cream) and pack sizes available without a clear preference.",
     "agree": false,
-    "model_said_ask": true
+    "model_said_ask": true,
+    "api_error": false
   },
   {
     "query": "2 amul taaza 500ml",
@@ -226,16 +233,23 @@
         "sku_id": "2OBONR0163"
       }
     ],
+    "plain_order_pick": {
+      "candidate_id": "1",
+      "name": "Amul Taaza Milky Milk",
+      "pack_size": "500 ml x 4",
+      "price": 120.0
+    },
     "ranker_pick": {
       "candidate_id": "3",
       "name": "Amul Taaza Milky Milk",
       "pack_size": "500 ml",
       "price": 30.0
     },
-    "model_pick": "ask the customer",
-    "model_reason": "All matching 500ml pack candidates are currently out of stock.",
+    "model_pick": "2",
+    "model_reason": "Candidate 2 matches the requested quantity and pack size of 2 units of Amul Taaza 500ml.",
     "agree": false,
-    "model_said_ask": true
+    "model_said_ask": false,
+    "api_error": false
   },
   {
     "query": "bread",
@@ -345,6 +359,12 @@
         "sku_id": "K9P04Q20SX"
       }
     ],
+    "plain_order_pick": {
+      "candidate_id": "1",
+      "name": "Modern Supreme Sandwich Bread",
+      "pack_size": "400 g",
+      "price": 45.0
+    },
     "ranker_pick": {
       "candidate_id": "1",
       "name": "Modern Supreme Sandwich Bread",
@@ -352,25 +372,26 @@
       "price": 45.0
     },
     "model_pick": "ask the customer",
-    "model_reason": "All available bread candidates are currently out of stock.",
+    "model_reason": "The customer simply asked for 'bread' and multiple distinct brands and types are available, making clarification necessary.",
     "agree": false,
-    "model_said_ask": true
+    "model_said_ask": true,
+    "api_error": false
   },
   {
     "query": "brown bread",
     "candidates": [
       {
         "candidate_id": "1",
-        "product_id": "ZESX3NPWEE",
-        "name": "English Oven Brown Bread",
-        "product_name": "English Oven Brown Bread",
-        "brand": "English Oven",
+        "product_id": "BKMFCM1D2K",
+        "name": "Britannia Brown Bread",
+        "product_name": "Britannia Brown Bread",
+        "brand": "Britannia",
         "category": "",
         "pack_size": "400 g",
         "price": 55.0,
         "in_stock": null,
-        "spin_id": "RY059I9MGU",
-        "sku_id": "T3IK8P1GF0"
+        "spin_id": "5E0MC7KTPI",
+        "sku_id": "81DAVXF2DK"
       },
       {
         "candidate_id": "2",
@@ -400,16 +421,16 @@
       },
       {
         "candidate_id": "4",
-        "product_id": "BKMFCM1D2K",
-        "name": "Britannia Brown Bread",
-        "product_name": "Britannia Brown Bread",
-        "brand": "Britannia",
+        "product_id": "ZESX3NPWEE",
+        "name": "English Oven Brown Bread",
+        "product_name": "English Oven Brown Bread",
+        "brand": "English Oven",
         "category": "",
         "pack_size": "400 g",
         "price": 55.0,
         "in_stock": null,
-        "spin_id": "5E0MC7KTPI",
-        "sku_id": "81DAVXF2DK"
+        "spin_id": "RY059I9MGU",
+        "sku_id": "T3IK8P1GF0"
       },
       {
         "candidate_id": "5",
@@ -464,16 +485,23 @@
         "sku_id": "DWG68CLAMO"
       }
     ],
+    "plain_order_pick": {
+      "candidate_id": "1",
+      "name": "Britannia Brown Bread",
+      "pack_size": "400 g",
+      "price": 55.0
+    },
     "ranker_pick": {
       "candidate_id": "1",
-      "name": "English Oven Brown Bread",
+      "name": "Britannia Brown Bread",
       "pack_size": "400 g",
       "price": 55.0
     },
     "model_pick": "ask the customer",
-    "model_reason": "All matching brown bread options are currently out of stock.",
+    "model_reason": "There are multiple distinct brown bread brands and types available, so clarification is needed.",
     "agree": false,
-    "model_said_ask": true
+    "model_said_ask": true,
+    "api_error": false
   },
   {
     "query": "eggs 6",
@@ -583,16 +611,23 @@
         "sku_id": "XBK113HLQ9"
       }
     ],
+    "plain_order_pick": {
+      "candidate_id": "1",
+      "name": "NOICE High Protein Eggs (Nut & Bean Feed)",
+      "pack_size": "10 Pieces x 3",
+      "price": 297.0
+    },
     "ranker_pick": {
       "candidate_id": "2",
       "name": "NOICE High Protein Eggs (Nut & Bean Feed)",
       "pack_size": "10 Pieces",
       "price": 99.0
     },
-    "model_pick": "ask the customer",
-    "model_reason": "All available matching products for 6 eggs are currently out of stock.",
+    "model_pick": "5",
+    "model_reason": "Candidate 5 is a single pack of 6 eggs which directly matches the customer's request for 'eggs 6'.",
     "agree": false,
-    "model_said_ask": true
+    "model_said_ask": false,
+    "api_error": false
   },
   {
     "query": "dahi",
@@ -702,16 +737,23 @@
         "sku_id": "ZA2511AS9A"
       }
     ],
+    "plain_order_pick": {
+      "candidate_id": "1",
+      "name": "Amul Masti Dahi",
+      "pack_size": "1 kg",
+      "price": 85.0
+    },
     "ranker_pick": {
       "candidate_id": "1",
       "name": "Amul Masti Dahi",
       "pack_size": "1 kg",
       "price": 85.0
     },
-    "model_pick": "ask the customer",
-    "model_reason": "All available dahi products matching the request are currently out of stock.",
-    "agree": false,
-    "model_said_ask": true
+    "model_pick": "1",
+    "model_reason": "Amul Masti Dahi 1 kg is the most standard and popular product matching the general request for dahi.",
+    "agree": true,
+    "model_said_ask": false,
+    "api_error": false
   },
   {
     "query": "paneer",
@@ -821,6 +863,12 @@
         "sku_id": "MXL15J2TDX"
       }
     ],
+    "plain_order_pick": {
+      "candidate_id": "1",
+      "name": "Amul Fresh Paneer",
+      "pack_size": "200 g x 2",
+      "price": 190.0
+    },
     "ranker_pick": {
       "candidate_id": "2",
       "name": "Amul Fresh Paneer",
@@ -828,41 +876,29 @@
       "price": 95.0
     },
     "model_pick": "ask the customer",
-    "model_reason": "All available paneer candidates from the search results are currently out of stock.",
+    "model_reason": "There are multiple brands and pack sizes of paneer available without a specific preference from the customer.",
     "agree": false,
-    "model_said_ask": true
+    "model_said_ask": true,
+    "api_error": false
   },
   {
     "query": "atta 5kg",
     "candidates": [
       {
         "candidate_id": "1",
-        "product_id": "WBZDJ53X5C",
-        "name": "Aashirvaad Shudh Chakki Atta",
-        "product_name": "Aashirvaad Shudh Chakki Atta",
-        "brand": "Aashirvaad",
+        "product_id": "9I9ERD1O50",
+        "name": "Nature Fresh Atta",
+        "product_name": "Nature Fresh Atta",
+        "brand": "Nature Fresh",
         "category": "",
-        "pack_size": "5 kg x 2",
-        "price": 492.0,
+        "pack_size": "5 kg",
+        "price": 221.0,
         "in_stock": null,
-        "spin_id": "4VCOCPTACH",
-        "sku_id": "N5MGHW0TFB"
+        "spin_id": "JJIQB0IYK1",
+        "sku_id": "M9YV7WDNII"
       },
       {
         "candidate_id": "2",
-        "product_id": "WBZDJ53X5C",
-        "name": "Aashirvaad Shudh Chakki Atta",
-        "product_name": "Aashirvaad Shudh Chakki Atta",
-        "brand": "Aashirvaad",
-        "category": "",
-        "pack_size": "5 kg",
-        "price": 246.0,
-        "in_stock": null,
-        "spin_id": "3ABVY116ZJ",
-        "sku_id": "DHOTD6O6S8"
-      },
-      {
-        "candidate_id": "3",
         "product_id": "RZI90I96P0",
         "name": "Aashirvaad Organic Whole Wheat Atta",
         "product_name": "Aashirvaad Organic Whole Wheat Atta",
@@ -875,7 +911,7 @@
         "sku_id": "XU2WCGNVN6"
       },
       {
-        "candidate_id": "4",
+        "candidate_id": "3",
         "product_id": "RZI90I96P0",
         "name": "Aashirvaad Organic Whole Wheat Atta",
         "product_name": "Aashirvaad Organic Whole Wheat Atta",
@@ -888,17 +924,30 @@
         "sku_id": "LPX9S0Q8XU"
       },
       {
+        "candidate_id": "4",
+        "product_id": "WBZDJ53X5C",
+        "name": "Aashirvaad Shudh Chakki Atta",
+        "product_name": "Aashirvaad Shudh Chakki Atta",
+        "brand": "Aashirvaad",
+        "category": "",
+        "pack_size": "5 kg x 2",
+        "price": 492.0,
+        "in_stock": null,
+        "spin_id": "4VCOCPTACH",
+        "sku_id": "N5MGHW0TFB"
+      },
+      {
         "candidate_id": "5",
-        "product_id": "9I9ERD1O50",
-        "name": "Nature Fresh Atta",
-        "product_name": "Nature Fresh Atta",
-        "brand": "Nature Fresh",
+        "product_id": "WBZDJ53X5C",
+        "name": "Aashirvaad Shudh Chakki Atta",
+        "product_name": "Aashirvaad Shudh Chakki Atta",
+        "brand": "Aashirvaad",
         "category": "",
         "pack_size": "5 kg",
-        "price": 221.0,
+        "price": 246.0,
         "in_stock": null,
-        "spin_id": "JJIQB0IYK1",
-        "sku_id": "M9YV7WDNII"
+        "spin_id": "3ABVY116ZJ",
+        "sku_id": "DHOTD6O6S8"
       },
       {
         "candidate_id": "6",
@@ -940,16 +989,23 @@
         "sku_id": "M8TTMXYAQV"
       }
     ],
-    "ranker_pick": {
-      "candidate_id": "2",
-      "name": "Aashirvaad Shudh Chakki Atta",
+    "plain_order_pick": {
+      "candidate_id": "1",
+      "name": "Nature Fresh Atta",
       "pack_size": "5 kg",
-      "price": 246.0
+      "price": 221.0
+    },
+    "ranker_pick": {
+      "candidate_id": "1",
+      "name": "Nature Fresh Atta",
+      "pack_size": "5 kg",
+      "price": 221.0
     },
     "model_pick": "ask the customer",
-    "model_reason": "All 5kg atta products returned from the store search are currently out of stock.",
+    "model_reason": "There are multiple distinct brands available for 5kg atta, so clarification is needed.",
     "agree": false,
-    "model_said_ask": true
+    "model_said_ask": true,
+    "api_error": false
   },
   {
     "query": "basmati rice 1kg",
@@ -1059,6 +1115,12 @@
         "sku_id": "0ZR1BHQVRF"
       }
     ],
+    "plain_order_pick": {
+      "candidate_id": "1",
+      "name": "Daawat Rozana Super Basmati rice(Medium Grain)",
+      "pack_size": "1 kg x 3",
+      "price": 276.0
+    },
     "ranker_pick": {
       "candidate_id": "3",
       "name": "Daawat Rozana Super Basmati rice(Medium Grain)",
@@ -1066,9 +1128,10 @@
       "price": 92.0
     },
     "model_pick": "3",
-    "model_reason": "Candidate 3 is an exact match for the requested 1kg pack size of Daawat Rozana Super Basmati rice.",
+    "model_reason": "Candidate 3 matches the exact requested quantity of 1 kg for Daawat Rozana Super Basmati rice.",
     "agree": true,
-    "model_said_ask": false
+    "model_said_ask": false,
+    "api_error": false
   },
   {
     "query": "toor dal",
@@ -1178,6 +1241,12 @@
         "sku_id": "XWF9QXKZ92"
       }
     ],
+    "plain_order_pick": {
+      "candidate_id": "1",
+      "name": "Tata Sampann Unpolished Toor/Arhar Dal",
+      "pack_size": "1 kg",
+      "price": 175.0
+    },
     "ranker_pick": {
       "candidate_id": "1",
       "name": "Tata Sampann Unpolished Toor/Arhar Dal",
@@ -1185,9 +1254,10 @@
       "price": 175.0
     },
     "model_pick": "ask the customer",
-    "model_reason": "All available toor dal candidates are currently out of stock.",
+    "model_reason": "There are multiple brands and pack sizes available for toor dal without a specific preference from the customer.",
     "agree": false,
-    "model_said_ask": true
+    "model_said_ask": true,
+    "api_error": false
   },
   {
     "query": "sugar free biscuits",
@@ -1246,19 +1316,6 @@
       },
       {
         "candidate_id": "5",
-        "product_id": "P1UWGUG2FA",
-        "name": "Sugar Free D'Lite Choco Chip Cookies | Zero Added Sugar | Made with Oats & Quinoa",
-        "product_name": "Sugar Free D'Lite Choco Chip Cookies | Zero Added Sugar | Made with Oats & Quinoa",
-        "brand": "Sugar Free",
-        "category": "",
-        "pack_size": "150 g",
-        "price": 101.0,
-        "in_stock": null,
-        "spin_id": "JJ3LRL0D05",
-        "sku_id": "0RRAKVWR8D"
-      },
-      {
-        "candidate_id": "6",
         "product_id": "OB88QDFK1D",
         "name": "Unibic Sugar Free Digestive - No Maida",
         "product_name": "Unibic Sugar Free Digestive - No Maida",
@@ -1271,7 +1328,7 @@
         "sku_id": "78IW2DSVFN"
       },
       {
-        "candidate_id": "7",
+        "candidate_id": "6",
         "product_id": "OB88QDFK1D",
         "name": "Unibic Sugar Free Digestive - No Maida",
         "product_name": "Unibic Sugar Free Digestive - No Maida",
@@ -1284,7 +1341,7 @@
         "sku_id": "BVD8KJKN8I"
       },
       {
-        "candidate_id": "8",
+        "candidate_id": "7",
         "product_id": "LNZPGKGVH6",
         "name": "Unibic Cashew Cookies Sugar Free - No Maida",
         "product_name": "Unibic Cashew Cookies Sugar Free - No Maida",
@@ -1295,8 +1352,27 @@
         "in_stock": null,
         "spin_id": "28H0QB2LQE",
         "sku_id": "BX60R2ZCTH"
+      },
+      {
+        "candidate_id": "8",
+        "product_id": "LNZPGKGVH6",
+        "name": "Unibic Cashew Cookies Sugar Free - No Maida",
+        "product_name": "Unibic Cashew Cookies Sugar Free - No Maida",
+        "brand": "Unibic",
+        "category": "",
+        "pack_size": "75 g x 2",
+        "price": 84.0,
+        "in_stock": null,
+        "spin_id": "OGWCLRSQHH",
+        "sku_id": "W4MOPXN26V"
       }
     ],
+    "plain_order_pick": {
+      "candidate_id": "1",
+      "name": "Sugar Free Dlite Choco Chip Cookies|Zero Added Sugar|Made with Oats & Quinoa",
+      "pack_size": "75 g x 3",
+      "price": 105.0
+    },
     "ranker_pick": {
       "candidate_id": "3",
       "name": "Sugar Free Dlite Choco Chip Cookies|Zero Added Sugar|Made with Oats & Quinoa",
@@ -1304,9 +1380,10 @@
       "price": 35.0
     },
     "model_pick": "ask the customer",
-    "model_reason": "All available sugar-free biscuit candidates from the search results are currently out of stock.",
+    "model_reason": "There are multiple distinct brands and types of sugar-free biscuits available, so clarification is needed.",
     "agree": false,
-    "model_said_ask": true
+    "model_said_ask": true,
+    "api_error": false
   },
   {
     "query": "chai patti",
@@ -1391,36 +1468,43 @@
       },
       {
         "candidate_id": "7",
-        "product_id": "BHICCSQURE",
-        "name": "Taj Mahal Rich and Flavourful Tea",
-        "product_name": "Taj Mahal Rich and Flavourful Tea",
-        "brand": "Taj Mahal",
-        "category": "",
-        "pack_size": "100 g",
-        "price": 80.0,
-        "in_stock": null,
-        "spin_id": "FSGDTTF3KJ",
-        "sku_id": "VQ9QCJ5N1G"
-      },
-      {
-        "candidate_id": "8",
-        "product_id": "CNTE88XFKU",
+        "product_id": "WFI8BWSLZC",
         "name": "Red Label Natural Care Tea, with 5 Ayurvedic Ingredients",
         "product_name": "Red Label Natural Care Tea, with 5 Ayurvedic Ingredients",
         "brand": "Red Label",
         "category": "",
-        "pack_size": "250 g x 2",
-        "price": 360.0,
+        "pack_size": "100 g x 2",
+        "price": 120.0,
         "in_stock": null,
-        "spin_id": "N94KXPJGJ2",
-        "sku_id": "1VTAD3ABGK"
+        "spin_id": "LMG2OYUP29",
+        "sku_id": "485M8BVCYJ"
+      },
+      {
+        "candidate_id": "8",
+        "product_id": "WFI8BWSLZC",
+        "name": "Red Label Natural Care Tea, with 5 Ayurvedic Ingredients",
+        "product_name": "Red Label Natural Care Tea, with 5 Ayurvedic Ingredients",
+        "brand": "Red Label",
+        "category": "",
+        "pack_size": "100 g",
+        "price": 60.0,
+        "in_stock": null,
+        "spin_id": "NLMO66ZKBD",
+        "sku_id": "UF56MIIMAD"
       }
     ],
+    "plain_order_pick": {
+      "candidate_id": "1",
+      "name": "Tata Tea Gold Premium Assam Tea Rich Taste & Irresistible Aroma",
+      "pack_size": "100 g",
+      "price": 50.0
+    },
     "ranker_pick": null,
     "model_pick": "ask the customer",
-    "model_reason": "All available candidate products are currently out of stock.",
+    "model_reason": "The customer requested 'chai patti' generically, and there are multiple distinct popular brands available without a brand preference specified.",
     "agree": false,
-    "model_said_ask": true
+    "model_said_ask": true,
+    "api_error": false
   },
   {
     "query": "maggi",
@@ -1530,16 +1614,23 @@
         "sku_id": "Z5Q6AQ7AUZ"
       }
     ],
+    "plain_order_pick": {
+      "candidate_id": "1",
+      "name": "MAGGI 2-Minute Instant Noodles, Made With Quality Spices",
+      "pack_size": "420 g x 2",
+      "price": 154.0
+    },
     "ranker_pick": {
       "candidate_id": "2",
       "name": "MAGGI 2-Minute Instant Noodles, Made With Quality Spices",
       "pack_size": "420 g",
       "price": 78.0
     },
-    "model_pick": "ask the customer",
-    "model_reason": "All matching Maggi products are currently out of stock, so clarification is needed.",
-    "agree": false,
-    "model_said_ask": true
+    "model_pick": "2",
+    "model_reason": "Candidate 2 is the standard single-pack MAGGI 2-Minute Instant Noodles, which is the most direct and common match for the generic request 'maggi'.",
+    "agree": true,
+    "model_said_ask": false,
+    "api_error": false
   },
   {
     "query": "olive oil",
@@ -1598,16 +1689,16 @@
       },
       {
         "candidate_id": "5",
-        "product_id": "JD7DH0DIAB",
-        "name": "Tata Simply Better Extra Virgin Olive Oil, Pure and Unrefined",
-        "product_name": "Tata Simply Better Extra Virgin Olive Oil, Pure and Unrefined",
-        "brand": "Tata Simply Better",
+        "product_id": "N1S23OWMC8",
+        "name": "Borges Extra Virgin Olive Oil",
+        "product_name": "Borges Extra Virgin Olive Oil",
+        "brand": "Borges",
         "category": "",
-        "pack_size": "1 ltr",
-        "price": 1388.0,
+        "pack_size": "500 ml",
+        "price": 630.0,
         "in_stock": null,
-        "spin_id": "2X8BFJBO2G",
-        "sku_id": "UD6N591AVR"
+        "spin_id": "N0X4BUVNG5",
+        "sku_id": "PQP9Z6UWJO"
       },
       {
         "candidate_id": "6",
@@ -1624,16 +1715,16 @@
       },
       {
         "candidate_id": "7",
-        "product_id": "N1S23OWMC8",
-        "name": "Borges Extra Virgin Olive Oil",
-        "product_name": "Borges Extra Virgin Olive Oil",
-        "brand": "Borges",
+        "product_id": "JD7DH0DIAB",
+        "name": "Tata Simply Better Extra Virgin Olive Oil, Pure and Unrefined",
+        "product_name": "Tata Simply Better Extra Virgin Olive Oil, Pure and Unrefined",
+        "brand": "Tata Simply Better",
         "category": "",
-        "pack_size": "500 ml",
-        "price": 630.0,
+        "pack_size": "1 ltr",
+        "price": 1388.0,
         "in_stock": null,
-        "spin_id": "N0X4BUVNG5",
-        "sku_id": "PQP9Z6UWJO"
+        "spin_id": "2X8BFJBO2G",
+        "sku_id": "UD6N591AVR"
       },
       {
         "candidate_id": "8",
@@ -1649,6 +1740,12 @@
         "sku_id": "AGBDDRT6AP"
       }
     ],
+    "plain_order_pick": {
+      "candidate_id": "1",
+      "name": "Del Monte Extra Virgin Olive Oil",
+      "pack_size": "250 ml",
+      "price": 329.0
+    },
     "ranker_pick": {
       "candidate_id": "1",
       "name": "Del Monte Extra Virgin Olive Oil",
@@ -1656,9 +1753,10 @@
       "price": 329.0
     },
     "model_pick": "ask the customer",
-    "model_reason": "All available candidate products are currently out of stock.",
+    "model_reason": "There are multiple brands, types, and pack sizes available for olive oil, so clarification is needed.",
     "agree": false,
-    "model_said_ask": true
+    "model_said_ask": true,
+    "api_error": false
   },
   {
     "query": "ghee",
@@ -1768,6 +1866,12 @@
         "sku_id": "R3TMKVZTPR"
       }
     ],
+    "plain_order_pick": {
+      "candidate_id": "1",
+      "name": "Gowardhan Pure Cow Ghee (Jar)",
+      "pack_size": "500 ml",
+      "price": 421.0
+    },
     "ranker_pick": {
       "candidate_id": "1",
       "name": "Gowardhan Pure Cow Ghee (Jar)",
@@ -1775,9 +1879,10 @@
       "price": 421.0
     },
     "model_pick": "ask the customer",
-    "model_reason": "All available candidate products for ghee are currently out of stock.",
+    "model_reason": "There are multiple brands and types of ghee available, so clarification is needed on the preferred brand and pack size.",
     "agree": false,
-    "model_said_ask": true
+    "model_said_ask": true,
+    "api_error": false
   },
   {
     "query": "curd 400g",
@@ -1887,16 +1992,23 @@
         "sku_id": "8FHNPI27D4"
       }
     ],
+    "plain_order_pick": {
+      "candidate_id": "1",
+      "name": "Amul Masti Dahi (Cup)",
+      "pack_size": "400 g",
+      "price": 50.0
+    },
     "ranker_pick": {
       "candidate_id": "4",
       "name": "Sid's Farm Curd - Made from Tested Milk (No Antibiotics, No Hormones, No Preservatives)",
       "pack_size": "450 g",
       "price": 55.0
     },
-    "model_pick": "ask the customer",
-    "model_reason": "All available products matching the requested size are currently out of stock.",
+    "model_pick": "1",
+    "model_reason": "Amul Masti Dahi matches the requested size of 400g and is an exact single-item match for curd.",
     "agree": false,
-    "model_said_ask": true
+    "model_said_ask": false,
+    "api_error": false
   },
   {
     "query": "tissues",
@@ -1987,7 +2099,7 @@
         "brand": "Premier Tissues",
         "category": "",
         "pack_size": "400 Pull",
-        "price": 281.0,
+        "price": 299.0,
         "in_stock": null,
         "spin_id": "6CVIA1K6C4",
         "sku_id": "U3LZWJYHSA"
@@ -2006,16 +2118,23 @@
         "sku_id": "Z97RBYCCWK"
       }
     ],
+    "plain_order_pick": {
+      "candidate_id": "1",
+      "name": "Origami So Soft Plain Paper Napkins Pack of 1 - 100 Pulls Each, 1 Ply",
+      "pack_size": "100 Pull x 3",
+      "price": 156.0
+    },
     "ranker_pick": {
       "candidate_id": "7",
       "name": "Premier Face Tissue Box- 100 pulls (2 ply) 4 in 1 Pack",
       "pack_size": "400 Pull",
-      "price": 281.0
+      "price": 299.0
     },
-    "model_pick": "unclear",
-    "model_reason": "No response from model",
+    "model_pick": "ask the customer",
+    "model_reason": "The customer requested tissues, but there are multiple different types available including facial tissues, napkins, and kitchen roll tissues from different brands.",
     "agree": false,
-    "model_said_ask": false
+    "model_said_ask": true,
+    "api_error": false
   },
   {
     "query": "toothpaste",
@@ -2125,16 +2244,23 @@
         "sku_id": "TT0NLA3UK9"
       }
     ],
+    "plain_order_pick": {
+      "candidate_id": "1",
+      "name": "Colgate Total Advanced Health Antibacterial Toothpaste",
+      "pack_size": "80 g",
+      "price": 80.0
+    },
     "ranker_pick": {
       "candidate_id": "1",
       "name": "Colgate Total Advanced Health Antibacterial Toothpaste",
       "pack_size": "80 g",
       "price": 80.0
     },
-    "model_pick": "unclear",
-    "model_reason": "No response from model",
+    "model_pick": "ask the customer",
+    "model_reason": "There are multiple distinct brands and variants of toothpaste available, so clarification is needed to select the customer's preferred type.",
     "agree": false,
-    "model_said_ask": false
+    "model_said_ask": true,
+    "api_error": false
   },
   {
     "query": "dishwash liquid",
@@ -2244,16 +2370,23 @@
         "sku_id": "81MPSF873T"
       }
     ],
+    "plain_order_pick": {
+      "candidate_id": "1",
+      "name": "Vim Lemon Dishwash Gel",
+      "pack_size": "500 ml x 4",
+      "price": 560.0
+    },
     "ranker_pick": {
       "candidate_id": "4",
       "name": "Dettol Dishwash Liquid and Kitchen Gel | Removes Germs and Cuts Grease",
       "pack_size": "750 ml",
       "price": 165.0
     },
-    "model_pick": "unclear",
-    "model_reason": "No response from model",
+    "model_pick": "ask the customer",
+    "model_reason": "There are multiple popular brands like Vim and Dettol available in various pack sizes, so clarification is needed.",
     "agree": false,
-    "model_said_ask": false
+    "model_said_ask": true,
+    "api_error": false
   },
   {
     "query": "bananas",
@@ -2363,11 +2496,18 @@
         "sku_id": "UZXFZ57MK3"
       }
     ],
+    "plain_order_pick": {
+      "candidate_id": "1",
+      "name": "Robusta Banana (Keli)",
+      "pack_size": "4 Pieces x 2",
+      "price": 66.0
+    },
     "ranker_pick": null,
-    "model_pick": "unclear",
-    "model_reason": "No response from model",
+    "model_pick": "ask the customer",
+    "model_reason": "The customer simply asked for 'bananas', but there are multiple varieties available such as Robusta, Baby, Yelakki, and Raw bananas, requiring clarification.",
     "agree": false,
-    "model_said_ask": false
+    "model_said_ask": true,
+    "api_error": false
   },
   {
     "query": "onion 1kg",
@@ -2477,16 +2617,23 @@
         "sku_id": "GZJPA37ZVR"
       }
     ],
+    "plain_order_pick": {
+      "candidate_id": "1",
+      "name": "Onion (Kanda)",
+      "pack_size": "1 kg",
+      "price": 71.0
+    },
     "ranker_pick": {
       "candidate_id": "1",
       "name": "Onion (Kanda)",
       "pack_size": "1 kg",
       "price": 71.0
     },
-    "model_pick": "unclear",
-    "model_reason": "No response from model",
-    "agree": false,
-    "model_said_ask": false
+    "model_pick": "1",
+    "model_reason": "Candidate 1 is an exact match for the requested item and pack size.",
+    "agree": true,
+    "model_said_ask": false,
+    "api_error": false
   },
   {
     "query": "potato",
@@ -2557,16 +2704,23 @@
         "sku_id": "10MH0MH2JJ"
       }
     ],
+    "plain_order_pick": {
+      "candidate_id": "1",
+      "name": "Organic Certified Potato (Batate)",
+      "pack_size": "1 kg",
+      "price": 46.0
+    },
     "ranker_pick": {
       "candidate_id": "1",
       "name": "Organic Certified Potato (Batate)",
       "pack_size": "1 kg",
       "price": 46.0
     },
-    "model_pick": "unclear",
-    "model_reason": "No response from model",
-    "agree": false,
-    "model_said_ask": false
+    "model_pick": "1",
+    "model_reason": "Candidate 1 is the most direct and standard match for a general request for potatoes in a standard 1 kg pack.",
+    "agree": true,
+    "model_said_ask": false,
+    "api_error": false
   },
   {
     "query": "tomato",
@@ -2676,16 +2830,23 @@
         "sku_id": "7MNJHBYQOV"
       }
     ],
+    "plain_order_pick": {
+      "candidate_id": "1",
+      "name": "Indian Tomato (Tamata)",
+      "pack_size": "500 g x 2",
+      "price": 38.0
+    },
     "ranker_pick": {
       "candidate_id": "2",
       "name": "Indian Tomato (Tamata)",
       "pack_size": "500 g",
       "price": 20.0
     },
-    "model_pick": "unclear",
-    "model_reason": "No response from model",
+    "model_pick": "ask the customer",
+    "model_reason": "There are multiple varieties and pack sizes available for tomatoes such as Indian, Hybrid, and Organic, requiring clarification.",
     "agree": false,
-    "model_said_ask": false
+    "model_said_ask": true,
+    "api_error": false
   },
   {
     "query": "amul butter 100g",
@@ -2704,16 +2865,23 @@
         "sku_id": "X8KRJK0D0U"
       }
     ],
+    "plain_order_pick": {
+      "candidate_id": "1",
+      "name": "Amul Pasteurised Butter",
+      "pack_size": "500 g",
+      "price": 325.0
+    },
     "ranker_pick": {
       "candidate_id": "1",
       "name": "Amul Pasteurised Butter",
       "pack_size": "500 g",
       "price": 325.0
     },
-    "model_pick": "unclear",
-    "model_reason": "No response from model",
+    "model_pick": "ask the customer",
+    "model_reason": "The customer requested a 100g pack, but only a 500g pack of Amul Butter is available.",
     "agree": false,
-    "model_said_ask": false
+    "model_said_ask": true,
+    "api_error": false
   },
   {
     "query": "bournvita",
@@ -2746,58 +2914,6 @@
       },
       {
         "candidate_id": "3",
-        "product_id": "R6DALCAFR6",
-        "name": "Bournvita Chocolate Nutrition Drink Pouch",
-        "product_name": "Bournvita Chocolate Nutrition Drink Pouch",
-        "brand": "Cadbury Bournvita",
-        "category": "",
-        "pack_size": "500 g",
-        "price": 249.0,
-        "in_stock": null,
-        "spin_id": "79QPK6ZOUG",
-        "sku_id": "MULYR0KA4B"
-      },
-      {
-        "candidate_id": "4",
-        "product_id": "I5T9JFOOQ7",
-        "name": "Bournvita Chocolate Nutrition Drink Jar",
-        "product_name": "Bournvita Chocolate Nutrition Drink Jar",
-        "brand": "Cadbury Bournvita",
-        "category": "",
-        "pack_size": "200 g x 2",
-        "price": 210.0,
-        "in_stock": null,
-        "spin_id": "M4PW8O7DOT",
-        "sku_id": "AULYZJ5D37"
-      },
-      {
-        "candidate_id": "5",
-        "product_id": "I5T9JFOOQ7",
-        "name": "Bournvita Chocolate Nutrition Drink Jar",
-        "product_name": "Bournvita Chocolate Nutrition Drink Jar",
-        "brand": "Cadbury Bournvita",
-        "category": "",
-        "pack_size": "200 g",
-        "price": 105.0,
-        "in_stock": null,
-        "spin_id": "IN7QGIGXLU",
-        "sku_id": "ZIY5T7DGJD"
-      },
-      {
-        "candidate_id": "6",
-        "product_id": "YLN10WIODP",
-        "name": "Bournvita Zero Added Sugar Nutrition Drink Jar",
-        "product_name": "Bournvita Zero Added Sugar Nutrition Drink Jar",
-        "brand": "Cadbury Bournvita",
-        "category": "",
-        "pack_size": "500 g",
-        "price": 276.0,
-        "in_stock": null,
-        "spin_id": "T64AHV0FTF",
-        "sku_id": "20D3YQXUUU"
-      },
-      {
-        "candidate_id": "7",
         "product_id": "YNADB1STJ4",
         "name": "Bournvita Chocolate Nutrition Drink Pouch",
         "product_name": "Bournvita Chocolate Nutrition Drink Pouch",
@@ -2810,7 +2926,7 @@
         "sku_id": "AP5Y121YS2"
       },
       {
-        "candidate_id": "8",
+        "candidate_id": "4",
         "product_id": "YNADB1STJ4",
         "name": "Bournvita Chocolate Nutrition Drink Pouch",
         "product_name": "Bournvita Chocolate Nutrition Drink Pouch",
@@ -2821,18 +2937,77 @@
         "in_stock": null,
         "spin_id": "6S2BSCP320",
         "sku_id": "1CA60D1BZK"
+      },
+      {
+        "candidate_id": "5",
+        "product_id": "I5T9JFOOQ7",
+        "name": "Bournvita Chocolate Nutrition Drink Jar",
+        "product_name": "Bournvita Chocolate Nutrition Drink Jar",
+        "brand": "Cadbury Bournvita",
+        "category": "",
+        "pack_size": "200 g x 2",
+        "price": 210.0,
+        "in_stock": null,
+        "spin_id": "M4PW8O7DOT",
+        "sku_id": "AULYZJ5D37"
+      },
+      {
+        "candidate_id": "6",
+        "product_id": "I5T9JFOOQ7",
+        "name": "Bournvita Chocolate Nutrition Drink Jar",
+        "product_name": "Bournvita Chocolate Nutrition Drink Jar",
+        "brand": "Cadbury Bournvita",
+        "category": "",
+        "pack_size": "200 g",
+        "price": 105.0,
+        "in_stock": null,
+        "spin_id": "IN7QGIGXLU",
+        "sku_id": "ZIY5T7DGJD"
+      },
+      {
+        "candidate_id": "7",
+        "product_id": "3HEJ1Z9S82",
+        "name": "Bournvita Chocolate Nutrition Drink Jar",
+        "product_name": "Bournvita Chocolate Nutrition Drink Jar",
+        "brand": "Cadbury Bournvita",
+        "category": "",
+        "pack_size": "500 g",
+        "price": 263.0,
+        "in_stock": null,
+        "spin_id": "3GGEIA8YYE",
+        "sku_id": "U4IFW1QNVF"
+      },
+      {
+        "candidate_id": "8",
+        "product_id": "R6DALCAFR6",
+        "name": "Bournvita Chocolate Nutrition Drink Pouch",
+        "product_name": "Bournvita Chocolate Nutrition Drink Pouch",
+        "brand": "Cadbury Bournvita",
+        "category": "",
+        "pack_size": "500 g",
+        "price": 249.0,
+        "in_stock": null,
+        "spin_id": "79QPK6ZOUG",
+        "sku_id": "MULYR0KA4B"
       }
     ],
+    "plain_order_pick": {
+      "candidate_id": "1",
+      "name": "Bournvita Chocolate Nutrition Drink Pouch",
+      "pack_size": "81 g x 3",
+      "price": 90.0
+    },
     "ranker_pick": {
       "candidate_id": "2",
       "name": "Bournvita Chocolate Nutrition Drink Pouch",
       "pack_size": "81 g",
       "price": 30.0
     },
-    "model_pick": "unclear",
-    "model_reason": "No response from model",
+    "model_pick": "ask the customer",
+    "model_reason": "There are multiple sizes available ranging from 81g to 1kg pouches and jars, so clarification on the preferred pack size is needed.",
     "agree": false,
-    "model_said_ask": false
+    "model_said_ask": true,
+    "api_error": false
   },
   {
     "query": "pasta",
@@ -2942,16 +3117,23 @@
         "sku_id": "O5G9JH0DB0"
       }
     ],
+    "plain_order_pick": {
+      "candidate_id": "1",
+      "name": "Maggi Pazzta Instant Pasta Cheese Macaroni",
+      "pack_size": "75 g x 4",
+      "price": 109.0
+    },
     "ranker_pick": {
       "candidate_id": "3",
       "name": "Maggi Pazzta Instant Pasta Cheese Macaroni",
       "pack_size": "75 g",
       "price": 31.0
     },
-    "model_pick": "unclear",
-    "model_reason": "No response from model",
+    "model_pick": "ask the customer",
+    "model_reason": "The customer requested general pasta, but there are multiple distinct brands, flavors, and types available such as Maggi Pazzta and Yu Durum Wheat Pasta.",
     "agree": false,
-    "model_said_ask": false
+    "model_said_ask": true,
+    "api_error": false
   },
   {
     "query": "pizza base",
@@ -3002,11 +3184,11 @@
         "product_name": "D'lecta Shredded Mozzarella Cheese",
         "brand": "D'lecta",
         "category": "",
-        "pack_size": "140 g x 5",
-        "price": 475.0,
+        "pack_size": "140 g x 3",
+        "price": 285.0,
         "in_stock": null,
-        "spin_id": "GUY80HXUXP",
-        "sku_id": "H03KOBI7SS"
+        "spin_id": "1UFFP8VUZZ",
+        "sku_id": "VRQVLWCJB0"
       },
       {
         "candidate_id": "5",
@@ -3015,27 +3197,14 @@
         "product_name": "D'lecta Shredded Mozzarella Cheese",
         "brand": "D'lecta",
         "category": "",
-        "pack_size": "140 g x 3",
-        "price": 285.0,
+        "pack_size": "140 g x 5",
+        "price": 475.0,
         "in_stock": null,
-        "spin_id": "1UFFP8VUZZ",
-        "sku_id": "VRQVLWCJB0"
+        "spin_id": "GUY80HXUXP",
+        "sku_id": "H03KOBI7SS"
       },
       {
         "candidate_id": "6",
-        "product_id": "JXNUKHCHKO",
-        "name": "D'lecta Shredded Mozzarella Cheese",
-        "product_name": "D'lecta Shredded Mozzarella Cheese",
-        "brand": "D'lecta",
-        "category": "",
-        "pack_size": "140 g x 2",
-        "price": 190.0,
-        "in_stock": null,
-        "spin_id": "TCZIN5AZR8",
-        "sku_id": "K58GS8FSZ7"
-      },
-      {
-        "candidate_id": "7",
         "product_id": "JXNUKHCHKO",
         "name": "D'lecta Shredded Mozzarella Cheese",
         "product_name": "D'lecta Shredded Mozzarella Cheese",
@@ -3046,6 +3215,19 @@
         "in_stock": null,
         "spin_id": "Q453WO42TZ",
         "sku_id": "IXUBHBVZT6"
+      },
+      {
+        "candidate_id": "7",
+        "product_id": "JXNUKHCHKO",
+        "name": "D'lecta Shredded Mozzarella Cheese",
+        "product_name": "D'lecta Shredded Mozzarella Cheese",
+        "brand": "D'lecta",
+        "category": "",
+        "pack_size": "140 g x 2",
+        "price": 190.0,
+        "in_stock": null,
+        "spin_id": "TCZIN5AZR8",
+        "sku_id": "K58GS8FSZ7"
       },
       {
         "candidate_id": "8",
@@ -3061,6 +3243,12 @@
         "sku_id": "5G4VUBGLYC"
       }
     ],
+    "plain_order_pick": {
+      "candidate_id": "1",
+      "name": "The Health Factory Zero Maida Pizza Base",
+      "pack_size": "140 g x 3",
+      "price": 102.0
+    },
     "ranker_pick": {
       "candidate_id": "3",
       "name": "The Health Factory Zero Maida Pizza Base",
@@ -3068,9 +3256,10 @@
       "price": 34.0
     },
     "model_pick": "ask the customer",
-    "model_reason": "All available pizza base candidates are currently out of stock.",
+    "model_reason": "There are multiple different brands and pack sizes available for pizza base, so clarification is needed.",
     "agree": false,
-    "model_said_ask": true
+    "model_said_ask": true,
+    "api_error": false
   },
   {
     "query": "mozzarella",
@@ -3180,16 +3369,23 @@
         "sku_id": "61P3ODKWGA"
       }
     ],
+    "plain_order_pick": {
+      "candidate_id": "1",
+      "name": "Amul Diced Cheese Blend Mozzeralla Cheddar",
+      "pack_size": "200 g x 3",
+      "price": 357.0
+    },
     "ranker_pick": {
       "candidate_id": "7",
       "name": "D'lecta Shredded Mozzarella Cheese",
       "pack_size": "140 g",
       "price": 95.0
     },
-    "model_pick": "unclear",
-    "model_reason": "No response from model",
+    "model_pick": "ask the customer",
+    "model_reason": "There are multiple brands (Amul and D'lecta) and different forms (diced, shredded, block) available for mozzarella, so clarification is needed.",
     "agree": false,
-    "model_said_ask": false
+    "model_said_ask": true,
+    "api_error": false
   },
   {
     "query": "sunflower oil 1L",
@@ -3299,6 +3495,12 @@
         "sku_id": "WBUP4NC6UP"
       }
     ],
+    "plain_order_pick": {
+      "candidate_id": "1",
+      "name": "Gemini Refined Sunflower Oil",
+      "pack_size": "800 g x 2",
+      "price": 376.0
+    },
     "ranker_pick": {
       "candidate_id": "2",
       "name": "Gemini Refined Sunflower Oil",
@@ -3306,9 +3508,10 @@
       "price": 189.0
     },
     "model_pick": "ask the customer",
-    "model_reason": "All available sunflower oil candidates are currently out of stock.",
+    "model_reason": "The customer requested a 1L pack, but the available options are 800g, 5L, or multi-packs, and no exact 1L size is present.",
     "agree": false,
-    "model_said_ask": true
+    "model_said_ask": true,
+    "api_error": false
   },
   {
     "query": "jaggery",
@@ -3418,6 +3621,12 @@
         "sku_id": "VJ7HKAS6R3"
       }
     ],
+    "plain_order_pick": {
+      "candidate_id": "1",
+      "name": "Satyam Jaggery",
+      "pack_size": "500 g",
+      "price": 76.0
+    },
     "ranker_pick": {
       "candidate_id": "1",
       "name": "Satyam Jaggery",
@@ -3425,8 +3634,135 @@
       "price": 76.0
     },
     "model_pick": "ask the customer",
-    "model_reason": "All available candidates for jaggery are currently out of stock.",
+    "model_reason": "There are multiple brands and forms of jaggery available, so clarification is needed.",
     "agree": false,
-    "model_said_ask": true
+    "model_said_ask": true,
+    "api_error": false
+  },
+  {
+    "query": "coffee",
+    "candidates": [
+      {
+        "candidate_id": "1",
+        "product_id": "WAIU8XGH45",
+        "name": "Nescafe Classic Instant Coffee",
+        "product_name": "Nescafe Classic Instant Coffee",
+        "brand": "Nescafe",
+        "category": "",
+        "pack_size": "72 g",
+        "price": 144.0,
+        "in_stock": null,
+        "spin_id": "N3AOKX1X10",
+        "sku_id": "JR8UGUJY5U"
+      },
+      {
+        "candidate_id": "2",
+        "product_id": "KKTA6C6OJA",
+        "name": "Nescafe Gold Rich & Smooth Instant Coffee Powder",
+        "product_name": "Nescafe Gold Rich & Smooth Instant Coffee Powder",
+        "brand": "Nescafe Gold",
+        "category": "",
+        "pack_size": "100 g x 2",
+        "price": 1350.0,
+        "in_stock": null,
+        "spin_id": "D1HZDENY91",
+        "sku_id": "2RRFPVNSGQ"
+      },
+      {
+        "candidate_id": "3",
+        "product_id": "KKTA6C6OJA",
+        "name": "Nescafe Gold Rich & Smooth Instant Coffee Powder",
+        "product_name": "Nescafe Gold Rich & Smooth Instant Coffee Powder",
+        "brand": "Nescafe Gold",
+        "category": "",
+        "pack_size": "100 g",
+        "price": 675.0,
+        "in_stock": null,
+        "spin_id": "OU1572SKCJ",
+        "sku_id": "CSMN2BYZFJ"
+      },
+      {
+        "candidate_id": "4",
+        "product_id": "KCCH8Q3Z4U",
+        "name": "Davidoff Rich Aroma Instant Coffee 10/12 Intensity \u2013 100% Arabica, 3.53 oz / 100g, Granules",
+        "product_name": "Davidoff Rich Aroma Instant Coffee 10/12 Intensity \u2013 100% Arabica, 3.53 oz / 100g, Granules",
+        "brand": "Davidoff",
+        "category": "",
+        "pack_size": "100 g x 2",
+        "price": 2208.0,
+        "in_stock": null,
+        "spin_id": "H4YC1ORPK2",
+        "sku_id": "D7XWVC4SU2"
+      },
+      {
+        "candidate_id": "5",
+        "product_id": "KCCH8Q3Z4U",
+        "name": "Davidoff Rich Aroma Instant Coffee 10/12 Intensity \u2013 100% Arabica, 3.53 oz / 100g, Granules",
+        "product_name": "Davidoff Rich Aroma Instant Coffee 10/12 Intensity \u2013 100% Arabica, 3.53 oz / 100g, Granules",
+        "brand": "Davidoff",
+        "category": "",
+        "pack_size": "100 g",
+        "price": 1104.0,
+        "in_stock": null,
+        "spin_id": "7X4E7IPJO4",
+        "sku_id": "TFSKQSZDSG"
+      },
+      {
+        "candidate_id": "6",
+        "product_id": "QIGOJJHU0T",
+        "name": "Nescafe Gold Rich & Smooth Instant Coffee Powder 200g",
+        "product_name": "Nescafe Gold Rich & Smooth Instant Coffee Powder 200g",
+        "brand": "Nescafe Gold",
+        "category": "",
+        "pack_size": "200 g x 2",
+        "price": 2450.0,
+        "in_stock": null,
+        "spin_id": "PYQ6QSTNY9",
+        "sku_id": "IWOP4PNM7I"
+      },
+      {
+        "candidate_id": "7",
+        "product_id": "QIGOJJHU0T",
+        "name": "Nescafe Gold Rich & Smooth Instant Coffee Powder 200g",
+        "product_name": "Nescafe Gold Rich & Smooth Instant Coffee Powder 200g",
+        "brand": "Nescafe Gold",
+        "category": "",
+        "pack_size": "200 g",
+        "price": 1225.0,
+        "in_stock": null,
+        "spin_id": "CRWEX21G3O",
+        "sku_id": "0LO6LFB2A8"
+      },
+      {
+        "candidate_id": "8",
+        "product_id": "BWQTEA2LD6",
+        "name": "Nescafe Classic - Instant Coffee Powder - 100% Pure Coffee",
+        "product_name": "Nescafe Classic - Instant Coffee Powder - 100% Pure Coffee",
+        "brand": "Nescafe",
+        "category": "",
+        "pack_size": "24 g x 2",
+        "price": 248.0,
+        "in_stock": null,
+        "spin_id": "9ACAHDLX71",
+        "sku_id": "CC828TG4BK"
+      }
+    ],
+    "plain_order_pick": {
+      "candidate_id": "1",
+      "name": "Nescafe Classic Instant Coffee",
+      "pack_size": "72 g",
+      "price": 144.0
+    },
+    "ranker_pick": {
+      "candidate_id": "1",
+      "name": "Nescafe Classic Instant Coffee",
+      "pack_size": "72 g",
+      "price": 144.0
+    },
+    "model_pick": "ask the customer",
+    "model_reason": "The customer simply asked for coffee, and there are multiple distinct brands (Nescafe, Davidoff) and types (Classic, Gold, different pack sizes and prices) available.",
+    "agree": false,
+    "model_said_ask": true,
+    "api_error": false
   }
 ]

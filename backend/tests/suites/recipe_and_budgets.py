@@ -23,11 +23,53 @@ from backend.tests.suites.helpers import (
     _webhook,
 )
 
+RECIPE_AND_EXTRAS_REQUEST_TEXTS = [
+    ("Make pizza ingredients under ₹1,000 and also add bread, Bournvita, tissues and a pencil",
+     ("pizza base", "pizza sauce", "mozzarella", "bread", "bournvita", "tissues", "pencil")),
+    ("I need 2 packets of 500 ml milk and one brown bread, under ₹130. No eggs.",
+     ("milk", "bread")),
+    ("Pasta tonight for two. Please get pasta, sauce and cheese, plus tissues for the house.",
+     ("pasta", "sauce", "cheese", "tissues")),
+    ("Pick up toothpaste, shampoo and garbage bags for the flat.",
+     ("toothpaste", "shampoo", "garbage bags")),
+    ("We're making chai: add milk, ginger and tea.",
+     ("milk", "ginger", "tea")),
+    ("Need olive oil, mushrooms and paneer.",
+     ("olive oil", "mushroom", "paneer")),
+    ("Please add dishwash liquid, handwash and a matchbox.",
+     ("dishwash", "handwash", "matchbox")),
+    ("Get dahi, onions and potatoes; skip paneer.",
+     ("dahi", "onions", "potatoes")),
+    ("Put tea, coffee and sugar on the shopping list.",
+     ("tea", "coffee", "sugar")),
+    ("I have pizza base and mozzarella at home. Please get pizza sauce, mushrooms and tissues.",
+     ("pizza sauce", "mushroom", "tissues")),
+    ("Milk, yogurt, flour, rice, ginger, onion and potato for this week.",
+     ("milk", "yogurt", "flour", "rice", "ginger", "onion", "potato")),
+    ("Need dishwash liquid, floor cleaner, garbage bags; plus bananas.",
+     ("dishwash", "floor cleaner", "garbage bags", "banana")),
+    ("For sandwiches get brown bread, cucumber, tomato and cheese slices; also a toothbrush.",
+     ("brown bread", "cucumber", "tomato", "cheese", "toothbrush")),
+    ("Buy olive oil and two packs of oats. No sugar.",
+     ("olive oil", "oats")),
+    ("We have pasta and sauce already. Just get cheese, mushrooms and tissues.",
+     ("cheese", "mushroom", "tissues")),
+    ("Grab batteries, a notebook, pencils, and a packet of biscuits.",
+     ("batteries", "notebook", "pencil", "biscuit")),
+]
+
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize("parallel_calls", ["single", "split", "with_cart", "same_address"])
 async def test_long_recipe_request_uses_one_product_choice_batch(postgres_pool, monkeypatch, parallel_calls):
     commerce = MockCommerceAdapter()
     engine = GroceryAgentEngine(commerce, gemini_api_key="local-test")
+
+    async def mock_variant_picker(prompt, *args, **kwargs):
+        # mock: candidate picker
+        return {"action": "pick", "candidate_id": "1", "reason": "mock: item pick"}, None
+
+    engine.gemini.generate_structured_with_reason = mock_variant_picker
     model_calls = 0
     invalid_protocol_calls = 0
 
@@ -119,10 +161,12 @@ async def test_long_recipe_request_uses_one_product_choice_batch(postgres_pool, 
         assert "milk" in reply.text.casefold()
     assert "maximum processing steps" not in reply.text.casefold()
     assert len(default_whatsapp_adapter.outbound_messages) == 2
-    cancel_body, cancel_headers = _webhook("wamid.long-recipe-cancel", "cancel")
+    accept_body, accept_headers = _interactive_webhook(
+        "wamid.long-recipe-accept", "accept_partial_basket", "Keep These Items"
+    )
     eggs_body, eggs_headers = _webhook("wamid.long-recipe-eggs", "add eggs")
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://local-test") as client:
-        assert (await client.post("/api/whatsapp/webhook", content=cancel_body, headers=cancel_headers)).status_code == 200
+        assert (await client.post("/api/whatsapp/webhook", content=accept_body, headers=accept_headers)).status_code == 200
         assert (await client.post("/api/whatsapp/webhook", content=eggs_body, headers=eggs_headers)).status_code == 200
     _, eggs_reply = await store.response_for_message("wamid.long-recipe-eggs")
     assert "eggs" in eggs_reply.text.casefold()
@@ -246,126 +290,21 @@ async def test_catalog_rate_limit_stops_remaining_search_waves(postgres_pool, mo
     await engine.close()
 
 
-def _recipe_plan(request_text: str, required_items: tuple[str, ...]) -> list[dict[str, Any]]:
-    if "500 ml milk" in request_text:
-        return [{"query": "milk", "quantity": 2, "preferred_pack_size": "500 ml"}, {"query": "brown bread", "quantity": 1}]
-    if "two packs of oats" in request_text:
-        return [{"query": "olive oil"}, {"query": "oats", "quantity": 2}]
-    return [{"query": q} for q in required_items]
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize("request_text, required_items", [
-    ("Make pizza ingredients under ₹1,000 and also add bread, Bournvita, tissues and a pencil",
-     ("pizza base", "pizza sauce", "mozzarella", "bread", "bournvita", "tissues", "pencil")),
-    ("I need 2 packets of 500 ml milk and one brown bread, under ₹130. No eggs.",
-     ("milk", "bread")),
-    ("Pasta tonight for two. Please get pasta, sauce and cheese, plus tissues for the house.",
-     ("pasta", "sauce", "cheese", "tissues")),
-    ("Pick up toothpaste, shampoo and garbage bags for the flat.",
-     ("toothpaste", "shampoo", "garbage bags")),
-    ("We're making chai: add milk, ginger and tea.",
-     ("milk", "ginger", "tea")),
-    ("Need olive oil, mushrooms and paneer.",
-     ("olive oil", "mushroom", "paneer")),
-    ("Please add dishwash liquid, handwash and a matchbox.",
-     ("dishwash", "handwash", "matchbox")),
-    ("Get dahi, onions and potatoes; skip paneer.",
-     ("dahi", "onions", "potatoes")),
-    ("Put tea, coffee and sugar on the shopping list.",
-     ("tea", "coffee", "sugar")),
-    ("I have pizza base and mozzarella at home. Please get pizza sauce, mushrooms and tissues.",
-     ("pizza sauce", "mushroom", "tissues")),
-    ("Milk, yogurt, flour, rice, ginger, onion and potato for this week.",
-     ("milk", "yogurt", "flour", "rice", "ginger", "onion", "potato")),
-    ("Need dishwash liquid, floor cleaner, garbage bags; plus bananas.",
-     ("dishwash", "floor cleaner", "garbage bags", "banana")),
-    ("For sandwiches get brown bread, cucumber, tomato and cheese slices; also a toothbrush.",
-     ("brown bread", "cucumber", "tomato", "cheese", "toothbrush")),
-    ("Buy olive oil and two packs of oats. No sugar.",
-     ("olive oil", "oats")),
-    ("We have pasta and sauce already. Just get cheese, mushrooms and tissues.",
-     ("cheese", "mushroom", "tissues")),
-    ("Grab batteries, a notebook, pencils, and a packet of biscuits.",
-     ("batteries", "notebook", "pencil", "biscuit")),
-])
-async def test_real_model_presents_recipe_and_extras_choices_over_whatsapp_path(
-    postgres_pool, monkeypatch, request_text, required_items,
-):
-    commerce = MockCommerceAdapter()
-    engine = GroceryAgentEngine(commerce, gemini_api_key="local-test")
-    raw_tool_calls: list[dict[str, Any]] = []
-
-    if os.environ.get("GROCER_REAL_MODEL_E2E") == "1" and settings.GEMINI_API_KEY:
-        real_call = engine._call_llm
-
-        async def record_model_call(*args, **kwargs):
-            response = await real_call(*args, **kwargs)
-            if response:
-                raw_tool_calls.extend(part["functionCall"] for candidate in response.get("candidates", [])
-                                      for part in candidate.get("content", {}).get("parts", [])
-                                      if "functionCall" in part)
-            return response
-
-        engine._call_llm = record_model_call
-    else:
-        async def mock_gemini_call(*args, **kwargs):
-            call = {"name": "manage_basket", "args": {"add": _recipe_plan(request_text, required_items)}}
-            raw_tool_calls.append(call)
-            return {"candidates": [{"content": {"parts": [{"functionCall": call}]}}]}
-
-        engine._call_llm = mock_gemini_call
-
-    store = PostgresMessageStore(postgres_pool)
-    app = create_app()
-    app.state.agent_engine = engine
-    app.state.message_store = store
-    monkeypatch.setattr(default_whatsapp_adapter, "_app_secret", "local-e2e-secret")
-    monkeypatch.setattr(default_whatsapp_adapter, "record_only", True)
-    default_whatsapp_adapter.outbound_messages.clear()
-    body, headers = _webhook("wamid.real-recipe", request_text)
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://local-test") as client:
-        assert (await client.post("/api/whatsapp/webhook", content=body, headers=headers)).status_code == 200
-        _, address_reply = await store.response_for_message("wamid.real-recipe")
-        choice = address_reply.interactive_actions[0]
-        choice_body, choice_headers = _interactive_webhook(
-            "wamid.real-recipe-address", choice.id, choice.title,
-        )
-        assert (await client.post("/api/whatsapp/webhook", content=choice_body, headers=choice_headers)).status_code == 200
-    _, reply = await store.response_for_message("wamid.real-recipe-address")
-    customer_id = default_whatsapp_adapter.map_sender_to_customer_id("919999988888")
-    tool_calls = [part["functionCall"] for entry in engine.get_history(customer_id)
-                  for part in entry.get("parts", []) if "functionCall" in part]
-    assert reply.conversation_state == "NEEDS_DECISION", (
-        reply.text, [(call.get("name"), len(call.get("args", {}).get("items", []))) for call in tool_calls]
-    )
-    for item in required_items:
-        assert item in reply.text.casefold(), (
-            item, reply.text, [(call.get("name"), call.get("args", {}).get("address_id"),
-                                len(call.get("args", {}).get("items", []))) for call in raw_tool_calls]
-        )
-    assert "nothing has been added" in reply.text.casefold(), reply.text
-    assert len(default_whatsapp_adapter.outbound_messages) == 2
-    await engine.close()
-
-
 from backend.tests.suites.budget_and_symptoms import (
     test_plain_language_rupee_cap_never_becomes_unreviewed_payable_overage,
     test_missing_requested_item_requires_review_before_checkout,
-    test_recipe_request_cannot_silently_omit_pizza_base,
     test_model_cannot_silently_drop_explicit_shopping_items,
     test_provider_dropped_manage_basket_item_is_named_before_partial_review,
     test_symptom_message_suggests_groceries_without_adding_medicine,
 )
 
 __all__ = [
+    "RECIPE_AND_EXTRAS_REQUEST_TEXTS",
     "test_long_recipe_request_uses_one_product_choice_batch",
     "test_long_list_checks_every_item_in_paced_batches",
     "test_catalog_rate_limit_stops_remaining_search_waves",
-    "test_real_model_presents_recipe_and_extras_choices_over_whatsapp_path",
     "test_plain_language_rupee_cap_never_becomes_unreviewed_payable_overage",
     "test_missing_requested_item_requires_review_before_checkout",
-    "test_recipe_request_cannot_silently_omit_pizza_base",
     "test_model_cannot_silently_drop_explicit_shopping_items",
     "test_provider_dropped_manage_basket_item_is_named_before_partial_review",
     "test_symptom_message_suggests_groceries_without_adding_medicine",

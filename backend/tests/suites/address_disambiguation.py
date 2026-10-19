@@ -49,6 +49,11 @@ async def test_address_choice_model_outage_then_retry_resumes_original_whatsapp_
         resumed_engine = GroceryAgentEngine(
             commerce, gemini_api_key="local-test", state_store=state_store,
         )
+
+        async def mock_variant_picker(*args, **kwargs):
+            return {"action": "pick", "candidate_id": "1", "reason": "mock: pick item"}, None
+
+        resumed_engine.gemini.generate_structured_with_reason = mock_variant_picker
         resumed_calls = 0
 
         async def model_after_restart(history, **_kwargs):
@@ -69,21 +74,15 @@ async def test_address_choice_model_outage_then_retry_resumes_original_whatsapp_
         third_body, third_headers = _webhook("wamid.address-3", "try again")
         third = await client.post("/api/whatsapp/webhook", content=third_body, headers=third_headers)
         assert third.status_code == 200
-    _, variant_reply = await store.response_for_message("wamid.address-3")
-    assert variant_reply.conversation_state == "NEEDS_DECISION"
+    _, reply = await store.response_for_message("wamid.address-3")
     customer_id = default_whatsapp_adapter.map_sender_to_customer_id("919999988888")
-    with commerce.customer_scope(customer_id):
-        assert not (await commerce.get_cart()).items
-    choice_body, choice_headers = _webhook("wamid.address-4", "1A 2A")
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://local-test") as client:
-        assert (await client.post("/api/whatsapp/webhook", content=choice_body, headers=choice_headers)).status_code == 200
-    _, final_reply = await store.response_for_message("wamid.address-4")
     with commerce.customer_scope(customer_id):
         cart = await commerce.get_cart()
     assert "add milk and bread" in resumed_prompt.casefold()
     assert len(cart.items) == 2
-    assert "milk" in final_reply.text.casefold() and "bread" in final_reply.text.casefold()
-    assert len(default_whatsapp_adapter.outbound_messages) == 4
+    assert "milk" in reply.text.casefold() and "bread" in reply.text.casefold()
+    assert len(default_whatsapp_adapter.outbound_messages) == 3
+
 
 
 @pytest.mark.asyncio

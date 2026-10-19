@@ -275,6 +275,11 @@ async def execute_react_turn_loop(
             try:
                 res = await _execute_single_call(call)
                 executed_calls.append(res)
+                if call.get("name") in ("select_delivery_address", "clear_cart", "manage_basket"):
+                    try:
+                        current_cart = await engine.commerce.get_cart()
+                    except Exception:
+                        pass
             except Exception as exc:
                 t_name = call.get("name", "unknown")
                 logger.warning("Tool execution error for %s: %s", t_name, exc)
@@ -369,7 +374,7 @@ async def execute_react_turn_loop(
                     address_id = fn_content.get("address_id") or address_id
                     addr_lbl = session.address_label or addr_lbl
             if isinstance(fn_content, dict):
-                if fn_content.get("error") in {"INGREDIENT_BUDGET_EXCEEDED", "SCOPED_BUDGET_USE_SEARCH"}:
+                if fn_content.get("error") in {"INGREDIENT_BUDGET_EXCEEDED", "SCOPED_BUDGET_USE_SEARCH", "CART_ITEMS_UNRESOLVED"}:
                     guarded_change_message = str(fn_content.get("message") or "That change needs another review.")
                 if fn_content.get("error") in {"CART_WRITE_UNVERIFIED", "BUDGET_ROLLBACK_UNVERIFIED"}:
                     session.external_cart_pending = True

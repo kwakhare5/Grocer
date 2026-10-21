@@ -58,7 +58,7 @@ class PostgresCheckoutAttemptStore:
                 logger.warning("Could not reconcile order status before clearing hold: %s", exc)
                 await self.pool.execute(
                     """UPDATE grocer_internal.checkout_attempts
-                       SET status = 'UNKNOWN', updated_at = now()
+                       SET status = 'FAILED', updated_at = now()
                        WHERE id = $1""",
                     row["id"],
                 )
@@ -205,6 +205,7 @@ class PostgresCheckoutAttemptStore:
                             row["id"], interval_ms / 1000.0,
                         )
                         return 1
+                    # 10-minute timeout expired without confirmed payment
                     try:
                         with commerce.customer_scope(row["customer_id"]):
                             confirmed = await commerce.confirm_order(order_id, paas_id)
@@ -213,6 +214,12 @@ class PostgresCheckoutAttemptStore:
                             notice = f"Swiggy confirmed your order {order_id}. You can ask me to track it."
                     except Exception:
                         pass
+                    if status != "PLACED":
+                        status = "PAYMENT_FAILED"
+                        notice = (
+                            "Your payment window timed out (10 minutes). "
+                            "No charge was confirmed. Tap below to regenerate a payment QR code or review your cart."
+                        )
                 await connection.execute(
                     """UPDATE grocer_internal.checkout_attempts
                        SET status=$2, next_payment_check_at=NULL, updated_at=now(),
@@ -230,6 +237,8 @@ class PostgresCheckoutAttemptStore:
                         recipient_id=sender, channel=ChannelType.WHATSAPP,
                         text=notice, conversation_state="ORDER_PLACED" if status == "PLACED" else "NEEDS_DECISION",
                         order_id=order_id if status == "PLACED" else None,
+                        interactive_title="Payment Window Timed Out" if status == "PAYMENT_FAILED" else None,
+                        interactive_button_text="Regenerate QR Code" if status == "PAYMENT_FAILED" else None,
                     )
                     await connection.execute(
                         """INSERT INTO grocer_internal.outbound_messages

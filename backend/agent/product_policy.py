@@ -10,7 +10,8 @@ _MEDICAL_NAME = re.compile(
     r"cough syrup|painkiller|prescription)\b", re.I,
 )
 _ALLOWED_FIRST_AID = re.compile(
-    r"\b(?:band[\s-]?aid|bandage|cotton|ors|electral|antiseptic|dettol liquid|savlon liquid|thermometer|gauze|sanitizer)\b",
+    r"\b(?:band[\s-]?aid|bandage|cotton|ors|electral|antiseptic|dettol liquid|savlon liquid|thermometer|gauze|sanitizer|"
+    r"eno|pudina hara|digene|moov|iodex|balm|amrutanjan|volini|soframycin)\b",
     re.I,
 )
 _SYMPTOM = re.compile(r"\b(?:headache|sore throat|fever|cough|(?:a|the) cold)\b", re.I)

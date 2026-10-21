@@ -19,8 +19,6 @@ from backend.integrations.commerce.exceptions import (
 
 logger = logging.getLogger("grocer.agent.tools")
 
-_CATALOG_CACHE: dict[tuple[str, str], tuple[float, list[dict[str, Any]]]] = {}
-
 from backend.agent.formatters import _format_inr, format_cart_receipt
 from backend.agent.gemini import GeminiClient
 from backend.agent.checkout_executor import execute_gated_checkout
@@ -660,14 +658,6 @@ class SwiggyAgentTools:
         if not order_id:
             return {"success": False, "error": "order_id is required."}
         try:
-            if lat is None or lng is None:
-                try:
-                    addrs = await self.commerce.get_addresses()
-                    if addrs:
-                        lat = getattr(addrs[0], "latitude", getattr(addrs[0], "lat", None))
-                        lng = getattr(addrs[0], "longitude", getattr(addrs[0], "lng", None))
-                except Exception:
-                    pass
             status = await self.commerce.track_order(order_id, lat=lat, lng=lng)
             status_val = status.status.value if hasattr(status.status, "value") else str(status.status)
             return {

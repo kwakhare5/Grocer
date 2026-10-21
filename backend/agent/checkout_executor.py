@@ -209,13 +209,7 @@ async def execute_gated_checkout(
                 "retryable": False,
                 "message": "That payment option is no longer available. Please choose from the current options.",
             }
-        if selected.kind == "qr":
-            return {
-                "success": False,
-                "error": "QR_ELIGIBILITY_UNVERIFIED",
-                "retryable": False,
-                "message": "Scan-QR eligibility could not be verified for this basket. Please choose another available option.",
-            }
+
 
     try:
         result: CommerceOrderResult = await commerce.checkout(
@@ -226,14 +220,12 @@ async def execute_gated_checkout(
             payment_option_id=payment_option_id,
             explicit_confirmation=True,
         )
+        polling_ms = result.polling_interval_ms or 15000
+        max_poll_ms = result.max_time_to_poll_ms or 600000
         if result.status == "PAYMENT_PENDING" and not (
             result.order_id
             and result.paas_id
-            and result.bridge_url
-            and result.polling_interval_ms
-            and result.polling_interval_ms > 0
-            and result.max_time_to_poll_ms
-            and result.max_time_to_poll_ms > 0
+            and (result.bridge_url or result.qr_code_url or result.upi_intent_url)
         ):
             return {
                 "success": False,
@@ -252,16 +244,14 @@ async def execute_gated_checkout(
             "tracking_url": result.tracking_url,
             "delivery_address": result.delivery_address.street if result.delivery_address else "",
             "paas_id": result.paas_id,
-            "polling_interval_ms": result.polling_interval_ms,
-            "max_time_to_poll_ms": result.max_time_to_poll_ms,
+            "polling_interval_ms": polling_ms,
+            "max_time_to_poll_ms": max_poll_ms,
             "bridge_url": result.bridge_url,
             "upi_intent_url": result.upi_intent_url,
+            "qr_code_url": result.qr_code_url,
             "is_qr_flow": result.is_qr_flow,
             "is_simulated": result.is_simulated,
             "message": result.message,
-            "orders": [order.model_dump(mode="json") for order in result.orders],
-            "success_count": result.success_count,
-            "failure_count": result.failure_count,
         }
     except ProviderAuthError as exc:
         return {"success": False, "error": "AUTH_EXPIRED", "detail": str(exc)}

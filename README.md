@@ -352,7 +352,7 @@ Grocer/
 │   └── simulator/                  # Interactive WhatsApp playground client
 ├── docs/                           # Architectural specs & Swiggy submission dossier
 │   ├── SWIGGY_BUILDER_CLUB_APPLICATION.md # Swiggy Builders Club dossier & form answers
-│   ├── SWIGGY_MCP_API.md          # Official 14-tool Swiggy Instamart MCP specification
+│   ├── SWIGGY_INSTAMART_MCP_SPEC.md # Official 20-tool Swiggy Instamart MCP specification
 │   ├── database_schema.md         # Encrypted PostgreSQL schema reference
 │   ├── RELEASE_RUNBOOK.md         # Operator deployment and recovery runbook
 │   └── agents/issue-tracker.md    # GitHub issue tracking conventions

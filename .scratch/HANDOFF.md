@@ -1,0 +1,21 @@
+# Session Handoff: Layer 1 Verified & Ready for Layer 2
+
+- **Goal**: Execute Layer 2 — Session & Intent Engine (Clarification prompt, address resolution flow, ReAct coordinator refinement, bounded turn recovery, and replacing brittle regexes).
+- **Changes**:
+  - Layer 1 100% complete: Resolved all 62 audit defects across commerce models, parsers, and adapter.
+  - Implemented all 20 Swiggy Instamart tools in `backend/integrations/commerce/swiggy_adapter.py` and `port.py`.
+  - Upgraded `swiggy_client.py` to HTTP/2 with strict JSON-RPC 2.0 error taxonomy (`-32001`, `-32000`, `-32603`).
+  - Added migration `011_queue_indexes.up.sql` and `011_queue_indexes.down.sql` for queue scalability.
+  - Unblocked dynamic UPI QR checkout in `checkout_executor.py` and `checkout_attempts.py` (15s polling, 10-min timeout, payment retry button).
+  - Whitelisted OTC FMCG staples in `product_policy.py` while keeping prescription medicines strictly blocked.
+  - Live verified against production Swiggy Instamart MCP CloudFront endpoint (`https://mcp.swiggy.com/im`) using genuine token (`cust_c23625efe2658a26`).
+- **Passing Tests**:
+  - `pytest backend/tests/test_layer1_swiggy_mcp.py` -> 14 passed in 0.18s.
+  - `pytest -m "not e2e and not live"` -> 118 passed in 5.82s.
+  - `npm run lint` -> clean (exit code 0).
+  - Live MCP read tools (`get_addresses`, `search_products`, `get_go_to_items`, `get_cart`, `get_payment_options`) -> 100% pass on real data.
+- **Next Action**:
+  - Start Layer 2 in fresh chat: Run multi-subagent audit on `backend/agent/state_store.py`, `backend/agent/prompts.py`, `backend/agent/react_coordinator.py`, `backend/agent/drift_guard.py`, and `backend/agent/tool_executor.py`.
+  - Pre-flight grill session on session eviction, ambiguity clarification, and eliminating remaining hardcoded regexes.
+  - Plan gate -> Red tests -> Green implementation -> Terminal proof.
+- **Active Branch**: `feat/architecture-v1`

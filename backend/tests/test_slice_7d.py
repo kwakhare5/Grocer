@@ -13,6 +13,7 @@ from backend.channels.models import ChannelType, NormalizedIncomingMessage
 from backend.tests.suites.helpers import postgres_pool
 
 
+@pytest.mark.e2e
 @pytest.mark.asyncio
 async def test_claim_older_than_90s_is_reclaimed_with_uncertainty_reply(postgres_pool):
     assert CLAIM_LEASE_SECONDS == 90
@@ -66,6 +67,7 @@ async def test_claim_older_than_90s_is_reclaimed_with_uncertainty_reply(postgres
     assert recovered_fresh == 0
 
 
+@pytest.mark.e2e
 @pytest.mark.asyncio
 async def test_heartbeat_keeps_claim_alive_past_90s(postgres_pool):
     store = PostgresMessageStore(postgres_pool)

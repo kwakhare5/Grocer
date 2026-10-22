@@ -15,6 +15,47 @@ During the Session End ritual (called automatically whenever significant changes
 
 ## Log Entries
 
+### [GROCER — Layer 1 Core Plumbing & Swiggy MCP Execution] 2026-10-22
+
+#### Work Card: Layer 1 Core Plumbing, Dynamic UPI QR & MCP Tool Spec Compliance
+
+- **Problem**: Layer 1 had 62 audit defects across commerce adapter, parsers, and checkout executor (missing 6 tools, dynamic UPI QR blocked, order tracking substring bugs, missing queue indexes).
+- **Change**: Performed in-place surgical overhaul of commerce models, parsers, adapter, and client; unblocked UPI QR; implemented 6 missing tools; added migration 011 for queue indexes; fixed tracking and product policy.
+- **Proof**: 118 unit tests passed (pytest -m "not e2e and not live"), 14 new dedicated tests in backend/tests/test_layer1_swiggy_mcp.py passing, npm run lint exited 0.
+- **Still broken**: None in Layer 1; ready for Layer 2 (Session & Intent Engine).
+
+
+### [GROCER — Master Product Specification Reset to Version 1.0] 2026-10-21
+
+#### Work Card: Authoritative Swiggy Instamart MCP Specification (v1.0)
+
+- **Problem**: Outdated docs/SWIGGY_MCP_API.md missed 6 tools, misnamed parameters (update_cart selectedAddressId, your_go_to_items), and had incorrect checkout cartId requirement.
+- **Change**: Authored authoritative docs/SWIGGY_INSTAMART_MCP_SPEC.md from live mcp.swiggy.com/builders docs with all 20 tools, idempotency rules, long-poll specs, and phone cancellation rule; deleted obsolete docs/SWIGGY_MCP_API.md and updated cross-references in README.md, docs/TARGET_ARCHITECTURE_V1.md, and .scratch/HANDOFF.md.
+- **Proof**: git status shows SWIGGY_INSTAMART_MCP_SPEC.md created and SWIGGY_MCP_API.md removed cleanly.
+- **Still broken**: Implementation of Layer 1 (Swiggy adapter cleanup adhering to new spec) scheduled for execution.
+
+#### Work Card: Architecture Edge-Case Protocols Finalized (v1.0)
+
+- **Problem**: Address cold start, UPI QR payment polling, cart drift at checkout, and chat history bloat were unspecified in architecture.
+- **Change**: Locked in 4 operational protocols (1A default address, 2A 15s UPI poller, 3A live cart re-sync on drift, 4A session history windowing) into docs/TARGET_ARCHITECTURE_V1.md and updated .scratch/HANDOFF.md.
+- **Proof**: docs/TARGET_ARCHITECTURE_V1.md and .scratch/HANDOFF.md updated cleanly and verified.
+- **Still broken**: Implementation of Layer 1 (Swiggy adapter cartId payload, UPI QR unblock, DB queue indexes) scheduled for execution.
+
+#### Work Card: Architecture Specification & Codebase Audit (v1.0)
+
+- **Problem**: Codebase contained 5 major checkout/tracking bugs, brittle regex lists, and split-brain flow conflict with no unified architecture reference.
+- **Change**: Saved Target Architecture in docs/TARGET_ARCHITECTURE_V1.md and prepared session handoff in .scratch/HANDOFF.md; finalized decisions on layer-by-layer overhaul, local simulator first-class status, and smart medicine policy.
+- **Proof**: docs/TARGET_ARCHITECTURE_V1.md and .scratch/HANDOFF.md created cleanly and verified.
+- **Still broken**: Implementation of Layer 1 (Swiggy adapter cartId payload, UPI QR unblock, DB queue indexes) scheduled for fresh session.
+
+#### Work Card: Non-Technical Master Product Specification Reset (v1.0)
+
+- **Problem**: The master spec contained obsolete, scattered, and contradictory claims.
+- **Change**: Rewrote GROCER_V2_MASTER_SPEC.md to Version 1.0 as a pure, non-technical product specification.
+- **Proof**: File written cleanly to d:/Grocer/GROCER_V2_MASTER_SPEC.md and verified.
+- **Still broken**: Backend architecture and subsystem design pending next session discussion.
+
+
 ### [GROCER — Ground-Truth Claim Verification via Facts Text & Accuracy Suite] 2026-10-19
 
 #### Work Card: Item Drop Guard with Small Check Model (Slice G)
@@ -1387,3 +1428,10 @@ During the Session End ritual (called automatically whenever significant changes
 - **Change**: Consolidated ReAct execution loop in `react_coordinator.py` and response presentation in `formatters.py`, fixed brand matching and contraction stripping in `catalog_ranker.py`, fixed search cache key tuple, gated checkout strictly on server-verified `user_confirmed`, removed Pune fallback, unblocked confirm buttons on acknowledged turns, and updated Gemini models to `gemini-3.5-flash` with `gemini-3-flash-preview` fallback.
 - **Proof**: `pytest backend/tests/test_invariants.py` passed 32/32 (100% green in 0.51s); `npm run lint` exited 0.
 - **Still broken**: None.
+
+
+### 2026-10-22 - Layer 1 Swiggy Instamart MCP Plumbing & Live Verification
+- **Problem**: 62 audit defects crippled Swiggy MCP compliance: child order artifacts, missing tools (`create_address`, `list_coupons`, `apply_coupon`, etc.), missing queue indexes, blocked dynamic UPI QR payments, fragile order tracking substrings, and non-whitelisted OTC staples.
+- **Change**: Upgraded `swiggy_client.py` to HTTP/2 with full error taxonomy, implemented all 20 MCP tools in `swiggy_adapter.py`, unblocked UPI QR in `checkout_executor.py` with 15s poller and 10-min timeout, added migration `011_queue_indexes.up.sql`, and whitelisted OTC staples in `product_policy.py`.
+- **Proof**: 14/14 Layer 1 unit tests passed; 118/118 regression tests passed (`pytest -m "not e2e and not live"`); `npm run lint` clean; live MCP transport verified on production Swiggy Instamart dark store returning real Pune/Nashik addresses and catalog products.
+- **Still broken**: None in Layer 1; ready for Layer 2 Session & Intent Engine.

@@ -1,21 +1,24 @@
-# Session Handoff: Layer 1 Verified & Ready for Layer 2
+# Session Handoff: Layer 2 Verified & Ready for Layer 3
 
-- **Goal**: Execute Layer 2 — Session & Intent Engine (Clarification prompt, address resolution flow, ReAct coordinator refinement, bounded turn recovery, and replacing brittle regexes).
+- **Goal**: Execute Layer 3 — Product Discovery & Dynamic Basket Orchestrator (`basket_manager.py`, `cart_actions.py`, `catalog_ranker.py`, `item_drop_guard.py`).
 - **Changes**:
-  - Layer 1 100% complete: Resolved all 62 audit defects across commerce models, parsers, and adapter.
-  - Implemented all 20 Swiggy Instamart tools in `backend/integrations/commerce/swiggy_adapter.py` and `port.py`.
-  - Upgraded `swiggy_client.py` to HTTP/2 with strict JSON-RPC 2.0 error taxonomy (`-32001`, `-32000`, `-32603`).
-  - Added migration `011_queue_indexes.up.sql` and `011_queue_indexes.down.sql` for queue scalability.
-  - Unblocked dynamic UPI QR checkout in `checkout_executor.py` and `checkout_attempts.py` (15s polling, 10-min timeout, payment retry button).
-  - Whitelisted OTC FMCG staples in `product_policy.py` while keeping prescription medicines strictly blocked.
-  - Live verified against production Swiggy Instamart MCP CloudFront endpoint (`https://mcp.swiggy.com/im`) using genuine token (`cust_c23625efe2658a26`).
+  - Layer 2 100% complete: Resolved all 28 defects across Session & Intent Engine.
+  - Locked unknown checkout states to non-retryable and invalidated pending approvals on error in `tool_executor.py`.
+  - Added interactive buttons and unblocked conversational intent on external cart drift in `drift_guard.py` & `preflight_handler.py`.
+  - Sorted bill lines in `approval.py` for deterministic SHA-256 cart fingerprints.
+  - Added instant interactive button confirmation and fallback model retry in `confirmation_check.py`.
+  - Fixed Indian city support, coordinates, and negation handling in `address_resolver.py` & `address_tools.py`.
+  - Added Hinglish and negation handling in `product_policy.py`.
+  - Eliminated multi-turn history overwrites on common phrases in `react_coordinator.py`.
+  - Added 30-minute inactivity eviction and atomic state save guards in `engine.py`.
+  - Persisted `dropped_requested_items` and `item_reasons` across Postgres restarts in `session_manager.py`.
+  - Parameterized raw interval SQL in `message_store.py`.
 - **Passing Tests**:
-  - `pytest backend/tests/test_layer1_swiggy_mcp.py` -> 14 passed in 0.18s.
-  - `pytest -m "not e2e and not live"` -> 118 passed in 5.82s.
+  - `pytest backend/tests/test_layer2_session_intent.py` -> 11 passed in 0.18s.
+  - `pytest -m "not e2e and not live"` -> 129 passed in 5.72s.
+  - `python .scratch/test_live_layer2.py` -> Live Swiggy MCP CloudFront reachability, live Gemini Hinglish intent, and SHA-256 fingerprint verified (exit code 0).
   - `npm run lint` -> clean (exit code 0).
-  - Live MCP read tools (`get_addresses`, `search_products`, `get_go_to_items`, `get_cart`, `get_payment_options`) -> 100% pass on real data.
+  - `graphify update .` -> 1773 nodes, 3905 edges rebuilt cleanly.
 - **Next Action**:
-  - Start Layer 2 in fresh chat: Run multi-subagent audit on `backend/agent/state_store.py`, `backend/agent/prompts.py`, `backend/agent/react_coordinator.py`, `backend/agent/drift_guard.py`, and `backend/agent/tool_executor.py`.
-  - Pre-flight grill session on session eviction, ambiguity clarification, and eliminating remaining hardcoded regexes.
-  - Plan gate -> Red tests -> Green implementation -> Terminal proof.
+  - Begin Layer 3 (Product Discovery & Dynamic Basket Orchestrator): Multi-subagent audit on `backend/agent/basket_manager.py`, `backend/agent/cart_actions.py`, `backend/agent/catalog_ranker.py`, and `backend/agent/item_drop_guard.py`.
 - **Active Branch**: `feat/architecture-v1`

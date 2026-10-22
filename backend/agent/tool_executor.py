@@ -2,13 +2,14 @@
 from __future__ import annotations
 
 import logging
+import math
 import time
 from typing import Any, Optional
 
 from backend.agent.approval import cart_fingerprint
 from backend.agent.session_manager import record_pending_cart_clear
 from backend.config import settings
-from backend.integrations.commerce.exceptions import ProviderAuthError, ProviderRateLimitedError
+
 from backend.integrations.commerce.models import CommerceCart
 
 logger = logging.getLogger("grocer.agent.tool_executor")
@@ -38,6 +39,12 @@ async def execute_engine_tool(
                 res.get("clean_address") or res.get("label") or "Selected Address"
             )
             session.order_address_confirmed = True
+            if hasattr(engine, "commerce") and hasattr(engine.commerce, "get_cart"):
+                try:
+                    new_cart = await engine.commerce.get_cart(delivery_location=session.address_label)
+                    session.known_cart_fingerprint = cart_fingerprint(new_cart, session.address_id)
+                except Exception:
+                    pass
         return res
     elif name == "get_go_to_items":
         addr = args.get("address_id") or address_id
@@ -80,7 +87,9 @@ async def execute_engine_tool(
         )
         if cart and not cart.address_id and address_id:
             cart.address_id = address_id
-        if cart and cart.items and session:
+        if not cart or not cart.items:
+            return {"success": True, "message": "Cart is already empty."}
+        if session:
             record_pending_cart_clear(session, cart, address_id)
         return {"success": False, "error": "CLEAR_CONFIRMATION_REQUIRED"}
     elif name == "checkout":
@@ -167,14 +176,14 @@ async def execute_engine_tool(
             if attempt_id is not None:
                 await engine.attempt_store.finish(attempt_id, result)
             if not result.get("success"):
-                sess.pending_approval = approval
+                sess.pending_approval = None
             else:
                 sess.pending_approval = None
             return result
         except Exception as exc:
             logger.exception("Checkout outcome could not be verified: %s", exc)
-            fallback = {"success": False, "error": "ORDER_STATE_UNKNOWN", "retryable": True}
-            sess.pending_approval = approval
+            fallback = {"success": False, "error": "ORDER_STATE_UNKNOWN", "retryable": False}
+            sess.pending_approval = None
             if attempt_id is not None:
                 try:
                     await engine.attempt_store.finish(attempt_id, fallback)
@@ -184,9 +193,13 @@ async def execute_engine_tool(
     elif name == "track_order":
         return await engine.tools.track_order(args.get("order_id", ""))
     elif name == "set_budget":
-        amount = args.get("amount_inr")
-        if not isinstance(amount, (int, float)) or amount <= 0:
+        raw_amount = args.get("amount_inr")
+        try:
+            amount = float(raw_amount)
+            if not math.isfinite(amount) or amount <= 0:
+                return {"success": False, "error": "Invalid budget amount"}
+        except (TypeError, ValueError):
             return {"success": False, "error": "Invalid budget amount"}
-        session.budget_inr = float(amount)
+        session.budget_inr = amount
         return {"success": True, "budget_inr": amount, "message": f"Budget set to ₹{amount}"}
     return {"error": f"Unknown tool: {name}"}

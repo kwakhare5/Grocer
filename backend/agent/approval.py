@@ -29,7 +29,16 @@ def cart_fingerprint(cart: CommerceCart, address_id: str) -> str | None:
         "provider_address_id": target_address,
         "payable_inr": str(Decimal(str(cart.grand_total))),
         "currency": cart.currency,
-        "bill_lines": cart.bill_lines,
+        "bill_lines": sorted(
+            [
+                {
+                    "name": str(line.get("name", "")).strip().casefold(),
+                    "amount": str(Decimal(str(line.get("amount", 0.0)))),
+                }
+                for line in cart.bill_lines
+            ],
+            key=lambda x: (x["name"], x["amount"]),
+        ) if cart.bill_lines else [],
         "items": sorted(
             (item.spin_id, item.sku_id or "", item.quantity, str(Decimal(str(item.total_price))))
             for item in cart.items

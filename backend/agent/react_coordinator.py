@@ -75,7 +75,7 @@ async def execute_react_turn_loop(
     extra_context_note = (
         f"Saved unfinished request from earlier: {saved_request}. "
         "If the customer's new message asks to continue or retry, resume it. Otherwise ignore this note."
-    ) if saved_request and not incoming_text.startswith(saved_request) else None
+    ) if saved_request and (saved_request not in incoming_text) else None
 
     # Append user message
     history.append({
@@ -118,16 +118,16 @@ async def execute_react_turn_loop(
             session.pending_request_text = planning_request_text
             break
 
-        if extra_context_note:
-            model_contents = []
-            for entry in history:
-                if entry.get("role") == "user" and entry.get("parts") and entry["parts"][0].get("text") == incoming_text:
-                    model_contents.append({
-                        **entry,
-                        "parts": [{"text": f"{extra_context_note}\n\n{incoming_text}"}],
-                    })
-                else:
-                    model_contents.append(entry)
+        if extra_context_note and history:
+            model_contents = list(history[:-1])
+            last_entry = history[-1]
+            if last_entry.get("role") == "user":
+                model_contents.append({
+                    **last_entry,
+                    "parts": [{"text": f"{extra_context_note}\n\n{incoming_text}"}],
+                })
+            else:
+                model_contents.append(last_entry)
         else:
             model_contents = history
 
@@ -136,6 +136,7 @@ async def execute_react_turn_loop(
             address_id=address_id,
             address_label=addr_lbl,
             cart=current_cart,
+            saved_addresses=getattr(session, "saved_addresses", None),
         )
         if not response_data:
             if last_cart_receipt or checkout_executed:
@@ -295,7 +296,7 @@ async def execute_react_turn_loop(
                     {
                         "functionResponse": {
                             "name": t_name,
-                            "response": {"name": t_name, "content": {"success": False, "error": str(exc)}},
+                            "response": {"name": t_name, "content": {"success": False, "error": "Tool execution failed. Please verify arguments or try another action."}},
                         }
                     },
                     False,

@@ -22,6 +22,9 @@ async def execute_get_saved_addresses(commerce: CommercePort, customer_id: str) 
                 "label": a.label or a.street or "Saved Address",
                 "street": a.street,
                 "city": a.city,
+                "latitude": getattr(a, "latitude", None),
+                "longitude": getattr(a, "longitude", None),
+                "is_serviceable": getattr(a, "is_serviceable", True),
                 "is_default": getattr(a, "is_default", False),
                 "clean_address": clean_address(a.street, a.city, label=a.label, area=getattr(a, "area", None)),
             }

@@ -98,37 +98,74 @@ def prune_history_entries(
 
 
 def restore_task_state_dict(
-    customer_id: str,
-    state: dict[str, Any] | None,
-) -> tuple[CustomerSession, list[dict[str, Any]]]:
+    customer_id: Any,
+    state: dict[str, Any] | None = None,
+) -> tuple[CustomerSession, list[dict[str, Any]]] | CustomerSession:
     """Restore customer session from persistent task state."""
-    state = state or {}
-    history = state.get("history") or []
-    approval = state.get("pending_approval")
-    cart_clear = state.get("pending_cart_clear")
-    session = CustomerSession(
-        customer_id=customer_id,
-        history=history,
-        address_id=state.get("address_id"),
-        address_label=state.get("address_label"),
-        order_address_confirmed=bool(state.get("order_address_confirmed", False)),
-        awaiting_address_choice=state.get("awaiting_address_choice"),
-        last_active_ts=float(state.get("last_active_ts") or 0.0),
-        budget_inr=state.get("budget_inr"),
-        pending_approval=PendingApproval(**approval) if approval else None,
-        pending_cart_clear=PendingApproval(**cart_clear) if cart_clear else None,
-        unresolved_items=state.get("unresolved_items") or [],
-        budget_blocked_items=state.get("budget_blocked_items") or [],
-        known_cart_fingerprint=state.get("known_cart_fingerprint"),
-        external_cart_pending=bool(state.get("external_cart_pending", False)),
-        pending_request_text=state.get("pending_request_text"),
-        selected_payment_id=state.get("selected_payment_id"),
-        selected_payment_kind=state.get("selected_payment_kind"),
-        selected_payment_method=state.get("selected_payment_method"),
-        selected_payment_label=state.get("selected_payment_label"),
-        recent_product_facts=list(state.get("recent_product_facts") or []),
-    )
-    return session, history
+    from backend.agent.session import CustomerSession
+
+    if isinstance(customer_id, CustomerSession):
+        session = customer_id
+        cid = session.customer_id
+        state_dict = state or {}
+    else:
+        cid = str(customer_id)
+        state_dict = state or {}
+        session = None
+
+    history = state_dict.get("history") or []
+    approval = state_dict.get("pending_approval")
+    cart_clear = state_dict.get("pending_cart_clear")
+
+    if session is None:
+        session = CustomerSession(
+            customer_id=cid,
+            history=history,
+            address_id=state_dict.get("address_id"),
+            address_label=state_dict.get("address_label"),
+            order_address_confirmed=bool(state_dict.get("order_address_confirmed", False)),
+            awaiting_address_choice=state_dict.get("awaiting_address_choice"),
+            last_active_ts=float(state_dict.get("last_active_ts") or 0.0),
+            budget_inr=state_dict.get("budget_inr"),
+            pending_approval=PendingApproval(**approval) if approval else None,
+            pending_cart_clear=PendingApproval(**cart_clear) if cart_clear else None,
+            unresolved_items=state_dict.get("unresolved_items") or [],
+            budget_blocked_items=state_dict.get("budget_blocked_items") or [],
+            known_cart_fingerprint=state_dict.get("known_cart_fingerprint"),
+            external_cart_pending=bool(state_dict.get("external_cart_pending", False)),
+            pending_request_text=state_dict.get("pending_request_text"),
+            selected_payment_id=state_dict.get("selected_payment_id"),
+            selected_payment_kind=state_dict.get("selected_payment_kind"),
+            selected_payment_method=state_dict.get("selected_payment_method"),
+            selected_payment_label=state_dict.get("selected_payment_label"),
+            recent_product_facts=list(state_dict.get("recent_product_facts") or []),
+            dropped_requested_items=list(state_dict.get("dropped_requested_items") or []),
+            item_reasons=dict(state_dict.get("item_reasons") or {}),
+        )
+        return session, history
+
+    session.history = history
+    session.address_id = state_dict.get("address_id")
+    session.address_label = state_dict.get("address_label")
+    session.order_address_confirmed = bool(state_dict.get("order_address_confirmed", False))
+    session.awaiting_address_choice = state_dict.get("awaiting_address_choice")
+    session.last_active_ts = float(state_dict.get("last_active_ts") or 0.0)
+    session.budget_inr = state_dict.get("budget_inr")
+    session.pending_approval = PendingApproval(**approval) if approval else None
+    session.pending_cart_clear = PendingApproval(**cart_clear) if cart_clear else None
+    session.unresolved_items = list(state_dict.get("unresolved_items") or [])
+    session.budget_blocked_items = list(state_dict.get("budget_blocked_items") or [])
+    session.known_cart_fingerprint = state_dict.get("known_cart_fingerprint")
+    session.external_cart_pending = bool(state_dict.get("external_cart_pending", False))
+    session.pending_request_text = state_dict.get("pending_request_text")
+    session.selected_payment_id = state_dict.get("selected_payment_id")
+    session.selected_payment_kind = state_dict.get("selected_payment_kind")
+    session.selected_payment_method = state_dict.get("selected_payment_method")
+    session.selected_payment_label = state_dict.get("selected_payment_label")
+    session.recent_product_facts = list(state_dict.get("recent_product_facts") or [])
+    session.dropped_requested_items = list(state_dict.get("dropped_requested_items") or [])
+    session.item_reasons = dict(state_dict.get("item_reasons") or {})
+    return session
 
 
 def dump_task_state_dict(session: CustomerSession) -> dict[str, Any]:
@@ -171,4 +208,6 @@ def dump_task_state_dict(session: CustomerSession) -> dict[str, Any]:
         "selected_payment_method": session.selected_payment_method,
         "selected_payment_label": session.selected_payment_label,
         "recent_product_facts": session.recent_product_facts or [],
+        "dropped_requested_items": list(getattr(session, "dropped_requested_items", []) or []),
+        "item_reasons": dict(getattr(session, "item_reasons", {}) or {}),
     }

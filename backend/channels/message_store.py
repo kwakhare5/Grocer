@@ -171,9 +171,10 @@ class PostgresMessageStore:
         async with self.pool.acquire() as connection:
             async with connection.transaction():
                 rows = await connection.fetch(
-                    f"""SELECT id, payload FROM grocer_internal.inbound_messages
-                       WHERE status='PROCESSING' AND claimed_at < now()-interval '{CLAIM_LEASE_SECONDS} seconds'
-                       ORDER BY claimed_at LIMIT 20 FOR UPDATE SKIP LOCKED"""
+                    """SELECT id, payload FROM grocer_internal.inbound_messages
+                       WHERE status='PROCESSING' AND claimed_at < now() - ($1 * interval '1 second')
+                       ORDER BY claimed_at LIMIT 20 FOR UPDATE SKIP LOCKED""",
+                    CLAIM_LEASE_SECONDS,
                 )
                 for row in rows:
                     await self._complete_uncertain(connection, row["id"], row["payload"])
@@ -218,7 +219,9 @@ class PostgresMessageStore:
             """UPDATE grocer_internal.outbound_messages SET status='UNKNOWN'
                WHERE status='SENDING' AND sending_started_at < now()-interval '2 minutes'"""
         )
-        return int(result.removeprefix("UPDATE "))
+        if isinstance(result, str) and result.startswith("UPDATE "):
+            return int(result.removeprefix("UPDATE "))
+        return int(result) if isinstance(result, int) else 0
 
     async def response_for_message(self, message_id: str) -> tuple[str, NormalizedOutgoingResponse] | None:
         row = await self.pool.fetchrow(

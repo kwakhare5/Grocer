@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from typing import Any, Optional
 
 from backend.agent.config import BRAIN_MODEL, BRAIN_FALLBACK_MODEL
@@ -13,7 +14,6 @@ from backend.agent.budget import read_budget_cap
 from backend.agent.formatters import (
     build_address_choice_response,
     build_auth_expired_response,
-    build_connect_url,
 )
 from backend.agent.session_manager import (
     dump_task_state_dict,
@@ -63,8 +63,6 @@ class GroceryAgentEngine:
         # Single authoritative CustomerSession map
         self._sessions: dict[str, Any] = {}
         self._locks: dict[str, asyncio.Lock] = {}
-        self._last_call_time: float = 0.0
-        self.last_llm_error: Optional[str] = None
         self.last_turn_latency_ms: Optional[float] = None
         self.gemini = GeminiClient(
             api_key=self.gemini_api_key or "",
@@ -85,9 +83,25 @@ class GroceryAgentEngine:
 
     async def forget_customer(self, customer_id: str) -> None:
         """Drop local mirrors after a verified deletion request."""
+        self._locks.pop(customer_id, None)
         sess = self._sessions.pop(customer_id, None)
         if sess is not None:
             sess.clear_all()
+
+    def evict_inactive_sessions(self, ttl_seconds: float = 1800.0) -> int:
+        """Evict customer sessions and locks that have exceeded inactivity TTL."""
+        now = time.time()
+        to_evict = []
+        for cid, sess in list(self._sessions.items()):
+            last_active = getattr(sess, "last_active_time", None) or getattr(sess, "last_active_ts", None) or 0.0
+            if last_active > 0 and (now - last_active) > ttl_seconds:
+                to_evict.append(cid)
+        for cid in to_evict:
+            self._locks.pop(cid, None)
+            s = self._sessions.pop(cid, None)
+            if s is not None:
+                s.clear_all()
+        return len(to_evict)
 
     def _restore_task_state(self, customer_id: str, state: dict[str, Any] | None) -> None:
         session, _ = restore_task_state_dict(
@@ -119,9 +133,6 @@ class GroceryAgentEngine:
         """Close Gemini client session on shutdown."""
         if hasattr(self, "gemini") and self.gemini:
             await self.gemini.close()
-
-    def _connect_url(self, ticket: str) -> str:
-        return build_connect_url(ticket)
 
     async def _auth_expired_response(
         self, message: NormalizedIncomingMessage
@@ -167,10 +178,12 @@ class GroceryAgentEngine:
             with self.commerce.customer_scope(customer_id):
                 try:
                     result = await self._process_scoped_message(message, customer_id)
-                finally:
                     if self.state_store is not None:
                         self._prune_history(customer_id)
                         await self.state_store.save(customer_id, self._task_state_snapshot(customer_id))
+                except Exception:
+                    logger.exception("Turn aborted with error for customer=%s; skipping state save.", customer_id)
+                    raise
 
             self.last_turn_latency_ms = round(
                 (asyncio.get_running_loop().time() - start_time) * 1000, 1
@@ -259,10 +272,14 @@ class GroceryAgentEngine:
         address_id: Optional[str] = None,
         address_label: Optional[str] = None,
         cart: Optional[CommerceCart] = None,
+        saved_addresses: Optional[list[dict[str, Any]]] = None,
         **kwargs: Any,
     ) -> Optional[dict[str, Any]]:
         system_text = build_system_instruction(
-            address_id=address_id, address_label=address_label, cart=cart,
+            address_id=address_id,
+            address_label=address_label,
+            cart=cart,
+            saved_addresses=saved_addresses,
         )
         return await self.gemini.generate_content(
             contents=contents,

@@ -3,9 +3,9 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
-from backend.agent.approval import PendingApproval, cart_fingerprint
+from backend.agent.approval import cart_fingerprint
 from backend.agent.formatters import format_cart_receipt
-from backend.channels.models import NormalizedIncomingMessage, NormalizedOutgoingResponse
+from backend.channels.models import InteractiveAction, NormalizedIncomingMessage, NormalizedOutgoingResponse
 from backend.integrations.commerce.models import CommerceCart
 
 
@@ -33,10 +33,12 @@ async def check_cart_drift(
         session.selected_payment_id = None
 
     if session.external_cart_pending:
-        confirmed = user_confirmed
+        confirmed = user_confirmed or (message.interactive_id in ("keep_external", "use_changes"))
         if not confirmed and current_cart and message.text.strip():
-            if confirmation_check is not None:
-                ctx = "The Swiggy cart changed outside this chat. Did the customer confirm using the changes?"
+            if norm_text in ("use changes", "keep changes", "keep items", "use external", "keep swiggy items"):
+                confirmed = True
+            elif confirmation_check is not None:
+                ctx = "The Swiggy cart changed outside this chat. Did the customer confirm keeping the changes?"
                 if hasattr(confirmation_check, "is_confirmed"):
                     confirmed = await confirmation_check.is_confirmed(client, message.text, context=ctx)
                 elif callable(confirmation_check):
@@ -54,15 +56,33 @@ async def check_cart_drift(
             if observed_fingerprint:
                 session.known_cart_fingerprint = observed_fingerprint
                 session.external_cart_pending = False
+                getattr(session, "external_cart_warned", False)
+                if hasattr(session, "external_cart_warned"):
+                    session.external_cart_warned = False
                 return NormalizedOutgoingResponse(
                     recipient_id=message.sender_id,
                     channel=message.channel,
-                    text="I’ve included the Swiggy cart changes. Please tell me what to change next.\n\n"
+                    text="I’ve updated to your current Swiggy basket. What groceries would you like to change or add?\n\n"
                     + format_cart_receipt(
                         current_cart, session.address_label or "Saved Address", allow_checkout_prompt=False
                     ),
                     conversation_state="NEEDS_DECISION",
                 )
+
+        if message.interactive_id == "restore_grocer":
+            session.external_cart_pending = False
+            if hasattr(session, "external_cart_warned"):
+                session.external_cart_warned = False
+            return None
+
+        # If user was already warned on previous turn and types a command, unblock them
+        if getattr(session, "external_cart_warned", False) and message.text.strip():
+            session.external_cart_pending = False
+            session.external_cart_warned = False
+            return None
+
+        if hasattr(session, "external_cart_warned"):
+            session.external_cart_warned = True
 
         receipt = (
             format_cart_receipt(
@@ -74,10 +94,14 @@ async def check_cart_drift(
         return NormalizedOutgoingResponse(
             recipient_id=message.sender_id,
             channel=message.channel,
-            text="The Swiggy cart changed outside this chat. Reply *use changes* to include it, "
-            "or tell me how you want to restore the basket.\n\n"
+            text="The Swiggy cart changed outside this chat. You can keep the Swiggy items, "
+            "or tell me what to change in your basket.\n\n"
             + receipt,
             conversation_state="NEEDS_DECISION",
+            interactive_actions=[
+                InteractiveAction(id="keep_external", title="Keep Swiggy items"),
+                InteractiveAction(id="restore_grocer", title="Clear & start over"),
+            ],
         )
 
     return None

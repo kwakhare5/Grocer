@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from backend.agent.engine import GroceryAgentEngine
-from backend.agent.tool_executor import execute_engine_tool
+from backend.agent.engine import execute_engine_tool
 from backend.channels.models import NormalizedIncomingMessage
 from backend.integrations.commerce.mock_adapter import MockCommerceAdapter
 from backend.integrations.commerce.models import CartItemUpdate

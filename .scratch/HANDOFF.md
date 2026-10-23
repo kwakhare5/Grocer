@@ -1,24 +1,29 @@
-# Session Handoff: Layer 2 Verified & Ready for Layer 3
+# Session Handoff: Ready for Layer 4 (Product Policy, Safety Interceptor & Gated Checkout)
 
-- **Goal**: Execute Layer 3 — Product Discovery & Dynamic Basket Orchestrator (`basket_manager.py`, `cart_actions.py`, `catalog_ranker.py`, `item_drop_guard.py`).
-- **Changes**:
-  - Layer 2 100% complete: Resolved all 28 defects across Session & Intent Engine.
-  - Locked unknown checkout states to non-retryable and invalidated pending approvals on error in `tool_executor.py`.
-  - Added interactive buttons and unblocked conversational intent on external cart drift in `drift_guard.py` & `preflight_handler.py`.
-  - Sorted bill lines in `approval.py` for deterministic SHA-256 cart fingerprints.
-  - Added instant interactive button confirmation and fallback model retry in `confirmation_check.py`.
-  - Fixed Indian city support, coordinates, and negation handling in `address_resolver.py` & `address_tools.py`.
-  - Added Hinglish and negation handling in `product_policy.py`.
-  - Eliminated multi-turn history overwrites on common phrases in `react_coordinator.py`.
-  - Added 30-minute inactivity eviction and atomic state save guards in `engine.py`.
-  - Persisted `dropped_requested_items` and `item_reasons` across Postgres restarts in `session_manager.py`.
-  - Parameterized raw interval SQL in `message_store.py`.
-- **Passing Tests**:
-  - `pytest backend/tests/test_layer2_session_intent.py` -> 11 passed in 0.18s.
-  - `pytest -m "not e2e and not live"` -> 129 passed in 5.72s.
-  - `python .scratch/test_live_layer2.py` -> Live Swiggy MCP CloudFront reachability, live Gemini Hinglish intent, and SHA-256 fingerprint verified (exit code 0).
-  - `npm run lint` -> clean (exit code 0).
-  - `graphify update .` -> 1773 nodes, 3905 edges rebuilt cleanly.
-- **Next Action**:
-  - Begin Layer 3 (Product Discovery & Dynamic Basket Orchestrator): Multi-subagent audit on `backend/agent/basket_manager.py`, `backend/agent/cart_actions.py`, `backend/agent/catalog_ranker.py`, and `backend/agent/item_drop_guard.py`.
-- **Active Branch**: `feat/architecture-v1`
+- **Goal**: Implement Layer 4 (Product Policy & Physical Gated Checkout) according to `docs/TARGET_ARCHITECTURE_V1.md`, eliminate the `product_policy.py` regex, and normalize line-ending spacing bloat.
+- **Current State**:
+  - Layers 1, 2, and 3 are 100% complete, demodularized, and passing.
+  - All 77 unit & integration tests exit 0 in 2.63s (`pytest --ignore=backend/tests/test_whatsapp_postgres_e2e.py`).
+  - `npm run lint` exits 0.
+  - Active branch: `feat/architecture-v1`.
+- **Layer 4 Full Scope (Target Architecture Subsystem 4 & 5)**:
+  1. **Line Ending Normalization**: Clean up corrupted `\r\r\n` line bloat in `backend/agent/preflight_handler.py`, `backend/agent/react_coordinator.py`, `backend/agent/formatters.py`, and `backend/integrations/commerce/order_parsers.py` (shrinking `preflight_handler.py` from 3,954 lines down to ~500 clean lines).
+  2. **Product Policy & Safety Gate (`backend/agent/product_policy.py`)**:
+     - Remove fragile 7-drug regex (`_MEDICAL_NAME`) and symptom keyword dictionary (`_SYMPTOM`, `_NEGATED_SYMPTOM`, `_EXPLICIT_ADD`).
+     - Ground restricted checks strictly in Swiggy catalog metadata (`category == "Pharmacy"` / `"Prescription"`).
+     - Permit daily OTC first aid (Band-Aids, ORS, cotton, lozenges).
+     - Let Gemini handle conversational symptom advice (recommending soothing groceries like honey, ginger, soup) without regex interception.
+  3. **Physical Checkout Gatekeeper (`backend/agent/checkout_executor.py`)**:
+     - Enforce the 5 hard conditions before Swiggy checkout can execute:
+       a) State is `AWAITING_CONFIRMATION`.
+       b) Explicit Dual Confirmation passed (Track 1 Button Token `confirm_order:<token>` or Track 2 Text Intent).
+       c) Grand total <= customer's session `budget_limit`.
+       d) Live Swiggy cart matches approved `cart_fingerprint` (zero price drift or OOS silent changes).
+       e) Zero restricted medical products in basket.
+     - Automatically supply `paymentMethod: "UPI"` and `generateUPIQR: true` with direct `upi://pay` deep links.
+  4. **Verification**:
+     - Run existing 77 tests + add Layer 4 checkout gate test suite proving all 5 conditions hold.
+- **Rules to Remember**:
+  - Bro style (human-to-human, 8th-grade reading level, zero buzzwords).
+  - Strict Plan Gate: wait for user approval before modifying files.
+  - Zero project code mocks.

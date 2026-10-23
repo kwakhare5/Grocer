@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import re
 from typing import Any, Optional
 import httpx
 
@@ -216,7 +217,8 @@ class GeminiClient:
                 text = part.get("text")
                 if text:
                     try:
-                        parsed = json.loads(text)
+                        cleaned_text = re.sub(r"^```(?:json)?\s*|\s*```$", "", text.strip(), flags=re.DOTALL).strip()
+                        parsed = json.loads(cleaned_text)
                         if isinstance(parsed, dict):
                             return parsed, None
                         return None, "parse error"

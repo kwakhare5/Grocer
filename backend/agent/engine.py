@@ -1,5 +1,10 @@
 """Autonomous ReAct agent engine for Swiggy Instamart grocery ordering powered by Google Gemini."""
 from __future__ import annotations
+import math
+from backend.agent.approval import cart_fingerprint
+from backend.agent.session_manager import record_pending_cart_clear
+from backend.agent.formatters import _format_inr, format_cart_receipt
+from backend.channels.models import InteractiveAction
 
 import asyncio
 import logging
@@ -22,9 +27,514 @@ from backend.agent.session_manager import (
     restore_task_state_dict,
 )
 from backend.agent.preflight_handler import execute_preflight
+
+# --- Merged Tool Execution & Checkout Outcome ---
+
+
+def order_message(result: dict[str, Any]) -> str:
+
+    """Write customer message deterministically from checkout result."""
+
+    order_id = result.get("order_id") or ""
+
+    total = result.get("formatted_grand_total")
+
+    if not total and result.get("grand_total") is not None:
+
+        total = _format_inr(result["grand_total"])
+
+    total_str = f" for {total}" if total else ""
+
+    order_str = f" {order_id}" if order_id else ""
+
+    status = result.get("status")
+
+
+
+    if status == "ORDER_PLACED":
+
+        tracking_url = result.get("tracking_url")
+
+        track_str = f" Track your order here: {tracking_url}" if tracking_url else ""
+
+        return f"Your order{order_str}{total_str} has been placed!{track_str}".strip()
+
+    elif status == "PAYMENT_PENDING":
+
+        pay_link = result.get("bridge_url") or result.get("upi_intent_url")
+
+        if pay_link:
+
+            return f"Your order{order_str}{total_str} is ready! Please complete payment to place your order: {pay_link}".strip()
+
+        return f"Your order{order_str}{total_str} is ready! Please complete payment in your Swiggy app to place your order.".strip()
+
+    return ""
+
+
+
+
+
+def process_checkout_outcome(
+
+    engine: Any,
+
+    customer_id: str,
+
+    *,
+
+    checkout_executed: bool,
+
+    checkout_result: Optional[dict[str, Any]],
+
+    last_cart_receipt: Optional[str],
+
+    current_cart: Optional[CommerceCart],
+
+    addr_lbl: Optional[str],
+
+    final_text: str,
+
+    actions: list[InteractiveAction],
+
+    pending_request_needs_retry: bool,
+
+) -> tuple[str, str, list[InteractiveAction], Optional[str], Optional[float], Optional[str]]:
+
+    """Evaluate checkout results and return (conv_state, final_text, actions, out_order_id, out_order_total, out_bridge_url)."""
+
+    out_order_id: str | None = None
+
+    out_order_total: float | None = None
+
+    out_bridge_url: str | None = None
+
+    conv_state = "READY"
+
+    session = engine.get_session(customer_id) if hasattr(engine, "get_session") else None
+
+    if pending_request_needs_retry:
+
+        conv_state = "NEEDS_DECISION"
+
+
+
+    if checkout_executed and checkout_result:
+
+        if not checkout_result.get("success"):
+
+            if checkout_result.get("error") == "CONFIRMATION_REQUIRED":
+
+                conv_state = "AWAITING_CHECKOUT_CONFIRMATION"
+
+                token = ""
+
+                if session and getattr(session, "pending_approval", None) and session.pending_approval.token:
+
+                    token = session.pending_approval.token
+
+                elif engine and current_cart and hasattr(engine, "_record_pending_approval"):
+
+                    target_addr = (
+
+                        (session.address_id if session else None)
+
+                        or (current_cart.address_id if current_cart else None)
+
+                        or addr_lbl
+
+                        or ""
+
+                    )
+
+                    if engine._record_pending_approval(customer_id, current_cart, target_addr):
+
+                        sess = engine.get_session(customer_id) if hasattr(engine, "get_session") else None
+
+                        if sess and getattr(sess, "pending_approval", None):
+
+                            token = sess.pending_approval.token or ""
+
+
+
+                actions = []
+
+                if token:
+
+                    actions.append(InteractiveAction(action_type="button", id=f"confirm_order:{token}", title="Confirm Order"))
+
+                actions.append(InteractiveAction(action_type="button", id="modify_cart", title="Change Items"))
+
+
+
+                receipt_str = last_cart_receipt or (format_cart_receipt(current_cart, addr_lbl or "Home") if current_cart else "")
+
+                final_text = (f"{receipt_str}\n\n👉 Reply *Confirm* to place order, or let me know if you'd like to change anything!").strip()
+
+            elif (
+
+                checkout_result.get("error") in ("ORDER_STATE_UNKNOWN", "ATTEMPT_UNRESOLVED")
+
+                or checkout_result.get("status") == "ORDER_STATE_UNKNOWN"
+
+            ):
+
+                conv_state = "RECOVERING"
+
+                final_text = (
+
+                    "I couldn't verify whether checkout completed. "
+
+                    "Please check the order status in Swiggy or contact support before trying again. "
+
+                    "Further checkout is on hold until this is resolved."
+
+                )
+
+            elif checkout_result.get("error") == "PAYMENT_CHOICE_REQUIRED":
+
+                available = checkout_result.get("payment_options") or []
+
+                if available:
+
+                    actions = [
+
+                        InteractiveAction(
+
+                            action_type="list_row",
+
+                            id=f"payment_choice:{option['id']}",
+
+                            title=str(option["label"])[:24],
+
+                        )
+
+                        for option in available[:10]
+
+                    ]
+
+                    final_text = "Please choose how you want to pay. I'll show the final basket again before placing an order."
+
+                    conv_state = "NEEDS_PAYMENT"
+
+                else:
+
+                    final_text = "I couldn't verify an available payment option. Please try again later."
+
+                    conv_state = "NEEDS_DECISION"
+
+            else:
+
+                error_msg = checkout_result.get("error") or checkout_result.get("message") or "Provider checkout error"
+
+                base_text = (
+
+                    f"Checkout could not be completed or verified: {error_msg}. "
+
+                    "Please check the Swiggy order status before trying again."
+
+                )
+
+                extra = final_text.strip()
+
+                final_text = f"{base_text}\n\n{extra}" if extra else base_text
+
+                conv_state = "FAILED"
+
+        else:
+
+            out_order_id = checkout_result.get("order_id")
+
+            out_order_total = checkout_result.get("grand_total")
+
+            out_bridge_url = checkout_result.get("bridge_url")
+
+            status = checkout_result.get("status")
+
+
+
+            if status in ("REVIEW_COMPLETE", "REVIEW_SIMULATED") or checkout_result.get("is_simulated"):
+
+                conv_state = "REVIEW_COMPLETE"
+
+                out_order_id = None
+
+                out_bridge_url = None
+
+                final_text = "Review complete. No real order was placed and no payment was taken."
+
+            elif status == "PARTIAL_ORDER":
+
+                conv_state = "NEEDS_DECISION"
+
+                final_text = (
+
+                    f"Swiggy reported a partial order: {checkout_result.get('success_count', 0)} "
+
+                    f"placed and {checkout_result.get('failure_count', 0)} failed. "
+
+                    "Please check the order details before taking another action."
+
+                )
+
+            elif status == "PAYMENT_CONFIRMED":
+
+                conv_state = "RECOVERING"
+
+                final_text = (
+
+                    "Swiggy confirmed payment, but I couldn't verify that every order was placed. "
+
+                    "Please check the order details in Swiggy. Further checkout is on hold."
+
+                )
+
+            elif status == "PAYMENT_PENDING":
+
+                conv_state = "AWAITING_PAYMENT"
+
+                if session is not None:
+
+                    session.reset_order_address()
+
+                pay_url = checkout_result.get("upi_intent_url") or checkout_result.get("bridge_url")
+
+                if pay_url:
+
+                    actions = [
+
+                        InteractiveAction(
+
+                            action_type="url",
+
+                            id=f"pay_order:{out_order_id or 'order'}",
+
+                            title="Pay with UPI (1-Tap)",
+
+                            url=pay_url,
+
+                        )
+
+                    ]
+
+                code_text = order_message(checkout_result)
+
+                extra = final_text.strip()
+
+                final_text = f"{code_text}\n\n{extra}" if extra else code_text
+
+            elif status == "ORDER_PLACED":
+
+                conv_state = "ORDER_PLACED"
+
+                if session is not None:
+
+                    session.reset_order_address()
+
+                final_text = order_message(checkout_result)
+
+            else:
+
+                conv_state = "READY"
+
+
+
+    return conv_state, final_text, actions, out_order_id, out_order_total, out_bridge_url
+
+
+
+async def execute_engine_tool(
+    engine: Any,
+    name: str,
+    args: dict[str, Any],
+    *,
+    customer_id: str,
+    address_id: Optional[str],
+    user_confirmed: Optional[bool] = None,
+    current_cart: Optional[CommerceCart] = None,
+) -> Any:
+    """Dispatch a single function call to SwiggyAgentTools."""
+    logger.info("Executing agent tool call: %s", name)
+    session = engine.get_session(customer_id)
+    if name == "get_saved_addresses":
+        return await engine.tools.get_saved_addresses(customer_id)
+    elif name == "select_delivery_address":
+        session.pending_approval = None
+        res = await engine.tools.select_delivery_address(customer_id, args.get("address_id", ""))
+        if res.get("success") and res.get("address_id"):
+            session.address_id = res["address_id"]
+            session.address_label = (
+                res.get("clean_address") or res.get("label") or "Selected Address"
+            )
+            session.order_address_confirmed = True
+            if hasattr(engine, "commerce") and hasattr(engine.commerce, "get_cart"):
+                try:
+                    new_cart = await engine.commerce.get_cart(delivery_location=session.address_label)
+                    session.known_cart_fingerprint = cart_fingerprint(new_cart, session.address_id)
+                except Exception:
+                    pass
+        return res
+    elif name == "get_go_to_items":
+        addr = args.get("address_id") or address_id
+        return await engine.tools.get_go_to_items(address_id=addr)
+    elif name == "search_products":
+        addr = args.get("address_id") or address_id
+        return await engine.tools.search_products(args.get("query", ""), address_id=addr)
+    elif name == "batch_search_products":
+        addr = args.get("address_id") or address_id
+        return await engine.tools.batch_search_products(args.get("queries", []), address_id=addr)
+    elif name == "get_cart":
+        loc = session.address_label or "Home"
+        return await engine.tools.get_cart(delivery_location=loc)
+    elif name == "manage_basket":
+        session = engine.get_session(customer_id)
+        session.pending_approval = None
+        loc = session.address_label or "Home"
+        result = await engine.tools.manage_basket(
+            address_id=args.get("address_id") or address_id or "",
+            add=args.get("add"),
+            remove=args.get("remove"),
+            set_quantity=args.get("set_quantity"),
+            current_cart=current_cart,
+            delivery_location=loc,
+            budget_cap_inr=session.budget_inr,
+        )
+        if result.get("verified_fingerprint"):
+            session.known_cart_fingerprint = result["verified_fingerprint"]
+        return result
+    elif name == "clear_cart":
+        session = engine.get_session(customer_id)
+        try:
+            cart = await engine.commerce.get_cart()
+        except Exception:
+            cart = None
+        address_id = (
+            session.address_id
+            or (cart.address_id if cart else None)
+            or ""
+        )
+        if cart and not cart.address_id and address_id:
+            cart.address_id = address_id
+        if not cart or not cart.items:
+            return {"success": True, "message": "Cart is already empty."}
+        if session:
+            record_pending_cart_clear(session, cart, address_id)
+        return {"success": False, "error": "CLEAR_CONFIRMATION_REQUIRED"}
+    elif name == "checkout":
+        sess = engine.get_session(customer_id)
+        confirmed_by_user = bool(user_confirmed)
+        approval = sess.pending_approval
+        if sess.unresolved_items:
+            if confirmed_by_user and approval and approval.expires_at > time.time():
+                sess.unresolved_items.clear()
+            else:
+                return {
+                    "success": False,
+                    "error": "ITEMS_UNRESOLVED",
+                    "retryable": False,
+                    "message": "Please resolve each missing or reduced requested item before checkout.",
+                }
+        if sess.external_cart_pending:
+            return {"success": False, "error": "EXTERNAL_CART_UNREVIEWED", "retryable": False}
+        if not confirmed_by_user or not approval or approval.expires_at <= time.time():
+            return {
+                "success": False,
+                "error": "CONFIRMATION_REQUIRED",
+                "retryable": False,
+                "message": "Please review the current basket and confirm it before checkout.",
+            }
+        checkout_address = args.get("address_id", "") or address_id or ""
+        try:
+            cart = await engine.commerce.get_cart(args.get("cart_id", ""))
+        except Exception:
+            return {
+                "success": False,
+                "error": "CART_UNAVAILABLE",
+                "retryable": False,
+                "message": "I couldn't verify your basket. Please review it again.",
+            }
+        if cart.address_id is None and checkout_address:
+            cart.address_id = checkout_address
+        if cart_fingerprint(cart, checkout_address) != approval.fingerprint:
+            sess.pending_approval = None
+            return {
+                "success": False,
+                "error": "CART_CHANGED",
+                "retryable": False,
+                "message": "Your basket or total changed. Please review it again.",
+            }
+        attempt_id = None
+        if settings.CHECKOUT_MODE == "live":
+            if engine.attempt_store is None:
+                return {
+                    "success": False,
+                    "error": "DURABLE_ATTEMPT_REQUIRED",
+                    "retryable": False,
+                    "message": "Live checkout is unavailable until durable attempt tracking is ready.",
+                }
+            try:
+                attempt_id = await engine.attempt_store.start(
+                    customer_id,
+                    cart.cart_id or "",
+                    checkout_address,
+                    approval.fingerprint,
+                    cart.grand_total,
+                )
+            except Exception:
+                logger.exception("Could not reserve durable checkout attempt.")
+                return {"success": False, "error": "DURABLE_ATTEMPT_REQUIRED", "retryable": False}
+            if attempt_id is None:
+                return {
+                    "success": False,
+                    "error": "ATTEMPT_UNRESOLVED",
+                    "retryable": False,
+                    "message": "An earlier checkout or payment is unresolved. Further checkout is on hold.",
+                }
+        try:
+            result = await engine.tools.checkout(
+                cart_id=args.get("cart_id", ""),
+                address_id=checkout_address,
+                payment_method=sess.selected_payment_method or "UPI",
+                payment_option_kind=sess.selected_payment_kind,
+                payment_option_id=sess.selected_payment_id,
+                is_user_confirmed=True,
+                budget_inr=sess.budget_inr,
+                expected_cart_fingerprint=approval.fingerprint,
+            )
+            if attempt_id is not None:
+                await engine.attempt_store.finish(attempt_id, result)
+            if not result.get("success"):
+                sess.pending_approval = None
+            else:
+                sess.pending_approval = None
+            return result
+        except Exception as exc:
+            logger.exception("Checkout outcome could not be verified: %s", exc)
+            fallback = {"success": False, "error": "ORDER_STATE_UNKNOWN", "retryable": False}
+            sess.pending_approval = None
+            if attempt_id is not None:
+                try:
+                    await engine.attempt_store.finish(attempt_id, fallback)
+                except Exception as finish_exc:
+                    logger.warning("Could not record attempt failure: %s", finish_exc)
+            return fallback
+    elif name == "track_order":
+        return await engine.tools.track_order(args.get("order_id", ""))
+    elif name == "set_budget":
+        raw_amount = args.get("amount_inr")
+        try:
+            amount = float(raw_amount)
+            if not math.isfinite(amount) or amount <= 0:
+                return {"success": False, "error": "Invalid budget amount"}
+        except (TypeError, ValueError):
+            return {"success": False, "error": "Invalid budget amount"}
+        session.budget_inr = amount
+        return {"success": True, "budget_inr": amount, "message": f"Budget set to ₹{amount}"}
+    return {"error": f"Unknown tool: {name}"}
+
+
 from backend.agent.react_coordinator import execute_react_turn_loop
 from backend.agent.response_synthesizer import synthesize_turn_response
-from backend.agent.tool_executor import execute_engine_tool
 from backend.channels.models import (
     NormalizedIncomingMessage,
     NormalizedOutgoingResponse,
@@ -290,4 +800,6 @@ class GroceryAgentEngine:
     async def _read_budget_cap(self, text: str) -> float | None:
         """Extract whole-basket rupee budget cap using the engine's Gemini client."""
         return await read_budget_cap(text, self.gemini)
+
+
 

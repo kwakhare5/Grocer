@@ -4,7 +4,7 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 import pytest
 
-from backend.agent.checkout_outcome import order_message, process_checkout_outcome
+from backend.agent.engine import order_message, process_checkout_outcome
 from backend.agent.session import CustomerSession
 from backend.agent.approval import PendingApproval
 from backend.channels.models import InteractiveAction

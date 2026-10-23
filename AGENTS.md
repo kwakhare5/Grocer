@@ -1,6 +1,6 @@
-# AGENTS.md — Grocer v5.0 Working Rules & Pair Programming Contract
+# AGENTS.md — Grocer v1.0 Working Rules & Pair Programming Contract
 
-> **Workspace Scope:** `D:\Grocer\grocer-v5\` (All new clean-slate code and docs live strictly here)  
+> **Workspace Scope:** `D:\Grocer-v5\` (All clean-slate code and docs live strictly here)  
 > **Source of Truth:** `PRD.md`, `ARCHITECTURE.md`, `DESIGN.md`, `TASKS.md`, `JOURNAL.md`  
 
 ---
@@ -13,7 +13,7 @@
 
 ---
 
-## 2. Universal Non-Negotiables for Grocer v5
+## 2. Universal Non-Negotiables for Grocer v1
 1. **Real Data Over Mocks:** Zero mocking of project code, databases, APIs, or Swiggy MCP tools. `MockCommerceAdapter` is permanently deleted. Staging contract tests run against committed real fixtures.
 2. **Zero Assumptions About Orders or Addresses:** Never assume customer intent. Never substitute specific requests. Ground to primary address with 1-tap switch.
 3. **Radical Truth:** If an item is out of stock, if the dark store is closed, or if an API error occurs, communicate the exact truth in plain English. Never silently omit items.

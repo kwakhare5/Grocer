@@ -1,4 +1,4 @@
-# DESIGN.md — Grocer v5.0 WhatsApp Interaction & UX Specification
+# DESIGN.md — Grocer v1.0 WhatsApp Interaction & UX Specification
 
 > **Platform:** WhatsApp Business Cloud API  
 > **Target Form Factors:** Android & iOS Mobile WhatsApp Clients  

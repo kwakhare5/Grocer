@@ -605,24 +605,15 @@ def test_first_aid_product_policy_not_restricted():
 
 
     # Allowed first aid
-
-    assert is_restricted_medical_product("Hansaplast Band-Aid (Pack of 10)", category="pharmacy") is False
-
-    assert is_restricted_medical_product("Electral ORS Powder 21.8g", category="pharmacy") is False
-
-    assert is_restricted_medical_product("Savlon Antiseptic Liquid 200ml", category="pharmacy") is False
-
-    assert is_restricted_medical_product("Absorbent Cotton 100g", category="pharmacy") is False
-
-
+    assert is_restricted_medical_product("Hansaplast Band-Aid (Pack of 10)", category="first_aid") is False
+    assert is_restricted_medical_product("Electral ORS Powder 21.8g", category="otc_wellness") is False
+    assert is_restricted_medical_product("Savlon Antiseptic Liquid 200ml", category="first_aid") is False
+    assert is_restricted_medical_product("Absorbent Cotton 100g", category="first_aid") is False
 
     # Strictly blocked prescription drugs
-
-    assert is_restricted_medical_product("Dolo 650 Tablet", category="pharmacy") is True
-
-    assert is_restricted_medical_product("Crocin Pain Relief", category="pharmacy") is True
-
-    assert is_restricted_medical_product("Amoxicillin Antibiotic 500mg", category="pharmacy") is True
+    assert is_restricted_medical_product("Dolo 650 Tablet", category="prescription") is True
+    assert is_restricted_medical_product("Crocin Pain Relief", category="prescription") is True
+    assert is_restricted_medical_product("Amoxicillin Antibiotic 500mg", category="prescription") is True
 
 
 

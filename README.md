@@ -1,39 +1,29 @@
-<p align="center">
-  <img src="public/logo.svg" alt="Grocer Logo" width="128" height="128" />
-</p>
+# Grocer
 
-<h1 align="center">Grocer</h1>
+> **Conversational Grocery Replenishment Assistant for WhatsApp on Swiggy Instamart**  
+> *Single-turn tool calling, deterministic intent verification, bounded recovery, and zero-regex product policy.*
 
-<p align="center">
-  <strong>Autonomous WhatsApp grocery replenishment assistant for Swiggy Instamart with real-time dark store cart verification, dynamic UPI payments, and self-healing multi-turn dialog.</strong>
-</p>
-
-<p align="center">
-  <a href="https://github.com/kwakhare5/Grocer/actions/workflows/quality.yml"><img src="https://github.com/kwakhare5/Grocer/actions/workflows/quality.yml/badge.svg" alt="Quality CI" /></a>
-  <a href="https://grocer-backend-qwk4.onrender.com/ready"><img src="https://img.shields.io/badge/Render-Live%20Backend-22c55e?logo=render&logoColor=white" alt="Live Backend" /></a>
-  <a href="https://grocerr.vercel.app"><img src="https://img.shields.io/badge/Vercel-Live%20Frontend-000000?logo=vercel&logoColor=white" alt="Live Frontend" /></a>
-  <a href="https://www.python.org/"><img src="https://img.shields.io/badge/Python-3.11%20%7C%203.12-3776ab?logo=python&logoColor=white" alt="Python 3.11+" /></a>
-  <a href="https://nextjs.org/"><img src="https://img.shields.io/badge/Next.js-16%20App%20Router-black?logo=next.js&logoColor=white" alt="Next.js 16" /></a>
-  <a href="https://ai.google.dev/"><img src="https://img.shields.io/badge/Google%20Gemini-3.5%20Flash--Lite-8e75ff?logo=google&logoColor=white" alt="Gemini 3.5 Flash-Lite" /></a>
-  <a href="https://mcp.swiggy.com/builders/llms.txt"><img src="https://img.shields.io/badge/Swiggy%20MCP-Instamart%20Gateway-fc8019?logo=swiggy&logoColor=white" alt="Swiggy Instamart MCP" /></a>
-  <a href="backend/tests/"><img src="https://img.shields.io/badge/Tests-94%20Passing-success" alt="94 Tests Passing" /></a>
-</p>
+[![Next.js](https://img.shields.io/badge/Next.js-16_App_Router-black?logo=next.js)](https://nextjs.org/)
+[![React](https://img.shields.io/badge/React-19-blue?logo=react)](https://react.dev/)
+[![Python](https://img.shields.io/badge/Python-3.11+-blue?logo=python)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688?logo=fastapi)](https://fastapi.tiangolo.com/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Supabase-336791?logo=postgresql)](https://supabase.com/)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Tests](https://img.shields.io/badge/Tests-88%20Unit%20%2F%20159%20Total-brightgreen.svg)]()
 
 ---
 
 ## Table of Contents
-
-- [Why Grocer Exists](#why-grocer-exists)
+- [The Problem Grocer Solves](#the-problem-grocer-solves)
 - [The Two Core Pillars](#the-two-core-pillars)
-  - [1. Intent Preservation](#1-intent-preservation-multi-turn-cart-memory)
-  - [2. Household Replenishment](#2-household-replenishment-cadence-restock-checks)
+  - [1. Intent Preservation (Multi-Turn Cart Memory)](#1-intent-preservation-multi-turn-cart-memory)
+  - [2. On-Demand Replenishment (Instant Staple Restocks)](#2-on-demand-replenishment-instant-staple-restocks)
 - [Interactive Demo Flows](#interactive-demo-flows)
 - [System Architecture](#system-architecture)
-- [Tech Stack](#tech-stack)
-- [Prerequisites](#prerequisites)
-- [Getting Started (Local Development)](#getting-started-local-development)
-- [Interactive Web Simulator](#interactive-web-simulator)
-- [Testing & Verification (94 Tests)](#testing--verification-94-tests)
+- [The 10 Universal Non-Negotiables](#the-10-universal-non-negotiables)
+- [Quickstart (Local Development)](#quickstart-local-development)
+- [Interactive Web Simulator](#interactive-web-simulator--conversation-showcase)
+- [Testing & Verification (88 Unit / 159 Total Tests)](#testing--verification-88-unit--159-total-tests)
 - [Environment Configuration](#environment-configuration)
 - [Swiggy Builders Club Reviewer Checklist](#swiggy-builders-club-reviewer-checklist)
 - [Code Map](#code-map)
@@ -41,13 +31,14 @@
 
 ---
 
-## Why Grocer Exists
+## The Problem Grocer Solves
 
-Ordering groceries over conversational interfaces usually breaks down in two common ways:
-1. **Fragile Cart Memory**: Most LLM shopping bots treat every message as an isolated prompt. When you say *"actually add 2 more packs of Amul butter and drop the pasta sauce"*, they either wipe your existing cart, lose your budget constraints, or hallucinate product SKUs that don't exist in your local dark store.
-2. **Missing Replenishment Intelligence**: Households buy the same staples on predictable cadences (milk every 2 days, eggs every 5 days, bread weekly). Yet users are forced to manually remember, search, and assemble the same repetitive baskets from scratch every week.
+Quick commerce is fast for delivery, but agonizingly slow for ordering:
 
-**Grocer solves both problems.** It brings **intent-preserving conversational commerce** directly to WhatsApp, powered by Google Gemini 3.5 Flash-Lite, strict server-side state machines, and deep integration with Swiggy Instamart's Model Context Protocol (MCP) gateway.
+1. **The Cart Amnesia & Fragility Problem**: Natural conversations contain corrections, budget constraints, and substitutions. Typical bots suffer from "cart amnesia"—swapping an item silently deletes previously chosen items or loses track of hard spending limits.
+2. **Repetitive Friction**: Households re-order the exact same staples (milk, eggs, bread) week after week. Yet users are forced to manually search, select pack sizes, and assemble repetitive baskets from scratch.
+
+**Grocer solves both problems.** It brings **intent-preserving conversational commerce** directly to WhatsApp, powered by Google Gemini, strict server-side state machines, and deep integration with Swiggy Instamart's Model Context Protocol (MCP) gateway.
 
 ---
 
@@ -58,14 +49,14 @@ Grocer remembers your shopping intent across multiple turns and corrections with
 * **Meal Decomposition**: Say *"pasta for 4 under ₹800"*, and Grocer breaks the meal down into ingredients, matches dark-store pack sizes, and validates total cost against your budget ceiling.
 * **Non-Destructive Amendments**: Say *"swap penne for fusilli and make it 2 packs"*, and Grocer updates only that specific line item while preserving the rest of your cart.
 * **Deterministic Variant Selection**: When catalog searches return multiple candidates (e.g. 500ml vs 1L milk), Grocer presents numbered interactive choices (`1A`, `1B`). It writes to your cart only after you explicitly select the variant.
-* **Indian Grocery Vocabulary & Quantities**: Interprets everyday Indian grocery terms and household quantities (e.g. *"doodh"*, *"atta"*, *"dahi"*, *"packet"*, *"kilo"*) and maps them to verified English dark-store catalog items while responding in clear English.
+* **Indian Grocery Vocabulary & Quantities**: Interprets everyday Indian grocery terms and household quantities (e.g. *"doodh"*, *"atta"*, *"dahi"*, *"packet"*, *"kilo"*) and maps them to verified English dark-store catalog items.
 
-### 2. Household Replenishment (Cadence Restock Checks)
-Grocer tracks your historical purchase cadence to predict when household staples are running low:
-* **Predictive Cadence Analysis**: Estimates depletion based on your actual order intervals.
-* **Conversational Check-ins**: Ask *"what do I need?"* or receive consented restock suggestions based on your opted-in cadence schedule.
-* **Consented Actions**: Grocer **never** automatically charges a card or adds items without your explicit agreement. You can correct predictions (*"I still have eggs"*) and Grocer adjusts its model without touching your cart.
-* **Full Privacy Control**: Text *"delete my data"* at any time to instantly purge your purchase habits, token vault secrets, and conversation history.
+### 2. On-Demand Replenishment (Instant Staple Restocks)
+Grocer enables instant 1-tap re-ordering for household staples:
+* **Go-To Items**: Ask *"restock my staples"* or *"what do I usually buy?"*, and Grocer retrieves your verified favorites (`your_go_to_items`) directly from Swiggy Instamart.
+* **Customer Advocate Engine**: Automatically hunts and applies the best available Swiggy coupons and suggests low-cost staples to cross free-delivery thresholds if it saves net money.
+* **Server-Side Gated Checkout**: Grocer **never** automatically charges a card or places an order without explicit customer confirmation.
+* **Full Privacy Control**: Text *"delete my data"* at any time to instantly purge your session state, token vault secrets, and conversation history.
 
 ---
 
@@ -81,7 +72,7 @@ Grocer:   "I've selected ingredients within your ₹600 budget:
            4. Tomato Puree (200g) — ₹40
            5. Kasuri Methi (50g) — ₹35
            Total: ₹388 (Saved ₹212 under budget)
-           Deliver to Home (Indiranagar, Bengaluru)? Reply YES to confirm address."
+           Deliver to Home (Sangvi, Pune)? Reply YES to confirm address."
 
 User:     "Yes, but add 2 packets of garlic naan too"
 Grocer:   "Updated! Added 2x Garlic Naan (₹130).
@@ -89,17 +80,15 @@ Grocer:   "Updated! Added 2x Garlic Naan (₹130).
            Reply CONFIRM to lock basket and generate payment link."
 ```
 
-### Flow B: Proactive Household Replenishment Check
+### Flow B: On-Demand Staple Restock
 ```
-User:     "What do I need to restock?"
-Grocer:   "Based on your household ordering intervals, you're likely low on:
-           • Toned Milk (500ml) — last ordered 3 days ago (usual cadence: 2 days)
-           • Brown Bread (400g) — last ordered 6 days ago (usual cadence: 5 days)
-           Would you like me to add these to your basket?"
-
-User:     "Add the milk, but I still have bread"
-Grocer:   "Got it! Adjusted your bread reminder. Added 1x Toned Milk 500ml (₹28) to your cart.
-           Total: ₹28. Reply SHOW CART to review or CONFIRM to checkout."
+User:     "Restock my staples: 2 milk, 1 bread, and eggs"
+Grocer:   "I've added your staples from Swiggy Instamart:
+           1. Amul Taaza Toned Milk (500ml) x2 — ₹68
+           2. Whole Wheat Brown Bread (400g) x1 — ₹50
+           3. Farm Fresh Eggs (6 pcs) x1 — ₹55
+           Subtotal: ₹173 | Delivery: ₹15 | Grand Total: ₹188
+           Deliver to Home (Sangvi, Pune)? Tap Confirm Order to checkout."
 ```
 
 ---
@@ -124,13 +113,13 @@ Grocer:   "Got it! Adjusted your bread reminder. Added 1x Toned Milk 500ml (₹2
    │                       Supabase PostgreSQL Message Store                     │
    │  • Durable state staging (inbound_messages, outbound_messages)              │
    │  • Customer token vault (AES-256 encrypted OAuth credentials)               │
-   │  • Replenishment cadence history & consented restock schedules             │
+   │  • Session state persistence (task_state) & checkout audit (checkout_attempts)│
    └──────────────────────────────────────┬──────────────────────────────────────┘
                                           │
                                           ▼
    ┌─────────────────────────────────────────────────────────────────────────────┐
    │                    Agent Engine (Gemini 3.5 Flash)                          │
-   │  • Meal & grocery intent decomposition                                      │
+   │  • Single-turn tool calling session                                         │
    │  • Multi-turn conversational history & pending request memory               │
    │  • Constraint bounds & budget ceiling enforcement                           │
    └──────────────────┬───────────────────────────────────────┬──────────────────┘
@@ -138,61 +127,30 @@ Grocer:   "Got it! Adjusted your bread reminder. Added 1x Toned Milk 500ml (₹2
                       ▼ Catalog & Cart Queries                ▼ Order Checkout Gate
    ┌──────────────────────────────────────┐  ┌───────────────────────────────────┐
    │  Swiggy Instamart Commerce Adapter   │  │   Server-Side Gated Checkout      │
-   │  • MCP Gateway (mcp.swiggy.com/im)   │  │  • Explicit user confirmation     │
-   │  • Live stock & dark-store inventory │  │  • Price re-verification lock     │
-   │  • Multi-candidate catalog ranker    │  │  • Dynamic UPI payment link       │
+   │  • Live Pune Dark-Store Catalog      │  │  • 5 Hard Checkout Locks          │
+   │  • 20-Tool JSON-RPC 2.0 Client       │  │  • 1-Tap Mobile UPI (upi://pay)   │
+   │  • Real-time stock, prices, coupons  │  │  • Durable Hold Tracking Lock     │
    └──────────────────────────────────────┘  └───────────────────────────────────┘
 ```
 
-### Request Lifecycle Sequence
+---
 
-```mermaid
-sequenceDiagram
-    autonumber
-    actor User as WhatsApp User
-    participant GW as FastAPI Webhook
-    participant DB as Postgres Store
-    participant Agent as Agent Engine (Gemini)
-    participant Swiggy as Swiggy Instamart MCP
+## The 10 Universal Non-Negotiables
 
-    User->>GW: "Add milk and brown bread under ₹150"
-    GW->>GW: Verify HMAC-SHA256 signature
-    GW->>DB: Stage inbound message & check idempotency
-    GW->>Agent: Process message with customer context
-    Agent->>Swiggy: Search local dark store catalog
-    Swiggy-->>Agent: Return candidate products & live stock
-    Agent->>Agent: Check budget ceiling & select variants
-    Agent->>DB: Stage outbound response
-    DB->>GW: Deliver response with 3-attempt staged retry
-    GW-->>User: "Found Amul Toned Milk (₹28) & Brown Bread (₹55). Total: ₹83."
-```
+1. **Real Data Over Speed**: Every catalog search, price, stock check, address, and coupon MUST use real Swiggy MCP data. Zero hardcoded heuristics.
+2. **Zero Assumptions About Customer Purchases**: Search real Swiggy dark-store catalog for whatever item the customer asks for.
+3. **Zero Assumptions About Geography (The Sangvi Principle)**: Never assume customers live in famous hubs. Match delivery locations strictly against the user's real saved Swiggy addresses (`session.saved_addresses`).
+4. **Customer Advocate Engine (Champion the Wallet)**: Auto-apply the best valid Swiggy coupon. Proactively suggest 1-2 small staples to cross free-delivery thresholds if it saves net fees.
+5. **Sensible Defaults on Vague Requests**: On unqualified requests (e.g. "milk"), pick the dark-store #1 staple and provide a 1-tap "Change Items" button. Never substitute specific requests.
+6. **1-Tap Mobile UPI Checkout**: Default to clickable `upi://pay` deep links formatted into WhatsApp interactive buttons.
+7. **Zero Regex & Zero Keyword Dictionaries for Domain Logic**: Absolutely NO regex word-lists, hardcoded drug lists, symptom dictionaries (`bukhar`, `sirdard`), or city arrays in business logic. Product safety is governed strictly by Swiggy catalog metadata (`category == "Pharmacy"` / `"Prescription"`).
+8. **Python Muscle vs Gemini Brain**: Gemini handles fuzzy natural language. Python deterministically enforces math, budget caps, cart SHA-256 fingerprints, and checkout gates.
+9. **Zero Silent Drops**: If an item is out of stock or restricted, never quietly omit it. Honestly explain the missing item and offer alternatives.
+10. **High-Cohesion Architecture**: Code that changes together lives together. No duplicate modules, no corrupted line endings (`\r\r\n`), and clean file organization.
 
 ---
 
-## Tech Stack
-
-| Layer | Technologies | Purpose |
-|---|---|---|
-| **Backend** | Python 3.11+, FastAPI, `asyncpg`, Pydantic v2 | High-throughput asynchronous webhook processing and state management |
-| **Database** | PostgreSQL 16 (Supabase / Local) | Durable transaction logs, encrypted OAuth tokens, and staged message queues |
-| **Intelligence** | Google Gemini 3.5 Flash-Lite | Multi-turn grocery reasoning, meal planning, and intent parsing |
-| **Commerce** | Swiggy Instamart MCP Gateway | Real-time dark store catalog search, basket synchronization, and checkout |
-| **Frontend** | Next.js 16 (App Router), React 19, Tailwind CSS v4 | Interactive visual web simulator and public showcase portal |
-| **Hosting** | Render (Backend Web Service) & Vercel (Frontend Web App) | Zero-maintenance production serverless and container infrastructure |
-
----
-
-## Prerequisites
-
-- **Python**: 3.11 or 3.12 (`python --version`)
-- **Node.js**: 20+ (`node --version`)
-- **npm**: 10+ (`npm --version`)
-- **PostgreSQL**: 16 (Supabase cloud connection or local instance for E2E tests)
-- **Google AI Studio Key**: API key for Gemini 3.5 Flash
-
----
-
-## Getting Started (Local Development)
+## Quickstart (Local Development)
 
 ### 1. Clone the Repository
 ```powershell
@@ -200,17 +158,10 @@ git clone https://github.com/kwakhare5/Grocer.git
 cd Grocer
 ```
 
-### 2. Configure Environment Variables
-Copy `.env.example` to `.env`:
+### 2. Configure Environment
 ```powershell
 cp .env.example .env
-```
-Fill in your required secrets:
-```ini
-GEMINI_API_KEY=your_gemini_api_key_here
-GEMINI_MODEL=gemini-3.5-flash
-COMMERCE_ADAPTER_TYPE=mock
-DATA_ENCRYPTION_KEY=your_32_byte_base64_encryption_key
+# Fill in GEMINI_API_KEY and DATA_ENCRYPTION_KEY
 ```
 
 ### 3. Install Backend Dependencies
@@ -224,9 +175,8 @@ npm install
 ```
 
 ### 5. Run the Verification Suite
-Run the 114-test verification suite:
 ```powershell
-pytest backend/tests/test_invariants.py
+pytest --ignore=backend/tests/test_whatsapp_postgres_e2e.py
 npm run lint
 ```
 
@@ -248,33 +198,34 @@ Open **[http://localhost:3000](http://localhost:3000)** in your browser to inter
 Grocer provides two ways to inspect and test conversations:
 * **Verified Conversation Showcase (Production)**: The live landing page at [grocerr.vercel.app](https://grocerr.vercel.app) showcases 6 verified multi-turn journeys, allowing reviewers to inspect exact customer messages, raw tool executions, and backend safety rules.
 * **Interactive Local Simulator (Development)**: When running locally (`npm run dev` with `SIMULATOR_ENABLED=true`), `/simulator` provides a live chat console that signs every message with cryptographic HMAC-SHA256 headers, perfectly mirroring Meta's WhatsApp Cloud API.
-  * **Recipe & Constraints**: Multi-item ingredient planning under strict rupee budgets.
-  * **Interactive Disambiguation**: Selecting specific pack sizes (`1A`, `2B`) when multiple catalog matches exist.
-  * **Household Replenishment**: Cadence-based restock checks and non-destructive stock level updates.
-  * **Adversarial Edge Cases**: Rapid burst debouncing, forged signatures, and customer data purge requests.
 
 ---
 
-## Testing & Verification (114 Tests)
+## Testing & Verification (88 Unit / 159 Total Tests)
 
 Grocer enforces a **zero-cheat invariant testing philosophy**. Tests never mock internal modules or database tables—they mock only external third-party network APIs (Meta and Swiggy).
 
 ```powershell
-# Run the complete 114-test battery (33 invariants + 81 integration cases)
+# Run the 88 unit & integration tests (no Postgres required)
+pytest --ignore=backend/tests/test_whatsapp_postgres_e2e.py
+
+# Run the complete 159-test suite (requires local Postgres container)
 pytest
 ```
 
-### Test Suite Structure (114 Tests Total)
+### Test Suite Structure (159 Tests Total)
 
 | Suite | Focus | Tests | What It Proves |
 |---|---|:---:|---|
-| **Deterministic Invariants** | `test_invariants.py` | 33 | Rupee budget ceilings, token redaction, signature verification, zero unselected item mutations, address privacy sanitization |
-| **Turn Recovery & Intent Safety** | `turn_recovery.py` | 4 | Crashed turn recovery, zero address demand on greeting, empty cart preservation, uncertain turn alerts |
-| **Planning, Integrity & Repairs** | `planning_and_orders.py`, `planning_repairs.py` | 10 | Unselected SKU protection, ordinal references ("the second one"), Hinglish searches, recipe repair turns |
-| **Cart & Variant Disambiguation** | `cart_and_addresses.py`, `address_disambiguation.py` | 10 | Exact variant choices before writes, rate-limit backoff, retry memory preservation, multi-address resolution |
-| **Recipes, Pacing & Budget Caps** | `recipe_and_budgets.py`, `budget_and_symptoms.py` | 41 | Multi-item recipe batching (16 meal combinations), strict rupee caps, partial-basket warnings, symptom boundary checks |
-| **Consented Replenishment & Purge** | `replenishment_and_webhooks.py` | 12 | Consented cadence restocks, data purge (`delete my data`), forged webhook rejection, gated checkout |
-| **Simulator & Channel Safety** | `webhook_and_simulator.py` | 4 | Customer isolation, signed intake validation, local simulator boundary checks, payment reconciliation |
+| **Layer 1: Swiggy MCP Client** | `test_layer1_swiggy_mcp.py` | 14 | JSON-RPC 2.0 protocol, error taxonomy, dark-store tools, and error reporting |
+| **Layer 2: Session & Intent** | `test_layer2_session_intent.py` | 11 | Postgres task state serialization, cart fingerprinting, and address disambiguation |
+| **Layer 3: Basket Orchestrator** | `test_layer3_basket_orchestrator.py` | 11 | Candidate variant ranking, batch addition, and Sangvi principle defaults |
+| **Layer 4: Checkout Gate** | `test_layer4_checkout_gate.py` | 11 | 5 hard checkout locks, 1-tap mobile UPI links (`upi://pay`), and hold tracking |
+| **Customer Advocate Engine** | `test_customer_advocate.py` | 5 | Wallet championship, auto-coupon hunter, and free-delivery suggestions |
+| **Deterministic Invariants** | `test_invariants.py` | 26 | Rupee budget ceilings, signature verification, and zero unselected mutations |
+| **Order Messages** | `test_order_messages.py` | 7 | Code-driven receipt formatting and button generation |
+| **2-Step Clear Cart** | `test_two_step_clear_cart.py` | 3 | Cryptographic 2-step cart clearing |
+| **PostgreSQL E2E Battery** | `test_whatsapp_postgres_e2e.py` | 71 | Full multi-turn WhatsApp flows, crash recovery, and signed webhooks |
 
 ---
 
@@ -285,8 +236,8 @@ pytest
 | `DATABASE_URL` | Yes (Prod) | - | PostgreSQL connection URL (e.g. Supabase connection pooler) |
 | `DATA_ENCRYPTION_KEY` | Yes | - | 32-byte Fernet key for encrypting stored OAuth credentials |
 | `GEMINI_API_KEY` | Yes | - | Google AI Studio API key |
-| `GEMINI_MODEL` | No | `gemini-3.5-flash` | Gemini model for intent parsing and planning |
-| `GEMINI_SMALL_CHECK_MODEL` | No | `gemini-3.5-flash-lite` | Small checks model for confirmation checks, budget reading, and claim verification |
+| `GEMINI_MODEL` | No | `gemini-3.5-flash` | Primary Gemini model for intent parsing and planning |
+| `GEMINI_SMALL_CHECK_MODEL` | No | `gemini-3.5-flash-lite` | Small checks model for confirmation checks and claim verification |
 | `GEMINI_FALLBACK_MODEL` | No | `gemini-3-flash-preview` | Fallback model used if the primary model hits transient quotas |
 | `COMMERCE_ADAPTER_TYPE` | No | `swiggy` | Adapter implementation (`swiggy` for live MCP, `mock` for offline dev) |
 | `WHATSAPP_PHONE_NUMBER_ID` | Yes (Prod) | - | Meta WhatsApp Cloud API Phone Number ID |
@@ -305,8 +256,8 @@ For evaluators reviewing the Swiggy Builders Club submission:
 - [x] **Swiggy MCP Boundary**: All Swiggy Instamart interactions are strictly isolated in `backend/integrations/commerce/swiggy_adapter.py` following [mcp.swiggy.com/builders/llms.txt](https://mcp.swiggy.com/builders/llms.txt).
 - [x] **Zero Drift**: Never builds dark-store dashboards, fleet logistics, or generic bots; Grocer is dedicated exclusively to intent-preserving consumer grocery replenishment.
 - [x] **Autonomous Gated Checkout**: Server-side approval gate requires explicit customer confirmation before any order attempt is executed.
-- [x] **Privacy Sanitization**: Delivery addresses strip private flat and building numbers down to safe area labels (e.g. `Home (Koramangala, Bengaluru)`).
-- [x] **Production Verification**: 114 tests passing 100% green; live endpoints deployed on Render (`/ready`) and Vercel.
+- [x] **Privacy Sanitization**: Delivery addresses strip private flat and building numbers down to safe area labels (e.g. `Home (Sangvi, Pune)`).
+- [x] **Production Verification**: 88 unit tests and 159 total tests passing 100% green; live endpoints deployed on Render (`/ready`) and Vercel.
 
 ---
 
@@ -318,12 +269,16 @@ Grocer/
 │   ├── agent/                      # Core agent reasoning & conversation orchestration
 │   │   ├── engine.py               # Facade for incoming WhatsApp message handling
 │   │   ├── react_coordinator.py    # Multi-turn conversational loop & tool execution
-│   │   ├── basket_manager.py       # Cart state synchronizer & item mutation ledger
-│   │   ├── replenishment.py        # Household cadence calculation & restock predictions
-│   │   ├── budget.py               # Rupee ceiling validation & overage preventer
-│   │   ├── approval.py             # Server-side checkout confirmation gatekeeper
-│   │   ├── catalog_ranker.py       # Relevance scoring for dark-store product candidates
-│   │   └── guards.py               # Address privacy redaction & medical boundaries
+│   │   ├── tools.py                # Agent tools: search_products, update_cart, checkout
+│   │   ├── customer_advocate.py    # Auto-coupon hunter & wallet champion
+│   │   ├── checkout_executor.py    # Physical 5-lock gated checkout gatekeeper
+│   │   ├── checkout_attempts.py    # Durable hold reservation tracking
+│   │   ├── product_policy.py       # Zero-regex pharmacy metadata safety gate
+│   │   ├── approval.py             # SHA-256 cart fingerprinting & dual confirmation
+│   │   ├── address_tools.py        # Sangvi principle real address disambiguation
+│   │   ├── item_drop_guard.py      # Anti-silent-drop item verification
+│   │   ├── formatters.py           # WhatsApp receipt formatting & quick buttons
+│   │   └── session.py              # In-memory turn session state
 │   ├── api/                        # FastAPI REST & webhook endpoints
 │   │   ├── whatsapp.py             # Signed Meta WhatsApp Cloud API webhook receiver
 │   │   ├── health.py               # Liveness (/health) and readiness (/ready) checks
@@ -334,15 +289,20 @@ Grocer/
 │   │   └── message_store.py        # PostgreSQL message ledger & burst debouncer
 │   ├── integrations/commerce/      # Swiggy Instamart integration
 │   │   ├── swiggy_adapter.py       # Live MCP client & MockCommerceAdapter
+│   │   ├── swiggy_mcp_client.py    # Low-level HTTP/2 JSON-RPC 2.0 client
 │   │   ├── catalog_parsers.py      # Swiggy dark-store catalog response parsing
 │   │   ├── cart_parsers.py         # Dynamic cart & fee breakdown normalization
 │   │   ├── order_parsers.py        # Order creation, status & live delivery tracking
 │   │   ├── port.py                 # Abstract CommercePort contract
 │   │   └── token_vault.py          # Encrypted customer credential vault
 │   └── tests/                      # Verification test battery
-│       ├── test_invariants.py      # 33 deterministic system invariant tests
-│       ├── test_whatsapp_postgres_e2e.py # 81 integration tests across all flows
-│       └── suites/                 # Modular test suites by feature domain
+│       ├── test_layer1_swiggy_mcp.py # Layer 1 Swiggy MCP client tests
+│       ├── test_layer2_session_intent.py # Layer 2 state & intent tests
+│       ├── test_layer3_basket_orchestrator.py # Layer 3 basket orchestrator tests
+│       ├── test_layer4_checkout_gate.py # Layer 4 checkout gate tests
+│       ├── test_customer_advocate.py # Wallet champion & coupon tests
+│       ├── test_invariants.py      # Deterministic system invariant tests
+│       └── test_whatsapp_postgres_e2e.py # Full integration tests
 ├── app/                            # Next.js 16 App Router frontend
 │   ├── layout.tsx                  # Root layout with Geist font tokens & metadata
 │   ├── page.tsx                    # Landing page & embedded simulator entry
@@ -351,13 +311,11 @@ Grocer/
 │   ├── landing/                    # Showcase sections, feature cards, and FAQs
 │   └── simulator/                  # Interactive WhatsApp playground client
 ├── docs/                           # Architectural specs & Swiggy submission dossier
-│   ├── SWIGGY_BUILDER_CLUB_APPLICATION.md # Swiggy Builders Club dossier & form answers
+│   ├── TARGET_ARCHITECTURE_V1.md  # Target architecture specification
 │   ├── SWIGGY_INSTAMART_MCP_SPEC.md # Official 20-tool Swiggy Instamart MCP specification
-│   ├── database_schema.md         # Encrypted PostgreSQL schema reference
-│   ├── RELEASE_RUNBOOK.md         # Operator deployment and recovery runbook
-│   └── agents/issue-tracker.md    # GitHub issue tracking conventions
+│   └── database_schema.md         # Encrypted PostgreSQL schema reference
 ├── .github/workflows/              # Continuous integration pipelines
-│   ├── quality.yml                 # Runs full 94-test battery & Next.js lint/build
+│   ├── quality.yml                 # Runs full test battery & Next.js lint/build
 │   └── keep_warm.yml               # Scheduled health pinger for Render web service
 ├── render.yaml                     # Render Infrastructure-as-Code blueprint
 └── package.json                    # Frontend dependencies & scripts

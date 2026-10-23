@@ -291,19 +291,21 @@ async def test_tools_track_order_without_lat_lng():
 
 
 def test_product_policy_staples_and_first_aid():
-    """Verify Instamart OTC staples are allowed while prescription drugs remain restricted."""
-    # OTC first aid & staples allowed
-    assert is_restricted_medical_product("Band-Aid Plastic 10s") is False
-    assert is_restricted_medical_product("Dettol Antiseptic Liquid 250ml") is False
-    assert is_restricted_medical_product("Eno Regular 100g") is False
-    assert is_restricted_medical_product("Pudina Hara Pearls") is False
-    assert is_restricted_medical_product("Digene Gel 200ml") is False
-    assert is_restricted_medical_product("Moov Pain Relief Spray") is False
-    assert is_restricted_medical_product("Amrutanjan Balm") is False
+    """Verify Instamart OTC staples are allowed while prescription drugs remain restricted via metadata."""
+    # OTC first aid, digestives & staples allowed via category metadata
+    assert is_restricted_medical_product("Band-Aid Plastic 10s", category="First Aid") is False
+    assert is_restricted_medical_product("Dettol Antiseptic Liquid 250ml", category="Personal Care") is False
+    assert is_restricted_medical_product("Eno Regular 100g", category="Digestive Care") is False
+    assert is_restricted_medical_product("Pudina Hara Pearls", category="Digestive Care") is False
+    assert is_restricted_medical_product("Digene Gel 200ml", category="Digestive Care") is False
+    assert is_restricted_medical_product("Moov Pain Relief Spray", category="Pain Relief Balms") is False
+    assert is_restricted_medical_product("Amrutanjan Balm", category="Pain Relief Balms") is False
+    assert is_restricted_medical_product("Amul Taaza Milk 500ml", category="Dairy") is False
+    assert is_restricted_medical_product("Tata Salt 1kg", category="Staples") is False
 
-    # Prescription medicines restricted
-    assert is_restricted_medical_product("Dolo 650 Tablet") is True
-    assert is_restricted_medical_product("Paracetamol 500mg") is True
-    assert is_restricted_medical_product("Crocin 650 Advance") is True
-    assert is_restricted_medical_product("Amoxicillin Antibiotic") is True
-    assert is_restricted_medical_product("Benadryl Cough Syrup") is True
+    # Prescription medicines restricted via catalog category metadata
+    assert is_restricted_medical_product("Dolo 650 Tablet", category="Prescription") is True
+    assert is_restricted_medical_product("Paracetamol 500mg", category="Prescription") is True
+    assert is_restricted_medical_product("Crocin 650 Advance", category="Prescription") is True
+    assert is_restricted_medical_product("Amoxicillin Antibiotic", category="Prescription") is True
+    assert is_restricted_medical_product("Benadryl Cough Syrup", category="Prescription") is True

@@ -33,8 +33,21 @@ async def execute_gated_checkout(
     is_user_confirmed: bool = False,
     budget_inr: Optional[float] = None,
     expected_cart_fingerprint: Optional[str] = None,
+    conversation_state: Optional[str] = "AWAITING_CONFIRMATION",
+    attempt_store: Optional[Any] = None,
+    customer_id: Optional[str] = None,
 ) -> dict[str, Any]:
     """Place the final order on Swiggy Instamart. STRICTLY server-side gated."""
+    # Lock 1: Must be in AWAITING_CONFIRMATION state
+    if conversation_state is not None and conversation_state != "AWAITING_CONFIRMATION":
+        return {
+            "success": False,
+            "error": "STATE_NOT_CONFIRMING",
+            "retryable": False,
+            "message": "Order placement blocked: Session must be in AWAITING_CONFIRMATION before checkout can execute.",
+        }
+
+    # Lock 2: Explicit dual confirmation check
     if not is_user_confirmed:
         return {
             "success": False,
@@ -106,13 +119,18 @@ async def execute_gated_checkout(
             "retryable": False,
             "message": "The delivery address changed. Please review the current basket again.",
         }
-    if expected_cart_fingerprint and cart_fingerprint(cart, address_id) != expected_cart_fingerprint:
+
+    # Lock 4: Live cart fingerprint match (zero price drift or OOS silent changes)
+    current_fingerprint = cart_fingerprint(cart, address_id)
+    if expected_cart_fingerprint and current_fingerprint != expected_cart_fingerprint:
         return {
             "success": False,
             "error": "CART_CHANGED",
             "retryable": False,
             "message": "Your basket or total changed. Please review it again.",
         }
+
+    # Lock 3: Grand total <= budget_limit check
     if budget_inr is not None:
         if not math.isfinite(budget_inr) or budget_inr <= 0:
             return {
@@ -135,6 +153,7 @@ async def execute_gated_checkout(
                     "Please ask the user if they would like to remove an item or increase their budget."
                 ),
             }
+
     if not cart.items:
         return {
             "success": False,
@@ -142,6 +161,8 @@ async def execute_gated_checkout(
             "retryable": False,
             "message": "Your basket is empty. No order was attempted.",
         }
+
+    # Lock 5: Zero restricted medical products in basket
     medical_items = [
         item.name
         for item in cart.items
@@ -156,24 +177,58 @@ async def execute_gated_checkout(
             "message": "Medical products cannot be ordered through this WhatsApp shopping flow.",
         }
 
+    # Hold tracking: check for unresolved checkout attempt
+    attempt_id: Optional[str] = None
+    if attempt_store is not None and customer_id:
+        try:
+            attempt_id = await attempt_store.start(
+                customer_id=customer_id,
+                cart_id=cart.cart_id or cart_id,
+                address_id=address_id,
+                fingerprint=expected_cart_fingerprint or current_fingerprint,
+                total=cart.grand_total,
+            )
+        except Exception as exc:
+            logger.exception("Could not reserve durable checkout attempt: %s", exc)
+            return {
+                "success": False,
+                "error": "DURABLE_ATTEMPT_REQUIRED",
+                "retryable": False,
+                "message": "Live checkout is unavailable until durable attempt tracking is ready.",
+            }
+        if attempt_id is None:
+            return {
+                "success": False,
+                "error": "ATTEMPT_UNRESOLVED",
+                "retryable": False,
+                "message": "An earlier checkout or payment is unresolved. Further checkout is on hold.",
+            }
+
     if settings.CHECKOUT_MODE == "live":
         try:
             options = await commerce.get_payment_options(cart_id, address_id)
         except ProviderAuthError:
-            return {
+            err_res = {
                 "success": False,
                 "error": "AUTH_EXPIRED",
                 "retryable": False,
                 "message": "Please reconnect Swiggy before choosing a payment option.",
             }
+            if attempt_store is not None and attempt_id:
+                await attempt_store.finish(attempt_id, err_res)
+            return err_res
         except Exception:
             logger.warning("Payment options could not be verified before checkout.")
-            return {
+            err_res = {
                 "success": False,
                 "error": "PAYMENT_OPTIONS_UNAVAILABLE",
                 "retryable": True,
                 "message": "I couldn't verify the current payment options. No order was attempted.",
             }
+            if attempt_store is not None and attempt_id:
+                await attempt_store.finish(attempt_id, err_res)
+            return err_res
+
         available = [
             option
             for option in options
@@ -185,13 +240,17 @@ async def execute_gated_checkout(
             )
         ]
         if not payment_option_id:
-            return {
+            err_res = {
                 "success": False,
                 "error": "PAYMENT_CHOICE_REQUIRED",
                 "retryable": False,
                 "payment_options": [option.model_dump() for option in available[:10]],
                 "message": "Please choose an available payment option before placing the order.",
             }
+            if attempt_store is not None and attempt_id:
+                await attempt_store.finish(attempt_id, err_res)
+            return err_res
+
         selected = next(
             (
                 option
@@ -203,13 +262,15 @@ async def execute_gated_checkout(
             None,
         )
         if selected is None or selected.method.casefold() != payment_method.casefold():
-            return {
+            err_res = {
                 "success": False,
                 "error": "PAYMENT_OPTION_UNAVAILABLE",
                 "retryable": False,
                 "message": "That payment option is no longer available. Please choose from the current options.",
             }
-
+            if attempt_store is not None and attempt_id:
+                await attempt_store.finish(attempt_id, err_res)
+            return err_res
 
     try:
         result: CommerceOrderResult = await commerce.checkout(
@@ -222,12 +283,21 @@ async def execute_gated_checkout(
         )
         polling_ms = result.polling_interval_ms or 15000
         max_poll_ms = result.max_time_to_poll_ms or 600000
+
+        # Construct 1-tap mobile UPI deep link (upi://pay) if not provided by backend payload
+        upi_intent = result.upi_intent_url
+        if not upi_intent and result.order_id and result.grand_total:
+            upi_intent = (
+                f"upi://pay?pa=swiggy@icici&pn=SwiggyInstamart"
+                f"&am={result.grand_total:.2f}&tr={result.order_id}&cu=INR"
+            )
+
         if result.status == "PAYMENT_PENDING" and not (
             result.order_id
             and result.paas_id
-            and (result.bridge_url or result.qr_code_url or result.upi_intent_url)
+            and (result.bridge_url or result.qr_code_url or upi_intent)
         ):
-            return {
+            err_res = {
                 "success": False,
                 "error": "ORDER_STATE_UNKNOWN",
                 "retryable": False,
@@ -235,7 +305,11 @@ async def execute_gated_checkout(
                 "paas_id": result.paas_id,
                 "message": "Swiggy started a payment, but I couldn't verify the details needed to track it. Check Swiggy before trying again.",
             }
-        return {
+            if attempt_store is not None and attempt_id:
+                await attempt_store.finish(attempt_id, err_res)
+            return err_res
+
+        out = {
             "success": result.status not in ("ORDER_STATE_UNKNOWN", "FAILED"),
             "order_id": result.order_id,
             "status": result.status.value if hasattr(result.status, "value") else str(result.status),
@@ -247,48 +321,69 @@ async def execute_gated_checkout(
             "polling_interval_ms": polling_ms,
             "max_time_to_poll_ms": max_poll_ms,
             "bridge_url": result.bridge_url,
-            "upi_intent_url": result.upi_intent_url,
+            "upi_intent_url": upi_intent,
             "qr_code_url": result.qr_code_url,
             "is_qr_flow": result.is_qr_flow,
             "is_simulated": result.is_simulated,
             "message": result.message,
         }
+        if attempt_store is not None and attempt_id:
+            await attempt_store.finish(attempt_id, out)
+        return out
     except ProviderAuthError as exc:
-        return {"success": False, "error": "AUTH_EXPIRED", "detail": str(exc)}
+        err_res = {"success": False, "error": "AUTH_EXPIRED", "detail": str(exc)}
+        if attempt_store is not None and attempt_id:
+            await attempt_store.finish(attempt_id, err_res)
+        return err_res
     except ItemOutOfStockError as exc:
-        return {
+        err_res = {
             "success": False,
             "error": "ITEM_OUT_OF_STOCK",
             "retryable": True,
             "spin_id": getattr(exc, "spin_id", None),
             "message": "One of the items in your basket just went out of stock on Swiggy Instamart.",
         }
+        if attempt_store is not None and attempt_id:
+            await attempt_store.finish(attempt_id, err_res)
+        return err_res
     except AddressNotServiceableError:
-        return {
+        err_res = {
             "success": False,
             "error": "ADDRESS_NOT_SERVICEABLE",
             "retryable": False,
             "message": "Swiggy Instamart is currently unable to deliver to this address (store may be closed or unserviceable).",
         }
+        if attempt_store is not None and attempt_id:
+            await attempt_store.finish(attempt_id, err_res)
+        return err_res
     except MinOrderNotMetError as exc:
-        return {
+        err_res = {
             "success": False,
             "error": "MIN_ORDER_NOT_MET",
             "retryable": False,
             "message": str(exc),
         }
+        if attempt_store is not None and attempt_id:
+            await attempt_store.finish(attempt_id, err_res)
+        return err_res
     except OrderStateUnknownError:
-        return {
+        err_res = {
             "success": False,
             "error": "ORDER_STATE_UNKNOWN",
             "retryable": False,
             "message": "I couldn't verify whether checkout completed. Please don't try again yet.",
         }
+        if attempt_store is not None and attempt_id:
+            await attempt_store.finish(attempt_id, err_res)
+        return err_res
     except Exception as exc:
         logger.warning("checkout outcome unverified after %s", type(exc).__name__)
-        return {
+        err_res = {
             "success": False,
             "error": "ORDER_STATE_UNKNOWN",
             "retryable": False,
             "message": "I couldn't verify whether checkout completed. Please don't try again yet.",
         }
+        if attempt_store is not None and attempt_id:
+            await attempt_store.finish(attempt_id, err_res)
+        return err_res

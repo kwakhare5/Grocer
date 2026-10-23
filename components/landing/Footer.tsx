@@ -58,12 +58,12 @@ export function Footer() {
             </a>
 
             <a
-              href="https://github.com/kwakhare5/Grocer/blob/main/docs/SWIGGY_BUILDER_CLUB_APPLICATION.md"
+              href="https://github.com/kwakhare5/Grocer/blob/main/docs/TARGET_ARCHITECTURE_V1.md"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-zinc-700 hover:text-emerald-700 hover:bg-zinc-50 border border-zinc-200/80 hover:border-zinc-300 transition-all duration-150 active:scale-[0.98] shadow-2xs"
             >
-              <span>Application Dossier</span>
+              <span>Architecture</span>
               <ExternalLink className="w-3.5 h-3.5 text-zinc-400" />
             </a>
 

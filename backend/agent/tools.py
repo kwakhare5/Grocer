@@ -651,6 +651,9 @@ class SwiggyAgentTools:
         is_user_confirmed: bool = False,
         budget_inr: Optional[float] = None,
         expected_cart_fingerprint: Optional[str] = None,
+        conversation_state: Optional[str] = "AWAITING_CONFIRMATION",
+        attempt_store: Optional[Any] = None,
+        customer_id: Optional[str] = None,
     ) -> dict[str, Any]:
         """Place the final order on Swiggy Instamart. STRICTLY server-side gated."""
         return await execute_gated_checkout(
@@ -663,6 +666,9 @@ class SwiggyAgentTools:
             is_user_confirmed=is_user_confirmed,
             budget_inr=budget_inr,
             expected_cart_fingerprint=expected_cart_fingerprint,
+            conversation_state=conversation_state,
+            attempt_store=attempt_store,
+            customer_id=customer_id,
         )
 
     async def track_order(self, order_id: str, lat: Optional[float] = None, lng: Optional[float] = None) -> dict[str, Any]:

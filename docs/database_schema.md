@@ -17,11 +17,11 @@ Grocer is a conversational grocery assistant for WhatsApp with deterministic int
 3. **Multi-Turn Cart & Constraint State**:
    `grocer_internal.task_state` records the encrypted customer session (active cart fingerprint, pending variant choices, budget limits, unresolved items) with a 30-day retention window. If a customer sends an update hours later, their cart and constraints remain intact.
 
-4. **Household Replenishment Cadence**:
-   `grocer_internal.replenishment` stores encrypted purchase intervals and customer consent preferences for proactive grocery restock suggestions.
+4. **Server-Side Gated Checkout Audit & Hold Tracking**:
+   `grocer_internal.checkout_attempts` provides a durable, non-idempotent audit trail for every checkout execution, tracking in-flight reservations and preventing duplicate checkouts.
 
-5. **Server-Side Gated Checkout Audit**:
-   `grocer_internal.checkout_attempts` provides a durable, non-idempotent audit trail for every checkout execution, tracking order state and automated payment reconciliation.
+5. **Automated Payment Followups**:
+   `grocer_internal.payment_followups` tracks asynchronous payment status for dynamic UPI checkouts with smart polling limits.
 
 ---
 
@@ -74,56 +74,48 @@ CREATE INDEX connect_tickets_expires_idx
     ON grocer_internal.connect_tickets (expires_at);
 ```
 
-### 4. `inbound_messages` (Webhook Ingestion Queue)
-Records all incoming WhatsApp webhooks with status tracking and row-level locking.
+### 4. `inbound_messages` (Inbound Webhook Queue)
+Durable inbound queue staging customer WhatsApp messages with SHA-256 deduplication and sequential claim leasing.
 
 ```sql
 CREATE TABLE grocer_internal.inbound_messages (
-    id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    message_id text NOT NULL UNIQUE,
+    id text PRIMARY KEY,
     customer_id text NOT NULL,
     payload jsonb NOT NULL,
-    status text NOT NULL DEFAULT 'PENDING'
-        CHECK (status IN ('PENDING', 'PROCESSING', 'PROCESSED', 'NEEDS_REVIEW')),
     received_at timestamptz NOT NULL DEFAULT now(),
-    processed_at timestamptz,
-    claimed_at timestamptz
+    claimed_at timestamptz,
+    claimed_by text,
+    processed_at timestamptz
 );
 
-CREATE INDEX inbound_messages_pending_idx
-    ON grocer_internal.inbound_messages (id) WHERE status = 'PENDING';
-CREATE INDEX inbound_messages_stale_processing_idx
-    ON grocer_internal.inbound_messages (claimed_at) WHERE status = 'PROCESSING';
+CREATE INDEX inbound_messages_unprocessed_idx
+    ON grocer_internal.inbound_messages (received_at)
+    WHERE processed_at IS NULL;
 ```
 
 ### 5. `outbound_messages` (Staged Delivery Queue)
-Staged responses delivered to WhatsApp with bounded delivery tracking and automated payment followups.
+Staged outbound responses awaiting transmission to Meta Graph API, supporting rate limiting and network retries.
 
 ```sql
 CREATE TABLE grocer_internal.outbound_messages (
-    id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    inbound_id bigint REFERENCES grocer_internal.inbound_messages (id),
+    id text PRIMARY KEY,
     customer_id text NOT NULL,
     payload jsonb NOT NULL,
-    status text NOT NULL DEFAULT 'QUEUED'
-        CHECK (status IN ('QUEUED', 'SENDING', 'SENT', 'UNKNOWN')),
+    status text NOT NULL DEFAULT 'PENDING',
     created_at timestamptz NOT NULL DEFAULT now(),
     sent_at timestamptz,
-    sending_started_at timestamptz,
-    payment_attempt_id text REFERENCES grocer_internal.checkout_attempts (id),
-    CONSTRAINT outbound_messages_v2_inbound_unique UNIQUE (inbound_id)
+    attempts integer NOT NULL DEFAULT 0,
+    last_error text,
+    sending_started_at timestamptz
 );
 
-CREATE INDEX outbound_messages_queued_idx
-    ON grocer_internal.outbound_messages (id) WHERE status = 'QUEUED';
-CREATE INDEX outbound_messages_stale_sending_idx
-    ON grocer_internal.outbound_messages (sending_started_at) WHERE status = 'SENDING';
-CREATE UNIQUE INDEX outbound_messages_payment_attempt_idx
-    ON grocer_internal.outbound_messages (payment_attempt_id) WHERE payment_attempt_id IS NOT NULL;
+CREATE INDEX outbound_messages_pending_idx
+    ON grocer_internal.outbound_messages (created_at)
+    WHERE status = 'PENDING';
 ```
 
-### 6. `checkout_attempts` (Server-Side Gated Checkout Audit)
-Audits every order creation attempt, price snapshot, payment checks, and outcome reconciliation.
+### 6. `checkout_attempts` (Physical Gated Checkout Audit Trail & Hold Lock)
+Durable reservation for non-idempotent Swiggy checkout execution. Locks in-flight checkout attempts to block accidental double-charging.
 
 ```sql
 CREATE TABLE grocer_internal.checkout_attempts (
@@ -132,29 +124,18 @@ CREATE TABLE grocer_internal.checkout_attempts (
     cart_id text NOT NULL,
     address_id text NOT NULL,
     cart_fingerprint text NOT NULL,
-    approved_total numeric(12, 2) NOT NULL CHECK (approved_total > 0),
-    currency text NOT NULL DEFAULT 'INR' CHECK (currency = 'INR'),
-    status text NOT NULL CHECK (status IN
-        ('IN_FLIGHT', 'UNKNOWN', 'PAYMENT_PENDING', 'PARTIAL', 'FAILED',
-         'REVIEW_COMPLETE', 'PLACED', 'PAYMENT_FAILED')),
-    provider_order_id text,
-    result jsonb,
+    approved_total numeric(10,2) NOT NULL,
+    status text NOT NULL DEFAULT 'IN_FLIGHT',
     created_at timestamptz NOT NULL DEFAULT now(),
-    updated_at timestamptz NOT NULL DEFAULT now(),
-    next_payment_check_at timestamptz,
-    payment_deadline_at timestamptz
+    updated_at timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE UNIQUE INDEX checkout_attempts_unresolved_customer_idx
-    ON grocer_internal.checkout_attempts (customer_id)
-    WHERE status IN ('IN_FLIGHT', 'UNKNOWN', 'PAYMENT_PENDING', 'PARTIAL');
-CREATE INDEX checkout_attempts_payment_due_idx
-    ON grocer_internal.checkout_attempts (next_payment_check_at)
-    WHERE status = 'PAYMENT_PENDING';
+CREATE INDEX checkout_attempts_customer_status_idx
+    ON grocer_internal.checkout_attempts (customer_id, status);
 ```
 
-### 7. `task_state` (Encrypted Conversational Session State)
-Durable encrypted state store backing multi-turn cart and constraint memory across restarts (30-day retention).
+### 7. `task_state` (Encrypted Multi-Turn Session State)
+Fernet-encrypted multi-turn session state preserving customer preferences, budget limits, active cart fingerprint, and conversation state across turns.
 
 ```sql
 CREATE TABLE grocer_internal.task_state (
@@ -167,16 +148,17 @@ CREATE INDEX task_state_expiry_idx
     ON grocer_internal.task_state (updated_at);
 ```
 
-### 8. `replenishment` (Encrypted Household Cadence & Restock Memory)
-Stores encrypted purchase intervals, consented reminder schedules, and pause states.
+### 8. `payment_followups` (Dynamic UPI Payment Reconciliation)
+Tracks pending UPI payments, QR status, and polling intervals for live checkout followups.
 
 ```sql
-CREATE TABLE grocer_internal.replenishment (
-    customer_id text PRIMARY KEY,
-    ciphertext bytea NOT NULL,
-    consented_at timestamptz NOT NULL DEFAULT now(),
-    paused boolean NOT NULL DEFAULT false,
-    next_sync_at timestamptz DEFAULT now(),
+CREATE TABLE grocer_internal.payment_followups (
+    id text PRIMARY KEY,
+    customer_id text NOT NULL,
+    order_id text NOT NULL,
+    paas_id text,
+    status text NOT NULL DEFAULT 'PENDING',
+    created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now()
 );
 ```
@@ -190,6 +172,8 @@ CREATE TABLE grocer_internal.privacy_deletions (
     requested_at timestamptz NOT NULL DEFAULT now()
 );
 ```
+
+> **Note on `replenishment` table**: The experimental cadence replenishment table (`grocer_internal.replenishment`) was permanently dropped in migration `010_drop_replenishment.up.sql` to simplify architecture around instant on-demand WhatsApp grocery replenishment (`your_go_to_items`).
 
 ---
 
@@ -208,7 +192,9 @@ Migrations are located in `migrations/` and run sequentially during setup:
 | `006_inbound_claimed_at.up.sql` | Adds row locking for inbound message intake |
 | `007_outbound_sending_started_at.up.sql` | Adds delivery lock for staged outbound queue |
 | `008_payment_followups.up.sql` | Adds automated payment reconciliation tracking |
-| `009_replenishment.up.sql` | Adds consented cadence and replenishment storage |
+| `009_replenishment.up.sql` | Initial replenishment storage (deprecated) |
+| `010_drop_replenishment.up.sql` | Permanently drops deprecated replenishment table |
+| `011_queue_indexes.up.sql` | Adds FIFO performance indexes on inbound & outbound queues |
 
 ---
 

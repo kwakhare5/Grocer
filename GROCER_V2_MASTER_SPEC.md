@@ -33,7 +33,8 @@ Grocer is built for:
 4. **Transparent Basket Summaries**: Delivers a clear, itemized receipt directly in WhatsApp showing product names, pack sizes, individual prices in rupees, taxes, packaging fees, delivery fees, and the grand total.
 5. **Customer-Controlled Adjustments**: Allows customers to easily modify items, adjust quantities, or swap brands with a simple text reply before anything is finalized.
 6. **Server-Gated Order Confirmation**: Guarantees that no order is ever placed and no payment is ever initiated until the customer explicitly inspects the bill and taps "Confirm Order".
-7. **One-Tap Payment**: Delivers an official Swiggy dynamic UPI payment link or QR code directly into the chat for instant payment.
+7. **One-Tap Payment**: Delivers an official Swiggy dynamic UPI payment link (`upi://pay`) directly into the chat for seamless 1-tap mobile payment.
+8. **Customer Advocate Savings**: Automatically hunts and applies the best Swiggy coupons, suggests staples to beat delivery fee thresholds, and displays total rupees saved.
 
 ---
 
@@ -54,10 +55,11 @@ Grocer is built for:
 ### In Scope
 * Natural-language grocery requests, single-item additions, multi-item lists, and meal ingredient deduction.
 * Real-time dark-store catalog lookup, live inventory verification, and live cart management.
-* Primary delivery address selection and easy switching between saved addresses.
+* Primary delivery address selection grounded strictly in real saved Swiggy addresses (`session.saved_addresses`).
+* Customer Advocate Engine: automatic coupon hunting, free delivery threshold optimization, and total savings badge.
 * Budget cap enforcement and itemized price breakdown in Indian Rupees (₹).
-* Explicit confirmation controls via interactive WhatsApp buttons.
-* Dynamic UPI payment link and QR generation for order settlement.
+* Explicit dual confirmation controls via interactive WhatsApp buttons or verified natural language.
+* Dynamic 1-tap mobile UPI payment links (`upi://pay`) for Google Pay / PhonePe / Paytm.
 * Plain-English out-of-stock reporting and alternative suggestions.
 
 ### Out of Scope
@@ -70,9 +72,15 @@ Grocer is built for:
 
 ---
 
-## 6. Customer Experience Principles
+## 6. Customer Experience Principles & System Invariants
 
-* **Smart Defaults Over Interrogation**: When a customer asks for milk, pick the standard popular in-stock option and show it on the receipt. Never ask 5 questions when 1 sensible default solves the customer's need.
-* **Immediate Out-of-Stock Honesty**: If an item cannot be found or is out of stock, add the remaining items, report the missing item clearly, and give the customer the choice to swap or proceed.
-* **Everything in Rupees**: Every price shown reflects the exact live store price including applicable taxes and delivery charges. No hidden surprises at checkout.
-* **You Stay in Control**: The cart is always reviewable, editable, and clearable. The final step is always a clear **Confirm & Pay** prompt.
+1. **Real Data Over Speed**: Never chase speed with hardcoded shortcuts, fake heuristics, or temporary caching. Every catalog search, price, stock check, address, and coupon MUST use real Swiggy MCP data.
+2. **Zero Assumptions About Customer Purchases**: Never assume customers only buy milk, bread, or staples. Search the real Swiggy dark-store catalog for whatever item the user asks for.
+3. **Zero Assumptions About Geography (The Sangvi Principle)**: Never assume customers live in famous hubs (BKC, Indiranagar, Powai). Match delivery locations strictly against the user's real saved Swiggy addresses (`session.saved_addresses`). If an address contains "Sangvi", use that real address. If multiple match, present 1-tap quick buttons. If zero addresses exist, ask the user to add one in Swiggy.
+4. **Customer Advocate Engine (Champion the Wallet)**: Always auto-apply the best valid Swiggy coupon (`list_coupons`). Proactively suggest 1-2 small real staples to cross free-delivery thresholds if it saves net fees. Critical Guardrail: Never apply a coupon if the final grand total increases (e.g. dropping below free-delivery cutoff without adding a staple). Proudly show `Total Saved: ₹...` on receipts.
+5. **Sensible Defaults on Vague Requests**: When a request is completely unqualified (e.g., "milk" or "bread"), pick the store's #1 standard staple (500ml toned milk / standard white bread) and provide a 1-tap "Change Items" button. Never substitute specific requests (e.g., "almond milk", "Amul Gold 1L", "gluten-free bread").
+6. **1-Tap Mobile UPI Checkout**: Default to clickable `upi://pay` deep links formatted into WhatsApp interactive buttons so users can pay with 1 tap in GPay/PhonePe directly on the same phone.
+7. **Zero Regex & Zero Keyword Dictionaries for Domain Logic**: Absolutely NO regex word-lists, hardcoded drug lists, symptom dictionaries (`bukhar`, `sirdard`), city arrays, or item name matchers anywhere in business logic. Product safety is governed strictly by Swiggy catalog metadata (`category == "Pharmacy"` / `"Prescription"`). OTC first-aid (Band-Aids, ORS, cotton) is allowed. Conversational symptom nuance is handled by Gemini without keyword interceptors. (Regex is permitted only for raw syntax format validation: phone numbers, UUIDs, stripping markdown fences).
+8. **Python Muscle vs Gemini Brain**: Gemini handles fuzzy natural language, recipes, and user intent. Python deterministically enforces math, budget caps, cart SHA-256 fingerprints, and checkout gates. The LLM can never place an order or deduct money.
+9. **Zero Silent Drops**: If an item is out of stock or restricted, never quietly omit it. Honestly explain the missing item and offer alternatives.
+10. **High-Cohesion Architecture**: Code that changes together lives together. No duplicate modules, no obsolete adapters, no 30-file over-fragmentation, and no corrupted line-ending bloat (`\r\r\n`).

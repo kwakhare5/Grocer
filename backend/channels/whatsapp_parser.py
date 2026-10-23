@@ -32,6 +32,11 @@ def parse_webhook_payload(payload: dict[str, Any]) -> list[NormalizedIncomingMes
                 interactive_type = None
                 interactive_id = None
 
+                media_id = None
+                media_type = None
+                media_mime_type = None
+                media_caption = None
+
                 if msg_type == "text":
                     text_body = msg.get("text", {}).get("body", "").strip()
 
@@ -49,10 +54,25 @@ def parse_webhook_payload(payload: dict[str, Any]) -> list[NormalizedIncomingMes
                         interactive_id = list_item.get("id")
                         text_body = list_item.get("title", "")
 
-                elif msg_type in ("audio", "voice", "image", "document", "sticker", "video"):
+                elif msg_type in ("audio", "voice"):
+                    audio_obj = msg.get(msg_type, {}) or msg.get("audio", {})
+                    media_id = audio_obj.get("id")
+                    media_type = "audio"
+                    media_mime_type = audio_obj.get("mime_type", "audio/ogg")
+                    text_body = "[VOICE_NOTE]"
+
+                elif msg_type == "image":
+                    img_obj = msg.get("image", {})
+                    media_id = img_obj.get("id")
+                    media_type = "image"
+                    media_mime_type = img_obj.get("mime_type", "image/jpeg")
+                    media_caption = img_obj.get("caption", "").strip()
+                    text_body = f"[GROCERY_PHOTO] {media_caption}".strip() if media_caption else "[GROCERY_PHOTO]"
+
+                elif msg_type in ("document", "sticker", "video"):
                     text_body = "UNSUPPORTED_MEDIA"
 
-                if text_body or interactive_id:
+                if text_body or interactive_id or media_id:
                     incoming_messages.append(
                         NormalizedIncomingMessage(
                             sender_id=sender_phone,
@@ -61,6 +81,10 @@ def parse_webhook_payload(payload: dict[str, Any]) -> list[NormalizedIncomingMes
                             message_id=msg_id,
                             interactive_type=interactive_type,
                             interactive_id=interactive_id,
+                            media_id=media_id,
+                            media_type=media_type,
+                            media_mime_type=media_mime_type,
+                            media_caption=media_caption,
                         )
                     )
 

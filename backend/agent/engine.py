@@ -60,14 +60,17 @@ def order_message(result: dict[str, Any]) -> str:
         return f"Your order{order_str}{total_str} has been placed!{track_str}".strip()
 
     elif status == "PAYMENT_PENDING":
-
-        pay_link = result.get("bridge_url") or result.get("upi_intent_url")
-
+        pay_link = result.get("upi_intent_url") or result.get("bridge_url") or result.get("qr_code_url")
+        tracking_url = result.get("tracking_url")
+        parts = [f"🛒 *Your order{order_str}{total_str} is ready for payment!*"]
         if pay_link:
-
-            return f"Your order{order_str}{total_str} is ready! Please complete payment to place your order: {pay_link}".strip()
-
-        return f"Your order{order_str}{total_str} is ready! Please complete payment in your Swiggy app to place your order.".strip()
+            parts.extend(["", f"👉 *1-Tap UPI Link (Google Pay / PhonePe):*\n{pay_link}"])
+        else:
+            parts.extend(["", "Please complete payment in your Swiggy app."])
+        if tracking_url:
+            parts.extend(["", f"📍 *Live Tracking:* {tracking_url}"])
+        parts.extend(["", "Tap *Check Payment* once paid, or *Change Items*."])
+        return "\n".join(parts).strip()
 
     return ""
 
@@ -290,37 +293,34 @@ def process_checkout_outcome(
                 )
 
             elif status == "PAYMENT_PENDING":
-
                 conv_state = "AWAITING_PAYMENT"
-
                 if session is not None:
-
                     session.reset_order_address()
-
                 pay_url = checkout_result.get("upi_intent_url") or checkout_result.get("bridge_url")
-
                 if pay_url:
-
                     actions = [
-
                         InteractiveAction(
-
                             action_type="url",
-
                             id=f"pay_order:{out_order_id or 'order'}",
-
                             title="Pay with UPI (1-Tap)",
-
                             url=pay_url,
-
                         )
-
                     ]
-
+                else:
+                    actions = [
+                        InteractiveAction(
+                            action_type="button",
+                            id=f"check_payment:{out_order_id or 'order'}",
+                            title="Check Payment",
+                        ),
+                        InteractiveAction(
+                            action_type="button",
+                            id="modify_cart",
+                            title="Change Items",
+                        ),
+                    ]
                 code_text = order_message(checkout_result)
-
                 extra = final_text.strip()
-
                 final_text = f"{code_text}\n\n{extra}" if extra else code_text
 
             elif status == "ORDER_PLACED":
@@ -581,6 +581,12 @@ class GroceryAgentEngine:
             timeout=self.timeout,
         )
         self.tools = SwiggyAgentTools(commerce, gemini_client=self.gemini)
+        from backend.channels.payment_poller import PaymentPoller
+        self.payment_poller = PaymentPoller(
+            commerce=self.commerce,
+            store=getattr(self, "state_store", None),
+            engine=self,
+        )
 
     def get_session(self, customer_id: str) -> Any:
         """Return the atomic CustomerSession for customer_id."""
@@ -671,11 +677,56 @@ class GroceryAgentEngine:
                 recipient_id=message.sender_id,
                 channel=message.channel,
                 text=(
-                    "I can only read text messages right now! Please type your grocery items as text "
-                    "so I can check dark store stock and add them to your cart. 🛒"
+                    "I can only read text messages, voice notes, and grocery list photos right now! "
+                    "Please send your grocery items so I can check dark store stock and add them to your cart. 🛒"
                 ),
                 conversation_state="READY",
             )
+
+        # Handle media input (voice notes or grocery list photos)
+        if getattr(message, "media_id", None) or getattr(message, "media_type", None) in ("audio", "image"):
+            from backend.channels.whatsapp_media import download_whatsapp_media, extract_groceries_from_media
+
+            # Check if media bytes were supplied directly (e.g. in test or memory buffer)
+            media_bytes = getattr(message, "raw_media_bytes", None)
+            mime_type = message.media_mime_type or ("audio/ogg" if message.media_type == "audio" else "image/jpeg")
+
+            if media_bytes is None and message.media_id:
+                media_bytes, fetched_mime = await download_whatsapp_media(message.media_id)
+                if fetched_mime:
+                    mime_type = fetched_mime
+
+            if media_bytes and getattr(self, "gemini", None):
+                extracted_request = await extract_groceries_from_media(
+                    self.gemini,
+                    media_bytes,
+                    mime_type,
+                    message.media_type or "image",
+                    caption=message.media_caption or "",
+                )
+                if extracted_request == "NO_GROCERIES_FOUND":
+                    note_type = "voice note" if message.media_type == "audio" else "photo"
+                    return NormalizedOutgoingResponse(
+                        recipient_id=message.sender_id,
+                        channel=message.channel,
+                        text=(
+                            f"I couldn't clearly read your grocery list from that {note_type}. "
+                            "Could you please send a clearer photo or voice note, or type the items? "
+                            "Your current basket is saved. 🛒"
+                        ),
+                        conversation_state="READY",
+                    )
+                message = message.model_copy(update={"text": extracted_request})
+                incoming_text = extracted_request
+            elif not media_bytes and not incoming_text.replace("[VOICE_NOTE]", "").replace("[GROCERY_PHOTO]", "").strip():
+                return NormalizedOutgoingResponse(
+                    recipient_id=message.sender_id,
+                    channel=message.channel,
+                    text=(
+                        "I couldn't download that media file. Please try sending your grocery items again as text or a clear photo! 🛒"
+                    ),
+                    conversation_state="READY",
+                )
 
         start_time = asyncio.get_running_loop().time()
         customer_id = message.customer_id or message.sender_id
@@ -704,6 +755,14 @@ class GroceryAgentEngine:
                 self.last_turn_latency_ms,
                 result.conversation_state,
             )
+            if result.conversation_state == "AWAITING_PAYMENT" and result.order_id:
+                if hasattr(self, "payment_poller") and self.payment_poller:
+                    self.payment_poller.start_polling(
+                        customer_id=customer_id,
+                        order_id=result.order_id,
+                        paas_id=result.order_id,
+                        recipient_id=message.sender_id,
+                    )
             return result
 
     async def _process_scoped_message(

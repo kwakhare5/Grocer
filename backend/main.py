@@ -149,6 +149,11 @@ async def _lifespan(app: FastAPI):
         if pool is not None:
             outbound_worker = asyncio.create_task(_outbound_worker(app))
             worker = asyncio.create_task(_message_worker(app))
+            if hasattr(app.state.agent_engine, "payment_poller"):
+                try:
+                    await app.state.agent_engine.payment_poller.recover_pending_attempts()
+                except Exception:
+                    logger.warning("Could not recover pending payment attempts on startup.")
             if settings.CHECKOUT_MODE == "live":
                 payment_worker = asyncio.create_task(_payment_worker(app))
     try:

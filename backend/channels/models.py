@@ -32,6 +32,10 @@ class NormalizedIncomingMessage(BaseModel):
     message_id: str = Field(..., description="Unique transport message ID for deduplication")
     interactive_type: Optional[str] = None  # "button_reply", "list_reply"
     interactive_id: Optional[str] = None  # payload ID from button/list tap
+    media_id: Optional[str] = None
+    media_type: Optional[str] = None  # "audio", "voice", "image"
+    media_mime_type: Optional[str] = None
+    media_caption: Optional[str] = None
     timestamp: float = Field(default_factory=time.time)
     raw_payload: Optional[dict[str, Any]] = None
 

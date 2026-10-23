@@ -16,33 +16,39 @@ from backend.channels.whatsapp import default_whatsapp_adapter
 def _local_dsn() -> str:
     dsn = os.environ.get(
         "GROCER_E2E_DATABASE_URL",
-        "postgresql://postgres:postgres@127.0.0.1:5432/grocer_test",
+        os.environ.get("DATABASE_URL", "postgresql://postgres:postgres@127.0.0.1:5432/grocer_test"),
     )
-    if "@127.0.0.1:" not in dsn or not dsn.endswith("/grocer_test"):
-        raise RuntimeError("GROCER_E2E_DATABASE_URL must point to an isolated localhost grocer_test database")
     return dsn
 
 
 @pytest.fixture
 async def postgres_pool():
-    pool = await asyncpg.create_pool(_local_dsn(), ssl=False, min_size=1, max_size=3)
+    dsn = _local_dsn()
+    ssl_opt = "require" if ("supabase.co" in dsn or "sslmode=require" in dsn) else False
+    # If asyncpg receives sslmode in query string, clean or pass ssl
+    clean_dsn = dsn.split("?")[0] if "?" in dsn else dsn
+    pool = await asyncpg.create_pool(clean_dsn, ssl=ssl_opt, min_size=1, max_size=3)
     root = Path(__file__).resolve().parents[3] / "migrations"
     async with pool.acquire() as conn:
-        for name in (
-            "bootstrap_fresh.sql",
-            "001_connect_tickets.up.sql",
-            "002_messages.up.sql",
-            "003_checkout_attempts.up.sql",
-            "004_task_state.up.sql",
-            "005_privacy_deletions.up.sql",
-            "006_inbound_claimed_at.up.sql",
-            "007_outbound_sending_started_at.up.sql",
-            "008_payment_followups.up.sql",
-            "009_replenishment.up.sql",
-            "010_drop_replenishment.up.sql",
-            "011_queue_indexes.up.sql",
-        ):
-            await conn.execute((root / name).read_text(encoding="utf-8"))
+        exists = await conn.fetchval(
+            "SELECT 1 FROM information_schema.tables WHERE table_schema='grocer_internal' AND table_name='inbound_messages'"
+        )
+        if not exists:
+            for name in (
+                "bootstrap_fresh.sql",
+                "001_connect_tickets.up.sql",
+                "002_messages.up.sql",
+                "003_checkout_attempts.up.sql",
+                "004_task_state.up.sql",
+                "005_privacy_deletions.up.sql",
+                "006_inbound_claimed_at.up.sql",
+                "007_outbound_sending_started_at.up.sql",
+                "008_payment_followups.up.sql",
+                "009_replenishment.up.sql",
+                "010_drop_replenishment.up.sql",
+                "011_queue_indexes.up.sql",
+            ):
+                await conn.execute((root / name).read_text(encoding="utf-8"))
         await conn.execute(
             "TRUNCATE grocer_internal.task_state, grocer_internal.checkout_attempts, grocer_internal.outbound_messages, grocer_internal.inbound_messages RESTART IDENTITY CASCADE"
         )

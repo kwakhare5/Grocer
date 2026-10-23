@@ -92,18 +92,18 @@ async def synthesize_turn_response(
         conv_state = "AWAITING_CHECKOUT_CONFIRMATION"
 
     if suggestion_only:
-        if not suggested_items:
-            suggested_items = (
-                ["ginger", "lemon", "honey", "tea"]
-                if any(word in incoming_text.casefold() for word in ("cold", "cough", "throat"))
-                else ["water", "tea", "a light snack"]
-            )
         if not final_text.strip():
-            options = ", ".join(suggested_items[:5])
-            final_text = (
-                "I can suggest groceries, but I can't add medical products here. "
-                f"You could choose from: {options}. Which would you like me to add?"
-            )
+            options = ", ".join(suggested_items[:5]) if suggested_items else ""
+            if options:
+                final_text = (
+                    "I can suggest groceries, but I can't add medical products here. "
+                    f"You could choose from: {options}. Which would you like me to add?"
+                )
+            else:
+                final_text = (
+                    "I can suggest groceries, but I can't add medical products here. "
+                    "Which grocery items would you like me to add?"
+                )
         actions = []
         conv_state = "NEEDS_DECISION"
         session.pending_request_text = None

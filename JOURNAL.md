@@ -2953,3 +2953,10 @@ During the Session End ritual (called automatically whenever significant changes
 - **Change**: Deleted dead files; updated `database_schema.md` and `RELEASE_RUNBOOK.md` to document migrations 010 and 011 and remove dropped table verification; aligned `README.md` and `backend/tests/README.md` with the live 88-unit / 159-total test suite and Sangvi Pune examples; updated `scripts/test.ps1` to run all unit test suites.
 - **Proof**: All 88 unit & integration tests exit 0 in 3.54s (`pytest --ignore=backend/tests/test_whatsapp_postgres_e2e.py`); `npm run lint` exits 0; `graphify update .` completed with 0 errors; pushed cleanly to `origin/feat/architecture-v1`.
 - **Still broken**: None; repo is 100% clean and ready for Layer 5.
+
+## 2026-10-23 - Layer 5: Response Delivery, Quick Buttons, Payment Poller & Live Supabase Integration
+- **Problem**: Layer 5 was incomplete; WhatsApp receipts lacked 1-tap quick buttons and upi://pay links, payment status had no 15-second background poller, voice notes and photos were rejected, and tests were locked to local Postgres.
+- **Change**: Built payment_poller.py with 15s cadence and crash recovery, whatsapp_media.py with Gemini 3.5 multimodal extraction, upgraded whatsapp_formatter.py with interactive buttons, connected live Supabase database, and purged symptom wordlists.
+- **Proof**: 101 tests pass cleanly in 20.07s (pytest --ignore=backend/tests/test_whatsapp_postgres_e2e.py), live Gemini 3.5 and live Swiggy MCP Sangvi calls verified, npm run lint exit 0.
+- **Still broken**: None; Layer 5 is fully executed, tested, and verified on real Supabase, real Gemini, and real Swiggy MCP.
+

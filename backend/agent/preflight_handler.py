@@ -99,6 +99,17 @@ async def execute_preflight(
         "clear_cart": "Please clear my cart and start fresh.",
     }
 
+    if message.interactive_id and message.interactive_id.startswith("check_payment"):
+        order_id = message.interactive_id.split(":", 1)[1] if ":" in message.interactive_id else ""
+        poller = getattr(engine, "payment_poller", None)
+        if poller:
+            check_resp = await poller.check_on_demand(
+                customer_id=customer_id,
+                order_id=order_id,
+                recipient_id=message.sender_id,
+            )
+            return PreflightResult(early_response=check_resp)
+
     if message.interactive_id == "modify_cart":
         session.pending_approval = None
 

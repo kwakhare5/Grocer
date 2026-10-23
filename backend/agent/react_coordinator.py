@@ -314,9 +314,7 @@ async def execute_react_turn_loop(
                     except Exception:
                         claim = "unclear"
 
-                    is_clarification = "?" in response_text.strip()
-
-                    if claim in {"supported", "no_claim"} or is_clarification:
+                    if claim in {"supported", "no_claim"}:
                         final_text = response_text
 
                     else:

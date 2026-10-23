@@ -28,12 +28,65 @@ def format_whatsapp_payload(response: NormalizedOutgoingResponse) -> dict[str, A
         else:
             body_text = response.text
 
-        # 1. Decision List Reply (for payment methods, address selection, alternative options)
-        if response.conversation_state in {
-            "NEEDS_DECISION",
-            "NEEDS_ADDRESS",
-            "NEEDS_PAYMENT",
-        }:
+        # 1. Quick Reply Buttons (max 3 buttons for confirmation, payment verification, or short binary decisions)
+        if response.conversation_state == "AWAITING_PAYMENT":
+            reply_actions = [a for a in response.interactive_actions if getattr(a, "action_type", "button") in ("button", "reply")]
+            if not reply_actions:
+                oid = response.order_id or "order"
+                reply_actions = [
+                    InteractiveAction(action_type="button", id=f"check_payment:{oid}", title="Check Payment"),
+                    InteractiveAction(action_type="button", id="modify_cart", title="Change Items"),
+                ]
+            buttons = [
+                {
+                    "type": "reply",
+                    "reply": {
+                        "id": action.id,
+                        "title": action.title[:20],  # Meta max 20 chars
+                    },
+                }
+                for action in reply_actions[:3]
+            ]
+            return {
+                "messaging_product": "whatsapp",
+                "recipient_type": "individual",
+                "to": to_number,
+                "type": "interactive",
+                "interactive": {
+                    "type": "button",
+                    "body": {"text": body_text},
+                    "action": {"buttons": buttons},
+                },
+            }
+
+        reply_actions = [a for a in response.interactive_actions if getattr(a, "action_type", "button") in ("button", "reply")]
+        has_list_actions = any(getattr(a, "action_type", "button") in ("list_item", "list_row") for a in response.interactive_actions)
+
+        if reply_actions and (not has_list_actions) and len(response.interactive_actions) <= 3:
+            buttons = [
+                {
+                    "type": "reply",
+                    "reply": {
+                        "id": action.id,
+                        "title": action.title[:20],  # Meta max 20 chars
+                    },
+                }
+                for action in reply_actions[:3]
+            ]
+            return {
+                "messaging_product": "whatsapp",
+                "recipient_type": "individual",
+                "to": to_number,
+                "type": "interactive",
+                "interactive": {
+                    "type": "button",
+                    "body": {"text": body_text},
+                    "action": {"buttons": buttons},
+                },
+            }
+
+        # 2. Decision List Reply (for addresses, multi-item choices, or >3 options)
+        else:
             header_text = (response.interactive_title or "Options")[:60]
             section_title = (response.interactive_title or "Available Options")[:24]
             rows = [
@@ -63,30 +116,6 @@ def format_whatsapp_payload(response: NormalizedOutgoingResponse) -> dict[str, A
                             }
                         ],
                     },
-                },
-            }
-
-        # 2. Confirmation Quick Reply Buttons (max 3 buttons)
-        elif response.conversation_state == "AWAITING_CHECKOUT_CONFIRMATION":
-            buttons = [
-                {
-                    "type": "reply",
-                    "reply": {
-                        "id": action.id,
-                        "title": action.title[:20],  # Meta max 20 chars
-                    },
-                }
-                for action in response.interactive_actions[:3]
-            ]
-            return {
-                "messaging_product": "whatsapp",
-                "recipient_type": "individual",
-                "to": to_number,
-                "type": "interactive",
-                "interactive": {
-                    "type": "button",
-                    "body": {"text": body_text},
-                    "action": {"buttons": buttons},
                 },
             }
 

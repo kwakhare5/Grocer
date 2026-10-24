@@ -19,6 +19,12 @@ During the Session End ritual (called automatically whenever significant changes
 
 ### [GROCER — V2 Concierge Architecture & Domain Realignment] 2026-10-24
 
+#### Work Card: Fix WhatsApp Preflight Dead-Lock and Seed Owner Token in Postgres
+- **Problem**: When user 918237803170 texted the live WhatsApp bot, execute_preflight eagerly called get_cart() before NLP, crashing on missing DB token with hardcoded 'Your Swiggy login has expired' without an auth link, while token_vault skipped SWIGGY_AUTH_TOKEN when Postgres was active.
+- **Change**: Wired build_auth_expired_response with await default_connect_tickets.issue and 1-tap InteractiveAction button in engine.py; mapped SWIGGY_CUSTOMER_ID to cust_wa_0b6664ee8fa961926993ac7e in .env and Render; added durable token vault seeding during FastAPI startup.
+- **Proof**: Executed simulated live intake from 918237803170 asking 'what all address do i have?'; engine returned 3 real saved Swiggy Instamart addresses (Pune & Nashik) and live basket; all 22 test_whatsapp_postgres_e2e.py tests and npm run lint passed with exit code 0.
+- **Still broken**: Nothing. WhatsApp bot cleanly recognizes owner and provides 1-tap login link for unauthenticated senders.
+
 #### Work Card: Production Deployments Verified — Render Live & Vercel Live
 - **Problem**: Render backend deploy failed on startup (exit code 3) because Render only had DATABASE_URL configured and was missing DATA_ENCRYPTION_KEY, and the direct Supabase hostname is IPv6-only while Render containers require IPv4.
 - **Change**: Explained why the npm render-cli on path is an HTML template renderer; synced 16 environment variables to Render service srv-dagm3fijnfac73e5iod0 with Supabase's IPv4 session pooler (aws-0-ap-south-1.pooler.supabase.com:5432); triggered deploy dep-dbee8uavcj2c73cm8j9g.

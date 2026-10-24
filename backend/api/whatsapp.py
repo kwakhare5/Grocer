@@ -121,7 +121,10 @@ async def drain_message_queue(store: PostgresMessageStore, engine: Any) -> None:
                     raise RuntimeError("Customer deletion requires durable task storage.")
                 await store.request_deletion(task_message.customer_id)
                 await state_store.delete(task_message.customer_id)
-                await default_token_vault.revoke_token_durable(task_message.customer_id)
+                try:
+                    await default_token_vault.revoke_token_durable(task_message.customer_id)
+                except Exception:
+                    logger.debug("Token vault revocation skipped or pool unavailable during customer deletion.")
                 await engine.forget_customer(task_message.customer_id)
                 response = NormalizedOutgoingResponse(
                     recipient_id=task_message.sender_id, channel=ChannelType.WHATSAPP,

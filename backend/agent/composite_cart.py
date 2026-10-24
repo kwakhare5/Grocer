@@ -87,7 +87,7 @@ class CompositeCartResult:
 
 
 def _select_best_staple_variant(
-    product: CommerceProductItem, requested_qty: int = 1
+    product: CommerceProductItem, requested_qty: int = 1, preferred_pack_size: Optional[str] = None
 ) -> Optional[tuple[str, str, str, float]]:
     """Select the best variant from a catalog item.
     
@@ -103,6 +103,15 @@ def _select_best_staple_variant(
 
     # Sort by store rank or pick the first standard staple variant (e.g. 500ml / 1kg)
     best = in_stock[0]
+    if preferred_pack_size:
+        pack_clean = preferred_pack_size.lower().replace(" ", "")
+        for v in in_stock:
+            v_pack = (getattr(v, "pack_size", None) or "").lower().replace(" ", "")
+            v_name = (getattr(v, "name", None) or "").lower().replace(" ", "")
+            if pack_clean in v_pack or pack_clean in v_name:
+                best = v
+                break
+
     sku_id = getattr(best, "sku_id", None) or getattr(best, "id", None)
     spin_id = getattr(best, "spin_id", None) or sku_id
     price = float(getattr(best, "price", 0.0))
@@ -187,6 +196,7 @@ async def execute_composite_cart_modification(
         for item_req, res in zip(items_to_add, search_results):
             raw_name = _get_item_name(item_req)
             qty = _get_item_qty(item_req)
+            preferred_pack = item_req.get("preferred_pack_size") if isinstance(item_req, dict) else None
 
             if isinstance(res, Exception) or not res:
                 logger.warning("Product not found or search failed for '%s': %s", raw_name, res)
@@ -195,7 +205,7 @@ async def execute_composite_cart_modification(
 
             # Pick best variant
             product = res[0]
-            picked = _select_best_staple_variant(product, qty)
+            picked = _select_best_staple_variant(product, qty, preferred_pack_size=preferred_pack)
             if not picked:
                 logger.warning("All variants out of stock for '%s'", raw_name)
                 unavailable_names.append(raw_name)

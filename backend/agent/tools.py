@@ -40,40 +40,6 @@ from backend.agent.address_tools import (
 from backend.config import settings
 
 
-class AddedItem(str):
-    """Product name string preserving candidate pick reason, query, and dictionary access."""
-
-    name: str
-    reason: str
-    query: str
-
-    def __new__(cls, name: str, reason: str = "", query: str = ""):
-        obj = super().__new__(cls, name)
-        obj.name = name
-        obj.reason = reason
-        obj.query = query
-        return obj
-
-    def get(self, key: str, default: Any = None) -> Any:
-        if key == "name":
-            return self.name
-        if key == "reason":
-            return self.reason
-        if key == "query":
-            return self.query
-        return default
-
-    def __getitem__(self, key: Any) -> Any:
-        if isinstance(key, str):
-            if key == "name":
-                return self.name
-            if key == "reason":
-                return self.reason
-            if key == "query":
-                return self.query
-        return super().__getitem__(key)
-
-
 PRODUCT_SELECTION_SCHEMA = {
     "type": "OBJECT",
     "properties": {
@@ -230,9 +196,6 @@ class SwiggyAgentTools:
     ) -> None:
         self.commerce = commerce
         self.gemini_client = gemini_client
-        self._catalog_cache: dict[
-            tuple[str, str], tuple[float, list[dict[str, Any]]]
-        ] = {}
 
     async def search_products(
         self, query: str, address_id: Optional[str] = None
@@ -348,13 +311,6 @@ class SwiggyAgentTools:
             return {"success": False, "error": "TOO_MANY_QUERIES", "retryable": False}
 
         async def _search_one(q: str) -> dict[str, Any]:
-            cache_key = (q.casefold().strip(), str(address_id or ""))
-            now = time.time()
-            if not bypass_cache and cache_key in self._catalog_cache:
-                cached_time, cached_items = self._catalog_cache[cache_key]
-                if now - cached_time < 300.0:
-                    return {"query": q, "products": cached_items}
-
             try:
                 res = await self.search_products(q, address_id)
                 if not res.get("success"):
@@ -390,34 +346,29 @@ class SwiggyAgentTools:
                                 else p.get("is_veg"),
                             }
                         )
-                self._catalog_cache[cache_key] = (now, compact_prods)
                 return {"query": q, "products": compact_prods}
             except Exception as exc:
                 return {"query": q, "products": [], "error": str(exc)}
 
-        batch_results = []
-        for i in range(0, len(clean_queries), 3):
-            wave = clean_queries[i : i + 3]
-            wave_res = await asyncio.gather(*[_search_one(q) for q in wave])
-            batch_results.extend(wave_res)
-            critical = next(
-                (
-                    item
-                    for item in wave_res
-                    if item.get("error") in ("RATE_LIMITED", "AUTH_EXPIRED")
-                ),
-                None,
-            )
-            if critical:
-                return {
-                    "success": False,
-                    "error": critical["error"],
-                    "retryable": False,
-                    "retry_after_seconds": critical.get("retry_after_seconds"),
-                }
+        wave_res = await asyncio.gather(*[_search_one(q) for q in clean_queries])
+        critical = next(
+            (
+                item
+                for item in wave_res
+                if item.get("error") in ("RATE_LIMITED", "AUTH_EXPIRED")
+            ),
+            None,
+        )
+        if critical:
+            return {
+                "success": False,
+                "error": critical["error"],
+                "retryable": False,
+                "retry_after_seconds": critical.get("retry_after_seconds"),
+            }
         return {
             "success": True,
-            "results": list(batch_results),
+            "results": list(wave_res),
         }
 
     async def select_best_variant(
@@ -674,60 +625,6 @@ class SwiggyAgentTools:
         except Exception as exc:
             logger.warning("get_cart failed: %s", exc)
             return {"success": False, "error": str(exc)}
-
-    async def add_selected_variants(
-        self,
-        selected: list[dict[str, Any]],
-        address_id: str,
-        current_cart: CommerceCart,
-        expected_cart_state: dict[str, Any],
-        delivery_location: str = "Home",
-        budget_cap_inr: float | None = None,
-        extra_updates: list[dict[str, Any]] | None = None,
-    ) -> dict[str, Any]:
-        """Apply customer-chosen, freshly verified SKUs and extra updates in one atomic cart update."""
-        return await execute_add_selected_variants(
-            tools=self,
-            selected=selected,
-            address_id=address_id,
-            current_cart=current_cart,
-            expected_cart_state=expected_cart_state,
-            delivery_location=delivery_location,
-            budget_cap_inr=budget_cap_inr,
-            extra_updates=extra_updates,
-        )
-
-    async def suggest_grocery_items(
-        self,
-        items: list[dict[str, Any]],
-        address_id: str,
-    ) -> dict[str, Any]:
-        """Ground optional suggestions in the catalogue without changing the basket."""
-        queries = [
-            str(item.get("query", "")).strip()
-            for item in items
-            if isinstance(item, dict)
-        ]
-        search = await self.batch_search_products(queries, address_id)
-        suggestions: list[str] = []
-        restricted: list[str] = []
-        for result in search.get("results", []):
-            query = str(result.get("query", ""))
-            products = result.get("products") or []
-            if not products:
-                continue
-            product = products[0]
-            if is_restricted_medical_product(
-                str(product.get("name") or ""), product.get("category")
-            ):
-                restricted.append(query)
-            else:
-                suggestions.append(str(product.get("name") or query))
-        return {
-            "success": True,
-            "suggestions": suggestions,
-            "restricted_items": restricted,
-        }
 
     async def clear_cart(self) -> dict[str, Any]:
         """Empty the active Swiggy Instamart cart."""
@@ -1131,10 +1028,24 @@ async def execute_manage_basket(
     from backend.agent.composite_cart import execute_composite_cart_modification
     from backend.agent.product_policy import is_restricted_medical_product
 
+    cart_items_by_id: dict[str, Any] = {}
+    if current_cart is not None and getattr(current_cart, "items", None):
+        for ci in current_cart.items:
+            lid = getattr(ci, "cart_line_id", None) or getattr(ci, "line_id", None) or ci.spin_id
+            cart_items_by_id[lid] = ci
+
     if remove:
         for r in remove:
             if not isinstance(r, str) or not r.strip():
                 return {"success": False, "error": "INVALID_INPUT", "unavailable_items": []}
+            rem_str = r.strip()
+            if current_cart is not None and rem_str not in cart_items_by_id:
+                return {
+                    "success": False,
+                    "error": "INVALID_LINE_ID",
+                    "message": f"Cart line ID '{rem_str}' does not exist in the active basket.",
+                    "unavailable_items": [],
+                }
 
     if add:
         for a in add:
@@ -1142,13 +1053,89 @@ async def execute_manage_basket(
             if q is not None and (not isinstance(q, int) or isinstance(q, bool) or q <= 0):
                 return {"success": False, "error": "INVALID_INPUT", "unavailable_items": []}
 
+    if set_quantity:
+        for sq in set_quantity:
+            if not isinstance(sq, dict):
+                return {"success": False, "error": "INVALID_INPUT", "unavailable_items": []}
+            raw_qty = sq.get("quantity")
+            if not isinstance(raw_qty, int) or isinstance(raw_qty, bool) or not (0 <= raw_qty <= 99):
+                return {"success": False, "error": "INVALID_INPUT", "unavailable_items": []}
+            if current_cart is not None:
+                if "line_id" not in sq:
+                    return {
+                        "success": False,
+                        "error": "INVALID_LINE_ID",
+                        "message": "Missing line_id in set_quantity.",
+                        "unavailable_items": [],
+                    }
+                q_id = str(sq.get("line_id") or "").strip()
+                if not q_id or q_id not in cart_items_by_id:
+                    return {
+                        "success": False,
+                        "error": "INVALID_LINE_ID",
+                        "message": f"Cart line ID '{q_id}' does not exist in the active basket.",
+                        "unavailable_items": [],
+                    }
+
+    if current_cart is not None and not add and (remove or set_quantity):
+        merged_by_spin: dict[str, CartItemUpdate] = {
+            ci.spin_id: CartItemUpdate(spin_id=ci.spin_id, quantity=ci.quantity, sku_id=getattr(ci, "sku_id", None) or ci.spin_id)
+            for ci in current_cart.items
+        }
+        removed_names: list[str] = []
+        modified_names: list[str] = []
+        if remove:
+            for rem_str in remove:
+                ci = cart_items_by_id.get(rem_str)
+                if ci and ci.spin_id in merged_by_spin:
+                    del merged_by_spin[ci.spin_id]
+                    removed_names.append(ci.name)
+        if set_quantity:
+            for sq in set_quantity:
+                q_id = str(sq.get("line_id") or "").strip()
+                raw_qty = int(sq.get("quantity"))
+                ci = cart_items_by_id.get(q_id)
+                if ci:
+                    if raw_qty <= 0:
+                        merged_by_spin.pop(ci.spin_id, None)
+                        removed_names.append(ci.name)
+                    else:
+                        merged_by_spin[ci.spin_id] = CartItemUpdate(
+                            spin_id=ci.spin_id, quantity=raw_qty, sku_id=getattr(ci, "sku_id", None) or ci.spin_id
+                        )
+                        modified_names.append(f"{ci.name} -> {raw_qty}")
+
+        updated_cart = await tools.commerce.update_cart(
+            items=list(merged_by_spin.values()),
+            address_id=address_id,
+        )
+        return {
+            "success": True,
+            "modified_items": modified_names,
+            "removed_items": removed_names,
+            "added_items": [],
+            "unavailable_items": [],
+            "substitutions": [],
+            "items": [
+                {
+                    "spin_id": it.spin_id,
+                    "name": it.name,
+                    "pack_size": getattr(it, "pack_size", ""),
+                    "quantity": it.quantity,
+                    "unit_price": it.unit_price,
+                    "total_price": it.total_price,
+                    "line_id": getattr(it, "line_id", None) or it.spin_id,
+                }
+                for it in updated_cart.items
+            ],
+            "verified_fingerprint": "mock_fp",
+        }
+
     items_to_add = list(add or [])
     items_to_remove = list(remove or [])
     if set_quantity:
         for sq in set_quantity:
             raw_qty = sq.get("quantity")
-            if not isinstance(raw_qty, int) or isinstance(raw_qty, bool) or raw_qty < 0:
-                return {"success": False, "error": "INVALID_INPUT", "unavailable_items": []}
             item_name = sq.get("item_name") or sq.get("name") or sq.get("query") or sq.get("line_id") or ""
             if raw_qty > 0:
                 items_to_add.append({"name": item_name, "quantity": raw_qty})

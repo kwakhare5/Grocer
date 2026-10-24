@@ -37,6 +37,7 @@ async def handle_button_action(
     customer_id: str,
     recipient_id: str,
     channel: ChannelType = ChannelType.WHATSAPP,
+    attempt_store: Optional[Any] = None,
 ) -> Optional[NormalizedOutgoingResponse]:
     """Route interactive button payloads deterministically.
     
@@ -94,6 +95,7 @@ async def handle_button_action(
             approval is not None
             and getattr(approval, "expires_at", 0) > current_time
             and getattr(approval, "fingerprint", None) == observed_fp
+            and getattr(session, "known_cart_fingerprint", None) == observed_fp
             and (not token or getattr(approval, "token", "") == token)
         )
 
@@ -130,6 +132,7 @@ async def handle_button_action(
             budget_inr=getattr(session, "budget_inr", None),
             expected_cart_fingerprint=approval.fingerprint,
             customer_id=customer_id,
+            attempt_store=attempt_store,
         )
         session.pending_approval = None
 
@@ -155,7 +158,14 @@ async def handle_button_action(
                 )
             )
             status = result.get("status")
-            msg_text = result.get("message") or f"Order placed successfully! Order ID: {order_id}"
+            msg_text = result.get("message")
+            if not msg_text:
+                if status == "PAYMENT_PENDING":
+                    msg_text = f"Order {order_id} for ₹{grand_total} is ready for payment!\n\n👉 *Tap here to pay:* {pay_url}\n\nTap *Check Payment* once paid, or *Change Items*."
+                else:
+                    msg_text = f"Order placed successfully! Order ID: {order_id}"
+            elif pay_url and pay_url not in msg_text:
+                msg_text = f"{msg_text}\n\n👉 *Tap here to pay:* {pay_url}"
             return NormalizedOutgoingResponse(
                 recipient_id=recipient_id,
                 channel=channel,
@@ -170,7 +180,7 @@ async def handle_button_action(
                 recipient_id=recipient_id,
                 channel=channel,
                 text=result.get("message") or "Checkout could not be completed. Please try again.",
-                conversation_state="ACTIVE",
+                conversation_state="RECOVERING" if result.get("error") == "ORDER_STATE_UNKNOWN" else "ACTIVE",
             )
 
     # 2. Check Payment Status: "check_payment:<order_id>"
@@ -313,6 +323,12 @@ async def handle_button_action(
             await commerce.clear_cart()
         except Exception as exc:
             logger.warning("Could not clear cart upstream: %s", exc)
+            return NormalizedOutgoingResponse(
+                recipient_id=recipient_id,
+                channel=channel,
+                text="I couldn't verify what happened to your cart with Swiggy. Please review your current basket before making more changes.",
+                conversation_state="RECOVERING",
+            )
 
         session.pending_cart_clear = None
         session.pending_approval = None

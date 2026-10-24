@@ -53,7 +53,7 @@ async def postgres_pool():
             ):
                 await conn.execute((root / name).read_text(encoding="utf-8"))
         await conn.execute(
-            "TRUNCATE grocer_internal.task_state, grocer_internal.checkout_attempts, grocer_internal.outbound_messages, grocer_internal.inbound_messages RESTART IDENTITY CASCADE"
+            "TRUNCATE grocer_internal.privacy_deletions, grocer_internal.task_state, grocer_internal.checkout_attempts, grocer_internal.outbound_messages, grocer_internal.inbound_messages, grocer_internal.oauth_tokens, grocer_internal.connect_tickets RESTART IDENTITY CASCADE"
         )
     try:
         yield pool

@@ -10,20 +10,11 @@ import logging
 import time
 from typing import Any, Optional
 
-from backend.agent.address_tools import (
-    execute_get_saved_addresses,
-    execute_select_delivery_address,
-)
-from backend.agent.approval import (
-    cart_fingerprint,
-    check_cart_drift,
-    is_confirmed,
-)
+from backend.agent import approval
 from backend.agent.button_router import handle_button_action
-from backend.agent.checkout_executor import execute_gated_checkout
 from backend.agent.config import BRAIN_FALLBACK_MODEL, BRAIN_MODEL
 from backend.agent.customer_advocate import CustomerAdvocate
-from backend.agent.formatters import _format_inr, build_address_choice_response, format_cart_receipt
+from backend.agent.formatters import _format_inr, format_cart_receipt
 from backend.agent.gemini import GeminiClient
 from backend.agent.budget import read_budget_cap
 from backend.agent.prompts import build_system_instruction
@@ -37,7 +28,6 @@ from backend.agent.session_manager import (
 )
 from backend.agent.tools import SwiggyAgentTools
 from backend.channels.models import (
-    ChannelType,
     InteractiveAction,
     NormalizedIncomingMessage,
     NormalizedOutgoingResponse,
@@ -47,7 +37,7 @@ from backend.integrations.commerce.exceptions import (
     ProviderAuthError,
     ProviderRateLimitedError,
 )
-from backend.integrations.commerce.models import CommerceCart, CommerceProductItem
+from backend.integrations.commerce.models import CommerceCart
 from backend.integrations.commerce.port import CommercePort
 
 logger = logging.getLogger("grocer.agent.engine")
@@ -213,7 +203,7 @@ async def synthesize_turn_response(
     # 1. Unavailable items notice
     if unavailable_items:
         unavail_str = ", ".join(unavailable_items)
-        notice = f"I checked with Swiggy Instamart, but {unavail_str} is currently out of stock at your store."
+        notice = f"I checked with Swiggy Instamart, but {unavail_str} is currently unavailable (out of stock) at your store."
         final_text = f"{notice}\n\n{final_text}".strip() if final_text else notice
 
     # 2. Append deterministic receipt card if cart exists
@@ -300,7 +290,12 @@ async def execute_preflight(
     except Exception as exc:
         logger.debug("Initial cart probe: %s", exc)
 
-    user_confirmed = await is_confirmed(incoming_text)
+    user_confirmed = False
+    interactive_id = getattr(message, "interactive_id", None)
+    if interactive_id and (interactive_id == "confirm_order" or interactive_id.startswith("confirm_order:")):
+        user_confirmed = True
+    elif incoming_text:
+        user_confirmed = await approval.is_confirmed(incoming_text, client=getattr(engine, "gemini", None))
     return PreflightResult(
         incoming_text=incoming_text,
         user_confirmed=user_confirmed,
@@ -397,15 +392,25 @@ async def execute_engine_tool(
             session.budget_inr = float(cap)
         return {"success": True, "budget_cap_inr": session.budget_inr}
     elif name == "checkout":
+        if not getattr(session, "pending_approval", None) or not user_confirmed:
+            return {
+                "success": False,
+                "error": "CONFIRMATION_REQUIRED",
+                "retryable": False,
+                "message": "Order placement rejected: User has not provided explicit final confirmation on a pending order summary.",
+            }
         try:
             return await engine.tools.checkout(
                 cart_id=args.get("cart_id", ""),
                 address_id=session.address_id or "",
-                payment_method="UPI",
+                payment_method=getattr(session, "selected_payment_method", "UPI") or "UPI",
+                payment_option_kind=getattr(session, "selected_payment_kind", None),
+                payment_option_id=getattr(session, "selected_payment_id", None),
                 is_user_confirmed=bool(user_confirmed),
                 budget_inr=session.budget_inr,
                 expected_cart_fingerprint=session.known_cart_fingerprint,
                 customer_id=customer_id,
+                attempt_store=getattr(engine, "attempt_store", None),
             )
         except Exception as exc:
             session.pending_approval = None
@@ -441,7 +446,6 @@ class GroceryAgentEngine:
         self.commerce = commerce
         self.state_store = state_store
         self.attempt_store = attempt_store
-        self.attempt_store = None
         self.gemini_api_key = gemini_api_key or settings.GEMINI_API_KEY
         self.gemini_model = gemini_model or BRAIN_MODEL
         self.gemini_fallback_model = gemini_fallback_model or BRAIN_FALLBACK_MODEL
@@ -478,6 +482,23 @@ class GroceryAgentEngine:
         sess = self._sessions.pop(customer_id, None)
         if sess is not None:
             sess.clear_all()
+
+    async def close(self) -> None:
+        """Cleanly close client connections and sessions."""
+        if hasattr(self.gemini, "close"):
+            try:
+                await self.gemini.close()
+            except Exception:
+                pass
+
+    def _record_pending_approval(
+        self,
+        customer_id: str,
+        cart: CommerceCart,
+        address_id: str,
+    ) -> bool:
+        session = self.get_session(customer_id)
+        return record_pending_approval(session, cart, address_id)
 
     def evict_inactive_sessions(self, ttl_seconds: float = 1800.0) -> int:
         """Evict sessions that exceeded inactivity TTL."""
@@ -554,9 +575,10 @@ class GroceryAgentEngine:
 
             if result.conversation_state == "AWAITING_PAYMENT" and result.order_id:
                 if hasattr(self, "payment_poller") and self.payment_poller:
+                    sess = self.get_session(customer_id)
                     target_paas_id = (
                         getattr(result, "paas_id", None)
-                        or getattr(session, "paas_id", None)
+                        or getattr(sess, "paas_id", None)
                         or result.order_id
                     )
                     self.payment_poller.start_polling(
@@ -582,6 +604,7 @@ class GroceryAgentEngine:
             customer_id=customer_id,
             recipient_id=message.sender_id,
             channel=message.channel,
+            attempt_store=getattr(self, "attempt_store", None),
         )
         if btn_resp is not None:
             return btn_resp
@@ -596,26 +619,15 @@ class GroceryAgentEngine:
 
         # 3. Natural Language Confirmation Check ("confirm", "proceed", "yes")
         if preflight.user_confirmed and session.pending_approval is not None:
-            drift = check_cart_drift(current_cart, session.pending_approval)
-            if drift:
-                receipt = format_cart_receipt(current_cart, address_label=session.address_label)
-                session.pending_approval = None
-                return NormalizedOutgoingResponse(
-                    recipient_id=message.sender_id,
-                    channel=message.channel,
-                    text=f"Your basket changed ({drift}). Please review your updated bill before confirming:\n\n{receipt}",
-                    conversation_state="AWAITING_APPROVAL",
-                    interactive_actions=[
-                        InteractiveAction(id="confirm_order", title="Confirm Order"),
-                        InteractiveAction(id="modify_cart", title="Change Items"),
-                    ],
-                )
-            return await execute_gated_checkout(
-                self,
-                customer_id,
-                token=session.pending_approval.token,
+            token = session.pending_approval.token
+            return await handle_button_action(
+                payload=f"confirm_order:{token}" if token else "confirm_order",
+                session=session,
+                commerce=self.commerce,
+                customer_id=customer_id,
                 recipient_id=message.sender_id,
                 channel=message.channel,
+                attempt_store=getattr(self, "attempt_store", None),
             )
 
         # 4. Single-Turn Gemini Brain (Tool Execution + Follow-up Speech)

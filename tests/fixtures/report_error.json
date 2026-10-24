@@ -1,0 +1,9 @@
+{
+  "success": true,
+  "data": {
+    "reportLink": "https://mcp.swiggy.com/builders/reports/REP-20261025-XYZ123",
+    "supportEmail": "builders@swiggy.in",
+    "summary": "Report captured for tool 'checkout' failure: PAAS_TIMEOUT. Diagnostic bundle attached."
+  },
+  "message": "Error report generated successfully"
+}

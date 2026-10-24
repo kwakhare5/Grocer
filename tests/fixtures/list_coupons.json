@@ -1,0 +1,32 @@
+{
+  "success": true,
+  "data": {
+    "availableCoupons": [
+      {
+        "couponCode": "INSTA50",
+        "title": "50% OFF up to ₹100",
+        "description": "Valid on orders above ₹199",
+        "isApplicable": true,
+        "applicabilityStatus": "APPLICABLE",
+        "applicabilityMessage": "Save ₹72 on this order",
+        "offerId": "offer_insta_50",
+        "tnc": {
+          "title": "Terms and Conditions",
+          "bulletTexts": [
+            "Valid once per user",
+            "Applicable on select grocery items"
+          ]
+        }
+      },
+      {
+        "couponCode": "SUPER100",
+        "title": "Flat ₹100 OFF",
+        "description": "Valid on orders above ₹499",
+        "isApplicable": false,
+        "applicabilityStatus": "MIN_ORDER_NOT_MET",
+        "applicabilityMessage": "Add items worth ₹278 more to unlock"
+      }
+    ]
+  },
+  "message": "Coupons retrieved successfully"
+}

@@ -1,0 +1,17 @@
+{
+  "success": true,
+  "data": {
+    "paasId": "paas_01HZ123456789",
+    "status": "SUCCESS",
+    "terminal": true,
+    "isTerminalSuccess": true,
+    "isTerminalFailure": false,
+    "confirmed": true,
+    "orderStatus": "PLACED",
+    "cartTotal": 149.0,
+    "orderId": "189456789012",
+    "addressId": "addr_01HXYZ",
+    "cartId": "cart_im_987654"
+  },
+  "message": "Payment verified successfully"
+}

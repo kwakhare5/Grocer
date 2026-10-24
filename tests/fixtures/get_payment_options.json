@@ -1,0 +1,39 @@
+{
+  "success": true,
+  "data": {
+    "platforms": {
+      "mobile": {
+        "groupName": "UPI",
+        "methods": [
+          { "id": "gpay://upi/", "groupName": "UPI", "displayName": "Google Pay", "kind": "intent", "enabled": true },
+          { "id": "phonepe://upi/", "groupName": "UPI", "displayName": "PhonePe", "kind": "intent", "enabled": true }
+        ]
+      },
+      "desktop": {
+        "groupName": "UPI",
+        "methods": [
+          { "id": "scan_qr", "groupName": "UPI", "displayName": "Scan UPI QR", "kind": "qr", "enabled": true }
+        ]
+      }
+    },
+    "cod": {
+      "available": true,
+      "id": "Cash",
+      "displayName": "Cash on Delivery"
+    },
+    "swiggyMoney": {
+      "available": true,
+      "id": "SwiggyPay",
+      "displayName": "Swiggy Money"
+    },
+    "agenticPaymentEligible": true,
+    "allMethods": [
+      { "id": "SwiggyPay", "groupName": "SWIGGYPAY", "displayName": "Swiggy Money", "enabled": true },
+      { "id": "gpay://upi/", "groupName": "UPI", "displayName": "Google Pay", "kind": "intent", "enabled": true },
+      { "id": "Cash", "groupName": "Cash", "displayName": "Cash on Delivery", "enabled": true }
+    ],
+    "paymentAmount": "149.00",
+    "placeOrderToolName": "checkout"
+  },
+  "message": "Payment options loaded"
+}

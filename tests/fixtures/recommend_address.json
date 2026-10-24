@@ -1,0 +1,9 @@
+{
+  "success": true,
+  "data": {
+    "latitude": 12.9352,
+    "longitude": 77.6245,
+    "formattedAddress": "Koramangala 4th Block, 80 Feet Road, Bengaluru, Karnataka 560034"
+  },
+  "message": "Address resolved successfully"
+}

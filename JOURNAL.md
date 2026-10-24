@@ -102,3 +102,12 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: `asyncpg` execution reported 0 remaining user tables; `.gitignore` verified ignoring `.env`; database confirmed 100% clean.
 - **Still broken**: None. Ready for Phase 0 schema migration and fixture capture.
 
+### [GROCER v1 — Phase 0 Complete: Staging Fixtures & Schema Migration] 2026-10-25
+
+#### Work Card: Complete Phase 0 with Staging Fixtures, Pydantic Contract, and Database Schema
+- **Problem**: Need clean-slate runtime architecture, verified database tables, and real JSON fixtures for all 20 Swiggy Instamart tools with 0 fake mocks.
+- **Change**: Applied `migrations/001_initial_schema.sql` creating 6 core tables in schema `grocer`; extracted official tool responses from Swiggy Builders Club docs into `tests/fixtures/` (20 files); implemented `backend/integrations/commerce/schemas.py` and `tests/test_staging_fixtures.py`; authored universal verification script `verify.ps1`.
+- **Proof**: `.\verify.ps1` and `pytest` exited 0 with 21/21 passing tests; 6/6 Supabase tables verified active; 0 mocks present.
+- **Still broken**: None. Phase 0 is complete. Ready for Phase 1 (Ingestion Shield & Fast Button Router).
+
+

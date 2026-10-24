@@ -26,7 +26,7 @@ Fonts and colors come from tokens file.
 ## Gotchas (project decisions)
 - WhatsApp webhooks require signature validation and idempotency tokens.
 - Fast 50ms Deterministic Action Dispatcher handles WhatsApp buttons (`confirm_order`, `clear_cart`, `check_payment`, `select_address`) directly in Python without LLM overhead.
-- Allowed Mocks Only: External 3rd-party billable APIs (Gemini, Meta, Swiggy) mocked at port boundary; zero test skips allowed.
+- Real Calls Over Mocks: Zero mocking of project code, databases, APIs, or MCP tools. Mocks hide real bugs. Every catalog search, price, stock check, address, and coupon MUST use live Swiggy MCP data. Zero mocks, zero test skips.
 - State transitions enforce strict deterministic state bounds before placing orders.
 - Anti-drift: Never build dark-store dashboards, fleet logistics, or generic shopping bots; Grocer is a complete Swiggy Instamart concierge on WhatsApp.
 - Strict English Voice: The bot understands customer inputs in any style (including Hinglish and Indian grocery terms), but always responds in strict, natural English only.

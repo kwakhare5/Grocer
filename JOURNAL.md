@@ -19,6 +19,12 @@ During the Session End ritual (called automatically whenever significant changes
 
 ### [GROCER — V2 Concierge Architecture & Domain Realignment] 2026-10-24
 
+#### Work Card: Real Calls Over Mocks Enforced Live Against Swiggy MCP & Gemini
+- **Problem**: Project AGENTS.md had an obsolete "Allowed Mocks Only" clause contradicting the master rule ("Zero mocking of project code, databases, APIs, or MCP tools"), and automated tests had not verified live Swiggy MCP responses.
+- **Change**: Erased the contradictory rule in AGENTS.md; created backend/tests/test_live_swiggy_mcp_real.py executing real live JSON-RPC 2.0 calls to https://mcp.swiggy.com/im with SWIGGY_AUTH_TOKEN and live Gemini 3.5 Flash completions.
+- **Proof**: test_live_swiggy_mcp_real.py passed live returning Karan's real saved Swiggy addresses (Pune & Nashik) and real live Amul milk catalog items; .\verify.ps1 completed with 129/129 tests passed (100% green), live Supabase connected, ESLint 0 errors, exit code 0.
+- **Still broken**: Nothing. Real calls verified live.
+
 #### Work Card: Phase 2 Engine Consolidation, Tools Slimdown & Dead Code Purge
 - **Problem**: `backend/agent/tools.py` accumulated dead models (`AddedItem`), dead suggestion bouncers (`suggest_grocery_items`), and temporary `_catalog_cache` violating Universal Non-Negotiable #1 ("Real Data Over Speed... temporary caching"), while `engine.py` held unused imports and frontend mockup data still displayed obsolete V1 turn-1 address prompts.
 - **Change**: Purged `AddedItem` and `suggest_grocery_items` from `backend/agent/tools.py`; removed `_catalog_cache` and streamlined `batch_search_products` to perform concurrent live queries with `asyncio.gather`; cleaned unused imports from `backend/agent/engine.py`; updated `components/landing/data.ts` to showcase V2 conversational intake and Wallet Advocate coupon optimization.

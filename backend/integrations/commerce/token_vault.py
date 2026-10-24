@@ -230,6 +230,17 @@ class SwiggyTokenVault:
             customer_id,
         )
         if row is None:
+            from backend.config import settings
+            if settings.SWIGGY_AUTH_TOKEN and settings.SWIGGY_CUSTOMER_ID and customer_id == settings.SWIGGY_CUSTOMER_ID:
+                entry = await self.store_token_durable(
+                    customer_id=customer_id,
+                    access_token=settings.SWIGGY_AUTH_TOKEN,
+                    expires_in=86400 * 30,
+                    token_type="Bearer",
+                    scope="mcp:tools",
+                    client_id=settings.SWIGGY_CLIENT_ID,
+                )
+                return entry.access_token
             return None
         try:
             entry = SwiggyTokenEntry.model_validate(self._codec.decrypt(row["ciphertext"]))
@@ -252,11 +263,11 @@ class SwiggyTokenVault:
                     return entry
         # Fallback to configured SWIGGY_AUTH_TOKEN strictly for matching owner customer
         from backend.config import settings
-        if not self.is_durable and settings.SWIGGY_AUTH_TOKEN and settings.SWIGGY_CUSTOMER_ID:
+        if settings.SWIGGY_AUTH_TOKEN and settings.SWIGGY_CUSTOMER_ID:
             if customer_id and customer_id == settings.SWIGGY_CUSTOMER_ID:
                 entry = self._new_entry(
                     settings.SWIGGY_AUTH_TOKEN,
-                    expires_in=86400 * 5,
+                    expires_in=86400 * 30,
                     token_type="Bearer",
                     scope="mcp:tools",
                     client_id=settings.SWIGGY_CLIENT_ID,

@@ -192,18 +192,26 @@ async def build_auth_expired_response(
     base_url: str | None = None,
 ) -> Any:
     """Generate re-connection response with a one-time login link."""
-    from backend.channels.models import NormalizedOutgoingResponse
+    from backend.channels.models import InteractiveAction, NormalizedOutgoingResponse
     from backend.integrations.commerce.connect_tickets import default_connect_tickets
 
-    ticket = default_connect_tickets.issue(message.sender_id)
+    target_customer = getattr(message, "customer_id", None) or getattr(message, "sender_id", "")
+    ticket = await default_connect_tickets.issue(target_customer)
     url = build_connect_url(ticket, base_url=base_url)
     return NormalizedOutgoingResponse(
-        recipient_id=message.sender_id,
-        channel=message.channel,
+        recipient_id=getattr(message, "sender_id", ""),
+        channel=getattr(message, "channel", "whatsapp"),
         text=(
-            "Your Swiggy login session has expired.\n\n"
-            f"Please tap the link below to reconnect your Swiggy Instamart account:\n{url}"
+            "Your Swiggy Instamart account is not connected yet.\n\n"
+            f"Tap the link below to link your account:\n{url}"
         ),
+        interactive_actions=[
+            InteractiveAction(
+                action_type="url",
+                title="Connect Instamart",
+                url=url,
+            )
+        ],
         conversation_state="AUTH_REQUIRED",
     )
 

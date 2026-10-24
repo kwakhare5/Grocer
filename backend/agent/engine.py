@@ -14,7 +14,7 @@ from backend.agent import approval
 from backend.agent.button_router import handle_button_action
 from backend.agent.config import BRAIN_FALLBACK_MODEL, BRAIN_MODEL
 from backend.agent.customer_advocate import CustomerAdvocate
-from backend.agent.formatters import _format_inr, format_cart_receipt
+from backend.agent.formatters import _format_inr, format_cart_receipt, build_auth_expired_response
 from backend.agent.gemini import GeminiClient
 from backend.agent.budget import read_budget_cap
 from backend.agent.prompts import build_system_instruction
@@ -270,13 +270,9 @@ async def execute_preflight(
     try:
         current_cart = await engine.commerce.get_cart()
     except ProviderAuthError:
+        auth_response = await build_auth_expired_response(message)
         return PreflightResult(
-            early_response=NormalizedOutgoingResponse(
-                recipient_id=message.sender_id,
-                channel=message.channel,
-                text="Your Swiggy login has expired. Please reconnect your account to continue.",
-                conversation_state="RECOVERING",
-            )
+            early_response=auth_response
         )
     except ProviderRateLimitedError as exc:
         return PreflightResult(

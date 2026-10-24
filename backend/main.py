@@ -127,6 +127,18 @@ async def _lifespan(app: FastAPI):
             app.state.message_store = PostgresMessageStore(pool)
             app.state.database_pool = pool
             await default_token_vault.configure_postgres(pool, settings.DATA_ENCRYPTION_KEY)
+            if settings.SWIGGY_AUTH_TOKEN and settings.SWIGGY_CUSTOMER_ID:
+                existing_owner_tok = await default_token_vault.get_token_durable(settings.SWIGGY_CUSTOMER_ID)
+                if not existing_owner_tok:
+                    await default_token_vault.store_token_durable(
+                        customer_id=settings.SWIGGY_CUSTOMER_ID,
+                        access_token=settings.SWIGGY_AUTH_TOKEN,
+                        expires_in=86400 * 30,
+                        token_type="Bearer",
+                        scope="mcp:tools",
+                        client_id=settings.SWIGGY_CLIENT_ID,
+                    )
+                    logger.info("Seeded owner Swiggy token for %s into PostgreSQL token vault.", settings.SWIGGY_CUSTOMER_ID)
             default_oauth_manager.configure_flow_store(
                 PostgresPendingAuthFlowStore(pool, settings.DATA_ENCRYPTION_KEY)
             )

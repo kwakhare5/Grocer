@@ -1,37 +1,37 @@
 # Grocer v1.0 Session Handoff & Continuity Brief
 
-> **Target Workspace:** D:\Grocer-v5
-> **Branch:** grocer-v1
-> **Status:** Architecture & Project Memory Complete. Ready for Phase 0.
+> **Target Workspace:** `D:\Grocer-v5`  
+> **Branch:** `grocer-v1` (Synced with `https://github.com/kwakhare5/Grocer`)  
+> **Status:** Phase 0 Complete (21/21 Tests Passing, Database Live). Ready for Phase 1.  
+
+---
 
 ## 1. Goal
-Build Grocer v1.0 from scratch as a production-grade WhatsApp Swiggy Instamart grocery concierge and account manager. Operates on real dark-store data across all 20 native MCP tools, zero fake mocks, radical truth, customer wallet advocacy, and deterministic Python 3-lock checkout.
+Build Grocer v1.0 from scratch as a production-grade WhatsApp Swiggy Instamart concierge and account manager. Operates on real dark-store data across all 20 native MCP tools, zero fake mocks, integer paise math, wallet advocacy, and a deterministic Python 3-lock checkout gate.
 
-## 2. Settled Non-Negotiables & Decisions (ADR 0001 - 0010)
-1. **Real Data & Zero Mocks**: All 20 Swiggy Instamart MCP tools run against live endpoints. Contract tests use recorded real staging fixtures in `tests/fixtures/`.
-2. **Brain vs Muscle Separation**: Gemini handles multi-turn conversation and candidate evaluation. Python enforces math in integer paise, 50ms button bypass, and the 3-lock checkout gate.
-3. **Full Instamart Lifecycle**: Address management (view, switch, add via pin, delete), 1-tap reordering (`your_go_to_items`), and order history (`get_orders`).
-4. **Radical Price Guarantee**: Aborts checkout if store price shifts by even ₹1 between receipt generation and payment click.
-5. **Physical Button Checkout (Lock 1)**: Money is ONLY confirmed via physical WhatsApp button tap (`pay:<approval_id>:<option>`). Natural language text ("yes", "proceed") is strictly rejected.
-6. **WhatsApp Payment Links**: Delivered via Swiggy HTTPS `bridgeUrl` in CTA URL buttons (Meta rejects `upi://` schemes).
-7. **Wallet Champion Engine**: Tests top 2 coupons; never applies a coupon if the final payable bill increases. Warns on small-cart fees > 35%.
-8. **5-Day Token Expiry & JIT Re-Auth**: Parked message replay in PostgreSQL resumes checkout instantly upon login.
-9. **Respectful GPS Tracking**: 3 milestone-only notifications with live tracking map link; cancellations routed to Swiggy Care (`080-67466729`).
-10. **DPDP Compliance**: 24-hour cleanup of personal addresses and line items. Dedicated "delete my data" command.
+---
 
-## 3. Project Memory Documents (Authoritative)
-- PRD.md: Complete customer requirements and non-negotiables.
-- ARCHITECTURE.md: Clean-slate v1.0 technical architecture and 5-layer design.
-- DESIGN.md: WhatsApp interaction typography and 3-button layouts.
-- AGENTS.md: Working rules, voice, and pair programming constraints.
-- TASKS.md: Phased roadmap from Phase 0 to Phase 5.
-- JOURNAL.md: Proof log of all architectural decisions.
-- GLOSSARY.md: Canonical domain language.
-- docs/adr/: ADR 0001 through 0010.
-- docs/swiggy-mcp/: Official Swiggy Builders Club documentation.
+## 2. Changes Completed in this Session
+1. **Environment & Security:** Created `.env` with live credentials (Meta WhatsApp API, Supabase connection, Gemini key, AES-256 token encryption key, Swiggy redirect URI). Created and pushed `.env.example`.
+2. **Supabase PostgreSQL Schema:** Completely wiped 8 old tables; applied `migrations/001_initial_schema.sql` creating 6 verified tables in schema `grocer` (`users`, `oauth_tokens`, `inbound_messages`, `sessions`, `approvals`, `checkouts`).
+3. **20 Staging Fixtures:** Extracted verbatim JSON response payloads for all 20 Swiggy Instamart tools from official Swiggy Builders Club docs into `tests/fixtures/`.
+4. **Contract Schemas:** Implemented typed Pydantic models in `backend/integrations/commerce/schemas.py`.
+5. **Universal Verification Script:** Authored `verify.ps1` (Lauren Tan method) and `scripts/verify_db.py`.
+6. **Roadmap Expanded:** Updated `TASKS.md` with explicit checkboxes for all 10 ADRs (recipe checklists, one-time destination orders, small-cart fee warning, address deletion guardrails, zero-address onboarding, JIT re-auth, post-order additions).
 
-## 4. Immediate Next Action
-Proceed with **Phase 0** in TASKS.md:
-1. Set up tests/fixtures/ directory.
-2. Capture raw JSON staging responses for all 20 Instamart MCP tools.
-3. Lock contract parsers to real fixtures.
+---
+
+## 3. Passing Tests (Terminal Proof)
+- **Database Verification:** `scripts/verify_db.py` connected live to Supabase over SSL; verified 6/6 active tables in schema `grocer`.
+- **Contract Test Suite:** `pytest` executed 21 tests in `tests/test_staging_fixtures.py` (all 20 tools + zero-mock invariant test).
+- **Result:** **21 passed in 0.08s**, `verify.ps1` exit code 0.
+
+---
+
+## 4. Immediate Next Action for the Next Session
+Proceed directly to **Phase 1: Channel Ingestion Shield & Deduplication** in `TASKS.md`:
+1. Build `backend/channels/whatsapp.py` (FastAPI `POST /api/whatsapp/webhook` with HMAC-SHA256 signature verification returning `<25ms`).
+2. Implement PostgreSQL message deduplication (`ON CONFLICT (wa_message_id) DO NOTHING` on `grocer.inbound_messages`).
+3. Implement `backend/channels/whatsapp_parser.py` (parsing text, button reply IDs, and GPS location pins).
+4. Implement in-process / PostgreSQL advisory lock for concurrent message serialization.
+5. Write and verify `tests/test_channels.py` against webhook replay attacks and duplicate payloads.

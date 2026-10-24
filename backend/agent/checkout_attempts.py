@@ -93,7 +93,7 @@ class PostgresCheckoutAttemptStore:
             key: result.get(key)
             for key in ("success", "error", "status", "order_id", "grand_total",
                         "success_count", "failure_count", "paas_id", "orders",
-                        "polling_interval_ms", "max_time_to_poll_ms")
+                        "polling_interval_ms", "max_time_to_poll_ms", "recipient_id")
         }
         updated = await self.pool.execute(
             """UPDATE grocer_internal.checkout_attempts

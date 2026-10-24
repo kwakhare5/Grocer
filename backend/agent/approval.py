@@ -46,8 +46,8 @@ def cart_fingerprint(cart: CommerceCart, address_id: str) -> str | None:
         "bill_lines": sorted(
             [
                 {
-                    "name": str(line.get("name", "")).strip().casefold(),
-                    "amount": str(Decimal(str(line.get("amount", 0.0)))),
+                    "name": str(line.get("name") or line.get("label", "")).strip().casefold(),
+                    "amount": str(Decimal(str(line.get("amount") if line.get("amount") is not None else line.get("value", 0.0)))),
                 }
                 for line in cart.bill_lines
             ],

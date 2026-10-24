@@ -82,6 +82,8 @@ async def synthesize_turn_response(
                 final_text = f"I've updated your delivery address to *{addr_lbl}*! 📍\n\n{last_cart_receipt}"
             elif session.pending_cart_clear and final_text.strip():
                 final_text = f"{final_text.strip()}\n\n{last_cart_receipt}"
+            elif final_text.strip():
+                final_text = f"{final_text.strip()}\n\n{last_cart_receipt}"
             else:
                 final_text = last_cart_receipt
 

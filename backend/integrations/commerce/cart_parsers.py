@@ -77,15 +77,16 @@ def build_commerce_cart(data: dict[str, Any], cart_id: Optional[str] = None) -> 
         if "item" in label or "subtotal" in label:
             item_total = val
         elif "delivery" in label:
-            delivery_fee = val
+            delivery_fee += val
         elif "package" in label or "packing" in label:
-            packaging_fee = val
-        elif "handling" in label or "convenience" in label or "platform" in label or "surge" in label or "rain" in label:
-            handling_fee += val
-        elif "tax" in label or "gst" in label:
-            taxes = val
+            packaging_fee += val
         elif "discount" in label or "coupon" in label:
-            discount = abs(val)
+            discount += abs(val)
+        elif "tax" in label or "gst" in label:
+            taxes += val
+        else:
+            # Capture all other provider charges (handling, late night, surge, convenience, rain, bag fee, etc.)
+            handling_fee += val
 
     grand_total = 0.0
     to_pay = bill_breakdown.get("toPay") or data.get("toPay") or {}
@@ -120,7 +121,7 @@ def build_commerce_cart(data: dict[str, Any], cart_id: Optional[str] = None) -> 
         cart_warning = "Provider cart currency is not INR."
     if grand_total <= 0:
         cart_warning = "Provider payable total is unavailable."
-    elif abs(diff) > 0.01:
+    elif abs(diff) > 1.0:
         cart_warning = "Provider bill lines do not explain the payable total."
 
     is_serviceable = _optional_provider_bool(data.get("serviceable"))
@@ -143,7 +144,7 @@ def build_commerce_cart(data: dict[str, Any], cart_id: Optional[str] = None) -> 
         discount=discount,
         grand_total=grand_total,
         currency=currency,
-        billing_complete=currency == "INR" and grand_total > 0 and abs(diff) <= 0.01,
+        billing_complete=currency == "INR" and grand_total > 0 and abs(diff) <= 1.0,
         bill_lines=parsed_bill_lines,
         cart_warning=cart_warning,
         is_serviceable=is_serviceable,

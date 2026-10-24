@@ -134,13 +134,12 @@ def match_explicit_address(
             if t not in {
                 "road", "flat", "floor", "near", "opposite", "lane", "house", "building",
                 "street", "block", "sector", "phase", "cross", "main", "layout",
-                "fresh", "sweet", "white", "brown", "red", "black", "pure", "green", "apples", "chillies"
             }
         }
         if any(
             re.search(
                 rf"\b(?:deliver|send|ship|bring|drop|switch|change|use)\s+(?:to|at|it to)\s+(?:my\s+|the\s+)?{re.escape(t)}\b"
-                rf"|\b(?:to|at)\s+(?:my\s+|the\s+)?{re.escape(t)}\s+(?:address|location|area|house|flat|apartment|branch|office|home)?\b"
+                rf"|\b(?:to|at)\s+(?:my\s+|the\s+)?{re.escape(t)}\s+(?:address|location|area|house|flat|apartment|branch|office|home)\b"
                 rf"|\b{re.escape(t)}\s+(?:address|location)\b",
                 norm_text,
             )

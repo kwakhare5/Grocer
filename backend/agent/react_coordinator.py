@@ -731,9 +731,6 @@ async def execute_react_turn_loop(
 
         if last_cart_receipt:
             session.pending_request_text = None
-
-            final_text = ""
-
             break
 
     (

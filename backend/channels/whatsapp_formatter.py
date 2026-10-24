@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from backend.channels.models import NormalizedOutgoingResponse
+from backend.channels.models import InteractiveAction, NormalizedOutgoingResponse
 
 
 def mask_recipient(phone: str) -> str:

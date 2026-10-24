@@ -2960,3 +2960,9 @@ During the Session End ritual (called automatically whenever significant changes
 - **Proof**: 101 tests pass cleanly in 20.07s (pytest --ignore=backend/tests/test_whatsapp_postgres_e2e.py), live Gemini 3.5 and live Swiggy MCP Sangvi calls verified, npm run lint exit 0.
 - **Still broken**: None; Layer 5 is fully executed, tested, and verified on real Supabase, real Gemini, and real Swiggy MCP.
 
+
+## 2026-10-24 - Deep Architectural Clean-Up & Zero-Assumption Commerce Refactor
+- **Problem**: Python second-guessed Swiggy and muzzled Gemini: `cart_parsers.py` 6-bucket keyword list dropped "Late Night Fee" (₹5.90) causing checkout lockup; `prompts.py` bouncer rule instructed Gemini to refuse without calling tools, blocking Band-Aids and OTC first-aid; `approval.py` hashed `name`/`amount` while parser returned `label`/`value`; `address_tools.py` had hardcoded food blacklist; `whatsapp_formatter.py` threw `NameError` on missing `InteractiveAction`.
+- **Change**: Switched `cart_parsers.py` to pure math fee aggregation allowing ₹1 rounding; established Catalog First authority in `prompts.py` and permitted OTC first-aid in `product_policy.py`; fixed fingerprint schema mismatch in `approval.py`; purged food blacklist in `address_tools.py`; preserved Gemini summaries in `react_coordinator.py` & `response_synthesizer.py`; added missing `InteractiveAction` import and fixed poller crash recovery recipient ID.
+- **Proof**: 101/101 tests pass cleanly in 8.04s (`pytest --ignore=backend/tests/test_whatsapp_postgres_e2e.py`); `npm run lint` clean exit 0; live Swiggy MCP test verified `billing_complete: True` on live ₹412 cart with late-night fee; live Sangvi dark store search returned 20 Band-Aid/first-aid items without prompt refusal.
+- **Still broken**: None.

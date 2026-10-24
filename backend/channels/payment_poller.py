@@ -268,9 +268,10 @@ class PaymentPoller:
                 oid = r["provider_order_id"] or r["id"]
                 res = r.get("result") or {}
                 paas_id = res.get("paas_id") or oid
+                recip = (res.get("recipient_id") if isinstance(res, dict) else None) or cid
                 elapsed = (time.time() - r["created_at"].timestamp()) if r["created_at"] else 0
                 remaining = max(10, int(self.max_poll_seconds - elapsed))
-                self.start_polling(cid, oid, paas_id, custom_max_duration=remaining)
+                self.start_polling(cid, oid, paas_id, recipient_id=recip, custom_max_duration=remaining)
                 count += 1
             if count:
                 logger.info("Recovered %d in-flight payment pollers from Postgres.", count)

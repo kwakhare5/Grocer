@@ -5,7 +5,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     AGENT_ROUTE_ENABLED: bool = True
-    COMMERCE_ADAPTER_TYPE: str = "mock"
+    COMMERCE_ADAPTER_TYPE: str = "swiggy_mcp"
     CHECKOUT_MODE: Literal["review", "live"] = "review"
     LIVE_CHECKOUT_ENABLED: bool = False
     SIMULATOR_ENABLED: bool = False

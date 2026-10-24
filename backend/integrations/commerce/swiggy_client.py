@@ -12,6 +12,8 @@ import httpx
 
 from backend.integrations.commerce.exceptions import (
     AddressNotServiceableError,
+    StoreClosedError,
+    DarkStoreOfflineError,
     CartChangedError,
     CartExpiredError,
     CommerceError,
@@ -103,7 +105,11 @@ class SwiggyMcpClient:
                 raise CartChangedError(msg, report_id=report_id, report_hint=report_hint)
             elif "out of stock" in msg_lower or "item_out_of_stock" in msg_lower:
                 raise ItemOutOfStockError(spin_id="unknown")
-            elif "not serviceable" in msg_lower or "address_not_serviceable" in msg_lower:
+            elif "pod offline" in msg_lower or "pod_offline" in msg_lower or "dark store offline" in msg_lower:
+                raise DarkStoreOfflineError(msg)
+            elif "store closed" in msg_lower or "store_closed" in msg_lower or "outlet closed" in msg_lower or "closed" in msg_lower:
+                raise StoreClosedError(msg)
+            elif "not serviceable" in msg_lower or "address_not_serviceable" in msg_lower or "unserviceable" in msg_lower:
                 raise AddressNotServiceableError(address_id="current")
             elif "minimum order" in msg_lower or "min order" in msg_lower or "min_order_not_met" in msg_lower:
                 raise MinOrderNotMetError(current_total=0.0)

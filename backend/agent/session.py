@@ -30,6 +30,7 @@ class CustomerSession:
     selected_payment_kind: Optional[str] = None
     selected_payment_method: Optional[str] = None
     selected_payment_label: Optional[str] = None
+    paas_id: Optional[str] = None
     recent_product_facts: list[dict[str, Any]] = field(default_factory=list)
     current_turn_original_message: Optional[str] = None
     dropped_requested_items: list[str] = field(default_factory=list)

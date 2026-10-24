@@ -11,19 +11,22 @@ import asyncpg
 import pytest
 
 from backend.channels.whatsapp import default_whatsapp_adapter
+from backend.config import settings
 
 
-def _local_dsn() -> str:
-    dsn = os.environ.get(
-        "GROCER_E2E_DATABASE_URL",
-        os.environ.get("DATABASE_URL", "postgresql://postgres:postgres@127.0.0.1:5432/grocer_test"),
-    )
+def _get_supabase_dsn() -> str:
+    dsn = os.environ.get("GROCER_E2E_DATABASE_URL") or settings.DATABASE_URL or os.environ.get("DATABASE_URL")
+    if not dsn:
+        raise RuntimeError(
+            "Live Supabase DATABASE_URL is required for tests. "
+            "Please check .env or set GROCER_E2E_DATABASE_URL."
+        )
     return dsn
 
 
 @pytest.fixture
 async def postgres_pool():
-    dsn = _local_dsn()
+    dsn = _get_supabase_dsn()
     ssl_opt = "require" if ("supabase.co" in dsn or "sslmode=require" in dsn) else False
     # If asyncpg receives sslmode in query string, clean or pass ssl
     clean_dsn = dsn.split("?")[0] if "?" in dsn else dsn

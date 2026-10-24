@@ -11,7 +11,7 @@ Tests are structured into two distinct execution tiers:
    - Test files:
      - `test_layer1_swiggy_mcp.py` (14 tests): Swiggy MCP client, JSON-RPC HTTP/2, errors, and dark-store tools.
      - `test_layer2_session_intent.py` (11 tests): Postgres task state serialization, cart fingerprinting, address disambiguation, and intent understanding.
-     - `test_layer3_basket_orchestrator.py` (11 tests): Product variant ranking, batch item addition, stock truth preservation, and Sangvi principle defaults.
+     - `test_layer3_basket_orchestrator.py` (11 tests): Product variant ranking, batch item addition, stock truth preservation, and live dark store address grounding.
      - `test_layer4_checkout_gate.py` (11 tests): 5-point physical checkout gate, 1-tap mobile UPI links (`upi://pay`), and hold tracking.
      - `test_customer_advocate.py` (5 tests): Wallet championship, auto-coupon selection, and free-delivery suggestions.
      - `test_invariants.py` (26 tests): Core invariants, math validation, and fast-paths.

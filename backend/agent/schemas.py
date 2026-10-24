@@ -26,6 +26,50 @@ RAW_TOOL_DECLARATIONS = [
         },
     },
     {
+        "name": "create_address",
+        "description": "Save a new delivery address to the customer's Swiggy Instamart account. Call this when the customer provides a new address in chat (via text description or GPS location pin).",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "label": {
+                    "type": "string",
+                    "description": "Address label, e.g. 'Home', 'Office', 'Parents House', 'Friend'.",
+                },
+                "street": {
+                    "type": "string",
+                    "description": "Street name, building, flat or house number.",
+                },
+                "area": {
+                    "type": "string",
+                    "description": "Locality or neighborhood name, e.g. 'Kothrud', 'Baner', 'Hinjewadi', 'Aundh'.",
+                },
+                "city": {
+                    "type": "string",
+                    "description": "City name, e.g. 'Pune', 'Bangalore', 'Mumbai'.",
+                },
+                "landmark": {
+                    "type": "string",
+                    "description": "Nearby landmark, e.g. 'Opposite D-Mart'.",
+                },
+            },
+            "required": ["label", "street"],
+        },
+    },
+    {
+        "name": "delete_address",
+        "description": "Delete an obsolete or unwanted saved delivery address from the customer's Swiggy account.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "address_id": {
+                    "type": "string",
+                    "description": "The ID of the address to delete.",
+                },
+            },
+            "required": ["address_id"],
+        },
+    },
+    {
         "name": "get_go_to_items",
         "description": "Fetch the user's frequently ordered / usual grocery items from their Swiggy Instamart history. Call this when the user asks for their 'usuals', 'regular groceries', or 'weekly restock'.",
         "parameters": {
@@ -102,6 +146,34 @@ RAW_TOOL_DECLARATIONS = [
         },
     },
     {
+        "name": "get_orders",
+        "description": "Fetch the customer's recent past Swiggy Instamart orders. Call this when the customer asks what they ordered previously or wants to reorder from past purchases.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer",
+                    "description": "Number of recent orders to fetch (default: 5).",
+                },
+            },
+            "required": [],
+        },
+    },
+    {
+        "name": "get_order_details",
+        "description": "Fetch the itemized breakdown of a past order for inspection or 1-tap reordering.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "order_id": {
+                    "type": "string",
+                    "description": "The Swiggy order ID.",
+                },
+            },
+            "required": ["order_id"],
+        },
+    },
+    {
         "name": "checkout",
         "description": "Place the Swiggy Instamart order using the customer's selected payment option. NEVER call this unless the user has explicitly confirmed the basket and address.",
         "parameters": {
@@ -137,7 +209,7 @@ RAW_TOOL_DECLARATIONS = [
     },
     {
         "name": "track_order",
-        "description": "Fetch live order tracking status, delivery ETA, and rider details.",
+        "description": "Fetch live order tracking status, delivery ETA, and rider details directly on WhatsApp.",
         "parameters": {
             "type": "object",
             "properties": {
@@ -147,6 +219,47 @@ RAW_TOOL_DECLARATIONS = [
                 },
             },
             "required": ["order_id"],
+        },
+    },
+    {
+        "name": "list_coupons",
+        "description": "Fetch available Swiggy Instamart coupons for the active cart.",
+        "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+    },
+    {
+        "name": "apply_coupon",
+        "description": "Apply a coupon code to the active cart.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "description": "Coupon promo code, e.g. 'INSTA50'.",
+                },
+            },
+            "required": ["code"],
+        },
+    },
+    {
+        "name": "report_error",
+        "description": "Report an issue (missing item, damaged goods, delivery delay) directly to Swiggy customer support.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "report_id": {
+                    "type": "string",
+                    "description": "Issue type, e.g. 'damaged_item', 'missing_item', 'delivery_delay'.",
+                },
+                "details": {
+                    "type": "string",
+                    "description": "Explanation of the issue.",
+                },
+            },
+            "required": ["report_id"],
         },
     },
     {

@@ -75,7 +75,7 @@ async def test_local_simulator_clear_failure_never_claims_empty_basket(postgres_
 
 @pytest.mark.asyncio
 async def test_preflight_resets_stale_clear_cart_ask_on_unrelated_turn():
-    from backend.agent.preflight_handler import execute_preflight
+    from backend.agent.engine import execute_preflight
     from backend.agent.session_manager import record_pending_cart_clear
 
     commerce = MockCommerceAdapter()
@@ -111,7 +111,7 @@ async def test_preflight_resets_stale_clear_cart_ask_on_unrelated_turn():
 @pytest.mark.asyncio
 async def test_missing_known_fingerprint_clears_pending_approval_and_sets_external_cart_pending():
     from backend.agent.approval import PendingApproval, cart_fingerprint
-    from backend.agent.preflight_handler import execute_preflight
+    from backend.agent.engine import execute_preflight
 
     commerce = MockCommerceAdapter()
     engine = GroceryAgentEngine(commerce, gemini_api_key="local-test")

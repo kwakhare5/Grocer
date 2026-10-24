@@ -44,7 +44,7 @@ from backend.integrations.commerce.models import (
     PaymentOption,
     PaymentStatusResult,
 )
-from backend.integrations.commerce.port import CommercePort, SWIGGY_CUSTOMER_CARE_PHONE
+from backend.integrations.commerce.port import CommercePort
 from backend.integrations.commerce.swiggy_client import SwiggyMcpClient
 from backend.integrations.commerce.catalog_parsers import parse_coupons, parse_swiggy_products
 from backend.integrations.commerce.cart_parsers import build_commerce_cart

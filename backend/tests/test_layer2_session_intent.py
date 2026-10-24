@@ -31,7 +31,6 @@ from backend.agent.engine import GroceryAgentEngine
 
 from backend.agent.product_policy import is_restricted_medical_product
 
-from backend.agent.react_coordinator import execute_react_turn_loop
 
 from backend.agent.session import CustomerSession
 

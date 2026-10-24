@@ -1,0 +1,23 @@
+﻿{
+    "message_id":  "sim.d5005789335a44b39cf3915212c5bee5",
+    "text":  "Your Swiggy login has expired. Please reconnect your account to continue.",
+    "conversation_state":  "RECOVERING",
+    "interactive_actions":  [
+
+                            ],
+    "meta_payloads":  [
+                          {
+                              "messaging_product":  "whatsapp",
+                              "recipient_type":  "individual",
+                              "to":  "919876543210",
+                              "type":  "text",
+                              "text":  {
+                                           "body":  "Your Swiggy login has expired. Please reconnect your account to continue."
+                                       }
+                          }
+                      ],
+    "delivery_status":  "SENT",
+    "cart":  null,
+    "commerce_mode":  "swiggy_mcp",
+    "latency_ms":  4063.0
+}

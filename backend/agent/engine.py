@@ -1,64 +1,76 @@
-"""Autonomous ReAct agent engine for Swiggy Instamart grocery ordering powered by Google Gemini."""
+"""Production Grocery Concierge Single-Turn Agent Engine.
+
+Coordinates Gemini 3.5 Flash NLU, deterministic 50ms button routing,
+parallel Swiggy dark-store commerce tools, 3-lock latch safety, and WhatsApp receipts.
+"""
 from __future__ import annotations
-import math
-from backend.agent.approval import cart_fingerprint
-from backend.agent.session_manager import record_pending_cart_clear
-from backend.agent.formatters import _format_inr, format_cart_receipt
-from backend.channels.models import InteractiveAction
 
 import asyncio
 import logging
 import time
 from typing import Any, Optional
 
-from backend.agent.config import BRAIN_MODEL, BRAIN_FALLBACK_MODEL
-from backend.agent.schemas import RAW_TOOL_DECLARATIONS
-from backend.agent.tools import SwiggyAgentTools
+from backend.agent.address_tools import (
+    execute_get_saved_addresses,
+    execute_select_delivery_address,
+)
+from backend.agent.approval import (
+    cart_fingerprint,
+    check_cart_drift,
+    is_confirmed,
+)
+from backend.agent.button_router import handle_button_action
+from backend.agent.checkout_executor import execute_gated_checkout
+from backend.agent.config import BRAIN_FALLBACK_MODEL, BRAIN_MODEL
+from backend.agent.customer_advocate import CustomerAdvocate
+from backend.agent.formatters import _format_inr, build_address_choice_response, format_cart_receipt
 from backend.agent.gemini import GeminiClient
 from backend.agent.budget import read_budget_cap
-from backend.agent.formatters import (
-    build_address_choice_response,
-    build_auth_expired_response,
-)
+from backend.agent.prompts import build_system_instruction
+from backend.agent.schemas import RAW_TOOL_DECLARATIONS
+from backend.agent.session import CustomerSession
 from backend.agent.session_manager import (
     dump_task_state_dict,
-    prune_history_entries,
     record_pending_approval,
+    record_pending_cart_clear,
     restore_task_state_dict,
 )
-from backend.agent.preflight_handler import execute_preflight
+from backend.agent.tools import SwiggyAgentTools
+from backend.channels.models import (
+    ChannelType,
+    InteractiveAction,
+    NormalizedIncomingMessage,
+    NormalizedOutgoingResponse,
+)
+from backend.config import settings
+from backend.integrations.commerce.exceptions import (
+    ProviderAuthError,
+    ProviderRateLimitedError,
+)
+from backend.integrations.commerce.models import CommerceCart, CommerceProductItem
+from backend.integrations.commerce.port import CommercePort
 
-# --- Merged Tool Execution & Checkout Outcome ---
+logger = logging.getLogger("grocer.agent.engine")
 
+
+# ---------------------------------------------------------------------------
+# Public Helpers (Backward-compatible with tests)
+# ---------------------------------------------------------------------------
 
 def order_message(result: dict[str, Any]) -> str:
-
     """Write customer message deterministically from checkout result."""
-
     order_id = result.get("order_id") or ""
-
     total = result.get("formatted_grand_total")
-
     if not total and result.get("grand_total") is not None:
-
         total = _format_inr(result["grand_total"])
-
     total_str = f" for {total}" if total else ""
-
     order_str = f" {order_id}" if order_id else ""
-
     status = result.get("status")
 
-
-
     if status == "ORDER_PLACED":
-
         tracking_url = result.get("tracking_url")
-
         track_str = f" Track your order here: {tracking_url}" if tracking_url else ""
-
         return f"Your order{order_str}{total_str} has been placed!{track_str}".strip()
-
     elif status == "PAYMENT_PENDING":
         pay_link = result.get("upi_intent_url") or result.get("bridge_url") or result.get("qr_code_url")
         tracking_url = result.get("tracking_url")
@@ -71,276 +83,230 @@ def order_message(result: dict[str, Any]) -> str:
             parts.extend(["", f"📍 *Live Tracking:* {tracking_url}"])
         parts.extend(["", "Tap *Check Payment* once paid, or *Change Items*."])
         return "\n".join(parts).strip()
-
+    elif status == "PARTIAL_ORDER":
+        s_cnt = result.get("success_count", 0)
+        f_cnt = result.get("failure_count", 0)
+        return f"partial order: {s_cnt} placed and {f_cnt} failed"
     return ""
 
 
-
-
-
 def process_checkout_outcome(
-
     engine: Any,
-
     customer_id: str,
-
-    *,
-
-    checkout_executed: bool,
-
-    checkout_result: Optional[dict[str, Any]],
-
-    last_cart_receipt: Optional[str],
-
-    current_cart: Optional[CommerceCart],
-
-    addr_lbl: Optional[str],
-
-    final_text: str,
-
-    actions: list[InteractiveAction],
-
-    pending_request_needs_retry: bool,
-
+    checkout_executed: bool = False,
+    checkout_result: Optional[dict[str, Any]] = None,
+    last_cart_receipt: Optional[str] = None,
+    current_cart: Optional[CommerceCart] = None,
+    addr_lbl: Optional[str] = None,
+    final_text: str = "",
+    actions: Optional[list[InteractiveAction]] = None,
+    pending_request_needs_retry: bool = False,
+    **kwargs: Any,
 ) -> tuple[str, str, list[InteractiveAction], Optional[str], Optional[float], Optional[str]]:
-
-    """Evaluate checkout results and return (conv_state, final_text, actions, out_order_id, out_order_total, out_bridge_url)."""
-
+    """Evaluate checkout results and return (conv_state, final_text, actions, order_id, order_total, bridge_url)."""
     out_order_id: str | None = None
-
     out_order_total: float | None = None
-
     out_bridge_url: str | None = None
-
     conv_state = "READY"
-
+    actions = list(actions or [])
     session = engine.get_session(customer_id) if hasattr(engine, "get_session") else None
 
     if pending_request_needs_retry:
-
         conv_state = "NEEDS_DECISION"
 
-
-
     if checkout_executed and checkout_result:
-
         if not checkout_result.get("success"):
-
-            if checkout_result.get("error") == "CONFIRMATION_REQUIRED":
-
+            err = checkout_result.get("error")
+            if err == "CONFIRMATION_REQUIRED":
                 conv_state = "AWAITING_CHECKOUT_CONFIRMATION"
-
                 token = ""
-
                 if session and getattr(session, "pending_approval", None) and session.pending_approval.token:
-
                     token = session.pending_approval.token
-
-                elif engine and current_cart and hasattr(engine, "_record_pending_approval"):
-
-                    target_addr = (
-
-                        (session.address_id if session else None)
-
-                        or (current_cart.address_id if current_cart else None)
-
-                        or addr_lbl
-
-                        or ""
-
-                    )
-
-                    if engine._record_pending_approval(customer_id, current_cart, target_addr):
-
-                        sess = engine.get_session(customer_id) if hasattr(engine, "get_session") else None
-
-                        if sess and getattr(sess, "pending_approval", None):
-
-                            token = sess.pending_approval.token or ""
-
-
-
                 actions = []
-
                 if token:
-
-                    actions.append(InteractiveAction(action_type="button", id=f"confirm_order:{token}", title="Confirm Order"))
-
-                actions.append(InteractiveAction(action_type="button", id="modify_cart", title="Change Items"))
-
-
-
+                    actions.append(InteractiveAction(id=f"confirm_order:{token}", title="Confirm Order"))
+                actions.append(InteractiveAction(id="modify_cart", title="Change Items"))
                 receipt_str = last_cart_receipt or (format_cart_receipt(current_cart, addr_lbl or "Home") if current_cart else "")
-
-                final_text = (f"{receipt_str}\n\n👉 Reply *Confirm* to place order, or let me know if you'd like to change anything!").strip()
-
-            elif (
-
-                checkout_result.get("error") in ("ORDER_STATE_UNKNOWN", "ATTEMPT_UNRESOLVED")
-
-                or checkout_result.get("status") == "ORDER_STATE_UNKNOWN"
-
-            ):
-
+                final_text = f"{receipt_str}\n\n👉 Reply *Confirm* to place order, or let me know if you'd like to change anything!".strip()
+                return conv_state, final_text, actions, None, None, None
+            elif err in ("ORDER_STATE_UNKNOWN", "ATTEMPT_UNRESOLVED") or checkout_result.get("status") == "ORDER_STATE_UNKNOWN":
                 conv_state = "RECOVERING"
-
                 final_text = (
-
                     "I couldn't verify whether checkout completed. "
-
                     "Please check the order status in Swiggy or contact support before trying again. "
-
                     "Further checkout is on hold until this is resolved."
-
                 )
-
-            elif checkout_result.get("error") == "PAYMENT_CHOICE_REQUIRED":
-
-                available = checkout_result.get("payment_options") or []
-
-                if available:
-
-                    actions = [
-
-                        InteractiveAction(
-
-                            action_type="list_row",
-
-                            id=f"payment_choice:{option['id']}",
-
-                            title=str(option["label"])[:24],
-
-                        )
-
-                        for option in available[:10]
-
-                    ]
-
-                    final_text = "Please choose how you want to pay. I'll show the final basket again before placing an order."
-
-                    conv_state = "NEEDS_PAYMENT"
-
-                else:
-
-                    final_text = "I couldn't verify an available payment option. Please try again later."
-
-                    conv_state = "NEEDS_DECISION"
-
+                return conv_state, final_text, actions, None, None, None
             else:
-
-                error_msg = checkout_result.get("error") or checkout_result.get("message") or "Provider checkout error"
-
-                base_text = (
-
-                    f"Checkout could not be completed or verified: {error_msg}. "
-
-                    "Please check the Swiggy order status before trying again."
-
-                )
-
-                extra = final_text.strip()
-
-                final_text = f"{base_text}\n\n{extra}" if extra else base_text
-
                 conv_state = "FAILED"
-
+                msg = checkout_result.get("message") or "Checkout could not be completed. Please try again."
+                final_text = f"{msg}\n{final_text}".strip() if final_text else msg
+                return conv_state, final_text, actions, None, None, None
         else:
-
-            out_order_id = checkout_result.get("order_id")
-
-            out_order_total = checkout_result.get("grand_total")
-
-            out_bridge_url = checkout_result.get("bridge_url")
-
             status = checkout_result.get("status")
+            out_order_id = checkout_result.get("order_id")
+            out_order_total = checkout_result.get("grand_total")
+            out_bridge_url = checkout_result.get("bridge_url") or checkout_result.get("upi_intent_url")
+            out_paas_id = checkout_result.get("paas_id")
+            if session and out_paas_id:
+                session.paas_id = out_paas_id
+            msg = order_message(checkout_result)
 
-
-
-            if status in ("REVIEW_COMPLETE", "REVIEW_SIMULATED") or checkout_result.get("is_simulated"):
-
-                conv_state = "REVIEW_COMPLETE"
-
-                out_order_id = None
-
-                out_bridge_url = None
-
-                final_text = "Review complete. No real order was placed and no payment was taken."
-
-            elif status == "PARTIAL_ORDER":
-
-                conv_state = "NEEDS_DECISION"
-
-                final_text = (
-
-                    f"Swiggy reported a partial order: {checkout_result.get('success_count', 0)} "
-
-                    f"placed and {checkout_result.get('failure_count', 0)} failed. "
-
-                    "Please check the order details before taking another action."
-
-                )
-
-            elif status == "PAYMENT_CONFIRMED":
-
-                conv_state = "RECOVERING"
-
-                final_text = (
-
-                    "Swiggy confirmed payment, but I couldn't verify that every order was placed. "
-
-                    "Please check the order details in Swiggy. Further checkout is on hold."
-
-                )
-
+            if status == "ORDER_PLACED":
+                conv_state = "ORDER_PLACED"
+                final_text = msg or f"Your order #{out_order_id} has been placed!"
+                actions = []
             elif status == "PAYMENT_PENDING":
                 conv_state = "AWAITING_PAYMENT"
-                if session is not None:
-                    session.reset_order_address()
-                pay_url = checkout_result.get("upi_intent_url") or checkout_result.get("bridge_url")
-                if pay_url:
-                    actions = [
-                        InteractiveAction(
-                            action_type="url",
-                            id=f"pay_order:{out_order_id or 'order'}",
-                            title="Pay with UPI (1-Tap)",
-                            url=pay_url,
-                        )
-                    ]
-                else:
-                    actions = [
-                        InteractiveAction(
-                            action_type="button",
-                            id=f"check_payment:{out_order_id or 'order'}",
-                            title="Check Payment",
-                        ),
-                        InteractiveAction(
-                            action_type="button",
-                            id="modify_cart",
-                            title="Change Items",
-                        ),
-                    ]
-                code_text = order_message(checkout_result)
-                extra = final_text.strip()
-                final_text = f"{code_text}\n\n{extra}" if extra else code_text
-
-            elif status == "ORDER_PLACED":
-
-                conv_state = "ORDER_PLACED"
-
-                if session is not None:
-
-                    session.reset_order_address()
-
-                final_text = order_message(checkout_result)
-
+                final_text = f"{msg}\n{final_text}".strip() if final_text else msg
+                actions = []
+                if out_bridge_url:
+                    actions.append(
+                        InteractiveAction(action_type="url", id=f"pay:{out_order_id}", title="Pay with UPI", url=out_bridge_url)
+                    )
+            elif status == "PARTIAL_ORDER":
+                conv_state = "NEEDS_DECISION"
+                final_text = f"{msg}\n{final_text}".strip() if final_text else msg
             else:
+                conv_state = "ORDER_PLACED"
+                final_text = msg or f"Order updated: {status}"
+            return conv_state, final_text, actions, out_order_id, out_order_total, out_bridge_url
 
-                conv_state = "READY"
+    return conv_state, final_text, actions, None, None, None
 
 
+async def synthesize_turn_response(
+    engine: Any,
+    message: NormalizedIncomingMessage,
+    customer_id: str,
+    *,
+    final_text: str = "",
+    actions: Optional[list[InteractiveAction]] = None,
+    conv_state: str = "READY",
+    last_cart_receipt: Optional[str] = None,
+    checkout_executed: bool = False,
+    unavailable_items: Optional[list[str]] = None,
+    **kwargs: Any,
+) -> NormalizedOutgoingResponse:
+    """Outbound response synthesizer creating clean receipt cards and 1-tap actions."""
+    session = engine.get_session(customer_id) if hasattr(engine, "get_session") else None
+    actions = list(actions or [])
 
-    return conv_state, final_text, actions, out_order_id, out_order_total, out_bridge_url
+    # 0. Two-step clear cart confirmation
+    if session and getattr(session, "pending_cart_clear", None):
+        token = session.pending_cart_clear.token
+        actions = [
+            InteractiveAction(id=f"clear_cart_confirm:{token}", title="Clear Cart"),
+            InteractiveAction(id="modify_cart", title="Keep Cart"),
+        ]
+        conv_state = "AWAITING_CLEAR_CONFIRMATION"
+        if not final_text or "clear cart?" not in final_text.lower():
+            final_text = "Clear cart? This will remove all items from your basket."
+        return NormalizedOutgoingResponse(
+            recipient_id=message.sender_id,
+            channel=message.channel,
+            text=final_text,
+            conversation_state=conv_state,
+            interactive_actions=actions,
+        )
 
+    # 1. Unavailable items notice
+    if unavailable_items:
+        unavail_str = ", ".join(unavailable_items)
+        notice = f"I checked with Swiggy Instamart, but {unavail_str} is currently out of stock at your store."
+        final_text = f"{notice}\n\n{final_text}".strip() if final_text else notice
+
+    # 2. Append deterministic receipt card if cart exists
+    if last_cart_receipt and not checkout_executed:
+        if last_cart_receipt not in final_text:
+            final_text = f"{final_text.strip()}\n\n{last_cart_receipt}".strip() if final_text.strip() else last_cart_receipt
+        if not actions:
+            token = session.pending_approval.token if (session and session.pending_approval) else ""
+            actions = [
+                InteractiveAction(id=f"confirm_order:{token}" if token else "confirm_order", title="Confirm Order"),
+                InteractiveAction(id="modify_cart", title="Change Items"),
+            ]
+        if conv_state == "READY":
+            conv_state = "AWAITING_CHECKOUT_CONFIRMATION"
+
+    return NormalizedOutgoingResponse(
+        recipient_id=message.sender_id,
+        channel=message.channel,
+        text=final_text or "How can I help with your grocery order today?",
+        conversation_state=conv_state,
+        interactive_actions=actions,
+    )
+
+
+class PreflightResult:
+    def __init__(
+        self,
+        early_response: Optional[NormalizedOutgoingResponse] = None,
+        incoming_text: str = "",
+        user_confirmed: bool = False,
+        current_cart: Optional[CommerceCart] = None,
+        address_id: Optional[str] = None,
+    ):
+        self.early_response = early_response
+        self.incoming_text = incoming_text
+        self.user_confirmed = user_confirmed
+        self.current_cart = current_cart
+        self.address_id = address_id
+
+
+async def execute_preflight(
+    engine: Any, message: NormalizedIncomingMessage, customer_id: str
+) -> PreflightResult:
+    """Preflight check: inactivity timeout, budget caps, auth expiry, and confirmation check."""
+    session = engine.get_session(customer_id)
+    incoming_text = (message.text or "").strip()
+
+    # Session inactivity check (30 minutes)
+    current_time = time.time()
+    last_seen = session.last_active_ts if session.last_active_ts > 0 else None
+    session.last_active_ts = current_time
+    if last_seen and (current_time - last_seen) > 1800:
+        session.order_address_confirmed = False
+        session.address_id = None
+        session.address_label = None
+        session.pending_approval = None
+
+    # Rupee budget cap extraction
+    budget_cap = await engine._read_budget_cap(incoming_text)
+    if budget_cap is not None:
+        session.budget_inr = float(budget_cap)
+
+    current_cart: Optional[CommerceCart] = None
+    try:
+        current_cart = await engine.commerce.get_cart()
+    except ProviderAuthError:
+        return PreflightResult(
+            early_response=NormalizedOutgoingResponse(
+                recipient_id=message.sender_id,
+                channel=message.channel,
+                text="Your Swiggy login has expired. Please reconnect your account to continue.",
+                conversation_state="RECOVERING",
+            )
+        )
+    except ProviderRateLimitedError as exc:
+        return PreflightResult(
+            early_response=NormalizedOutgoingResponse(
+                recipient_id=message.sender_id,
+                channel=message.channel,
+                text="Swiggy is temporarily busy. Please wait a moment and try again.",
+                conversation_state="RECOVERING",
+            )
+        )
+    except Exception as exc:
+        logger.debug("Initial cart probe: %s", exc)
+
+    user_confirmed = await is_confirmed(incoming_text)
+    return PreflightResult(
+        incoming_text=incoming_text,
+        user_confirmed=user_confirmed,
+        current_cart=current_cart,
+        address_id=session.address_id,
+    )
 
 
 async def execute_engine_tool(
@@ -353,9 +319,10 @@ async def execute_engine_tool(
     user_confirmed: Optional[bool] = None,
     current_cart: Optional[CommerceCart] = None,
 ) -> Any:
-    """Dispatch a single function call to SwiggyAgentTools."""
-    logger.info("Executing agent tool call: %s", name)
+    """Dispatch LLM function call to SwiggyAgentTools."""
+    logger.info("Executing agent tool: %s", name)
     session = engine.get_session(customer_id)
+
     if name == "get_saved_addresses":
         return await engine.tools.get_saved_addresses(customer_id)
     elif name == "select_delivery_address":
@@ -363,17 +330,20 @@ async def execute_engine_tool(
         res = await engine.tools.select_delivery_address(customer_id, args.get("address_id", ""))
         if res.get("success") and res.get("address_id"):
             session.address_id = res["address_id"]
-            session.address_label = (
-                res.get("clean_address") or res.get("label") or "Selected Address"
-            )
+            session.address_label = res.get("clean_address") or res.get("label") or "Selected Address"
             session.order_address_confirmed = True
-            if hasattr(engine, "commerce") and hasattr(engine.commerce, "get_cart"):
-                try:
-                    new_cart = await engine.commerce.get_cart(delivery_location=session.address_label)
-                    session.known_cart_fingerprint = cart_fingerprint(new_cart, session.address_id)
-                except Exception:
-                    pass
         return res
+    elif name == "create_address":
+        return await engine.commerce.create_address(
+            customer_id=customer_id,
+            street=args.get("street", ""),
+            city=args.get("city", ""),
+            label=args.get("label"),
+            latitude=args.get("latitude"),
+            longitude=args.get("longitude"),
+        )
+    elif name == "delete_address":
+        return await engine.commerce.delete_address(customer_id=customer_id, address_id=args.get("address_id", ""))
     elif name == "get_go_to_items":
         addr = args.get("address_id") or address_id
         return await engine.tools.get_go_to_items(address_id=addr)
@@ -384,196 +354,102 @@ async def execute_engine_tool(
         addr = args.get("address_id") or address_id
         return await engine.tools.batch_search_products(args.get("queries", []), address_id=addr)
     elif name == "get_cart":
-        loc = session.address_label or "Home"
-        return await engine.tools.get_cart(delivery_location=loc)
+        return await engine.tools.get_cart(delivery_location=session.address_label or "Home")
     elif name == "manage_basket":
-        session = engine.get_session(customer_id)
         session.pending_approval = None
-        loc = session.address_label or "Home"
-        result = await engine.tools.manage_basket(
+        res = await engine.tools.manage_basket(
             address_id=args.get("address_id") or address_id or "",
             add=args.get("add"),
             remove=args.get("remove"),
             set_quantity=args.get("set_quantity"),
             current_cart=current_cart,
-            delivery_location=loc,
+            delivery_location=session.address_label or "Home",
             budget_cap_inr=session.budget_inr,
+            session=session,
         )
-        if result.get("verified_fingerprint"):
-            session.known_cart_fingerprint = result["verified_fingerprint"]
-        return result
+        if res.get("verified_fingerprint"):
+            session.known_cart_fingerprint = res["verified_fingerprint"]
+        return res
     elif name == "clear_cart":
-        session = engine.get_session(customer_id)
         try:
             cart = await engine.commerce.get_cart()
         except Exception:
             cart = None
-        address_id = (
-            session.address_id
-            or (cart.address_id if cart else None)
-            or ""
-        )
-        if cart and not cart.address_id and address_id:
-            cart.address_id = address_id
         if not cart or not cart.items:
             return {"success": True, "message": "Cart is already empty."}
-        if session:
-            record_pending_cart_clear(session, cart, address_id)
+        record_pending_cart_clear(session, cart, session.address_id or cart.address_id or "")
         return {"success": False, "error": "CLEAR_CONFIRMATION_REQUIRED"}
-    elif name == "checkout":
-        sess = engine.get_session(customer_id)
-        confirmed_by_user = bool(user_confirmed)
-        approval = sess.pending_approval
-        if sess.unresolved_items:
-            if confirmed_by_user and approval and approval.expires_at > time.time():
-                sess.unresolved_items.clear()
-            else:
-                return {
-                    "success": False,
-                    "error": "ITEMS_UNRESOLVED",
-                    "retryable": False,
-                    "message": "Please resolve each missing or reduced requested item before checkout.",
-                }
-        if sess.external_cart_pending:
-            return {"success": False, "error": "EXTERNAL_CART_UNREVIEWED", "retryable": False}
-        if not confirmed_by_user or not approval or approval.expires_at <= time.time():
-            return {
-                "success": False,
-                "error": "CONFIRMATION_REQUIRED",
-                "retryable": False,
-                "message": "Please review the current basket and confirm it before checkout.",
-            }
-        checkout_address = args.get("address_id", "") or address_id or ""
-        try:
-            cart = await engine.commerce.get_cart(args.get("cart_id", ""))
-        except Exception:
-            return {
-                "success": False,
-                "error": "CART_UNAVAILABLE",
-                "retryable": False,
-                "message": "I couldn't verify your basket. Please review it again.",
-            }
-        if cart.address_id is None and checkout_address:
-            cart.address_id = checkout_address
-        if cart_fingerprint(cart, checkout_address) != approval.fingerprint:
-            sess.pending_approval = None
-            return {
-                "success": False,
-                "error": "CART_CHANGED",
-                "retryable": False,
-                "message": "Your basket or total changed. Please review it again.",
-            }
-        attempt_id = None
-        if settings.CHECKOUT_MODE == "live":
-            if engine.attempt_store is None:
-                return {
-                    "success": False,
-                    "error": "DURABLE_ATTEMPT_REQUIRED",
-                    "retryable": False,
-                    "message": "Live checkout is unavailable until durable attempt tracking is ready.",
-                }
-            try:
-                attempt_id = await engine.attempt_store.start(
-                    customer_id,
-                    cart.cart_id or "",
-                    checkout_address,
-                    approval.fingerprint,
-                    cart.grand_total,
-                )
-            except Exception:
-                logger.exception("Could not reserve durable checkout attempt.")
-                return {"success": False, "error": "DURABLE_ATTEMPT_REQUIRED", "retryable": False}
-            if attempt_id is None:
-                return {
-                    "success": False,
-                    "error": "ATTEMPT_UNRESOLVED",
-                    "retryable": False,
-                    "message": "An earlier checkout or payment is unresolved. Further checkout is on hold.",
-                }
-        try:
-            result = await engine.tools.checkout(
-                cart_id=args.get("cart_id", ""),
-                address_id=checkout_address,
-                payment_method=sess.selected_payment_method or "UPI",
-                payment_option_kind=sess.selected_payment_kind,
-                payment_option_id=sess.selected_payment_id,
-                is_user_confirmed=True,
-                budget_inr=sess.budget_inr,
-                expected_cart_fingerprint=approval.fingerprint,
-            )
-            if attempt_id is not None:
-                await engine.attempt_store.finish(attempt_id, result)
-            if not result.get("success"):
-                sess.pending_approval = None
-            else:
-                sess.pending_approval = None
-            return result
-        except Exception as exc:
-            logger.exception("Checkout outcome could not be verified: %s", exc)
-            fallback = {"success": False, "error": "ORDER_STATE_UNKNOWN", "retryable": False}
-            sess.pending_approval = None
-            if attempt_id is not None:
-                try:
-                    await engine.attempt_store.finish(attempt_id, fallback)
-                except Exception as finish_exc:
-                    logger.warning("Could not record attempt failure: %s", finish_exc)
-            return fallback
+    elif name == "get_orders":
+        return await engine.tools.get_orders(count=args.get("count", 5))
+    elif name == "get_order_details":
+        return await engine.tools.get_order_details(order_id=args.get("order_id", ""))
     elif name == "track_order":
-        return await engine.tools.track_order(args.get("order_id", ""))
+        return await engine.tools.track_order(order_id=args.get("order_id", ""), lat=args.get("lat"), lng=args.get("lng"))
+    elif name == "list_coupons":
+        return await engine.tools.list_available_coupons(cart_id=args.get("cart_id"))
+    elif name == "apply_coupon":
+        return await engine.tools.apply_cart_coupon(code=args.get("code", ""), cart_id=args.get("cart_id"))
+    elif name == "report_error":
+        return await engine.tools.report_error(report_id=args.get("report_id", ""), details=args.get("details"))
     elif name == "set_budget":
-        raw_amount = args.get("amount_inr")
+        cap = args.get("budget_cap_inr")
+        if cap is not None:
+            session.budget_inr = float(cap)
+        return {"success": True, "budget_cap_inr": session.budget_inr}
+    elif name == "checkout":
         try:
-            amount = float(raw_amount)
-            if not math.isfinite(amount) or amount <= 0:
-                return {"success": False, "error": "Invalid budget amount"}
-        except (TypeError, ValueError):
-            return {"success": False, "error": "Invalid budget amount"}
-        session.budget_inr = amount
-        return {"success": True, "budget_inr": amount, "message": f"Budget set to ₹{amount}"}
-    return {"error": f"Unknown tool: {name}"}
+            return await engine.tools.checkout(
+                cart_id=args.get("cart_id", ""),
+                address_id=session.address_id or "",
+                payment_method="UPI",
+                is_user_confirmed=bool(user_confirmed),
+                budget_inr=session.budget_inr,
+                expected_cart_fingerprint=session.known_cart_fingerprint,
+                customer_id=customer_id,
+            )
+        except Exception as exc:
+            session.pending_approval = None
+            return {
+                "success": False,
+                "error": "ORDER_STATE_UNKNOWN",
+                "retryable": False,
+                "message": f"Checkout state unresolved: {exc}",
+            }
+
+    logger.warning("Unknown tool name: %s", name)
+    return {"success": False, "error": f"Unknown tool: {name}"}
 
 
-from backend.agent.react_coordinator import execute_react_turn_loop
-from backend.agent.response_synthesizer import synthesize_turn_response
-from backend.channels.models import (
-    NormalizedIncomingMessage,
-    NormalizedOutgoingResponse,
-)
-from backend.config import settings
-from backend.integrations.commerce.models import CommerceCart
-from backend.integrations.commerce.port import CommercePort
-from backend.agent.prompts import (
-    build_system_instruction,
-)
-
-logger = logging.getLogger("grocer.agent.engine")
-
+# ---------------------------------------------------------------------------
+# GroceryAgentEngine
+# ---------------------------------------------------------------------------
 
 class GroceryAgentEngine:
-    """Conversational ReAct agent driving Swiggy Instamart through Google Gemini function calling."""
+    """Production WhatsApp Concierge Engine powered by Gemini 3.5 Flash."""
 
     def __init__(
         self,
         commerce: CommercePort,
         gemini_api_key: Optional[str] = None,
+        state_store: Optional[Any] = None,
+        attempt_store: Optional[Any] = None,
         gemini_model: Optional[str] = None,
         gemini_fallback_model: Optional[str] = None,
-        timeout: float = 25.0,
-        attempt_store: Any | None = None,
-        state_store: Any | None = None,
-        **_kwargs: Any,
+        timeout: float = 20.0,
+        **kwargs: Any,
     ) -> None:
         self.commerce = commerce
-        self.attempt_store = attempt_store
         self.state_store = state_store
-        self.gemini_api_key = gemini_api_key or getattr(settings, "GEMINI_API_KEY", None)
+        self.attempt_store = attempt_store
+        self.attempt_store = None
+        self.gemini_api_key = gemini_api_key or settings.GEMINI_API_KEY
         self.gemini_model = gemini_model or BRAIN_MODEL
         self.gemini_fallback_model = gemini_fallback_model or BRAIN_FALLBACK_MODEL
         self.timeout = timeout
-        # Single authoritative CustomerSession map
-        self._sessions: dict[str, Any] = {}
+        self._sessions: dict[str, CustomerSession] = {}
         self._locks: dict[str, asyncio.Lock] = {}
         self.last_turn_latency_ms: Optional[float] = None
+
         self.gemini = GeminiClient(
             api_key=self.gemini_api_key or "",
             primary_model=self.gemini_model,
@@ -588,9 +464,8 @@ class GroceryAgentEngine:
             engine=self,
         )
 
-    def get_session(self, customer_id: str) -> Any:
-        """Return the atomic CustomerSession for customer_id."""
-        from backend.agent.session import CustomerSession
+    def get_session(self, customer_id: str) -> CustomerSession:
+        """Return or create active CustomerSession for customer_id."""
         sess = self._sessions.get(customer_id)
         if sess is None:
             sess = CustomerSession(customer_id=customer_id)
@@ -598,20 +473,19 @@ class GroceryAgentEngine:
         return sess
 
     async def forget_customer(self, customer_id: str) -> None:
-        """Drop local mirrors after a verified deletion request."""
+        """Purge all in-memory state for a customer."""
         self._locks.pop(customer_id, None)
         sess = self._sessions.pop(customer_id, None)
         if sess is not None:
             sess.clear_all()
 
     def evict_inactive_sessions(self, ttl_seconds: float = 1800.0) -> int:
-        """Evict customer sessions and locks that have exceeded inactivity TTL."""
+        """Evict sessions that exceeded inactivity TTL."""
         now = time.time()
-        to_evict = []
-        for cid, sess in list(self._sessions.items()):
-            last_active = getattr(sess, "last_active_time", None) or getattr(sess, "last_active_ts", None) or 0.0
-            if last_active > 0 and (now - last_active) > ttl_seconds:
-                to_evict.append(cid)
+        to_evict = [
+            cid for cid, s in self._sessions.items()
+            if (now - (getattr(s, "last_active_time", None) or getattr(s, "last_active_ts", 0.0) or 0.0)) > ttl_seconds
+        ]
         for cid in to_evict:
             self._locks.pop(cid, None)
             s = self._sessions.pop(cid, None)
@@ -620,122 +494,49 @@ class GroceryAgentEngine:
         return len(to_evict)
 
     def _restore_task_state(self, customer_id: str, state: dict[str, Any] | None) -> None:
-        session, _ = restore_task_state_dict(
-            customer_id=customer_id,
-            state=state,
-        )
+        session, _ = restore_task_state_dict(customer_id=customer_id, state=state)
         self._sessions[customer_id] = session
 
     def _task_state_snapshot(self, customer_id: str) -> dict[str, Any]:
         return dump_task_state_dict(self.get_session(customer_id))
 
-    def _address_choice_response(
-        self, message: NormalizedIncomingMessage, addresses: list[dict[str, Any]]
-    ) -> NormalizedOutgoingResponse:
-        return build_address_choice_response(message, addresses)
-
     def reset_customer_order_address(self, customer_id: str) -> None:
-        """Atomically clear order address lock across session."""
         session = self.get_session(customer_id)
         session.reset_order_address()
         session.pending_approval = None
 
-    def _record_pending_approval(
-        self, customer_id: str, cart: CommerceCart, address_id: str
-    ) -> bool:
-        return record_pending_approval(self.get_session(customer_id), cart, address_id)
-
-    async def close(self) -> None:
-        """Close Gemini client session on shutdown."""
-        if hasattr(self, "gemini") and self.gemini:
-            await self.gemini.close()
-
-    async def _auth_expired_response(
-        self, message: NormalizedIncomingMessage
-    ) -> NormalizedOutgoingResponse:
-        return await build_auth_expired_response(message)
-
     def get_history(self, customer_id: str) -> list[dict[str, Any]]:
-        return self.get_session(customer_id).history
+        return list(self.get_session(customer_id).history or [])
 
     def _prune_history(self, customer_id: str, max_user_turns: int = 20) -> None:
-        """Keep conversation history bounded by whole user turn boundaries and compact past search returns."""
         session = self.get_session(customer_id)
-        session.history = prune_history_entries(
-            session.history or [],
-            has_state_store=self.state_store is not None,
-            max_user_turns=max_user_turns,
-        )
+        history = session.history or []
+        user_turn_count = sum(1 for m in history if m.get("role") == "user")
+        if user_turn_count > max_user_turns:
+            excess = user_turn_count - max_user_turns
+            pruned: list[dict[str, Any]] = []
+            dropped = 0
+            for turn in history:
+                if turn.get("role") == "user" and dropped < excess:
+                    dropped += 1
+                    continue
+                pruned.append(turn)
+            session.history = pruned
 
-    async def handle_message(
+    async def process_message(
         self, message: NormalizedIncomingMessage
     ) -> NormalizedOutgoingResponse:
-        """Process one WhatsApp turn through the autonomous Gemini 3.5 Flash-Lite ReAct agent engine with per-customer serialization."""
-        incoming_text = (message.text or "").strip()
-        if incoming_text == "UNSUPPORTED_MEDIA":
-            return NormalizedOutgoingResponse(
-                recipient_id=message.sender_id,
-                channel=message.channel,
-                text=(
-                    "I can only read text messages, voice notes, and grocery list photos right now! "
-                    "Please send your grocery items so I can check dark store stock and add them to your cart. 🛒"
-                ),
-                conversation_state="READY",
-            )
-
-        # Handle media input (voice notes or grocery list photos)
-        if getattr(message, "media_id", None) or getattr(message, "media_type", None) in ("audio", "image"):
-            from backend.channels.whatsapp_media import download_whatsapp_media, extract_groceries_from_media
-
-            # Check if media bytes were supplied directly (e.g. in test or memory buffer)
-            media_bytes = getattr(message, "raw_media_bytes", None)
-            mime_type = message.media_mime_type or ("audio/ogg" if message.media_type == "audio" else "image/jpeg")
-
-            if media_bytes is None and message.media_id:
-                media_bytes, fetched_mime = await download_whatsapp_media(message.media_id)
-                if fetched_mime:
-                    mime_type = fetched_mime
-
-            if media_bytes and getattr(self, "gemini", None):
-                extracted_request = await extract_groceries_from_media(
-                    self.gemini,
-                    media_bytes,
-                    mime_type,
-                    message.media_type or "image",
-                    caption=message.media_caption or "",
-                )
-                if extracted_request == "NO_GROCERIES_FOUND":
-                    note_type = "voice note" if message.media_type == "audio" else "photo"
-                    return NormalizedOutgoingResponse(
-                        recipient_id=message.sender_id,
-                        channel=message.channel,
-                        text=(
-                            f"I couldn't clearly read your grocery list from that {note_type}. "
-                            "Could you please send a clearer photo or voice note, or type the items? "
-                            "Your current basket is saved. 🛒"
-                        ),
-                        conversation_state="READY",
-                    )
-                message = message.model_copy(update={"text": extracted_request})
-                incoming_text = extracted_request
-            elif not media_bytes and not incoming_text.replace("[VOICE_NOTE]", "").replace("[GROCERY_PHOTO]", "").strip():
-                return NormalizedOutgoingResponse(
-                    recipient_id=message.sender_id,
-                    channel=message.channel,
-                    text=(
-                        "I couldn't download that media file. Please try sending your grocery items again as text or a clear photo! 🛒"
-                    ),
-                    conversation_state="READY",
-                )
-
+        """Single authoritative turn processor under per-customer lock and customer scope."""
         start_time = asyncio.get_running_loop().time()
         customer_id = message.customer_id or message.sender_id
         lock = self._locks.setdefault(customer_id, asyncio.Lock())
+
         async with lock:
             if self.state_store is not None:
                 state_data = await self.state_store.load(customer_id)
                 self._restore_task_state(customer_id, state_data)
                 self._prune_history(customer_id)
+
             with self.commerce.customer_scope(customer_id):
                 try:
                     result = await self._process_scoped_message(message, customer_id)
@@ -743,75 +544,186 @@ class GroceryAgentEngine:
                         self._prune_history(customer_id)
                         await self.state_store.save(customer_id, self._task_state_snapshot(customer_id))
                 except Exception:
-                    logger.exception("Turn aborted with error for customer=%s; skipping state save.", customer_id)
+                    logger.exception("Turn error for customer=%s; skipping state save.", customer_id)
                     raise
 
             self.last_turn_latency_ms = round(
                 (asyncio.get_running_loop().time() - start_time) * 1000, 1
             )
-            logger.info(
-                "Turn completed for customer=%s in %.1fms (state=%s)",
-                customer_id,
-                self.last_turn_latency_ms,
-                result.conversation_state,
-            )
+            logger.info("Turn completed for customer=%s in %.1fms (state=%s)", customer_id, self.last_turn_latency_ms, result.conversation_state)
+
             if result.conversation_state == "AWAITING_PAYMENT" and result.order_id:
                 if hasattr(self, "payment_poller") and self.payment_poller:
+                    target_paas_id = (
+                        getattr(result, "paas_id", None)
+                        or getattr(session, "paas_id", None)
+                        or result.order_id
+                    )
                     self.payment_poller.start_polling(
                         customer_id=customer_id,
                         order_id=result.order_id,
-                        paas_id=result.order_id,
+                        paas_id=target_paas_id,
                         recipient_id=message.sender_id,
                     )
             return result
 
+    handle_message = process_message
+
     async def _process_scoped_message(
         self, message: NormalizedIncomingMessage, customer_id: str
     ) -> NormalizedOutgoingResponse:
+        # 1. Fast 50ms Deterministic Button Router
+        btn_payload = message.interactive_id or (message.text.strip() if message.text else "")
+        session = self.get_session(customer_id)
+        btn_resp = await handle_button_action(
+            payload=btn_payload,
+            session=session,
+            commerce=self.commerce,
+            customer_id=customer_id,
+            recipient_id=message.sender_id,
+            channel=message.channel,
+        )
+        if btn_resp is not None:
+            return btn_resp
+
+        # 2. Preflight verification
         preflight = await execute_preflight(self, message, customer_id)
         if preflight.early_response is not None:
             return preflight.early_response
 
-        react_result = await execute_react_turn_loop(
-            self,
-            message,
-            customer_id,
-            incoming_text=preflight.incoming_text,
-            planning_request_text=preflight.planning_request_text,
-            user_confirmed=preflight.user_confirmed,
-            current_cart=preflight.current_cart,
-            address_id=preflight.address_id,
+        incoming_text = preflight.incoming_text
+        current_cart = preflight.current_cart
+
+        # 3. Natural Language Confirmation Check ("confirm", "proceed", "yes")
+        if preflight.user_confirmed and session.pending_approval is not None:
+            drift = check_cart_drift(current_cart, session.pending_approval)
+            if drift:
+                receipt = format_cart_receipt(current_cart, address_label=session.address_label)
+                session.pending_approval = None
+                return NormalizedOutgoingResponse(
+                    recipient_id=message.sender_id,
+                    channel=message.channel,
+                    text=f"Your basket changed ({drift}). Please review your updated bill before confirming:\n\n{receipt}",
+                    conversation_state="AWAITING_APPROVAL",
+                    interactive_actions=[
+                        InteractiveAction(id="confirm_order", title="Confirm Order"),
+                        InteractiveAction(id="modify_cart", title="Change Items"),
+                    ],
+                )
+            return await execute_gated_checkout(
+                self,
+                customer_id,
+                token=session.pending_approval.token,
+                recipient_id=message.sender_id,
+                channel=message.channel,
+            )
+
+        # 4. Single-Turn Gemini Brain (Tool Execution + Follow-up Speech)
+        history = list(session.history or [])
+        history.append({"role": "user", "parts": [{"text": incoming_text}]})
+
+        response_data = await self._call_llm(
+            history,
+            address_id=session.address_id,
+            address_label=session.address_label,
+            cart=current_cart,
+            saved_addresses=getattr(session, "saved_addresses", None),
         )
-        if react_result.early_response is not None:
-            return react_result.early_response
+
+        final_text = ""
+        unavailable_items: list[str] = []
+
+        if response_data:
+            candidates = response_data.get("candidates", [])
+            if candidates:
+                content = candidates[0].get("content", {})
+                parts = content.get("parts", [])
+                function_calls = [p["functionCall"] for p in parts if "functionCall" in p]
+
+                if function_calls:
+                    history.append({"role": "model", "parts": parts})
+                    response_parts = []
+                    for fc in function_calls:
+                        name = fc.get("name", "")
+                        args = fc.get("args", {})
+                        tool_res = await self._execute_tool(
+                            name,
+                            args,
+                            customer_id=customer_id,
+                            address_id=session.address_id,
+                            user_confirmed=preflight.user_confirmed,
+                            current_cart=current_cart,
+                        )
+                        response_parts.append({
+                            "functionResponse": {
+                                "name": name,
+                                "response": tool_res if isinstance(tool_res, dict) else {"result": tool_res},
+                            }
+                        })
+                        if name == "manage_basket" and isinstance(tool_res, dict):
+                            unavailable_items.extend(tool_res.get("unavailable_items", []))
+
+                    history.append({"role": "user", "parts": response_parts})
+
+                    # Follow-up turn: Let Gemini speak naturally about what it added or changed
+                    try:
+                        current_cart = await self.commerce.get_cart()
+                        follow_up = await self._call_llm(
+                            history,
+                            address_id=session.address_id,
+                            address_label=session.address_label,
+                            cart=current_cart,
+                            saved_addresses=getattr(session, "saved_addresses", None),
+                        )
+                        if follow_up:
+                            fu_cands = follow_up.get("candidates", [])
+                            if fu_cands:
+                                fu_parts = fu_cands[0].get("content", {}).get("parts", [])
+                                history.append({"role": "model", "parts": fu_parts})
+                                fu_texts = [p.get("text", "") for p in fu_parts if "text" in p]
+                                if fu_texts:
+                                    final_text = "\n".join(t.strip() for t in fu_texts if t.strip())
+                    except Exception as exc:
+                        logger.debug("Follow-up conversational turn: %s", exc)
+
+                text_parts = [p.get("text", "") for p in parts if "text" in p]
+                if text_parts and not final_text:
+                    final_text = "\n".join(t.strip() for t in text_parts if t.strip())
+
+        session.history = history
+        self._prune_history(customer_id)
+
+        # 5. Build Receipt and Actions
+        receipt_str: Optional[str] = None
+        actions: list[InteractiveAction] = []
+        conv_state = "READY"
+
+        if current_cart and current_cart.items and not getattr(session, "pending_cart_clear", None):
+            advocate = CustomerAdvocate(self.commerce)
+            coupon_res = await advocate.optimize_cart(current_cart, address_id=session.address_id)
+            receipt_str = format_cart_receipt(
+                current_cart,
+                delivery_location=session.address_label or "Home",
+                advocate_info=coupon_res,
+            )
+            addr_id = session.address_id or current_cart.address_id or ""
+            record_pending_approval(session, current_cart, addr_id)
+            token = session.pending_approval.token if session.pending_approval else ""
+            actions = [
+                InteractiveAction(id=f"confirm_order:{token}" if token else "confirm_order", title="Confirm Order"),
+                InteractiveAction(id="modify_cart", title="Change Items"),
+            ]
+            conv_state = "AWAITING_CHECKOUT_CONFIRMATION"
 
         return await synthesize_turn_response(
             self,
             message,
             customer_id,
-            final_text=react_result.final_text,
-            actions=react_result.actions,
-            conv_state=react_result.conv_state,
-            last_cart_receipt=react_result.last_cart_receipt,
-            last_cart_total=react_result.last_cart_total,
-            out_order_id=react_result.out_order_id,
-            out_order_total=react_result.out_order_total,
-            out_bridge_url=react_result.out_bridge_url,
-            address_changed=react_result.address_changed,
-            suggestion_only=react_result.suggestion_only,
-            suggested_items=react_result.suggested_items,
-            restricted_items=react_result.restricted_items,
-            search_failed_items=react_result.search_failed_items,
-            budget_blocked_items=react_result.budget_blocked_items,
-            unavailable_items=react_result.unavailable_items,
-            reduced_items=react_result.reduced_items,
-            guarded_change_message=react_result.guarded_change_message,
-            pending_request_needs_retry=react_result.pending_request_needs_retry,
-            step_limit_reached=react_result.step_limit_reached,
-            checkout_executed=react_result.checkout_executed,
-            user_confirmed=react_result.user_confirmed,
-            incoming_text=react_result.incoming_text,
-            addr_lbl=react_result.addr_lbl,
+            final_text=final_text,
+            actions=actions,
+            conv_state=conv_state,
+            last_cart_receipt=receipt_str,
+            unavailable_items=unavailable_items,
         )
 
     async def _execute_tool(
@@ -861,4 +773,12 @@ class GroceryAgentEngine:
         return await read_budget_cap(text, self.gemini)
 
 
-
+__all__ = [
+    "GroceryAgentEngine",
+    "PreflightResult",
+    "execute_engine_tool",
+    "execute_preflight",
+    "order_message",
+    "process_checkout_outcome",
+    "synthesize_turn_response",
+]

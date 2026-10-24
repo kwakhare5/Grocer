@@ -3,15 +3,14 @@ from __future__ import annotations
 
 import base64
 import logging
-from typing import Any, Optional
+from typing import Optional
 import httpx
 
 from backend.config import settings
 from backend.agent.gemini import GeminiClient
+from backend.channels.whatsapp import META_GRAPH_API_URL
 
 logger = logging.getLogger("grocer.channels.media")
-
-META_GRAPH_API_URL = "https://graph.facebook.com/v20.0"
 
 
 async def download_whatsapp_media(

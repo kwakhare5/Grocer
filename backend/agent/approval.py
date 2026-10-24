@@ -6,7 +6,6 @@ import json
 import logging
 import math
 from dataclasses import dataclass
-from decimal import Decimal
 from typing import Any, Optional
 
 from backend.agent.config import BRAIN_FALLBACK_MODEL, SMALL_CHECK_MODEL
@@ -24,13 +23,20 @@ class PendingApproval:
     token: str = ""
 
 
+def _normalize_money(val: Any) -> str:
+    try:
+        return f"{float(val):.2f}"
+    except (ValueError, TypeError):
+        return "0.00"
+
+
 def cart_fingerprint(cart: CommerceCart, address_id: str) -> str | None:
     """Deterministically fingerprint the exact provider basket a customer is asked to approve."""
     target_address = address_id or cart.address_id or ""
     if (
         not cart.items
         or not cart.billing_complete
-        or cart.currency != "INR"
+        or (cart.currency or "").strip().upper() != "INR"
         or not target_address
         or (cart.address_id and cart.address_id != target_address)
         or not math.isfinite(cart.grand_total)
@@ -41,13 +47,13 @@ def cart_fingerprint(cart: CommerceCart, address_id: str) -> str | None:
         "cart_id": cart.cart_id,
         "address_id": target_address,
         "provider_address_id": target_address,
-        "payable_inr": str(Decimal(str(cart.grand_total))),
-        "currency": cart.currency,
+        "payable_inr": _normalize_money(cart.grand_total),
+        "currency": (cart.currency or "").strip().upper(),
         "bill_lines": sorted(
             [
                 {
                     "name": str(line.get("name") or line.get("label", "")).strip().casefold(),
-                    "amount": str(Decimal(str(line.get("amount") if line.get("amount") is not None else line.get("value", 0.0)))),
+                    "amount": _normalize_money(line.get("amount") if line.get("amount") is not None else line.get("value", 0.0)),
                 }
                 for line in cart.bill_lines
             ],
@@ -56,7 +62,7 @@ def cart_fingerprint(cart: CommerceCart, address_id: str) -> str | None:
         if cart.bill_lines
         else [],
         "items": sorted(
-            (item.spin_id, item.sku_id or "", item.quantity, str(Decimal(str(item.total_price))))
+            (item.spin_id, item.sku_id or "", item.quantity, _normalize_money(item.total_price))
             for item in cart.items
         ),
     }
@@ -190,7 +196,7 @@ async def check_cart_drift(
                 return NormalizedOutgoingResponse(
                     recipient_id=message.sender_id,
                     channel=message.channel,
-                    text="I’ve updated to your current Swiggy basket. What groceries would you like to change or add?\n\n"
+                    text="I've updated to your current Swiggy basket. What groceries would you like to change or add?\n\n"
                     + format_cart_receipt(
                         current_cart, session.address_label or "Saved Address", allow_checkout_prompt=False
                     ),

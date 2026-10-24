@@ -76,97 +76,106 @@ class PaymentPoller:
         interval: int,
         max_duration: int,
     ) -> bool:
-        start_time = time.time()
-        logger.info(
-            "Starting payment poller for customer=%s order=%s paas=%s (interval=%ds, max=%ds)",
-            customer_id, order_id, paas_id, interval, max_duration,
-        )
+        task_key = f"{customer_id}:{order_id}"
+        try:
+            start_time = time.time()
+            logger.info(
+                "Starting payment poller for customer=%s order=%s paas=%s (interval=%ds, max=%ds)",
+                customer_id, order_id, paas_id, interval, max_duration,
+            )
 
-        # In review simulation mode, verify immediately without waiting
-        is_review_mode = order_id.startswith("sim_rev_") or getattr(self.commerce, "is_simulated", False)
-        if is_review_mode and interval > 1:
-            interval = 1
+            # In review simulation mode, verify immediately without waiting
+            is_review_mode = order_id.startswith("sim_rev_") or getattr(self.commerce, "is_simulated", False)
+            if is_review_mode and interval > 1:
+                interval = 1
 
-        while (time.time() - start_time) < max_duration:
-            await asyncio.sleep(interval)
-            try:
-                status_res = await self.commerce.check_payment_status(paas_id=paas_id, order_id=order_id)
-                norm_status = getattr(status_res, "normalized_status", None)
-                is_success = (
-                    norm_status == "PAYMENT_CONFIRMED"
-                    or getattr(status_res, "is_terminal_success", False)
-                    or getattr(status_res, "confirmed", False)
-                )
-                is_failure = (
-                    norm_status == "PAYMENT_FAILED"
-                    or getattr(status_res, "is_terminal_failure", False)
-                )
-
-                if is_success:
-                    logger.info("Payment confirmed by Swiggy for order=%s customer=%s", order_id, customer_id)
-                    await self._record_order_outcome(customer_id, order_id, "PLACED")
-                    if self.engine:
-                        sess = self.engine.get_session(customer_id)
-                        if sess:
-                            sess.conversation_state = "ORDER_PLACED"
-                            sess.pending_approval = None
-
-                    msg = NormalizedOutgoingResponse(
-                        recipient_id=recipient_id,
-                        channel=ChannelType.WHATSAPP,
-                        text=(
-                            f"🎉 *Payment Received!*\n\n"
-                            f"Your Swiggy Instamart Order #{order_id} is confirmed and packing at your local store. 🚀\n\n"
-                            "You can track live delivery updates in your Swiggy app."
-                        ),
-                        conversation_state="ORDER_PLACED",
-                        order_id=order_id,
+            while (time.time() - start_time) < max_duration:
+                await asyncio.sleep(interval)
+                try:
+                    status_res = await self.commerce.check_payment_status(paas_id=paas_id, order_id=order_id)
+                    norm_status = getattr(status_res, "normalized_status", None)
+                    is_success = (
+                        norm_status == "PAYMENT_CONFIRMED"
+                        or getattr(status_res, "is_terminal_success", False)
+                        or getattr(status_res, "confirmed", False)
                     )
-                    await default_whatsapp_adapter.send_response(msg)
-                    return True
-
-                elif is_failure:
-                    logger.warning("Payment failed for order=%s customer=%s", order_id, customer_id)
-                    await self._record_order_outcome(customer_id, order_id, "PAYMENT_FAILED")
-                    msg = NormalizedOutgoingResponse(
-                        recipient_id=recipient_id,
-                        channel=ChannelType.WHATSAPP,
-                        text=(
-                            f"⚠️ *Payment Not Completed*\n\n"
-                            f"The payment for Order #{order_id} was not completed on UPI. "
-                            "Your basket is still saved. Tap below to review your items or try again."
-                        ),
-                        interactive_actions=[
-                            InteractiveAction(action_type="button", id="modify_cart", title="Review Cart"),
-                        ],
-                        conversation_state="NEEDS_DECISION",
-                        order_id=order_id,
+                    is_failure = (
+                        norm_status == "PAYMENT_FAILED"
+                        or getattr(status_res, "is_terminal_failure", False)
                     )
-                    await default_whatsapp_adapter.send_response(msg)
-                    return False
 
-            except Exception as exc:
-                logger.warning("Poller probe error for order=%s: %s", order_id, exc)
+                    if is_success:
+                        logger.info("Payment confirmed by Swiggy for order=%s customer=%s", order_id, customer_id)
+                        try:
+                            if hasattr(self.commerce, "confirm_order"):
+                                await self.commerce.confirm_order(order_id=order_id, paas_id=paas_id)
+                        except Exception as cf_err:
+                            logger.info("Upstream confirm_order call during poller: %s", cf_err)
+                        await self._record_order_outcome(customer_id, order_id, "PLACED")
+                        if self.engine:
+                            sess = self.engine.get_session(customer_id)
+                            if sess:
+                                sess.conversation_state = "ORDER_PLACED"
+                                sess.pending_approval = None
 
-        # 10-minute timeout / expiry
-        logger.info("Payment window expired for order=%s customer=%s", order_id, customer_id)
-        await self._record_order_outcome(customer_id, order_id, "PAYMENT_FAILED")
-        msg = NormalizedOutgoingResponse(
-            recipient_id=recipient_id,
-            channel=ChannelType.WHATSAPP,
-            text=(
-                f"⏰ *Payment Window Expired*\n\n"
-                f"The 10-minute payment window for Order #{order_id} has expired. "
-                "Your basket is safely preserved. Tap below whenever you are ready to review or place your order!"
-            ),
-            interactive_actions=[
-                InteractiveAction(action_type="button", id="modify_cart", title="Review Cart"),
-            ],
-            conversation_state="READY",
-            order_id=order_id,
-        )
-        await default_whatsapp_adapter.send_response(msg)
-        return False
+                        msg = NormalizedOutgoingResponse(
+                            recipient_id=recipient_id,
+                            channel=ChannelType.WHATSAPP,
+                            text=(
+                                f"🎉 *Payment Received!*\n\n"
+                                f"Your Swiggy Instamart Order #{order_id} is confirmed and packing at your local store. 🚀\n\n"
+                                "You can track live delivery updates in your Swiggy app."
+                            ),
+                            conversation_state="ORDER_PLACED",
+                            order_id=order_id,
+                        )
+                        await default_whatsapp_adapter.send_response(msg)
+                        return True
+
+                    elif is_failure:
+                        logger.warning("Payment failed for order=%s customer=%s", order_id, customer_id)
+                        await self._record_order_outcome(customer_id, order_id, "PAYMENT_FAILED")
+                        msg = NormalizedOutgoingResponse(
+                            recipient_id=recipient_id,
+                            channel=ChannelType.WHATSAPP,
+                            text=(
+                                f"⚠️ *Payment Not Completed*\n\n"
+                                f"The payment for Order #{order_id} was not completed on UPI. "
+                                "Your basket is still saved. Tap below to review your items or try again."
+                            ),
+                            interactive_actions=[
+                                InteractiveAction(action_type="button", id="modify_cart", title="Review Cart"),
+                            ],
+                            conversation_state="NEEDS_DECISION",
+                            order_id=order_id,
+                        )
+                        await default_whatsapp_adapter.send_response(msg)
+                        return False
+
+                except Exception as exc:
+                    logger.warning("Poller probe error for order=%s: %s", order_id, exc)
+
+            # 10-minute timeout / expiry
+            logger.info("Payment window expired for order=%s customer=%s", order_id, customer_id)
+            await self._record_order_outcome(customer_id, order_id, "PAYMENT_FAILED")
+            msg = NormalizedOutgoingResponse(
+                recipient_id=recipient_id,
+                channel=ChannelType.WHATSAPP,
+                text=(
+                    f"⏰ *Payment Window Expired*\n\n"
+                    f"The 10-minute payment window for Order #{order_id} has expired. "
+                    "Your basket is safely preserved. Tap below whenever you are ready to review or place your order!"
+                ),
+                interactive_actions=[
+                    InteractiveAction(action_type="button", id="modify_cart", title="Review Cart"),
+                ],
+                conversation_state="READY",
+                order_id=order_id,
+            )
+            await default_whatsapp_adapter.send_response(msg)
+            return False
+        finally:
+            self._active_tasks.pop(task_key, None)
 
     async def check_on_demand(
         self,

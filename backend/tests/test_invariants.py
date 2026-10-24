@@ -793,7 +793,7 @@ def test_address_resolver_avoids_false_positives_on_shopping_verbs():
 
 def test_response_synthesizer_english_guard_preserves_indian_brand_receipts():
 
-    from backend.agent.response_synthesizer import _ensure_english_only
+    from backend.agent.formatters import _ensure_english_only
 
     receipt_text = (
 
@@ -1675,7 +1675,7 @@ async def test_reply_cannot_claim_item_added_when_manage_basket_did_not_add():
 
     """When manage_basket does not add an item, the synthesized response cannot claim it was added."""
 
-    from backend.agent.response_synthesizer import synthesize_turn_response
+    from backend.agent.engine import synthesize_turn_response
 
     from backend.channels.models import ChannelType, NormalizedIncomingMessage
 

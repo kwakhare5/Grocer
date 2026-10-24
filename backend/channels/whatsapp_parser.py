@@ -69,6 +69,15 @@ def parse_webhook_payload(payload: dict[str, Any]) -> list[NormalizedIncomingMes
                     media_caption = img_obj.get("caption", "").strip()
                     text_body = f"[GROCERY_PHOTO] {media_caption}".strip() if media_caption else "[GROCERY_PHOTO]"
 
+                elif msg_type == "location":
+                    loc_obj = msg.get("location", {})
+                    lat = loc_obj.get("latitude")
+                    lng = loc_obj.get("longitude")
+                    name = loc_obj.get("name") or ""
+                    addr = loc_obj.get("address") or ""
+                    loc_desc = f"{name}, {addr}".strip(" ,") if (name or addr) else f"GPS Pin ({lat}, {lng})"
+                    text_body = f"[LOCATION_PIN] {loc_desc} (lat: {lat}, lng: {lng})"
+
                 elif msg_type in ("document", "sticker", "video"):
                     text_body = "UNSUPPORTED_MEDIA"
 

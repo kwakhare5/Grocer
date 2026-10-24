@@ -7,10 +7,6 @@ from typing import Any, Optional
 from unittest.mock import AsyncMock, MagicMock
 import pytest
 
-from backend.agent.item_drop_guard import (
-    build_item_drop_guard_prompt,
-    check_for_dropped_items,
-)
 from backend.agent.tools import (
     SwiggyAgentTools,
     _build_product_selection_prompt,
@@ -316,48 +312,6 @@ async def test_cart_actions_set_quantity_enforces_budget_upfront():
     tools.commerce.update_cart.assert_not_called()
 
 
-# --- 4. Item Drop Guard & Session Cleanup ---
-
-@pytest.mark.asyncio
-async def test_item_drop_guard_retries_on_gemini_none_response(caplog):
-    """When Gemini returns (None, reason), drop guard must retry instead of failing open."""
-    class FlakyClient:
-        def __init__(self):
-            self.api_key = "test-key"
-            self.call_count = 0
-
-        async def generate_structured_with_reason(self, model, prompt, response_schema):
-            self.call_count += 1
-            if self.call_count == 1:
-                return None, "quota 429"
-            return {"missing_items": ["bread"]}, None
-
-    client = FlakyClient()
-    with caplog.at_level(logging.DEBUG):
-        missing = await check_for_dropped_items(
-            client=client,
-            customer_message="Bring milk and bread",
-            added_items=["milk"],
-            unavailable_items=[],
-            restricted_items=[],
-            pending_items=[],
-        )
-    assert client.call_count == 2, "Drop guard should have retried after initial failure"
-    assert missing == ["bread"]
-
-
-def test_item_drop_guard_removed_items_in_prompt():
-    """Prompt must include removed items and explicitly instruct not to treat them as missing."""
-    prompt = build_item_drop_guard_prompt(
-        customer_message="Remove milk and add curd",
-        added_items=["Curd 400g"],
-        unavailable_items=[],
-        restricted_items=[],
-        pending_items=[],
-        removed_items=["Amul Taaza Milk 500ml"],
-    )
-    assert "Removed by customer request: Amul Taaza Milk 500ml" in prompt
-    assert "Items explicitly removed from the basket by customer request are intentional deletions" in prompt
 
 
 @pytest.mark.asyncio

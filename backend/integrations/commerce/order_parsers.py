@@ -289,8 +289,6 @@ def build_checkout_order_result(
     is_qr_flow = bool(data.get("isQrFlow", False) or qr_code_url)
 
     upi_intent_url = data.get("upiIntentUrl") or data.get("upi_intent_url")
-    if not upi_intent_url and primary_order_id and grand_total:
-        upi_intent_url = f"upi://pay?pa=swiggy@icici&pn=SwiggyInstamart&am={grand_total:.2f}&tr={primary_order_id}&cu=INR"
 
     return CommerceOrderResult(
         order_id=primary_order_id,

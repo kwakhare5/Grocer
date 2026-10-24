@@ -210,7 +210,6 @@ def create_app() -> FastAPI:
     )
 
     app.include_router(health_router, prefix="/api")
-    app.include_router(health_router)
     app.include_router(whatsapp_router)
     app.include_router(oauth_router, prefix="/api")
     if settings.SIMULATOR_ENABLED:

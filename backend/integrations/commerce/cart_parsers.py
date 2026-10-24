@@ -1,6 +1,7 @@
 """Swiggy Instamart cart and bill breakdown parser."""
 from __future__ import annotations
 
+import re
 from typing import Any, Optional
 
 from backend.integrations.commerce.catalog_parsers import _optional_provider_bool
@@ -8,6 +9,21 @@ from backend.integrations.commerce.models import (
     CartItem,
     CommerceCart,
 )
+
+
+def _clean_numeric_val(raw_val: Any) -> float:
+    """Safely parse currency and numeric strings into float."""
+    if isinstance(raw_val, (int, float)):
+        return float(raw_val)
+    if not raw_val:
+        return 0.0
+    val_str = str(raw_val)
+    # Strip currency signs (₹, Rs, Rs.), commas, and whitespace
+    cleaned = re.sub(r"[^\d.-]", "", val_str).strip()
+    try:
+        return float(cleaned)
+    except ValueError:
+        return 0.0
 
 
 def build_commerce_cart(data: dict[str, Any], cart_id: Optional[str] = None) -> CommerceCart:
@@ -26,8 +42,8 @@ def build_commerce_cart(data: dict[str, Any], cart_id: Optional[str] = None) -> 
         if "discountedFinalPrice" not in raw and "price" not in raw:
             continue
         pack_size = raw.get("itemVariant") or raw.get("packSize") or ""
-        unit_price = float(raw.get("discountedFinalPrice", raw.get("price", 0.0)))
-        mrp = float(raw.get("mrp", unit_price))
+        unit_price = _clean_numeric_val(raw.get("discountedFinalPrice", raw.get("price", 0.0)))
+        mrp = _clean_numeric_val(raw.get("mrp", unit_price))
         quantity = int(raw["quantity"])
         total_price = unit_price * quantity
         stock_value = raw.get("isInStockAndAvailable")
@@ -66,22 +82,18 @@ def build_commerce_cart(data: dict[str, Any], cart_id: Optional[str] = None) -> 
     for line in line_items:
         raw_label = line.get("label", "").strip()
         label = raw_label.lower()
-        val_str = str(line.get("value", "0")).replace("₹", "").replace(",", "").strip()
-        try:
-            val = float(val_str)
-        except ValueError:
-            val = 0.0
+        val = _clean_numeric_val(line.get("value", 0))
 
         parsed_bill_lines.append({"label": raw_label, "value": val})
 
         if "item" in label or "subtotal" in label:
             item_total = val
+        elif "discount" in label or "coupon" in label:
+            discount += abs(val)
         elif "delivery" in label:
             delivery_fee += val
         elif "package" in label or "packing" in label:
             packaging_fee += val
-        elif "discount" in label or "coupon" in label:
-            discount += abs(val)
         elif "tax" in label or "gst" in label:
             taxes += val
         else:
@@ -91,21 +103,14 @@ def build_commerce_cart(data: dict[str, Any], cart_id: Optional[str] = None) -> 
     grand_total = 0.0
     to_pay = bill_breakdown.get("toPay") or data.get("toPay") or {}
     if isinstance(to_pay, dict) and "value" in to_pay:
-        try:
-            grand_total = float(str(to_pay["value"]).replace("₹", "").replace(",", "").strip())
-        except ValueError:
-            grand_total = 0.0
+        grand_total = _clean_numeric_val(to_pay["value"])
     elif isinstance(to_pay, (int, float)):
         grand_total = float(to_pay)
     else:
-        grand_total = float(data.get("grandTotal", 0.0))
+        grand_total = _clean_numeric_val(data.get("grandTotal", 0.0))
 
     if grand_total == 0.0 and (data.get("cartTotalAmount") is not None or data.get("total") is not None):
-        tot_str = str(data.get("cartTotalAmount", data.get("total"))).replace("₹", "").replace(",", "").strip()
-        try:
-            grand_total = float(tot_str)
-        except ValueError:
-            grand_total = 0.0
+        grand_total = _clean_numeric_val(data.get("cartTotalAmount", data.get("total")))
 
     if not item_total and cart_items:
         item_total = sum(i.total_price for i in cart_items)

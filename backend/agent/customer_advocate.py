@@ -49,17 +49,23 @@ class CustomerAdvocate:
             ]
             if applicable:
                 best_coupon = max(applicable, key=lambda c: float(c.discount_amount or 0.0))
-                if (best_coupon.discount_amount or 0.0) > 0:
+                discount = float(best_coupon.discount_amount or 0.0)
+                if discount > 0:
+                    original_total = cart.grand_total
                     apply_res: CouponApplyResult = await self.commerce.apply_coupon(
                         code=best_coupon.code,
                         cart_id=cart.cart_id,
                     )
                     if apply_res.applied:
-                        result["coupon_applied"] = True
-                        result["coupon_code"] = best_coupon.code
-                        result["coupon_savings"] = apply_res.discount_amount
-                        cart.discount = round((cart.discount or 0.0) + apply_res.discount_amount, 2)
-                        cart.grand_total = max(0.0, round(cart.grand_total - apply_res.discount_amount, 2))
+                        potential_new_total = max(0.0, round(cart.grand_total - discount, 2))
+                        if potential_new_total <= original_total:
+                            result["coupon_applied"] = True
+                            result["coupon_code"] = best_coupon.code
+                            result["coupon_savings"] = discount
+                            cart.discount = round((cart.discount or 0.0) + discount, 2)
+                            cart.grand_total = potential_new_total
+                        else:
+                            logger.info("Coupon %s increased grand total; discarded", best_coupon.code)
         except Exception as exc:
             logger.debug("Auto-coupon search skipped: %s", exc)
 

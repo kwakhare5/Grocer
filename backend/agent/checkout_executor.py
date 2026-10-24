@@ -12,10 +12,14 @@ from backend.agent.product_policy import is_restricted_medical_product
 from backend.config import settings
 from backend.integrations.commerce.exceptions import (
     AddressNotServiceableError,
+    CartChangedError,
+    CartExpiredError,
+    DuplicateOrderError,
     ItemOutOfStockError,
     MinOrderNotMetError,
     OrderStateUnknownError,
     ProviderAuthError,
+    ProviderRateLimitedError,
 )
 from backend.integrations.commerce.models import CommerceOrderResult
 from backend.integrations.commerce.port import CommercePort
@@ -91,7 +95,7 @@ async def execute_gated_checkout(
             "retryable": False,
             "message": "I couldn't verify the full payable total. No order was attempted.",
         }
-    if cart.currency != "INR":
+    if (cart.currency or "").strip().upper() != "INR":
         return {
             "success": False,
             "error": "CURRENCY_MISMATCH",
@@ -284,13 +288,10 @@ async def execute_gated_checkout(
         polling_ms = result.polling_interval_ms or 15000
         max_poll_ms = result.max_time_to_poll_ms or 600000
 
-        # Construct 1-tap mobile UPI deep link (upi://pay) if not provided by backend payload
+        # Use genuine 1-tap mobile UPI deep link (upi://pay) provided by Swiggy payment gateway
         upi_intent = result.upi_intent_url
-        if not upi_intent and result.order_id and result.grand_total:
-            upi_intent = (
-                f"upi://pay?pa=swiggy@icici&pn=SwiggyInstamart"
-                f"&am={result.grand_total:.2f}&tr={result.order_id}&cu=INR"
-            )
+        if not upi_intent and result.bridge_url and result.bridge_url.startswith("upi://"):
+            upi_intent = result.bridge_url
 
         if result.status == "PAYMENT_PENDING" and not (
             result.order_id
@@ -362,6 +363,46 @@ async def execute_gated_checkout(
             "error": "MIN_ORDER_NOT_MET",
             "retryable": False,
             "message": str(exc),
+        }
+        if attempt_store is not None and attempt_id:
+            await attempt_store.finish(attempt_id, err_res)
+        return err_res
+    except CartChangedError as exc:
+        err_res = {
+            "success": False,
+            "error": "CART_CHANGED",
+            "retryable": False,
+            "message": "Your basket or prices changed on Swiggy Instamart. Please review the updated basket.",
+        }
+        if attempt_store is not None and attempt_id:
+            await attempt_store.finish(attempt_id, err_res)
+        return err_res
+    except CartExpiredError as exc:
+        err_res = {
+            "success": False,
+            "error": "CART_EXPIRED",
+            "retryable": False,
+            "message": "Your basket expired on Swiggy. Please add your items again.",
+        }
+        if attempt_store is not None and attempt_id:
+            await attempt_store.finish(attempt_id, err_res)
+        return err_res
+    except DuplicateOrderError as exc:
+        err_res = {
+            "success": False,
+            "error": "DUPLICATE_ORDER",
+            "retryable": False,
+            "message": "A matching order was recently placed on Swiggy Instamart.",
+        }
+        if attempt_store is not None and attempt_id:
+            await attempt_store.finish(attempt_id, err_res)
+        return err_res
+    except ProviderRateLimitedError as exc:
+        err_res = {
+            "success": False,
+            "error": "RATE_LIMITED",
+            "retryable": True,
+            "message": "Swiggy is temporarily limiting requests. Please wait a moment and try again.",
         }
         if attempt_store is not None and attempt_id:
             await attempt_store.finish(attempt_id, err_res)

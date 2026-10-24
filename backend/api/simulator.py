@@ -75,7 +75,7 @@ async def simulator_chat(message: SimulatorMessage, request: Request) -> dict:
     staged = None
     for _ in range(30):
         staged = await store.response_for_message(message_id)
-        if staged is not None:
+        if staged is not None and staged[0] not in ("PENDING", "SENDING"):
             break
         await asyncio.sleep(0.5)
 

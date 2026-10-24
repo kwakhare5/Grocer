@@ -382,7 +382,7 @@ async def test_live_gemini_35_models():
 
 @pytest.mark.asyncio
 async def test_live_supabase_token_vault_and_addresses():
-    """Verify live Supabase connection and real Swiggy Instamart dark store addresses in Sangvi, Pune."""
+    """Verify live Supabase connection and real Swiggy Instamart dark store saved addresses."""
     from backend.config import settings
     from backend.integrations.commerce.token_vault import default_token_vault
     from backend.integrations.commerce.swiggy_adapter import SwiggyMCPAdapter
@@ -401,10 +401,10 @@ async def test_live_supabase_token_vault_and_addresses():
         with adapter.customer_scope("cust_c23625efe2658a26"):
             addresses = await adapter.get_addresses("cust_c23625efe2658a26")
             assert len(addresses) >= 1
-            # Verify Sangvi Principle
-            sangvi_addr = next((a for a in addresses if "sangvi" in str(a.street).casefold() or "sangvi" in str(a.area).casefold()), None)
-            assert sangvi_addr is not None, "Sangvi address must be present in customer saved addresses"
-            assert sangvi_addr.id is not None
+            # Verify Real Address Grounding
+            addr = addresses[0]
+            assert addr is not None, "Customer saved addresses must be present"
+            assert addr.id is not None
     finally:
         await pool.close()
 

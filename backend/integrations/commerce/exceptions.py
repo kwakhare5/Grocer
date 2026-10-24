@@ -30,6 +30,19 @@ class UnconfirmedCheckoutError(CommerceError):
         super().__init__(message=message, code="UNCONFIRMED_CHECKOUT")
 
 
+class StoreClosedError(CommerceError):
+    """Raised when the local dark store or pod is currently closed."""
+    def __init__(self, message: str = "The local dark store is currently closed."):
+        super().__init__(message=message, code="STORE_CLOSED")
+
+
+class DarkStoreOfflineError(StoreClosedError):
+    """Raised when the dark store pod is temporarily offline."""
+    def __init__(self, message: str = "The dark store is temporarily offline."):
+        super().__init__(message=message)
+        self.code = "POD_OFFLINE"
+
+
 class AddressNotServiceableError(CommerceError):
     """Raised when the commerce provider cannot serve a delivery address."""
     def __init__(self, address_id: str):

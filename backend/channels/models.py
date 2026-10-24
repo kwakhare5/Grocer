@@ -53,4 +53,5 @@ class NormalizedOutgoingResponse(BaseModel):
     order_id: Optional[str] = None
     order_total: Optional[float] = None
     payment_bridge_url: Optional[str] = None
+    paas_id: Optional[str] = None
     events: list[str] = Field(default_factory=list)

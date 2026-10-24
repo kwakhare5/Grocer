@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from typing import Optional
+from typing import Any, Optional
 from backend.integrations.commerce.models import CommerceCart
 
 
@@ -36,7 +36,7 @@ def clean_address(
     label: Optional[str] = None,
     area: Optional[str] = None,
 ) -> str:
-    """Format address into human-readable, privacy-safe destination (Area, City) without private apartment numbers or building names."""
+    """Format address into human-readable, privacy-safe destination (Area, City) without private apartment numbers."""
     if area:
         dest = area.strip(" ,")
         if city and city.casefold() not in dest.casefold():
@@ -58,34 +58,17 @@ def clean_address(
 
     parts = [p.strip() for p in text.split(",") if p.strip()]
     cleaned_parts: list[str] = []
-    seen: set[str] = set()
 
     for p in parts:
         p_clean = p.strip()
         if _PLUS_CODE_RE.match(p_clean) or _MICRO_HOUSING_RE.search(p_clean):
             continue
-        # Strip leading house/plot numbers (e.g. '14 Pali Hill' -> 'Pali Hill')
         p_clean = re.sub(r"^\d+[\s,/-]+", "", p_clean).strip()
         if not p_clean or p_clean.isdigit():
             continue
-        p_low = p_clean.casefold()
-        if city and p_low == city.casefold():
-            continue
-        if p_low not in seen and len(p_clean) > 1:
-            seen.add(p_low)
-            cleaned_parts.append(p_clean)
+        cleaned_parts.append(p_clean)
 
-    # Focus on the primary locality/area (last 1-2 parts before city)
-    area = (
-        ", ".join(cleaned_parts[-2:])
-        if len(cleaned_parts) >= 2
-        else (cleaned_parts[0] if cleaned_parts else "")
-    )
-    res = area
-    if city and city.casefold() not in res.casefold():
-        res = f"{res}, {city}" if res else city
-
-    addr_str = res or city or "Your Saved Location"
+    addr_str = ", ".join(cleaned_parts) if cleaned_parts else (city or street)
     if label and label.casefold() not in addr_str.casefold():
         return f"{label} ({addr_str})"
     return addr_str
@@ -185,11 +168,11 @@ def format_cart_receipt(
     )
 
     if not cart.billing_complete:
-        lines.append("👉 Please wait while I verify the provider bill.")
+        lines.append("⚡ Please wait while I verify the provider bill.")
     elif cart.min_order_threshold and cart.grand_total < cart.min_order_threshold:
-        lines.append("👉 Add items to reach the minimum order, or tell me what to add!")
+        lines.append("⚡ Add items to reach the minimum order, or tell me what to add!")
     elif allow_checkout_prompt:
-        lines.append("👉 Reply *Confirm* to place order, or tell me what to change!")
+        lines.append("⚡ Reply *Confirm* to place order, or tell me what to change!")
 
     return "\n".join(lines)
 
@@ -209,28 +192,18 @@ async def build_auth_expired_response(
     base_url: str | None = None,
 ) -> Any:
     """Generate re-connection response with a one-time login link."""
-    import logging
     from backend.channels.models import NormalizedOutgoingResponse
     from backend.integrations.commerce.connect_tickets import default_connect_tickets
 
-    logger = logging.getLogger("grocer.agent.formatters")
-    try:
-        ticket = await default_connect_tickets.issue(
-            getattr(message, "customer_id", None) or ""
-        )
-        instructions = (
-            "Your Swiggy login needs reconnecting. Open this one-time link from your WhatsApp chat:\n\n"
-            f"👉 {build_connect_url(ticket, base_url)}\n\n"
-            "The link expires in 10 minutes. After connecting, message me again."
-        )
-    except Exception:
-        logger.exception("Could not issue a customer-scoped Swiggy connection link.")
-        instructions = "Swiggy connection is temporarily unavailable. Please message me again shortly."
-
+    ticket = default_connect_tickets.issue(message.sender_id)
+    url = build_connect_url(ticket, base_url=base_url)
     return NormalizedOutgoingResponse(
-        recipient_id=getattr(message, "sender_id", ""),
-        channel=getattr(message, "channel", "whatsapp"),
-        text=instructions,
+        recipient_id=message.sender_id,
+        channel=message.channel,
+        text=(
+            "Your Swiggy login session has expired.\n\n"
+            f"Please tap the link below to reconnect your Swiggy Instamart account:\n{url}"
+        ),
         conversation_state="AUTH_REQUIRED",
     )
 
@@ -258,11 +231,15 @@ def build_address_choice_response(
             InteractiveAction(
                 action_type="button",
                 id=f"addr_choice_{address.get('_choice_code') or address.get('address_id')}",
-                title=f"{index}. {str(address.get('label') or f'Address {index}')}"[
-                    :20
-                ],
+                title=f"{index}. {str(address.get('label') or f'Address {index}')}"[:20],
             )
             for index, address in enumerate(addresses[:3], 1)
         ],
         conversation_state="NEEDS_DECISION",
     )
+
+
+def _ensure_english_only(text: str) -> str:
+    """Preserve natural English conversation and Indian brand names unmodified."""
+    return text
+

@@ -16,7 +16,7 @@ def get_commerce_adapter(force_mock: bool = False) -> CommercePort:
     """Resolve and return active CommercePort adapter based on settings."""
     global _cached_mock_adapter, _cached_swiggy_adapter
 
-    adapter_type = "mock" if force_mock else getattr(settings, "COMMERCE_ADAPTER_TYPE", "mock").lower()
+    adapter_type = "mock" if force_mock else getattr(settings, "COMMERCE_ADAPTER_TYPE", "swiggy_mcp").lower()
 
     if adapter_type in ("swiggy", "swiggy_mcp"):
         if _cached_swiggy_adapter is None:

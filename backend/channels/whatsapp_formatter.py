@@ -20,13 +20,23 @@ def format_whatsapp_payload(response: NormalizedOutgoingResponse) -> dict[str, A
 
     # If interactive actions exist (Meta limits interactive bodies to 1024 chars)
     if response.interactive_actions:
-        if len(response.text) > 1024:
-            cutoff = response.text[:1020].rfind("\n")
-            if cutoff == -1 or cutoff < 800:
-                cutoff = response.text[:1020].rfind(" ")
-            body_text = (response.text[:cutoff].rstrip() + "...") if cutoff > 0 else response.text[:1024]
+        body_text = response.text or ""
+        pay_suffix = ""
+        if response.conversation_state == "AWAITING_PAYMENT":
+            url_actions = [a for a in response.interactive_actions if getattr(a, "action_type", None) == "url"]
+            if url_actions and url_actions[0].url and url_actions[0].url not in body_text:
+                pay_suffix = f"\n\n👉 *Pay with UPI (1-Tap):*\n{url_actions[0].url}"
+
+        # Enforce Meta 1024 char limit while guaranteeing pay link is preserved
+        total_limit = 1024
+        if len(body_text) + len(pay_suffix) > total_limit:
+            allowed_base = total_limit - len(pay_suffix) - 4
+            cutoff = body_text[:allowed_base].rfind("\n")
+            if cutoff == -1 or cutoff < (allowed_base - 100):
+                cutoff = body_text[:allowed_base].rfind(" ")
+            body_text = ((body_text[:cutoff].rstrip() + "...") if cutoff > 0 else body_text[:allowed_base]) + pay_suffix
         else:
-            body_text = response.text
+            body_text = body_text + pay_suffix
 
         # 1. Quick Reply Buttons (max 3 buttons for confirmation, payment verification, or short binary decisions)
         if response.conversation_state == "AWAITING_PAYMENT":
@@ -106,7 +116,7 @@ def format_whatsapp_payload(response: NormalizedOutgoingResponse) -> dict[str, A
                     "type": "list",
                     "header": {"type": "text", "text": header_text},
                     "body": {"text": body_text},
-                    "footer": {"text": "GROCER Intent Assistant"},
+                    "footer": {"text": "GROCER WhatsApp Concierge"},
                     "action": {
                         "button": (response.interactive_button_text or "Choose Option")[:20],
                         "sections": [

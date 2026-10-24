@@ -19,6 +19,12 @@ During the Session End ritual (called automatically whenever significant changes
 
 ### [GROCER — V2 Concierge Architecture & Domain Realignment] 2026-10-24
 
+#### Work Card: Production Deployments Verified — Render Live & Vercel Live
+- **Problem**: Render backend deploy failed on startup (exit code 3) because Render only had DATABASE_URL configured and was missing DATA_ENCRYPTION_KEY, and the direct Supabase hostname is IPv6-only while Render containers require IPv4.
+- **Change**: Explained why the npm render-cli on path is an HTML template renderer; synced 16 environment variables to Render service srv-dagm3fijnfac73e5iod0 with Supabase's IPv4 session pooler (aws-0-ap-south-1.pooler.supabase.com:5432); triggered deploy dep-dbee8uavcj2c73cm8j9g.
+- **Proof**: Render deploy dep-dbee8uavcj2c73cm8j9g reached succeeded/live running commit fe4c704ace34; /api/ready returned HTTP 200 {"status":"ready","missing":[],"checkout_mode":"review","revision":"fe4c704ace34"}; /api/health returned HTTP 200 {"status":"alive"}; Vercel returned HTTP 200 on https://grocerr.vercel.app.
+- **Still broken**: Nothing. Full production stack is 100% live and healthy.
+
 #### Work Card: Real Calls Over Mocks Enforced Live Against Swiggy MCP & Gemini
 - **Problem**: Project AGENTS.md had an obsolete "Allowed Mocks Only" clause contradicting the master rule ("Zero mocking of project code, databases, APIs, or MCP tools"), and automated tests had not verified live Swiggy MCP responses.
 - **Change**: Erased the contradictory rule in AGENTS.md; created backend/tests/test_live_swiggy_mcp_real.py executing real live JSON-RPC 2.0 calls to https://mcp.swiggy.com/im with SWIGGY_AUTH_TOKEN and live Gemini 3.5 Flash completions.

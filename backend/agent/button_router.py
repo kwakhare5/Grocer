@@ -366,19 +366,108 @@ async def handle_button_action(
         addr_id = clean.removeprefix("select_address:").strip()
         addrs = getattr(session, "saved_addresses", []) or []
         matching = [a for a in addrs if str(a.get("id")) == addr_id]
+        if not matching:
+            try:
+                live_addrs = await commerce.get_addresses(customer_id)
+                session.saved_addresses = [
+                    {"id": (getattr(a, "id", None) or getattr(a, "address_id", None)), "label": a.label, "street": a.street, "clean": getattr(a, "clean_address", a.street)}
+                    for a in live_addrs
+                ]
+                matching = [a for a in session.saved_addresses if str(a.get("id")) == addr_id]
+            except Exception:
+                pass
         if matching:
             session.address_id = addr_id
+            session.address_label = matching[0].get("label") or "Delivery Address"
             session.order_address_confirmed = True
             try:
                 await commerce.update_cart(address_id=addr_id)
             except Exception as sync_exc:
                 logger.warning("Failed to sync commerce cart to selected address %s: %s", addr_id, sync_exc)
-            addr_name = matching[0].get("label") or matching[0].get("street") or addr_id
+            addr_name = matching[0].get("label") or matching[0].get("clean") or matching[0].get("street") or addr_id
             return NormalizedOutgoingResponse(
                 recipient_id=recipient_id,
                 channel=channel,
-                text=f"Updated your delivery address to *{addr_name}*. Let's continue with your order!",
+                text=f"Updated your delivery address to *{addr_name}*. What would you like to order today?",
                 conversation_state="ACTIVE",
+            )
+
+    clean_lower = clean.lower().rstrip("?").strip()
+
+    # 6. Deterministic Address Inquiry ("which address is selected?", "current address", etc.)
+    address_inquiry_phrases = (
+        "which address is selected",
+        "which address is selected now",
+        "what address is selected",
+        "what is my address",
+        "where are you delivering",
+        "current address",
+        "selected address",
+    )
+    if clean_lower in address_inquiry_phrases or (clean_lower.startswith("which address") and "selected" in clean_lower):
+        active_label = getattr(session, "address_label", None) or "Home"
+        active_id = getattr(session, "address_id", None)
+        active_street = None
+        for a in getattr(session, "saved_addresses", []) or []:
+            if a.get("id") == active_id:
+                active_street = a.get("clean") or a.get("street")
+                break
+        detail = f" — {active_street}" if active_street else ""
+        text = "📍 *Active Delivery Address:*\n*" + str(active_label) + "*" + str(detail) + "\n\nWould you like to keep this or switch to another saved address?"
+        actions = [
+            InteractiveAction(action_type="button", id="show_saved_addresses", title="Switch Address"),
+            InteractiveAction(action_type="button", id="modify_cart", title="Add Groceries"),
+        ]
+        return NormalizedOutgoingResponse(
+            recipient_id=recipient_id,
+            channel=channel,
+            text=text,
+            conversation_state="ACTIVE",
+            interactive_actions=actions,
+        )
+
+    # 7. Deterministic List Saved Addresses ("what all address do i have", "show addresses", etc.)
+    list_address_phrases = (
+        "show_saved_addresses",
+        "what all address do i have",
+        "what all addresses do i have",
+        "show addresses",
+        "my addresses",
+        "list addresses",
+        "all addresses",
+    )
+    if clean_lower in list_address_phrases or clean == "show_saved_addresses":
+        try:
+            saved = await commerce.get_addresses(customer_id)
+        except Exception:
+            saved = []
+        if saved:
+            session.saved_addresses = [
+                {"id": (getattr(a, "id", None) or getattr(a, "address_id", None)), "label": a.label, "street": a.street, "clean": getattr(a, "clean_address", a.street)}
+                for a in saved
+            ]
+            lines = []
+            actions = []
+            for idx, a in enumerate(saved, 1):
+                lbl = a.label or f"Address {idx}"
+                clean_str = getattr(a, "clean_address", a.street) or a.street
+                is_active = ((getattr(a, "id", None) or getattr(a, "address_id", None)) == session.address_id)
+                check = " (Active ✅)" if is_active else ""
+                lines.append(f"*{idx}. {lbl}*{check}\n   {clean_str}")
+                if len(actions) < 3 and not is_active:
+                    actions.append(InteractiveAction(
+                        action_type="button",
+                        id=f"select_address:{(getattr(a, "id", None) or getattr(a, "address_id", None))}",
+                        title=f"Use {lbl}"[:20],
+                    ))
+            lines_str = "\n\n".join(lines)
+            prompt = f"📍 *Your Saved Addresses:*\n\n{lines_str}\n\nTap a button to switch address, or tell me what to add to your basket!"
+            return NormalizedOutgoingResponse(
+                recipient_id=recipient_id,
+                channel=channel,
+                text=prompt,
+                conversation_state="ACTIVE",
+                interactive_actions=actions,
             )
 
     return None

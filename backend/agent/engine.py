@@ -286,6 +286,27 @@ async def execute_preflight(
     except Exception as exc:
         logger.debug("Initial cart probe: %s", exc)
 
+    # Auto-ground default delivery address if not yet set
+    if not session.address_id:
+        try:
+            if current_cart and current_cart.address_id:
+                session.address_id = current_cart.address_id
+            else:
+                saved = await engine.commerce.get_addresses(customer_id)
+                if saved:
+                    default_addr = next((a for a in saved if getattr(a, "is_default", False)), None)
+                    if not default_addr:
+                        default_addr = next((a for a in saved if (getattr(a, "label", "") or "").casefold() == "home"), saved[0])
+                    session.address_id = (getattr(default_addr, "id", None) or getattr(default_addr, "address_id", None))
+                    session.address_label = default_addr.label or "Home"
+                    session.saved_addresses = [
+                        {"id": (getattr(a, "id", None) or getattr(a, "address_id", None)), "label": a.label, "street": a.street, "clean": getattr(a, "clean_address", a.street)}
+                        for a in saved
+                    ]
+                    logger.info("Auto-grounded session to default address: %s (%s)", session.address_label, session.address_id)
+        except Exception as addr_err:
+            logger.warning("Could not auto-ground default address: %s", addr_err)
+
     user_confirmed = False
     interactive_id = getattr(message, "interactive_id", None)
     if interactive_id and (interactive_id == "confirm_order" or interactive_id.startswith("confirm_order:")):

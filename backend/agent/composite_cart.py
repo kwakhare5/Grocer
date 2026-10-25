@@ -96,8 +96,12 @@ def _select_best_staple_variant(
     if not product.variants:
         return None
 
-    # Filter in-stock variants
-    in_stock = [v for v in product.variants if getattr(v, "in_stock", True)]
+    # Filter in-stock variants (None or True is considered in-stock; False is out of stock)
+    in_stock = [
+        v for v in product.variants
+        if getattr(v, "in_stock", None) is not False
+        and getattr(v, "is_available", None) is not False
+    ]
     if not in_stock:
         return None
 

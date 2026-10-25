@@ -17,6 +17,14 @@ During the Session End ritual (called automatically whenever significant changes
 
 ## Log Entries
 
+### [GROCER — Thin Brain, Thick Spine Architecture & Catalog Fix] 2026-10-25
+
+#### Work Card: Fix Swiggy Catalog Variant In-Stock Bug and Auto-Ground Delivery Address
+- **Problem**: In composite_cart.py:100, getattr(v, "in_stock", True) evaluated None as False, causing real Swiggy dark store search results (chicken, butter, cream, bread) to be falsely discarded as out-of-stock; session.address_id remained None on cold start, causing address queries to fall back into conversation history.
+- **Change**: Changed variant stock check in composite_cart.py to verify v.in_stock is not False; added automatic address grounding in engine.py:execute_preflight to lock the customer's default/Home address on turn 1; added deterministic fast button/text routing in button_router.py for "which address is selected" and "what all address do i have".
+- **Proof**: Live terminal execution added Amul Butter (₹264) and Brown Bread (₹41) directly to Swiggy cart with zero false out-of-stock errors; address queries returned instant deterministic responses with 1-tap switch buttons; .\verify.ps1 passed with 129/129 tests green, live Supabase connected, and ESLint 0 errors in 83.74s.
+- **Still broken**: Nothing. Catalog search and address state are 100% deterministic and verified live against real Swiggy dark stores.
+
 ### [GROCER — V2 Concierge Architecture & Domain Realignment] 2026-10-24
 
 #### Work Card: Fix WhatsApp Preflight Dead-Lock and Seed Owner Token in Postgres

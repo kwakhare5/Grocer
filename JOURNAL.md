@@ -126,6 +126,15 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: `verify.ps1` exited 0 with 21/21 passing Python tests, active Supabase database, and clean Next.js Turbopack build in 1.8s.
 - **Still broken**: None. Ready to delete `D:\Grocer` and proceed to Phase 1 in the next session.
 
+### [GROCER v1 — Logo Recovery & Master Rule .scratch/HANDOFF.md Consolidation] 2026-10-25
+
+#### Work Card: Recover Official Brand Logo and Consolidate Master Handoff into .scratch/HANDOFF.md
+- **Problem**: Need the official Apple-squircle `logo.svg` restored and single authoritative handoff consolidated strictly at `.scratch/HANDOFF.md` per Master AGENTS.md rules.
+- **Change**: Recovered `logo.svg` from Git commit `4f320ef` into `public/logo.svg` and `app/logo.svg`; wired logo into `app/page.tsx` navbar; merged complete handoff brief into `.scratch/HANDOFF.md` and purged root `HANDOFF.md`.
+- **Proof**: `.\verify.ps1` exited 0 with 21/21 passing contract tests, Supabase database verified, and Next.js Turbopack build clean; `.scratch/HANDOFF.md` verified as the sole handoff file.
+- **Still broken**: None. Ready for Phase 1 in the fresh chat session.
+
+
 
 
 

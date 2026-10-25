@@ -6,6 +6,7 @@ connection pooling, advisory locking for per-user concurrency, and migration exe
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from pathlib import Path
 
@@ -21,7 +22,8 @@ _pool: asyncpg.Pool | None = None
 async def get_db_pool() -> asyncpg.Pool:
     """Retrieve or initialize the global PostgreSQL connection pool."""
     global _pool
-    if _pool is None:
+    current_loop = asyncio.get_running_loop()
+    if _pool is None or _pool._loop is not current_loop or _pool._loop.is_closed():
         logger.info("Initializing asyncpg connection pool to PostgreSQL...")
         _pool = await asyncpg.create_pool(
             dsn=settings.DATABASE_URL,
@@ -37,8 +39,11 @@ async def close_db_pool() -> None:
     global _pool
     if _pool is not None:
         logger.info("Closing asyncpg connection pool...")
-        await _pool.close()
-        _pool = None
+        try:
+            if not _pool._loop.is_closed():
+                await _pool.close()
+        finally:
+            _pool = None
 
 
 async def check_db_health() -> bool:

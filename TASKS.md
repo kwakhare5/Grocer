@@ -17,14 +17,14 @@
 
 ---
 
-## Phase 1: Channel Ingestion Shield & Deduplication
-- [ ] Implement `POST /api/whatsapp/webhook` with HMAC-SHA256 signature verification (<25ms response).
-- [ ] Implement PostgreSQL message deduplication (`ON CONFLICT (wa_message_id) DO NOTHING` on `grocer.inbound_messages`).
-- [ ] Implement in-process / PostgreSQL advisory lock per-user (`pg_try_advisory_xact_lock`) for concurrent message serialization.
-- [ ] Implement fast 50ms button dispatcher for interactive button taps (`button_reply`, `list_reply`).
-- [ ] Implement WhatsApp inbound payload parser (`backend/channels/whatsapp_parser.py`) for text, button IDs, and GPS location pins.
-- [ ] Write integration test `tests/test_channels.py` testing webhook intake, signature validation, replay attacks, and duplicate dropping.
-- **Done Condition:** Webhook replay attack tests pass; duplicate messages are dropped with zero double-processing.
+## Phase 1: Channel Ingestion Shield & Deduplication — [COMPLETE]
+- [x] Implement `POST /api/whatsapp/webhook` with HMAC-SHA256 signature verification (<25ms response).
+- [x] Implement PostgreSQL message deduplication (`ON CONFLICT (wa_message_id) DO NOTHING` on `grocer.inbound_messages`).
+- [x] Implement in-process / PostgreSQL advisory lock per-user (`pg_try_advisory_xact_lock`) for concurrent message serialization.
+- [x] Implement fast 50ms button dispatcher for interactive button taps (`button_reply`, `list_reply`).
+- [x] Implement WhatsApp inbound payload parser (`backend/channels/whatsapp_parser.py`) for text, button IDs, and GPS location pins.
+- [x] Write integration test `tests/test_channels.py` testing webhook intake, signature validation, replay attacks, and duplicate dropping.
+- **Done Condition:** Webhook replay attack tests pass; duplicate messages are dropped with zero double-processing. [VERIFIED: 8/8 tests green, exit 0]
 
 ---
 

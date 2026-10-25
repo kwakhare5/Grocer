@@ -1,5 +1,15 @@
-# Single-Turn Brain with 50ms Fast Button Router over Multi-Model Bouncers
+# ADR 0001: Customer Experience Speed: Snappy Button Action vs Warm Conversational Concierge
 
-We replaced the legacy multi-model defensive pipeline (`react_coordinator.py`, `claim_check.py`, `item_drop_guard.py`, `preflight_handler.py`, `response_synthesizer.py`) with a single-turn Gemini 3.5 Flash engine coupled with a deterministic Python button router (`button_router.py`) and parallel composite cart manager (`composite_cart.py`).
+## Context
+When someone shops for groceries on WhatsApp, there are two distinct user interactions:
+1. **Conversational Inquiries & Shopping Lists:** When texting groceries (*"doodh, bread, and eggs"*), asking cooking questions, or speaking in Hinglish, the customer expects a warm, intelligent conversational assistant that understands context.
+2. **Interactive Button Actions:** When a customer taps an interactive WhatsApp button (such as `[Pay ₹240]`, `[Change Address]`, or `[Clear Basket]`), there is no ambiguous text to decipher. The customer expects immediate app-like execution. In competitor bots, tapping a button triggers a 10-second "Thinking..." pause while an LLM formats chatty filler, destroying mobile conversion and user patience.
 
-The legacy approach added 20–30 seconds of conversational latency per turn and burned excessive tokens by running secondary LLMs to check the primary LLM's outputs. The new architecture delegates fuzzy natural language parsing and customer conversation to Gemini in a single pass, while Python deterministically executes WhatsApp button actions in under 50ms, searches Swiggy dark stores concurrently via `asyncio.gather`, diffs dropped items without silent omissions, enforces the 3-lock cryptographic checkout latch, and guarantees receipt math balancing.
+## Decision
+1. **Snappy Button Execution (<100ms):** Tapping any interactive WhatsApp button triggers direct, deterministic action execution, returning payment links or address selection pickers in under 100ms without waking up the conversational LLM.
+2. **Warm Single-Pass Conversational Brain (<3.5s):** Natural text messages, recipe inquiries, and Hinglish grocery lists are handled by Gemini in a single pass with the last 12 turns of dialogue context, providing helpful, natural English responses in under 3.5 seconds.
+
+## Consequences
+- Physical button taps feel as responsive as a native mobile app.
+- Conversational chat remains warm and intelligent without token bloat or latency delays.
+- Clear separation between user action (buttons) and user exploration (text).

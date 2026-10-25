@@ -1,4 +1,4 @@
-# TASKS.md — Grocer v5.0 Phased Implementation Roadmap
+# TASKS.md — Grocer v1.0 Phased Implementation Roadmap
 
 > **Status:** Active Roadmap  
 > **Rule:** Every phase requires a runnable test script that exits 0 with terminal proof before proceeding to the next phase.
@@ -7,7 +7,7 @@
 
 ## Phase 0: Ground-Truth Staging Fixtures (Zero Code First)
 - [ ] Connect to Swiggy staging MCP endpoint (`https://mcp.swiggy.com/im`).
-- [ ] Capture raw JSON responses for all 19 Instamart tools into `grocer-v5/tests/fixtures/`.
+- [ ] Capture raw JSON responses for all 20 Instamart tools into `tests/fixtures/`.
 - [ ] Write standalone contract tests validating JSON-RPC 2.0 schemas against committed staging fixtures.
 - [ ] Permanently purge `MockCommerceAdapter`.
 - **Done Condition:** All contract tests pass against real staging fixtures; 0 mocks present.
@@ -33,22 +33,25 @@
 
 ---
 
-## Phase 3: Cart Reconciliation & JIT Re-Auth
+## Phase 3: Commerce & Account Lifecycle
 - [ ] Implement full target cart assembly and safe destructive `update_cart`.
 - [ ] Implement read-after-write verification (`get_cart` diffing, revert detection).
 - [ ] Implement non-blocking out-of-stock reconciliation ("Not added" receipt card).
-- [ ] Implement 5-day token expiration detection + parked message replay on OAuth callback.
-- **Done Condition:** Adding an item preserves existing items; missing items appear under "Not added"; expired token retains the customer's shopping list after login.
+- [ ] Implement full address lifecycle (`get_addresses`, two-step pin geocoding, deletion guardrails).
+- [ ] Implement address switching mid-basket clear-and-rebuild flow.
+- [ ] Implement 5-day token expiration detection + JIT re-auth parked message replay on OAuth callback.
+- **Done Condition:** Adding an item preserves existing items; missing items appear under "Not added"; address deletion blocked during live deliveries; expired token retains shopping list after login.
 
 ---
 
 ## Phase 4: 3-Lock Payment Gate & Web Checkout
 - [ ] Implement Lock 1 (physical button ID only; text "yes" rejected).
-- [ ] Implement Lock 2 (re-verification of price, paise math, and stock).
+- [ ] Implement Lock 2 (re-verification of price, paise math, stock, and ₹1 price-drift abort).
 - [ ] Implement Lock 3 (atomic PostgreSQL CAS + order ID snapshot).
 - [ ] Format Swiggy HTTPS `bridgeUrl` into WhatsApp CTA URL button.
-- [ ] Implement `check_payment_status` ~19-second durable background poller.
-- **Done Condition:** Text "yes" fails to trigger payment; double-tap triggers exactly one checkout; successful payment pushes instant WhatsApp receipt.
+- [ ] Implement `check_payment_status` ~19-second durable background poller (up to 5 min).
+- [ ] Implement real-time GPS rider tracking transition on payment confirmation (`track_order`).
+- **Done Condition:** Text "yes" fails to trigger payment; double-tap triggers exactly one checkout; successful payment pushes instant WhatsApp receipt and live GPS tracking map link.
 
 ---
 

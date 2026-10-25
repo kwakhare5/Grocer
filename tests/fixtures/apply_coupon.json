@@ -1,0 +1,29 @@
+{
+  "success": true,
+  "data": {
+    "cartId": "cart_im_987654",
+    "selectedAddress": "addr_01HXYZ",
+    "cartTotalAmount": "144.00",
+    "items": [
+      {
+        "spinId": "spin_amul_1l",
+        "skuId": "sku_amul_1l",
+        "productId": "prod_amul_milk_01",
+        "itemName": "Amul Taaza Homogenised Toned Milk",
+        "quantity": 3,
+        "isInStockAndAvailable": true,
+        "mrp": 74,
+        "discountedFinalPrice": 72
+      }
+    ],
+    "billBreakdown": {
+      "lineItems": [
+        { "label": "Item Total", "value": "₹216.00" },
+        { "label": "Coupon Discount (INSTA50)", "value": "-₹72.00" },
+        { "label": "Handling Charge", "value": "₹5.00" }
+      ],
+      "toPay": { "label": "To Pay", "value": "₹149.00" }
+    }
+  },
+  "message": "Coupon INSTA50 applied successfully! Saved ₹72.00"
+}

@@ -1,0 +1,25 @@
+{
+  "success": true,
+  "data": {
+    "orderId": "189456789012",
+    "status": "PROCESSING",
+    "totalBill": 149.0,
+    "hasRefunds": false,
+    "items": [
+      {
+        "name": "Amul Taaza Homogenised Toned Milk",
+        "quantity": 2,
+        "finalPrice": 144.0,
+        "removed": false
+      }
+    ],
+    "bill": {
+      "lineItems": [
+        { "name": "Item Total", "amount": "144.00" },
+        { "name": "Handling Fee", "amount": "5.00" }
+      ],
+      "grandTotal": "149.00"
+    }
+  },
+  "message": "Order details retrieved"
+}

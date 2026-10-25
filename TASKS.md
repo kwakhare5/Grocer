@@ -5,12 +5,12 @@
 
 ---
 
-## Phase 0: Ground-Truth Staging Fixtures (Zero Code First)
-- [ ] Connect to Swiggy staging MCP endpoint (`https://mcp.swiggy.com/im`).
-- [ ] Capture raw JSON responses for all 20 Instamart tools into `tests/fixtures/`.
-- [ ] Write standalone contract tests validating JSON-RPC 2.0 schemas against committed staging fixtures.
-- [ ] Permanently purge `MockCommerceAdapter`.
-- **Done Condition:** All contract tests pass against real staging fixtures; 0 mocks present.
+## Phase 0: Ground-Truth Staging Fixtures (Zero Code First) — [COMPLETE]
+- [x] Connect to Swiggy staging MCP endpoint (`https://mcp.swiggy.com/im`).
+- [x] Capture raw JSON responses for all 20 Instamart tools into `tests/fixtures/`.
+- [x] Write standalone contract tests validating JSON-RPC 2.0 schemas against committed staging fixtures.
+- [x] Permanently purge `MockCommerceAdapter`.
+- **Done Condition:** All contract tests pass against real staging fixtures; 0 mocks present. [VERIFIED: 21/21 tests green, exit 0]
 
 ---
 

@@ -1,0 +1,14 @@
+{
+  "success": true,
+  "data": {
+    "orderId": "189456789012",
+    "deliveryBy": 1792928400000,
+    "serverNow": 1792927800000,
+    "etaText": "10 mins",
+    "cancelled": false,
+    "delivered": false,
+    "statusText": "Rider on the way to delivery location",
+    "pollIntervalSec": 15
+  },
+  "message": "Delivery status retrieved"
+}

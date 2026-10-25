@@ -1,0 +1,46 @@
+{
+  "success": true,
+  "data": {
+    "nextOffset": "10",
+    "products": [
+      {
+        "displayName": "Amul Taaza Homogenised Toned Milk",
+        "brand": "Amul",
+        "inStock": true,
+        "isAvail": true,
+        "productId": "prod_amul_milk_01",
+        "parentProductId": "parent_prod_milk",
+        "isPromoted": false,
+        "variations": [
+          {
+            "spinId": "spin_amul_1l",
+            "skuId": "sku_amul_1l",
+            "quantityDescription": "1 L",
+            "displayName": "Amul Taaza Homogenised Toned Milk (1 L)",
+            "brandName": "Amul",
+            "price": {
+              "mrp": 74,
+              "offerPrice": 72,
+              "unitLevelPrice": "₹72/L"
+            },
+            "isInStockAndAvailable": true,
+            "imageUrl": "https://media-assets.swiggy.com/swiggy/image/upload/amul_milk.jpg",
+            "rating": {
+              "value": "4.8",
+              "count": "12.4k"
+            },
+            "sla": {
+              "value": "10",
+              "unit": "mins"
+            },
+            "vegClassifier": "VEG",
+            "maxQuantity": 6,
+            "maxQuantityMessage": "Max 6 packs per order"
+          }
+        ]
+      }
+    ],
+    "similarProducts": []
+  },
+  "message": "Products retrieved"
+}

@@ -1,0 +1,33 @@
+{
+  "success": true,
+  "data": {
+    "nextOffset": "",
+    "products": [
+      {
+        "displayName": "Nandini Pasteurised Toned Milk",
+        "brand": "Nandini",
+        "inStock": true,
+        "isAvail": true,
+        "productId": "prod_nandini_500",
+        "parentProductId": "parent_nandini",
+        "variations": [
+          {
+            "spinId": "spin_nandini_500ml",
+            "skuId": "sku_nandini_500ml",
+            "quantityDescription": "500 ml",
+            "displayName": "Nandini Pasteurised Toned Milk",
+            "brandName": "Nandini",
+            "price": {
+              "mrp": 24,
+              "offerPrice": 24
+            },
+            "isInStockAndAvailable": true,
+            "imageUrl": "https://media-assets.swiggy.com/swiggy/image/upload/nandini.jpg",
+            "maxQuantity": 8
+          }
+        ]
+      }
+    ]
+  },
+  "message": "Past frequently ordered items retrieved"
+}

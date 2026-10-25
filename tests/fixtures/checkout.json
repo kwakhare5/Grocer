@@ -1,0 +1,20 @@
+{
+  "success": true,
+  "data": {
+    "orderId": "189456789012",
+    "transactionId": "tx_upi_778899",
+    "paasId": "paas_01HZ123456789",
+    "upiIntentUrl": "upi://pay?pa=swiggy@icici&pn=Swiggy&am=149.00&tr=tx_upi_778899",
+    "bridgeUrl": "https://mcp.swiggy.com/pay/bridge?id=paas_01HZ123456789",
+    "isQrFlow": false,
+    "pollingIntervalInMs": 3000,
+    "maxTimeToPollForInMs": 300000,
+    "paymentMethod": "UPI",
+    "status": "PENDING_PAYMENT",
+    "addressId": "addr_01HXYZ",
+    "cartTotal": 149.0,
+    "deliveryAddress": "Flat 402, Green Glen Layout, Bellandur, Bengaluru",
+    "deliveryLabel": "Home"
+  },
+  "message": "Instamart order initiated. Please complete payment in your UPI app."
+}

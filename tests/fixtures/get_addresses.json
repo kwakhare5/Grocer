@@ -1,0 +1,29 @@
+{
+  "success": true,
+  "data": {
+    "addresses": [
+      {
+        "id": "addr_01HXYZ",
+        "addressLine": "Flat 402, Green Glen Layout, Bellandur, Bengaluru",
+        "phoneNumber": "+919876543210",
+        "addressCategory": "HOME",
+        "addressTag": "Home"
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "pageSize": 10,
+      "total": 1,
+      "totalPages": 1,
+      "hasMore": false
+    },
+    "resolution": {
+      "defaultAddressId": "addr_01HXYZ",
+      "resolutionSource": "user_selected_address",
+      "needsUserClarification": false,
+      "candidateAddressIds": ["addr_01HXYZ"],
+      "scoreUsed": 1.0
+    }
+  },
+  "message": "Addresses fetched successfully"
+}

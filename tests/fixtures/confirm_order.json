@@ -1,0 +1,10 @@
+{
+  "success": true,
+  "data": {
+    "orderId": "189456789012",
+    "paasId": "paas_01HZ123456789",
+    "orderStatus": "PLACED",
+    "result": "success"
+  },
+  "message": "Instamart order placed successfully"
+}

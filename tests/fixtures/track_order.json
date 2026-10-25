@@ -1,0 +1,38 @@
+{
+  "success": true,
+  "data": {
+    "orderId": "189456789012",
+    "orderTitle": "Order #189456789012",
+    "orderSubtitle": "Amul Taaza Milk and 1 other item",
+    "status": {
+      "statusMessage": "On the way",
+      "subStatusMessage": "Delivery partner is 1.2 km away",
+      "etaMinutes": 8,
+      "etaText": "8 mins"
+    },
+    "storeInfo": {
+      "name": "Swiggy Instamart Pod - Bellandur",
+      "address": "Green Glen Layout, Bellandur, Bengaluru"
+    },
+    "deliveryInfo": {
+      "addressLabel": "Home",
+      "fullAddress": "Flat 402, Green Glen Layout, Bellandur, Bengaluru 560103"
+    },
+    "items": [
+      { "name": "Amul Taaza Milk 1 L", "quantity": 2, "price": "144.00" }
+    ],
+    "itemCount": 2,
+    "placedAt": "2026-10-25T10:15:00Z",
+    "paymentInfo": {
+      "message": "Paid via UPI",
+      "amount": "149.00"
+    },
+    "mapInfo": {
+      "storeLocation": { "latitude": 12.9304, "longitude": 77.6784 },
+      "deliveryLocation": { "latitude": 12.9352, "longitude": 77.6745 },
+      "riderLocation": { "latitude": 12.9328, "longitude": 77.6765 }
+    },
+    "pollingIntervalSeconds": 10
+  },
+  "message": "Order tracking details"
+}

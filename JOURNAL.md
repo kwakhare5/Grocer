@@ -134,7 +134,11 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: `.\verify.ps1` exited 0 with 21/21 passing contract tests, Supabase database verified, and Next.js Turbopack build clean; `.scratch/HANDOFF.md` verified as the sole handoff file.
 - **Still broken**: None. Ready for Phase 1 in the fresh chat session.
 
+### [GROCER v1 — Code Review Resolution & AST Safety Invariants] 2026-10-25
 
-
-
+#### Work Card: Enforce AST Safety Invariants, Integer Paise Properties, and Clean Linting
+- **Problem**: `/code-review` surfaced standard violations (`catch (err: any)` in Next.js routes), missing AST invariant enforcement against float math and mock imports, and ruff formatting warnings.
+- **Change**: Updated Next.js API routes with typed `err: unknown` checks; added `@property` integer paise conversion getters to all Pydantic price schemas; added AST safety invariant tests in `tests/test_invariants.py`; integrated `ruff check backend tests` into `verify.ps1`.
+- **Proof**: `.\verify.ps1` ran all 4 stages (Supabase check, Ruff lint, 24 Pytest tests, Next.js build) exiting 0; committed as `e674b88` on branch `grocer-v1`.
+- **Still broken**: None. Ready for Phase 1 (Channel Ingestion Shield & Deduplication).
 

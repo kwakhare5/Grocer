@@ -38,3 +38,11 @@ Proceed directly to **Phase 1: Channel Ingestion Shield & Deduplication** in `TA
 3. Implement `backend/channels/whatsapp_parser.py` (parsing text, button reply IDs, and GPS location pins).
 4. Implement in-process / PostgreSQL advisory lock for concurrent message serialization.
 5. Write and verify `tests/test_channels.py` against webhook replay attacks and duplicate payloads.
+
+---
+
+## 5. Copy-Paste Resume Prompt for Fresh Chat
+```text
+Resume Grocer v1.0 from .scratch/HANDOFF.md. Phase 0 is 100% verified and pushed. Let's start Phase 1: Channel Ingestion Shield & Deduplication in TASKS.md. Follow all AGENTS.md rules and TDD.
+```
+

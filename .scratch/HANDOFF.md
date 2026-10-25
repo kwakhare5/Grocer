@@ -2,7 +2,7 @@
 
 > **Target Workspace:** `D:\Grocer-v5`  
 > **Branch:** `grocer-v1` (Synced with `https://github.com/kwakhare5/Grocer`)  
-> **Status:** Phase 0 & Phase 1 Complete (Ingestion Shield & Deduplication Verified). Ready for Phase 2: Conversational Brain & Intelligent Candidate Search.  
+> **Status:** Phase 0 & Phase 1 Complete (Ingestion Shield, Deduplication & Real WhatsApp Verified). Ready for Phase 2: Conversational Brain & Intelligent Candidate Search.  
 
 ---
 
@@ -19,14 +19,18 @@ Build Grocer v1.0 from scratch as a production-grade WhatsApp Swiggy Instamart c
 5. **Fast 50ms Button Dispatcher (`backend/channels/button_router.py`):** Interactive taps (`cart:clear`, `pay:<id>`, `addr:<id>`) routed directly in Python in <50ms, bypassing LLM lag.
 6. **Inbound WhatsApp Parser (`backend/channels/whatsapp_parser.py`):** Structured extraction of text, button replies, and location GPS pins.
 7. **Full Integration Test Suite (`tests/test_channels.py`):** 8/8 tests proving HMAC validation, deduplication, stale dropping, status filtering, fast buttons, and advisory lock serialization.
+8. **Live Render & Vercel Staging Infrastructure:** Configured Render backend (`grocer-backend-qwk4`) to track branch `grocer-v1`, injected missing `WHATSAPP_BUSINESS_ACCOUNT_ID`, restored `main` on GitHub to `4907056` (untouched).
+9. **Real Phone End-to-End Proof:** Verified incoming real WhatsApp messages from user (`+91 82378 03170`) captured live in Supabase.
 
 ---
 
-## 3. Passing Tests (Terminal Proof)
+## 3. Passing Tests & Real Cloud Proof
 - **Database:** `scripts/verify_db.py` confirms 6/6 tables in Supabase over live SSL.
 - **Linting:** `ruff check backend tests` passed with 0 errors.
 - **Test Suite:** 32/32 passing tests across invariants, staging fixtures, and channels (all green, 0 mocks).
-- **Web Build:** Next.js Turbopack production build succeeds in 2.3s.
+- **Web Build:** Next.js Turbopack production build succeeds in 2.3s on `https://grocerr.vercel.app`.
+- **Live Render Cloud:** `https://grocer-backend-qwk4.onrender.com/health` returns 200 OK (`grocer-v1` branch).
+- **Live WhatsApp Production Proof:** Real phone messages received from `+91 82378 03170`, verified with HMAC, and stored in Supabase table `grocer.inbound_messages`.
 - **Universal Verification:** `.\verify.ps1` exits 0 with 100% green output.
 
 ---
@@ -46,6 +50,5 @@ Proceed directly to **Phase 2: Conversational Brain & Intelligent Candidate Sear
 
 ## 5. Copy-Paste Resume Prompt for Fresh Chat
 ```text
-Resume Grocer v1.0 from .scratch/HANDOFF.md. Phase 1 is 100% verified and complete. Let's start Phase 2: Conversational Brain & Intelligent Candidate Search in TASKS.md. Follow all AGENTS.md rules and TDD.
+Resume Grocer v1.0 from .scratch/HANDOFF.md. Phase 1 is 100% verified on real WhatsApp and complete. Let's start Phase 2: Conversational Brain & Intelligent Candidate Search in TASKS.md. Follow all AGENTS.md rules and TDD.
 ```
-

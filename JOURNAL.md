@@ -93,3 +93,12 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: Added remote `origin` pointing to `https://github.com/kwakhare5/Grocer.git`; created branch `grocer-v1`; committed `.gitignore`, `PRD.md`, `ARCHITECTURE.md`, `DESIGN.md`, `GLOSSARY.md`, `TASKS.md`, `HANDOFF.md`, and all 10 ADRs; pushed cleanly to `origin/grocer-v1`.
 - **Proof**: `git push -u origin grocer-v1` exited 0; branch tracked at `https://github.com/kwakhare5/Grocer/tree/grocer-v1`; working tree clean.
 - **Still broken**: None. Ready for Phase 0 execution.
+
+### [GROCER v1 — Environment Setup & Supabase Database Wipe] 2026-10-25
+
+#### Work Card: Harvest Environment Credentials & Wipe Supabase Database Clean
+- **Problem**: Need clean-slate runtime configuration and an empty database ready for Grocer v1.0 schemas, with zero legacy code or stale database tables.
+- **Change**: Created `D:\Grocer-v5\.env` with harvested credentials (WhatsApp Cloud API, Supabase connection, Gemini key, AES token encryption key, Swiggy redirect URI); created tracked `.env.example`; ran automated wipe script dropping all 8 legacy tables and `grocer_internal` schema from Supabase PostgreSQL.
+- **Proof**: `asyncpg` execution reported 0 remaining user tables; `.gitignore` verified ignoring `.env`; database confirmed 100% clean.
+- **Still broken**: None. Ready for Phase 0 schema migration and fixture capture.
+

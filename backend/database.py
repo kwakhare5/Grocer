@@ -3,18 +3,19 @@
 Manages asyncpg connection pool to PostgreSQL (Supabase) with strict SSL,
 connection pooling, advisory locking for per-user concurrency, and migration execution.
 """
+
 from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Optional
+
 import asyncpg
 
 from backend.config import settings
 
 logger = logging.getLogger("grocer.database")
 
-_pool: Optional[asyncpg.Pool] = None
+_pool: asyncpg.Pool | None = None
 
 
 async def get_db_pool() -> asyncpg.Pool:
@@ -47,7 +48,7 @@ async def check_db_health() -> bool:
         async with pool.acquire() as conn:
             val = await conn.fetchval("SELECT 1")
             return val == 1
-    except Exception as exc:
+    except (asyncpg.PostgresError, OSError) as exc:
         logger.error("Database health check failed: %s", exc)
         return False
 

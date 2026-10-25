@@ -66,11 +66,15 @@ export default function Home() {
       }
       // Redirect to official Swiggy OAuth 2.1 screen
       window.location.href = data.authorizeUrl;
-    } catch (err: any) {
-      setErrorMessage(err.message || "Connection failed. Please verify network and try again.");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Connection failed. Please verify network and try again.";
+      setErrorMessage(message);
       setIsLoading(false);
     }
   };
+
+  const whatsappNumber = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "919876543210";
+  const whatsappUrl = `https://wa.me/${whatsappNumber}`;
 
   return (
     <div className="relative min-h-screen bg-[#0A0A0B] text-[#F4F4F5] bg-grid-pattern flex flex-col font-sans selection:bg-[#FC8019]/25 selection:text-[#FC8019]">
@@ -80,24 +84,24 @@ export default function Home() {
           <img
             src="/logo.svg"
             alt="Grocer Logo"
-            className="w-8 h-8 rounded-lg object-contain shadow-[0_0_15px_rgba(34,197,94,0.3)]"
+            className="w-8 h-8 rounded-lg object-contain shadow-[0_0_15px_rgba(252,128,25,0.3)]"
           />
           <span className="font-semibold tracking-tight text-lg text-white">Grocer</span>
           <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-mono bg-white/5 border border-white/10 text-zinc-400">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-            Swiggy MCP Whitelisted
+            <span className="w-1.5 h-1.5 rounded-full bg-[#FC8019] animate-pulse"></span>
+            ⚡ Powered by Swiggy Builders Club MCP
           </span>
         </div>
 
         <div className="flex items-center gap-4">
           <a
-            href="https://wa.me/919876543210"
+            href={whatsappUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-2 text-xs font-medium text-zinc-300 hover:text-white px-3.5 py-1.5 rounded-md border border-white/10 hover:border-white/20 transition-all bg-white/[0.03]"
           >
             <MessageSquare className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Open WhatsApp</span>
+            <span>Connect WhatsApp</span>
           </a>
         </div>
       </nav>
@@ -107,7 +111,7 @@ export default function Home() {
         {/* Top Badge */}
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-mono font-medium bg-[#FC8019]/10 border border-[#FC8019]/20 text-[#FC8019] mb-8">
           <Sparkles className="w-3.5 h-3.5" />
-          <span>Swiggy Instamart on WhatsApp</span>
+          <span>WhatsApp Concierge for Swiggy Instamart</span>
         </div>
 
         {/* Main Headline */}
@@ -132,7 +136,7 @@ export default function Home() {
                 {statusMessage || "Your Swiggy account is active. Open WhatsApp and send your grocery list to start ordering."}
               </p>
               <a
-                href="https://wa.me/919876543210"
+                href={whatsappUrl}
                 className="inline-flex items-center justify-center gap-2 w-full py-3 px-4 rounded-xl font-medium text-black bg-white hover:bg-zinc-200 transition-all text-sm font-semibold mt-2"
               >
                 <span>Chat on WhatsApp</span>
@@ -186,9 +190,9 @@ export default function Home() {
               <div className="flex items-center justify-between text-[11px] text-zinc-500 pt-1 font-mono">
                 <span className="flex items-center gap-1">
                   <Lock className="w-3 h-3 text-zinc-400" />
-                  AES-256 Encrypted Vault
+                  AES-256 Vault
                 </span>
-                <span>OAuth 2.1 PKCE</span>
+                <span>Official OAuth 2.1 via Swiggy Builders Club</span>
               </div>
             </form>
           )}

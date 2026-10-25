@@ -3,31 +3,31 @@
 Validates that Pydantic contract schemas accurately parse real Swiggy MCP tool responses
 for all 20 Instamart tools. Zero fake mocks; 100% ground-truth schema verification.
 """
+
 from __future__ import annotations
 
 import json
 from pathlib import Path
-import pytest
 
 from backend.integrations.commerce.schemas import (
-    ToolEnvelope,
-    GetAddressesData,
+    CartData,
+    CheckoutData,
+    ClearCartData,
+    ConfirmOrderData,
     CreateAddressData,
     DeleteAddressData,
-    RecommendAddressData,
-    SearchProductsData,
-    CartData,
-    ClearCartData,
-    ListCouponsData,
-    PaymentOptionsData,
-    CheckoutData,
-    PaymentStatusData,
-    ConfirmOrderData,
-    OrdersListData,
-    OrderDetailsData,
     DeliveryStatusData,
-    TrackOrderData,
+    GetAddressesData,
+    ListCouponsData,
+    OrderDetailsData,
+    OrdersListData,
+    PaymentOptionsData,
+    PaymentStatusData,
+    RecommendAddressData,
     ReportErrorData,
+    SearchProductsData,
+    ToolEnvelope,
+    TrackOrderData,
 )
 
 FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures"
@@ -145,7 +145,9 @@ def test_fixture_apply_coupon():
     assert env.success is True
     assert env.data is not None
     assert env.data.cartTotalAmount == "144.00"
-    has_discount = any("Coupon Discount" in item.label for item in env.data.billBreakdown.lineItems)
+    has_discount = any(
+        "Coupon Discount" in item.label for item in env.data.billBreakdown.lineItems
+    )
     assert has_discount is True
 
 
@@ -243,5 +245,6 @@ def test_fixture_report_error():
 # Invariant: Zero mocks present in tests or schemas
 def test_zero_mocks_invariant():
     """Prove that MockCommerceAdapter or any mock classes do not exist in Grocer v1.0."""
-    with pytest.raises(ImportError):
-        from backend.integrations.commerce import MockCommerceAdapter  # type: ignore
+    from backend.integrations import commerce
+
+    assert not hasattr(commerce, "MockCommerceAdapter"), "MockCommerceAdapter must never exist in Grocer v1.0"

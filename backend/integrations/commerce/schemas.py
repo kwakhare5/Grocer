@@ -4,9 +4,11 @@ Strictly typed models for all 20 Swiggy Instamart MCP tools based on
 official Swiggy Builders Club specifications (JSON-RPC 2.0 / MCP).
 Zero mocks; validated directly against committed staging fixtures.
 """
+
 from __future__ import annotations
 
-from typing import Any, Generic, List, Optional, TypeVar
+from typing import Any, Generic, TypeVar
+
 from pydantic import BaseModel, ConfigDict, Field
 
 T = TypeVar("T")
@@ -14,11 +16,12 @@ T = TypeVar("T")
 
 class ToolEnvelope(BaseModel, Generic[T]):
     """Standard Swiggy MCP tool response envelope."""
+
     model_config = ConfigDict(extra="ignore")
     success: bool
-    data: Optional[T] = None
-    message: Optional[str] = None
-    error: Optional[dict[str, Any]] = None
+    data: T | None = None
+    message: str | None = None
+    error: dict[str, Any] | None = None
 
 
 # 1. Address Models
@@ -26,9 +29,9 @@ class SavedAddress(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str
     addressLine: str
-    phoneNumber: Optional[str] = None
-    addressCategory: Optional[str] = None
-    addressTag: Optional[str] = None
+    phoneNumber: str | None = None
+    addressCategory: str | None = None
+    addressTag: str | None = None
 
 
 class AddressPagination(BaseModel):
@@ -42,16 +45,16 @@ class AddressPagination(BaseModel):
 
 class AddressResolution(BaseModel):
     model_config = ConfigDict(extra="ignore")
-    defaultAddressId: Optional[str] = None
+    defaultAddressId: str | None = None
     resolutionSource: str
     needsUserClarification: bool = False
-    candidateAddressIds: List[str] = Field(default_factory=list)
-    scoreUsed: Optional[float] = None
+    candidateAddressIds: list[str] = Field(default_factory=list)
+    scoreUsed: float | None = None
 
 
 class GetAddressesData(BaseModel):
     model_config = ConfigDict(extra="ignore")
-    addresses: List[SavedAddress]
+    addresses: list[SavedAddress]
     pagination: AddressPagination
     resolution: AddressResolution
 
@@ -79,7 +82,17 @@ class ProductPrice(BaseModel):
     model_config = ConfigDict(extra="ignore")
     mrp: float
     offerPrice: float
-    unitLevelPrice: Optional[str] = None
+    unitLevelPrice: str | None = None
+
+    @property
+    def mrp_paise(self) -> int:
+        """Integer paise value of MRP (₹1 = 100 paise)."""
+        return round(self.mrp * 100)
+
+    @property
+    def offer_price_paise(self) -> int:
+        """Integer paise value of offer price (₹1 = 100 paise)."""
+        return round(self.offerPrice * 100)
 
 
 class ProductVariation(BaseModel):
@@ -88,47 +101,57 @@ class ProductVariation(BaseModel):
     skuId: str
     quantityDescription: str
     displayName: str
-    brandName: Optional[str] = None
+    brandName: str | None = None
     price: ProductPrice
     isInStockAndAvailable: bool
-    imageUrl: Optional[str] = None
-    maxQuantity: Optional[int] = None
-    maxQuantityMessage: Optional[str] = None
+    imageUrl: str | None = None
+    maxQuantity: int | None = None
+    maxQuantityMessage: str | None = None
 
 
 class SearchProduct(BaseModel):
     model_config = ConfigDict(extra="ignore")
     displayName: str
-    brand: Optional[str] = None
+    brand: str | None = None
     inStock: bool
     isAvail: bool
     productId: str
-    parentProductId: Optional[str] = None
-    isPromoted: Optional[bool] = False
-    variations: List[ProductVariation] = Field(default_factory=list)
+    parentProductId: str | None = None
+    isPromoted: bool | None = False
+    variations: list[ProductVariation] = Field(default_factory=list)
 
 
 class SearchProductsData(BaseModel):
     model_config = ConfigDict(extra="ignore")
     nextOffset: str = ""
-    products: List[SearchProduct] = Field(default_factory=list)
-    similarProducts: Optional[List[SearchProduct]] = Field(default_factory=list)
+    products: list[SearchProduct] = Field(default_factory=list)
+    similarProducts: list[SearchProduct] | None = Field(default_factory=list)
 
 
 # 3. Cart & Bill Breakdown Models
 class CartItem(BaseModel):
     model_config = ConfigDict(extra="ignore")
     spinId: str
-    storeId: Optional[str] = None
+    storeId: str | None = None
     skuId: str
     productId: str
     itemName: str
-    itemVariant: Optional[str] = None
+    itemVariant: str | None = None
     quantity: int
     isInStockAndAvailable: bool
     mrp: float
     discountedFinalPrice: float
-    maxQuantity: Optional[int] = None
+    maxQuantity: int | None = None
+
+    @property
+    def mrp_paise(self) -> int:
+        """Integer paise value of MRP (₹1 = 100 paise)."""
+        return round(self.mrp * 100)
+
+    @property
+    def discounted_final_price_paise(self) -> int:
+        """Integer paise value of discounted price (₹1 = 100 paise)."""
+        return round(self.discountedFinalPrice * 100)
 
 
 class BillLineItem(BaseModel):
@@ -139,26 +162,26 @@ class BillLineItem(BaseModel):
 
 class BillBreakdown(BaseModel):
     model_config = ConfigDict(extra="ignore")
-    lineItems: List[BillLineItem]
+    lineItems: list[BillLineItem]
     toPay: BillLineItem
 
 
 class CartData(BaseModel):
     model_config = ConfigDict(extra="ignore")
-    cartId: Optional[str] = None
-    selectedAddress: Optional[str] = None
+    cartId: str | None = None
+    selectedAddress: str | None = None
     cartTotalAmount: str
-    items: List[CartItem] = Field(default_factory=list)
+    items: list[CartItem] = Field(default_factory=list)
     billBreakdown: BillBreakdown
-    availablePaymentMethods: Optional[List[str]] = Field(default_factory=list)
-    reducedQuantityItems: Optional[List[dict[str, Any]]] = Field(default_factory=list)
-    removedOutOfStockItems: Optional[List[CartItem]] = Field(default_factory=list)
+    availablePaymentMethods: list[str] | None = Field(default_factory=list)
+    reducedQuantityItems: list[dict[str, Any]] | None = Field(default_factory=list)
+    removedOutOfStockItems: list[CartItem] | None = Field(default_factory=list)
 
 
 class ClearCartData(BaseModel):
     model_config = ConfigDict(extra="ignore")
-    verified: Optional[bool] = None
-    acknowledged: Optional[bool] = None
+    verified: bool | None = None
+    acknowledged: bool | None = None
 
 
 # 4. Coupon Models
@@ -166,35 +189,35 @@ class AvailableCoupon(BaseModel):
     model_config = ConfigDict(extra="ignore")
     couponCode: str
     title: str
-    description: Optional[str] = None
+    description: str | None = None
     isApplicable: bool
     applicabilityStatus: str
-    applicabilityMessage: Optional[str] = None
-    offerId: Optional[str] = None
+    applicabilityMessage: str | None = None
+    offerId: str | None = None
 
 
 class ListCouponsData(BaseModel):
     model_config = ConfigDict(extra="ignore")
-    availableCoupons: List[AvailableCoupon] = Field(default_factory=list)
+    availableCoupons: list[AvailableCoupon] = Field(default_factory=list)
 
 
 # 5. Payment & Checkout Models
 class PaymentMethodItem(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str
-    groupName: Optional[str] = None
-    displayName: Optional[str] = None
-    kind: Optional[str] = None
-    enabled: Optional[bool] = True
+    groupName: str | None = None
+    displayName: str | None = None
+    kind: str | None = None
+    enabled: bool | None = True
 
 
 class PaymentOptionsData(BaseModel):
     model_config = ConfigDict(extra="ignore")
-    platforms: Optional[dict[str, Any]] = None
-    cod: Optional[dict[str, Any]] = None
-    swiggyMoney: Optional[dict[str, Any]] = None
-    allMethods: List[PaymentMethodItem] = Field(default_factory=list)
-    paymentAmount: Optional[str] = None
+    platforms: dict[str, Any] | None = None
+    cod: dict[str, Any] | None = None
+    swiggyMoney: dict[str, Any] | None = None
+    allMethods: list[PaymentMethodItem] = Field(default_factory=list)
+    paymentAmount: str | None = None
     placeOrderToolName: str = "checkout"
 
 
@@ -203,17 +226,17 @@ class CheckoutData(BaseModel):
     orderId: str
     paymentMethod: str
     status: str
-    transactionId: Optional[str] = None
-    paasId: Optional[str] = None
-    upiIntentUrl: Optional[str] = None
-    bridgeUrl: Optional[str] = None
-    isQrFlow: Optional[bool] = False
-    pollingIntervalInMs: Optional[int] = 3000
-    maxTimeToPollForInMs: Optional[int] = 300000
-    addressId: Optional[str] = None
-    cartTotal: Optional[float] = None
-    deliveryAddress: Optional[str] = None
-    deliveryLabel: Optional[str] = None
+    transactionId: str | None = None
+    paasId: str | None = None
+    upiIntentUrl: str | None = None
+    bridgeUrl: str | None = None
+    isQrFlow: bool | None = False
+    pollingIntervalInMs: int | None = 3000
+    maxTimeToPollForInMs: int | None = 300000
+    addressId: str | None = None
+    cartTotal: float | None = None
+    deliveryAddress: str | None = None
+    deliveryLabel: str | None = None
 
 
 class PaymentStatusData(BaseModel):
@@ -223,19 +246,19 @@ class PaymentStatusData(BaseModel):
     terminal: bool
     isTerminalSuccess: bool
     isTerminalFailure: bool
-    confirmed: Optional[bool] = None
-    orderStatus: Optional[str] = None
-    cartTotal: Optional[float] = None
-    orderId: Optional[str] = None
-    addressId: Optional[str] = None
-    cartId: Optional[str] = None
+    confirmed: bool | None = None
+    orderStatus: str | None = None
+    cartTotal: float | None = None
+    orderId: str | None = None
+    addressId: str | None = None
+    cartId: str | None = None
 
 
 class ConfirmOrderData(BaseModel):
     model_config = ConfigDict(extra="ignore")
     orderId: str
-    paasId: Optional[str] = None
-    orderStatus: Optional[str] = None
+    paasId: str | None = None
+    orderStatus: str | None = None
     result: str
 
 
@@ -245,21 +268,26 @@ class OrderHistoryItem(BaseModel):
     orderId: str
     status: str
     createdAt: str
-    updatedAt: Optional[str] = None
-    estimatedDeliveryTime: Optional[str] = None
+    updatedAt: str | None = None
+    estimatedDeliveryTime: str | None = None
     itemCount: int
     totalAmount: float
-    deliveryAddress: Optional[dict[str, Any]] = None
-    paymentMethod: Optional[str] = None
-    orderType: Optional[str] = "INSTAMART"
-    isActive: Optional[bool] = False
-    storeName: Optional[str] = None
-    items: List[dict[str, Any]] = Field(default_factory=list)
+    deliveryAddress: dict[str, Any] | None = None
+    paymentMethod: str | None = None
+    orderType: str | None = "INSTAMART"
+    isActive: bool | None = False
+    storeName: str | None = None
+    items: list[dict[str, Any]] = Field(default_factory=list)
+
+    @property
+    def total_amount_paise(self) -> int:
+        """Integer paise value of order total (₹1 = 100 paise)."""
+        return round(self.totalAmount * 100)
 
 
 class OrdersListData(BaseModel):
     model_config = ConfigDict(extra="ignore")
-    orders: List[OrderHistoryItem] = Field(default_factory=list)
+    orders: list[OrderHistoryItem] = Field(default_factory=list)
     hasMore: bool = False
 
 
@@ -277,28 +305,33 @@ class OrderDetailsData(BaseModel):
     status: str
     totalBill: float
     hasRefunds: bool = False
-    items: List[OrderDetailsItem] = Field(default_factory=list)
-    bill: Optional[dict[str, Any]] = None
+    items: list[OrderDetailsItem] = Field(default_factory=list)
+    bill: dict[str, Any] | None = None
+
+    @property
+    def total_bill_paise(self) -> int:
+        """Integer paise value of total bill (₹1 = 100 paise)."""
+        return round(self.totalBill * 100)
 
 
 class DeliveryStatusData(BaseModel):
     model_config = ConfigDict(extra="ignore")
     orderId: str
-    deliveryBy: Optional[int] = None
-    serverNow: Optional[int] = None
-    etaText: Optional[str] = None
-    cancelled: Optional[bool] = False
-    delivered: Optional[bool] = False
-    statusText: Optional[str] = None
+    deliveryBy: int | None = None
+    serverNow: int | None = None
+    etaText: str | None = None
+    cancelled: bool | None = False
+    delivered: bool | None = False
+    statusText: str | None = None
     pollIntervalSec: int = 15
 
 
 class TrackOrderStatus(BaseModel):
     model_config = ConfigDict(extra="ignore")
     statusMessage: str
-    subStatusMessage: Optional[str] = None
-    etaMinutes: Optional[int] = None
-    etaText: Optional[str] = None
+    subStatusMessage: str | None = None
+    etaMinutes: int | None = None
+    etaText: str | None = None
 
 
 class TrackOrderData(BaseModel):
@@ -307,13 +340,13 @@ class TrackOrderData(BaseModel):
     orderTitle: str
     orderSubtitle: str
     status: TrackOrderStatus
-    storeInfo: Optional[dict[str, Any]] = None
-    deliveryInfo: Optional[dict[str, Any]] = None
-    items: List[dict[str, Any]] = Field(default_factory=list)
+    storeInfo: dict[str, Any] | None = None
+    deliveryInfo: dict[str, Any] | None = None
+    items: list[dict[str, Any]] = Field(default_factory=list)
     itemCount: int
-    placedAt: Optional[str] = None
-    paymentInfo: Optional[dict[str, Any]] = None
-    mapInfo: Optional[dict[str, Any]] = None
+    placedAt: str | None = None
+    paymentInfo: dict[str, Any] | None = None
+    mapInfo: dict[str, Any] | None = None
     pollingIntervalSeconds: int = 10
 
 

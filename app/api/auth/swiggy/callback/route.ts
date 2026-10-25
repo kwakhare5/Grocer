@@ -29,9 +29,10 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json(data);
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Failed to reach Grocer backend service during token exchange";
     return NextResponse.json(
-      { error: err.message || "Failed to reach Grocer backend service during token exchange" },
+      { error: message },
       { status: 502 }
     );
   }

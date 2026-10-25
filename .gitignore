@@ -30,7 +30,9 @@ htmlcov/
 Thumbs.db
 
 # Scratch & temporary session files
-.scratch/
+.scratch/*
+!.scratch/HANDOFF.md
+
 
 # Next.js / Node.js
 node_modules/

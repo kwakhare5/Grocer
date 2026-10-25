@@ -77,9 +77,11 @@ export default function Home() {
       {/* Sticky Navigation Bar */}
       <nav className="sticky top-0 z-50 glass-nav px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-[#FC8019] flex items-center justify-center font-bold text-black text-lg shadow-[0_0_15px_rgba(252,128,25,0.4)]">
-            G
-          </div>
+          <img
+            src="/logo.svg"
+            alt="Grocer Logo"
+            className="w-8 h-8 rounded-lg object-contain shadow-[0_0_15px_rgba(34,197,94,0.3)]"
+          />
           <span className="font-semibold tracking-tight text-lg text-white">Grocer</span>
           <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-mono bg-white/5 border border-white/10 text-zinc-400">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>

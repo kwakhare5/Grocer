@@ -174,3 +174,11 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: `.\verify.ps1` ran all 4 stages exiting 0 with terminal proof (Supabase SSL check, Ruff check clean, 32/32 tests passed in 1.76s, Next.js build clean).
 - **Still broken**: None. Phase 1 is 100% complete. Ready for Phase 2 (Conversational Brain & Intelligent Candidate Search).
 
+### [GROCER v1 — Canonical Cardboard.ai DESIGN.md Integration] 2026-10-25
+
+#### Work Card: Unify Master Cardboard.ai Design System & WhatsApp UX in DESIGN.md
+- **Problem**: Needed official `DESIGN.md` to establish the exact Cardboard.ai design system (colors, typography, bento layouts, micro-interactions) for our Next.js frontend while retaining WhatsApp mobile receipt card specifications.
+- **Change**: Merged the full Cardboard.ai design system specification into `DESIGN.md` as Part 1 and appended the WhatsApp client interaction & receipt card specification as Part 2; cleaned up redundant docs.
+- **Proof**: `.\verify.ps1` ran all 4 stages (database check, Ruff lint, 32 pytest tests, Next.js web build) and exited 0 with 100% green output.
+- **Still broken**: None. Master design specification established.
+

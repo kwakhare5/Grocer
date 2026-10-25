@@ -67,3 +67,19 @@ _Avoid_: Session refresher, token relink, auth interceptor
 **Cold-Start Onboarding**:
 The initial welcoming flow for a new user with zero saved Swiggy addresses, prompting for a WhatsApp GPS pin or address before browsing groceries.
 _Avoid_: Sign-up flow, registration, account creation
+
+**Ingestion Shield**:
+The front-door validation and fast-dispatch gateway that verifies Meta HMAC-SHA256 signatures and returns HTTP 200 OK within 25ms while dropping duplicate webhooks atomically.
+_Avoid_: Webhook listener, incoming router, message receiver
+
+**Per-Customer Advisory Lock**:
+The non-blocking PostgreSQL transaction latch (`pg_try_advisory_xact_lock`) guarding a customer's active session to ensure rapid double-taps are serialized or dropped safely.
+_Avoid_: Mutex, thread lock, queue barrier
+
+**Stale Message Latch**:
+The ingestion gate that silently drops any inbound WhatsApp webhook timestamped more than 15 minutes in the past.
+_Avoid_: Message timeout, expired packet, drop filter
+
+**Fast Button Dispatcher**:
+The deterministic Python routing engine that executes interactive WhatsApp button actions (checkout, address selection, basket clearing) in under 50ms, completely bypassing the conversational LLM.
+_Avoid_: Fast path, button handler, direct action

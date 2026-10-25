@@ -142,3 +142,35 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: `.\verify.ps1` ran all 4 stages (Supabase check, Ruff lint, 24 Pytest tests, Next.js build) exiting 0; committed as `e674b88` on branch `grocer-v1`.
 - **Still broken**: None. Ready for Phase 1 (Channel Ingestion Shield & Deduplication).
 
+### [GROCER v1 — ADR 0011 Ingestion Shield & GLOSSARY Alignment] 2026-10-25
+
+#### Work Card: Document Ingestion Shield ADR 0011 and Update Domain Glossary
+- **Problem**: Need explicit ADR and domain terminology defining webhook HMAC authentication, 25ms responses, atomic database deduplication, per-customer advisory locks, and stale message latches.
+- **Change**: Authored `docs/adr/0011-channel-ingestion-deduplication-and-rapid-button-locks.md` capturing all 5 settled Round 1 decisions; updated `GLOSSARY.md` with definitions for Ingestion Shield, Per-Customer Advisory Lock, and Stale Message Latch.
+- **Proof**: ADR 0011 created in `docs/adr/`; `GLOSSARY.md` updated with 3 new core concepts; markdown structure verified.
+- **Still broken**: None. Advancing to Round 2 grilling on downstream channel behaviors.
+
+### [GROCER v1 — ADR 0011 Expansion & Fast Button Dispatcher Glossary] 2026-10-25
+
+#### Work Card: Complete ADR 0011 with Round 2 Decisions and Add Fast Button Dispatcher
+- **Problem**: Need explicit specifications for expired button clicks, first-time welcome flows, fast button routing without LLM lag, and async outbound WhatsApp client architecture.
+- **Change**: Updated `docs/adr/0011-channel-ingestion-deduplication-and-rapid-button-locks.md` with decisions 7 through 10; added "Fast Button Dispatcher" definition to `GLOSSARY.md`.
+- **Proof**: ADR 0011 verified with 10 authoritative decisions; `GLOSSARY.md` verified with zero naming ambiguities; grilling frontier is empty.
+- **Still broken**: None. Ready for Plan Gate approval to execute Phase 1 via TDD.
+
+### [GROCER v1 — Purge Redundant ADR 0011] 2026-10-25
+
+#### Work Card: Purge Redundant ADR 0011 and Consolidate Source of Truth
+- **Problem**: ADR 0011 duplicated requirements already settled across `ARCHITECTURE.md` Layer 1 and ADRs 0001/0004.
+- **Change**: Deleted `docs/adr/0011-channel-ingestion-deduplication-and-rapid-button-locks.md`; preserved clean canonical definitions in `GLOSSARY.md`; restored single source of truth in `ARCHITECTURE.md`.
+- **Proof**: File deletion confirmed with `Test-Path` returning False; 10 canonical ADRs (0001–0010) intact.
+- **Still broken**: None. Ready for Phase 1 implementation.
+
+### [GROCER v1 — Phase 1 Complete: Channel Ingestion Shield & Deduplication] 2026-10-25
+
+#### Work Card: Build WhatsApp Ingestion Shield, PostgreSQL Deduplication & Advisory Lock
+- **Problem**: Need production-grade front door for WhatsApp handling Meta webhooks in <25ms, dropping cellular replay attacks, serializing per-customer concurrent taps, and routing button clicks in 50ms without LLM lag.
+- **Change**: Built `backend/channels/whatsapp.py` (GET challenge & POST HMAC verification), `backend/channels/whatsapp_parser.py` (parsing text/buttons/location), `backend/channels/whatsapp_crypto.py` (constant-time HMAC-SHA256 check), `backend/channels/button_router.py` (50ms fast dispatcher), and `backend/main.py`; wrote 8 integration tests in `tests/test_channels.py`.
+- **Proof**: `.\verify.ps1` ran all 4 stages exiting 0 with terminal proof (Supabase SSL check, Ruff check clean, 32/32 tests passed in 1.76s, Next.js build clean).
+- **Still broken**: None. Phase 1 is 100% complete. Ready for Phase 2 (Conversational Brain & Intelligent Candidate Search).
+

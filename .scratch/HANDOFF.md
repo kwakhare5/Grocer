@@ -2,7 +2,7 @@
 
 > **Target Workspace:** `D:\Grocer-v5`  
 > **Branch:** `grocer-v1` (Synced with `https://github.com/kwakhare5/Grocer`)  
-> **Status:** Phase 0 Complete + Cardboard.ai Web Landing Page & Swiggy OAuth Bridge Live. Ready for Phase 1.  
+> **Status:** Phase 0 & Phase 1 Complete (Ingestion Shield & Deduplication Verified). Ready for Phase 2: Conversational Brain & Intelligent Candidate Search.  
 
 ---
 
@@ -12,37 +12,40 @@ Build Grocer v1.0 from scratch as a production-grade WhatsApp Swiggy Instamart c
 ---
 
 ## 2. Changes Completed in this Session
-1. **Fullstack Architecture in `D:\Grocer-v5`:** Next.js 16 web app built from scratch with `cardboard.ai` design system (`app/page.tsx`, `app/globals.css`, `app/layout.tsx`), restored official squircle `logo.svg`.
-2. **Whitelisted Swiggy OAuth Bridge:** Implemented `app/api/auth/swiggy/login/route.ts` and `app/api/auth/swiggy/callback/route.ts` on `grocerr.vercel.app` for phone-number linking and OAuth 2.1 code exchange.
-3. **Database & Schema:** Clean Supabase PostgreSQL database active with 6 core tables in schema `grocer` (`users`, `oauth_tokens`, `inbound_messages`, `sessions`, `approvals`, `checkouts`).
-4. **20 Staging Fixtures & Contracts:** All 20 Swiggy Instamart tools validated against committed staging fixtures with typed Pydantic models in `backend/integrations/commerce/schemas.py`.
-5. **Code Review & AST Invariant Hardening:** Resolved all `/code-review` findings (typed `err: unknown` in Next.js routes, added AST invariant tests in `tests/test_invariants.py`, added integer paise getters, enforced ruff linting).
-6. **Universal Verification Script:** `verify.ps1` runs database check, ruff lint checks, 24 pytest contract/invariant tests, and Next.js Turbopack web build in a single command.
-7. **Legacy Codebase Purge:** Old messy folder `D:\Grocer` has been completely deleted.
+1. **WhatsApp Ingestion Shield (`backend/channels/whatsapp.py`):** Built FastAPI webhook router (`/api/whatsapp/webhook`) handling Meta GET challenge handshakes and POST HMAC-SHA256 signature verification (<25ms response).
+2. **PostgreSQL Message Deduplication:** Atomic insertion into `grocer.inbound_messages` with `ON CONFLICT (wa_message_id) DO NOTHING` catching replay attacks and dropping duplicate payloads.
+3. **Per-Customer Advisory Lock:** Non-blocking `pg_try_advisory_xact_lock(hashtext(user_id))` within transactional scopes safely drops concurrent double-taps.
+4. **Stale Message Latch & Receipt Filtering:** Auto-drops webhook payloads with timestamps >15 minutes old; fast-acks delivery receipts (`statuses`) without DB writes.
+5. **Fast 50ms Button Dispatcher (`backend/channels/button_router.py`):** Interactive taps (`cart:clear`, `pay:<id>`, `addr:<id>`) routed directly in Python in <50ms, bypassing LLM lag.
+6. **Inbound WhatsApp Parser (`backend/channels/whatsapp_parser.py`):** Structured extraction of text, button replies, and location GPS pins.
+7. **Full Integration Test Suite (`tests/test_channels.py`):** 8/8 tests proving HMAC validation, deduplication, stale dropping, status filtering, fast buttons, and advisory lock serialization.
 
 ---
 
 ## 3. Passing Tests (Terminal Proof)
 - **Database:** `scripts/verify_db.py` confirms 6/6 tables in Supabase over live SSL.
 - **Linting:** `ruff check backend tests` passed with 0 errors.
-- **Backend Tests:** 24/24 passing tests in `tests/test_staging_fixtures.py` and `tests/test_invariants.py` (including zero-mock and zero-float invariants).
-- **Frontend Build:** `npm run build` compiles in 2.2s with 0 errors.
-- **Universal Script:** `.\verify.ps1` exits 0 with 100% green output.
+- **Test Suite:** 32/32 passing tests across invariants, staging fixtures, and channels (all green, 0 mocks).
+- **Web Build:** Next.js Turbopack production build succeeds in 2.3s.
+- **Universal Verification:** `.\verify.ps1` exits 0 with 100% green output.
 
 ---
 
 ## 4. Immediate Next Action for the Next Session
-Proceed directly to **Phase 1: Channel Ingestion Shield & Deduplication** in `TASKS.md`:
-1. Build `backend/channels/whatsapp.py` (FastAPI `POST /api/whatsapp/webhook` with HMAC-SHA256 signature verification returning `<25ms`).
-2. Implement PostgreSQL message deduplication (`ON CONFLICT (wa_message_id) DO NOTHING` on `grocer.inbound_messages`).
-3. Implement `backend/channels/whatsapp_parser.py` (parsing text, button reply IDs, and GPS location pins).
-4. Implement in-process / PostgreSQL advisory lock for concurrent message serialization.
-5. Write and verify `tests/test_channels.py` against webhook replay attacks and duplicate payloads.
+Proceed directly to **Phase 2: Conversational Brain & Intelligent Candidate Search** in `TASKS.md`:
+1. Implement `search_catalog(query)` returning candidate lists from Swiggy Instamart dark stores.
+2. Implement Gemini candidate evaluation (matching variants against user constraints; strictly no blind rank-1).
+3. Implement conversational Q&A without forced receipt cards.
+4. Implement vague staple auto-selection (standard pack + "Change items" button).
+5. Implement snack/drink disambiguation (2–3 quick options with clear pack sizes and prices).
+6. Implement Recipe Checklist proposals (ADR 0009).
+7. Implement Zero-Address Onboarding flow (ADR 0010).
+8. Author `tests/test_catalog_search.py` with 20 real customer phrases (typos, Hinglish, recipe queries, brand queries).
 
 ---
 
 ## 5. Copy-Paste Resume Prompt for Fresh Chat
 ```text
-Resume Grocer v1.0 from .scratch/HANDOFF.md. Phase 0 is 100% verified and pushed. Let's start Phase 1: Channel Ingestion Shield & Deduplication in TASKS.md. Follow all AGENTS.md rules and TDD.
+Resume Grocer v1.0 from .scratch/HANDOFF.md. Phase 1 is 100% verified and complete. Let's start Phase 2: Conversational Brain & Intelligent Candidate Search in TASKS.md. Follow all AGENTS.md rules and TDD.
 ```
 

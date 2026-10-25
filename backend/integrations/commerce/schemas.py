@@ -105,6 +105,7 @@ class ProductVariation(BaseModel):
     price: ProductPrice
     isInStockAndAvailable: bool
     imageUrl: str | None = None
+    vegClassifier: str | None = None
     maxQuantity: int | None = None
     maxQuantityMessage: str | None = None
 

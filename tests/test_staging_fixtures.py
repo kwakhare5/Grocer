@@ -247,4 +247,6 @@ def test_zero_mocks_invariant():
     """Prove that MockCommerceAdapter or any mock classes do not exist in Grocer v1.0."""
     from backend.integrations import commerce
 
-    assert not hasattr(commerce, "MockCommerceAdapter"), "MockCommerceAdapter must never exist in Grocer v1.0"
+    assert not hasattr(commerce, "MockCommerceAdapter"), (
+        "MockCommerceAdapter must never exist in Grocer v1.0"
+    )

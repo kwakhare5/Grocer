@@ -73,7 +73,9 @@ def _make_whatsapp_message_payload(
                                 "display_phone_number": "15551234567",
                                 "phone_number_id": settings.WHATSAPP_PHONE_NUMBER_ID,
                             },
-                            "contacts": [{"profile": {"name": "Test User"}, "wa_id": wa_id}],
+                            "contacts": [
+                                {"profile": {"name": "Test User"}, "wa_id": wa_id}
+                            ],
                             "messages": [msg],
                         },
                     }
@@ -134,7 +136,9 @@ def _make_whatsapp_location_payload(
                                 "display_phone_number": "15551234567",
                                 "phone_number_id": settings.WHATSAPP_PHONE_NUMBER_ID,
                             },
-                            "contacts": [{"profile": {"name": "Test User"}, "wa_id": wa_id}],
+                            "contacts": [
+                                {"profile": {"name": "Test User"}, "wa_id": wa_id}
+                            ],
                             "messages": [
                                 {
                                     "from": wa_id,
@@ -177,7 +181,9 @@ def _make_whatsapp_list_reply_payload(
                                 "display_phone_number": "15551234567",
                                 "phone_number_id": settings.WHATSAPP_PHONE_NUMBER_ID,
                             },
-                            "contacts": [{"profile": {"name": "Test User"}, "wa_id": wa_id}],
+                            "contacts": [
+                                {"profile": {"name": "Test User"}, "wa_id": wa_id}
+                            ],
                             "messages": [
                                 {
                                     "from": wa_id,
@@ -420,7 +426,10 @@ async def test_webhook_concurrent_double_tap_advisory_lock():
             resp = await client.post(
                 "/api/whatsapp/webhook",
                 content=payload_bytes,
-                headers={"Content-Type": "application/json", "X-Hub-Signature-256": sig},
+                headers={
+                    "Content-Type": "application/json",
+                    "X-Hub-Signature-256": sig,
+                },
             )
             assert resp.status_code == 200
             assert resp.json()["status"] == "concurrency_dropped"
@@ -511,7 +520,9 @@ async def test_webhook_multi_message_batch_processed():
                                 "display_phone_number": "15551234567",
                                 "phone_number_id": settings.WHATSAPP_PHONE_NUMBER_ID,
                             },
-                            "contacts": [{"profile": {"name": "Test User"}, "wa_id": wa_id}],
+                            "contacts": [
+                                {"profile": {"name": "Test User"}, "wa_id": wa_id}
+                            ],
                             "messages": [
                                 {
                                     "from": wa_id,

@@ -49,6 +49,7 @@ async def handle_webhook(request: Request) -> dict[str, Any]:
     4. Enforces PostgreSQL deduplication with ON CONFLICT DO NOTHING.
     5. Acquires per-user transaction advisory lock.
     6. Dispatches interactive button taps directly to fast 50ms Python router.
+    7. Supports multi-message batches without early loop truncation.
     """
     body_bytes = await request.body()
     signature_header = request.headers.get("X-Hub-Signature-256")
@@ -73,63 +74,81 @@ async def handle_webhook(request: Request) -> dict[str, Any]:
         return {"status": "empty"}
 
     pool = await get_db_pool()
+    results: list[dict[str, Any]] = []
 
     for msg in messages:
         # 3. Stale message latch (discard messages older than 15 minutes)
         if msg.is_stale:
             logger.warning("Dropping stale WhatsApp message: %s", msg.wa_message_id)
-            return {"status": "stale_dropped"}
+            results.append({"status": "stale_dropped", "wa_message_id": msg.wa_message_id})
+            continue
 
         async with (
             pool.acquire() as conn,
             conn.transaction(),
         ):
             # 4. User profile lookup / auto-registration
-                user_id = await conn.fetchval(
-                    """
-                    INSERT INTO grocer.users (wa_id)
-                    VALUES ($1)
-                    ON CONFLICT (wa_id) DO UPDATE SET updated_at = now()
-                    RETURNING id;
-                    """,
-                    msg.sender_wa_id,
-                )
+            user_id = await conn.fetchval(
+                """
+                INSERT INTO grocer.users (wa_id)
+                VALUES ($1)
+                ON CONFLICT (wa_id) DO UPDATE SET updated_at = now()
+                RETURNING id;
+                """,
+                msg.sender_wa_id,
+            )
 
-                # 5. Per-User Advisory Lock (Fast concurrency serialization)
-                lock_acquired = await conn.fetchval(
-                    "SELECT pg_try_advisory_xact_lock(hashtext($1));",
-                    str(user_id),
-                )
-                if not lock_acquired:
-                    logger.warning("User %s locked by concurrent action; dropping duplicate tap", user_id)
-                    return {"status": "concurrency_dropped"}
-
-                # 6. PostgreSQL Message Deduplication (Atomic ON CONFLICT DO NOTHING)
-                inbound_id = await conn.fetchval(
-                    """
-                    INSERT INTO grocer.inbound_messages (
-                        wa_message_id,
-                        user_id,
-                        message_type,
-                        raw_payload,
-                        status
-                    )
-                    VALUES ($1, $2, $3, $4, 'received')
-                    ON CONFLICT (wa_message_id) DO NOTHING
-                    RETURNING id;
-                    """,
-                    msg.wa_message_id,
+            # 5. PostgreSQL Message Deduplication (Atomic ON CONFLICT DO NOTHING)
+            # Safe recording FIRST: message is never lost from database
+            raw_payload_json = json.dumps(msg.raw_payload) if msg.raw_payload else None
+            inbound_id = await conn.fetchval(
+                """
+                INSERT INTO grocer.inbound_messages (
+                    wa_message_id,
                     user_id,
-                    msg.message_type,
-                    json.dumps(msg.raw_payload) if msg.raw_payload else None,
+                    message_type,
+                    raw_payload,
+                    status
                 )
+                VALUES ($1, $2, $3, $4, 'received')
+                ON CONFLICT (wa_message_id) DO NOTHING
+                RETURNING id;
+                """,
+                msg.wa_message_id,
+                user_id,
+                msg.message_type,
+                raw_payload_json,
+            )
 
-                if not inbound_id:
-                    logger.info("Duplicate WhatsApp message dropped: %s", msg.wa_message_id)
-                    return {"status": "duplicate_dropped"}
+            if not inbound_id:
+                logger.info("Duplicate WhatsApp message dropped: %s", msg.wa_message_id)
+                results.append({"status": "duplicate_dropped", "wa_message_id": msg.wa_message_id})
+                continue
 
-                # 7. Fast 50ms Button Dispatcher for interactive replies
-                if msg.button_id:
-                    return await dispatch_button_action(msg.button_id, msg.sender_wa_id, pool)
+            # 6. Per-User Advisory Lock (Fast concurrency serialization)
+            lock_acquired = await conn.fetchval(
+                "SELECT pg_try_advisory_xact_lock(hashtext($1));",
+                str(user_id),
+            )
+            if not lock_acquired:
+                logger.warning("User %s locked by concurrent action; queuing message", user_id)
+                await conn.execute(
+                    "UPDATE grocer.inbound_messages SET status = 'concurrency_dropped' WHERE id = $1;",
+                    inbound_id,
+                )
+                results.append({"status": "concurrency_dropped", "wa_message_id": msg.wa_message_id})
+                continue
 
-    return {"status": "processed"}
+            # 7. Fast 50ms Button Dispatcher for interactive replies
+            if msg.button_id:
+                action_res = await dispatch_button_action(msg.button_id, msg.sender_wa_id, pool)
+                results.append(action_res)
+                continue
+
+            results.append({"status": "processed", "wa_message_id": msg.wa_message_id})
+
+    # Single-message response preservation for caller convenience
+    if len(results) == 1:
+        return results[0]
+
+    return {"status": "ok", "processed": len(results), "results": results}

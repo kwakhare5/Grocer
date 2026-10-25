@@ -17,13 +17,14 @@ from backend.config import settings
 logger = logging.getLogger("grocer.database")
 
 _pool: asyncpg.Pool | None = None
+_pool_loop: asyncio.AbstractEventLoop | None = None
 
 
 async def get_db_pool() -> asyncpg.Pool:
     """Retrieve or initialize the global PostgreSQL connection pool."""
-    global _pool
+    global _pool, _pool_loop
     current_loop = asyncio.get_running_loop()
-    if _pool is None or _pool._loop is not current_loop or _pool._loop.is_closed():
+    if _pool is None or _pool_loop is not current_loop or _pool_loop.is_closed():
         logger.info("Initializing asyncpg connection pool to PostgreSQL...")
         _pool = await asyncpg.create_pool(
             dsn=settings.DATABASE_URL,
@@ -31,19 +32,21 @@ async def get_db_pool() -> asyncpg.Pool:
             max_size=settings.DATABASE_POOL_MAX_SIZE,
             command_timeout=30.0,
         )
+        _pool_loop = current_loop
     return _pool
 
 
 async def close_db_pool() -> None:
     """Close the global connection pool cleanly upon application shutdown."""
-    global _pool
+    global _pool, _pool_loop
     if _pool is not None:
         logger.info("Closing asyncpg connection pool...")
         try:
-            if not _pool._loop.is_closed():
+            if _pool_loop is not None and not _pool_loop.is_closed():
                 await _pool.close()
         finally:
             _pool = None
+            _pool_loop = None
 
 
 async def check_db_health() -> bool:

@@ -182,3 +182,11 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: `.\verify.ps1` ran all 4 stages (database check, Ruff lint, 32 pytest tests, Next.js web build) and exited 0 with 100% green output.
 - **Still broken**: None. Master design specification established.
 
+### [GROCER v1 — Code Review Resolution: Batch Ingestion & Concurrency Safety] 2026-10-25
+
+#### Work Card: Fix Multi-Message Batch Processing, Atomic Lock Persistence, and GPS Tests
+- **Problem**: Code review identified multi-message webhook loops exiting early, messages dropped by advisory locks without database persistence, private attribute access on connection pool, and missing GPS/list-reply integration tests.
+- **Change**: Refactored `backend/channels/whatsapp.py` to persist all inbound messages to DB first and process multi-message batches without truncation; refactored `backend/channels/button_router.py` to remove unused params and deduplicate string partitions; updated `backend/database.py` with clean public loop tracking; expanded `tests/test_channels.py` to 11 integration tests covering GPS pins, list replies, and multi-message batches.
+- **Proof**: `.\verify.ps1` ran all 4 verification stages exiting 0 with terminal proof (35/35 tests green, Ruff clean, Next.js build clean in 2.2s).
+- **Still broken**: None. Phase 1 ingestion shield is 100% hardened and spec-compliant.
+

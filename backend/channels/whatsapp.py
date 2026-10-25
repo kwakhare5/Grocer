@@ -80,7 +80,9 @@ async def handle_webhook(request: Request) -> dict[str, Any]:
         # 3. Stale message latch (discard messages older than 15 minutes)
         if msg.is_stale:
             logger.warning("Dropping stale WhatsApp message: %s", msg.wa_message_id)
-            results.append({"status": "stale_dropped", "wa_message_id": msg.wa_message_id})
+            results.append(
+                {"status": "stale_dropped", "wa_message_id": msg.wa_message_id}
+            )
             continue
 
         async with (
@@ -122,7 +124,9 @@ async def handle_webhook(request: Request) -> dict[str, Any]:
 
             if not inbound_id:
                 logger.info("Duplicate WhatsApp message dropped: %s", msg.wa_message_id)
-                results.append({"status": "duplicate_dropped", "wa_message_id": msg.wa_message_id})
+                results.append(
+                    {"status": "duplicate_dropped", "wa_message_id": msg.wa_message_id}
+                )
                 continue
 
             # 6. Per-User Advisory Lock (Fast concurrency serialization)
@@ -131,17 +135,26 @@ async def handle_webhook(request: Request) -> dict[str, Any]:
                 str(user_id),
             )
             if not lock_acquired:
-                logger.warning("User %s locked by concurrent action; queuing message", user_id)
+                logger.warning(
+                    "User %s locked by concurrent action; queuing message", user_id
+                )
                 await conn.execute(
                     "UPDATE grocer.inbound_messages SET status = 'concurrency_dropped' WHERE id = $1;",
                     inbound_id,
                 )
-                results.append({"status": "concurrency_dropped", "wa_message_id": msg.wa_message_id})
+                results.append(
+                    {
+                        "status": "concurrency_dropped",
+                        "wa_message_id": msg.wa_message_id,
+                    }
+                )
                 continue
 
             # 7. Fast 50ms Button Dispatcher for interactive replies
             if msg.button_id:
-                action_res = await dispatch_button_action(msg.button_id, msg.sender_wa_id, pool)
+                action_res = await dispatch_button_action(
+                    msg.button_id, msg.sender_wa_id, pool
+                )
                 results.append(action_res)
                 continue
 

@@ -28,16 +28,16 @@
 
 ---
 
-## Phase 2: Conversational Brain & Intelligent Candidate Search
-- [ ] Implement `search_catalog(query)` returning candidate lists from Swiggy Instamart dark stores.
-- [ ] Implement Gemini candidate evaluation (matching variants against user constraints; strictly no blind rank-1).
-- [ ] Implement conversational Q&A without forced receipt cards (pure natural language answers).
-- [ ] Implement vague staple auto-selection (standard pack + "Change items" button).
-- [ ] Implement snack/drink disambiguation (2–3 quick options with clear pack sizes and prices).
-- [ ] Implement Recipe Checklist proposals (ADR 0009: e.g. "Making chai" -> proposes milk, tea leaves, ginger, sugar with item toggles).
-- [ ] Implement Zero-Address Onboarding flow (ADR 0010: detect cold-start user with 0 addresses -> prompt for WhatsApp GPS location pin).
-- [ ] Write test suite `tests/test_catalog_search.py` with 20 real customer phrases (typos, Hinglish, recipe queries, brand queries).
-- **Done Condition:** Test matrix with 20 real customer phrases picks the correct dark-store product 100% of the time.
+## Phase 2: Conversational Brain & Intelligent Candidate Search — [COMPLETE]
+- [x] Implement `search_catalog(query)` returning candidate lists from Swiggy Instamart dark stores.
+- [x] Implement Gemini candidate evaluation (matching variants against user constraints; strictly no blind rank-1).
+- [x] Implement conversational Q&A without forced receipt cards (pure natural language answers).
+- [x] Implement vague staple auto-selection (standard pack + "Change items" button).
+- [x] Implement snack/drink disambiguation (2–3 quick options with clear pack sizes and prices).
+- [x] Implement Recipe Checklist proposals (ADR 0009: e.g. "Making chai" -> proposes milk, tea leaves, ginger, sugar with item toggles).
+- [x] Implement Zero-Address Onboarding flow (ADR 0010: detect cold-start user with 0 addresses -> prompt for WhatsApp GPS location pin).
+- [x] Write test suite `tests/test_catalog_search.py` with 20 real customer phrases (typos, Hinglish, recipe queries, brand queries).
+- **Done Condition:** Test matrix with 20 real customer phrases picks the correct dark-store product 100% of the time. [VERIFIED: 20/20 green, 55/55 total suite green]
 
 ---
 

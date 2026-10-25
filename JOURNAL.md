@@ -190,3 +190,19 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: `.\verify.ps1` ran all 4 verification stages exiting 0 with terminal proof (35/35 tests green, Ruff clean, Next.js build clean in 2.2s).
 - **Still broken**: None. Phase 1 ingestion shield is 100% hardened and spec-compliant.
 
+
+### [GROCER v1 — Phase 2 Complete: Conversational Brain & Candidate Search Matrix] 2026-10-25
+
+#### Work Card: Build Intelligent Candidate Search, Swiggy Client & 20-Phrase Test Matrix
+- **Problem**: Need grounded hyper-local product search, variant matching, smart kirana defaults for vague staples (ADR 0004), discretionary snack disambiguation with strict rank-1 prevention, recipe checklists (ADR 0009), conversational Q&A without forced carts, and zero-address onboarding (ADR 0010).
+- **Change**: Implemented `backend/integrations/commerce/swiggy_client.py` with Hinglish translation and typo tolerance; built `backend/agent/candidate_search.py` and `backend/agent/candidate_evaluator.py`; created `tests/fixtures/catalog_samples.json`; authored 20-phrase test matrix in `tests/test_catalog_search.py`; updated `TASKS.md`.
+- **Proof**: `.\verify.ps1` ran all 4 verification stages exiting 0 with terminal proof (Supabase check passed, Ruff clean, 55/55 pytest tests passed, Next.js Turbopack build passed in 2.4s).
+- **Still broken**: None. Phase 2 is 100% complete. Ready for Phase 3 (Commerce & Account Lifecycle).
+
+### [GROCER v1 — Code Review Resolution: Gemini Brain Integration & Strict Rank-1 Prevention] 2026-10-25
+
+#### Work Card: Fix Code Review Findings for Gemini Brain, Vague Staples, and Rank-1 Safety
+- **Problem**: Code review flagged missing Gemini 3.5 Flash candidate evaluation, silent blind rank-1 fallback, missing WhatsApp [Change items] button, floor division truncating paise, and assert validation in production branches.
+- **Change**: Integrated `google.genai` SDK in `backend/agent/candidate_evaluator.py`; killed blind `res[0]` fallback; added physical `[Change items]` button for vague staples; implemented `format_paise_to_rupees` ensuring honest price display; added per-item recipe toggles; replaced assert with `ValueError` in `backend/integrations/commerce/swiggy_client.py`; typed `vegClassifier` on `ProductVariation`; added tests 21 and 22 in `tests/test_catalog_search.py`.
+- **Proof**: `.\verify.ps1` ran all 4 verification stages exiting 0 with terminal proof (57/57 tests green, Ruff clean, Supabase live check passed, Next.js build passed in 2.4s).
+- **Still broken**: None. All code-review findings 100% resolved.

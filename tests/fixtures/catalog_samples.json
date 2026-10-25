@@ -1,0 +1,681 @@
+{
+  "success": true,
+  "data": {
+    "nextOffset": "26",
+    "products": [
+      {
+        "displayName": "Amul Taaza Homogenised Toned Milk",
+        "brand": "Amul",
+        "inStock": true,
+        "isAvail": true,
+        "productId": "prod_amul_milk_01",
+        "parentProductId": "parent_prod_milk",
+        "isPromoted": false,
+        "variations": [
+          {
+            "spinId": "spin_amul_1l",
+            "skuId": "sku_amul_1l",
+            "quantityDescription": "1 L",
+            "displayName": "Amul Taaza Homogenised Toned Milk (1 L)",
+            "brandName": "Amul",
+            "price": {
+              "mrp": 74,
+              "offerPrice": 72,
+              "unitLevelPrice": "₹72/L"
+            },
+            "isInStockAndAvailable": true,
+            "imageUrl": "https://media-assets.swiggy.com/swiggy/image/upload/amul_milk_1l.jpg",
+            "vegClassifier": "VEG",
+            "maxQuantity": 6
+          },
+          {
+            "spinId": "spin_amul_500ml",
+            "skuId": "sku_amul_500ml",
+            "quantityDescription": "500 ml",
+            "displayName": "Amul Taaza Homogenised Toned Milk (500 ml)",
+            "brandName": "Amul",
+            "price": {
+              "mrp": 38,
+              "offerPrice": 37,
+              "unitLevelPrice": "₹74/L"
+            },
+            "isInStockAndAvailable": true,
+            "imageUrl": "https://media-assets.swiggy.com/swiggy/image/upload/amul_milk_500ml.jpg",
+            "vegClassifier": "VEG",
+            "maxQuantity": 6
+          }
+        ]
+      },
+      {
+        "displayName": "Nandini Toned Fresh Milk",
+        "brand": "Nandini",
+        "inStock": true,
+        "isAvail": true,
+        "productId": "prod_nandini_milk_01",
+        "parentProductId": "parent_prod_milk",
+        "isPromoted": false,
+        "variations": [
+          {
+            "spinId": "spin_nandini_500ml",
+            "skuId": "sku_nandini_500ml",
+            "quantityDescription": "500 ml",
+            "displayName": "Nandini Toned Fresh Milk (500 ml)",
+            "brandName": "Nandini",
+            "price": {
+              "mrp": 25,
+              "offerPrice": 24,
+              "unitLevelPrice": "₹48/L"
+            },
+            "isInStockAndAvailable": true,
+            "vegClassifier": "VEG",
+            "maxQuantity": 6
+          }
+        ]
+      },
+      {
+        "displayName": "Fresh White Eggs",
+        "brand": "Eggoz",
+        "inStock": true,
+        "isAvail": true,
+        "productId": "prod_eggs_01",
+        "parentProductId": "parent_prod_eggs",
+        "isPromoted": false,
+        "variations": [
+          {
+            "spinId": "spin_eggs_6",
+            "skuId": "sku_eggs_6",
+            "quantityDescription": "6 pcs",
+            "displayName": "Eggoz Fresh White Farm Eggs (Pack of 6)",
+            "brandName": "Eggoz",
+            "price": {
+              "mrp": 60,
+              "offerPrice": 55,
+              "unitLevelPrice": "₹9.16/pc"
+            },
+            "isInStockAndAvailable": true,
+            "vegClassifier": "NON_VEG",
+            "maxQuantity": 4
+          }
+        ]
+      },
+      {
+        "displayName": "Modern Bread White Sliced",
+        "brand": "Modern",
+        "inStock": true,
+        "isAvail": true,
+        "productId": "prod_bread_01",
+        "parentProductId": "parent_prod_bread",
+        "isPromoted": false,
+        "variations": [
+          {
+            "spinId": "spin_bread_white",
+            "skuId": "sku_bread_white",
+            "quantityDescription": "400 g",
+            "displayName": "Modern White Bread Sliced (400 g)",
+            "brandName": "Modern",
+            "price": {
+              "mrp": 45,
+              "offerPrice": 45,
+              "unitLevelPrice": "₹112.5/kg"
+            },
+            "isInStockAndAvailable": true,
+            "vegClassifier": "VEG",
+            "maxQuantity": 4
+          }
+        ]
+      },
+      {
+        "displayName": "The Health Factory Zero Maida Brown Bread",
+        "brand": "The Health Factory",
+        "inStock": true,
+        "isAvail": true,
+        "productId": "prod_bread_02",
+        "parentProductId": "parent_prod_bread",
+        "isPromoted": false,
+        "variations": [
+          {
+            "spinId": "spin_bread_brown",
+            "skuId": "sku_bread_brown",
+            "quantityDescription": "400 g",
+            "displayName": "The Health Factory Zero Maida Brown Bread (400 g)",
+            "brandName": "The Health Factory",
+            "price": {
+              "mrp": 70,
+              "offerPrice": 65,
+              "unitLevelPrice": "₹162.5/kg"
+            },
+            "isInStockAndAvailable": true,
+            "vegClassifier": "VEG",
+            "maxQuantity": 3
+          }
+        ]
+      },
+      {
+        "displayName": "Fresh Onion / Pyaz",
+        "brand": "Fresh Produce",
+        "inStock": true,
+        "isAvail": true,
+        "productId": "prod_onion_01",
+        "parentProductId": "parent_prod_veg",
+        "isPromoted": false,
+        "variations": [
+          {
+            "spinId": "spin_onion_1kg",
+            "skuId": "sku_onion_1kg",
+            "quantityDescription": "1 kg",
+            "displayName": "Fresh Onion (1 kg)",
+            "brandName": "Fresh Produce",
+            "price": {
+              "mrp": 40,
+              "offerPrice": 35,
+              "unitLevelPrice": "₹35/kg"
+            },
+            "isInStockAndAvailable": true,
+            "vegClassifier": "VEG",
+            "maxQuantity": 5
+          }
+        ]
+      },
+      {
+        "displayName": "Aashirvaad Superior MP Whole Wheat Atta",
+        "brand": "Aashirvaad",
+        "inStock": true,
+        "isAvail": true,
+        "productId": "prod_atta_01",
+        "parentProductId": "parent_prod_staples",
+        "isPromoted": false,
+        "variations": [
+          {
+            "spinId": "spin_atta_5kg",
+            "skuId": "sku_atta_5kg",
+            "quantityDescription": "5 kg",
+            "displayName": "Aashirvaad Superior MP Whole Wheat Atta (5 kg)",
+            "brandName": "Aashirvaad",
+            "price": {
+              "mrp": 285,
+              "offerPrice": 260,
+              "unitLevelPrice": "₹52/kg"
+            },
+            "isInStockAndAvailable": true,
+            "vegClassifier": "VEG",
+            "maxQuantity": 2
+          },
+          {
+            "spinId": "spin_atta_1kg",
+            "skuId": "sku_atta_1kg",
+            "quantityDescription": "1 kg",
+            "displayName": "Aashirvaad Superior MP Whole Wheat Atta (1 kg)",
+            "brandName": "Aashirvaad",
+            "price": {
+              "mrp": 60,
+              "offerPrice": 55,
+              "unitLevelPrice": "₹55/kg"
+            },
+            "isInStockAndAvailable": true,
+            "vegClassifier": "VEG",
+            "maxQuantity": 4
+          }
+        ]
+      },
+      {
+        "displayName": "Maggi 2-Minute Masala Instant Noodles",
+        "brand": "Maggi",
+        "inStock": true,
+        "isAvail": true,
+        "productId": "prod_maggi_01",
+        "parentProductId": "parent_prod_noodles",
+        "isPromoted": false,
+        "variations": [
+          {
+            "spinId": "spin_maggi_4pack",
+            "skuId": "sku_maggi_4pack",
+            "quantityDescription": "280 g",
+            "displayName": "Maggi 2-Minute Masala Instant Noodles (Pack of 4, 280 g)",
+            "brandName": "Maggi",
+            "price": {
+              "mrp": 60,
+              "offerPrice": 56,
+              "unitLevelPrice": "₹200/kg"
+            },
+            "isInStockAndAvailable": true,
+            "vegClassifier": "VEG",
+            "maxQuantity": 5
+          }
+        ]
+      },
+      {
+        "displayName": "Mother Dairy Classic Curd / Dahi",
+        "brand": "Mother Dairy",
+        "inStock": true,
+        "isAvail": true,
+        "productId": "prod_curd_01",
+        "parentProductId": "parent_prod_dairy",
+        "isPromoted": false,
+        "variations": [
+          {
+            "spinId": "spin_curd_400g",
+            "skuId": "sku_curd_400g",
+            "quantityDescription": "400 g",
+            "displayName": "Mother Dairy Classic Curd (400 g)",
+            "brandName": "Mother Dairy",
+            "price": {
+              "mrp": 35,
+              "offerPrice": 35,
+              "unitLevelPrice": "₹87.5/kg"
+            },
+            "isInStockAndAvailable": true,
+            "vegClassifier": "VEG",
+            "maxQuantity": 4
+          }
+        ]
+      },
+      {
+        "displayName": "Madhur Pure & Hygienic Sugar / Cheeni",
+        "brand": "Madhur",
+        "inStock": true,
+        "isAvail": true,
+        "productId": "prod_sugar_01",
+        "parentProductId": "parent_prod_staples",
+        "isPromoted": false,
+        "variations": [
+          {
+            "spinId": "spin_sugar_1kg",
+            "skuId": "sku_sugar_1kg",
+            "quantityDescription": "1 kg",
+            "displayName": "Madhur Pure & Hygienic Sugar (1 kg)",
+            "brandName": "Madhur",
+            "price": {
+              "mrp": 65,
+              "offerPrice": 60,
+              "unitLevelPrice": "₹60/kg"
+            },
+            "isInStockAndAvailable": true,
+            "vegClassifier": "VEG",
+            "maxQuantity": 4
+          }
+        ]
+      },
+      {
+        "displayName": "Fresh Ginger / Adrak",
+        "brand": "Fresh Produce",
+        "inStock": true,
+        "isAvail": true,
+        "productId": "prod_ginger_01",
+        "parentProductId": "parent_prod_veg",
+        "isPromoted": false,
+        "variations": [
+          {
+            "spinId": "spin_ginger_100g",
+            "skuId": "sku_ginger_100g",
+            "quantityDescription": "100 g",
+            "displayName": "Fresh Ginger (100 g)",
+            "brandName": "Fresh Produce",
+            "price": {
+              "mrp": 22,
+              "offerPrice": 18,
+              "unitLevelPrice": "₹180/kg"
+            },
+            "isInStockAndAvailable": true,
+            "vegClassifier": "VEG",
+            "maxQuantity": 4
+          }
+        ]
+      },
+      {
+        "displayName": "Lay's Potato Chips",
+        "brand": "Lay's",
+        "inStock": true,
+        "isAvail": true,
+        "productId": "prod_lays_01",
+        "parentProductId": "parent_prod_chips",
+        "isPromoted": false,
+        "variations": [
+          {
+            "spinId": "spin_lays_masala",
+            "skuId": "sku_lays_masala",
+            "quantityDescription": "50 g",
+            "displayName": "Lay's India's Magic Masala Potato Chips (50 g)",
+            "brandName": "Lay's",
+            "price": {
+              "mrp": 20,
+              "offerPrice": 20,
+              "unitLevelPrice": "₹400/kg"
+            },
+            "isInStockAndAvailable": true,
+            "vegClassifier": "VEG",
+            "maxQuantity": 10
+          },
+          {
+            "spinId": "spin_lays_salted",
+            "skuId": "sku_lays_salted",
+            "quantityDescription": "50 g",
+            "displayName": "Lay's Classic Salted Potato Chips (50 g)",
+            "brandName": "Lay's",
+            "price": {
+              "mrp": 20,
+              "offerPrice": 20,
+              "unitLevelPrice": "₹400/kg"
+            },
+            "isInStockAndAvailable": true,
+            "vegClassifier": "VEG",
+            "maxQuantity": 10
+          }
+        ]
+      },
+      {
+        "displayName": "Bingo Mad Angles Achaari Masti",
+        "brand": "Bingo",
+        "inStock": true,
+        "isAvail": true,
+        "productId": "prod_bingo_01",
+        "parentProductId": "parent_prod_chips",
+        "isPromoted": false,
+        "variations": [
+          {
+            "spinId": "spin_bingo_angles",
+            "skuId": "sku_bingo_angles",
+            "quantityDescription": "66 g",
+            "displayName": "Bingo Mad Angles Achaari Masti (66 g)",
+            "brandName": "Bingo",
+            "price": {
+              "mrp": 20,
+              "offerPrice": 20,
+              "unitLevelPrice": "₹303/kg"
+            },
+            "isInStockAndAvailable": true,
+            "vegClassifier": "VEG",
+            "maxQuantity": 8
+          }
+        ]
+      },
+      {
+        "displayName": "Nescafe Cold Coffee Can",
+        "brand": "Nescafe",
+        "inStock": true,
+        "isAvail": true,
+        "productId": "prod_coffee_01",
+        "parentProductId": "parent_prod_beverages",
+        "isPromoted": false,
+        "variations": [
+          {
+            "spinId": "spin_nescafe_cold",
+            "skuId": "sku_nescafe_cold",
+            "quantityDescription": "180 ml",
+            "displayName": "Nescafe Cold Coffee Chilled Latte (180 ml)",
+            "brandName": "Nescafe",
+            "price": {
+              "mrp": 70,
+              "offerPrice": 65,
+              "unitLevelPrice": "₹361/L"
+            },
+            "isInStockAndAvailable": true,
+            "vegClassifier": "VEG",
+            "maxQuantity": 6
+          }
+        ]
+      },
+      {
+        "displayName": "Sleepy Owl Classic Iced Coffee",
+        "brand": "Sleepy Owl",
+        "inStock": true,
+        "isAvail": true,
+        "productId": "prod_coffee_02",
+        "parentProductId": "parent_prod_beverages",
+        "isPromoted": false,
+        "variations": [
+          {
+            "spinId": "spin_sleepy_owl",
+            "skuId": "sku_sleepy_owl",
+            "quantityDescription": "200 ml",
+            "displayName": "Sleepy Owl Classic Iced Coffee (200 ml)",
+            "brandName": "Sleepy Owl",
+            "price": {
+              "mrp": 90,
+              "offerPrice": 85,
+              "unitLevelPrice": "₹425/L"
+            },
+            "isInStockAndAvailable": true,
+            "vegClassifier": "VEG",
+            "maxQuantity": 6
+          }
+        ]
+      },
+      {
+        "displayName": "Parle-G Original Glucose Biscuits",
+        "brand": "Parle",
+        "inStock": true,
+        "isAvail": true,
+        "productId": "prod_biscuit_01",
+        "parentProductId": "parent_prod_biscuits",
+        "isPromoted": false,
+        "variations": [
+          {
+            "spinId": "spin_parle_g",
+            "skuId": "sku_parle_g",
+            "quantityDescription": "250 g",
+            "displayName": "Parle-G Original Glucose Biscuits (250 g)",
+            "brandName": "Parle",
+            "price": {
+              "mrp": 25,
+              "offerPrice": 25,
+              "unitLevelPrice": "₹100/kg"
+            },
+            "isInStockAndAvailable": true,
+            "vegClassifier": "VEG",
+            "maxQuantity": 6
+          }
+        ]
+      },
+      {
+        "displayName": "Britannia Good Day Butter Cookies",
+        "brand": "Britannia",
+        "inStock": true,
+        "isAvail": true,
+        "productId": "prod_biscuit_02",
+        "parentProductId": "parent_prod_biscuits",
+        "isPromoted": false,
+        "variations": [
+          {
+            "spinId": "spin_good_day",
+            "skuId": "sku_good_day",
+            "quantityDescription": "200 g",
+            "displayName": "Britannia Good Day Butter Cookies (200 g)",
+            "brandName": "Britannia",
+            "price": {
+              "mrp": 45,
+              "offerPrice": 40,
+              "unitLevelPrice": "₹200/kg"
+            },
+            "isInStockAndAvailable": true,
+            "vegClassifier": "VEG",
+            "maxQuantity": 6
+          }
+        ]
+      },
+      {
+        "displayName": "Oreo Vanilla Creme Sandwich Biscuits",
+        "brand": "Cadbury",
+        "inStock": true,
+        "isAvail": true,
+        "productId": "prod_biscuit_03",
+        "parentProductId": "parent_prod_biscuits",
+        "isPromoted": false,
+        "variations": [
+          {
+            "spinId": "spin_oreo",
+            "skuId": "sku_oreo",
+            "quantityDescription": "120 g",
+            "displayName": "Cadbury Oreo Vanilla Creme Sandwich Biscuits (120 g)",
+            "brandName": "Cadbury",
+            "price": {
+              "mrp": 35,
+              "offerPrice": 35,
+              "unitLevelPrice": "₹291/kg"
+            },
+            "isInStockAndAvailable": true,
+            "vegClassifier": "VEG",
+            "maxQuantity": 6
+          }
+        ]
+      },
+      {
+        "displayName": "Taj Mahal Tea Leaves",
+        "brand": "Brooke Bond",
+        "inStock": true,
+        "isAvail": true,
+        "productId": "prod_tea_01",
+        "parentProductId": "parent_prod_beverages",
+        "isPromoted": false,
+        "variations": [
+          {
+            "spinId": "spin_tea_250g",
+            "skuId": "sku_tea_250g",
+            "quantityDescription": "250 g",
+            "displayName": "Brooke Bond Taj Mahal Tea (250 g)",
+            "brandName": "Brooke Bond",
+            "price": {
+              "mrp": 150,
+              "offerPrice": 140,
+              "unitLevelPrice": "₹560/kg"
+            },
+            "isInStockAndAvailable": true,
+            "vegClassifier": "VEG",
+            "maxQuantity": 4
+          }
+        ]
+      },
+      {
+        "displayName": "Borges Spaghetti Pasta",
+        "brand": "Borges",
+        "inStock": true,
+        "isAvail": true,
+        "productId": "prod_pasta_01",
+        "parentProductId": "parent_prod_pasta",
+        "isPromoted": false,
+        "variations": [
+          {
+            "spinId": "spin_spaghetti_500g",
+            "skuId": "sku_spaghetti_500g",
+            "quantityDescription": "500 g",
+            "displayName": "Borges Durum Wheat Spaghetti Pasta (500 g)",
+            "brandName": "Borges",
+            "price": {
+              "mrp": 175,
+              "offerPrice": 150,
+              "unitLevelPrice": "₹300/kg"
+            },
+            "isInStockAndAvailable": true,
+            "vegClassifier": "VEG",
+            "maxQuantity": 4
+          }
+        ]
+      },
+      {
+        "displayName": "Figaro Extra Virgin Olive Oil",
+        "brand": "Figaro",
+        "inStock": true,
+        "isAvail": true,
+        "productId": "prod_olive_oil_01",
+        "parentProductId": "parent_prod_oils",
+        "isPromoted": false,
+        "variations": [
+          {
+            "spinId": "spin_olive_oil_250ml",
+            "skuId": "sku_olive_oil_250ml",
+            "quantityDescription": "250 ml",
+            "displayName": "Figaro Extra Virgin Olive Oil (250 ml)",
+            "brandName": "Figaro",
+            "price": {
+              "mrp": 330,
+              "offerPrice": 290,
+              "unitLevelPrice": "₹1160/L"
+            },
+            "isInStockAndAvailable": true,
+            "vegClassifier": "VEG",
+            "maxQuantity": 2
+          }
+        ]
+      },
+      {
+        "displayName": "Fresh Garlic",
+        "brand": "Fresh Produce",
+        "inStock": true,
+        "isAvail": true,
+        "productId": "prod_garlic_01",
+        "parentProductId": "parent_prod_veg",
+        "isPromoted": false,
+        "variations": [
+          {
+            "spinId": "spin_garlic_100g",
+            "skuId": "sku_garlic_100g",
+            "quantityDescription": "100 g",
+            "displayName": "Fresh Garlic (100 g)",
+            "brandName": "Fresh Produce",
+            "price": {
+              "mrp": 30,
+              "offerPrice": 25,
+              "unitLevelPrice": "₹250/kg"
+            },
+            "isInStockAndAvailable": true,
+            "vegClassifier": "VEG",
+            "maxQuantity": 4
+          }
+        ]
+      },
+      {
+        "displayName": "Amul Processed Parmesan / Cheese Block",
+        "brand": "Amul",
+        "inStock": true,
+        "isAvail": true,
+        "productId": "prod_cheese_01",
+        "parentProductId": "parent_prod_dairy",
+        "isPromoted": false,
+        "variations": [
+          {
+            "spinId": "spin_parmesan_200g",
+            "skuId": "sku_parmesan_200g",
+            "quantityDescription": "200 g",
+            "displayName": "Amul Processed Cheese Block (200 g)",
+            "brandName": "Amul",
+            "price": {
+              "mrp": 140,
+              "offerPrice": 130,
+              "unitLevelPrice": "₹650/kg"
+            },
+            "isInStockAndAvailable": true,
+            "vegClassifier": "VEG",
+            "maxQuantity": 4
+          }
+        ]
+      },
+      {
+        "displayName": "The Artisan Bakery Fresh Sourdough Bread",
+        "brand": "The Artisan Bakery",
+        "inStock": false,
+        "isAvail": false,
+        "productId": "prod_sourdough_01",
+        "parentProductId": "parent_prod_bread",
+        "isPromoted": false,
+        "variations": [
+          {
+            "spinId": "spin_sourdough_500g",
+            "skuId": "sku_sourdough_500g",
+            "quantityDescription": "500 g",
+            "displayName": "The Artisan Bakery Fresh Sourdough Bread (500 g)",
+            "brandName": "The Artisan Bakery",
+            "price": {
+              "mrp": 120,
+              "offerPrice": 120,
+              "unitLevelPrice": "₹240/kg"
+            },
+            "isInStockAndAvailable": false,
+            "vegClassifier": "VEG",
+            "maxQuantity": 2
+          }
+        ]
+      }
+    ],
+    "similarProducts": []
+  },
+  "message": "Products retrieved"
+}

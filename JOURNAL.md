@@ -85,3 +85,11 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: Authored `docs/adr/0010-session-lifecycle-jit-auth-and-onboarding.md`; added canonical terms to `GLOSSARY.md`; completely rewrote `ARCHITECTURE.md` to cleanly separate Gemini conversational role from Python muscle/vault; synchronized `TASKS.md` and `HANDOFF.md`.
 - **Proof**: `ARCHITECTURE.md` verified clean-slate v1.0 at `D:\Grocer-v5\ARCHITECTURE.md`; all 10 ADRs synchronized in `docs/adr/`; `git status` clean and verified.
 - **Still broken**: None. Complete project memory locked and ready for Phase 0 review.
+
+### [GROCER v1 — Remote Branch Initialization & GitHub Sync] 2026-10-25
+
+#### Work Card: Create and Push `grocer-v1` Branch to GitHub Repository
+- **Problem**: Project memory was local; needed a dedicated remote tracking branch on `https://github.com/kwakhare5/Grocer` to preserve all architectural contracts and ADRs.
+- **Change**: Added remote `origin` pointing to `https://github.com/kwakhare5/Grocer.git`; created branch `grocer-v1`; committed `.gitignore`, `PRD.md`, `ARCHITECTURE.md`, `DESIGN.md`, `GLOSSARY.md`, `TASKS.md`, `HANDOFF.md`, and all 10 ADRs; pushed cleanly to `origin/grocer-v1`.
+- **Proof**: `git push -u origin grocer-v1` exited 0; branch tracked at `https://github.com/kwakhare5/Grocer/tree/grocer-v1`; working tree clean.
+- **Still broken**: None. Ready for Phase 0 execution.

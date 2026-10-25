@@ -1,7 +1,7 @@
 # Grocer v1.0 Session Handoff & Continuity Brief
 
 > **Target Workspace:** D:\Grocer-v5
-> **Branch:** main
+> **Branch:** grocer-v1
 > **Status:** Architecture & Project Memory Complete. Ready for Phase 0.
 
 ## 1. Goal

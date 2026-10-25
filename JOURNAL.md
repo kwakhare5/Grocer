@@ -19,6 +19,12 @@ During the Session End ritual (called automatically whenever significant changes
 
 ### [GROCER — Thin Brain, Thick Spine Architecture & Catalog Fix] 2026-10-25
 
+#### Work Card: Document Comprehensive Swiggy Instamart Architecture v4.0 Specification
+- **Problem**: Engineering decisions and real-world Swiggy Instamart operational boundaries (5-day token lifetimes, destructive replace-only cart semantics, long-poll check_payment_status, integer paise calculations) were scattered across issues without a single authoritative technical contract.
+- **Change**: Added ARCHITECTURE v2.md (v4.0 specification) documenting the 19 core differences from v2.0, Swiggy compliance constraints, idempotent side effects, and exact-once state management.
+- **Proof**: File committed and pushed to origin main at commit af1e872; verified git tree clean.
+- **Still broken**: Nothing. Architecture documentation is synchronized with active production codebase.
+
 #### Work Card: Fix Swiggy Catalog Variant In-Stock Bug and Auto-Ground Delivery Address
 - **Problem**: In composite_cart.py:100, getattr(v, "in_stock", True) evaluated None as False, causing real Swiggy dark store search results (chicken, butter, cream, bread) to be falsely discarded as out-of-stock; session.address_id remained None on cold start, causing address queries to fall back into conversation history.
 - **Change**: Changed variant stock check in composite_cart.py to verify v.in_stock is not False; added automatic address grounding in engine.py:execute_preflight to lock the customer's default/Home address on turn 1; added deterministic fast button/text routing in button_router.py for "which address is selected" and "what all address do i have".

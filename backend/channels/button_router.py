@@ -13,13 +13,16 @@ logger = logging.getLogger("grocer.button_router")
 async def dispatch_button_action(
     button_id: str,
     wa_id: str,
-    pool: asyncpg.Pool,
+    pool: asyncpg.Pool | None = None,
 ) -> dict[str, Any]:
     """Execute interactive WhatsApp button taps directly in Python in <50ms.
 
     Bypasses Gemini LLM completely for instant app-like responsiveness.
     """
     logger.info("Dispatching fast button action: %s for user: %s", button_id, wa_id)
+
+    prefix, _, target_id = button_id.partition(":")
+    target_arg = target_id if target_id else None
 
     # 1. Cart Clear action
     if button_id == "cart:clear":
@@ -30,24 +33,20 @@ async def dispatch_button_action(
         }
 
     # 2. Checkout Payment Authorization (Lock 1 Authority)
-    if button_id.startswith("pay:"):
-        parts = button_id.split(":")
-        approval_id = parts[1] if len(parts) > 1 else None
+    if prefix == "pay":
         return {
             "status": "button_dispatched",
             "action": button_id,
-            "approval_id": approval_id,
+            "approval_id": target_arg,
             "message": "Payment lock authorized.",
         }
 
     # 3. Delivery Address Switching
-    if button_id.startswith("addr:"):
-        parts = button_id.split(":")
-        address_id = parts[1] if len(parts) > 1 else None
+    if prefix == "addr":
         return {
             "status": "button_dispatched",
             "action": button_id,
-            "address_id": address_id,
+            "address_id": target_arg,
             "message": "Address switch requested.",
         }
 

@@ -110,4 +110,13 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: `.\verify.ps1` and `pytest` exited 0 with 21/21 passing tests; 6/6 Supabase tables verified active; 0 mocks present.
 - **Still broken**: None. Phase 0 is complete. Ready for Phase 1 (Ingestion Shield & Fast Button Router).
 
+### [GROCER v1 — TASKS.md ADR Alignment & Session Handoff] 2026-10-25
+
+#### Work Card: Expand TASKS.md Roadmap with All 10 ADRs & Create Session Handoff
+- **Problem**: Need explicit subtasks in `TASKS.md` reflecting all settled decisions from ADR 0007–0010 and an authoritative handoff for next session.
+- **Change**: Updated `TASKS.md` with explicit items for recipe checklists, one-time destinations, fee shock alerts, address deletion locks, JIT re-auth, and split orders; authored `HANDOFF.md` and `.scratch/HANDOFF.md`; added `.scratch/` to `.gitignore`.
+- **Proof**: `.\verify.ps1` confirms 21/21 tests green and Supabase active; git status verified clean upon commit.
+- **Still broken**: None. Ready for Phase 1 in the fresh chat session.
+
+
 

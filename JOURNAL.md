@@ -118,5 +118,14 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: `.\verify.ps1` confirms 21/21 tests green and Supabase active; git status verified clean upon commit.
 - **Still broken**: None. Ready for Phase 1 in the fresh chat session.
 
+### [GROCER v1 — Cardboard.ai Web Landing Page & OAuth Bridge] 2026-10-25
+
+#### Work Card: Build Cardboard.ai Web Landing Page and Swiggy OAuth Bridge
+- **Problem**: Need clean-slate Next.js landing page on `grocerr.vercel.app` supporting direct WhatsApp phone connection and whitelisted Swiggy OAuth 2.1 login with 0 old files.
+- **Change**: Designed and built Next.js frontend in `D:\Grocer-v5` inspired by `cardboard.ai` (charcoal theme, glassmorphic navbar, hero phone connection widget, bento grid, Swiggy OAuth login/callback routes); updated `DESIGN.md`; expanded `verify.ps1` to test database, pytest, and Next.js build.
+- **Proof**: `verify.ps1` exited 0 with 21/21 passing Python tests, active Supabase database, and clean Next.js Turbopack build in 1.8s.
+- **Still broken**: None. Ready to delete `D:\Grocer` and proceed to Phase 1 in the next session.
+
+
 
 

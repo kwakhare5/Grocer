@@ -85,3 +85,54 @@ Delivery notifications are restricted to 3 discrete milestones to avoid notifica
 
 ### Milestone 3: Delivered
 > 📦 *Your order has been delivered! Enjoy your groceries.*
+
+---
+
+## 5. Web Landing Page Design Specification (`cardboard.ai` Aesthetic)
+
+> **Live Domain:** `https://grocerr.vercel.app`  
+> **Aesthetic Inspiration:** [cardboard.ai](https://cardboard.ai/)  
+> **Theme:** Dark Mode, High-Precision Tech, Product-Led SaaS Minimalist  
+
+### 5.1 Color Palette & Tokens
+* **Background Deep:** `#0A0A0B` (Jet Charcoal Canvas)
+* **Surface Neutral:** `#121215` (Elevated Card / Bento Background)
+* **Surface Elevated:** `#18181C` (Hover & Modal Background)
+* **Border Subtle:** `rgba(255, 255, 255, 0.08)` (1px Hairline Precision Borders)
+* **Border Focused:** `rgba(255, 255, 255, 0.20)` (Interactive States)
+* **Text Primary:** `#F4F4F5` (High-Contrast White, 95% opacity)
+* **Text Secondary:** `#A1A1AA` (Muted Zinc, 65% opacity)
+* **Accent Brand:** `#FC8019` (Swiggy Orange / Warm Amber glow for primary action badges)
+* **Success Glow:** `#10B981` (Connected State / Live System Status Pill)
+
+### 5.2 Typography System
+* **Headings:** Neo-grotesque sans-serif (Inter / Geist / SF Pro Display) with tight letter spacing (`tracking-tight`), heavy weights (`font-semibold` / `font-bold`).
+* **Body & Explanations:** Clean, highly legible sans-serif with comfortable line height (`leading-relaxed`).
+* **Technical Accents:** Monospace (`font-mono`) for phone number formatting, session badges, and status labels.
+
+### 5.3 Page Component Hierarchy
+1. **Sticky Glassmorphic Navigation:**
+   * Logo: Grocer wordmark + miniature glowing orange indicator.
+   * Pill Badge: `⚡ Powered by Swiggy Builders Club MCP`.
+   * Action CTA: `[Connect WhatsApp]`.
+2. **Hero Section (Outcome-Driven + Direct Connect Widget):**
+   * Pre-header pill: `WhatsApp Concierge for Swiggy Instamart`.
+   * Headline: *“Groceries at the speed of thought.”*
+   * Subheadline: *“Chat in natural English or Hinglish on WhatsApp. Instant dark-store search, automated coupon optimization, and 1-tap checkout.”*
+   * **Interactive Connection Widget:**
+     * Clean phone input box with `+91` prefix.
+     * High-contrast primary action button: `[Connect with Swiggy]`.
+     * Secure status note: *“Official OAuth 2.1 via Swiggy Builders Club. 5-day encrypted token vault.”*
+3. **Bento Grid Architecture (3 Modular Feature Cards):**
+   * **Card 1 (Conversational Brain):** Understands recipes, vague staples, and Hinglish without robotic commands.
+   * **Card 2 (Wallet Champion):** Auto-evaluates dark store coupons and stops price drift shifts.
+   * **Card 3 (3-Lock Payment Safety):** Physical WhatsApp button latch, SHA-256 cart fingerprints, and HTTPS Swiggy Bridge.
+4. **How It Works (3-Step Frictionless Flow):**
+   * Step 1: Link your WhatsApp number with Swiggy.
+   * Step 2: Message your list or ask what you need on WhatsApp.
+   * Step 3: Tap the Swiggy Bridge payment link to complete checkout.
+5. **Footer:**
+   * Minimalist status indicator (`● All Systems Operational`).
+   * Whitelisted redirect notice: `grocerr.vercel.app`.
+   * DPDP compliance note: 24h data minimization.
+

@@ -17,5 +17,12 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 
-Write-Host "`n=== [PASS] Grocer v1.0 Verification Complete! 100% Green ===" -ForegroundColor Green
+Write-Host "`n=== 3. Checking Next.js Web Build ===" -ForegroundColor Cyan
+npm run build
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "Next.js web build failed!" -ForegroundColor Red
+    exit 1
+}
+
+Write-Host "`n=== [PASS] Grocer v1.0 Universal Verification Complete! 100% Green ===" -ForegroundColor Green
 exit 0

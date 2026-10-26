@@ -184,6 +184,7 @@ class SwiggyClient:
         """Execute JSON-RPC 2.0 tools/call to Swiggy MCP server."""
         headers = {
             "Content-Type": "application/json",
+            "Accept": "application/json, text/event-stream, */*",
         }
         if self.auth_token:
             headers["Authorization"] = f"Bearer {self.auth_token}"
@@ -205,16 +206,26 @@ class SwiggyClient:
             resp.raise_for_status()
             data = resp.json()
 
-            # Handle JSON-RPC envelope or direct tool envelope
+            # 1. Handle native Swiggy MCP structuredContent
+            if "result" in data and "structuredContent" in data["result"]:
+                sc = data["result"]["structuredContent"]
+                if sc:
+                    return model_cls.model_validate(sc)
+
+            # 2. Handle JSON-RPC envelope with embedded JSON text
             if "result" in data and "content" in data["result"]:
                 content = data["result"]["content"]
                 if content and "text" in content[0]:
-                    envelope = ToolEnvelope[model_cls].model_validate(
-                        json.loads(content[0]["text"])
-                    )
-                    if envelope.data is not None:
-                        return envelope.data
+                    try:
+                        envelope = ToolEnvelope[model_cls].model_validate(
+                            json.loads(content[0]["text"])
+                        )
+                        if envelope.data is not None:
+                            return envelope.data
+                    except (json.JSONDecodeError, ValueError):
+                        envelope = None
 
+            # 3. Direct ToolEnvelope
             envelope = ToolEnvelope[model_cls].model_validate(data)
             if envelope.data is not None:
                 return envelope.data

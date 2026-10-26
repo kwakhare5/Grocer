@@ -296,3 +296,10 @@ A chronological record of project milestones, architectural decisions, and verif
 
 
 
+### [GROCER v1 — Real Gemini Conversational Orchestrator & Multi-Item Assembly] 2026-10-26
+
+#### Work Card: Purge Keyword Dictionaries, Implement Single-Pass Gemini Orchestrator & Multi-Item Cart
+- **Problem**: Gemini was bypassed in favor of hardcoded keyword dictionaries and an unconditional store search on every inbound text, breaking greetings ("hello" -> "couldn't find items"), single-item cart assembly traps, and zero multi-turn context.
+- **Change**: Deleted all static keyword and recipe dictionaries; authored ADR 0011; implemented `orchestrate_conversational_turn` in `backend/agent/candidate_evaluator.py` with structured Gemini 3.5 Flash output and fallback; wired 12-turn session memory via `grocer.sessions.history` and parallel dark-store catalog search across extracted items in `backend/channels/whatsapp.py`; added live greeting and multi-item list tests to `tests/test_whatsapp_live_loop.py`.
+- **Proof**: `.\verify.ps1` ran all 4 verification stages exiting 0 with terminal proof (106/106 tests green in 325.60s, Ruff clean with 0 errors, Supabase live check 6/6 tables passed, Next.js Turbopack build passed in 2.2s).
+- **Still broken**: None. Conversational greeting, multi-turn memory, and multi-item shopping lists verified and live.

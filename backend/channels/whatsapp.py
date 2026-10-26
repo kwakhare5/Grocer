@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from typing import Any
@@ -200,8 +201,11 @@ async def handle_webhook(
 
                 from backend.agent.approval import create_checkout_approval
                 from backend.agent.candidate_evaluator import (
+                    ExtractedGroceryItem,
+                    IntentType,
                     evaluate_customer_intent,
                     format_paise_to_rupees,
+                    orchestrate_conversational_turn,
                 )
                 from backend.agent.candidate_search import search_catalog
                 from backend.agent.composite_cart import (
@@ -216,15 +220,26 @@ async def handle_webhook(
                 client = swiggy_client or SwiggyClient(auth_token=user_token)
 
                 try:
-                    # Resolve active address
+                    # Resolve active address and past dialogue history
                     session_row = await conn.fetchrow(
-                        "SELECT active_address_id FROM grocer.sessions WHERE user_id = $1;",
+                        "SELECT active_address_id, history FROM grocer.sessions WHERE user_id = $1;",
                         user_id,
                     )
                     active_addr_id = session_row["active_address_id"] if session_row else None
+                    raw_history = session_row["history"] if session_row else None
+                    if raw_history:
+                        try:
+                            session_history = json.loads(raw_history) if isinstance(raw_history, str) else raw_history
+                        except (json.JSONDecodeError, TypeError, ValueError):
+                            session_history = []
+                    else:
+                        session_history = []
+
+                    address_count = 1
                     if not active_addr_id:
                         try:
                             addrs = client.get_addresses()
+                            address_count = len(addrs.addresses)
                             if addrs.addresses:
                                 active_addr_id = addrs.addresses[0].id
                                 await conn.execute(
@@ -236,37 +251,152 @@ async def handle_webhook(
                                     user_id,
                                     active_addr_id,
                                 )
+                            else:
+                                address_count = 0
                         except (httpx.HTTPError, ValueError, KeyError, RuntimeError) as addr_err:
                             logger.warning("Could not fetch user addresses: %s", addr_err)
 
-                    candidates = search_catalog(
-                        msg.text,
-                        swiggy_client=client,
-                        address_id=active_addr_id,
+                    # 1. Single-Pass Conversational Intent & Item Extraction (ADR 0011)
+                    turn_result = orchestrate_conversational_turn(
+                        message=msg.text,
+                        history=session_history,
+                        address_count=address_count,
                     )
-                    evaluation = evaluate_customer_intent(msg.text, candidates)
 
-                    if evaluation.intent_type == "conversational_qa":
+                    # Handle Chit-Chat Greetings & Conversational Q&A (Zero Dark-Store Calls)
+                    if turn_result.intent_type in [IntentType.GREETING, IntentType.CONVERSATIONAL_QA]:
+                        reply_text = (
+                            turn_result.conversational_reply
+                            or "Hey! What groceries do you need today?"
+                        )
                         await wa_client.send_text_message(
                             to_wa_id=msg.sender_wa_id,
-                            text=evaluation.conversational_response
-                            or "How can I help with your groceries today?",
+                            text=reply_text,
+                        )
+                        session_history.append({"role": "user", "text": msg.text})
+                        session_history.append({"role": "assistant", "text": reply_text})
+                        await conn.execute(
+                            """
+                            INSERT INTO grocer.sessions (user_id, history, last_active_at)
+                            VALUES ($1, $2::jsonb, now())
+                            ON CONFLICT (user_id) DO UPDATE SET history = $2::jsonb, last_active_at = now();
+                            """,
+                            user_id,
+                            json.dumps(session_history[-12:]),
                         )
                         results.append(
-                            {"status": "conversational_replied", "wa_id": msg.sender_wa_id}
+                            {
+                                "status": "conversational_replied",
+                                "intent": turn_result.intent_type.value,
+                                "wa_id": msg.sender_wa_id,
+                            }
                         )
                         continue
 
-                    if evaluation.selected_candidate:
-                        cand = evaluation.selected_candidate
-                        items_to_add = [
-                            TargetCartItem(
-                                spin_id=cand.spin_id,
-                                quantity=1,
-                                item_name=cand.display_name,
-                                price_paise=cand.offer_price_paise,
+                    # Handle Cold-Start Zero-Address Onboarding (ADR 0010)
+                    if turn_result.intent_type == IntentType.ZERO_ADDRESS_ONBOARDING:
+                        prompt_text = (
+                            turn_result.conversational_reply
+                            or "Welcome to Grocer! Please share your WhatsApp delivery location pin or address so I can check your local dark store."
+                        )
+                        await wa_client.send_text_message(
+                            to_wa_id=msg.sender_wa_id,
+                            text=prompt_text,
+                        )
+                        results.append(
+                            {"status": "location_pin_requested", "wa_id": msg.sender_wa_id}
+                        )
+                        continue
+
+                    # Handle Recipe Checklist Proposals (ADR 0009)
+                    if turn_result.intent_type == IntentType.RECIPE_CHECKLIST:
+                        recipe_lines = [f"🍳 *{turn_result.recipe_name or 'Recipe'} Checklist*:\n"]
+                        for r_item in turn_result.recipe_items:
+                            qty_desc = f" ({r_item.quantity})" if r_item.quantity else ""
+                            recipe_lines.append(f"• {r_item.name}{qty_desc}")
+                        if turn_result.assumed_pantry_staples:
+                            recipe_lines.append(
+                                f"\n_Pantry staples assumed:_ {', '.join(turn_result.assumed_pantry_staples)}"
                             )
-                        ]
+                        recipe_body = "\n".join(recipe_lines)
+                        buttons = [
+                            (act["id"], act["title"][:20])
+                            for act in turn_result.suggested_actions[:3]
+                        ] or [("recipe:add:all", "Add All Items")]
+                        await wa_client.send_quick_reply_buttons(
+                            to_wa_id=msg.sender_wa_id,
+                            body_text=recipe_body,
+                            buttons=buttons,
+                        )
+                        session_history.append({"role": "user", "text": msg.text})
+                        session_history.append({"role": "assistant", "text": recipe_body})
+                        await conn.execute(
+                            """
+                            INSERT INTO grocer.sessions (user_id, history, last_active_at)
+                            VALUES ($1, $2::jsonb, now())
+                            ON CONFLICT (user_id) DO UPDATE SET history = $2::jsonb, last_active_at = now();
+                            """,
+                            user_id,
+                            json.dumps(session_history[-12:]),
+                        )
+                        results.append(
+                            {
+                                "status": "recipe_proposed",
+                                "recipe": turn_result.recipe_name,
+                                "wa_id": msg.sender_wa_id,
+                            }
+                        )
+                        continue
+
+                    # 2. Grocery List Intent: Parallel Search & Candidate Evaluation (ADR 0011)
+                    extracted_items = turn_result.extracted_items
+                    if not extracted_items:
+                        extracted_items = [ExtractedGroceryItem(query=msg.text, quantity=1)]
+
+                    async def search_and_eval(
+                        target: ExtractedGroceryItem,
+                        sw_client: SwiggyClient = client,
+                        addr_id: str | None = active_addr_id,
+                        addr_cnt: int = address_count,
+                    ):
+                        cands = await asyncio.to_thread(
+                            search_catalog,
+                            query=target.query,
+                            swiggy_client=sw_client,
+                            address_id=addr_id,
+                        )
+                        eval_res = evaluate_customer_intent(
+                            query=target.query,
+                            candidates=cands,
+                            address_count=addr_cnt,
+                        )
+                        return target, cands, eval_res
+
+                    search_results = await asyncio.gather(
+                        *(search_and_eval(target) for target in extracted_items)
+                    )
+
+                    items_to_add: list[TargetCartItem] = []
+                    disambiguation_notes: list[str] = []
+                    unfound_queries: list[str] = []
+
+                    for target, cands, evaluation in search_results:
+                        if evaluation.selected_candidate:
+                            cand = evaluation.selected_candidate
+                            items_to_add.append(
+                                TargetCartItem(
+                                    spin_id=cand.spin_id,
+                                    quantity=target.quantity,
+                                    item_name=cand.display_name,
+                                    price_paise=cand.offer_price_paise,
+                                )
+                            )
+                        elif evaluation.intent_type == IntentType.DISAMBIGUATION and evaluation.message:
+                            disambiguation_notes.append(evaluation.message)
+                        else:
+                            unfound_queries.append(target.query)
+
+                    if items_to_add:
                         cart_mgr = CompositeCartManager(client)
                         cart_res = cart_mgr.assemble_and_update_cart(
                             items_to_add=items_to_add,
@@ -282,13 +412,36 @@ async def handle_webhook(
                         )
 
                         to_pay_formatted = format_paise_to_rupees(approval.to_pay_paise)
+                        receipt_body = cart_res.receipt_text
+                        if disambiguation_notes:
+                            receipt_body += "\n\n💡 *" + "\n".join(disambiguation_notes) + "*"
+                        if unfound_queries:
+                            receipt_body += f"\n\n⚠️ *Not found at store:* {', '.join(unfound_queries)}"
+
                         await wa_client.send_quick_reply_buttons(
                             to_wa_id=msg.sender_wa_id,
-                            body_text=cart_res.receipt_text,
+                            body_text=receipt_body,
                             buttons=[
                                 (f"pay:{approval.id}", f"Pay {to_pay_formatted}"),
                                 ("cart:clear", "Clear Basket"),
                             ],
+                        )
+
+                        session_history.append({"role": "user", "text": msg.text})
+                        session_history.append(
+                            {
+                                "role": "assistant",
+                                "text": f"Basket updated. Total {to_pay_formatted}",
+                            }
+                        )
+                        await conn.execute(
+                            """
+                            INSERT INTO grocer.sessions (user_id, history, last_active_at)
+                            VALUES ($1, $2::jsonb, now())
+                            ON CONFLICT (user_id) DO UPDATE SET history = $2::jsonb, last_active_at = now();
+                            """,
+                            user_id,
+                            json.dumps(session_history[-12:]),
                         )
                         results.append(
                             {

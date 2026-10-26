@@ -2,7 +2,7 @@
 
 > **Target Workspace:** `D:\Grocer-v5`  
 > **Branch:** `grocer-v1` (Synced with `https://github.com/kwakhare5/Grocer`)  
-> **Status:** Phase 0, Phase 1, Phase 2, and Phase 3 Complete (67/67 Tests Green). Ready for Phase 4: 3-Lock Payment Gate & Web Checkout.  
+> **Status:** Phase 0, 1, 2, 3 & Code-Review 100% Complete & Hardened (72/72 Tests Green, Zero Mocks, Live Swiggy MCP Tested). Ready for Phase 4: 3-Lock Payment Gate & Web Checkout.
 
 ---
 
@@ -11,28 +11,30 @@ Build Grocer v1.0 from scratch as a production-grade WhatsApp Swiggy Instamart c
 
 ---
 
-## 2. Changes Completed in this Session (Phase 3: Commerce & Account Lifecycle)
-1. **Composite Cart Manager (`backend/agent/composite_cart.py`):** Target cart assembly preserving existing basket items on destructive `update_cart`, read-after-write `get_cart` diffing, non-blocking out-of-stock card ("⚠️ *Not added*"), mid-basket address switching and rebuild, and 1-tap "Go-To Items" reordering.
-2. **Address & Session Lifecycle (`backend/agent/address_lifecycle.py`):** Two-step pin geocoding onboarding (ADR 0008), address deletion guardrail blocking deletion during active deliveries (ADR 0007), interactive confirmation buttons for idle address deletion, one-time destination order anchoring preserving primary address (ADR 0009), and 5-day token expiration request parking with JIT replay (ADR 0010).
-3. **Swiggy MCP Tools Integration (`backend/integrations/commerce/swiggy_client.py`):** Added typed methods and generic `call_remote_tool` handling JSON-RPC 2.0 tools with typed `SwiggyAuthExpiredError` on 401 Unauthorized.
-4. **Comprehensive Test Suites:**
-   - `tests/test_composite_cart.py` (4 tests)
-   - `tests/test_address_lifecycle.py` (6 tests)
+## 2. Changes Completed in this Session
+1. **Live Swiggy MCP Verification:** Decrypted real OAuth token and tested live read-only MCP endpoints (`get_addresses`, `search_products`, `get_cart`) against user's actual Pune dark store. 0 orders placed.
+2. **Code Review Resolution:**
+   - **Zero Mocks Invariant:** Eliminated all in-memory `FakeSwiggyStore` test doubles in `tests/test_composite_cart.py` and `tests/test_address_lifecycle.py`. Tests now run directly against committed real fixtures via `SwiggyClient(fixtures_dir=...)`.
+   - **Full-Basket Read-After-Write Diffing:** `composite_cart.py` diffs the entire target basket (not just newly added items) against the verified cart to catch drops, reverts, and stock limits.
+   - **Top 3–5 Go-To Items:** `propose_go_to_items` formats top 3–5 SKUs into a structured card with `[Add All to Basket]` (action ID: `goto:add_all`) per ADR 0008:10.
+   - **Address Deletion Button Label:** `can_delete_address` outputs human address label (`[Confirm Delete: <Label>]`) per ADR 0007:13.
+   - **PostgreSQL Request Parking & Replay:** `TokenParkedRequestManager` persists 5-day expired requests into `grocer.inbound_messages` (`status='awaiting_link'`) and `POST /api/auth/swiggy/callback` auto-replays on login per ADR 0010.
+   - **Strict Integer Paise Math:** `TargetCartItem` uses `price_paise: int`; eliminated all float `.2f` formatting.
 
 ---
 
 ## 3. Passing Tests & Verification Proof
 - **Database:** `scripts/verify_db.py` confirms 6/6 tables in Supabase over live SSL.
 - **Linting:** `ruff check backend tests` passed with 0 errors.
-- **Formatting:** `ruff format --check backend tests` passed with 20 files clean.
-- **Test Suite:** 67/67 passing tests across invariants, staging fixtures, channels, catalog search, composite cart, and address lifecycle (all green, 0 mocks).
-- **Web Build:** Next.js Turbopack production build succeeds in 6.2s.
+- **Formatting:** `ruff format --check backend tests` clean across all files.
+- **Test Suite:** 72/72 passing tests (all green, 0 mocks, zero float currency patterns).
+- **Web Build:** Next.js Turbopack production build succeeds in 3.8s.
 - **Universal Verification:** `.\verify.ps1` exits 0 with 100% green output.
 
 ---
 
 ## 4. Immediate Next Action for the Next Session
-Proceed directly to **Phase 4: 3-Lock Payment Gate & Web Checkout** in `TASKS.md`:
+Proceed to **Phase 4: 3-Lock Payment Gate & Web Checkout** in `TASKS.md`:
 1. Implement Lock 1 (physical WhatsApp button ID only; text "yes" rejected).
 2. Implement Lock 2 (re-verification of price, integer paise math, stock, and ₹1 price-drift abort).
 3. Implement Lock 3 (atomic PostgreSQL CAS on `grocer.approvals` + pre-checkout order ID snapshot).
@@ -50,5 +52,5 @@ Proceed directly to **Phase 4: 3-Lock Payment Gate & Web Checkout** in `TASKS.md
 
 ## 5. Copy-Paste Resume Prompt for Fresh Chat
 ```text
-Resume Grocer v1.0 from .scratch/HANDOFF.md. Phase 3 is 100% verified and complete (67/67 tests green). Let's start Phase 4: 3-Lock Payment Gate & Web Checkout in TASKS.md. Follow all AGENTS.md rules and TDD.
+Resume Grocer v1.0 from .scratch/HANDOFF.md. Phase 3 and code-review are 100% verified and complete (72/72 tests green, 0 mocks). Let's start Phase 4: 3-Lock Payment Gate & Web Checkout in TASKS.md. Follow all AGENTS.md rules and TDD.
 ```

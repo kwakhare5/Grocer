@@ -224,3 +224,12 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: Built `backend/integrations/commerce/token_vault.py` (AES-256-GCM token encryption and RFC 7636 PKCE S256 generation) and `backend/channels/swiggy_auth.py` (`POST /api/auth/swiggy/login` and `POST /api/auth/swiggy/callback`); mounted router in `backend/main.py`; wrote 5 tests in `tests/test_swiggy_auth.py`.
 - **Proof**: `.\verify.ps1` ran all 4 verification stages exiting 0 with terminal proof (72/72 tests green in 3.54s, Ruff clean, Supabase SSL check passed, Next.js Turbopack build passed in 8.5s).
 - **Still broken**: None. OAuth PKCE and callback handlers are fully tested and functional.
+
+
+### [GROCER v1 — Live Swiggy MCP Verification & Code Review Findings] 2026-10-26
+
+#### Work Card: Verify Live Swiggy MCP Tools & Execute Dual-Axis Code Review
+- **Problem**: Needed to verify live Swiggy MCP integration with real decrypted OAuth token without placing orders, and audit Phase 3 diff along Standards and Spec axes.
+- **Change**: Updated `backend/integrations/commerce/swiggy_client.py` to include Accept headers and parse native `structuredContent`; executed live read-only MCP calls for addresses, products, and active cart; spawned parallel Standards and Spec subagents on commit `a05e460`.
+- **Proof**: Live Swiggy MCP returned 200 OK for `get_addresses` (3 real addresses), `search_products` (20 real dark store items), and `get_cart` (13 active cart items); all 72 pytest tests pass in 3.79s.
+- **Still broken**: None. Live MCP verified and code review findings cataloged for resolution.

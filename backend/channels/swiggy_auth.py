@@ -2,7 +2,7 @@
 
 Endpoints:
 - POST /api/auth/swiggy/login: Initiates PKCE flow and returns authorizeUrl
-- POST /api/auth/swiggy/callback: Exchanges authorization code with Swiggy and stores token
+- POST /api/auth/swiggy/callback: Exchanges authorization code with Swiggy, stores token, and replays parked messages (ADR 0010)
 """
 
 from __future__ import annotations
@@ -46,6 +46,7 @@ class CallbackRequest(BaseModel):
 class CallbackResponse(BaseModel):
     success: bool
     message: str
+    replayed: dict[str, Any] | None = None
 
 
 def normalize_phone(phone_str: str) -> str:
@@ -152,7 +153,14 @@ async def swiggy_callback(req: CallbackRequest) -> CallbackResponse:
         expires_in_seconds=expires_in,
     )
 
+    # Replay parked requests (ADR 0010)
+    from backend.agent.address_lifecycle import TokenParkedRequestManager
+
+    parked_mgr = TokenParkedRequestManager()
+    replayed = await parked_mgr.pop_and_replay_request(user_id)
+
     return CallbackResponse(
         success=True,
         message="Swiggy account linked successfully! You can now order directly on WhatsApp.",
+        replayed=replayed,
     )

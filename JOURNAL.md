@@ -275,5 +275,14 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: `.\verify.ps1` ran all 4 verification stages exiting 0 with terminal proof (98/98 tests green in 6.04s, Ruff lint clean, Supabase live check 6/6 passed, Next.js Turbopack build passed in 2.5s).
 - **Still broken**: None. All Phase 5 real wires are fully connected and verified end-to-end.
 
+### [GROCER v1 — Live WhatsApp Outbound Delivery & Chat Orchestration] 2026-10-26
+
+#### Work Card: Build Outbound Meta WhatsApp Client, Live Shopping Orchestrator & Milestone Push
+- **Problem**: Meta WhatsApp Cloud API webhooks ignore HTTP response bodies, dropping receipt cards and text answers unless actively pushed via outbound HTTP POST to Meta's Graph API.
+- **Change**: Built `backend/channels/whatsapp_client.py` supporting text, quick replies (max 3), and CTA URL buttons (`https://` only); wired conversational grocery pipeline in `backend/channels/whatsapp.py` (search, intent evaluation, composite cart, 10-minute approval creation, receipt delivery, 401 token parking); wired fast non-blocking button delivery in `backend/channels/button_router.py`; connected live delivery poller milestone push in `backend/main.py`; increased test network latency budget for WAN Supabase calls; authored 6 new contract tests in `tests/test_whatsapp_live_loop.py`.
+- **Proof**: `.\verify.ps1` ran all 4 verification stages exiting 0 with terminal proof (104/104 tests green in 17.06s, Ruff clean, Supabase live check 6/6 passed, Next.js build clean in 2.1s); pushed commit `261c22e` to `origin/grocer-v1`.
+- **Still broken**: None. All outbound WhatsApp delivery paths, inbound chat, and milestone push notifications are 100% complete and verified.
+
+
 
 

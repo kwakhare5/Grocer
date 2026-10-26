@@ -368,3 +368,11 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: Deleted `TASKS.md`; removed the duplicate roadmap from `ARCHITECTURE.md` and folded its DoD heading to §7; moved the Cardboard visual system to `docs/design-reference.md` and kept `DESIGN.md` as the WhatsApp UX spec; repointed `AGENTS.md`, `STATUS.md`, a test docstring and two code docstrings.
 - **Proof**: `grep TASKS.md` outside JOURNAL history returns nothing. `ruff check` clean. 38 offline tests pass in 2.81s.
 - **Still broken**: `PRD.md` still describes the target product as if built, and `JOURNAL.md` is history. `STATUS.md` remains the only current source.
+
+### [GROCER v1 — Architecture Amendment for Capability Routing] 2026-10-26
+
+#### Work Card: Replace four intents with capabilities and safety classes
+- **Problem**: Any message the LLM could not classify fell into `grocery_list`, which writes to the basket. With Gemini's free quota exhausted, every message took that path, so a price question could add items.
+- **Change**: Wrote ADR 0012 (capabilities, four safety classes, safe path, measured LLM selection). Amended `ARCHITECTURE.md` and `PRD.md`: LLM never calls Swiggy, unknown never writes, refresh before reconnect, provider behind an adapter. Added canonical terms to `GLOSSARY.md` and Groq settings to `.env.example`.
+- **Proof**: `git commit 0c06102`. Docs only; no runtime change yet.
+- **Still broken**: The code still uses the four intents. No Groq key in `.env`, so live routing tests are blocked.

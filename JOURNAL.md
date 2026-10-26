@@ -320,3 +320,11 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: Documentation-only pass. This session touched only `STATUS.md`, `AGENTS.md`, `TASKS.md`, `.scratch/HANDOFF.md`, and `JOURNAL.md`; the pre-existing uncommitted Gate 1 code and test changes were not modified.
 - **Still broken**: All implementation blockers remain as listed in `STATUS.md`, starting with refresh-on-expiry, untracked migration 002, multi-store checkout, uncaught `confirm_order` errors, and missing tracking coordinates.
 
+
+### [GROCER v1 — Gate 1 Committed Locally, No Push] 2026-10-26
+
+#### Work Card: Commit Gate 1 and migration 002 to `grocer-v1` without deploying
+- **Problem**: Gate 1 code and migration 002 sat uncommitted. Pushing would have deployed known P0 bugs (multi-store checkout, uncaught `confirm_order`, unscheduled payment poller). `scratch/inspect_user.py` printed a phone number and decrypted token bytes and was one `git add .` away from being committed.
+- **Change**: Committed Gate 1 code, migration 002, `STATUS.md`, and the `AGENTS.md`/`TASKS.md`/`HANDOFF.md` updates locally as `1ae6431`. Added `scratch/` to `.gitignore`. Nothing pushed.
+- **Proof**: `git commit` created `1ae6431`, 23 files, 937 insertions, 205 deletions. `git status` clean afterwards.
+- **Still broken**: All seven Gate 1.1 P0 blockers in `STATUS.md`.

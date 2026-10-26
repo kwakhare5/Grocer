@@ -32,8 +32,8 @@ The boundary is the Swiggy Instamart MCP surface, plus an honest fallback where 
 |---|---|
 | Branch | `grocer-v1` |
 | Gate 0 live check | Passed: token works, 3 addresses, live search returns 10 products |
-| Gate 1 code | Implemented but **uncommitted** (18 modified files, 1 new migration) |
-| Migration 002 | Applied to Supabase, but **untracked in git** |
+| Gate 1 code | Committed locally on `grocer-v1` (`1ae6431`); **not pushed** |
+| Migration 002 | Tracked in git and applied to Supabase |
 | Last recorded test run | 109/109 passed (42 fast + 37 checkout/e2e/channels + 30 Gemini) |
 | Test integrity | One location-pin test was weakened to expect `auth_required` |
 | Live refresh | Not tested; refresh does not run on normal token expiry |

@@ -88,6 +88,7 @@ async def test_swiggy_callback_invalid_state_rejects():
         assert "Invalid or expired authorization state" in resp.json()["detail"]
 
 
+@pytest.mark.db
 @pytest.mark.asyncio
 async def test_store_and_retrieve_refresh_token_roundtrip():
     """Gate 1: refresh token is encrypted at rest and decrypts back intact (real DB)."""

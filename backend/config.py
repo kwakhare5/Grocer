@@ -51,6 +51,8 @@ class Settings(BaseSettings):
     DATABASE_URL: str = Field(
         ..., description="PostgreSQL connection string with sslmode=require"
     )
+    # Tests refuse DATABASE_URL. Point this at a separate Supabase project.
+    TEST_DATABASE_URL: str | None = None
     DATABASE_POOL_MIN_SIZE: int = 1
     DATABASE_POOL_MAX_SIZE: int = 5
 

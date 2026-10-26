@@ -1,7 +1,7 @@
 # Grocer v1.0 — Session Handoff
 
-- **Goal:** Gate 2 — finish reorder, then prove the router with real AI calls.
-- **Current:** Reorder previews a past order or usual items with live products and prices, rebuilds the cart only on a tap, verifies read-after-write, and reverts on mismatch. Router prompt now separates reorder, ETA, bare lists, vague deletes and checkout. Live Groq eval: 39/40 on two full runs, 0 unsafe writes, different miss each time; both misses pass on rerun after a prompt rule.
-- **Passing Tests:** 47 targeted offline tests (router, basket, reorder, catalog) and `ruff` clean on changed files. Full suite not green: live-loop tests write junk users to the live Supabase DB and fail with `auth_required`.
-- **Next Action:** Build an isolated test DB (P1 #15, now confirmed with ~350 junk users), then typed-text address add. Run the eval 3 times for per-case consistency. No checkout, no order.
+- **Goal:** Gate 2 — keep the router honest and the tests off production.
+- **Current:** Reorder is built (preview, tap, rebuild, verify, revert). Live Groq eval: 39/40 on two runs, 0 unsafe writes, misses vary between runs and pass individually after prompt rules. Tests can no longer touch production: `get_db_pool()` refuses `DATABASE_URL` under pytest, DB tests are marked `db` and skip without `TEST_DATABASE_URL`.
+- **Passing Tests:** 113 passed, 23 skipped, 0 failed; `ruff` clean. Skips are the 23 DB tests waiting for a separate test database.
+- **Next Action:** Karan creates a free Supabase test project, adds `TEST_DATABASE_URL` to `.env`, and decides whether to delete the ~350 junk users from production. Then typed-text address add. No checkout, no order.
 - **Source of Truth:** `STATUS.md`

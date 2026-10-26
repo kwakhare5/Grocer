@@ -220,6 +220,7 @@ def test_e2e_launch_safety_cap_warning_and_raise_limit():
     assert warning.action_buttons[0]["id"].startswith("budget:raise:")
 
 
+@pytest.mark.db
 @pytest.mark.asyncio
 async def test_e2e_raise_budget_cap_via_button_dispatch():
     """Verify 1-tap budget raise button persists new limit into grocer.sessions."""
@@ -271,6 +272,7 @@ async def test_e2e_raise_budget_cap_via_button_dispatch():
 # ==============================================================================
 # 3. DPDP 24-Hour Scrubber & "delete my data" Instant Purge
 # ==============================================================================
+@pytest.mark.db
 @pytest.mark.asyncio
 async def test_e2e_dpdp_24h_scrubber_prunes_stale_data():
     """Verify 24h scrubber nulls raw_payload, cleans snapshots, and resets stale history."""
@@ -340,6 +342,7 @@ async def test_e2e_dpdp_24h_scrubber_prunes_stale_data():
         assert scrubbed_addr == "REDACTED"
 
 
+@pytest.mark.db
 @pytest.mark.asyncio
 async def test_e2e_dpdp_delete_my_data_command():
     """Verify 'delete my data' inbound text command permanently purges tokens and credentials."""
@@ -436,6 +439,7 @@ def test_e2e_delivery_milestone_resolution_and_antispam():
 # ==============================================================================
 # 5. Full Staging Order Journey
 # ==============================================================================
+@pytest.mark.db
 @pytest.mark.asyncio
 async def test_e2e_full_staging_customer_journey(swiggy_client):
     """Full staging smoke test: Address -> Search -> Update Cart -> Coupon -> 3-Lock -> Settle -> Track."""
@@ -535,6 +539,7 @@ async def test_e2e_full_staging_customer_journey(swiggy_client):
     assert "🛵" in notification.message
 
 
+@pytest.mark.db
 @pytest.mark.asyncio
 async def test_e2e_in_flight_delivery_poller_and_milestone_transition(swiggy_client):
     """Verify background poller tracks placed orders through live milestone updates."""
@@ -581,6 +586,7 @@ async def test_e2e_in_flight_delivery_poller_and_milestone_transition(swiggy_cli
         assert updated_status == "out_for_delivery"
 
 
+@pytest.mark.db
 @pytest.mark.asyncio
 async def test_e2e_pay_button_fast_path_executes_3_lock_checkout(swiggy_client):
     """Verify interactive [Pay] button tap directly executes 3-lock checkout in button_router."""

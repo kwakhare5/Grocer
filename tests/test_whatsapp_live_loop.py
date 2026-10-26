@@ -92,6 +92,7 @@ async def test_whatsapp_client_cta_url_button_payload(wa_client: WhatsAppClient)
 # ==============================================================================
 # 2. Inbound Webhook Chat Loop Tests
 # ==============================================================================
+@pytest.mark.db
 @pytest.mark.asyncio
 async def test_webhook_unauthenticated_user_prompts_swiggy_connect():
     """Unauthenticated WhatsApp user receives connect Swiggy CTA button."""
@@ -142,6 +143,7 @@ async def test_webhook_unauthenticated_user_prompts_swiggy_connect():
     assert res["wa_id"] == wa_id
 
 
+@pytest.mark.db
 @pytest.mark.asyncio
 async def test_webhook_authenticated_user_creates_approval_and_sends_receipt():
     """Authenticated user texting grocery list receives receipt card with interactive [Pay] button."""
@@ -209,6 +211,7 @@ async def test_webhook_authenticated_user_creates_approval_and_sends_receipt():
     assert res["approval_id"] is not None
 
 
+@pytest.mark.db
 @pytest.mark.asyncio
 async def test_webhook_expired_token_parks_request_and_prompts_reconnect():
     """When Swiggy returns 401, message is parked in DB and Reconnect button is sent (ADR 0010)."""
@@ -283,6 +286,7 @@ async def test_webhook_expired_token_parks_request_and_prompts_reconnect():
         assert status == "parked"
 
 
+@pytest.mark.db
 @pytest.mark.asyncio
 async def test_webhook_greeting_returns_conversational_reply_without_cart():
     """Customer sending 'hello' receives a friendly reply; no catalog search or cart is created."""
@@ -354,6 +358,7 @@ async def test_webhook_greeting_returns_conversational_reply_without_cart():
         assert approval_count == 0
 
 
+@pytest.mark.db
 @pytest.mark.asyncio
 async def test_webhook_multi_item_list_assembles_composite_cart():
     """Customer sending multi-item list ('milk and bread') resolves both items into composite cart."""

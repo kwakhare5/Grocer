@@ -152,11 +152,12 @@ The boundary is the Swiggy Instamart MCP surface, plus an honest fallback where 
 - 17 capabilities with four safety classes (ADR 0012).
 - Provider adapter: Groq `openai/gpt-oss-120b` and Gemini behind one JSON call.
 - Router wired into the webhook. Read capability → answer; `add_items` → existing basket path; any other write → honest "not yet" reply.
-- Live-proven reads: price and stock, saved addresses, order history, active-order status, cancel help, payment options.
+- Live-proven reads: price and stock, saved addresses, order history, active-order status, cancel help, payment options, delivery quote and coupons.
+- Address switch works with a basket warning and a confirmation tap; delete shows a confirmation and refuses the last or active address. Actual delete execution is unproven.
 - Live proof that a price question leaves the cart untouched: 11 items ₹1,763 before and after.
 - English-only replies enforced in the prompt.
 - Known cost: basket requests still make a second LLM call through the old classifier until recipes move into the router.
-- Not built yet: store info, coupons, add/switch/delete address, change/clear basket, reorder, text checkout (button only).
+- Not built yet: change or clear basket, reorder, add address by typed text (location pin works), text checkout (button only).
 
 **Not fixed:** the P0 and P1 items above.
 

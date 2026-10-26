@@ -298,6 +298,7 @@ def test_small_cart_fee_warning_adr_0009():
 # ==============================================================================
 # 5. Lock 3 (Atomic CAS) & Double-Tap Prevention
 # ==============================================================================
+@pytest.mark.db
 @pytest.mark.asyncio
 async def test_lock_3_atomic_cas_prevents_double_charge(swiggy_client):
     """Rapid double-tap executes exactly once; second tap is safely dropped by atomic CAS."""
@@ -361,6 +362,7 @@ async def test_lock_3_atomic_cas_prevents_double_charge(swiggy_client):
 # ==============================================================================
 # 6. Payment Poller & Post-Payment Session Reset (ADR 0010)
 # ==============================================================================
+@pytest.mark.db
 @pytest.mark.asyncio
 async def test_check_payment_status_poller_and_session_reset(swiggy_client):
     """Payment confirmation marks checkout placed, resets session basket, and links GPS tracking."""
@@ -494,6 +496,7 @@ def test_post_order_addition_protocol_adr_0009():
 # ==============================================================================
 # 11. Durable Background Poller (FOR UPDATE SKIP LOCKED)
 # ==============================================================================
+@pytest.mark.db
 @pytest.mark.asyncio
 async def test_durable_background_poller_skip_locked(swiggy_client):
     """Background poller uses FOR UPDATE SKIP LOCKED to settle pending checkouts and fail stale ones."""

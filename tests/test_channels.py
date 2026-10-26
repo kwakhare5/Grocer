@@ -235,6 +235,7 @@ async def test_webhook_get_verification_invalid_token():
         assert resp.status_code == 403
 
 
+@pytest.mark.db
 @pytest.mark.asyncio
 async def test_webhook_post_hmac_signature_validation():
     transport = ASGITransport(app=app)
@@ -277,6 +278,7 @@ async def test_webhook_post_hmac_signature_validation():
         assert data["status"] in ("ok", "processed", "auth_required")
 
 
+@pytest.mark.db
 @pytest.mark.asyncio
 async def test_webhook_deduplication_drops_duplicate_message():
     transport = ASGITransport(app=app)
@@ -314,6 +316,7 @@ async def test_webhook_deduplication_drops_duplicate_message():
         assert count == 1
 
 
+@pytest.mark.db
 @pytest.mark.asyncio
 async def test_webhook_stale_message_dropped():
     transport = ASGITransport(app=app)
@@ -360,6 +363,7 @@ async def test_webhook_status_update_receipt_ignored():
         assert resp.json()["status"] == "ignored_status"
 
 
+@pytest.mark.db
 @pytest.mark.asyncio
 async def test_webhook_fast_button_dispatch():
     transport = ASGITransport(app=app)
@@ -387,6 +391,7 @@ async def test_webhook_fast_button_dispatch():
         assert elapsed_ms < 1500
 
 
+@pytest.mark.db
 @pytest.mark.asyncio
 async def test_webhook_concurrent_double_tap_advisory_lock():
     transport = ASGITransport(app=app)
@@ -443,6 +448,7 @@ async def test_webhook_concurrent_double_tap_advisory_lock():
         assert status == "concurrency_dropped"
 
 
+@pytest.mark.db
 @pytest.mark.asyncio
 async def test_webhook_location_pin_saved_and_asks_to_connect_when_no_token():
     transport = ASGITransport(app=app)
@@ -477,6 +483,7 @@ async def test_webhook_location_pin_saved_and_asks_to_connect_when_no_token():
         assert raw["location"]["longitude"] == lon
 
 
+@pytest.mark.db
 @pytest.mark.asyncio
 async def test_webhook_list_reply_parsed_and_dispatched():
     transport = ASGITransport(app=app)
@@ -502,6 +509,7 @@ async def test_webhook_list_reply_parsed_and_dispatched():
         assert data["address_id"] == "addr_bandra_101"
 
 
+@pytest.mark.db
 @pytest.mark.asyncio
 async def test_webhook_multi_message_batch_processed():
     transport = ASGITransport(app=app)

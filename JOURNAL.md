@@ -376,3 +376,11 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: Wrote ADR 0012 (capabilities, four safety classes, safe path, measured LLM selection). Amended `ARCHITECTURE.md` and `PRD.md`: LLM never calls Swiggy, unknown never writes, refresh before reconnect, provider behind an adapter. Added canonical terms to `GLOSSARY.md` and Groq settings to `.env.example`.
 - **Proof**: `git commit 0c06102`. Docs only; no runtime change yet.
 - **Still broken**: The code still uses the four intents. No Groq key in `.env`, so live routing tests are blocked.
+
+### [GROCER v1 — Gate 2: Swappable LLM Adapter] 2026-10-26
+
+#### Work Card: One adapter, two providers, no provider touches Swiggy
+- **Problem**: Every LLM call was written directly against Gemini inside `candidate_evaluator.py`, so changing provider meant rewriting prompt code, and the 20/day free quota stalled all work.
+- **Change**: Added `backend/agent/llm.py` with `complete_json()` and two providers (Groq over its OpenAI-compatible endpoint, Gemini via google-genai). No automatic cross-provider fallback, so evaluation can attribute results. Added `LLM_PROVIDER`, `GROQ_API_KEY`, `GROQ_MODEL`, `LLM_TIMEOUT_SECONDS` and `ROUTER_CONFIDENCE_FLOOR` to config and `.env.example`.
+- **Proof**: `ruff check` clean. Live Groq call returned parsed JSON `{'ok': True, 'n': 7}` from `openai/gpt-oss-120b`.
+- **Still broken**: The router still uses the four old intents. Nothing calls `complete_json` yet.

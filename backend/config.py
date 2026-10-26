@@ -40,6 +40,13 @@ class Settings(BaseSettings):
     GEMINI_MODEL: str = "gemini-3.5-flash"
     GEMINI_FALLBACK_MODEL: str = "gemini-3.5-flash-lite"
 
+    # LLM Adapter (ADR 0012). The provider never calls Swiggy.
+    LLM_PROVIDER: str = "groq"
+    GROQ_API_KEY: str | None = None
+    GROQ_MODEL: str = "openai/gpt-oss-120b"
+    LLM_TIMEOUT_SECONDS: float = 30.0
+    ROUTER_CONFIDENCE_FLOOR: float = 0.70
+
     # Database (Supabase PostgreSQL with SSL)
     DATABASE_URL: str = Field(
         ..., description="PostgreSQL connection string with sslmode=require"

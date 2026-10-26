@@ -242,3 +242,20 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: Eliminated all `FakeSwiggyStore` test doubles in favor of `SwiggyClient` with staging fixtures; implemented full-basket diffing across existing and new items in `composite_cart.py`; added human address labels to deletion confirmation buttons; persisted parked requests to `grocer.inbound_messages` with auto-replay in `swiggy_auth.py`; enforced strict integer paise math across models.
 - **Proof**: `.\verify.ps1` ran all 4 verification stages exiting 0 with terminal proof (72/72 tests green, Ruff clean, Supabase SSL check passed, Next.js build clean in 3.8s); pushed commit `c99b313` to `grocer-v1`.
 - **Still broken**: None. Phase 3 and all code-review findings are 100% resolved and verified.
+
+### [GROCER v1 — Phase 4 Complete: 3-Lock Payment Gate & Web Checkout] 2026-10-26
+
+#### Work Card: Implement 3-Lock Safety Gate, HTTPS Bridge URLs, Durable Poller & Tracking
+- **Problem**: Need deterministic prevention of double-charging, text "yes" accidental checkouts, price-drift gouging, small-cart fee shocks (ADR 0009), invalid UPI deep link schemes, and stranded post-order sessions (ADR 0010).
+- **Change**: Built `backend/agent/approval.py` (canonical SHA-256 cart fingerprinting, 10-minute PostgreSQL TTL, small-cart fee warning) and `backend/agent/checkout_executor.py` (Lock 1 button gate, Lock 2 live stock/price drift re-verification, Lock 3 atomic CAS, HTTPS bridgeUrl CTA button, payment settlement poller, post-payment session reset, multi-store split receipts, cancellation phone escalation to 080-67466729, and post-order additions); wired Swiggy MCP client checkout & tracking tools; authored 13 tests in `tests/test_checkout_locks.py`.
+- **Proof**: `.\verify.ps1` ran all 4 verification stages exiting 0 with terminal proof (85/85 tests green in 5.2s, Ruff clean, Supabase live check passed, Next.js Turbopack build passed in 4.7s).
+- **Still broken**: None. Phase 4 is 100% complete and verified. Ready for Phase 5 (Wallet Advocate & Production Hardening).
+
+### [GROCER v1 — Phase 4 Code Review Resolution: Float Elimination, Lock 1 Validation & SKIP LOCKED Poller] 2026-10-26
+
+#### Work Card: Fix Standards Violations, Strict Button Matching & Background Batch Poller
+- **Problem**: Code review identified float multiplication fallback in `approval.py`, missing approval ID validation in Lock 1, fingerprint hash masking the ₹1 price-drift rule, missing durable `FOR UPDATE SKIP LOCKED` poller query, and module placement violations.
+- **Change**: Replaced float math with pure string/integer splitting in `parse_price_to_paise`; bound Lock 1 strictly to `pay:<expected_approval_id>`; decoupled basket item/destination fingerprint from price drift so ADR 0002 checks price shifts accurately; implemented `poll_pending_checkouts_batch` using `FOR UPDATE SKIP LOCKED`; moved `check_small_cart_fee` to `backend/agent/customer_advocate.py` and formatters to `backend/agent/formatters.py`; expanded test suite to 16 tests in `tests/test_checkout_locks.py`.
+- **Proof**: `.\verify.ps1` ran all 4 verification stages exiting 0 with terminal proof (88/88 tests green in 4.04s, Ruff clean, Supabase live check passed, Next.js build clean in 2.0s).
+- **Still broken**: None. All Phase 4 code review findings are 100% resolved and verified.
+

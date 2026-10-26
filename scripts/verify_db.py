@@ -6,7 +6,8 @@ from pathlib import Path
 # Ensure root is on sys.path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from backend.database import get_db_pool, close_db_pool
+from backend.database import close_db_pool, get_db_pool
+
 
 async def verify():
     pool = await get_db_pool()

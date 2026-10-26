@@ -55,20 +55,20 @@
 
 ---
 
-## Phase 4: 3-Lock Payment Gate & Web Checkout
-- [ ] Implement Lock 1 (physical button ID only; text "yes" rejected).
-- [ ] Implement Lock 2 (re-verification of price, integer paise math, stock, and ₹1 price-drift abort).
-- [ ] Implement Lock 3 (atomic PostgreSQL CAS on `grocer.approvals` + pre-checkout order ID snapshot).
-- [ ] Format Swiggy HTTPS `bridgeUrl` into WhatsApp CTA URL button (strictly reject `upi://` schemes).
-- [ ] Implement Small-Cart Fee Warning (ADR 0009: warn customer if order is below dark store's free delivery threshold).
-- [ ] Implement `check_payment_status` ~19-second durable background poller (up to 5 min timeout).
-- [ ] Implement Multi-Store Split Order handling (ADR 0007: unified WhatsApp receipt + split tracking links).
-- [ ] Implement Order Cancellation Protocol (ADR 0007: phone escalation to Swiggy Care `080-67466729`).
-- [ ] Implement Post-Payment Session Reset (ADR 0010: clear session basket upon payment confirmation).
-- [ ] Implement Post-Order Additions (ADR 0009: propose add-to-active-order if packing; else start second order).
-- [ ] Implement real-time GPS rider tracking transition on payment confirmation (`track_order`).
-- [ ] Write test suite `tests/test_checkout_locks.py`.
-- **Done Condition:** Text "yes" fails to trigger payment; double-tap triggers exactly one checkout; successful payment pushes instant WhatsApp receipt and live GPS tracking map link.
+## Phase 4: 3-Lock Payment Gate & Web Checkout — [COMPLETE]
+- [x] Implement Lock 1 (physical button ID only; text "yes" rejected).
+- [x] Implement Lock 2 (re-verification of price, integer paise math, stock, and ₹1 price-drift abort).
+- [x] Implement Lock 3 (atomic PostgreSQL CAS on `grocer.approvals` + pre-checkout order ID snapshot).
+- [x] Format Swiggy HTTPS `bridgeUrl` into WhatsApp CTA URL button (strictly reject `upi://` schemes).
+- [x] Implement Small-Cart Fee Warning (ADR 0009: warn customer if order is below dark store's free delivery threshold).
+- [x] Implement `check_payment_status` ~19-second durable background poller (up to 5 min timeout).
+- [x] Implement Multi-Store Split Order handling (ADR 0007: unified WhatsApp receipt + split tracking links).
+- [x] Implement Order Cancellation Protocol (ADR 0007: phone escalation to Swiggy Care `080-67466729`).
+- [x] Implement Post-Payment Session Reset (ADR 0010: clear session basket upon payment confirmation).
+- [x] Implement Post-Order Additions (ADR 0009: propose add-to-active-order if packing; else start second order).
+- [x] Implement real-time GPS rider tracking transition on payment confirmation (`track_order`).
+- [x] Write test suite `tests/test_checkout_locks.py`.
+- **Done Condition:** Text "yes" fails to trigger payment; double-tap triggers exactly one checkout; successful payment pushes instant WhatsApp receipt and live GPS tracking map link. [VERIFIED: 13/13 green, 85/85 total suite green]
 
 ---
 

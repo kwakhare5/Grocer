@@ -3,13 +3,14 @@
 Executes pending SQL migrations against Supabase PostgreSQL and verifies table creation.
 """
 import asyncio
-from pathlib import Path
 import sys
+from pathlib import Path
 
 # Ensure repository root is on sys.path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from backend.database import get_db_pool, close_db_pool, apply_migrations
+from backend.database import apply_migrations, close_db_pool, get_db_pool
+
 
 async def run():
     print("Connecting to Supabase PostgreSQL...")

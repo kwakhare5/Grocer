@@ -36,7 +36,7 @@ The boundary is the Swiggy Instamart MCP surface, plus an honest fallback where 
 | Live payment options | Passed: 10 methods returned (GPay, PhonePe, Paytm, BHIM, CRED, QR, COD, Swiggy Money) |
 | Gate 1 code | Committed and pushed (`1ae6431`) |
 | Gate 1.1 code | Committed and pushed (`c8d31c9`); deployed |
-| Gate 2 router | Built, live-tested on 8 messages, **not yet wired to WhatsApp** |
+| Gate 2 router | Wired for read capabilities. Live-proven: price/stock, addresses, order history, tracking, cancel help, payment options |
 | Migrations | 002 tracked and applied; 003 added locally, not yet applied to Supabase |
 | Startup | Applies pending migrations on boot, tracked in `grocer.schema_migrations` |
 | Tests run today | 49 offline pass (38 contract/lifecycle/invariants/cart + 11 router). DB-backed and Gemini suites not run. |
@@ -147,13 +147,16 @@ The boundary is the Swiggy Instamart MCP surface, plus an honest fallback where 
 - Migration 002 applied to Supabase.
 - Last recorded run: 109/109 tests, Ruff clean, Next build clean.
 
-### Gate 2 — router built, not wired
+### Gate 2 — read capabilities wired
 
 - 17 capabilities with four safety classes (ADR 0012).
 - Provider adapter: Groq `openai/gpt-oss-120b` and Gemini behind one JSON call.
-- Live routing proven on 8 messages, including Hinglish and cancel requests.
+- Router wired into the webhook. Read capability → answer; `add_items` → existing basket path; any other write → honest "not yet" reply.
+- Live-proven reads: price and stock, saved addresses, order history, active-order status, cancel help, payment options.
+- Live proof that a price question leaves the cart untouched: 11 items ₹1,763 before and after.
 - English-only replies enforced in the prompt.
-- Nothing calls the router from WhatsApp yet.
+- Known cost: basket requests still make a second LLM call through the old classifier until recipes move into the router.
+- Not built yet: store info, coupons, add/switch/delete address, change/clear basket, reorder, text checkout (button only).
 
 **Not fixed:** the P0 and P1 items above.
 

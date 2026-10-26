@@ -384,3 +384,11 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: Added `backend/agent/llm.py` with `complete_json()` and two providers (Groq over its OpenAI-compatible endpoint, Gemini via google-genai). No automatic cross-provider fallback, so evaluation can attribute results. Added `LLM_PROVIDER`, `GROQ_API_KEY`, `GROQ_MODEL`, `LLM_TIMEOUT_SECONDS` and `ROUTER_CONFIDENCE_FLOOR` to config and `.env.example`.
 - **Proof**: `ruff check` clean. Live Groq call returned parsed JSON `{'ok': True, 'n': 7}` from `openai/gpt-oss-120b`.
 - **Still broken**: The router still uses the four old intents. Nothing calls `complete_json` yet.
+
+### [GROCER v1 — Gate 2: Capability Router] 2026-10-26
+
+#### Work Card: Replace four intents with 17 capabilities and four safety classes
+- **Problem**: The old classifier had four intents and sent anything unrecognised to `grocery_list`, which writes to the basket. Price questions could add items.
+- **Change**: Added `backend/agent/router.py`: a single capability catalogue that feeds the prompt, the safety map and the dispatch table; `parse_decision()` as a pure function enforcing confidence floors per safety class; and `route_message()` calling the LLM adapter. Unknown or low-confidence messages become a read-only item lookup when a product was named, otherwise a question. Money needs 0.95 confidence and still cannot be executed from text. Added 11 offline tests in `tests/test_router.py`.
+- **Proof**: `ruff` clean; 11 router tests pass. Live Groq routing: price and stock → `item_info` (read), addresses → `list_addresses`, "where is my order" → `track_order`, "add 2 litres milk" → `add_items` (basket), "doodh kitna hai" → `item_info`, "cancel my order" → `cancel_help`, "hello" → `chat`.
+- **Still broken**: Nothing calls the router yet. `whatsapp.py` still uses the old four intents.

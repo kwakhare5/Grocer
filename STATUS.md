@@ -35,7 +35,8 @@ The boundary is the Swiggy Instamart MCP surface, plus an honest fallback where 
 | Live cart read | Passed after fixing a schema bug: 11 items, ₹1,751, one dark store, all in stock |
 | Live payment options | Passed: 10 methods returned (GPay, PhonePe, Paytm, BHIM, CRED, QR, COD, Swiggy Money) |
 | Gate 1 code | Committed and pushed (`1ae6431`) |
-| Gate 1.1 code | Committed and pushed (`c8d31c9`); Render deploy triggered 2026-10-26 |
+| Gate 1.1 code | Committed and pushed (`c8d31c9`); deployed |
+| Gate 2 router | Built, live-tested on 8 messages, **not yet wired to WhatsApp** |
 | Migrations | 002 tracked and applied; 003 added locally, not yet applied to Supabase |
 | Startup | Applies pending migrations on boot, tracked in `grocer.schema_migrations` |
 | Last recorded test run | 109/109 passed (42 fast + 37 checkout/e2e/channels + 30 Gemini) |
@@ -165,22 +166,35 @@ The boundary is the Swiggy Instamart MCP surface, plus an honest fallback where 
 
 ---
 
-## 8. Current Next Gate
+## 8. Current Gate Contract — Gate 2: Concierge Answers
 
-**Gate 1.2 — prove Gate 1.1 against the live account, then commit and deploy.**
+**Goal, one sentence:** a customer can ask about price, stock, store, saved addresses, order history, tracking or a reorder and get a correct answer from live Swiggy data, in plain English.
 
-Code order is done. Remaining:
+**Non-goals for this gate:** no checkout, no order, no payment call, no address create/switch/delete, no cart mutation, no deploy.
 
-1. Apply migration 003 to Supabase (needs Karan's yes).
-2. Live read-only Swiggy check with the resolved token (addresses, search, orders).
-3. Live cart test: add, inspect, verify. No checkout, no order.
-4. Live refresh check: force one `/auth/token` exchange and confirm the rotated token still works.
-5. Run the fast + checkout test suites with the new schema.
-6. Commit Gate 1.1 locally, then push only after these pass.
+**Before changing any code, the chat must show:**
 
-Not proven yet: live refresh, live confirm, live split order, live payment poller. Those need a real paid order, which stays blocked until Karan approves.
+1. What the bot does today, with the exact code path and line numbers.
+2. What `PRD.md` says it should do.
+3. The smallest change that closes the gap.
+4. The live read-only call that will prove it.
 
-After that: Gate 2 — concierge intents and the full product surface.
+**Acceptance tests — each one runs live, read-only:**
+
+| # | Customer says | Must happen |
+|---|---|---|
+| 1 | "How much is Amul milk?" | Real price and pack size. Cart untouched. |
+| 2 | "Is Amul milk in stock?" | Real availability at the default store. |
+| 3 | "Which store? When will it arrive?" | Real store and delivery window for the active address. |
+| 4 | "What addresses do I have?" | The 3 saved addresses, default marked. |
+| 5 | "Show my last orders" | Real history. It is 0 today, so it must say 0. |
+| 6 | "Where is my order?" | Asks which order, or says there are none. Never invents one. |
+| 7 | "Reorder that" | With no past order, says so truthfully. With one, builds the basket and stops before checkout. Cart change needs Karan's yes. |
+| 8 | "milk" | Tappable choices for the real products. Never "couldn't find". |
+
+**Done means:** every test shows its real answer in the terminal, `ruff` clean, offline tests green, and `STATUS.md` / `.scratch/HANDOFF.md` / `JOURNAL.md` updated. Anything unproven is listed as unproven.
+
+**Review rule:** a read-only reviewer agent checks the plan against `PRD.md` before edits when the change touches more than one file.
 
 ---
 

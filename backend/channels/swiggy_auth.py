@@ -126,6 +126,7 @@ async def swiggy_callback(req: CallbackRequest) -> CallbackResponse:
         ) from exc
 
     access_token = data.get("access_token")
+    refresh_token = data.get("refresh_token")
     expires_in = data.get("expires_in", 432000)
 
     if not access_token:
@@ -146,10 +147,11 @@ async def swiggy_callback(req: CallbackRequest) -> CallbackResponse:
     )
     user_id = user_row["id"]
 
-    # Save encrypted token
+    # Save encrypted token (and refresh token for 401 auto-refresh)
     await store_user_token(
         user_id=user_id,
         access_token=access_token,
+        refresh_token=refresh_token,
         expires_in_seconds=expires_in,
     )
 

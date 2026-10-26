@@ -54,7 +54,7 @@ async def handle_webhook(
     4. Enforces PostgreSQL deduplication with ON CONFLICT DO NOTHING.
     5. Acquires per-user transaction advisory lock.
     6. Dispatches interactive button taps directly to fast 50ms Python router.
-    7. Supports multi-message batches without early loop truncation.
+    7. Routes location pins through onboarding and text through the grocery pipeline.
     """
     body_bytes = await request.body()
     signature_header = request.headers.get("X-Hub-Signature-256")
@@ -163,14 +163,15 @@ async def handle_webhook(
                 results.append(action_res)
                 continue
 
-            # 8. Inbound Command Dispatcher (DPDP, admin commands)
+            # 8. Deterministic admin/privacy commands (DPDP) take priority over commerce
             if msg.text:
                 from backend.channels.command_router import dispatch_text_command
-                from backend.channels.whatsapp_client import WhatsAppClient
 
-                wa_client = WhatsAppClient()
                 cmd_res = await dispatch_text_command(msg.text, str(user_id), conn)
                 if cmd_res is not None:
+                    from backend.channels.whatsapp_client import WhatsAppClient
+
+                    wa_client = WhatsAppClient()
                     if cmd_res.get("message"):
                         await wa_client.send_text_message(
                             to_wa_id=msg.sender_wa_id,
@@ -179,12 +180,22 @@ async def handle_webhook(
                     results.append(cmd_res)
                     continue
 
-                # 9. Conversational Grocery Concierge Pipeline
-                from backend.integrations.commerce.token_vault import get_user_token
+            # 9. Commerce + onboarding: requires a live Swiggy token
+            if msg.message_type == "location" or msg.text:
+                from backend.channels.whatsapp_client import WhatsAppClient
+                from backend.integrations.commerce.swiggy_client import (
+                    SwiggyAuthExpiredError,
+                    SwiggyClient,
+                )
+                from backend.integrations.commerce.token_vault import (
+                    get_user_token,
+                    refresh_user_token,
+                )
+
+                wa_client = WhatsAppClient()
 
                 user_token = await get_user_token(user_id)
                 if not user_token:
-                    # User is not connected to Swiggy yet
                     login_url = f"https://grocerr.vercel.app?phone={msg.sender_wa_id}"
                     await wa_client.send_cta_url_button(
                         to_wa_id=msg.sender_wa_id,
@@ -199,6 +210,147 @@ async def handle_webhook(
                     results.append({"status": "auth_required", "wa_id": msg.sender_wa_id})
                     continue
 
+                client = swiggy_client or SwiggyClient(auth_token=user_token)
+
+                # 9a. WhatsApp location pin -> geocode + persist delivery coords
+                if (
+                    msg.message_type == "location"
+                    and msg.latitude is not None
+                    and msg.longitude is not None
+                ):
+                    from backend.agent.address_lifecycle import (
+                        AddressOnboardingFlow,
+                        OnboardingStep,
+                    )
+
+                    try:
+                        flow = AddressOnboardingFlow(client)
+                        turn = flow.start_from_location(msg.latitude, msg.longitude)
+                    except (httpx.HTTPError, ValueError, KeyError, RuntimeError) as exc:
+                        logger.warning("Onboarding geocode failed: %s", exc)
+                        await wa_client.send_text_message(
+                            to_wa_id=msg.sender_wa_id,
+                            text="Sorry, I couldn't resolve that location. Please share your pin again.",
+                        )
+                        results.append(
+                            {"status": "onboarding_location_failed", "wa_id": msg.sender_wa_id}
+                        )
+                        continue
+
+                    await conn.execute(
+                        """
+                        INSERT INTO grocer.sessions (
+                            user_id, onboarding_state, onboarding_context,
+                            delivery_latitude, delivery_longitude, last_active_at
+                        )
+                        VALUES ($1, $2, $3::jsonb, $4, $5, now())
+                        ON CONFLICT (user_id) DO UPDATE SET
+                            onboarding_state = $2,
+                            onboarding_context = $3::jsonb,
+                            delivery_latitude = $4,
+                            delivery_longitude = $5,
+                            last_active_at = now();
+                        """,
+                        user_id,
+                        turn.next_step.value,
+                        json.dumps(turn.context),
+                        msg.latitude,
+                        msg.longitude,
+                    )
+                    await wa_client.send_text_message(
+                        to_wa_id=msg.sender_wa_id, text=turn.prompt
+                    )
+                    results.append(
+                        {"status": "onboarding_location_captured", "wa_id": msg.sender_wa_id}
+                    )
+                    continue
+
+                # 9b. Onboarding follow-up text (flat -> name -> city+PIN)
+                from backend.agent.address_lifecycle import (
+                    AddressOnboardingFlow,
+                    OnboardingStep,
+                )
+
+                session_onboarding = await conn.fetchrow(
+                    "SELECT onboarding_state, onboarding_context FROM grocer.sessions WHERE user_id = $1;",
+                    user_id,
+                )
+                onboarding_state = (
+                    session_onboarding["onboarding_state"] if session_onboarding else None
+                )
+                onboarding_ctx = (
+                    json.loads(session_onboarding["onboarding_context"])
+                    if session_onboarding and session_onboarding["onboarding_context"]
+                    else {}
+                )
+
+                if onboarding_state and onboarding_state != OnboardingStep.DONE.value:
+                    try:
+                        flow = AddressOnboardingFlow(client)
+                        turn = flow.advance(
+                            step=onboarding_state,
+                            context=onboarding_ctx,
+                            text=msg.text,
+                            wa_id=msg.sender_wa_id,
+                        )
+                    except (httpx.HTTPError, ValueError, KeyError, RuntimeError) as exc:
+                        logger.warning("Onboarding step failed: %s", exc)
+                        await wa_client.send_text_message(
+                            to_wa_id=msg.sender_wa_id,
+                            text="Something went wrong saving your address. Please try again.",
+                        )
+                        results.append(
+                            {"status": "onboarding_failed", "wa_id": msg.sender_wa_id}
+                        )
+                        continue
+
+                    if turn.completed and turn.address_id:
+                        await conn.execute(
+                            """
+                            INSERT INTO grocer.sessions (user_id, active_address_id, onboarding_state, onboarding_context, last_active_at)
+                            VALUES ($1, $2, NULL, NULL, now())
+                            ON CONFLICT (user_id) DO UPDATE SET
+                                active_address_id = $2,
+                                onboarding_state = NULL,
+                                onboarding_context = NULL,
+                                last_active_at = now();
+                            """,
+                            user_id,
+                            turn.address_id,
+                        )
+                        await conn.execute(
+                            "UPDATE grocer.users SET display_name = $1, updated_at = now() WHERE id = $2;",
+                            turn.context.get("name") or "",
+                            user_id,
+                        )
+                    else:
+                        await conn.execute(
+                            """
+                            INSERT INTO grocer.sessions (user_id, onboarding_state, onboarding_context, last_active_at)
+                            VALUES ($1, $2, $3::jsonb, now())
+                            ON CONFLICT (user_id) DO UPDATE SET
+                                onboarding_state = $2,
+                                onboarding_context = $3::jsonb,
+                                last_active_at = now();
+                            """,
+                            user_id,
+                            turn.next_step.value,
+                            json.dumps(turn.context),
+                        )
+
+                    await wa_client.send_text_message(
+                        to_wa_id=msg.sender_wa_id, text=turn.prompt
+                    )
+                    results.append(
+                        {
+                            "status": "onboarding_advanced",
+                            "wa_id": msg.sender_wa_id,
+                            "step": turn.next_step.value,
+                        }
+                    )
+                    continue
+
+                # 9c. Conversational grocery pipeline (refresh-on-401 retry)
                 from backend.agent.approval import create_checkout_approval
                 from backend.agent.candidate_evaluator import (
                     ExtractedGroceryItem,
@@ -212,24 +364,30 @@ async def handle_webhook(
                     CompositeCartManager,
                     TargetCartItem,
                 )
-                from backend.integrations.commerce.swiggy_client import (
-                    SwiggyAuthExpiredError,
-                    SwiggyClient,
-                )
 
-                client = swiggy_client or SwiggyClient(auth_token=user_token)
-
-                try:
+                async def run_turn(
+                    turn_client: SwiggyClient,
+                    msg: Any,
+                    user_id: Any,
+                    conn: Any,
+                    wa_client: Any,
+                ) -> dict[str, Any]:
                     # Resolve active address and past dialogue history
                     session_row = await conn.fetchrow(
                         "SELECT active_address_id, history FROM grocer.sessions WHERE user_id = $1;",
                         user_id,
                     )
-                    active_addr_id = session_row["active_address_id"] if session_row else None
+                    active_addr_id = (
+                        session_row["active_address_id"] if session_row else None
+                    )
                     raw_history = session_row["history"] if session_row else None
                     if raw_history:
                         try:
-                            session_history = json.loads(raw_history) if isinstance(raw_history, str) else raw_history
+                            session_history = (
+                                json.loads(raw_history)
+                                if isinstance(raw_history, str)
+                                else raw_history
+                            )
                         except (json.JSONDecodeError, TypeError, ValueError):
                             session_history = []
                     else:
@@ -238,7 +396,7 @@ async def handle_webhook(
                     address_count = 1
                     if not active_addr_id:
                         try:
-                            addrs = client.get_addresses()
+                            addrs = turn_client.get_addresses()
                             address_count = len(addrs.addresses)
                             if addrs.addresses:
                                 active_addr_id = addrs.addresses[0].id
@@ -263,8 +421,11 @@ async def handle_webhook(
                         address_count=address_count,
                     )
 
-                    # Handle Chit-Chat Greetings & Conversational Q&A (Zero Dark-Store Calls)
-                    if turn_result.intent_type in [IntentType.GREETING, IntentType.CONVERSATIONAL_QA]:
+                    # Handle Chit-Chat Greetings & Conversational Q&A
+                    if turn_result.intent_type in [
+                        IntentType.GREETING,
+                        IntentType.CONVERSATIONAL_QA,
+                    ]:
                         reply_text = (
                             turn_result.conversational_reply
                             or "Hey! What groceries do you need today?"
@@ -284,14 +445,11 @@ async def handle_webhook(
                             user_id,
                             json.dumps(session_history[-12:]),
                         )
-                        results.append(
-                            {
-                                "status": "conversational_replied",
-                                "intent": turn_result.intent_type.value,
-                                "wa_id": msg.sender_wa_id,
-                            }
-                        )
-                        continue
+                        return {
+                            "status": "conversational_replied",
+                            "intent": turn_result.intent_type.value,
+                            "wa_id": msg.sender_wa_id,
+                        }
 
                     # Handle Cold-Start Zero-Address Onboarding (ADR 0010)
                     if turn_result.intent_type == IntentType.ZERO_ADDRESS_ONBOARDING:
@@ -303,10 +461,10 @@ async def handle_webhook(
                             to_wa_id=msg.sender_wa_id,
                             text=prompt_text,
                         )
-                        results.append(
-                            {"status": "location_pin_requested", "wa_id": msg.sender_wa_id}
-                        )
-                        continue
+                        return {
+                            "status": "location_pin_requested",
+                            "wa_id": msg.sender_wa_id,
+                        }
 
                     # Handle Recipe Checklist Proposals (ADR 0009)
                     if turn_result.intent_type == IntentType.RECIPE_CHECKLIST:
@@ -339,14 +497,11 @@ async def handle_webhook(
                             user_id,
                             json.dumps(session_history[-12:]),
                         )
-                        results.append(
-                            {
-                                "status": "recipe_proposed",
-                                "recipe": turn_result.recipe_name,
-                                "wa_id": msg.sender_wa_id,
-                            }
-                        )
-                        continue
+                        return {
+                            "status": "recipe_proposed",
+                            "recipe": turn_result.recipe_name,
+                            "wa_id": msg.sender_wa_id,
+                        }
 
                     # 2. Grocery List Intent: Parallel Search & Candidate Evaluation (ADR 0011)
                     extracted_items = turn_result.extracted_items
@@ -355,7 +510,7 @@ async def handle_webhook(
 
                     async def search_and_eval(
                         target: ExtractedGroceryItem,
-                        sw_client: SwiggyClient = client,
+                        sw_client: SwiggyClient = turn_client,
                         addr_id: str | None = active_addr_id,
                         addr_cnt: int = address_count,
                     ):
@@ -386,18 +541,22 @@ async def handle_webhook(
                             items_to_add.append(
                                 TargetCartItem(
                                     spin_id=cand.spin_id,
+                                    sku_id=cand.sku_id,
                                     quantity=target.quantity,
                                     item_name=cand.display_name,
                                     price_paise=cand.offer_price_paise,
                                 )
                             )
-                        elif evaluation.intent_type == IntentType.DISAMBIGUATION and evaluation.message:
+                        elif (
+                            evaluation.intent_type == IntentType.DISAMBIGUATION
+                            and evaluation.message
+                        ):
                             disambiguation_notes.append(evaluation.message)
                         else:
                             unfound_queries.append(target.query)
 
                     if items_to_add:
-                        cart_mgr = CompositeCartManager(client)
+                        cart_mgr = CompositeCartManager(turn_client)
                         cart_res = cart_mgr.assemble_and_update_cart(
                             items_to_add=items_to_add,
                             address_id=active_addr_id,
@@ -416,7 +575,9 @@ async def handle_webhook(
                         if disambiguation_notes:
                             receipt_body += "\n\n💡 *" + "\n".join(disambiguation_notes) + "*"
                         if unfound_queries:
-                            receipt_body += f"\n\n⚠️ *Not found at store:* {', '.join(unfound_queries)}"
+                            receipt_body += (
+                                f"\n\n⚠️ *Not found at store:* {', '.join(unfound_queries)}"
+                            )
 
                         await wa_client.send_quick_reply_buttons(
                             to_wa_id=msg.sender_wa_id,
@@ -443,39 +604,55 @@ async def handle_webhook(
                             user_id,
                             json.dumps(session_history[-12:]),
                         )
-                        results.append(
-                            {
-                                "status": "cart_updated",
-                                "approval_id": approval.id,
-                                "to_pay_paise": approval.to_pay_paise,
-                            }
-                        )
-                        continue
-                    else:
-                        await wa_client.send_text_message(
-                            to_wa_id=msg.sender_wa_id,
-                            text=f"Sorry, I couldn't find items matching '{msg.text}' at your local dark store. Could you try a different brand or item name?",
-                        )
-                        results.append({"status": "no_match", "query": msg.text})
-                        continue
-                except SwiggyAuthExpiredError:
-                    # Token expired (401) — Park shopping list and prompt reconnection (ADR 0010)
-                    await conn.execute(
-                        "UPDATE grocer.inbound_messages SET status = 'parked' WHERE id = $1;",
-                        inbound_id,
-                    )
-                    login_url = f"https://grocerr.vercel.app?phone={msg.sender_wa_id}"
-                    await wa_client.send_cta_url_button(
+                        return {
+                            "status": "cart_updated",
+                            "approval_id": approval.id,
+                            "to_pay_paise": approval.to_pay_paise,
+                        }
+
+                    await wa_client.send_text_message(
                         to_wa_id=msg.sender_wa_id,
-                        body_text=(
-                            "⚠️ *Your Swiggy login needs a 5-day security refresh.*\n\n"
-                            "Tap below to reconnect your account. Your grocery list has been saved and will resume automatically:"
-                        ),
-                        button_text="Reconnect Swiggy",
-                        url=login_url,
+                        text=f"Sorry, I couldn't find items matching '{msg.text}' at your local dark store. Could you try a different brand or item name?",
                     )
-                    results.append({"status": "auth_expired", "wa_id": msg.sender_wa_id})
-                    continue
+                    return {"status": "no_match", "query": msg.text}
+
+                try:
+                    results.append(await run_turn(client, msg, user_id, conn, wa_client))
+                except SwiggyAuthExpiredError:
+                    # Try a silent refresh before parking (Gate 1). Park only if it fails.
+                    new_token = await refresh_user_token(user_id)
+                    retried = False
+                    if new_token:
+                        try:
+                            results.append(
+                                await run_turn(
+                                    SwiggyClient(auth_token=new_token),
+                                    msg,
+                                    user_id,
+                                    conn,
+                                    wa_client,
+                                )
+                            )
+                            retried = True
+                        except SwiggyAuthExpiredError:
+                            retried = False
+                    if not retried:
+                        await conn.execute(
+                            "UPDATE grocer.inbound_messages SET status = 'parked' WHERE id = $1;",
+                            inbound_id,
+                        )
+                        login_url = f"https://grocerr.vercel.app?phone={msg.sender_wa_id}"
+                        await wa_client.send_cta_url_button(
+                            to_wa_id=msg.sender_wa_id,
+                            body_text=(
+                                "⚠️ *Your Swiggy login needs a security refresh.*\n\n"
+                                "Tap below to reconnect your account. Your grocery list has been saved and will resume automatically:"
+                            ),
+                            button_text="Reconnect Swiggy",
+                            url=login_url,
+                        )
+                        results.append({"status": "auth_expired", "wa_id": msg.sender_wa_id})
+                continue
 
             results.append({"status": "processed", "wa_message_id": msg.wa_message_id})
 

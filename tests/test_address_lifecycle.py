@@ -12,9 +12,11 @@ import pytest
 
 from backend.agent.address_lifecycle import (
     AddressLifecycleManager,
+    AddressOnboardingFlow,
+    OnboardingStep,
     OneTimeDestinationSession,
-    PinGeocodeStep,
     TokenParkedRequestManager,
+    parse_city_pin,
 )
 from backend.integrations.commerce.swiggy_client import SwiggyClient
 
@@ -36,26 +38,39 @@ def test_get_addresses_pagination(swiggy_client):
     assert page1.pagination.page == 1
 
 
-def test_two_step_pin_geocoding_onboarding(swiggy_client):
-    """Step 1 geocodes GPS coordinates; Step 2 asks and attaches flat/house number (ADR 0008)."""
-    manager = AddressLifecycleManager(swiggy_client)
+def test_parse_city_pin():
+    """Extract city + 6-digit PIN from a free-text onboarding reply."""
+    city, pin = parse_city_pin("Bengaluru, 560034")
+    assert city == "Bengaluru"
+    assert pin == "560034"
+    assert parse_city_pin("no pin here") == (None, None)
 
-    # Step 1: WhatsApp sends GPS pin
-    step1_res = manager.handle_gps_pin_step1(lat=12.9352, lon=77.6245)
-    assert step1_res.next_step == PinGeocodeStep.AWAITING_FLAT_NUMBER
-    assert "Bengaluru" in step1_res.street_formatted_address
-    assert "flat or house number" in step1_res.prompt_message.lower()
 
-    # Step 2: User provides flat/house details
-    step2_res = manager.handle_flat_number_step2(
-        lat=12.9352,
-        lon=77.6245,
-        street_address=step1_res.street_formatted_address,
-        flat_and_building="Flat 301, Lakeview Heights",
-        tag="Home",
+def test_pin_onboarding_flow_captures_name_city_pin(swiggy_client):
+    """Gate 1: location pin -> geocode -> flat -> name -> city+PIN -> create_address."""
+    flow = AddressOnboardingFlow(swiggy_client)
+
+    # Step 1: WhatsApp GPS pin geocodes to a street address
+    turn1 = flow.start_from_location(lat=12.9352, lon=77.6245)
+    assert turn1.next_step == OnboardingStep.AWAITING_FLAT
+    assert "Bengaluru" in turn1.context["street_address"]
+    assert "flat" in turn1.prompt.lower()
+
+    # Step 2: flat/house number
+    turn2 = flow.advance(turn1.next_step, turn1.context, text="Flat 301, Lakeview Heights")
+    assert turn2.next_step == OnboardingStep.AWAITING_NAME
+    assert turn2.context["flat"] == "Flat 301, Lakeview Heights"
+
+    # Step 3: customer name
+    turn3 = flow.advance(turn2.next_step, turn2.context, text="Karan Wakhare")
+    assert turn3.next_step == OnboardingStep.AWAITING_CITY_PIN
+
+    # Step 4: city + PIN -> address created on Swiggy
+    turn4 = flow.advance(
+        turn3.next_step, turn3.context, text="Bengaluru, 560034", wa_id="918237803170"
     )
-    assert step2_res.address_id.startswith("addr_")
-    assert "Flat 301, Lakeview Heights" in step2_res.full_address_line
+    assert turn4.completed is True
+    assert turn4.address_id.startswith("addr_")
 
 
 def test_address_deletion_confirmation_with_label(swiggy_client):
@@ -136,7 +151,7 @@ def test_address_deletion_blocked_when_active_delivery_in_transit(
         hasMore=False,
     )
     monkeypatch.setattr(
-        swiggy_client, "get_orders", lambda offset=0, limit=10: active_orders
+        swiggy_client, "get_orders", lambda count=20, order_type="INSTAMART", active_only=True: active_orders
     )
 
     manager = AddressLifecycleManager(swiggy_client)

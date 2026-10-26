@@ -257,7 +257,7 @@ def optimize_coupons(
         if hasattr(swiggy_client, "update_cart"):
             try:
                 items_payload = [
-                    {"spinId": it.spinId, "quantity": it.quantity}
+                    {"spinId": it.spinId, "skuId": it.skuId, "quantity": it.quantity}
                     for it in cart.items
                 ]
                 swiggy_client.update_cart(items=items_payload, address_id=address_id)

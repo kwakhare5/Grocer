@@ -10,15 +10,19 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import logging
 import os
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
+import httpx
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 from backend.config import settings
 from backend.database import get_db_pool
+
+logger = logging.getLogger("grocer.token_vault")
 
 # In-memory PKCE state cache: state -> {"verifier": verifier, "phone": phone, "created_at": datetime}
 _PKCE_SESSIONS: dict[str, dict[str, Any]] = {}
@@ -69,24 +73,42 @@ def consume_pkce_session(state: str) -> dict[str, Any] | None:
 async def store_user_token(
     user_id: uuid.UUID,
     access_token: str,
+    refresh_token: str | None = None,
     expires_in_seconds: int = 432000,
     key_b64: str = settings.DATA_ENCRYPTION_KEY,
 ) -> None:
-    """Save encrypted token to Supabase grocer.oauth_tokens."""
+    """Save encrypted access token (and rotated refresh token) to Supabase grocer.oauth_tokens."""
     encrypted_bytes, nonce = encrypt_token(access_token, key_b64)
+    encrypted_refresh: bytes | None = None
+    refresh_nonce: bytes | None = None
+    if refresh_token:
+        encrypted_refresh, refresh_nonce = encrypt_token(refresh_token, key_b64)
     expires_at = datetime.now(timezone.utc) + timedelta(seconds=expires_in_seconds)
 
     pool = await get_db_pool()
     query = """
-        INSERT INTO grocer.oauth_tokens (user_id, key_version, encrypted_token, nonce, expires_at, updated_at)
-        VALUES ($1, 1, $2, $3, $4, NOW())
+        INSERT INTO grocer.oauth_tokens (
+            user_id, key_version, encrypted_token, nonce,
+            refresh_token, refresh_nonce, expires_at, updated_at
+        )
+        VALUES ($1, 1, $2, $3, $4, $5, $6, NOW())
         ON CONFLICT (user_id) DO UPDATE SET
             encrypted_token = EXCLUDED.encrypted_token,
             nonce = EXCLUDED.nonce,
+            refresh_token = EXCLUDED.refresh_token,
+            refresh_nonce = EXCLUDED.refresh_nonce,
             expires_at = EXCLUDED.expires_at,
             updated_at = NOW();
     """
-    await pool.execute(query, user_id, encrypted_bytes, nonce, expires_at)
+    await pool.execute(
+        query,
+        user_id,
+        encrypted_bytes,
+        nonce,
+        encrypted_refresh,
+        refresh_nonce,
+        expires_at,
+    )
 
 
 async def get_user_token(
@@ -105,3 +127,63 @@ async def get_user_token(
         return None
 
     return decrypt_token(row["encrypted_token"], row["nonce"], key_b64)
+
+
+async def get_refresh_token(
+    user_id: uuid.UUID,
+    key_b64: str = settings.DATA_ENCRYPTION_KEY,
+) -> str | None:
+    """Retrieve and decrypt the stored refresh token from Supabase."""
+    pool = await get_db_pool()
+    query = """
+        SELECT refresh_token, refresh_nonce
+        FROM grocer.oauth_tokens
+        WHERE user_id = $1 AND refresh_token IS NOT NULL;
+    """
+    row = await pool.fetchrow(query, user_id)
+    if not row or not row["refresh_token"]:
+        return None
+
+    return decrypt_token(row["refresh_token"], row["refresh_nonce"], key_b64)
+
+
+async def refresh_user_token(
+    user_id: uuid.UUID,
+    key_b64: str = settings.DATA_ENCRYPTION_KEY,
+) -> str | None:
+    """Exchange the stored refresh token for a fresh access token via /auth/token.
+
+    Returns the new access token, or None if no refresh token exists or the
+    exchange fails (caller falls back to full re-authorization).
+    """
+    refresh_token = await get_refresh_token(user_id, key_b64)
+    if not refresh_token:
+        return None
+
+    token_url = f"{settings.SWIGGY_MCP_BASE_URL}/auth/token"
+    payload = {"grant_type": "refresh_token", "refresh_token": refresh_token}
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.post(token_url, json=payload)
+            if resp.status_code != 200:
+                logger.warning("Swiggy refresh token exchange failed: HTTP %s", resp.status_code)
+                return None
+            data: dict[str, Any] = resp.json()
+    except httpx.RequestError as exc:
+        logger.warning("Swiggy refresh token exchange network error: %s", exc)
+        return None
+
+    access_token = data.get("access_token")
+    if not access_token:
+        return None
+
+    new_refresh = data.get("refresh_token") or refresh_token
+    expires_in = int(data.get("expires_in", 432000))
+    await store_user_token(
+        user_id=user_id,
+        access_token=access_token,
+        refresh_token=new_refresh,
+        expires_in_seconds=expires_in,
+        key_b64=key_b64,
+    )
+    return access_token

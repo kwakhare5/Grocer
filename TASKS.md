@@ -1,8 +1,9 @@
-# TASKS.md — Grocer v1.0 Phased Implementation Roadmap
+# TASKS.md — Grocer v1.0 Historical Roadmap
 
-> **Status:** Active Roadmap  
-> **Source of Truth:** `PRD.md`, `ARCHITECTURE.md`, `DESIGN.md`, `GLOSSARY.md`, ADRs 0001–0010  
-> **Rule:** Every phase requires a runnable test script (`.\verify.ps1`) that exits 0 with terminal proof before proceeding to the next phase.
+> **Status:** Historical roadmap. Superseded by `STATUS.md`.  
+> **Read `STATUS.md` first.** The "COMPLETE" labels below are not current status.  
+> **Source of Truth:** `STATUS.md`, `PRD.md`, `ARCHITECTURE.md`, `DESIGN.md`, `GLOSSARY.md`, ADRs 0001–0011  
+> **Rule:** Every phase requires a runnable test script (`.\verify.ps1`) that exits 0 with pasted terminal proof before proceeding to the next phase.
 
 ---
 

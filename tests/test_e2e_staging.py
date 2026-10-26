@@ -121,7 +121,7 @@ def _make_whatsapp_message_payload(
 def test_e2e_coupon_optimization_bounded_trials_and_net_savings(swiggy_client):
     """Validate bounded coupon trials (<=2) and net-savings verification."""
     # Staging baseline: 3x Amul Milk has subtotal ₹216; applying INSTA50 saves ₹72
-    cart = swiggy_client.update_cart([{"spinId": "spin_amul_1l", "quantity": 3}])
+    cart = swiggy_client.update_cart([{"spinId": "spin_amul_1l", "skuId": "sku_amul_1l", "quantity": 3}])
 
     # Optimize coupons with real staging fixtures
     result = optimize_coupons(
@@ -454,7 +454,7 @@ async def test_e2e_full_staging_customer_journey(swiggy_client):
 
     # Step 3: Cart Assembly (3 units of milk = ₹216 subtotal, unlocks INSTA50 savings)
     cart = swiggy_client.update_cart(
-        items=[{"spinId": chosen_product.variations[0].spinId, "quantity": 3}],
+        items=[{"spinId": chosen_product.variations[0].spinId, "skuId": chosen_product.variations[0].skuId, "quantity": 3}],
         address_id=selected_address.id,
     )
     assert len(cart.items) >= 1

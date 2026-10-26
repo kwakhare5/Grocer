@@ -233,3 +233,12 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: Updated `backend/integrations/commerce/swiggy_client.py` to include Accept headers and parse native `structuredContent`; executed live read-only MCP calls for addresses, products, and active cart; spawned parallel Standards and Spec subagents on commit `a05e460`.
 - **Proof**: Live Swiggy MCP returned 200 OK for `get_addresses` (3 real addresses), `search_products` (20 real dark store items), and `get_cart` (13 active cart items); all 72 pytest tests pass in 3.79s.
 - **Still broken**: None. Live MCP verified and code review findings cataloged for resolution.
+
+
+### [GROCER v1 — Code Review Resolution & Zero-Mock Invariant Enforcement] 2026-10-26
+
+#### Work Card: Eliminate Test Doubles, Enforce Full-Basket Diffing & Integer Paise
+- **Problem**: Code review flagged in-memory test doubles violating zero-mock invariant, partial-basket diffing, missing human deletion labels, and un-persisted token request parking.
+- **Change**: Eliminated all `FakeSwiggyStore` test doubles in favor of `SwiggyClient` with staging fixtures; implemented full-basket diffing across existing and new items in `composite_cart.py`; added human address labels to deletion confirmation buttons; persisted parked requests to `grocer.inbound_messages` with auto-replay in `swiggy_auth.py`; enforced strict integer paise math across models.
+- **Proof**: `.\verify.ps1` ran all 4 verification stages exiting 0 with terminal proof (72/72 tests green, Ruff clean, Supabase SSL check passed, Next.js build clean in 3.8s); pushed commit `c99b313` to `grocer-v1`.
+- **Still broken**: None. Phase 3 and all code-review findings are 100% resolved and verified.

@@ -1,7 +1,7 @@
 # Grocer v1.0 — Session Handoff
 
-- **Goal:** Gate 2 — capability router with safety classes, replacing the four intents.
-- **Current:** LLM adapter live (`backend/agent/llm.py`), Groq key in `.env`, one real JSON completion proven. Docs amended by ADR 0012. Router not written yet.
-- **Passing Tests:** `ruff` clean; adapter smoke-tested live. Offline suite unchanged at 38.
-- **Next Action:** Write `backend/agent/router.py`: capability list, four safety classes, routing decision model, safe path. Then wire one read capability (item info) into `whatsapp.py` and prove it live without touching the cart.
+- **Goal:** Gate 2 — complete the read capabilities, then account and basket writes.
+- **Current:** Router wired into the webhook (`e519cdd`). Read capabilities answer from live Swiggy: price/stock, addresses, order history, active-order status, cancel help, payment options. Price question left the cart unchanged (11 items, ₹1,763 before and after).
+- **Passing Tests:** 49 offline tests pass; `ruff` clean. DB-backed and Gemini suites not run.
+- **Next Action:** Add store info and coupons, then address add/switch/delete, then basket change/clear/reorder. Text checkout stays blocked; money moves only by physical button.
 - **Source of Truth:** `STATUS.md`

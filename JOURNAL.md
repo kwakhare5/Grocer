@@ -432,3 +432,11 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: Added `backend/agent/address_actions.py` (resolve by label, warn when a basket exists, save the active address, two-tap delete with last-address and active-address guards). Wired switch/delete/add into `whatsapp.py` and replaced the `addr:` button stub with real apply logic. Router prompt now copies spoken address labels and order references into the decision.
 - **Proof**: "switch to my home address" → warns the basket may change, offers Switch anyway / Keep current; applying switched the session to the home address and restoring put it back. "delete my pune address" → asks for confirmation; the address still exists because no delete was performed. 49 offline tests pass; `ruff` clean.
 - **Still broken**: Actual `delete_address` execution is unproven (not performed on a real address). Basket edits, reorder and text checkout are not built.
+
+### [GROCER v1 — Gate 2: Basket Clear, Remove and Quantity] 2026-10-26
+
+#### Work Card: Preview every basket change, and stop guessing when the item already exists
+- **Problem**: Clear/remove/quantity had no handler, and "make milk 3" was routed as add_items, which would have added three more instead of setting the total.
+- **Change**: Added `backend/agent/basket_actions.py`: clear preview and apply, remove preview and apply with full-list rebuild, set-quantity and add-quantity with read-after-write verification and automatic revert on mismatch. Router now receives the live basket and carries `change_action`. `whatsapp.py` previews basket changes; `button_router.py` executes `cart:clear`, `cart:rm`, `cart:qty`, `cart:addqty`, `cart:keep`. A Python guard asks "set the total or add more?" whenever an add names an item already in the basket.
+- **Proof**: Live previews: "clear my cart" → 11 items, confirm buttons; "remove milk" → names Amul Taaza; "make milk 3" → routed add_items but the guard caught it and offered Set to 3 / Add 3 more. Cart stayed 11 items / ₹1,751 before and after. 8 basket tests and 57 offline tests pass; `ruff` clean.
+- **Still broken**: The write paths for clear/remove/quantity are proven only against fixtures, not the live cart. Reorder and text checkout are not built.

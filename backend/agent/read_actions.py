@@ -59,6 +59,38 @@ async def _item_info(decision: RoutingDecision, client: SwiggyClient, address_id
     return "\n".join(lines)
 
 
+async def _store_info(client: SwiggyClient, address_id: str | None) -> str:
+    cart = await asyncio.to_thread(client.get_cart, address_id)
+    if not cart.items:
+        return (
+            "Your basket is empty, so there's no live delivery quote yet. "
+            "Start a basket and I can show the exact delivery fee and total."
+        )
+
+    lines = ["*Your current delivery quote:*"]
+    for line in cart.billBreakdown.lineItems[:6]:
+        lines.append(f"• {line.label}: {line.value}")
+    lines.append(f"*To pay: {cart.billBreakdown.toPay.value}*")
+    lines.append(
+        "\nSwiggy doesn't share the dark store name or opening hours before an order is placed."
+    )
+    return "\n".join(lines)
+
+
+async def _list_coupons(client: SwiggyClient, address_id: str | None) -> str:
+    data = await asyncio.to_thread(client.list_coupons, address_id)
+    usable = [coupon for coupon in data.availableCoupons if coupon.isApplicable]
+    if not usable:
+        return "No coupons are available for your basket right now."
+
+    lines = ["*Coupons you can use:*"]
+    for coupon in usable[:5]:
+        lines.append(f"• *{coupon.couponCode}* — {coupon.title}")
+        if coupon.description:
+            lines.append(f"  {coupon.description[:90]}")
+    return "\n".join(lines)
+
+
 async def _list_addresses(client: SwiggyClient) -> str:
     data = await asyncio.to_thread(client.get_addresses)
     if not data.addresses:
@@ -137,6 +169,10 @@ async def answer_read_capability(
             return decision.reply or "Hey! What do you need from Instamart?"
         if decision.capability is Capability.ITEM_INFO:
             return await _item_info(decision, client, address_id)
+        if decision.capability is Capability.STORE_INFO:
+            return await _store_info(client, address_id)
+        if decision.capability is Capability.LIST_COUPONS:
+            return await _list_coupons(client, address_id)
         if decision.capability is Capability.LIST_ADDRESSES:
             return await _list_addresses(client)
         if decision.capability is Capability.ORDER_HISTORY:

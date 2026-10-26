@@ -416,3 +416,11 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: Added `backend/agent/read_actions.py` (read-only handlers for item info, addresses, order history, tracking, payment options, cancel help). Wired `route_message` into `whatsapp.py`: read capabilities answer and return; `add_items` continues to the existing basket path; every other write gets an honest not-ready reply. Address fallback added so search works without a session address.
 - **Proof**: Live: "how much is amul milk" → three real variants with prices and "in stock"; addresses, orders, cancel help all answered. Cart was 11 items / ₹1,763 before and after — unchanged. `ruff` clean; 49 offline tests pass.
 - **Still broken**: Basket requests still make a second LLM call through the old classifier. Store info, coupons, address writes, basket edits, reorder and text checkout are not built.
+
+### [GROCER v1 — Gate 2: Store Quote and Coupons] 2026-10-26
+
+#### Work Card: Answer delivery-fee and coupon questions from live data
+- **Problem**: `store_info` and `list_coupons` were routed capabilities with no handler, so they fell to the not-ready reply.
+- **Change**: Added read-only handlers in `read_actions.py`. Store info reads the live cart bill and states plainly that Swiggy does not expose the dark store name or hours before an order. Coupons lists only applicable codes.
+- **Proof**: "what is the delivery fee" → Item Total ₹1,753.00, Handling ₹10.01, Delivery FREE, To pay ₹1,763; "any coupons for me" → no coupons available. Cart unchanged before and after. `ruff` clean.
+- **Still broken**: Address add/switch/delete, basket edits, reorder and text checkout remain unbuilt.

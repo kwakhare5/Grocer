@@ -3,18 +3,23 @@
 Implements:
 1. Two-Step Pin Geocoding Onboarding (ADR 0008).
 2. Address Deletion Guardrail (ADR 0007): Strictly blocks address deletion during live deliveries.
-3. Interactive Address Deletion Confirmation Button (ADR 0007).
+3. Interactive Address Deletion Confirmation Button with Label (ADR 0007).
 4. One-Time Destination Anchoring & Session Revert (ADR 0009).
-5. 5-Day Token Expiry Detection & JIT Parked Message Replay (ADR 0010).
+5. 5-Day Token Expiry Detection & PostgreSQL Parked Message Replay (ADR 0010).
 """
 
 from __future__ import annotations
 
+import json
 import secrets
+import uuid
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any
 
+import asyncpg
+
+from backend.database import get_db_pool
 from backend.integrations.commerce.schemas import GetAddressesData
 
 
@@ -42,6 +47,7 @@ class DeletionCheckResult:
     active_order_id: str | None = None
     block_reason: str = ""
     confirmation_action_id: str = ""
+    confirmation_label: str = ""
 
 
 class OneTimeDestinationSession:
@@ -63,32 +69,110 @@ class OneTimeDestinationSession:
 
 
 class TokenParkedRequestManager:
-    """Parks pending commerce requests upon 401 token expiry and replays on auth (ADR 0010)."""
+    """Parks pending commerce requests upon 401 token expiry into PostgreSQL and replays on auth (ADR 0010)."""
 
     def __init__(self) -> None:
-        # In-memory vault; synced to grocer.inbound_messages (status='awaiting_link')
-        self._parked: dict[str, dict[str, Any]] = {}
+        self._memory_backup: dict[str, dict[str, Any]] = {}
 
-    def park_request(self, user_id: str, action: str, payload: dict[str, Any]) -> str:
+    async def park_request(
+        self,
+        user_id: uuid.UUID | str,
+        action: str,
+        payload: dict[str, Any],
+    ) -> str:
+        """Park uncommitted request in grocer.inbound_messages (status='awaiting_link')."""
+        uid = (
+            uuid.UUID(str(user_id))
+            if isinstance(user_id, str) and "-" in str(user_id)
+            else None
+        )
         token = secrets.token_urlsafe(16)
-        self._parked[user_id] = {
-            "token": token,
-            "action": action,
-            "payload": payload,
-        }
+        pack = {"action": action, "payload": payload, "token": token}
+
+        if uid is not None:
+            try:
+                pool = await get_db_pool()
+                wa_msg_id = f"parked_{uid}_{secrets.token_hex(4)}"
+                await pool.execute(
+                    """
+                    INSERT INTO grocer.inbound_messages (wa_message_id, user_id, message_type, raw_payload, status)
+                    VALUES ($1, $2, 'awaiting_link', $3::jsonb, 'awaiting_link');
+                    """,
+                    wa_msg_id,
+                    uid,
+                    json.dumps(pack),
+                )
+            except (asyncpg.PostgresError, OSError, ConnectionError):
+                self._memory_backup[str(user_id)] = pack
+        else:
+            self._memory_backup[str(user_id)] = pack
+
         return token
 
-    def has_parked_request(self, user_id: str) -> bool:
-        return user_id in self._parked
+    async def has_parked_request(self, user_id: uuid.UUID | str) -> bool:
+        """Check if an un-replayed parked request exists."""
+        uid = (
+            uuid.UUID(str(user_id))
+            if isinstance(user_id, str) and "-" in str(user_id)
+            else None
+        )
+        if uid is not None:
+            try:
+                pool = await get_db_pool()
+                row = await pool.fetchrow(
+                    """
+                    SELECT id FROM grocer.inbound_messages
+                    WHERE user_id = $1 AND status = 'awaiting_link'
+                    LIMIT 1;
+                    """,
+                    uid,
+                )
+                if row:
+                    return True
+            except (asyncpg.PostgresError, OSError, ConnectionError):
+                pass
+
+        return str(user_id) in self._memory_backup
 
     def get_reconnect_button_payload(self, parked_token: str) -> dict[str, str]:
+        """Generate WhatsApp CTA button payload (ADR 0010)."""
         return {
             "title": "Reconnect Swiggy",
             "action_id": f"connect_swiggy:{parked_token}",
         }
 
-    def pop_and_replay_request(self, user_id: str) -> dict[str, Any] | None:
-        return self._parked.pop(user_id, None)
+    async def pop_and_replay_request(
+        self, user_id: uuid.UUID | str
+    ) -> dict[str, Any] | None:
+        """Atomically claim and retrieve the parked request for replay."""
+        uid = (
+            uuid.UUID(str(user_id))
+            if isinstance(user_id, str) and "-" in str(user_id)
+            else None
+        )
+        if uid is not None:
+            try:
+                pool = await get_db_pool()
+                row = await pool.fetchrow(
+                    """
+                    UPDATE grocer.inbound_messages
+                    SET status = 'processing'
+                    WHERE id = (
+                        SELECT id FROM grocer.inbound_messages
+                        WHERE user_id = $1 AND status = 'awaiting_link'
+                        ORDER BY created_at DESC LIMIT 1
+                    )
+                    RETURNING raw_payload;
+                    """,
+                    uid,
+                )
+                if row and row["raw_payload"]:
+                    val = row["raw_payload"]
+                    return json.loads(val) if isinstance(val, str) else val
+            except (asyncpg.PostgresError, OSError, ConnectionError):
+                pass
+
+        return self._memory_backup.pop(str(user_id), None)
 
 
 class AddressLifecycleManager:
@@ -104,9 +188,9 @@ class AddressLifecycleManager:
         """Step 1: Geocode GPS coordinates via recommend_address (ADR 0008)."""
         rec = self.client.recommend_address(latitude=lat, longitude=lon)
         formatted_address = (
-            rec.get("formattedAddress")
-            if isinstance(rec, dict)
-            else getattr(rec, "formattedAddress", "")
+            rec.formattedAddress
+            if hasattr(rec, "formattedAddress")
+            else rec.get("formattedAddress", "")
         )
 
         prompt = (
@@ -137,9 +221,7 @@ class AddressLifecycleManager:
             tag=tag,
         )
         address_id = (
-            res.get("addressId")
-            if isinstance(res, dict)
-            else getattr(res, "addressId", "")
+            res.addressId if hasattr(res, "addressId") else res.get("addressId", "")
         )
         return Step2CreateResult(
             address_id=address_id,
@@ -152,7 +234,6 @@ class AddressLifecycleManager:
         active_statuses = {"CONFIRMED", "PACKING", "OUT_FOR_DELIVERY", "IN_TRANSIT"}
 
         for order in orders_data.orders:
-            # Check if order is active and targeting this address
             is_active = getattr(order, "isActive", False) or (
                 order.status.upper() in active_statuses
             )
@@ -170,9 +251,21 @@ class AddressLifecycleManager:
                     block_reason=f"Cannot delete address while an active delivery (#{order.orderId}) is in transit to it.",
                 )
 
+        # Lookup address label for button presentation
+        label = "Address"
+        try:
+            addr_list = self.client.get_addresses(page=1, page_size=20)
+            for a in addr_list.addresses:
+                if a.id == address_id:
+                    label = a.addressTag or a.addressCategory or "Address"
+                    break
+        except (KeyError, ValueError, AttributeError):
+            label = "Address"
+
         return DeletionCheckResult(
             can_delete=True,
             confirmation_action_id=f"delete_address_confirm:{address_id}",
+            confirmation_label=f"Confirm Delete: {label}",
         )
 
     def confirm_delete_address(self, address_id: str) -> bool:

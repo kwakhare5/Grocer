@@ -2,10 +2,11 @@
 
 Enforces:
 1. Destructive Overwrite Safety: Reads get_cart(), merges existing items locally, and submits assembled target cart.
-2. Read-After-Write Verification: Calls get_cart() post-update to detect drops, quantity reductions, or reverts.
+2. Read-After-Write Verification: Full-basket diffing against verified cart to detect drops, quantity reductions, or reverts.
 3. Out-of-Stock Reconciliation: Missing items are rendered under "⚠️ *Not added (Out of stock)*" receipt cards.
-4. 1-Tap Reorder (ADR 0008 & 0010): Adds available frequent items and gracefully catches warehouse stockouts.
+4. Top 3-5 Go-To Items Proposal (ADR 0008:10): Surfaces top frequent SKUs with [Add All to Basket] button.
 5. Address Switching Mid-Basket (ADR 0007): Warns, clears cart, and rebuilds available items at new store.
+6. Integer Paise Math Discipline: Zero floating-point money calculations.
 """
 
 from __future__ import annotations
@@ -22,11 +23,7 @@ class TargetCartItem:
     spin_id: str
     quantity: int = 1
     item_name: str | None = None
-    price: float = 0.0
-
-    @property
-    def price_paise(self) -> int:
-        return round(self.price * 100)
+    price_paise: int = 0  # Strict integer paise (₹1 = 100 paise)
 
 
 @dataclass
@@ -44,6 +41,13 @@ class AddressSwitchPlan:
     has_active_basket: bool
     confirm_action_id: str
     prompt_text: str
+
+
+@dataclass
+class GoToItemsProposal:
+    card_text: str
+    action_id: str
+    items: list[TargetCartItem]
 
 
 def format_cart_receipt(
@@ -70,8 +74,8 @@ def format_cart_receipt(
 
     # Add bill breakdown lines
     if cart.billBreakdown and cart.billBreakdown.lineItems:
-        for b_line in cart.billBreakdown.lineItems:
-            lines.append(f"*{b_line.label}:* {b_line.value}")
+        for line in cart.billBreakdown.lineItems:
+            lines.append(f"*{line.label}:* {line.value}")
 
     # To pay
     if cart.billBreakdown and cart.billBreakdown.toPay:
@@ -90,7 +94,7 @@ def format_cart_receipt(
 
 
 class CompositeCartManager:
-    """Orchestrates target cart assembly and read-after-write verification."""
+    """Orchestrates target cart assembly, full-basket diffing, and read-after-write verification."""
 
     def __init__(self, swiggy_client: Any) -> None:
         self.client = swiggy_client
@@ -111,10 +115,12 @@ class CompositeCartManager:
                 "quantity": it.quantity,
                 "itemName": it.itemName,
                 "price": it.discountedFinalPrice,
+                "price_paise": it.discounted_final_price_paise,
                 "mrp": it.mrp,
             }
 
         for new_it in items_to_add:
+            price_rupees = new_it.price_paise / 100 if new_it.price_paise else 0.0
             if new_it.spin_id in target_map:
                 target_map[new_it.spin_id]["quantity"] += new_it.quantity
             else:
@@ -122,31 +128,41 @@ class CompositeCartManager:
                     "spinId": new_it.spin_id,
                     "quantity": new_it.quantity,
                     "itemName": new_it.item_name or new_it.spin_id,
-                    "price": new_it.price,
-                    "mrp": new_it.price,
+                    "price": price_rupees,
+                    "price_paise": new_it.price_paise,
+                    "mrp": price_rupees,
                 }
 
-        # 3. Call destructive update_cart with full target cart
+        # 3. Call destructive update_cart with full assembled target cart
         assembled_list = list(target_map.values())
         self.client.update_cart(items=assembled_list, address_id=address_id)
 
         # 4. Read-after-write verification
         verified_cart = self.client.get_cart(address_id=address_id)
 
-        # 5. Diff requested against verified
+        # 5. Full-Basket Diffing: verify every expected item in target_map against verified cart
         verified_spins = {it.spinId: it.quantity for it in verified_cart.items}
         dropped_out_of_stock: list[TargetCartItem] = []
         reduced_quantity: list[dict[str, Any]] = []
 
-        for req in items_to_add:
-            actual_qty = verified_spins.get(req.spin_id, 0)
+        for spin_id, target_item in target_map.items():
+            expected_qty = target_item["quantity"]
+            actual_qty = verified_spins.get(spin_id, 0)
             if actual_qty == 0:
-                dropped_out_of_stock.append(req)
-            elif actual_qty < req.quantity:
+                dropped_out_of_stock.append(
+                    TargetCartItem(
+                        spin_id=spin_id,
+                        quantity=expected_qty,
+                        item_name=target_item.get("itemName", spin_id),
+                        price_paise=target_item.get("price_paise", 0),
+                    )
+                )
+            elif actual_qty < expected_qty:
                 reduced_quantity.append(
                     {
-                        "spinId": req.spin_id,
-                        "requested": req.quantity,
+                        "spinId": spin_id,
+                        "itemName": target_item.get("itemName", spin_id),
+                        "requested": expected_qty,
                         "actual": actual_qty,
                     }
                 )
@@ -165,27 +181,52 @@ class CompositeCartManager:
             receipt_text=receipt,
         )
 
-    def reorder_go_to_items(
+    def propose_go_to_items(
         self,
         address_id: str | None = None,
-    ) -> CartReconciliationResult:
-        """Fetch past frequent items via your_go_to_items and add available SKUs (ADR 0008/0010)."""
+    ) -> GoToItemsProposal:
+        """Surface customer's top 3–5 frequently ordered SKUs in a structured card (ADR 0008:10)."""
         go_to_data = self.client.your_go_to_items(address_id=address_id)
-        candidates_to_add: list[TargetCartItem] = []
+        candidates: list[TargetCartItem] = []
 
+        lines = ["📋 *Your Go-To Items (Frequent Staples)*"]
+        count = 0
         for prod in go_to_data.products:
             for v in prod.variations:
-                candidates_to_add.append(
+                if count >= 5:
+                    break
+                paise = round(v.price.offerPrice * 100)
+                formatted_p = format_paise_to_rupees(paise)
+                lines.append(
+                    f"• {v.displayName} ({v.quantityDescription}) — {formatted_p}"
+                )
+                candidates.append(
                     TargetCartItem(
                         spin_id=v.spinId,
                         quantity=1,
                         item_name=v.displayName,
-                        price=v.price.offerPrice,
+                        price_paise=paise,
                     )
                 )
+                count += 1
+            if count >= 5:
+                break
 
+        lines.append("\nTap below to reorder your staples in one tap.")
+        return GoToItemsProposal(
+            card_text="\n".join(lines),
+            action_id="goto:add_all",
+            items=candidates,
+        )
+
+    def reorder_go_to_items(
+        self,
+        address_id: str | None = None,
+    ) -> CartReconciliationResult:
+        """Add top 3–5 frequent SKUs to basket with graceful partial stock handling (ADR 0008/0010)."""
+        proposal = self.propose_go_to_items(address_id=address_id)
         return self.assemble_and_update_cart(
-            items_to_add=candidates_to_add,
+            items_to_add=proposal.items,
             address_id=address_id,
         )
 
@@ -217,22 +258,20 @@ class CompositeCartManager:
         self,
         new_address_id: str,
     ) -> CartReconciliationResult:
-        """Clear old cart and attempt to rebuild basket under new address dark store."""
+        """Clear old cart and rebuild basket under new address dark store (ADR 0007)."""
         prev_cart = self.client.get_cart()
         prev_items = [
             TargetCartItem(
                 spin_id=it.spinId,
                 quantity=it.quantity,
                 item_name=it.itemName,
-                price=it.discountedFinalPrice,
+                price_paise=it.discounted_final_price_paise,
             )
             for it in prev_cart.items
         ]
 
-        # Clear cart at previous store
         self.client.clear_cart()
 
-        # Rebuild at new store
         return self.assemble_and_update_cart(
             items_to_add=prev_items,
             address_id=new_address_id,

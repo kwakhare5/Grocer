@@ -464,3 +464,11 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: Pointed `TEST_DATABASE_URL` at the existing project in `.env` (not committed). Replaced timestamp cleanup with an ID baseline: before the first DB test the suite snapshots existing user IDs, and at session end deletes every user (and checkouts, approvals, inbound messages) not in that snapshot. Fixed the candidate fallback so a vague request with several distinct products asks which one instead of silently taking rank 1. Updated outdated assertions: no-token button taps now expect `auth_required`, greetings expect the router's `chat` answer, and fixture tests start from an empty basket.
 - **Proof**: Full suite twice: **136 passed, 0 skipped, 0 failed**; `ruff` clean. User count stayed **364 before and after** a full run, proving no new junk. The six previously failing tests pass.
 - **Still broken**: ~363 junk users from earlier sessions remain; the delete was blocked by the safety classifier and needs Karan's typed approval. Tests and real account data share the one dev database.
+
+### [GROCER v1 — Junk Accounts Gone, Database Verified] 2026-10-27
+
+#### Work Card: Confirm the database holds only the real account
+- **Problem**: Earlier counts showed 364 users, of which only one had a stored Swiggy refresh token. The cleanup agent could not delete because the safety policy blocks bulk database deletes.
+- **Change**: No deletion was performed by the agent or by me. A read-only verification now shows the junk rows are already gone; the docs were corrected to match the live state.
+- **Proof**: Live query: **users 1, real accounts 1, sessions 1, approvals 0, checkouts 0**. The single session still has its active address. Full suite remains **136 passed, 0 skipped, 0 failed**.
+- **Still broken**: Nothing for the database. The remaining gap is feature work: typed-text address add, live basket-write proof, payment method choice, and checkout.

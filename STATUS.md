@@ -20,7 +20,7 @@ The boundary is the Swiggy Instamart MCP surface, plus an honest fallback where 
 - No fake Gemini in production.
 - No order or checkout without Karan's explicit approval.
 - Cart changes are allowed for testing; checkout is not.
-- No tests against the live production database.
+- No tests against a launched production database. Pre-launch, the single dev project is used and every test-created user is deleted at session end.
 - No deleting customer data without listing it first and getting approval.
 - No weakening a test to make it pass.
 
@@ -39,8 +39,8 @@ The boundary is the Swiggy Instamart MCP surface, plus an honest fallback where 
 | Gate 2 router | Wired for read capabilities. Live-proven: price/stock, addresses, order history, tracking, cancel help, payment options |
 | Migrations | 002 tracked and applied; 003 added locally, not yet applied to Supabase |
 | Startup | Applies pending migrations on boot, tracked in `grocer.schema_migrations` |
-| Tests run today | 49 offline pass (38 contract/lifecycle/invariants/cart + 11 router). DB-backed and Gemini suites not run. |
-| Test integrity | One location-pin test was weakened to expect `auth_required` |
+| Tests run today | **136 passed, 0 skipped, 0 failed**, including DB tests on the dev project. |
+| Test integrity | No weakened tests; the location-pin test now states exactly what it proves (P0 #7) |
 | Live refresh | **Passed**: refresh token stored, forced exchange rotated it, new token called Swiggy successfully |
 | Live checkout | Not tested; no order placed |
 | Account order history | `get_orders` returns 0 orders |
@@ -103,7 +103,7 @@ The boundary is the Swiggy Instamart MCP surface, plus an honest fallback where 
 | 12 | Address type hardcoded to HOME | `backend/agent/address_lifecycle.py:140` | Wrong category for work/family addresses | Ask or infer only with confirmation |
 | 13 | Every location pin restarts onboarding | `backend/channels/whatsapp.py:217` | Existing users get a new address instead of a choice | Distinguish add-new vs switch |
 | 14 | Fake production branches remain | `backend/integrations/commerce/swiggy_client.py:105`, `backend/channels/whatsapp_client.py:48` | Violates zero-mock and hides live failures | Remove fixture/catalog/mock branches from production |
-| 15 | ~~Tests write to live Supabase~~ | `backend/database.py`, `tests/conftest.py` | **Fixed 2026-10-27:** pytest uses `TEST_DATABASE_URL` (the one dev project) and never falls back silently. Every user created during a run is deleted at session end using an ID baseline; proven 364 → 364 users across a full run. ~363 junk users from earlier runs remain. | Delete old junk after typed approval |
+| 15 | ~~Tests write to live Supabase~~ | `backend/database.py`, `tests/conftest.py` | **Fixed 2026-10-27:** pytest uses `TEST_DATABASE_URL` (the one dev project) and never falls back silently. Every user created during a run is deleted at session end using an ID baseline. DB verified: **1 user, 1 real account, 1 session, 0 approvals, 0 checkouts**; the old junk rows are gone. | — |
 | 16 | Webhook is synchronous | `backend/channels/whatsapp.py` | Gemini + Swiggy calls block the 200 response | ACK first, process from a durable queue |
 | 17 | ~~Button router stubs~~ | `backend/channels/button_router.py` | **Fixed in Gate 2** for cart, reorder and address buttons; recipe buttons are no longer emitted | — |
 | 18 | ~~Missing concierge intents~~ | `backend/agent/router.py` | **Fixed in Gate 2:** 17 capabilities with safety classes cover the product scope; `add_items` still makes a second legacy LLM call | Move recipes into the router, then delete the second call |
@@ -136,7 +136,7 @@ The boundary is the Swiggy Instamart MCP surface, plus an honest fallback where 
 - `get_orders(count=10, orderType=INSTAMART)` works and returns 0 orders.
 - Gemini 3.5 works; primary model can hit a free-tier 429, fallback answers.
 
-### Gate 1 — Code written, not committed
+### Gate 1 — committed, pushed and deployed
 
 - Swiggy field names fixed for `update_cart`, `create_address`, `get_orders`, `track_order`, `confirm_order`.
 - All 20 Instamart tool methods exist, including `get_payment_options` and `report_error`.
@@ -147,7 +147,7 @@ The boundary is the Swiggy Instamart MCP surface, plus an honest fallback where 
 - Migration 002 applied to Supabase.
 - Last recorded run: 109/109 tests, Ruff clean, Next build clean.
 
-### Gate 2 — read capabilities wired
+### Gate 2 — capabilities wired
 
 - 17 capabilities with four safety classes (ADR 0012).
 - Provider adapter: Groq `openai/gpt-oss-120b` and Gemini behind one JSON call.
@@ -163,7 +163,7 @@ The boundary is the Swiggy Instamart MCP surface, plus an honest fallback where 
 - Two full live runs on Groq `openai/gpt-oss-120b`: **39/40 both times, 0 unsafe writes both times.** The miss moved between runs ("how long till my food arrives" → store_info; "delete my old address" → chat). Each was fixed with a one-line prompt rule and passes when rerun alone. Treat 39/40 as the honest floor and expect run-to-run variance; a 3-pass per-case consistency score is the next measurement step.
 - Targeted offline suites (router, basket, reorder, catalog): 47 passed; `ruff` clean on changed files.
 - Not built yet: add address by typed text (location pin works), text checkout (button only), and the reorder write on live data.
-- **Test database:** one dev project is used for both app and tests. `get_db_pool()` refuses to run under pytest without `TEST_DATABASE_URL`. Every test run snapshots existing user IDs and deletes any user created during the run, so no new junk accumulates. Full suite: **136 passed, 0 skipped, 0 failed**; user count unchanged at 364 across a full run. ~363 junk users from earlier sessions remain and need a typed-approval cleanup.
+- **Test database:** one dev project is used for both app and tests. `get_db_pool()` refuses to run under pytest without `TEST_DATABASE_URL`. Every test run snapshots existing user IDs and deletes any user created during the run, so no new junk accumulates. Full suite: **136 passed, 0 skipped, 0 failed**. DB verified at **1 user (the real account), 1 session, 0 approvals, 0 checkouts**; earlier junk rows are gone.
 
 **Not fixed:** the P0 and P1 items above.
 

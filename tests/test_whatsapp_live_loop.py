@@ -14,6 +14,7 @@ import hmac
 import json
 import time
 import uuid
+from pathlib import Path
 
 import pytest
 
@@ -280,3 +281,137 @@ async def test_webhook_expired_token_parks_request_and_prompts_reconnect():
             user_id,
         )
         assert status == "parked"
+
+
+@pytest.mark.asyncio
+async def test_webhook_greeting_returns_conversational_reply_without_cart():
+    """Customer sending 'hello' receives a friendly reply; no catalog search or cart is created."""
+    from backend.channels.whatsapp import handle_webhook
+    from backend.config import settings
+
+    pool = await get_db_pool()
+    wa_id = f"91{uuid.uuid4().int % 10000000000:010d}"
+
+    async with pool.acquire() as conn:
+        user_id = await conn.fetchval(
+            "INSERT INTO grocer.users (wa_id) VALUES ($1) RETURNING id;",
+            wa_id,
+        )
+    await store_user_token(user_id=user_id, access_token="swiggy_live_oauth_token_123")
+
+    payload = {
+        "object": "whatsapp_business_account",
+        "entry": [
+            {
+                "id": "entry_01",
+                "changes": [
+                    {
+                        "value": {
+                            "messaging_product": "whatsapp",
+                            "metadata": {"display_phone_number": "1234567890", "phone_number_id": "109876543210"},
+                            "contacts": [{"wa_id": wa_id, "profile": {"name": "Test User"}}],
+                            "messages": [
+                                {
+                                    "from": wa_id,
+                                    "id": f"wamid.{uuid.uuid4()}",
+                                    "timestamp": str(int(time.time())),
+                                    "type": "text",
+                                    "text": {"body": "hello"},
+                                }
+                            ],
+                        },
+                        "field": "messages",
+                    }
+                ],
+            }
+        ],
+    }
+    raw_bytes = json.dumps(payload).encode("utf-8")
+    sig = _sign(raw_bytes, settings.WHATSAPP_APP_SECRET)
+
+    class MockRequest:
+        async def body(self):
+            return raw_bytes
+        @property
+        def headers(self):
+            return {"X-Hub-Signature-256": sig}
+
+    fixtures_dir = Path(__file__).resolve().parent / "fixtures"
+    from backend.integrations.commerce.swiggy_client import SwiggyClient
+    staging_client = SwiggyClient(fixtures_dir=fixtures_dir)
+
+    res = await handle_webhook(MockRequest(), swiggy_client=staging_client)
+    assert res["status"] == "conversational_replied"
+    assert res["intent"] == "greeting"
+    assert res["wa_id"] == wa_id
+
+    # Verify that NO approval was created for a simple greeting
+    async with pool.acquire() as conn:
+        approval_count = await conn.fetchval(
+            "SELECT count(*) FROM grocer.approvals WHERE user_id = $1;",
+            user_id,
+        )
+        assert approval_count == 0
+
+
+@pytest.mark.asyncio
+async def test_webhook_multi_item_list_assembles_composite_cart():
+    """Customer sending multi-item list ('milk and bread') resolves both items into composite cart."""
+    from backend.channels.whatsapp import handle_webhook
+    from backend.config import settings
+
+    pool = await get_db_pool()
+    wa_id = f"91{uuid.uuid4().int % 10000000000:010d}"
+
+    async with pool.acquire() as conn:
+        user_id = await conn.fetchval(
+            "INSERT INTO grocer.users (wa_id) VALUES ($1) RETURNING id;",
+            wa_id,
+        )
+    await store_user_token(user_id=user_id, access_token="swiggy_live_oauth_token_123")
+
+    payload = {
+        "object": "whatsapp_business_account",
+        "entry": [
+            {
+                "id": "entry_01",
+                "changes": [
+                    {
+                        "value": {
+                            "messaging_product": "whatsapp",
+                            "metadata": {"display_phone_number": "1234567890", "phone_number_id": "109876543210"},
+                            "contacts": [{"wa_id": wa_id, "profile": {"name": "Test User"}}],
+                            "messages": [
+                                {
+                                    "from": wa_id,
+                                    "id": f"wamid.{uuid.uuid4()}",
+                                    "timestamp": str(int(time.time())),
+                                    "type": "text",
+                                    "text": {"body": "milk and bread"},
+                                }
+                            ],
+                        },
+                        "field": "messages",
+                    }
+                ],
+            }
+        ],
+    }
+    raw_bytes = json.dumps(payload).encode("utf-8")
+    sig = _sign(raw_bytes, settings.WHATSAPP_APP_SECRET)
+
+    class MockRequest:
+        async def body(self):
+            return raw_bytes
+        @property
+        def headers(self):
+            return {"X-Hub-Signature-256": sig}
+
+    fixtures_dir = Path(__file__).resolve().parent / "fixtures"
+    from backend.integrations.commerce.swiggy_client import SwiggyClient
+    staging_client = SwiggyClient(fixtures_dir=fixtures_dir)
+
+    res = await handle_webhook(MockRequest(), swiggy_client=staging_client)
+    assert res["status"] == "cart_updated"
+    assert res["to_pay_paise"] > 0
+    assert res["approval_id"] is not None

@@ -83,3 +83,12 @@ _Avoid_: Message timeout, expired packet, drop filter
 **Fast Button Dispatcher**:
 The deterministic Python routing engine that executes interactive WhatsApp button actions (checkout, address selection, basket clearing) in under 50ms, completely bypassing the conversational LLM.
 _Avoid_: Fast path, button handler, direct action
+
+
+**Conversational Orchestrator**:
+The single-pass Gemini conversational engine that classifies turn intent, generates natural English responses for chit-chat, and extracts structured grocery items in under 2 seconds.
+_Avoid_: Intent router, LLM pipeline, chat classifier
+
+**Extracted Item**:
+A structured target grocery item parsed by Gemini from natural customer messages before catalog grounding.
+_Avoid_: Search term, query token, raw item

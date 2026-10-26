@@ -1,7 +1,7 @@
 # Grocer v1.0 — Session Handoff
 
-- **Goal:** Gate 2 — complete the read capabilities, then account and basket writes.
-- **Current:** Router wired into the webhook (`e519cdd`). Read capabilities answer from live Swiggy: price/stock, addresses, order history, active-order status, cancel help, payment options. Price question left the cart unchanged (11 items, ₹1,763 before and after).
+- **Goal:** Gate 2 — finish basket capabilities, then money stays button-only.
+- **Current:** Router wired. Reads proven live: price/stock, addresses, history, active order, cancel help, payment options, delivery quote, coupons. Address switch proven live with a basket warning; delete is guarded and previewed but never executed on a real address.
 - **Passing Tests:** 49 offline tests pass; `ruff` clean. DB-backed and Gemini suites not run.
-- **Next Action:** Add store info and coupons, then address add/switch/delete, then basket change/clear/reorder. Text checkout stays blocked; money moves only by physical button.
+- **Next Action:** Basket change and clear (with confirmation), then reorder. Then the 40-case router evaluation. No checkout, no order.
 - **Source of Truth:** `STATUS.md`

@@ -609,6 +609,43 @@ async def handle_webhook(
                             "wa_id": msg.sender_wa_id,
                         }
 
+                    if decision.capability is Capability.REORDER:
+                        from backend.agent.order_actions import (
+                            OrderReply,
+                            handle_reorder_request,
+                        )
+
+                        try:
+                            order_reply = await handle_reorder_request(
+                                decision, turn_client, active_addr_id, msg.text
+                            )
+                        except (
+                            httpx.HTTPError,
+                            ValueError,
+                            KeyError,
+                            RuntimeError,
+                        ) as exc:
+                            logger.warning("Reorder preview failed: %s", exc)
+                            order_reply = OrderReply(
+                                "I couldn't read your past orders just now. Please try again."
+                            )
+
+                        if order_reply.buttons:
+                            await wa_client.send_quick_reply_buttons(
+                                to_wa_id=msg.sender_wa_id,
+                                body_text=order_reply.text,
+                                buttons=order_reply.buttons,
+                            )
+                        else:
+                            await wa_client.send_text_message(
+                                to_wa_id=msg.sender_wa_id, text=order_reply.text
+                            )
+                        await remember(order_reply.text)
+                        return {
+                            "status": "reorder_requested",
+                            "wa_id": msg.sender_wa_id,
+                        }
+
                     # Adding an item that is already in the basket is ambiguous:
                     # ask whether it means "set the total" or "add more".
                     if (

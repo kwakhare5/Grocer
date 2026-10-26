@@ -70,7 +70,7 @@ CAPABILITY_SPECS: tuple[CapabilitySpec, ...] = (
     CapabilitySpec(Capability.ADD_ADDRESS, SafetyClass.ACCOUNT, "Save a new delivery address."),
     CapabilitySpec(Capability.SWITCH_ADDRESS, SafetyClass.ACCOUNT, "Change the address used for the current basket."),
     CapabilitySpec(Capability.DELETE_ADDRESS, SafetyClass.ACCOUNT, "Delete a saved address."),
-    CapabilitySpec(Capability.CHECKOUT, SafetyClass.MONEY, "Customer wants to pay or place the order. Execution still requires the physical pay button."),
+    CapabilitySpec(Capability.CHECKOUT, SafetyClass.MONEY, "Customer wants to pay or place the order ('place the order', 'buy now', 'checkout'). Execution still requires the physical pay button."),
 )
 
 SAFETY_BY_CAPABILITY: dict[Capability, SafetyClass] = {
@@ -103,6 +103,7 @@ class RoutingDecision:
     reply: str | None = None
     safe_path: bool = False
     provider: str | None = None
+    error: str | None = None
 
     @property
     def is_write(self) -> bool:
@@ -120,7 +121,11 @@ def _system_prompt() -> str:
         "You route customer messages for Grocer, a Swiggy Instamart concierge on WhatsApp in India.\n"
         "Pick exactly one capability from the list. Never invent a capability.\n"
         "Price, pack size and stock questions are item_info, never add_items.\n"
+        "Delivery time or fee for a new basket is store_info. Status, rider or ETA "
+        "of an order already placed ('arrives', 'coming', 'delivered') is track_order.\n"
         "If the customer wants a product in their basket, use add_items.\n"
+        "A bare grocery list with no question ('milk and bread', '2 kg atta') is "
+        "a request to add those items, so use add_items.\n"
         "If the message is unclear, use chat and ask one short question.\n"
         "Understand English, Hindi and Hinglish grocery words (doodh, dahi, atta, pyaz, cheeni).\n"
         "Never invent order ids, address ids or product ids. Use null when unknown.\n"
@@ -131,6 +136,11 @@ def _system_prompt() -> str:
         "target quantity in items[0].quantity when changing quantity.\n"
         "If the item is already in the basket and the customer asks to change how many "
         "or remove it, use change_item, not add_items.\n"
+        "Repeating a past order or the customer's usual list ('same as last time', "
+        "'my regular items') is reorder, never add_items.\n"
+        "Asking to remove or delete a saved address is delete_address, even when the "
+        "label is vague ('my old address'). Ask which one only after choosing the "
+        "capability.\n"
         "Always write the reply in English, whatever language the customer used. "
         "Friendly and professional, at most two short sentences, no slang.\n\n"
         "Capabilities:\n" + _capability_list_for_prompt() + "\n\n"
@@ -142,7 +152,9 @@ def _system_prompt() -> str:
         'Customer: add 2 eggs -> {"capability":"add_items","confidence":0.95,'
         '"items":[{"query":"eggs","quantity":2}],"change_action":null}\n'
         'Customer: how much is milk -> {"capability":"item_info","confidence":0.95,'
-        '"items":[{"query":"milk","quantity":1}],"change_action":null}\n\n'
+        '"items":[{"query":"milk","quantity":1}],"change_action":null}\n'
+        'Customer: same as last time -> {"capability":"reorder","confidence":0.95,'
+        '"items":[],"order_ref":"last"}\n\n'
         "Return JSON only:\n"
         '{"capability": "<one capability>", "confidence": <0.0-1.0>, '
         '"items": [{"query": "<product words>", "quantity": <int>}], '
@@ -275,5 +287,6 @@ def route_message(
             reply=SAFE_PATH_REPLY,
             safe_path=True,
             provider=result.provider,
+            error=result.error,
         )
     return parse_decision(result.data, message, provider=result.provider)

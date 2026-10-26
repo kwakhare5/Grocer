@@ -103,7 +103,56 @@ async def dispatch_button_action(
         asyncio.create_task(wa_client.send_text_message(to_wa_id=wa_id, text=reply.text))
         return {"status": "basket_updated", "action": button_id, "message": reply.text}
 
-    # 2. Checkout Payment Authorization (Lock 1 Authority -> 3-Lock Execution)
+    # 2. Reorder confirmation taps
+    if prefix == "reorder":
+        from backend.agent.order_actions import OrderReply, apply_reorder
+        from backend.channels.whatsapp_client import WhatsAppClient
+        from backend.integrations.commerce.swiggy_client import SwiggyClient
+        from backend.integrations.commerce.token_vault import resolve_user_token
+
+        wa_client = WhatsAppClient()
+
+        if not pool or not target_arg:
+            return {
+                "status": "button_ignored",
+                "action": button_id,
+                "message": "Reorder needs a database connection.",
+            }
+
+        async with pool.acquire() as conn:
+            user_id = await conn.fetchval(
+                "SELECT id FROM grocer.users WHERE wa_id = $1;", wa_id
+            )
+            if not user_id:
+                return {"status": "unknown_user", "action": button_id}
+
+            active = await conn.fetchval(
+                "SELECT active_address_id FROM grocer.sessions WHERE user_id = $1;",
+                user_id,
+            )
+            client = swiggy_client
+            if client is None:
+                token = await resolve_user_token(user_id)
+                if not token:
+                    reply = OrderReply(
+                        "Your Swiggy login has expired. Please reconnect your account."
+                    )
+                    asyncio.create_task(
+                        wa_client.send_text_message(to_wa_id=wa_id, text=reply.text)
+                    )
+                    return {"status": "auth_required", "action": button_id}
+                client = SwiggyClient(auth_token=token)
+
+            try:
+                reply = await apply_reorder(client, active, target_arg)
+            except (ValueError, KeyError, RuntimeError, OSError) as exc:
+                logger.warning("Reorder button action failed: %s", exc)
+                reply = OrderReply("That reorder didn't go through. Nothing was changed.")
+
+        asyncio.create_task(wa_client.send_text_message(to_wa_id=wa_id, text=reply.text))
+        return {"status": "reorder_applied", "action": button_id, "message": reply.text}
+
+    # 3. Checkout Payment Authorization (Lock 1 Authority -> 3-Lock Execution)
     if prefix == "pay":
         if pool and target_arg:
             from backend.agent.checkout_executor import execute_3_lock_checkout

@@ -352,3 +352,11 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: Pushed `273c198..c8d31c9` to `origin/grocer-v1`. Render deploys that branch, so the callback now saves the encrypted refresh token and startup migrations run.
 - **Proof**: `git push` succeeded to https://github.com/kwakhare5/Grocer.git; `GET /health` returns healthy with database connected.
 - **Still broken**: No refresh token stored yet. It needs one login after the new build is live. Live refresh, confirm, split order and payment poller remain unproven.
+
+### [GROCER v1 — Refresh Proven Live] 2026-10-26
+
+#### Work Card: Capture a refresh token and prove rotation end to end
+- **Problem**: The live account had no stored refresh token because every login hit the pre-Gate-1 Render build. Without it the token would die and force a full re-auth.
+- **Change**: Deployed `c8d31c9`, Karan logged in once, and the callback stored the encrypted refresh token. Then forced one `/auth/token` exchange to prove rotation.
+- **Proof**: `refresh_token_stored: True`; forced refresh returned a new pair; new expiry 2026-11-25 17:40 UTC; refresh token still stored after rotation; rotated token loaded 3 addresses from Swiggy.
+- **Still broken**: Live confirm_order, split orders and the payment poller remain unproven because they need a real paid order. DB-backed and Gemini suites were not run.

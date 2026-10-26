@@ -1,7 +1,7 @@
 # STATUS.md — Grocer v1.0 Single Source of Truth
 
 > **Updated:** 2026-10-26
-> **Read this first.** `TASKS.md` is the historical roadmap and contains outdated "complete" claims.
+> **Read this first.** This is the only current status document.
 > **Maintenance rule:** every session updates this file before it ends.
 
 ---
@@ -120,7 +120,7 @@ The boundary is the Swiggy Instamart MCP surface, plus an honest fallback where 
 | 30 | Render free plan sleeps | `render.yaml:1` | Pollers stop | Use an always-on service/worker |
 | 31 | Gemini free-tier quota | `.env` | Full live tests hit 20 requests/day | Paid key or quota-aware tests |
 | 32 | OAuth state is in memory and login accepts any phone | `backend/integrations/commerce/token_vault.py:24`, `backend/channels/swiggy_auth.py:63` | Account hijack and lost login state | DB-backed state plus signed WhatsApp ticket |
-| 33 | Docs still overclaim | `TASKS.md`, `JOURNAL.md` | Future chats repeat false assumptions | Keep `STATUS.md` authoritative; correct stale docs |
+| 33 | Old docs still overclaim | `PRD.md`, `JOURNAL.md` | PRD describes the target product; JOURNAL is history. Future chats may read them as current. | Keep `STATUS.md` authoritative; treat the other two as target and history |
 | 34 | Green-chasing tests | `tests/` | Passing tests do not prove live behavior | Test user-visible outcomes and real contracts |
 
 ---
@@ -191,7 +191,7 @@ After that: Gate 2 — concierge intents and the full product surface.
 | `STATUS.md` | Single source of truth: fixed, partial, broken, next | Every session start and end |
 | `.scratch/HANDOFF.md` | Five-line resume note | End of session |
 | `JOURNAL.md` | Proof log: problem, change, proof, still broken | Every change |
-| `TASKS.md` | Historical roadmap only | Do not use for current status |
+| `docs/design-reference.md` | Web landing-page visual system (Cardboard.ai) | Only when the frontend style changes |
 | `AGENTS.md` | Rules and product scope | When rules or scope change |
 | `PRD.md` | Product requirements | When product requirements change |
 

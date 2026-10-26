@@ -360,3 +360,11 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: Deployed `c8d31c9`, Karan logged in once, and the callback stored the encrypted refresh token. Then forced one `/auth/token` exchange to prove rotation.
 - **Proof**: `refresh_token_stored: True`; forced refresh returned a new pair; new expiry 2026-11-25 17:40 UTC; refresh token still stored after rotation; rotated token loaded 3 addresses from Swiggy.
 - **Still broken**: Live confirm_order, split orders and the payment poller remain unproven because they need a real paid order. DB-backed and Gemini suites were not run.
+
+### [GROCER v1 — Docs Cleanup Before Gate 2] 2026-10-26
+
+#### Work Card: Remove the false roadmap and split the design spec
+- **Problem**: `TASKS.md` marked fee warnings, the payment poller, split orders and post-order additions as complete. None were. `ARCHITECTURE.md` carried a second roadmap that disagreed with `STATUS.md`. `DESIGN.md` was mostly a scraped analysis of an unrelated website.
+- **Change**: Deleted `TASKS.md`; removed the duplicate roadmap from `ARCHITECTURE.md` and folded its DoD heading to §7; moved the Cardboard visual system to `docs/design-reference.md` and kept `DESIGN.md` as the WhatsApp UX spec; repointed `AGENTS.md`, `STATUS.md`, a test docstring and two code docstrings.
+- **Proof**: `grep TASKS.md` outside JOURNAL history returns nothing. `ruff check` clean. 38 offline tests pass in 2.81s.
+- **Still broken**: `PRD.md` still describes the target product as if built, and `JOURNAL.md` is history. `STATUS.md` remains the only current source.

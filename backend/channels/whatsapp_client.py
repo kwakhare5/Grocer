@@ -1,7 +1,7 @@
 """Grocer v1.0 — Outbound Meta WhatsApp Cloud API Client.
 
 Transmits messages, interactive reply buttons, and CTA URL buttons
-to customer phones adhering to DESIGN.md Part 2.
+to customer phones adhering to DESIGN.md.
 """
 
 from __future__ import annotations
@@ -87,7 +87,7 @@ class WhatsAppClient:
         header_text: str | None = None,
         footer_text: str | None = None,
     ) -> dict[str, Any]:
-        """Send an interactive message with up to 3 quick-reply buttons (DESIGN.md Part 2)."""
+        """Send an interactive message with up to 3 quick-reply buttons (DESIGN.md)."""
         meta_buttons = []
         for btn_id, title in buttons[:3]:
             meta_buttons.append(

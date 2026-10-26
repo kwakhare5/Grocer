@@ -5,7 +5,7 @@
 
 > **Workspace Scope:** `D:\Grocer-v5\` (All clean-slate code and docs live strictly here)  
 > **Source of Truth:** `PRD.md`, `ARCHITECTURE.md`, `DESIGN.md`, `STATUS.md`, `JOURNAL.md`  
-> **Current Status:** Read `STATUS.md` first. `TASKS.md` is the historical roadmap and its "complete" labels are not current.  
+> **Current Status:** Read `STATUS.md` first. It is the only current status document.  
 > **Product Scope:** Grocer is a full Swiggy Instamart concierge on WhatsApp. The customer should be able to do anything the Instamart MCP allows through natural conversation: shopping, price/stock/store questions, saved addresses, order history, tracking, coupons, reorders, recipes, payments, support escalation, and privacy. Ordering is one capability, not the whole product.
 
 ---

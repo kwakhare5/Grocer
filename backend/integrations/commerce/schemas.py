@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Any, Generic, TypeVar
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 T = TypeVar("T")
 
@@ -144,6 +144,12 @@ class CartItem(BaseModel):
     discountedFinalPrice: float
     maxQuantity: int | None = None
 
+    @field_validator("storeId", mode="before")
+    @classmethod
+    def _store_id_as_text(cls, value: Any) -> str | None:
+        """Live Instamart returns storeId as a number; keep it as text downstream."""
+        return None if value is None else str(value)
+
     @property
     def mrp_paise(self) -> int:
         """Integer paise value of MRP (₹1 = 100 paise)."""
@@ -222,11 +228,24 @@ class PaymentOptionsData(BaseModel):
     placeOrderToolName: str = "checkout"
 
 
+class CheckoutOrderResult(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    orderId: str | None = None
+    status: str | None = None
+    error: str | None = None
+
+
 class CheckoutData(BaseModel):
     model_config = ConfigDict(extra="ignore")
-    orderId: str
+    orderId: str | None = None
     paymentMethod: str
-    status: str
+    status: str | None = None
+    # Multi-store carts come back as one order per dark store, possibly partial.
+    orders: list[CheckoutOrderResult] = Field(default_factory=list)
+    orderCount: int | None = None
+    successCount: int | None = None
+    failureCount: int | None = None
+    allSucceeded: bool | None = None
     transactionId: str | None = None
     paasId: str | None = None
     upiIntentUrl: str | None = None

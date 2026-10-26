@@ -188,21 +188,20 @@ async def handle_webhook(
                     SwiggyClient,
                 )
                 from backend.integrations.commerce.token_vault import (
-                    get_user_token,
                     refresh_user_token,
+                    resolve_user_token,
                 )
 
                 wa_client = WhatsAppClient()
 
-                user_token = await get_user_token(user_id)
+                user_token = await resolve_user_token(user_id)
                 if not user_token:
                     login_url = f"https://grocerr.vercel.app?phone={msg.sender_wa_id}"
                     await wa_client.send_cta_url_button(
                         to_wa_id=msg.sender_wa_id,
                         body_text=(
                             "👋 *Welcome to Grocer!*\n\n"
-                            "To order from Swiggy Instamart dark stores in 10-15 minutes, "
-                            "please connect your Swiggy account first:"
+                            "Connect your Swiggy account to shop Instamart in 10-15 minutes:"
                         ),
                         button_text="Connect Swiggy",
                         url=login_url,
@@ -323,6 +322,22 @@ async def handle_webhook(
                             turn.context.get("name") or "",
                             user_id,
                         )
+                        lat = turn.context.get("latitude")
+                        lng = turn.context.get("longitude")
+                        if lat is not None and lng is not None:
+                            await conn.execute(
+                                """
+                                INSERT INTO grocer.address_coords (address_id, user_id, latitude, longitude)
+                                VALUES ($1, $2, $3, $4)
+                                ON CONFLICT (address_id) DO UPDATE SET
+                                    latitude = EXCLUDED.latitude,
+                                    longitude = EXCLUDED.longitude;
+                                """,
+                                turn.address_id,
+                                user_id,
+                                lat,
+                                lng,
+                            )
                     else:
                         await conn.execute(
                             """
@@ -620,7 +635,7 @@ async def handle_webhook(
                     results.append(await run_turn(client, msg, user_id, conn, wa_client))
                 except SwiggyAuthExpiredError:
                     # Try a silent refresh before parking (Gate 1). Park only if it fails.
-                    new_token = await refresh_user_token(user_id)
+                    new_token = await refresh_user_token(user_id, force=True)
                     retried = False
                     if new_token:
                         try:

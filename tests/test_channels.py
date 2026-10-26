@@ -444,7 +444,7 @@ async def test_webhook_concurrent_double_tap_advisory_lock():
 
 
 @pytest.mark.asyncio
-async def test_webhook_location_pin_parsed_and_saved():
+async def test_webhook_location_pin_saved_and_asks_to_connect_when_no_token():
     transport = ASGITransport(app=app)
     msg_id = f"wamid.loc_{int(time.time() * 1000)}"
     lat, lon = 19.0596, 72.8295
@@ -459,8 +459,9 @@ async def test_webhook_location_pin_parsed_and_saved():
             headers={"Content-Type": "application/json", "X-Hub-Signature-256": sig},
         )
         assert resp.status_code == 200
-        # Gate 1: location pins now enter the onboarding flow, which first requires
-        # a connected Swiggy account; the message is still parsed and persisted.
+        # This account has no Swiggy token, so the pin is persisted but onboarding
+        # cannot start. Post-login onboarding is covered by
+        # test_address_lifecycle.py::test_pin_onboarding_flow_captures_name_city_pin.
         assert resp.json()["status"] == "auth_required"
 
     pool = await get_db_pool()

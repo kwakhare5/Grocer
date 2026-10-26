@@ -16,7 +16,8 @@ from __future__ import annotations
 
 import json
 import logging
-from dataclasses import dataclass
+import uuid
+from dataclasses import dataclass, field
 from typing import Any
 
 import asyncpg
@@ -86,6 +87,7 @@ class CheckoutExecutionResult:
     cta_button: dict[str, Any] | None = None
     receipt_text: str = ""
     error_message: str | None = None
+    order_ids: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -363,43 +365,114 @@ async def execute_3_lock_checkout(
             error_message="Swiggy checkout service encountered a temporary error. Please try again in a moment.",
         )
 
-    # 7. Format WhatsApp CTA URL button (enforcing HTTPS)
-    bridge_url = checkout_res.bridgeUrl or ""
-    cta_btn = format_whatsapp_cta_url_button(bridge_url, approval.to_pay_paise)
+    # 7. Collect every order id: one order normally, one per dark store when split
+    if checkout_res.orders:
+        order_ids = [o.orderId for o in checkout_res.orders if o.orderId]
+        split_failures = [o for o in checkout_res.orders if not o.orderId or o.error]
+    else:
+        order_ids = [checkout_res.orderId] if checkout_res.orderId else []
+        split_failures = []
 
-    # 8. Record pending payment state
+    if not order_ids:
+        await conn.execute(
+            "UPDATE grocer.checkouts SET status = 'failed' WHERE id = $1;",
+            checkout_db_id,
+        )
+        await conn.execute(
+            "UPDATE grocer.approvals SET status = 'expired' WHERE id = $1;",
+            approval_id,
+        )
+        reason = next((o.error for o in split_failures if o.error), None)
+        return CheckoutExecutionResult(
+            success=False,
+            error_message=reason or "Swiggy did not return an order id. Nothing was placed.",
+        )
+
+    # 8. Format WhatsApp CTA URL button (enforcing HTTPS) when Swiggy returned a pay link
+    bridge_url = checkout_res.bridgeUrl or None
+    cta_btn = (
+        format_whatsapp_cta_url_button(bridge_url, approval.to_pay_paise) if bridge_url else None
+    )
+
+    # Cash and Swiggy Money place the order inline: nothing to poll for payment.
+    placed_inline = (
+        (checkout_res.paymentMethod or "").upper() in {"CASH", "COD", "SWIGGYPAY"}
+        and not checkout_res.paasId
+    )
+
+    # 9. Record payment state and every order id
     await conn.execute(
         """
         UPDATE grocer.checkouts
-        SET status = 'pending_payment',
-            swiggy_order_id = $1,
-            paas_id = $2,
-            bridge_url = $3,
-            response_total_paise = $4,
+        SET status = $1,
+            swiggy_order_id = $2,
+            swiggy_order_ids = $3::jsonb,
+            paas_id = $4,
+            bridge_url = $5,
+            response_total_paise = $6,
             updated_at = now()
-        WHERE id = $5;
+        WHERE id = $7;
         """,
-        checkout_res.orderId,
+        "placed" if placed_inline else "pending_payment",
+        order_ids[0],
+        json.dumps(order_ids),
         checkout_res.paasId,
         bridge_url,
         approval.to_pay_paise,
         checkout_db_id,
     )
+    if placed_inline:
+        await conn.execute(
+            "UPDATE grocer.approvals SET status = 'consumed' WHERE id = $1;",
+            approval_id,
+        )
+        await conn.execute(
+            """
+            UPDATE grocer.sessions
+            SET history = '[]'::jsonb, one_time_destination_id = NULL, last_active_at = now()
+            WHERE user_id = $1;
+            """,
+            user_id,
+        )
 
-    receipt = (
-        f"💳 *Order #{checkout_res.orderId} Initiated*\n"
-        f"Total: {format_paise_to_rupees(approval.to_pay_paise)}\n"
-        f"Delivering to: {checkout_res.deliveryLabel or 'Saved Address'}\n\n"
-        f"Tap the secure button below to pay via UPI or card on Swiggy."
-    )
+    total = format_paise_to_rupees(approval.to_pay_paise)
+    destination = checkout_res.deliveryLabel or "Saved Address"
+    if len(order_ids) > 1:
+        lines = [f"Order #{oid}" for oid in order_ids]
+        receipt = (
+            f"🛒 *Split across {len(order_ids)} dark stores*\n"
+            f"Total: {total}\n"
+            f"Delivering to: {destination}\n\n"
+            + "\n".join(lines)
+        )
+        if split_failures:
+            receipt += f"\n\n⚠️ {len(split_failures)} part of your basket could not be ordered."
+        if bridge_url:
+            receipt += "\n\nTap the secure button below to pay via UPI or card on Swiggy."
+    elif bridge_url:
+        receipt = (
+            f"💳 *Order #{order_ids[0]} Initiated*\n"
+            f"Total: {total}\n"
+            f"Delivering to: {destination}\n\n"
+            f"Tap the secure button below to pay via UPI or card on Swiggy."
+        )
+    else:
+        receipt = (
+            f"✅ *Order #{order_ids[0]} placed*\n"
+            f"Total: {total}\n"
+            f"Delivering to: {destination}"
+        )
+    if len(order_ids) == 1 and split_failures:
+        receipt += f"\n\n⚠️ {len(split_failures)} item group could not be ordered."
 
     return CheckoutExecutionResult(
         success=True,
-        order_id=checkout_res.orderId,
+        order_id=order_ids[0],
         paas_id=checkout_res.paasId,
         bridge_url=bridge_url,
         cta_button=cta_btn,
         receipt_text=receipt,
+        order_ids=order_ids,
     )
 
 
@@ -408,50 +481,74 @@ async def check_and_settle_payment(
     swiggy_client: SwiggyClient,
     user_id: str,
     approval_id: str,
-    order_id: str,
+    order_id: str | None = None,
     paas_id: str | None = None,
+    order_ids: list[str] | None = None,
 ) -> SettlementResult:
-    """Poll Swiggy check_payment_status and finalize post-payment state transitions."""
-    status_data: PaymentStatusData = swiggy_client.check_payment_status(
-        paas_id=paas_id,
-        order_id=order_id,
-    )
-
-    payment_succeeded = (
-        status_data.status == "SUCCESS"
-        or status_data.isTerminalSuccess
-        or status_data.confirmed is True
-        or status_data.orderStatus == "PLACED"
-    )
-
-    if not payment_succeeded:
+    """Poll Swiggy check_payment_status for every order and finalize the checkout."""
+    ids = order_ids or ([order_id] if order_id else [])
+    if not ids:
         return SettlementResult(
             confirmed=False,
-            order_id=order_id,
-            status=status_data.status,
+            order_id="",
+            status="MISSING_ORDER",
+            message="No Swiggy order id was recorded for this checkout.",
+        )
+    primary_order_id = ids[0]
+
+    last_status = "PENDING"
+    paid = 0
+    for oid in ids:
+        status_data: PaymentStatusData = swiggy_client.check_payment_status(
+            paas_id=paas_id,
+            order_id=oid,
+        )
+        last_status = status_data.status
+        payment_succeeded = (
+            status_data.status == "SUCCESS"
+            or status_data.isTerminalSuccess
+            or status_data.confirmed is True
+            or status_data.orderStatus == "PLACED"
+        )
+        if not payment_succeeded:
+            continue
+
+        # UPI checkout returns PENDING_PAYMENT; finalize explicitly only when
+        # Swiggy did not auto-confirm. confirm_order is idempotent.
+        if not status_data.confirmed and paas_id:
+            try:
+                confirm_res = swiggy_client.confirm_order(order_id=oid, paas_id=paas_id)
+            except (httpx.HTTPError, ValueError, KeyError, RuntimeError) as exc:
+                logger.warning("confirm_order failed for %s: %s", oid, exc)
+                continue
+            if confirm_res.result != "success":
+                continue
+        paid += 1
+
+    if paid < len(ids):
+        if paid:
+            # Money already moved for at least one order: keep polling, never
+            # let the 5-minute timeout mark it failed.
+            await conn.execute(
+                "UPDATE grocer.checkouts SET status = 'confirming', updated_at = now() WHERE approval_id = $1;",
+                approval_id,
+            )
+        return SettlementResult(
+            confirmed=False,
+            order_id=primary_order_id,
+            status="PENDING_CONFIRM" if paid else last_status,
             message="Payment is still pending. Waiting for settlement.",
         )
-
-    # UPI checkout returns PENDING_PAYMENT; finalize explicitly only when Swiggy
-    # did not auto-confirm (headless flow). confirm_order is idempotent.
-    if not status_data.confirmed and paas_id:
-        confirm_res = swiggy_client.confirm_order(order_id=order_id, paas_id=paas_id)
-        if confirm_res.result != "success":
-            return SettlementResult(
-                confirmed=False,
-                order_id=order_id,
-                status="PENDING_CONFIRM",
-                message="Payment received. Finalizing your order, one moment.",
-            )
 
     # 1. Update checkouts and approvals to completed state
     await conn.execute(
         """
         UPDATE grocer.checkouts
-        SET status = 'placed', updated_at = now()
+        SET status = 'placed', swiggy_order_ids = $2::jsonb, updated_at = now()
         WHERE approval_id = $1;
         """,
         approval_id,
+        json.dumps(ids),
     )
     await conn.execute(
         """
@@ -474,66 +571,88 @@ async def check_and_settle_payment(
         user_id,
     )
 
-    # 3. Transition to real-time GPS rider tracking (track_order with delivery pin coords)
+    # 3. Transition to real-time rider tracking. track_order needs lat/lng, so use
+    # coords saved when the address was created, then the pin saved on the session.
     coords = await conn.fetchrow(
         """
-        SELECT delivery_latitude, delivery_longitude
-        FROM grocer.sessions
-        WHERE user_id = $1;
+        SELECT ac.latitude, ac.longitude
+        FROM grocer.checkouts c
+        LEFT JOIN grocer.address_coords ac ON ac.address_id = c.address_id
+        WHERE c.approval_id = $1;
         """,
-        user_id,
+        approval_id,
     )
-    lat = coords["delivery_latitude"] if coords else None
-    lng = coords["delivery_longitude"] if coords else None
+    lat = coords["latitude"] if coords else None
+    lng = coords["longitude"] if coords else None
+    if lat is None or lng is None:
+        session_coords = await conn.fetchrow(
+            "SELECT delivery_latitude, delivery_longitude FROM grocer.sessions WHERE user_id = $1;",
+            user_id,
+        )
+        lat = session_coords["delivery_latitude"] if session_coords else None
+        lng = session_coords["delivery_longitude"] if session_coords else None
 
+    order_label = (
+        f"orders #{', #'.join(ids)}" if len(ids) > 1 else f"order #{primary_order_id}"
+    )
     try:
-        if lat is not None and lng is not None:
-            tracking = swiggy_client.track_order(order_id, lat, lng)
-        else:
-            tracking = None
+        tracking = (
+            swiggy_client.track_order(primary_order_id, lat, lng)
+            if lat is not None and lng is not None
+            else None
+        )
         eta_desc = tracking.status.etaText if tracking else None
         if not eta_desc and tracking and tracking.status.etaMinutes:
             eta_desc = f"{tracking.status.etaMinutes} mins"
         if tracking:
-            map_url = f"https://swiggy.com/track/{order_id}"
+            map_url = f"https://swiggy.com/track/{primary_order_id}"
             msg = (
-                f"🎉 *Payment Confirmed!* Swiggy dark store is packing order #{order_id}.\n"
+                f"🎉 *Payment Confirmed!* Swiggy dark store is packing {order_label}.\n"
                 f"🛵 Status: {tracking.status.statusMessage} ({eta_desc or '10-15 mins'})\n"
                 f"Live Map: {map_url}"
             )
         else:
-            msg = f"🎉 *Payment Confirmed!* Swiggy dark store is packing order #{order_id}."
+            msg = f"🎉 *Payment Confirmed!* Swiggy dark store is packing {order_label}."
     except (httpx.HTTPError, ValueError, KeyError, RuntimeError):
         tracking = None
-        msg = f"🎉 *Payment Confirmed!* Swiggy dark store is packing order #{order_id}."
+        msg = f"🎉 *Payment Confirmed!* Swiggy dark store is packing {order_label}."
 
     return SettlementResult(
         confirmed=True,
-        order_id=order_id,
+        order_id=primary_order_id,
         status="PLACED",
         tracking=tracking,
         message=msg,
     )
 
 
+async def _client_for_user(user_id: str) -> SwiggyClient | None:
+    """Build a Swiggy client with this user's token, refreshing it once if expired."""
+    from backend.integrations.commerce.token_vault import resolve_user_token
+
+    token = await resolve_user_token(uuid.UUID(user_id))
+    return SwiggyClient(auth_token=token) if token else None
+
+
 async def poll_pending_checkouts_batch(
     pool: asyncpg.Pool,
-    swiggy_client: SwiggyClient,
+    swiggy_client: SwiggyClient | None = None,
     max_age_minutes: int = 5,
 ) -> list[SettlementResult]:
     """Durable background poller checking pending Swiggy checkouts using PostgreSQL FOR UPDATE SKIP LOCKED.
 
     Picks pending payments, checks status against Swiggy MCP, and finalizes settlement or marks timed out.
+    When no client is passed, each row uses its own customer's token.
     """
     results: list[SettlementResult] = []
     async with pool.acquire() as conn, conn.transaction():
         # Atomic row lock on eligible pending checkout records
         rows = await conn.fetch(
             """
-            SELECT id, approval_id, user_id, swiggy_order_id, paas_id, created_at
+            SELECT id, approval_id, user_id, swiggy_order_id, swiggy_order_ids, paas_id, created_at
             FROM grocer.checkouts
-            WHERE status = 'pending_payment'
-              AND created_at > now() - interval '5 minutes'
+            WHERE (status = 'pending_payment' AND created_at > now() - interval '5 minutes')
+               OR (status = 'confirming' AND created_at > now() - interval '2 hours')
             ORDER BY created_at ASC
             FOR UPDATE SKIP LOCKED
             LIMIT 10;
@@ -543,23 +662,35 @@ async def poll_pending_checkouts_batch(
         for row in rows:
             approval_id = str(row["approval_id"])
             user_id = str(row["user_id"])
-            order_id = row["swiggy_order_id"]
             paas_id = row["paas_id"]
 
-            if not order_id:
+            raw_ids = row["swiggy_order_ids"]
+            if isinstance(raw_ids, str):
+                order_ids = json.loads(raw_ids)
+            else:
+                order_ids = list(raw_ids or [])
+            if not order_ids and row["swiggy_order_id"]:
+                order_ids = [row["swiggy_order_id"]]
+            if not order_ids:
+                continue
+
+            client = swiggy_client or await _client_for_user(user_id)
+            if client is None:
+                logger.warning("Skipping checkout %s: no usable Swiggy token", approval_id)
                 continue
 
             res = await check_and_settle_payment(
                 conn=conn,
-                swiggy_client=swiggy_client,
+                swiggy_client=client,
                 user_id=user_id,
                 approval_id=approval_id,
-                order_id=order_id,
+                order_ids=order_ids,
                 paas_id=paas_id,
             )
             results.append(res)
 
-        # Mark expired/timed-out pending checkouts older than 5 minutes as failed
+        # Mark never-paid checkouts older than 5 minutes as failed. Rows in
+        # 'confirming' are left alone because money may already have moved.
         await conn.execute(
             """
             UPDATE grocer.checkouts
@@ -574,7 +705,7 @@ async def poll_pending_checkouts_batch(
 
 async def poll_in_flight_deliveries_batch(
     pool: asyncpg.Pool,
-    swiggy_client: SwiggyClient,
+    swiggy_client: SwiggyClient | None = None,
     order_id: str | None = None,
     user_id: str | None = None,
     limit: int = 20,
@@ -621,8 +752,13 @@ async def poll_in_flight_deliveries_batch(
             if not order_id:
                 continue
 
+            client = swiggy_client or await _client_for_user(str(row["user_id"]))
+            if client is None:
+                logger.warning("Skipping delivery poll for %s: no usable Swiggy token", order_id)
+                continue
+
             try:
-                delivery_status = swiggy_client.get_delivery_status(order_id)
+                delivery_status = client.get_delivery_status(order_id)
                 milestone = resolve_delivery_milestone(
                     status_text=delivery_status.statusText,
                     delivered=delivery_status.delivered,

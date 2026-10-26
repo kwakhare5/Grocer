@@ -113,5 +113,13 @@ async def test_store_and_retrieve_refresh_token_roundtrip():
         )
         stored = await get_refresh_token(user_id)
         assert stored == "live_refresh_token_456"
+
+        # A later save without a refresh token must not wipe the stored one.
+        await store_user_token(
+            user_id=user_id,
+            access_token="live_access_token_789",
+            expires_in_seconds=432000,
+        )
+        assert await get_refresh_token(user_id) == "live_refresh_token_456"
     finally:
         await pool.execute("DELETE FROM grocer.users WHERE id = $1;", user_id)

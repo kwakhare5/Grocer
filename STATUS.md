@@ -31,12 +31,16 @@ The boundary is the Swiggy Instamart MCP surface, plus an honest fallback where 
 | Item | State |
 |---|---|
 | Branch | `grocer-v1` |
-| Gate 0 live check | Passed: token works, 3 addresses, live search returns 10 products |
+| Gate 0 live check | Passed: token works, 3 addresses, live search returns 9 products, 0 orders |
+| Live cart read | Passed after fixing a schema bug: 11 items, ₹1,751, one dark store, all in stock |
+| Live payment options | Passed: 10 methods returned (GPay, PhonePe, Paytm, BHIM, CRED, QR, COD, Swiggy Money) |
 | Gate 1 code | Committed locally on `grocer-v1` (`1ae6431`); **not pushed** |
-| Migration 002 | Tracked in git and applied to Supabase |
+| Gate 1.1 code | Written, lint clean, 37 offline tests pass; **uncommitted** |
+| Migrations | 002 tracked and applied; 003 added locally, not yet applied to Supabase |
+| Startup | Applies pending migrations on boot, tracked in `grocer.schema_migrations` |
 | Last recorded test run | 109/109 passed (42 fast + 37 checkout/e2e/channels + 30 Gemini) |
 | Test integrity | One location-pin test was weakened to expect `auth_required` |
-| Live refresh | Not tested; refresh does not run on normal token expiry |
+| Live refresh | **Blocked**: no refresh token is stored for the live account (login predates Gate 1). One reconnect is needed to capture it. Token expires 2026-10-31 14:51 UTC |
 | Live checkout | Not tested; no order placed |
 | Account order history | `get_orders` returns 0 orders |
 | Token expiry | **2026-10-31 14:51 UTC** |
@@ -75,16 +79,16 @@ The boundary is the Swiggy Instamart MCP surface, plus an honest fallback where 
 
 ## 4. P0 Blockers — Fix Before Commit or Deploy
 
-| # | Blocker | File | Why It Matters | Fix |
+| # | Blocker | State | Fix applied | Proof |
 |---|---|---|---|---|
-| 1 | Refresh is not used on normal expiry | `backend/channels/whatsapp.py:197`, `backend/integrations/commerce/token_vault.py:120` | Token dies 2026-10-31; bot asks for login instead of refreshing | Add one token resolver: valid → use; expired/401 → refresh once → retry; then reconnect |
-| 2 | Migration 002 is untracked | `migrations/002_oauth_refresh_token.sql` | Git deploy will miss columns the code now uses | Track and commit the migration; apply on startup |
-| 3 | Multi-store checkout schema | `backend/integrations/commerce/schemas.py:225` | Swiggy split orders return `orders[]`; code expects one `orderId`; can mark success as failure and invite duplicates | Model both single and split responses; store every order ID |
-| 4 | `confirm_order` errors are uncaught | `backend/agent/checkout_executor.py:438` | Payment succeeds, confirm fails, checkout stays stuck | Catch, retry, keep a safe pending state, notify the user |
-| 5 | Tracking coordinates missing for existing users | `backend/agent/checkout_executor.py:477` | Existing accounts have no pin coordinates, so tracking is skipped | Use coordinates from the order data; fall back to a stored pin |
-| 6 | Payment poller is never scheduled | `backend/main.py:70` | Paid orders are never settled by Grocer | Start a durable poller with each user's token |
-| 7 | Location-pin test was weakened | `tests/test_channels.py:462` | The test proves parsing, not post-login onboarding | Add a real test with a stored token and live/contract onboarding |
-| 8 | Migrations are not applied at startup | `backend/database.py:64` | Fresh deploy starts against an empty schema | Run migrations in lifespan or deployment step |
+| 1 | Refresh is not used on normal expiry | **FIXED (code), BLOCKED (data)** | `resolve_user_token` in `token_vault.py`: valid → use, expired → refresh once. Used by webhook, button router and both pollers. 401 and JSON-RPC `-32001` both raise auth-expired. Refresh is serialized per user so rotation cannot race. | The live account has **no stored refresh token**, so the code cannot refresh it. Karan must reconnect once before 2026-10-31 14:51 UTC. |
+| 2 | Migration 002 untracked; nothing applied on boot | **FIXED (code)** | 002 tracked; `apply_migrations` records files in `grocer.schema_migrations` and runs only new ones; called in the lifespan before workers start. | Offline only; first real run applies 003 to Supabase |
+| 3 | Multi-store checkout schema | **FIXED (contract)** | `CheckoutData` accepts single, UPI, and `orders[]` split shapes; every order id is stored in `checkouts.swiggy_order_ids`; receipt reports each order and any partial failure. | Documented contract test passes; no live split order captured |
+| 4 | `confirm_order` errors uncaught | **FIXED (code)** | Per-order confirm wrapped in `try/except`; row moves to `confirming` (not `failed`) so the poller keeps retrying for 2 hours. | No live paid order to prove it |
+| 5 | Tracking coordinates missing for existing users | **PARTIAL** | Onboarding now saves pin coords to `grocer.address_coords`; settlement reads address coords, then session pin. Accounts created before this still have no coords, so `track_order` is skipped and only status text is sent. | Needs a pin once per old address |
+| 6 | Payment poller never scheduled | **FIXED (code)** | `_run_payment_poller_loop` runs every 15s, settles per user with that user's token, and messages the customer. | No live paid order |
+| 7 | Location-pin test weakened | **FIXED (honest)** | Test renamed to what it proves (pin saved, no token → connect CTA). Post-login onboarding is covered offline by `test_address_lifecycle.py::test_pin_onboarding_flow_captures_name_city_pin`. A live webhook onboarding test needs an isolated test DB (P1 #15). | 37 offline tests pass |
+| 8 | Migrations not applied at startup | **FIXED (code)** | Same fix as #2. | — |
 
 ---
 
@@ -110,7 +114,7 @@ The boundary is the Swiggy Instamart MCP surface, plus an honest fallback where 
 | 24 | Outbound WhatsApp failures are swallowed | `backend/channels/whatsapp_client.py:63` | Receipts can vanish unseen | Retry, log, and surface failure |
 | 25 | Receipt body is truncated at 1024 chars | `backend/channels/whatsapp_client.py:105` | Long bills silently lose lines | Split messages or summarize honestly |
 | 26 | Float money and invented SKU fallback | `backend/agent/composite_cart.py:135,143` | Violates integer-paise and "do not invent IDs" | Use real `skuId`; integer math only |
-| 27 | `store_user_token` can wipe refresh token | `backend/integrations/commerce/token_vault.py:95` | A call without a refresh token sets it to NULL | Preserve existing refresh token unless explicitly replacing |
+| 27 | ~~`store_user_token` can wipe refresh token~~ | `backend/integrations/commerce/token_vault.py` | **Fixed in Gate 1.1** with `COALESCE(EXCLUDED.refresh_token, stored.refresh_token)`; regression assertion added to `test_swiggy_auth.py` | — |
 | 28 | Approval is not bound to the tapping user | `backend/agent/checkout_executor.py:255` | Ownership check is missing | Add `user_id` to CAS |
 | 29 | Frontend fallback WhatsApp number is fake | `app/page.tsx:76` | Landing page can send users to a stranger | Require the env var and fail loudly |
 | 30 | Render free plan sleeps | `render.yaml:1` | Pollers stop | Use an always-on service/worker |
@@ -163,24 +167,20 @@ The boundary is the Swiggy Instamart MCP surface, plus an honest fallback where 
 
 ## 8. Current Next Gate
 
-**Gate 1.1 — close the P0 blockers. No commit, no deploy until they pass.**
+**Gate 1.2 — prove Gate 1.1 against the live account, then commit and deploy.**
 
-Order:
+Code order is done. Remaining:
 
-1. Add one token resolver: valid → use; expired or 401 → refresh once → retry; then reconnect.
-2. Track migration 002 and apply migrations on startup.
-3. Fix multi-store checkout responses.
-4. Catch and retry `confirm_order`.
-5. Get tracking coordinates from order data.
-6. Schedule the payment poller with the user's token.
-7. Replace the weakened location test with a real onboarding test.
+1. Apply migration 003 to Supabase (needs Karan's yes).
+2. Live read-only Swiggy check with the resolved token (addresses, search, orders).
+3. Live cart test: add, inspect, verify. No checkout, no order.
+4. Live refresh check: force one `/auth/token` exchange and confirm the rotated token still works.
+5. Run the fast + checkout test suites with the new schema.
+6. Commit Gate 1.1 locally, then push only after these pass.
 
-After that:
+Not proven yet: live refresh, live confirm, live split order, live payment poller. Those need a real paid order, which stays blocked until Karan approves.
 
-- Run live read-only Swiggy checks.
-- Run a live cart test. No checkout. No order.
-- Commit Gate 1 and update this file.
-- Then start Gate 2: concierge intents and the full product surface.
+After that: Gate 2 — concierge intents and the full product surface.
 
 ---
 

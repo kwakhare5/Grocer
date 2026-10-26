@@ -111,6 +111,34 @@ def test_fixture_get_cart():
     assert env.data.billBreakdown.toPay.value == "₹149.00"
 
 
+def test_cart_item_accepts_numeric_store_id():
+    """Live Instamart returns storeId as a number, not a string."""
+    cart = CartData.model_validate(
+        {
+            "cartId": "cart_1",
+            "cartTotalAmount": "₹31",
+            "items": [
+                {
+                    "spinId": "spin_1",
+                    "storeId": 1389256,
+                    "skuId": "sku_1",
+                    "productId": "prod_1",
+                    "itemName": "Amul Moti Toned Milk",
+                    "quantity": 1,
+                    "isInStockAndAvailable": True,
+                    "mrp": 33.0,
+                    "discountedFinalPrice": 31.0,
+                }
+            ],
+            "billBreakdown": {
+                "lineItems": [],
+                "toPay": {"label": "To Pay", "value": "₹31"},
+            },
+        }
+    )
+    assert cart.items[0].storeId == "1389256"
+
+
 def test_fixture_update_cart():
     raw = load_fixture("update_cart")
     env = ToolEnvelope[CartData].model_validate(raw)
@@ -170,6 +198,31 @@ def test_fixture_checkout():
     assert env.data.status == "PENDING_PAYMENT"
     assert env.data.bridgeUrl is not None
     assert env.data.bridgeUrl.startswith("https://")
+
+
+def test_checkout_schema_accepts_multi_store_shape():
+    """Contract shape from docs/swiggy-mcp/llms-full.txt: one order per dark store."""
+    env = ToolEnvelope[CheckoutData].model_validate(
+        {
+            "success": True,
+            "data": {
+                "orders": [
+                    {"orderId": "111", "status": "PLACED"},
+                    {"orderId": "222", "status": "FAILED", "error": "Out of stock"},
+                ],
+                "orderCount": 2,
+                "successCount": 1,
+                "failureCount": 1,
+                "allSucceeded": False,
+                "paymentMethod": "Cash",
+                "cartTotal": 149.0,
+            },
+        }
+    )
+    assert env.data is not None
+    assert env.data.orderId is None
+    assert [o.orderId for o in env.data.orders] == ["111", "222"]
+    assert env.data.allSucceeded is False
 
 
 def test_fixture_check_payment_status():

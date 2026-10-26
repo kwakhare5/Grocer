@@ -49,7 +49,7 @@ async def dispatch_button_action(
             from backend.agent.checkout_executor import execute_3_lock_checkout
             from backend.channels.whatsapp_client import WhatsAppClient
             from backend.integrations.commerce.swiggy_client import SwiggyClient
-            from backend.integrations.commerce.token_vault import get_user_token
+            from backend.integrations.commerce.token_vault import resolve_user_token
 
             wa_client = WhatsAppClient()
 
@@ -59,7 +59,19 @@ async def dispatch_button_action(
                     wa_id,
                 )
                 if user_id:
-                    user_token = await get_user_token(user_id)
+                    user_token = await resolve_user_token(user_id)
+                    if not user_token and not swiggy_client:
+                        # Never spend the approval on a checkout we know will 401.
+                        await conn.execute(
+                            "UPDATE grocer.approvals SET status = 'expired' WHERE id = $1::uuid;",
+                            target_arg,
+                        )
+                        return {
+                            "status": "auth_required",
+                            "action": button_id,
+                            "approval_id": target_arg,
+                            "message": "Swiggy login expired. Please reconnect your account.",
+                        }
                     client = swiggy_client or SwiggyClient(auth_token=user_token)
 
                     checkout_res = await execute_3_lock_checkout(
@@ -81,6 +93,14 @@ async def dispatch_button_action(
                                 ),
                                 button_text="Pay on Swiggy",
                                 url=checkout_res.bridge_url,
+                            )
+                        )
+                    elif checkout_res.success and checkout_res.receipt_text:
+                        # Cash/COD and split orders have no payment link to tap.
+                        asyncio.create_task(
+                            wa_client.send_text_message(
+                                to_wa_id=wa_id,
+                                text=checkout_res.receipt_text,
                             )
                         )
                     elif not checkout_res.success and checkout_res.error_message:

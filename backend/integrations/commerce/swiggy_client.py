@@ -219,6 +219,11 @@ class SwiggyClient:
             resp.raise_for_status()
             data = resp.json()
 
+            # Auth failures can arrive as HTTP 200 + JSON-RPC -32001.
+            rpc_error = data.get("error") if isinstance(data, dict) else None
+            if isinstance(rpc_error, dict) and rpc_error.get("code") == -32001:
+                raise SwiggyAuthExpiredError("Swiggy OAuth session expired (JSON-RPC -32001)")
+
             # Handle native Swiggy MCP structuredContent
             if "result" in data and "structuredContent" in data["result"]:
                 sc = data["result"]["structuredContent"]

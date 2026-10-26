@@ -157,7 +157,8 @@ The boundary is the Swiggy Instamart MCP surface, plus an honest fallback where 
 - Live proof that a price question leaves the cart untouched: 11 items ₹1,763 before and after.
 - English-only replies enforced in the prompt.
 - Known cost: basket requests still make a second LLM call through the old classifier until recipes move into the router.
-- Not built yet: change or clear basket, reorder, add address by typed text (location pin works), text checkout (button only).
+- Basket clear, remove and quantity changes are previewed, confirmed by tap, and verified after writing. Proven against fixtures only, not the live cart.
+- Not built yet: reorder, add address by typed text (location pin works), text checkout (button only).
 
 **Not fixed:** the P0 and P1 items above.
 

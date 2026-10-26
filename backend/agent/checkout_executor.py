@@ -25,9 +25,9 @@ import httpx
 from backend.agent.approval import (
     ApprovalRecord,
     compute_cart_fingerprint,
-    extract_cart_to_pay_paise,
 )
 from backend.agent.candidate_evaluator import format_paise_to_rupees
+from backend.agent.customer_advocate import extract_cart_to_pay_paise
 from backend.agent.formatters import (
     SWIGGY_CARE_PHONE,
     format_multi_store_split_receipt,
@@ -59,6 +59,7 @@ __all__ = [
     "format_whatsapp_cta_url_button",
     "get_order_cancellation_instructions",
     "handle_post_order_addition",
+    "poll_in_flight_deliveries_batch",
     "poll_pending_checkouts_batch",
     "verify_lock_1_authority",
     "verify_lock_2_truth",
@@ -166,19 +167,6 @@ def verify_lock_2_truth(
                 reason=f"'{it.itemName}' is currently unavailable at your local dark store.",
             )
 
-    # Canonical fingerprint match (verifies basket items, quantities, and destination)
-    live_fingerprint = compute_cart_fingerprint(
-        items=live_cart.items,
-        address_id_or_paise=approval.address_id,
-        address_id=approval.address_id,
-    )
-    if live_fingerprint != approval.fingerprint:
-        return LockValidationResult(
-            passed=False,
-            lock_name="Lock 2 (Truth)",
-            reason="Basket contents changed since approval. Please review your updated receipt.",
-        )
-
     live_to_pay_paise = extract_cart_to_pay_paise(live_cart)
 
     # Price drift check (ADR 0002): abort if price changed by ₹1 or more
@@ -192,6 +180,19 @@ def verify_lock_2_truth(
                 f"Store price shifted by {drift_rs} since your receipt was shown. "
                 "Checkout aborted to protect your wallet. Please review your updated receipt."
             ),
+        )
+
+    # Canonical fingerprint match (verifies basket items, quantities, paise, and destination)
+    live_fingerprint = compute_cart_fingerprint(
+        items=live_cart.items,
+        to_pay_paise=live_to_pay_paise,
+        address_id=approval.address_id,
+    )
+    if live_fingerprint != approval.fingerprint:
+        return LockValidationResult(
+            passed=False,
+            lock_name="Lock 2 (Truth)",
+            reason="Basket contents changed since approval. Please review your updated receipt.",
         )
 
     # Launch safety cap check (ADR 0006)
@@ -281,10 +282,33 @@ async def execute_3_lock_checkout(
 
     # 3. Lock 2 (Truth / Live Cart Re-verification)
     live_cart = swiggy_client.get_cart(address_id=approval.address_id)
-    l2 = verify_lock_2_truth(approval, live_cart)
+    session_row = await conn.fetchrow(
+        "SELECT budget_cap_paise FROM grocer.sessions WHERE user_id = $1::uuid;",
+        user_id,
+    )
+    budget_cap = (
+        int(session_row["budget_cap_paise"])
+        if session_row and session_row["budget_cap_paise"]
+        else DEFAULT_LAUNCH_CAP_PAISE
+    )
+    l2 = verify_lock_2_truth(approval, live_cart, max_launch_cap_paise=budget_cap)
     if not l2.passed:
         # Revert CAS state to expired on validation failure
-        await conn.execute("UPDATE grocer.approvals SET status = 'expired' WHERE id = $1;", approval_id)
+        await conn.execute("UPDATE grocer.approvals SET status = 'expired' WHERE id = $1::uuid;", approval_id)
+        if "launch safety limit" in l2.reason:
+            live_to_pay = extract_cart_to_pay_paise(live_cart)
+            return CheckoutExecutionResult(
+                success=False,
+                error_message=l2.reason,
+                cta_button={
+                    "type": "button",
+                    "sub_type": "quick_reply",
+                    "parameters": {
+                        "button_id": f"budget:raise:{approval_id}:{live_to_pay}",
+                        "title": f"Raise Limit to {format_paise_to_rupees(live_to_pay)}",
+                    },
+                },
+            )
         return CheckoutExecutionResult(success=False, error_message=l2.reason)
 
     # 4. Snapshot pre-checkout order IDs (Fail safe with warning on external call drop)
@@ -517,3 +541,96 @@ async def poll_pending_checkouts_batch(
         )
 
     return results
+
+
+async def poll_in_flight_deliveries_batch(
+    pool: asyncpg.Pool,
+    swiggy_client: SwiggyClient,
+    order_id: str | None = None,
+    user_id: str | None = None,
+    limit: int = 20,
+) -> list[Any]:
+    """Poll in-flight 'placed' orders and transition through Picked Up and Delivered milestones."""
+    from backend.agent.delivery_tracker import (
+        MILESTONE_CONFIRMED,
+        MILESTONE_DELIVERED,
+        MILESTONE_PICKED_UP,
+        format_milestone_notification,
+        resolve_delivery_milestone,
+    )
+
+    notifications: list[Any] = []
+    async with pool.acquire() as conn, conn.transaction():
+        # Build dynamic query supporting optional order_id/user_id filtering
+        conditions = ["status IN ('placed', 'out_for_delivery')", "created_at > now() - interval '2 hours'"]
+        params: list[Any] = []
+        if order_id:
+            params.append(order_id)
+            conditions.append(f"swiggy_order_id = ${len(params)}")
+        if user_id:
+            params.append(user_id)
+            conditions.append(f"user_id = ${len(params)}::uuid")
+
+        params.append(limit)
+        limit_param = f"${len(params)}"
+
+        where_clause = " AND ".join(conditions)
+        query = f"""
+            SELECT id, user_id, swiggy_order_id, status
+            FROM grocer.checkouts
+            WHERE {where_clause}
+            ORDER BY created_at DESC
+            FOR UPDATE SKIP LOCKED
+            LIMIT {limit_param};
+        """
+        rows = await conn.fetch(query, *params)
+
+        for row in rows:
+            checkout_id = row["id"]
+            order_id = row["swiggy_order_id"]
+            current_status = row["status"]
+            if not order_id:
+                continue
+
+            try:
+                delivery_status = swiggy_client.get_delivery_status(order_id)
+                milestone = resolve_delivery_milestone(
+                    status_text=delivery_status.statusText,
+                    delivered=delivery_status.delivered,
+                    cancelled=delivery_status.cancelled,
+                )
+            except (httpx.HTTPError, ValueError, KeyError, RuntimeError) as exc:
+                logger.warning("Failed to poll delivery status for %s: %s", order_id, exc)
+                continue
+
+            if not milestone:
+                continue
+
+            # Check if order transitioned to DELIVERED
+            if milestone == MILESTONE_DELIVERED and current_status != "delivered":
+                await conn.execute(
+                    "UPDATE grocer.checkouts SET status = 'delivered', updated_at = now() WHERE id = $1::uuid;",
+                    checkout_id,
+                )
+                note = format_milestone_notification(order_id, MILESTONE_DELIVERED)
+                notifications.append(note)
+            elif milestone == MILESTONE_PICKED_UP and current_status != "out_for_delivery":
+                await conn.execute(
+                    "UPDATE grocer.checkouts SET status = 'out_for_delivery', updated_at = now() WHERE id = $1::uuid;",
+                    checkout_id,
+                )
+                note = format_milestone_notification(
+                    order_id,
+                    MILESTONE_PICKED_UP,
+                    eta_text=delivery_status.etaText,
+                )
+                notifications.append(note)
+            elif milestone == MILESTONE_CONFIRMED and current_status == "placed":
+                note = format_milestone_notification(
+                    order_id,
+                    MILESTONE_CONFIRMED,
+                    eta_text=delivery_status.etaText,
+                )
+                notifications.append(note)
+
+    return notifications

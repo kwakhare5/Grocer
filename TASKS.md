@@ -72,10 +72,10 @@
 
 ---
 
-## Phase 5: Wallet Advocate & Production Hardening
-- [ ] Implement bounded coupon trial-and-reset (max 2 applicable coupons; net savings check).
-- [ ] Enforce ₹1,000 launch safety cap with 1-tap "Raise Limit" button.
-- [ ] Implement 24-hour DPDP data minimization scrubber and "delete my data" command.
-- [ ] Implement milestone-only delivery push notifications (Confirmed, Picked Up, Delivered).
-- [ ] Build end-to-end staging smoke test suite (`tests/test_e2e_staging.py`).
-- **Done Condition:** Full test suite passes; 0 duplicate orders and 0 cart drift errors.
+## Phase 5: Wallet Advocate & Production Hardening — [COMPLETE]
+- [x] Implement bounded coupon trial-and-reset (max 2 applicable coupons; net savings check).
+- [x] Enforce ₹1,000 launch safety cap with 1-tap "Raise Limit" button.
+- [x] Implement 24-hour DPDP data minimization scrubber and "delete my data" command.
+- [x] Implement milestone-only delivery push notifications (Confirmed, Picked Up, Delivered).
+- [x] Build end-to-end staging smoke test suite (`tests/test_e2e_staging.py`).
+- **Done Condition:** Full test suite passes; 0 duplicate orders and 0 cart drift errors. [VERIFIED: 8/8 green, 96/96 total suite green, exit 0]

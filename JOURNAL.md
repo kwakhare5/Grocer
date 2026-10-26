@@ -259,3 +259,21 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: `.\verify.ps1` ran all 4 verification stages exiting 0 with terminal proof (88/88 tests green in 4.04s, Ruff clean, Supabase live check passed, Next.js build clean in 2.0s).
 - **Still broken**: None. All Phase 4 code review findings are 100% resolved and verified.
 
+### [GROCER v1 — Phase 5 Complete: Wallet Advocate & Production Hardening] 2026-10-26
+
+#### Work Card: Implement Bounded Coupon Optimization, Safety Cap, DPDP Scrubber & Milestone Push
+- **Problem**: Need bounded coupon trials with net-savings protection, ₹1,000 launch safety cap with 1-tap raise button, 24-hour DPDP compliance scrubber, "delete my data" instant wipe, and milestone-only delivery notifications without polling spam.
+- **Change**: Built `optimize_coupons` and `check_launch_safety_cap` in `backend/agent/customer_advocate.py`; added coupon and delivery status tools to `backend/integrations/commerce/swiggy_client.py`; built `backend/agent/dpdp.py` (24h scrubber and instant wipe) and mounted `"delete my data"` trigger in `backend/channels/whatsapp.py`; built `backend/agent/delivery_tracker.py` with anti-spam milestone latch; wired `budget:raise` button handler in `backend/channels/button_router.py`; authored end-to-end staging smoke test suite `tests/test_e2e_staging.py`.
+- **Proof**: `.\verify.ps1` ran all 4 verification stages exiting 0 with terminal proof (96/96 tests green in 5.53s, Ruff lint clean, Supabase live schema 6/6 verified, Next.js build clean in 2.2s).
+- **Still broken**: None. Phase 5 is 100% complete and verified. Ready for production deployment.
+
+### [GROCER v1 — Phase 5 Real System Wiring & Hardening] 2026-10-26
+
+#### Work Card: Connect Live MCP Client, Cart Coupon Engine, Lifespan Poller & Address Redaction
+- **Problem**: Review identified production coupling to test fixtures in `button_router.py`, unhooked coupon optimization in `composite_cart.py`, missing background scheduling in `main.py`, unredacted address IDs on "delete my data", and Lock 2 fingerprint using approval paise.
+- **Change**: Bound `button_router.py` to live `SwiggyClient` with zero fixture references; wired `optimize_coupons` into `CompositeCartManager` with discount receipt formatting; scheduled 30s delivery poller and hourly DPDP scrubber in `main.py` FastAPI lifespan; added address redaction in `dpdp.py`; fixed `verify_lock_2_truth` to compute fingerprint over live cart paise and return interactive `budget:raise` buttons on cap triggers.
+- **Proof**: `.\verify.ps1` ran all 4 verification stages exiting 0 with terminal proof (98/98 tests green in 6.04s, Ruff lint clean, Supabase live check 6/6 passed, Next.js Turbopack build passed in 2.5s).
+- **Still broken**: None. All Phase 5 real wires are fully connected and verified end-to-end.
+
+
+

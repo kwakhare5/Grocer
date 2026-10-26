@@ -335,6 +335,7 @@ backend/
 │   ├── whatsapp_crypto.py      # HMAC-SHA256 & challenge verification
 │   ├── whatsapp_formatter.py   # Meta interactive buttons, lists, and HTTPS bridgeUrl
 │   ├── whatsapp_parser.py      # Inbound payload parsing (text, location pins, button IDs)
+│   ├── command_router.py       # Deterministic administrative and DPDP privacy command router
 │   └── payment_poller.py       # Durable ~19s long-poll worker using FOR UPDATE SKIP LOCKED
 │
 ├── agent/                      # Conversational Concierge Engine
@@ -344,6 +345,9 @@ backend/
 │   ├── schemas.py              # Gemini tool declarations (20 native Instamart tools)
 │   ├── tools.py                # SwiggyAgentTools implementing two-step candidate search
 │   ├── approval.py             # Canonical SHA-256 fingerprinting & 3-Lock latch
+│   ├── checkout_executor.py    # 3-Lock Payment Safety Gate & Checkout Executor
+│   ├── delivery_tracker.py     # Milestone-only delivery push notifications (anti-spam)
+│   ├── dpdp.py                 # 24-hour DPDP compliance data scrubber & user account wipe
 │   ├── button_router.py        # 50ms fast-path dispatcher for interactive button taps
 │   ├── composite_cart.py       # Target assembly, destructive update_cart, read-after-write
 │   ├── customer_advocate.py    # Bounded coupon trial & small-cart fee warning

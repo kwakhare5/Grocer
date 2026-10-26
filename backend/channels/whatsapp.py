@@ -158,6 +158,15 @@ async def handle_webhook(request: Request) -> dict[str, Any]:
                 results.append(action_res)
                 continue
 
+            # 8. Inbound Command Dispatcher (DPDP, admin commands)
+            if msg.text:
+                from backend.channels.command_router import dispatch_text_command
+
+                cmd_res = await dispatch_text_command(msg.text, str(user_id), conn)
+                if cmd_res is not None:
+                    results.append(cmd_res)
+                    continue
+
             results.append({"status": "processed", "wa_message_id": msg.wa_message_id})
 
     # Single-message response preservation for caller convenience

@@ -424,3 +424,11 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: Added read-only handlers in `read_actions.py`. Store info reads the live cart bill and states plainly that Swiggy does not expose the dark store name or hours before an order. Coupons lists only applicable codes.
 - **Proof**: "what is the delivery fee" → Item Total ₹1,753.00, Handling ₹10.01, Delivery FREE, To pay ₹1,763; "any coupons for me" → no coupons available. Cart unchanged before and after. `ruff` clean.
 - **Still broken**: Address add/switch/delete, basket edits, reorder and text checkout remain unbuilt.
+
+### [GROCER v1 — Gate 2: Address Switch and Delete] 2026-10-26
+
+#### Work Card: Switch addresses with a basket warning, delete only after a second tap
+- **Problem**: The `addr` button was a stub and the router's account capabilities had no handler, so switching or deleting an address was impossible from chat.
+- **Change**: Added `backend/agent/address_actions.py` (resolve by label, warn when a basket exists, save the active address, two-tap delete with last-address and active-address guards). Wired switch/delete/add into `whatsapp.py` and replaced the `addr:` button stub with real apply logic. Router prompt now copies spoken address labels and order references into the decision.
+- **Proof**: "switch to my home address" → warns the basket may change, offers Switch anyway / Keep current; applying switched the session to the home address and restoring put it back. "delete my pune address" → asks for confirmation; the address still exists because no delete was performed. 49 offline tests pass; `ruff` clean.
+- **Still broken**: Actual `delete_address` execution is unproven (not performed on a real address). Basket edits, reorder and text checkout are not built.

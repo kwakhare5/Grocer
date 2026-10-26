@@ -140,13 +140,66 @@ async def dispatch_button_action(
             "message": "Payment lock authorized.",
         }
 
-    # 3. Delivery Address Switching
+    # 3. Delivery Address Switch / Delete confirmation tap
     if prefix == "addr":
+        from backend.agent.address_actions import (
+            AddressReply,
+            apply_delete,
+            apply_switch,
+        )
+        from backend.channels.whatsapp_client import WhatsAppClient
+        from backend.integrations.commerce.swiggy_client import SwiggyClient
+        from backend.integrations.commerce.token_vault import resolve_user_token
+
+        wa_client = WhatsAppClient()
+        action, _, address_id = (target_arg or "").partition(":")
+
+        if action == "keep" or not address_id:
+            text = "Okay, nothing changed."
+            asyncio.create_task(wa_client.send_text_message(to_wa_id=wa_id, text=text))
+            return {"status": "address_kept", "action": button_id, "message": text}
+
+        if not pool:
+            return {
+                "status": "button_ignored",
+                "action": button_id,
+                "message": "Address action needs a database connection.",
+            }
+
+        async with pool.acquire() as conn:
+            user_id = await conn.fetchval(
+                "SELECT id FROM grocer.users WHERE wa_id = $1;", wa_id
+            )
+            if not user_id:
+                return {"status": "unknown_user", "action": button_id}
+
+            active = await conn.fetchval(
+                "SELECT active_address_id FROM grocer.sessions WHERE user_id = $1;",
+                user_id,
+            )
+            client = swiggy_client
+            if client is None:
+                token = await resolve_user_token(user_id)
+                if not token:
+                    reply = AddressReply(
+                        "Your Swiggy login has expired. Please reconnect your account."
+                    )
+                    asyncio.create_task(
+                        wa_client.send_text_message(to_wa_id=wa_id, text=reply.text)
+                    )
+                    return {"status": "auth_required", "action": button_id}
+                client = SwiggyClient(auth_token=token)
+
+            if action == "set":
+                reply = await apply_switch(client, conn, user_id, address_id)
+            else:
+                reply = await apply_delete(client, active, address_id)
+
+        asyncio.create_task(wa_client.send_text_message(to_wa_id=wa_id, text=reply.text))
         return {
-            "status": "button_dispatched",
+            "status": "address_updated",
             "action": button_id,
-            "address_id": target_arg,
-            "message": "Address switch requested.",
+            "message": reply.text,
         }
 
     # 4. Budget Cap Raise Action (ADR 0006)

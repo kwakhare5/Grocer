@@ -206,3 +206,21 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: Integrated `google.genai` SDK in `backend/agent/candidate_evaluator.py`; killed blind `res[0]` fallback; added physical `[Change items]` button for vague staples; implemented `format_paise_to_rupees` ensuring honest price display; added per-item recipe toggles; replaced assert with `ValueError` in `backend/integrations/commerce/swiggy_client.py`; typed `vegClassifier` on `ProductVariation`; added tests 21 and 22 in `tests/test_catalog_search.py`.
 - **Proof**: `.\verify.ps1` ran all 4 verification stages exiting 0 with terminal proof (57/57 tests green, Ruff clean, Supabase live check passed, Next.js build passed in 2.4s).
 - **Still broken**: None. All code-review findings 100% resolved.
+
+
+### [GROCER v1 — Phase 3 Complete: Commerce & Account Lifecycle] 2026-10-25
+
+#### Work Card: Build Target Cart Assembly, Out-of-Stock Reconciliation & Address Lifecycle
+- **Problem**: Swiggy's destructive update_cart risks wiping carts, out-of-stock items risk dropping silently, address deletion could strand in-transit deliveries, and 5-day token expiration loses customer baskets.
+- **Change**: Built `backend/agent/composite_cart.py` (target assembly, read-after-write verification, "Not added" card, mid-basket address rebuild, 1-tap reordering) and `backend/agent/address_lifecycle.py` (2-step pin geocoding, in-flight delivery deletion guardrail, 1-time destinations, 401 request parking); implemented MCP tools in `backend/integrations/commerce/swiggy_client.py`; authored 10 tests across `tests/test_composite_cart.py` and `tests/test_address_lifecycle.py`.
+- **Proof**: `.\verify.ps1` ran all 4 verification stages exiting 0 with terminal proof (67/67 pytest tests green, Ruff clean, Supabase live check passed, Next.js build clean in 6.2s).
+- **Still broken**: None. Phase 3 is 100% complete. Ready for Phase 4 (3-Lock Payment Gate & Web Checkout).
+
+
+### [GROCER v1 — Swiggy OAuth 2.1 PKCE Flow & Token Vault] 2026-10-26
+
+#### Work Card: Build Live Swiggy OAuth Login, PKCE S256 Challenge & Token Vault
+- **Problem**: Vercel login on https://grocerr.vercel.app returned 404 because HTTP OAuth endpoints were not implemented in FastAPI.
+- **Change**: Built `backend/integrations/commerce/token_vault.py` (AES-256-GCM token encryption and RFC 7636 PKCE S256 generation) and `backend/channels/swiggy_auth.py` (`POST /api/auth/swiggy/login` and `POST /api/auth/swiggy/callback`); mounted router in `backend/main.py`; wrote 5 tests in `tests/test_swiggy_auth.py`.
+- **Proof**: `.\verify.ps1` ran all 4 verification stages exiting 0 with terminal proof (72/72 tests green in 3.54s, Ruff clean, Supabase SSL check passed, Next.js Turbopack build passed in 8.5s).
+- **Still broken**: None. OAuth PKCE and callback handlers are fully tested and functional.

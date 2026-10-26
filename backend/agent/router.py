@@ -99,6 +99,7 @@ class RoutingDecision:
     items: list[dict[str, Any]] = field(default_factory=list)
     order_ref: str | None = None
     address_ref: str | None = None
+    change_action: str | None = None
     reply: str | None = None
     safe_path: bool = False
     provider: str | None = None
@@ -126,14 +127,28 @@ def _system_prompt() -> str:
         "If the customer names an address or label (home, work, mom's, Pune), copy that "
         "word into address_ref. If they refer to an order, put 'last' or the order number "
         "in order_ref.\n"
+        "For change_item only, set change_action to remove or set_quantity, and put the "
+        "target quantity in items[0].quantity when changing quantity.\n"
+        "If the item is already in the basket and the customer asks to change how many "
+        "or remove it, use change_item, not add_items.\n"
         "Always write the reply in English, whatever language the customer used. "
         "Friendly and professional, at most two short sentences, no slang.\n\n"
         "Capabilities:\n" + _capability_list_for_prompt() + "\n\n"
+        "Examples:\n"
+        'Customer: remove milk -> {"capability":"change_item","confidence":0.95,'
+        '"items":[{"query":"milk","quantity":1}],"change_action":"remove"}\n'
+        'Customer: make milk 3 -> {"capability":"change_item","confidence":0.95,'
+        '"items":[{"query":"milk","quantity":3}],"change_action":"set_quantity"}\n'
+        'Customer: add 2 eggs -> {"capability":"add_items","confidence":0.95,'
+        '"items":[{"query":"eggs","quantity":2}],"change_action":null}\n'
+        'Customer: how much is milk -> {"capability":"item_info","confidence":0.95,'
+        '"items":[{"query":"milk","quantity":1}],"change_action":null}\n\n'
         "Return JSON only:\n"
         '{"capability": "<one capability>", "confidence": <0.0-1.0>, '
         '"items": [{"query": "<product words>", "quantity": <int>}], '
         '"order_ref": "<order id or last or null>", '
         '"address_ref": "<address label or id or null>", '
+        '"change_action": "<remove or set_quantity or null>", '
         '"reply": "<short reply, mainly for chat>"}'
     )
 
@@ -211,6 +226,10 @@ def parse_decision(
             provider=provider,
         )
 
+    change_action = payload.get("change_action")
+    if change_action not in {"remove", "set_quantity"}:
+        change_action = None
+
     if reply is None and capability is Capability.CHAT:
         reply = "Hey! What groceries do you need?"
 
@@ -221,6 +240,7 @@ def parse_decision(
         items=items,
         order_ref=payload.get("order_ref"),
         address_ref=payload.get("address_ref"),
+        change_action=change_action,
         reply=reply,
         provider=provider,
     )
@@ -230,9 +250,18 @@ def route_message(
     message: str,
     history: list[dict[str, Any]] | None = None,
     provider: str | None = None,
+    basket: list[dict[str, Any]] | None = None,
 ) -> RoutingDecision:
     """Ask the LLM for a routing decision and apply Python's safety rules."""
+    basket_text = (
+        ", ".join(
+            f"{item.get('name', 'item')} x{item.get('quantity', 1)}"
+            for item in (basket or [])[:10]
+        )
+        or "empty"
+    )
     user_prompt = (
+        f"Basket now: {basket_text}\n\n"
         f"Dialogue so far:\n{_history_text(history)}\n\n"
         f"Latest customer message:\n{message}"
     )

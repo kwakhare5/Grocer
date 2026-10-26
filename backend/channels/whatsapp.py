@@ -454,8 +454,21 @@ async def handle_webhook(
                         route_message,
                     )
 
+                    basket_summary: list[dict[str, Any]] = []
+                    live_cart = None
+                    try:
+                        live_cart = await asyncio.to_thread(
+                            turn_client.get_cart, active_addr_id
+                        )
+                        basket_summary = [
+                            {"name": item.itemName, "quantity": item.quantity}
+                            for item in live_cart.items
+                        ]
+                    except (httpx.HTTPError, ValueError, KeyError, RuntimeError) as cart_err:
+                        logger.warning("Could not read basket for routing: %s", cart_err)
+
                     decision = await asyncio.to_thread(
-                        route_message, msg.text, session_history
+                        route_message, msg.text, session_history, None, basket_summary
                     )
 
                     if address_count == 0:
@@ -553,6 +566,94 @@ async def handle_webhook(
                         )
                         await remember(add_text)
                         return {"status": "address_add_requested", "wa_id": msg.sender_wa_id}
+
+                    if decision.capability in (
+                        Capability.CLEAR_BASKET,
+                        Capability.CHANGE_ITEM,
+                    ):
+                        from backend.agent.basket_actions import (
+                            BasketReply,
+                            handle_change_request,
+                            handle_clear_request,
+                        )
+
+                        try:
+                            if decision.capability is Capability.CLEAR_BASKET:
+                                basket_reply = await handle_clear_request(
+                                    turn_client, active_addr_id
+                                )
+                            else:
+                                basket_reply = await handle_change_request(
+                                    decision, turn_client, active_addr_id
+                                )
+                        except (httpx.HTTPError, ValueError, KeyError, RuntimeError) as exc:
+                            logger.warning("Basket change failed: %s", exc)
+                            basket_reply = BasketReply(
+                                "I couldn't read your basket just now. Please try again."
+                            )
+
+                        if basket_reply.buttons:
+                            await wa_client.send_quick_reply_buttons(
+                                to_wa_id=msg.sender_wa_id,
+                                body_text=basket_reply.text,
+                                buttons=basket_reply.buttons,
+                            )
+                        else:
+                            await wa_client.send_text_message(
+                                to_wa_id=msg.sender_wa_id, text=basket_reply.text
+                            )
+                        await remember(basket_reply.text)
+                        return {
+                            "status": "basket_change_requested",
+                            "capability": decision.capability.value,
+                            "wa_id": msg.sender_wa_id,
+                        }
+
+                    # Adding an item that is already in the basket is ambiguous:
+                    # ask whether it means "set the total" or "add more".
+                    if (
+                        decision.capability is Capability.ADD_ITEMS
+                        and decision.items
+                        and live_cart is not None
+                    ):
+                        wanted = str(decision.items[0].get("query") or "").strip().lower()
+                        existing = next(
+                            (
+                                item
+                                for item in live_cart.items
+                                if wanted and wanted in item.itemName.lower()
+                            ),
+                            None,
+                        )
+                        if existing:
+                            try:
+                                add_qty = max(1, int(decision.items[0].get("quantity") or 1))
+                            except (TypeError, ValueError):
+                                add_qty = 1
+                            prompt_text = (
+                                f"You already have *{existing.itemName}* "
+                                f"({existing.quantity}) in your basket. Do you want the "
+                                f"total to be {add_qty}, or {add_qty} more?"
+                            )
+                            await wa_client.send_quick_reply_buttons(
+                                to_wa_id=msg.sender_wa_id,
+                                body_text=prompt_text,
+                                buttons=[
+                                    (
+                                        f"cart:qty:{existing.spinId}:{add_qty}",
+                                        f"Set to {add_qty}"[:20],
+                                    ),
+                                    (
+                                        f"cart:addqty:{existing.spinId}:{add_qty}",
+                                        f"Add {add_qty} more"[:20],
+                                    ),
+                                ],
+                            )
+                            await remember(prompt_text)
+                            return {
+                                "status": "basket_quantity_choice",
+                                "wa_id": msg.sender_wa_id,
+                            }
 
                     if decision.capability is not Capability.ADD_ITEMS:
                         await wa_client.send_text_message(

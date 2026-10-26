@@ -39,7 +39,7 @@ The boundary is the Swiggy Instamart MCP surface, plus an honest fallback where 
 | Gate 2 router | Built, live-tested on 8 messages, **not yet wired to WhatsApp** |
 | Migrations | 002 tracked and applied; 003 added locally, not yet applied to Supabase |
 | Startup | Applies pending migrations on boot, tracked in `grocer.schema_migrations` |
-| Last recorded test run | 109/109 passed (42 fast + 37 checkout/e2e/channels + 30 Gemini) |
+| Tests run today | 49 offline pass (38 contract/lifecycle/invariants/cart + 11 router). DB-backed and Gemini suites not run. |
 | Test integrity | One location-pin test was weakened to expect `auth_required` |
 | Live refresh | **Passed**: refresh token stored, forced exchange rotated it, new token called Swiggy successfully |
 | Live checkout | Not tested; no order placed |
@@ -146,6 +146,14 @@ The boundary is the Swiggy Instamart MCP surface, plus an honest fallback where 
 - `confirm_order` is called after payment when Swiggy does not auto-confirm.
 - Migration 002 applied to Supabase.
 - Last recorded run: 109/109 tests, Ruff clean, Next build clean.
+
+### Gate 2 — router built, not wired
+
+- 17 capabilities with four safety classes (ADR 0012).
+- Provider adapter: Groq `openai/gpt-oss-120b` and Gemini behind one JSON call.
+- Live routing proven on 8 messages, including Hinglish and cancel requests.
+- English-only replies enforced in the prompt.
+- Nothing calls the router from WhatsApp yet.
 
 **Not fixed:** the P0 and P1 items above.
 

@@ -3,7 +3,7 @@
 ## Context
 Production grocery commerce introduces four failure points across user lifecycle boundaries:
 1. Shopping sessions retaining lingering cart states post-checkout, confusing subsequent shopping runs.
-2. Swiggy 5-day OAuth token expiration occurring mid-checkout when a customer attempts to pay.
+2. Swiggy OAuth token expiration occurring mid-checkout when a customer attempts to pay. **Amended by Gate 1.1:** Grocer refreshes silently with the stored refresh token first and parks only if the refresh fails.
 3. 1-tap reorders ("Your Go-To Items") failing completely if a single frequent SKU is temporarily out of stock.
 4. Cold-start shoppers with zero saved addresses attempting catalog queries without a local dark store geofence.
 

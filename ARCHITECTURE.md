@@ -85,6 +85,8 @@ flowchart TD
     end
 ```
 
+Layer 2 is provider-agnostic since ADR 0012. The diagram keeps the original "Gemini" label; the actual call goes through `backend/agent/llm.py`.
+
 ---
 
 ## 3. End-to-End Decision & User Flows
@@ -329,53 +331,40 @@ create unique index one_inflight_checkout on grocer.checkouts (user_id)
 
 ```
 backend/
-├── main.py                     # FastAPI application setup, lifecycle, and health routes
-├── config.py                   # Strict environment variable settings & safety caps
-├── database.py                 # Asyncpg pool connection & advisory lock helpers
-├── identity.py                 # WhatsApp phone number normalization & user lookup
+├── main.py                     # App setup, lifespan, startup migrations, pollers, /health
+├── config.py                   # Environment settings and safety caps
+├── database.py                 # asyncpg pool and tracked migrations
 │
-├── channels/                   # Transport & WhatsApp Business Platform
-│   ├── whatsapp.py             # Webhook route & HMAC signature verification
-│   ├── whatsapp_crypto.py      # HMAC-SHA256 & challenge verification
-│   ├── whatsapp_formatter.py   # Meta interactive buttons, lists, and HTTPS bridgeUrl
-│   ├── whatsapp_parser.py      # Inbound payload parsing (text, location pins, button IDs)
-│   ├── command_router.py       # Deterministic administrative and DPDP privacy command router
-│   └── payment_poller.py       # Durable ~19s long-poll worker using FOR UPDATE SKIP LOCKED
+├── channels/                   # WhatsApp transport and deterministic routing
+│   ├── whatsapp.py             # Webhook, HMAC, dedupe, per-user lock, turn dispatch
+│   ├── whatsapp_crypto.py      # HMAC-SHA256 verification
+│   ├── whatsapp_parser.py      # Inbound payload to text, location or button
+│   ├── whatsapp_client.py      # Outbound Meta Cloud API messages
+│   ├── command_router.py       # Deterministic admin commands (delete my data)
+│   ├── button_router.py        # Fast path for pay, cart and address buttons
+│   └── swiggy_auth.py          # OAuth PKCE login and callback
 │
-├── agent/                      # Conversational Concierge Engine
-│   ├── engine.py               # Multi-turn coordinator & ReAct tool execution
-│   ├── gemini.py               # Google GenAI SDK wrapper with structured output
-│   ├── prompts.py              # System instructions & strict English contract
-│   ├── schemas.py              # Gemini tool declarations (20 native Instamart tools)
-│   ├── tools.py                # SwiggyAgentTools implementing two-step candidate search
-│   ├── approval.py             # Canonical SHA-256 fingerprinting & 3-Lock latch
-│   ├── checkout_executor.py    # 3-Lock Payment Safety Gate & Checkout Executor
-│   ├── delivery_tracker.py     # Milestone-only delivery push notifications (anti-spam)
-│   ├── dpdp.py                 # 24-hour DPDP compliance data scrubber & user account wipe
-│   ├── button_router.py        # 50ms fast-path dispatcher for interactive button taps
-│   ├── composite_cart.py       # Target assembly, destructive update_cart, read-after-write
-│   ├── customer_advocate.py    # Bounded coupon trial & small-cart fee warning
-│   └── formatters.py           # WhatsApp receipt cards & out-of-stock breakdowns
+├── agent/                      # Concierge brain, safety and money
+│   ├── router.py               # Capabilities, safety classes, safe path (ADR 0012)
+│   ├── llm.py                  # Provider adapter: Groq or Gemini, JSON mode
+│   ├── candidate_search.py     # Live catalog search per extracted item
+│   ├── candidate_evaluator.py  # Product variant selection
+│   ├── address_lifecycle.py    # Address list, switch, delete and pin onboarding
+│   ├── approval.py             # Paise math, fingerprint, approval latch
+│   ├── checkout_executor.py    # 3-lock checkout, settlement, pollers
+│   ├── composite_cart.py       # Target cart assembly, read-after-write
+│   ├── customer_advocate.py    # Coupons and small-cart fee warning
+│   ├── delivery_tracker.py     # Milestone notifications
+│   ├── dpdp.py                 # 24-hour scrubber and data deletion
+│   └── formatters.py           # Receipt and message formatting
 │
-├── integrations/commerce/      # Swiggy Instamart Gateway (20 Tools)
-│   ├── swiggy_adapter.py       # Live Swiggy MCP client & tool router
-│   ├── swiggy_client.py        # JSON-RPC 2.0 transport over HTTPS
-│   ├── token_vault.py          # AES-256-GCM durable token encryption & JIT re-link
-│   ├── address_parsers.py      # Address book, geocoding, and pin parsing
-│   ├── cart_parsers.py         # Swiggy bill lines, item totals, and fees
-│   ├── catalog_parsers.py      # Swiggy product variants & categories parsing
-│   └── order_parsers.py        # Checkout response, payment status & GPS tracking parsing
+├── integrations/commerce/      # Swiggy Instamart gateway (20 tools)
+│   ├── swiggy_client.py        # JSON-RPC transport and tool methods
+│   ├── token_vault.py          # AES-256-GCM tokens, refresh, PKCE state
+│   └── schemas.py              # Pydantic contracts for tool responses
 │
-└── tests/                      # Verification Test Suites
-    ├── conftest.py             # Database fixtures & real staging test harnesses
-    ├── fixtures/               # Recorded real Swiggy staging tool outputs (ZERO fake mocks)
-    ├── test_invariants.py      # AST safety checks (no checkout in agent, no floats in hash)
-    ├── test_channels.py        # Webhook deduplication & HMAC signature tests
-    ├── test_catalog_search.py  # Two-step candidate search & variant matching tests
-    ├── test_composite_cart.py  # Destructive update & read-after-write revert tests
-    ├── test_checkout_locks.py  # 3-Lock safety latch & duplicate tap prevention tests
-    ├── test_address_lifecycle.py # Address listing, pin geocoding, and deletion guardrails
-    └── test_e2e_staging.py     # End-to-end customer flows against staging fixtures
+├── migrations/                 # 001..003, applied in order and tracked
+└── tests/                      # Contract fixtures, router tests, invariant checks, live suites
 ```
 
 ---

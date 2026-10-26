@@ -400,3 +400,11 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: Router prompt now says always write in English, friendly and professional, no slang, two sentences maximum. Input understanding of Hindi and Hinglish grocery words is unchanged.
 - **Proof**: `ruff` clean. Live Groq calls: "kaise ho bhai" → chat, English reply; "bhai mujhe doodh chahiye" → chat asking how many litres, English.
 - **Still broken**: The router is still not wired into WhatsApp, so the live bot still uses the old path.
+
+### [GROCER v1 — Docs Audit After ADR 0012] 2026-10-26
+
+#### Work Card: Fix the fictional file map and stale rules
+- **Problem**: `ARCHITECTURE.md` §6 listed files that do not exist (`engine.py`, `gemini.py`, `prompts.py`, `swiggy_adapter.py`, four parser files) and omitted real ones (`router.py`, `llm.py`, `candidate_evaluator.py`, `whatsapp_client.py`, `swiggy_auth.py`). `AGENTS.md` still said Gemini handled language and that behaviour tests call Gemini. ADR 0011 and ADR 0010 described superseded decisions.
+- **Change**: Replaced §6 with the real tree; added a note that Layer 2 is provider-agnostic. Updated AGENTS invariants 1 and 5 and added invariant 10 (unknown never writes). Marked ADR 0011 superseded by 0012 and amended ADR 0010 with refresh-first. Updated `STATUS.md` test counts and added the Gate 2 state.
+- **Proof**: File tree verified with `ls` across `backend/`, `agent/`, `channels/`, `integrations/commerce/`, `scripts/` and `tests/`.
+- **Still broken**: `PRD.md` remains the target product, and `JOURNAL.md` remains history. Neither is current state; `STATUS.md` is.

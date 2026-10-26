@@ -392,3 +392,11 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: Added `backend/agent/router.py`: a single capability catalogue that feeds the prompt, the safety map and the dispatch table; `parse_decision()` as a pure function enforcing confidence floors per safety class; and `route_message()` calling the LLM adapter. Unknown or low-confidence messages become a read-only item lookup when a product was named, otherwise a question. Money needs 0.95 confidence and still cannot be executed from text. Added 11 offline tests in `tests/test_router.py`.
 - **Proof**: `ruff` clean; 11 router tests pass. Live Groq routing: price and stock → `item_info` (read), addresses → `list_addresses`, "where is my order" → `track_order`, "add 2 litres milk" → `add_items` (basket), "doodh kitna hai" → `item_info`, "cancel my order" → `cancel_help`, "hello" → `chat`.
 - **Still broken**: Nothing calls the router yet. `whatsapp.py` still uses the old four intents.
+
+### [GROCER v1 — Gate 2: English-Only Voice in the Router] 2026-10-26
+
+#### Work Card: Make the router answer in English regardless of customer language
+- **Problem**: The new router prompt said "reply in the customer's language", which contradicted `DESIGN.md` §3 (understand Hindi and Hinglish, always answer in English). Hinglish input could produce Hinglish output.
+- **Change**: Router prompt now says always write in English, friendly and professional, no slang, two sentences maximum. Input understanding of Hindi and Hinglish grocery words is unchanged.
+- **Proof**: `ruff` clean. Live Groq calls: "kaise ho bhai" → chat, English reply; "bhai mujhe doodh chahiye" → chat asking how many litres, English.
+- **Still broken**: The router is still not wired into WhatsApp, so the live bot still uses the old path.

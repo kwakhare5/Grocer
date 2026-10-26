@@ -123,7 +123,8 @@ def _system_prompt() -> str:
         "If the message is unclear, use chat and ask one short question.\n"
         "Understand English, Hindi and Hinglish grocery words (doodh, dahi, atta, pyaz, cheeni).\n"
         "Never invent order ids, address ids or product ids. Use null when unknown.\n"
-        "Reply in the customer's language, in at most two short sentences.\n\n"
+        "Always write the reply in English, whatever language the customer used. "
+        "Friendly and professional, at most two short sentences, no slang.\n\n"
         "Capabilities:\n" + _capability_list_for_prompt() + "\n\n"
         "Return JSON only:\n"
         '{"capability": "<one capability>", "confidence": <0.0-1.0>, '

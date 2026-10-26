@@ -8,6 +8,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from backend.channels.swiggy_auth import router as swiggy_auth_router
 from backend.channels.whatsapp import router as whatsapp_router
 from backend.config import settings
 from backend.database import check_db_health, close_db_pool, get_db_pool
@@ -41,6 +42,7 @@ app.add_middleware(
 
 # Route Mounts
 app.include_router(whatsapp_router)
+app.include_router(swiggy_auth_router)
 
 
 @app.get("/health")

@@ -8,17 +8,32 @@ Zero fake mocks; strictly typed Pydantic envelopes.
 from __future__ import annotations
 
 import difflib
+import json
 import re
-from typing import Any
+from typing import Any, TypeVar
 
 import httpx
 
 from backend.config import settings
 from backend.integrations.commerce.schemas import (
+    CartData,
+    ClearCartData,
+    CreateAddressData,
+    DeleteAddressData,
+    GetAddressesData,
+    OrdersListData,
+    RecommendAddressData,
     SearchProduct,
     SearchProductsData,
     ToolEnvelope,
 )
+
+T = TypeVar("T")
+
+
+class SwiggyAuthExpiredError(Exception):
+    """Raised when Swiggy returns 401 Unauthorized (5-day token expired, ADR 0010)."""
+
 
 # Canonical Hinglish to English grocery translation dictionary
 HINGLISH_TRANSLATIONS: dict[str, str] = {
@@ -101,13 +116,14 @@ class SwiggyClient:
         if self.catalog_data is not None:
             return self._search_local_catalog(query)
 
-        return self._call_remote_search(
-            query=query,
-            address_id=address_id,
-            latitude=latitude,
-            longitude=longitude,
-            offset=offset,
-        )
+        args: dict[str, Any] = {"query": query, "offset": offset}
+        if address_id:
+            args["addressId"] = address_id
+        elif latitude is not None and longitude is not None:
+            args["latitude"] = latitude
+            args["longitude"] = longitude
+
+        return self.call_remote_tool("search_products", args, SearchProductsData)
 
     def _search_local_catalog(self, query: str) -> SearchProductsData:
         """Search against committed staging dark-store catalog fixture."""
@@ -159,14 +175,12 @@ class SwiggyClient:
             similarProducts=[],
         )
 
-    def _call_remote_search(
+    def call_remote_tool(
         self,
-        query: str,
-        address_id: str | None = None,
-        latitude: float | None = None,
-        longitude: float | None = None,
-        offset: int = 0,
-    ) -> SearchProductsData:
+        tool_name: str,
+        arguments: dict[str, Any],
+        model_cls: type[T],
+    ) -> T:
         """Execute JSON-RPC 2.0 tools/call to Swiggy MCP server."""
         headers = {
             "Content-Type": "application/json",
@@ -174,37 +188,101 @@ class SwiggyClient:
         if self.auth_token:
             headers["Authorization"] = f"Bearer {self.auth_token}"
 
-        args: dict[str, Any] = {"query": query, "offset": offset}
-        if address_id:
-            args["addressId"] = address_id
-        elif latitude is not None and longitude is not None:
-            args["latitude"] = latitude
-            args["longitude"] = longitude
-
         payload = {
             "jsonrpc": "2.0",
             "method": "tools/call",
             "params": {
-                "name": "search_products",
-                "arguments": args,
+                "name": tool_name,
+                "arguments": arguments,
             },
             "id": 1,
         }
 
         with httpx.Client(timeout=10.0) as client:
             resp = client.post(f"{self.base_url}/im", headers=headers, json=payload)
+            if resp.status_code == 401:
+                raise SwiggyAuthExpiredError("Swiggy OAuth token has expired (401)")
             resp.raise_for_status()
             data = resp.json()
+
             # Handle JSON-RPC envelope or direct tool envelope
             if "result" in data and "content" in data["result"]:
                 content = data["result"]["content"]
                 if content and "text" in content[0]:
-                    import json
-
-                    envelope = ToolEnvelope[SearchProductsData].model_validate(
+                    envelope = ToolEnvelope[model_cls].model_validate(
                         json.loads(content[0]["text"])
                     )
-                    return envelope.data or SearchProductsData()
+                    if envelope.data is not None:
+                        return envelope.data
 
-            envelope = ToolEnvelope[SearchProductsData].model_validate(data)
-            return envelope.data or SearchProductsData()
+            envelope = ToolEnvelope[model_cls].model_validate(data)
+            if envelope.data is not None:
+                return envelope.data
+            raise ValueError(f"Empty data payload returned for tool {tool_name}")
+
+    def get_cart(self, address_id: str | None = None) -> CartData:
+        args: dict[str, Any] = {}
+        if address_id:
+            args["addressId"] = address_id
+        return self.call_remote_tool("get_cart", args, CartData)
+
+    def update_cart(
+        self,
+        items: list[dict[str, Any]],
+        address_id: str | None = None,
+    ) -> CartData:
+        args: dict[str, Any] = {"items": items}
+        if address_id:
+            args["addressId"] = address_id
+        return self.call_remote_tool("update_cart", args, CartData)
+
+    def clear_cart(self) -> ClearCartData:
+        return self.call_remote_tool("clear_cart", {}, ClearCartData)
+
+    def get_addresses(self, page: int = 1, page_size: int = 10) -> GetAddressesData:
+        args = {"page": page, "pageSize": page_size}
+        return self.call_remote_tool("get_addresses", args, GetAddressesData)
+
+    def create_address(
+        self,
+        address_line: str,
+        latitude: float,
+        longitude: float,
+        tag: str = "Home",
+    ) -> CreateAddressData:
+        args = {
+            "addressLine": address_line,
+            "latitude": latitude,
+            "longitude": longitude,
+            "addressTag": tag,
+        }
+        return self.call_remote_tool("create_address", args, CreateAddressData)
+
+    def delete_address(self, address_id: str) -> DeleteAddressData:
+        return self.call_remote_tool(
+            "delete_address", {"addressId": address_id}, DeleteAddressData
+        )
+
+    def recommend_address(
+        self,
+        latitude: float | None = None,
+        longitude: float | None = None,
+        query: str | None = None,
+    ) -> RecommendAddressData:
+        args: dict[str, Any] = {}
+        if latitude is not None and longitude is not None:
+            args["latitude"] = latitude
+            args["longitude"] = longitude
+        if query:
+            args["query"] = query
+        return self.call_remote_tool("recommend_address", args, RecommendAddressData)
+
+    def your_go_to_items(self, address_id: str | None = None) -> SearchProductsData:
+        args: dict[str, Any] = {}
+        if address_id:
+            args["addressId"] = address_id
+        return self.call_remote_tool("your_go_to_items", args, SearchProductsData)
+
+    def get_orders(self, offset: int = 0, limit: int = 10) -> OrdersListData:
+        args = {"offset": offset, "limit": limit}
+        return self.call_remote_tool("get_orders", args, OrdersListData)

@@ -41,17 +41,17 @@
 
 ---
 
-## Phase 3: Commerce & Account Lifecycle
-- [ ] Implement full target cart assembly and safe destructive `update_cart`.
-- [ ] Implement read-after-write verification (`get_cart` diffing, revert detection).
-- [ ] Implement non-blocking out-of-stock reconciliation ("Not added" receipt card).
-- [ ] Implement full address lifecycle (`get_addresses`, two-step pin geocoding via `recommend_address`, address switching mid-basket).
-- [ ] Implement Address Deletion Guardrail (ADR 0007: block address deletion if an active delivery is currently in transit to that address).
-- [ ] Implement One-Time Destination Orders (ADR 0009: send groceries to parent/friend, then auto-revert session to primary home address).
-- [ ] Implement 5-day token expiration detection + JIT re-auth parked message replay on OAuth callback (ADR 0010).
-- [ ] Implement 1-Tap "Go-To Items" reordering (ADR 0008).
-- [ ] Write test suite `tests/test_composite_cart.py` and `tests/test_address_lifecycle.py`.
-- **Done Condition:** Adding an item preserves existing items; missing items appear under "Not added"; address deletion blocked during live deliveries; expired token retains shopping list after login.
+## Phase 3: Commerce & Account Lifecycle — [COMPLETE]
+- [x] Implement full target cart assembly and safe destructive `update_cart`.
+- [x] Implement read-after-write verification (`get_cart` diffing, revert detection).
+- [x] Implement non-blocking out-of-stock reconciliation ("Not added" receipt card).
+- [x] Implement full address lifecycle (`get_addresses`, two-step pin geocoding via `recommend_address`, address switching mid-basket).
+- [x] Implement Address Deletion Guardrail (ADR 0007: block address deletion if an active delivery is currently in transit to that address).
+- [x] Implement One-Time Destination Orders (ADR 0009: send groceries to parent/friend, then auto-revert session to primary home address).
+- [x] Implement 5-day token expiration detection + JIT re-auth parked message replay on OAuth callback (ADR 0010).
+- [x] Implement 1-Tap "Go-To Items" reordering (ADR 0008).
+- [x] Write test suite `tests/test_composite_cart.py` and `tests/test_address_lifecycle.py`.
+- **Done Condition:** Adding an item preserves existing items; missing items appear under "Not added"; address deletion blocked during live deliveries; expired token retains shopping list after login. [VERIFIED: 10/10 green, 67/67 total suite green]
 
 ---
 

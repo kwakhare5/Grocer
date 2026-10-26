@@ -459,7 +459,9 @@ async def test_webhook_location_pin_parsed_and_saved():
             headers={"Content-Type": "application/json", "X-Hub-Signature-256": sig},
         )
         assert resp.status_code == 200
-        assert resp.json()["status"] in ("ok", "processed")
+        # Gate 1: location pins now enter the onboarding flow, which first requires
+        # a connected Swiggy account; the message is still parsed and persisted.
+        assert resp.json()["status"] == "auth_required"
 
     pool = await get_db_pool()
     async with pool.acquire() as conn:

@@ -303,3 +303,20 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: Deleted all static keyword and recipe dictionaries; authored ADR 0011; implemented `orchestrate_conversational_turn` in `backend/agent/candidate_evaluator.py` with structured Gemini 3.5 Flash output and fallback; wired 12-turn session memory via `grocer.sessions.history` and parallel dark-store catalog search across extracted items in `backend/channels/whatsapp.py`; added live greeting and multi-item list tests to `tests/test_whatsapp_live_loop.py`.
 - **Proof**: `.\verify.ps1` ran all 4 verification stages exiting 0 with terminal proof (106/106 tests green in 325.60s, Ruff clean with 0 errors, Supabase live check 6/6 tables passed, Next.js Turbopack build passed in 2.2s).
 - **Still broken**: None. Conversational greeting, multi-turn memory, and multi-item shopping lists verified and live.
+
+### [GROCER v1 — Gate 1: Real Swiggy Contract Fixes, Refresh Tokens & Onboarding] 2026-10-26
+
+#### Work Card: Fix live Swiggy `/im` contract, add encrypted refresh-token storage, and wire multi-turn address onboarding
+- **Problem**: The Swiggy client sent the wrong request shapes for `update_cart` (missing `skuId`, wrong `addressId` key), `create_address` (missing required `fullAddress`/`city`/`postalCode`/`userName`/`userPhone`), `get_orders` (`offset/limit` vs `count/orderType/activeOnly`), `track_order` (missing required `lat/lng`), and `confirm_order` (missing `paasId`); `get_payment_options` and `report_error` were absent; checkout was treated as "placed" on `PENDING_PAYMENT`; and a 5-day token expiry forced full re-auth instead of silent refresh.
+- **Change**: Added migration `002` (refresh_token/refresh_nonce, `users.display_name`, `sessions.delivery_lat/lng` + onboarding state); token vault stores/captures the rotated refresh token and adds `refresh_user_token()`; fixed all client signatures per `docs/swiggy-mcp/llms-full.txt`; threaded `skuId` through composite cart and checkout; settlement now calls `confirm_order(orderId, paasId)` only when Swiggy doesn't auto-confirm; built multi-turn pin→flat→name→city+PIN onboarding wired into the webhook with pin-coordinate persistence; refresh-on-401 retries once before parking; pay-button copy no longer says "placed" prematurely.
+- **Proof**: All 4 verify stages green — `ruff check` clean (0 errors), `scripts/verify_db.py` 6/6 tables, 109/109 tests passed (42 fast + 37 checkout/e2e/channels + 30 Gemini-dependent), `npm run build` exit 0. Migration 002 applied to Supabase (3 idempotent ALTERs).
+- **Still broken**: None known. Refresh-on-401 is proven fixture-only (no live auth call, per instruction); the confirm_order-in-settlement branch is not directly test-covered because the committed `check_payment_status` fixture returns `confirmed=true`.
+
+### [GROCER v1 — Reality Tracker & Product Scope Correction] 2026-10-26
+
+#### Work Card: Establish STATUS.md as the single source of truth and correct the full-concierge scope
+- **Problem**: Documentation marked all phases complete while Gate 1 remains uncommitted and several live paths are unproven. Product scope was also described too narrowly as grocery ordering.
+- **Change**: Created `STATUS.md` with the full Instamart concierge scope, phase table, fixed/partial/broken/remaining work, P0/P1 blocker table, rules, and the current next gate. Added scope/status pointers to `AGENTS.md` and `TASKS.md`; refreshed `.scratch/HANDOFF.md`. No code changed.
+- **Proof**: Documentation-only pass. This session touched only `STATUS.md`, `AGENTS.md`, `TASKS.md`, `.scratch/HANDOFF.md`, and `JOURNAL.md`; the pre-existing uncommitted Gate 1 code and test changes were not modified.
+- **Still broken**: All implementation blockers remain as listed in `STATUS.md`, starting with refresh-on-expiry, untracked migration 002, multi-store checkout, uncaught `confirm_order` errors, and missing tracking coordinates.
+

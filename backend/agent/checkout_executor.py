@@ -313,7 +313,7 @@ async def execute_3_lock_checkout(
 
     # 4. Snapshot pre-checkout order IDs (Fail safe with warning on external call drop)
     try:
-        pre_orders = swiggy_client.get_orders(limit=10)
+        pre_orders = swiggy_client.get_orders(count=10, order_type="INSTAMART", active_only=True)
         known_order_ids = [o.orderId for o in pre_orders.orders]
     except (httpx.HTTPError, ValueError, KeyError, RuntimeError) as exc:
         logger.warning("Pre-checkout order snapshot failed; proceeding with empty baseline: %s", exc)
@@ -417,20 +417,32 @@ async def check_and_settle_payment(
         order_id=order_id,
     )
 
-    is_confirmed = (
+    payment_succeeded = (
         status_data.status == "SUCCESS"
         or status_data.isTerminalSuccess
         or status_data.confirmed is True
         or status_data.orderStatus == "PLACED"
     )
 
-    if not is_confirmed:
+    if not payment_succeeded:
         return SettlementResult(
             confirmed=False,
             order_id=order_id,
             status=status_data.status,
             message="Payment is still pending. Waiting for settlement.",
         )
+
+    # UPI checkout returns PENDING_PAYMENT; finalize explicitly only when Swiggy
+    # did not auto-confirm (headless flow). confirm_order is idempotent.
+    if not status_data.confirmed and paas_id:
+        confirm_res = swiggy_client.confirm_order(order_id=order_id, paas_id=paas_id)
+        if confirm_res.result != "success":
+            return SettlementResult(
+                confirmed=False,
+                order_id=order_id,
+                status="PENDING_CONFIRM",
+                message="Payment received. Finalizing your order, one moment.",
+            )
 
     # 1. Update checkouts and approvals to completed state
     await conn.execute(
@@ -462,18 +474,35 @@ async def check_and_settle_payment(
         user_id,
     )
 
-    # 3. Transition to real-time GPS rider tracking (track_order)
+    # 3. Transition to real-time GPS rider tracking (track_order with delivery pin coords)
+    coords = await conn.fetchrow(
+        """
+        SELECT delivery_latitude, delivery_longitude
+        FROM grocer.sessions
+        WHERE user_id = $1;
+        """,
+        user_id,
+    )
+    lat = coords["delivery_latitude"] if coords else None
+    lng = coords["delivery_longitude"] if coords else None
+
     try:
-        tracking = swiggy_client.track_order(order_id)
-        eta_desc = tracking.status.etaText or (
-            f"{tracking.status.etaMinutes} mins" if tracking.status.etaMinutes else "10-15 mins"
-        )
-        map_url = f"https://swiggy.com/track/{order_id}"
-        msg = (
-            f"🎉 *Payment Confirmed!* Swiggy dark store is packing order #{order_id}.\n"
-            f"🛵 Status: {tracking.status.statusMessage} ({eta_desc})\n"
-            f"Live Map: {map_url}"
-        )
+        if lat is not None and lng is not None:
+            tracking = swiggy_client.track_order(order_id, lat, lng)
+        else:
+            tracking = None
+        eta_desc = tracking.status.etaText if tracking else None
+        if not eta_desc and tracking and tracking.status.etaMinutes:
+            eta_desc = f"{tracking.status.etaMinutes} mins"
+        if tracking:
+            map_url = f"https://swiggy.com/track/{order_id}"
+            msg = (
+                f"🎉 *Payment Confirmed!* Swiggy dark store is packing order #{order_id}.\n"
+                f"🛵 Status: {tracking.status.statusMessage} ({eta_desc or '10-15 mins'})\n"
+                f"Live Map: {map_url}"
+            )
+        else:
+            msg = f"🎉 *Payment Confirmed!* Swiggy dark store is packing order #{order_id}."
     except (httpx.HTTPError, ValueError, KeyError, RuntimeError):
         tracking = None
         msg = f"🎉 *Payment Confirmed!* Swiggy dark store is packing order #{order_id}."

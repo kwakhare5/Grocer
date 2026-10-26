@@ -76,7 +76,7 @@ async def dispatch_button_action(
                             wa_client.send_cta_url_button(
                                 to_wa_id=wa_id,
                                 body_text=(
-                                    f"🎉 *Order #{checkout_res.order_id} placed with dark store!*\n\n"
+                                    f"💳 *Order #{checkout_res.order_id} initiated!*\n\n"
                                     f"Tap below to complete your payment on Swiggy within 5 minutes:"
                                 ),
                                 button_text="Pay on Swiggy",

@@ -29,8 +29,10 @@ from backend.integrations.commerce.schemas import (
     ListCouponsData,
     OrderDetailsData,
     OrdersListData,
+    PaymentOptionsData,
     PaymentStatusData,
     RecommendAddressData,
+    ReportErrorData,
     SearchProduct,
     SearchProductsData,
     ToolEnvelope,
@@ -350,7 +352,7 @@ class SwiggyClient:
 
         args: dict[str, Any] = {"items": items}
         if address_id:
-            args["addressId"] = address_id
+            args["selectedAddressId"] = address_id
         return self.call_remote_tool("update_cart", args, CartData)
 
     def clear_cart(self) -> ClearCartData:
@@ -365,17 +367,36 @@ class SwiggyClient:
 
     def create_address(
         self,
+        full_address: str,
         address_line: str,
-        latitude: float,
-        longitude: float,
-        tag: str = "Home",
+        address_line2: str,
+        city: str,
+        postal_code: str,
+        address_category: str = "HOME",
+        user_name: str = "",
+        user_phone: str = "",
+        latitude: float | None = None,
+        longitude: float | None = None,
+        locality: str | None = None,
+        address_tag: str | None = None,
     ) -> CreateAddressData:
-        args = {
+        args: dict[str, Any] = {
+            "fullAddress": full_address,
             "addressLine": address_line,
-            "latitude": latitude,
-            "longitude": longitude,
-            "addressTag": tag,
+            "addressLine2": address_line2,
+            "city": city,
+            "postalCode": postal_code,
+            "addressCategory": address_category,
+            "userName": user_name,
+            "userPhone": user_phone,
         }
+        if latitude is not None and longitude is not None:
+            args["latitude"] = latitude
+            args["longitude"] = longitude
+        if locality:
+            args["locality"] = locality
+        if address_tag:
+            args["addressTag"] = address_tag
         return self.call_remote_tool("create_address", args, CreateAddressData)
 
     def delete_address(self, address_id: str) -> DeleteAddressData:
@@ -403,8 +424,17 @@ class SwiggyClient:
             args["addressId"] = address_id
         return self.call_remote_tool("your_go_to_items", args, SearchProductsData)
 
-    def get_orders(self, offset: int = 0, limit: int = 10) -> OrdersListData:
-        args = {"offset": offset, "limit": limit}
+    def get_orders(
+        self,
+        count: int = 10,
+        order_type: str = "INSTAMART",
+        active_only: bool = False,
+    ) -> OrdersListData:
+        args: dict[str, Any] = {
+            "count": count,
+            "orderType": order_type,
+            "activeOnly": active_only,
+        }
         return self.call_remote_tool("get_orders", args, OrdersListData)
 
     def checkout(
@@ -429,14 +459,19 @@ class SwiggyClient:
             args["orderId"] = order_id
         return self.call_remote_tool("check_payment_status", args, PaymentStatusData)
 
-    def track_order(self, order_id: str) -> TrackOrderData:
-        return self.call_remote_tool("track_order", {"orderId": order_id}, TrackOrderData)
+    def track_order(self, order_id: str, lat: float, lng: float) -> TrackOrderData:
+        return self.call_remote_tool(
+            "track_order", {"orderId": order_id, "lat": lat, "lng": lng}, TrackOrderData
+        )
 
     def get_order_details(self, order_id: str) -> OrderDetailsData:
         return self.call_remote_tool("get_order_details", {"orderId": order_id}, OrderDetailsData)
 
-    def confirm_order(self, order_id: str) -> ConfirmOrderData:
-        return self.call_remote_tool("confirm_order", {"orderId": order_id}, ConfirmOrderData)
+    def confirm_order(self, order_id: str, paas_id: str | None = None) -> ConfirmOrderData:
+        args: dict[str, Any] = {"orderId": order_id}
+        if paas_id:
+            args["paasId"] = paas_id
+        return self.call_remote_tool("confirm_order", args, ConfirmOrderData)
 
     def list_coupons(self, address_id: str | None = None) -> ListCouponsData:
         args: dict[str, Any] = {}
@@ -456,3 +491,23 @@ class SwiggyClient:
 
     def get_delivery_status(self, order_id: str) -> DeliveryStatusData:
         return self.call_remote_tool("get_delivery_status", {"orderId": order_id}, DeliveryStatusData)
+
+    def get_payment_options(self, address_id: str | None = None) -> PaymentOptionsData:
+        args: dict[str, Any] = {}
+        if address_id:
+            args["addressId"] = address_id
+        return self.call_remote_tool("get_payment_options", args, PaymentOptionsData)
+
+    def report_error(
+        self,
+        tool: str,
+        error_message: str,
+        flow_description: str | None = None,
+        tool_context: dict[str, Any] | None = None,
+    ) -> ReportErrorData:
+        args: dict[str, Any] = {"tool": tool, "errorMessage": error_message}
+        if flow_description:
+            args["flowDescription"] = flow_description
+        if tool_context:
+            args["toolContext"] = tool_context
+        return self.call_remote_tool("report_error", args, ReportErrorData)

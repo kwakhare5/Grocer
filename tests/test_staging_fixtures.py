@@ -250,3 +250,23 @@ def test_zero_mocks_invariant():
     assert not hasattr(commerce, "MockCommerceAdapter"), (
         "MockCommerceAdapter must never exist in Grocer v1.0"
     )
+
+
+# 7. Gate 1: new client tool methods against committed real fixtures
+def test_client_get_payment_options_report_error_confirm_order():
+    """Gate 1: get_payment_options, report_error, and confirm_order(paasId) parse real fixtures."""
+    from backend.integrations.commerce.swiggy_client import SwiggyClient
+
+    client = SwiggyClient(fixtures_dir=FIXTURES_DIR)
+
+    opts = client.get_payment_options()
+    assert opts.placeOrderToolName == "checkout"
+    assert opts.cod is not None and opts.cod["available"] is True
+
+    report = client.report_error(tool="checkout", error_message="PAAS_TIMEOUT")
+    assert report.reportLink.startswith("https://")
+    assert "checkout" in report.summary
+
+    confirm = client.confirm_order("189456789012", "paas_01HZ123456789")
+    assert confirm.orderId == "189456789012"
+    assert confirm.result == "success"

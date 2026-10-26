@@ -11,9 +11,10 @@ Implements:
 from __future__ import annotations
 
 import json
+import re
 import secrets
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
@@ -23,22 +24,138 @@ from backend.database import get_db_pool
 from backend.integrations.commerce.schemas import GetAddressesData
 
 
-class PinGeocodeStep(str, Enum):
-    AWAITING_FLAT_NUMBER = "awaiting_flat_number"
-    COMPLETED = "completed"
+class OnboardingStep(str, Enum):
+    AWAITING_LOCATION = "awaiting_location"
+    AWAITING_FLAT = "awaiting_flat"
+    AWAITING_NAME = "awaiting_name"
+    AWAITING_CITY_PIN = "awaiting_city_pin"
+    DONE = "done"
+
+
+def parse_city_pin(text: str) -> tuple[str | None, str | None]:
+    """Extract (city, 6-digit postal code) from a reply like 'Bengaluru, 560034'."""
+    cleaned = (text or "").strip()
+    match = re.search(r"\b\d{6}\b", cleaned)
+    if not match:
+        return None, None
+    pin = match.group(0)
+    city = cleaned[: match.start()].strip(" ,-")
+    if not city:
+        city = cleaned[match.end():].strip(" ,-")
+    return (city or None), pin
 
 
 @dataclass
-class Step1GeocodeResult:
-    next_step: PinGeocodeStep
-    street_formatted_address: str
-    prompt_message: str
+class OnboardingTurn:
+    next_step: OnboardingStep
+    prompt: str
+    context: dict[str, Any] = field(default_factory=dict)
+    address_id: str | None = None
+    completed: bool = False
 
 
-@dataclass
-class Step2CreateResult:
-    address_id: str
-    full_address_line: str
+class AddressOnboardingFlow:
+    """Multi-turn pin geocoding + address capture (Gate 1: userName/city/postalCode)."""
+
+    def __init__(self, swiggy_client: Any) -> None:
+        self.client = swiggy_client
+
+    def start_from_location(
+        self,
+        lat: float,
+        lon: float,
+        context: dict[str, Any] | None = None,
+    ) -> OnboardingTurn:
+        ctx = dict(context or {})
+        rec = self.client.recommend_address(latitude=lat, longitude=lon)
+        street = rec.formattedAddress if hasattr(rec, "formattedAddress") else ""
+        ctx["latitude"] = lat
+        ctx["longitude"] = lon
+        ctx["street_address"] = street
+        prompt = (
+            f"📍 Found your location near *{street}*.\n\n"
+            "What's your flat/house number and building name?"
+        )
+        return OnboardingTurn(next_step=OnboardingStep.AWAITING_FLAT, prompt=prompt, context=ctx)
+
+    def advance(
+        self,
+        step: OnboardingStep | str,
+        context: dict[str, Any] | None = None,
+        text: str | None = None,
+        wa_id: str = "",
+    ) -> OnboardingTurn:
+        ctx = dict(context or {})
+        current = OnboardingStep(step)
+
+        if current == OnboardingStep.AWAITING_FLAT:
+            flat = (text or "").strip()
+            if not flat:
+                return OnboardingTurn(
+                    next_step=current,
+                    prompt="Please share your flat/house number and building name.",
+                    context=ctx,
+                )
+            ctx["flat"] = flat
+            return OnboardingTurn(
+                next_step=OnboardingStep.AWAITING_NAME,
+                prompt="What's your name for the delivery?",
+                context=ctx,
+            )
+
+        if current == OnboardingStep.AWAITING_NAME:
+            name = (text or "").strip()
+            if not name:
+                return OnboardingTurn(
+                    next_step=current,
+                    prompt="Please share your name for the delivery.",
+                    context=ctx,
+                )
+            ctx["name"] = name
+            return OnboardingTurn(
+                next_step=OnboardingStep.AWAITING_CITY_PIN,
+                prompt="Which city and PIN code? (e.g. Bengaluru, 560034)",
+                context=ctx,
+            )
+
+        if current == OnboardingStep.AWAITING_CITY_PIN:
+            city, pin = parse_city_pin(text or "")
+            if not city or not pin:
+                return OnboardingTurn(
+                    next_step=current,
+                    prompt="Please share your city and 6-digit PIN code. (e.g. Bengaluru, 560034)",
+                    context=ctx,
+                )
+            ctx["city"] = city
+            ctx["postal_code"] = pin
+            full_address = ", ".join(
+                part for part in [ctx.get("flat"), ctx.get("street_address")] if part
+            )
+            res = self.client.create_address(
+                full_address=full_address,
+                address_line=ctx.get("street_address") or full_address,
+                address_line2=ctx.get("flat") or "",
+                city=city,
+                postal_code=pin,
+                address_category="HOME",
+                user_name=ctx.get("name") or "",
+                user_phone=wa_id,
+                latitude=ctx.get("latitude"),
+                longitude=ctx.get("longitude"),
+            )
+            return OnboardingTurn(
+                next_step=OnboardingStep.DONE,
+                prompt="✅ *Address saved!* Now, what groceries do you need?",
+                context=ctx,
+                address_id=res.addressId,
+                completed=True,
+            )
+
+        return OnboardingTurn(
+            next_step=current,
+            prompt="What groceries do you need today?",
+            context=ctx,
+        )
 
 
 @dataclass
@@ -184,53 +301,9 @@ class AddressLifecycleManager:
     def list_addresses(self, page: int = 1, page_size: int = 10) -> GetAddressesData:
         return self.client.get_addresses(page=page, page_size=page_size)
 
-    def handle_gps_pin_step1(self, lat: float, lon: float) -> Step1GeocodeResult:
-        """Step 1: Geocode GPS coordinates via recommend_address (ADR 0008)."""
-        rec = self.client.recommend_address(latitude=lat, longitude=lon)
-        formatted_address = (
-            rec.formattedAddress
-            if hasattr(rec, "formattedAddress")
-            else rec.get("formattedAddress", "")
-        )
-
-        prompt = (
-            f"📍 Found your location near *{formatted_address}*.\n\n"
-            "Please reply with your flat or house number and building name so riders find you easily."
-        )
-
-        return Step1GeocodeResult(
-            next_step=PinGeocodeStep.AWAITING_FLAT_NUMBER,
-            street_formatted_address=formatted_address,
-            prompt_message=prompt,
-        )
-
-    def handle_flat_number_step2(
-        self,
-        lat: float,
-        lon: float,
-        street_address: str,
-        flat_and_building: str,
-        tag: str = "Home",
-    ) -> Step2CreateResult:
-        """Step 2: Combine house details with geocoded street and create address in Swiggy."""
-        full_line = f"{flat_and_building.strip()}, {street_address.strip()}"
-        res = self.client.create_address(
-            address_line=full_line,
-            latitude=lat,
-            longitude=lon,
-            tag=tag,
-        )
-        address_id = (
-            res.addressId if hasattr(res, "addressId") else res.get("addressId", "")
-        )
-        return Step2CreateResult(
-            address_id=address_id,
-            full_address_line=full_line,
-        )
-
     def can_delete_address(self, address_id: str) -> DeletionCheckResult:
         """Check if an address can be safely deleted or is locked by an active delivery (ADR 0007)."""
-        orders_data = self.client.get_orders(offset=0, limit=20)
+        orders_data = self.client.get_orders(count=20, order_type="INSTAMART", active_only=True)
         active_statuses = {"CONFIRMED", "PACKING", "OUT_FOR_DELIVERY", "IN_TRANSIT"}
 
         for order in orders_data.orders:

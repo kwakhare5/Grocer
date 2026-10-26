@@ -372,11 +372,11 @@ async def test_check_payment_status_poller_and_session_reset(swiggy_client):
             "INSERT INTO grocer.users (wa_id) VALUES ($1) RETURNING id;",
             wa_id,
         )
-        # Put non-empty history in session
+        # Put non-empty history and delivery coords in session
         await conn.execute(
             """
-            INSERT INTO grocer.sessions (user_id, active_address_id, history)
-            VALUES ($1, 'addr_01HXYZ', '[{"role": "user", "text": "milk"}]'::jsonb);
+            INSERT INTO grocer.sessions (user_id, active_address_id, history, delivery_latitude, delivery_longitude)
+            VALUES ($1, 'addr_01HXYZ', '[{"role": "user", "text": "milk"}]'::jsonb, 12.9352, 77.6245);
             """,
             user_id,
         )
@@ -435,7 +435,7 @@ async def test_check_payment_status_poller_and_session_reset(swiggy_client):
 # ==============================================================================
 def test_real_time_gps_rider_tracking(swiggy_client):
     """track_order provides real-time rider name, dark store name, ETA, and coordinates."""
-    tracking = swiggy_client.track_order("189456789012")
+    tracking = swiggy_client.track_order("189456789012", 12.9352, 77.6245)
     assert tracking.orderId == "189456789012"
     assert tracking.status.statusMessage == "On the way"
     assert tracking.status.etaMinutes == 8

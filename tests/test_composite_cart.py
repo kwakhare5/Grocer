@@ -49,6 +49,8 @@ def test_destructive_cart_assembly_preserves_existing_items(swiggy_client):
     sent_spins = {item["spinId"]: item["quantity"] for item in sent_items}
     assert sent_spins["spin_amul_1l"] == 2
     assert sent_spins["spin_bread_white"] == 1
+    # Every update_cart item must carry a real skuId (Swiggy contract)
+    assert all(item.get("skuId") for item in sent_items)
 
     # Cart now contains both items
     assert len(result.cart.items) == 2

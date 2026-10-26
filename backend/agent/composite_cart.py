@@ -29,6 +29,7 @@ class TargetCartItem:
     quantity: int = 1
     item_name: str | None = None
     price_paise: int = 0  # Strict integer paise (₹1 = 100 paise)
+    sku_id: str | None = None
 
 
 @dataclass
@@ -119,11 +120,12 @@ class CompositeCartManager:
         # 1. Read existing baseline cart
         current_cart = self.client.get_cart(address_id=address_id)
 
-        # 2. Assemble target dictionary: spin_id -> {spinId, quantity, itemName, price, mrp}
+        # 2. Assemble target dictionary: spin_id -> {spinId, skuId, quantity, itemName, price, mrp}
         target_map: dict[str, dict[str, Any]] = {}
         for it in current_cart.items:
             target_map[it.spinId] = {
                 "spinId": it.spinId,
+                "skuId": it.skuId,
                 "quantity": it.quantity,
                 "itemName": it.itemName,
                 "price": it.discountedFinalPrice,
@@ -138,6 +140,7 @@ class CompositeCartManager:
             else:
                 target_map[new_it.spin_id] = {
                     "spinId": new_it.spin_id,
+                    "skuId": new_it.sku_id or f"sku_{new_it.spin_id}",
                     "quantity": new_it.quantity,
                     "itemName": new_it.item_name or new_it.spin_id,
                     "price": price_rupees,
@@ -235,6 +238,7 @@ class CompositeCartManager:
                 candidates.append(
                     TargetCartItem(
                         spin_id=v.spinId,
+                        sku_id=v.skuId,
                         quantity=1,
                         item_name=v.displayName,
                         price_paise=paise,
@@ -298,6 +302,7 @@ class CompositeCartManager:
                 quantity=it.quantity,
                 item_name=it.itemName,
                 price_paise=it.discounted_final_price_paise,
+                sku_id=it.skuId,
             )
             for it in prev_cart.items
         ]

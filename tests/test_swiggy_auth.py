@@ -86,3 +86,32 @@ async def test_swiggy_callback_invalid_state_rejects():
         )
         assert resp.status_code == 400
         assert "Invalid or expired authorization state" in resp.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_store_and_retrieve_refresh_token_roundtrip():
+    """Gate 1: refresh token is encrypted at rest and decrypts back intact (real DB)."""
+    import uuid as _uuid
+
+    from backend.database import get_db_pool
+    from backend.integrations.commerce.token_vault import (
+        get_refresh_token,
+        store_user_token,
+    )
+
+    pool = await get_db_pool()
+    user_id = await pool.fetchval(
+        "INSERT INTO grocer.users (wa_id) VALUES ($1) RETURNING id;",
+        f"9198{_uuid.uuid4().hex[:6]}",
+    )
+    try:
+        await store_user_token(
+            user_id=user_id,
+            access_token="live_access_token_123",
+            refresh_token="live_refresh_token_456",
+            expires_in_seconds=432000,
+        )
+        stored = await get_refresh_token(user_id)
+        assert stored == "live_refresh_token_456"
+    finally:
+        await pool.execute("DELETE FROM grocer.users WHERE id = $1;", user_id)

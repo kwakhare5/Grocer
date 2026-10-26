@@ -34,8 +34,8 @@ The boundary is the Swiggy Instamart MCP surface, plus an honest fallback where 
 | Gate 0 live check | Passed: token works, 3 addresses, live search returns 9 products, 0 orders |
 | Live cart read | Passed after fixing a schema bug: 11 items, ₹1,751, one dark store, all in stock |
 | Live payment options | Passed: 10 methods returned (GPay, PhonePe, Paytm, BHIM, CRED, QR, COD, Swiggy Money) |
-| Gate 1 code | Committed locally on `grocer-v1` (`1ae6431`); **not pushed** |
-| Gate 1.1 code | Written, lint clean, 37 offline tests pass; **uncommitted** |
+| Gate 1 code | Committed and pushed (`1ae6431`) |
+| Gate 1.1 code | Committed and pushed (`c8d31c9`); Render deploy triggered 2026-10-26 |
 | Migrations | 002 tracked and applied; 003 added locally, not yet applied to Supabase |
 | Startup | Applies pending migrations on boot, tracked in `grocer.schema_migrations` |
 | Last recorded test run | 109/109 passed (42 fast + 37 checkout/e2e/channels + 30 Gemini) |

@@ -2,7 +2,7 @@
 
 > **Status:** Agreed & Authoritative Technical Architecture (Single Source of Truth)  
 > **Product Goal:** Production-Grade Swiggy Instamart Grocery Concierge & Account Manager on WhatsApp  
-> **Stack:** Python 3.11 + FastAPI • Gemini 3.5 Flash • Swiggy Instamart MCP (20 Tools) • Meta WhatsApp Cloud API • PostgreSQL (Supabase) • Render  
+> **Stack:** Python 3.11 + FastAPI • LLM adapter (Groq free tier in development, Gemini supported; winner chosen by measurement, see ADR 0012) • Swiggy Instamart MCP (20 Tools) • Meta WhatsApp Cloud API • PostgreSQL (Supabase) • Render  
 
 ---
 
@@ -16,12 +16,13 @@ It rejects two fatal quick-commerce software traps:
 
 Instead, Grocer operates on a clean, decoupled **Brain vs. Muscle** architecture:
 
-* **Gemini 3.5 Flash (The Conversational Brain):**
+* **The LLM (The Conversational Brain):**
+  - Sits behind one provider adapter (ADR 0012). Groq's free tier is used during development; Gemini stays supported; the winner of the evaluation set becomes primary.
   - Reads full multi-turn conversation context (up to 12 turns).
   - Understands customer intent across natural language, typos, Hinglish (*doodh, atta, pyaz, cheeni*), recipes, and brand requests.
   - Searches the live Swiggy dark store and **evaluates candidates intelligently** (matching variants against user constraints instead of blindly picking rank #1).
   - Generates recipe checklists, guides address onboarding, and answers casual questions naturally without forcing unwanted shopping cart receipts.
-  - **Strict Boundaries:** Gemini is FORBIDDEN from calculating prices, modifying database rows, or touching checkout endpoints.
+  - **Strict Boundaries:** the LLM is FORBIDDEN from calculating prices, calling Swiggy tools itself, modifying database rows, or touching checkout endpoints. It only returns a routing decision: capability, arguments and confidence.
 * **Python (The Muscle, Accountant & Security Guard):**
   - Manages deterministic state machines, full-cart target assembly, and read-after-write verification.
   - Computes all math in **strict integer paise** (`100 paise = ₹1.00`). Floating-point math is banned.
@@ -156,12 +157,15 @@ sequenceDiagram
 ---
 
 ### Layer 2: Conversational Brain (`backend/agent/`)
-- **Single-Turn ReAct Loop:** Gemini 3.5 Flash runs in a single pass with access to the last 12 dialogue turns, executing tools concurrently via `asyncio.gather`.
+- **Capability Router (ADR 0012):** The LLM returns one routing decision per message — a capability from the fixed list, the extracted arguments, and a confidence score. Python validates the capability and makes every Swiggy call.
+- **Safety Classes:** Every capability is labelled `read`, `basket`, `account` or `money`. A `read` capability can never reach a write path. This is enforced in Python, not in the prompt.
+- **Safe Path:** Unknown capability, or confidence below 0.70, produces read-only options when a concrete product exists, otherwise a clarifying question. Nothing is written on a guess.
+- **Single-Pass Turn:** The adapter makes one call per message with the last 12 dialogue turns, using the provider's JSON mode.
 - **Two-Step Search & Candidate Evaluation (Kills Blind `res[0]`):**
-  - Step 1: Gemini calls `search_catalog(query)`.
-  - Step 2: Python queries Swiggy `search_products` and returns the top 3–5 in-stock candidates with pack sizes and prices.
-  - Step 3: Gemini evaluates candidates against user constraints (brand, dietary, size).
-  - Step 4: If confident match found, calls `modify_basket`. If ambiguous, asks the user conversationally: *"We have X and Y. Which one do you prefer?"*
+  - Step 1: Python runs `search_products` for each extracted item and collects the top 3–5 in-stock candidates with pack sizes and prices.
+  - Step 2: The LLM evaluates candidates against user constraints (brand, dietary, size) and returns the chosen variant plus a confidence score.
+  - Step 3: Python applies the safety class. A `read` capability stops at the answer; a `basket` capability writes only after the choice is confident.
+  - Step 4: If ambiguous, Grocer asks the user conversationally: *"We have X and Y. Which one do you prefer?"*
 - **Smart Kirana Defaults for Vague Staples (ADR 0004):**
   - Unqualified requests (*"milk"*, *"bread"*, *"eggs"*) auto-select the #1 dark-store bestseller and provide a 1-tap `[Change Items]` button.
 - **Conversational Recipe Checklists (ADR 0009):**
@@ -186,8 +190,8 @@ sequenceDiagram
   - Switching delivery address with an active basket warns the user that dark-store inventory differs, clears the cart via `clear_cart`, and attempts to rebuild available items at the new store.
 - **Order Cancellation Escalation (ADR 0007):**
   - Swiggy MCP does not support automated cancellation. Inbound cancellation requests lookup the active order ID and reply with Swiggy Care's phone number (`080-67466729`).
-- **5-Day Token Expiry & JIT Re-Auth Latch (ADR 0010):**
-  - When a 5-day Swiggy OAuth token expires mid-flight, Grocer parks the active basket or checkout in PostgreSQL, sends a 1-tap `[Reconnect Swiggy]` button, and immediately replays the request upon OAuth callback.
+- **Token Renewal & JIT Re-Auth Latch (ADR 0010):**
+  - When the access token expires, Grocer refreshes silently with the stored refresh token, retries once, then continues. Only if the refresh itself fails does it park the active basket or checkout, send a 1-tap `[Reconnect Swiggy]` button, and replay the request after the OAuth callback.
 
 ---
 

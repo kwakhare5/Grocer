@@ -85,10 +85,26 @@ The deterministic Python routing engine that executes interactive WhatsApp butto
 _Avoid_: Fast path, button handler, direct action
 
 
+**Capability**:
+A single thing Grocer can do for a customer, named after the customer's goal (check price, list addresses, track order, add to basket). One capability may use several Swiggy tools.
+_Avoid_: Intent, command, feature
+
+**Safety Class**:
+The permission level attached to every capability. Read never writes; Basket changes only the basket; Account changes only saved account data; Money spends money.
+_Avoid_: Risk level, permission type, access mode
+
+**Routing Decision**:
+The LLM's structured answer for one customer message: the capability, the extracted details (item, address, order), and a confidence score. Python validates it before anything runs.
+_Avoid_: Intent, classification, prediction
+
+**Safe Path**:
+What Grocer does when the capability is unknown or confidence is low: read-only options when there is something concrete to show, otherwise a clarifying question. It never writes.
+_Avoid_: Fallback, default action, catch-all
+
 **Conversational Orchestrator**:
-The single-pass Gemini conversational engine that classifies turn intent, generates natural English responses for chit-chat, and extracts structured grocery items in under 2 seconds.
+The single-pass LLM engine that turns a customer message into a routing decision, writes natural replies, and extracts grocery items in under 2 seconds. The provider sits behind an adapter.
 _Avoid_: Intent router, LLM pipeline, chat classifier
 
 **Extracted Item**:
-A structured target grocery item parsed by Gemini from natural customer messages before catalog grounding.
+A structured target grocery item parsed by the LLM from natural customer messages before catalog grounding.
 _Avoid_: Search term, query token, raw item

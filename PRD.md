@@ -32,7 +32,8 @@ Grocer is not limited to pasting grocery lists. It is your personal Instamart co
    - **Delete Address:** Call `delete_address` only after explicit customer confirmation (`[Confirm Delete: Address]`).
 
 3. **Zero Assumptions & Radical Truth:**
-   - Never assume what a customer wants. If an item is specific (*"The Health Factory zero maida brown bread"*), never substitute with white bread or another brand.
+   - Never assume what a customer wants. If the request is unclear, or the system is unsure, Grocer answers with read-only information or asks a question. It never changes the basket, an address, or money on a guess.
+   - If an item is specific (*"The Health Factory zero maida brown bread"*), never substitute with white bread or another brand.
    - If an item is out of stock, if a dark store is closed, or if an API error occurs, communicate the exact truth in plain, human English. Never silently omit items from a basket. Show dropped items under a dedicated *"Not added (Out of stock)"* receipt section and suggest available alternatives from Swiggy's `similarProducts`.
 
 4. **Customer Advocate Engine (Champion the Wallet):**
@@ -46,7 +47,7 @@ Grocer is not limited to pasting grocery lists. It is your personal Instamart co
    - When a request involves high-variety snacks or drinks (*"chips"*, *"cold coffee"*), present 2–3 in-stock options conversationally rather than guessing a random flavor.
 
 6. **The 3-Lock Checkout Safety Gate:**
-   - Gemini interprets natural language and evaluates candidates. Python deterministically enforces math, budget caps, cart SHA-256 fingerprints, and checkout gates.
+   - The LLM interprets natural language and evaluates candidates. It never calls Swiggy itself. Python deterministically enforces math, budget caps, cart SHA-256 fingerprints, safety classes, and checkout gates.
    - **Lock 1 (Authority):** An order can ONLY be placed if the customer physically taps a WhatsApp button (`pay:<approval_id>:<option>`). Typing text ("yes", "confirm", "proceed") is strictly rejected from spending money.
    - **Lock 2 (Truth):** Live cart re-verification confirms 100% stock, zero unserviceable items, and exact integer paise math matching the approved receipt before checkout.
    - **Lock 3 (Exactly-Once):** Atomic PostgreSQL CAS prevents double-debiting on mobile retries or double taps.
@@ -63,7 +64,7 @@ Grocer is not limited to pasting grocery lists. It is your personal Instamart co
 9. **Swiggy MCP Real-World Boundaries:**
    - **Order Cancellation:** Swiggy MCP does not support automated order cancellation. When a customer asks to cancel, Grocer instructs: *"To cancel your Instamart order, please call Swiggy customer care directly at 080-67466729."*
    - **Multi-Store Orders:** Swiggy dark stores can split orders if items come from different facilities. Grocer communicates split orders and tracking separately.
-   - **5-Day OAuth Expiry:** When a 5-day Swiggy login token expires, Grocer parks the user's active shopping list in PostgreSQL, presents a 1-tap `[Connect Swiggy]` button, and automatically executes the list upon login completion.
+   - **Token Renewal:** When the Swiggy access token expires, Grocer refreshes it silently with the stored refresh token and retries once. Only if the refresh fails does it park the active shopping list, present a 1-tap `[Connect Swiggy]` button, and execute the list after login.
 
 10. **DPDP Compliance & 24-Hour Data Minimization:**
     - Personal customer delivery addresses and basket snapshots are permanently deleted from database storage 24 hours post-order. Minimal transaction audit metadata (transaction ID, paise total, timestamp) is retained for 90 days.

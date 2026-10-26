@@ -429,7 +429,74 @@ async def handle_webhook(
                         except (httpx.HTTPError, ValueError, KeyError, RuntimeError) as addr_err:
                             logger.warning("Could not fetch user addresses: %s", addr_err)
 
-                    # 1. Single-Pass Conversational Intent & Item Extraction (ADR 0011)
+                    # 1. Capability routing (ADR 0012). Read capabilities are answered
+                    # here and can never write. Basket requests continue below.
+                    from backend.agent.read_actions import (
+                        NOT_READY_REPLY,
+                        answer_read_capability,
+                    )
+                    from backend.agent.router import (
+                        Capability,
+                        SafetyClass,
+                        route_message,
+                    )
+
+                    decision = await asyncio.to_thread(
+                        route_message, msg.text, session_history
+                    )
+
+                    if address_count == 0:
+                        prompt_text = (
+                            decision.reply
+                            if decision.capability is Capability.CHAT
+                            else None
+                        ) or (
+                            "Please share your WhatsApp delivery location pin or an address "
+                            "so I can check your local Instamart store."
+                        )
+                        await wa_client.send_text_message(
+                            to_wa_id=msg.sender_wa_id, text=prompt_text
+                        )
+                        return {
+                            "status": "location_pin_requested",
+                            "wa_id": msg.sender_wa_id,
+                        }
+
+                    if decision.safety is SafetyClass.READ:
+                        reply_text = await answer_read_capability(
+                            decision, turn_client, active_addr_id
+                        )
+                        await wa_client.send_text_message(
+                            to_wa_id=msg.sender_wa_id, text=reply_text
+                        )
+                        session_history.append({"role": "user", "text": msg.text})
+                        session_history.append({"role": "assistant", "text": reply_text})
+                        await conn.execute(
+                            """
+                            INSERT INTO grocer.sessions (user_id, history, last_active_at)
+                            VALUES ($1, $2::jsonb, now())
+                            ON CONFLICT (user_id) DO UPDATE SET history = $2::jsonb, last_active_at = now();
+                            """,
+                            user_id,
+                            json.dumps(session_history[-12:]),
+                        )
+                        return {
+                            "status": "capability_answered",
+                            "capability": decision.capability.value,
+                            "wa_id": msg.sender_wa_id,
+                        }
+
+                    if decision.capability is not Capability.ADD_ITEMS:
+                        await wa_client.send_text_message(
+                            to_wa_id=msg.sender_wa_id, text=NOT_READY_REPLY
+                        )
+                        return {
+                            "status": "capability_unavailable",
+                            "capability": decision.capability.value,
+                            "wa_id": msg.sender_wa_id,
+                        }
+
+                    # 2. Single-Pass Conversational Intent & Item Extraction (ADR 0011)
                     turn_result = orchestrate_conversational_turn(
                         message=msg.text,
                         history=session_history,

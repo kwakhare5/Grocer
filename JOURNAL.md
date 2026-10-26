@@ -408,3 +408,11 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: Replaced §6 with the real tree; added a note that Layer 2 is provider-agnostic. Updated AGENTS invariants 1 and 5 and added invariant 10 (unknown never writes). Marked ADR 0011 superseded by 0012 and amended ADR 0010 with refresh-first. Updated `STATUS.md` test counts and added the Gate 2 state.
 - **Proof**: File tree verified with `ls` across `backend/`, `agent/`, `channels/`, `integrations/commerce/`, `scripts/` and `tests/`.
 - **Still broken**: `PRD.md` remains the target product, and `JOURNAL.md` remains history. Neither is current state; `STATUS.md` is.
+
+### [GROCER v1 — Gate 2: Read Capabilities Wired] 2026-10-26
+
+#### Work Card: Price questions answer from live Swiggy and never touch the basket
+- **Problem**: The webhook still used the four-intent classifier, so a price or stock question could become an add-to-cart. The new router existed but nothing called it.
+- **Change**: Added `backend/agent/read_actions.py` (read-only handlers for item info, addresses, order history, tracking, payment options, cancel help). Wired `route_message` into `whatsapp.py`: read capabilities answer and return; `add_items` continues to the existing basket path; every other write gets an honest not-ready reply. Address fallback added so search works without a session address.
+- **Proof**: Live: "how much is amul milk" → three real variants with prices and "in stock"; addresses, orders, cancel help all answered. Cart was 11 items / ₹1,763 before and after — unchanged. `ruff` clean; 49 offline tests pass.
+- **Still broken**: Basket requests still make a second LLM call through the old classifier. Store info, coupons, address writes, basket edits, reorder and text checkout are not built.

@@ -8,6 +8,7 @@ Handles:
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import hashlib
 import logging
@@ -26,6 +27,19 @@ logger = logging.getLogger("grocer.token_vault")
 
 # In-memory PKCE state cache: state -> {"verifier": verifier, "phone": phone, "created_at": datetime}
 _PKCE_SESSIONS: dict[str, dict[str, Any]] = {}
+
+# Serializes refresh-token rotation per user. Swiggy rotates the refresh token on
+# every exchange, so two concurrent refreshes would invalidate each other.
+_REFRESH_LOCKS: dict[str, asyncio.Lock] = {}
+
+
+def _refresh_lock(user_id: uuid.UUID) -> asyncio.Lock:
+    key = str(user_id)
+    lock = _REFRESH_LOCKS.get(key)
+    if lock is None:
+        lock = asyncio.Lock()
+        _REFRESH_LOCKS[key] = lock
+    return lock
 
 
 def generate_pkce_pair() -> tuple[str, str]:
@@ -87,7 +101,7 @@ async def store_user_token(
 
     pool = await get_db_pool()
     query = """
-        INSERT INTO grocer.oauth_tokens (
+        INSERT INTO grocer.oauth_tokens AS stored (
             user_id, key_version, encrypted_token, nonce,
             refresh_token, refresh_nonce, expires_at, updated_at
         )
@@ -95,8 +109,8 @@ async def store_user_token(
         ON CONFLICT (user_id) DO UPDATE SET
             encrypted_token = EXCLUDED.encrypted_token,
             nonce = EXCLUDED.nonce,
-            refresh_token = EXCLUDED.refresh_token,
-            refresh_nonce = EXCLUDED.refresh_nonce,
+            refresh_token = COALESCE(EXCLUDED.refresh_token, stored.refresh_token),
+            refresh_nonce = COALESCE(EXCLUDED.refresh_nonce, stored.refresh_nonce),
             expires_at = EXCLUDED.expires_at,
             updated_at = NOW();
     """
@@ -147,43 +161,69 @@ async def get_refresh_token(
     return decrypt_token(row["refresh_token"], row["refresh_nonce"], key_b64)
 
 
-async def refresh_user_token(
+async def resolve_user_token(
     user_id: uuid.UUID,
     key_b64: str = settings.DATA_ENCRYPTION_KEY,
 ) -> str | None:
+    """Return a usable access token: current token if valid, else one silent refresh.
+
+    Returns None only when there is no refresh token or Swiggy rejects it, which
+    is the caller's signal to ask the customer to reconnect.
+    """
+    token = await get_user_token(user_id, key_b64)
+    if token:
+        return token
+    return await refresh_user_token(user_id, key_b64)
+
+
+async def refresh_user_token(
+    user_id: uuid.UUID,
+    key_b64: str = settings.DATA_ENCRYPTION_KEY,
+    force: bool = False,
+) -> str | None:
     """Exchange the stored refresh token for a fresh access token via /auth/token.
+
+    Args:
+        force: Refresh even if the stored access token still looks valid. Used
+            after Swiggy returns 401 on a token our clock still trusts.
 
     Returns the new access token, or None if no refresh token exists or the
     exchange fails (caller falls back to full re-authorization).
     """
-    refresh_token = await get_refresh_token(user_id, key_b64)
-    if not refresh_token:
-        return None
+    async with _refresh_lock(user_id):
+        if not force:
+            current = await get_user_token(user_id, key_b64)
+            if current:
+                return current
 
-    token_url = f"{settings.SWIGGY_MCP_BASE_URL}/auth/token"
-    payload = {"grant_type": "refresh_token", "refresh_token": refresh_token}
-    try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.post(token_url, json=payload)
-            if resp.status_code != 200:
-                logger.warning("Swiggy refresh token exchange failed: HTTP %s", resp.status_code)
-                return None
-            data: dict[str, Any] = resp.json()
-    except httpx.RequestError as exc:
-        logger.warning("Swiggy refresh token exchange network error: %s", exc)
-        return None
+        refresh_token = await get_refresh_token(user_id, key_b64)
+        if not refresh_token:
+            return None
 
-    access_token = data.get("access_token")
-    if not access_token:
-        return None
+        token_url = f"{settings.SWIGGY_MCP_BASE_URL}/auth/token"
+        payload = {"grant_type": "refresh_token", "refresh_token": refresh_token}
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                resp = await client.post(token_url, json=payload)
+                if resp.status_code != 200:
+                    logger.warning("Swiggy refresh token exchange failed: HTTP %s", resp.status_code)
+                    return None
+                data: dict[str, Any] = resp.json()
+        except httpx.RequestError as exc:
+            logger.warning("Swiggy refresh token exchange network error: %s", exc)
+            return None
 
-    new_refresh = data.get("refresh_token") or refresh_token
-    expires_in = int(data.get("expires_in", 432000))
-    await store_user_token(
-        user_id=user_id,
-        access_token=access_token,
-        refresh_token=new_refresh,
-        expires_in_seconds=expires_in,
-        key_b64=key_b64,
-    )
-    return access_token
+        access_token = data.get("access_token")
+        if not access_token:
+            return None
+
+        new_refresh = data.get("refresh_token") or refresh_token
+        expires_in = int(data.get("expires_in", 432000))
+        await store_user_token(
+            user_id=user_id,
+            access_token=access_token,
+            refresh_token=new_refresh,
+            expires_in_seconds=expires_in,
+            key_b64=key_b64,
+        )
+        return access_token

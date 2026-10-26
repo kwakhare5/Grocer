@@ -62,7 +62,11 @@ async def check_db_health() -> bool:
 
 
 async def apply_migrations() -> list[str]:
-    """Apply all pending SQL migrations from the migrations/ directory in order."""
+    """Apply SQL migrations that have not run yet, in filename order.
+
+    Each file is recorded in grocer.schema_migrations only after it succeeds, so
+    a fresh deploy builds the full schema and a warm deploy skips everything.
+    """
     pool = await get_db_pool()
     migrations_dir = Path(__file__).resolve().parent.parent / "migrations"
     applied: list[str] = []
@@ -71,12 +75,32 @@ async def apply_migrations() -> list[str]:
         logger.warning("No migrations directory found at %s", migrations_dir)
         return applied
 
-    sql_files = sorted(migrations_dir.glob("*.sql"))
     async with pool.acquire() as conn:
-        for sql_file in sql_files:
-            logger.info("Executing migration: %s", sql_file.name)
+        await conn.execute("create schema if not exists grocer;")
+        await conn.execute(
+            """
+            create table if not exists grocer.schema_migrations (
+                filename text primary key,
+                applied_at timestamptz not null default now()
+            );
+            """
+        )
+        done = {
+            row["filename"]
+            for row in await conn.fetch("SELECT filename FROM grocer.schema_migrations;")
+        }
+
+        for sql_file in sorted(migrations_dir.glob("*.sql")):
+            if sql_file.name in done:
+                continue
+            logger.info("Applying migration: %s", sql_file.name)
             sql_content = sql_file.read_text(encoding="utf-8")
-            await conn.execute(sql_content)
+            async with conn.transaction():
+                await conn.execute(sql_content)
+                await conn.execute(
+                    "INSERT INTO grocer.schema_migrations (filename) VALUES ($1);",
+                    sql_file.name,
+                )
             applied.append(sql_file.name)
 
     return applied

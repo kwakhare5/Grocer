@@ -1,7 +1,8 @@
 # Grocer v1.0 — Session Handoff
 
-- **Goal:** Gate 1.1 — close the P0 blockers listed in `STATUS.md` before any push or deploy.
-- **Current:** Gate 1 code, migration 002, and status docs are committed locally on `grocer-v1`; nothing is pushed. Migration 002 is already applied to Supabase.
-- **Passing Tests:** Not re-run this session. Last recorded 109/109 (42 fast + 37 checkout/e2e/channels + 30 Gemini), Ruff clean, Next build clean. One location-pin test was weakened to `auth_required` and must be replaced.
-- **Next Action:** Unified token resolver with refresh-on-expiry, migrations on startup, multi-store `orders[]`, catch/retry `confirm_order`, tracking coordinates from order data, schedule the payment poller, real post-login onboarding test. No orders.
+- **Goal:** Gate 1.2 — make live refresh usable, then prove checkout paths. No orders.
+- **Current:** Gate 1.1 committed locally (`HEAD` = this commit), not pushed. Migration 003 applied to Supabase. Live cart now reads: 11 items, ₹1,751, one store. Live payment options return 10 methods. Live search returns 9 products, 0 orders.
+- **Blocking fact:** The live account has **no stored refresh token**. It expires 2026-10-31 14:51 UTC. Karan must reconnect once through grocerr.vercel.app to capture one.
+- **Passing Tests:** 38 offline tests pass; Ruff clean. DB-backed and Gemini suites were not run.
+- **Next Action:** Reconnect Swiggy to store a refresh token, verify one forced refresh rotates it, then run the DB-backed suites. Do not check out or place an order.
 - **Source of Truth:** `STATUS.md`

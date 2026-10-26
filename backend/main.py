@@ -15,7 +15,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend.channels.swiggy_auth import router as swiggy_auth_router
 from backend.channels.whatsapp import router as whatsapp_router
 from backend.config import settings
-from backend.database import check_db_health, close_db_pool, get_db_pool
+from backend.database import (
+    apply_migrations,
+    check_db_health,
+    close_db_pool,
+    get_db_pool,
+)
 
 logger = logging.getLogger("grocer.main")
 
@@ -24,15 +29,13 @@ async def _run_delivery_poller_loop() -> None:
     """Periodically poll in-flight deliveries across dark stores and push milestone updates."""
     from backend.agent.checkout_executor import poll_in_flight_deliveries_batch
     from backend.channels.whatsapp_client import WhatsAppClient
-    from backend.integrations.commerce.swiggy_client import SwiggyClient
 
-    swiggy = SwiggyClient()
     wa_client = WhatsAppClient()
     while True:
         try:
             await asyncio.sleep(30)
             pool = await get_db_pool()
-            notes = await poll_in_flight_deliveries_batch(pool=pool, swiggy_client=swiggy)
+            notes = await poll_in_flight_deliveries_batch(pool=pool)
             for note in notes:
                 async with pool.acquire() as conn:
                     wa_id = await conn.fetchval(
@@ -50,6 +53,38 @@ async def _run_delivery_poller_loop() -> None:
             break
         except (httpx.HTTPError, ValueError, KeyError, RuntimeError, asyncpg.PostgresError, OSError) as exc:
             logger.warning("Background delivery poller error: %s", exc)
+
+
+async def _run_payment_poller_loop() -> None:
+    """Settle paid checkouts by polling Swiggy with each customer's own token."""
+    from backend.agent.checkout_executor import poll_pending_checkouts_batch
+    from backend.channels.whatsapp_client import WhatsAppClient
+
+    wa_client = WhatsAppClient()
+    while True:
+        try:
+            await asyncio.sleep(15)
+            pool = await get_db_pool()
+            results = await poll_pending_checkouts_batch(pool=pool)
+            for res in results:
+                if not res.confirmed or not res.message:
+                    continue
+                wa_id = await pool.fetchval(
+                    """
+                    SELECT u.wa_id
+                    FROM grocer.checkouts c
+                    JOIN grocer.users u ON c.user_id = u.id
+                    WHERE c.swiggy_order_id = $1
+                    LIMIT 1;
+                    """,
+                    res.order_id,
+                )
+                if wa_id:
+                    await wa_client.send_text_message(to_wa_id=wa_id, text=res.message)
+        except asyncio.CancelledError:
+            break
+        except (httpx.HTTPError, ValueError, KeyError, RuntimeError, asyncpg.PostgresError, OSError) as exc:
+            logger.warning("Background payment poller error: %s", exc)
 
 
 async def _run_dpdp_scrubber_loop() -> None:
@@ -71,12 +106,17 @@ async def _run_dpdp_scrubber_loop() -> None:
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Manage application startup and shutdown lifecycle."""
     await get_db_pool()
+    applied = await apply_migrations()
+    if applied:
+        logger.info("Applied migrations: %s", ", ".join(applied))
     poller_task = asyncio.create_task(_run_delivery_poller_loop())
+    payment_task = asyncio.create_task(_run_payment_poller_loop())
     dpdp_task = asyncio.create_task(_run_dpdp_scrubber_loop())
     yield
     poller_task.cancel()
+    payment_task.cancel()
     dpdp_task.cancel()
-    await asyncio.gather(poller_task, dpdp_task, return_exceptions=True)
+    await asyncio.gather(poller_task, payment_task, dpdp_task, return_exceptions=True)
     await close_db_pool()
 
 

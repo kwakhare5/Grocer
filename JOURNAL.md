@@ -328,3 +328,19 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: Committed Gate 1 code, migration 002, `STATUS.md`, and the `AGENTS.md`/`TASKS.md`/`HANDOFF.md` updates locally as `1ae6431`. Added `scratch/` to `.gitignore`. Nothing pushed.
 - **Proof**: `git commit` created `1ae6431`, 23 files, 937 insertions, 205 deletions. `git status` clean afterwards.
 - **Still broken**: All seven Gate 1.1 P0 blockers in `STATUS.md`.
+
+### [GROCER v1 — Gate 1.1: Refresh, Migrations, Split Orders, Settlement, Pollers] 2026-10-26
+
+#### Work Card: Close the seven P0 blockers before deploy
+- **Problem**: The access token had no refresh path on expiry, so the bot asked customers to reconnect when a silent refresh would work. Migrations were applied by hand and never on boot. `checkout` modelled only one order, so a split cart could be read as a failure. `confirm_order` errors were uncaught, tracking had no coordinates for existing accounts, the payment poller was never started, and one location test proved less than its name said.
+- **Change**: Added `resolve_user_token` plus per-user refresh serialization and JSON-RPC `-32001` auth detection; preserved refresh tokens on conflict. Added `grocer.schema_migrations` and run pending migrations in the lifespan. `CheckoutData` now accepts `orders[]` split responses; every order id is stored and receipts report partial failures. Confirm errors move the row to `confirming` for continued polling. Onboarding saves pin coordinates to `grocer.address_coords` for `track_order`. A 15-second payment poller now runs with each user's own token, and both pollers resolve per-user tokens. Migration 003 adds the new column and table.
+- **Proof**: `ruff check backend/ tests/` clean. `pytest tests/test_staging_fixtures.py tests/test_address_lifecycle.py tests/test_invariants.py tests/test_composite_cart.py` → 37 passed in 2.94s. `import backend.main, backend.agent.checkout_executor, backend.channels.button_router` ok.
+- **Still broken**: No live proof yet for refresh, confirm, split orders, or the payment poller. Migration 003 is not applied to Supabase. Old addresses still have no coordinates, so live map is skipped for them. DB-backed and Gemini suites were not run.
+
+### [GROCER v1 — Gate 1.1 Proven Live: Migration 003, Cart Schema Fix] 2026-10-26
+
+#### Work Card: Apply migration 003, verify live reads, and fix the live cart contract
+- **Problem**: The live cart failed to parse because Swiggy returns `storeId` as a number while the schema required text. That killed cart display and Lock 2 verification against the real account. The account also has no stored refresh token, so silent refresh cannot work despite the new code.
+- **Change**: Migrations 001–003 applied and recorded in `grocer.schema_migrations`; `address_coords` and `checkouts.swiggy_order_ids` now exist. `CartItem.storeId` accepts a number and normalizes it to text, with a regression test in `test_staging_fixtures.py`.
+- **Proof**: Live reads against the real account: 3 addresses, 9 search results, 0 orders, 11 cart items, ₹1,751, one store, all in stock, 10 payment methods. `ruff check` clean; 38 offline tests pass in 2.37s.
+- **Still broken**: No refresh token stored for the live account (reconnect required before 2026-10-31). Live refresh, confirm, split order and payment poller remain unproven. No order placed.

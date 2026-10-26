@@ -376,51 +376,9 @@ backend/
 
 ---
 
-## 7. Phased Implementation Roadmap
+## 7. Definition of Done
 
-### Phase 0: Ground-Truth Staging Fixtures (Zero Code First)
-- Connect to Swiggy staging MCP endpoint (`https://mcp.swiggy.com/im`).
-- Call all 20 tools and commit raw JSON responses to `tests/fixtures/`.
-- Lock all parsers (`cart_parsers.py`, `order_parsers.py`, `address_parsers.py`) to these real fixtures.
-- **Done Condition:** All parsers parse staging fixtures with 0 errors. `MockCommerceAdapter` is permanently eliminated.
-
-### Phase 1: Ingestion Shield & Fast Button Router
-- Implement `POST /api/whatsapp/webhook` with HMAC verification (<25ms response).
-- Add Postgres message deduplication (`ON CONFLICT (wa_message_id) DO NOTHING`).
-- Add fast 50ms button router for interactive taps.
-- **Done Condition:** Webhook replay attack tests pass; duplicate messages are dropped with zero double-processing.
-
-### Phase 2: Conversational Brain & Intelligent Search
-- Implement `search_catalog(query)` returning candidate lists from Swiggy.
-- Implement Gemini candidate evaluation (matching variants against user constraints).
-- Implement recipe checklist proposals and smart Kirana defaults for vague staples.
-- Support natural Q&A without forcing receipt cards.
-- **Done Condition:** Test matrix with 20 real customer phrases (typos, recipes, brand queries) picks the correct dark-store product 100% of the time.
-
-### Phase 3: Commerce & Account Lifecycle
-- Implement full target cart assembly and destructive `update_cart`.
-- Implement read-after-write verification with revert detection and out-of-stock honesty cards.
-- Implement address lifecycle (`get_addresses`, two-step pin geocoding, deletion guardrails).
-- Implement JIT re-auth with parked message replay for 5-day expired tokens.
-- **Done Condition:** Adding items preserves existing basket; missing items appear under "Not added"; address deletion blocked during live delivery.
-
-### Phase 4: 3-Lock Payment Gate & Web Checkout
-- Implement Lock 1 (physical button ID only), Lock 2 (re-verification of price, stock, and ₹1 price-drift abort), Lock 3 (DB atomic CAS).
-- Deliver Swiggy HTTPS `bridgeUrl` as a WhatsApp CTA URL button.
-- Implement `check_payment_status` ~19-second durable background poller (up to 5 min).
-- Implement live GPS rider tracking transition on payment confirmation.
-- **Done Condition:** Text "yes" fails to trigger payment; double-tap triggers exactly one checkout; successful payment pushes instant WhatsApp receipt and live map link.
-
-### Phase 5: Wallet Advocate & Production Hardening
-- Implement bounded coupon trial-and-reset (max 2 trials) with net-savings guardrail.
-- Implement small-cart fee shock warning (fees > 35% of total).
-- Add 24-hour DPDP data retention scrubber and `"delete my data"` purge command.
-- Lock order safety cap to ₹1,000 with interactive raise button.
-- **Done Condition:** 7 consecutive days on staging with 0 duplicate orders and 0 cart drift errors.
-
----
-
-## 8. Definition of Done
+> Current phase, blockers and acceptance conditions live in `STATUS.md`. This section covers how any task is judged, not what is left to do.
 
 A task or phase is considered complete **ONLY** when:
 1. `.\verify.ps1` (or `pytest`) exits 0 with pasted raw terminal output.

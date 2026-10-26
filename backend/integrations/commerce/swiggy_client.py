@@ -19,15 +19,20 @@ from backend.config import settings
 from backend.integrations.commerce.schemas import (
     CartData,
     CartItem,
+    CheckoutData,
     ClearCartData,
+    ConfirmOrderData,
     CreateAddressData,
     DeleteAddressData,
     GetAddressesData,
+    OrderDetailsData,
     OrdersListData,
+    PaymentStatusData,
     RecommendAddressData,
     SearchProduct,
     SearchProductsData,
     ToolEnvelope,
+    TrackOrderData,
 )
 
 T = TypeVar("T")
@@ -399,3 +404,34 @@ class SwiggyClient:
     def get_orders(self, offset: int = 0, limit: int = 10) -> OrdersListData:
         args = {"offset": offset, "limit": limit}
         return self.call_remote_tool("get_orders", args, OrdersListData)
+
+    def checkout(
+        self,
+        payment_method: str = "UPI",
+        address_id: str | None = None,
+    ) -> CheckoutData:
+        args: dict[str, Any] = {"paymentMethod": payment_method}
+        if address_id:
+            args["addressId"] = address_id
+        return self.call_remote_tool("checkout", args, CheckoutData)
+
+    def check_payment_status(
+        self,
+        paas_id: str | None = None,
+        order_id: str | None = None,
+    ) -> PaymentStatusData:
+        args: dict[str, Any] = {}
+        if paas_id:
+            args["paasId"] = paas_id
+        if order_id:
+            args["orderId"] = order_id
+        return self.call_remote_tool("check_payment_status", args, PaymentStatusData)
+
+    def track_order(self, order_id: str) -> TrackOrderData:
+        return self.call_remote_tool("track_order", {"orderId": order_id}, TrackOrderData)
+
+    def get_order_details(self, order_id: str) -> OrderDetailsData:
+        return self.call_remote_tool("get_order_details", {"orderId": order_id}, OrderDetailsData)
+
+    def confirm_order(self, order_id: str) -> ConfirmOrderData:
+        return self.call_remote_tool("confirm_order", {"orderId": order_id}, ConfirmOrderData)

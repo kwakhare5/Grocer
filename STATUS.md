@@ -103,10 +103,10 @@ The boundary is the Swiggy Instamart MCP surface, plus an honest fallback where 
 | 12 | Address type hardcoded to HOME | `backend/agent/address_lifecycle.py:140` | Wrong category for work/family addresses | Ask or infer only with confirmation |
 | 13 | Every location pin restarts onboarding | `backend/channels/whatsapp.py:217` | Existing users get a new address instead of a choice | Distinguish add-new vs switch |
 | 14 | Fake production branches remain | `backend/integrations/commerce/swiggy_client.py:105`, `backend/channels/whatsapp_client.py:48` | Violates zero-mock and hides live failures | Remove fixture/catalog/mock branches from production |
-| 15 | Tests write to live Supabase | `tests/conftest.py`, multiple test files | Pollutes real data and can scrub real users | Use a separate test schema/database |
+| 15 | Tests write to live Supabase | `tests/conftest.py`, multiple test files | **Confirmed 2026-10-27:** ~350 junk users and fake tokens now sit in the live DB; token-backed webhook tests fail with `auth_required` because their fake tokens 401 | Use a separate test schema/database |
 | 16 | Webhook is synchronous | `backend/channels/whatsapp.py` | Gemini + Swiggy calls block the 200 response | ACK first, process from a durable queue |
-| 17 | Button router stubs | `backend/channels/button_router.py:30,124,167` | Clear cart, address switch, recipe, change-item do nothing | Wire every button to a real action or remove it |
-| 18 | Missing concierge intents | `backend/agent/candidate_evaluator.py:173` | Price, stock, store, address, history, track, cancel, reorder fail as shopping searches | Expand the intent contract |
+| 17 | ~~Button router stubs~~ | `backend/channels/button_router.py` | **Fixed in Gate 2** for cart, reorder and address buttons; recipe buttons are no longer emitted | — |
+| 18 | ~~Missing concierge intents~~ | `backend/agent/router.py` | **Fixed in Gate 2:** 17 capabilities with safety classes cover the product scope; `add_items` still makes a second legacy LLM call | Move recipes into the router, then delete the second call |
 | 19 | Disambiguation is broken | `backend/channels/whatsapp.py:394,454` | Ambiguous items fall into "couldn't find" | Add tappable options and pending state |
 | 20 | Fee-shock warning is dead | `backend/agent/customer_advocate.py:81` | Small carts can surprise customers with fees | Call it before checkout |
 | 21 | Post-order additions and split receipts are dead | `backend/agent/checkout_executor.py:31` | Promised journeys never run | Wire or remove |
@@ -158,7 +158,12 @@ The boundary is the Swiggy Instamart MCP surface, plus an honest fallback where 
 - English-only replies enforced in the prompt.
 - Known cost: basket requests still make a second LLM call through the old classifier until recipes move into the router.
 - Basket clear, remove and quantity changes are previewed, confirmed by tap, and verified after writing. Proven against fixtures only, not the live cart.
-- Not built yet: reorder, add address by typed text (location pin works), text checkout (button only).
+- Reorder (last order or usual items) previews resolved live products with prices, then rebuilds the basket only from a tap, with read-after-write verification and revert. Proven against real fixture shapes; live proof blocked because the account has 0 orders and the live DB read was refused by the safety classifier.
+- Router accuracy is measured by `scripts/eval_router.py`: 40 messy real-world phrasings sent to the live LLM, scored on capability and unsafe writes.
+- Two full live runs on Groq `openai/gpt-oss-120b`: **39/40 both times, 0 unsafe writes both times.** The miss moved between runs ("how long till my food arrives" → store_info; "delete my old address" → chat). Each was fixed with a one-line prompt rule and passes when rerun alone. Treat 39/40 as the honest floor and expect run-to-run variance; a 3-pass per-case consistency score is the next measurement step.
+- Targeted offline suites (router, basket, reorder, catalog): 47 passed; `ruff` clean on changed files.
+- Not built yet: add address by typed text (location pin works), text checkout (button only), and the reorder write on live data.
+- **P0 test isolation:** `tests/test_whatsapp_live_loop.py` writes users and fake tokens into the live Supabase database instead of an isolated test DB. It has created ~350 junk users and produces `auth_required` failures. Needs a separate test database before the next full-suite run.
 
 **Not fixed:** the P0 and P1 items above.
 

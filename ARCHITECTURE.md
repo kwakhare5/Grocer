@@ -349,6 +349,10 @@ backend/
 │   ├── llm.py                  # Provider adapter: Groq or Gemini, JSON mode
 │   ├── candidate_search.py     # Live catalog search per extracted item
 │   ├── candidate_evaluator.py  # Product variant selection
+│   ├── read_actions.py         # Read-only capability answers, never writes
+│   ├── basket_actions.py       # Clear, remove, quantity with preview and revert
+│   ├── order_actions.py        # Reorder from last order or usual items
+│   ├── address_actions.py      # Switch and two-tap delete with live guards
 │   ├── address_lifecycle.py    # Address list, switch, delete and pin onboarding
 │   ├── approval.py             # Paise math, fingerprint, approval latch
 │   ├── checkout_executor.py    # 3-lock checkout, settlement, pollers

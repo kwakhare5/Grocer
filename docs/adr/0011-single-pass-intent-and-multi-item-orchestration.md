@@ -1,5 +1,7 @@
 # ADR 0011: Single-Pass Conversational Intent, Multi-Item Extraction, and Partial Disambiguation
 
+> **Superseded by ADR 0012.** The four-intent classifier described here is replaced by capabilities with safety classes. The single-pass turn, dialogue history and multi-item extraction decisions still stand.
+
 ## Context
 In early staging, incoming customer messages were routed directly to Swiggy dark-store catalog search before determining intent. This caused greetings (e.g. "hello") to search for a SKU named "hello", return 0 items, and respond with "couldn't find items". In addition, grocery candidate evaluation was faked using static keyword dictionaries, multi-item shopping lists were collapsed into single searches, and dialogue history was ignored.
 

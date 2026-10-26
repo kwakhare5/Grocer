@@ -19,15 +19,16 @@
 ---
 
 ## 2. Universal Non-Negotiables for Grocer v1
-1. **Real Data Over Mocks:** Zero mocking of project code, databases, APIs, Gemini, or Swiggy MCP tools. `MockCommerceAdapter` is permanently deleted. Contract tests use real captured Swiggy responses; behavior tests call live Swiggy and Gemini.
+1. **Real Data Over Mocks:** Zero mocking of project code, databases, APIs, the LLM, or Swiggy MCP tools. `MockCommerceAdapter` is permanently deleted. Contract tests use real captured Swiggy responses; behavior tests call live Swiggy and the live LLM.
 2. **Zero Assumptions About Orders or Addresses:** Never assume customer intent. Never substitute specific requests. Ground to primary address with 1-tap switch.
 3. **Radical Truth:** If an item is out of stock, if the dark store is closed, or if an API error occurs, communicate the exact truth in plain English. Never silently omit items.
 4. **Customer Advocate Engine:** Auto-apply the best valid Swiggy coupon. Never apply a coupon if the final payable total increases. Show exact rupee savings.
-5. **Python Muscle vs Gemini Brain:** Gemini handles conversational language and candidate evaluation. Python enforces math, budget caps, cart SHA-256 fingerprints, and the 3-lock checkout gate.
+5. **Python Muscle vs LLM Brain:** The LLM handles conversational language and candidate evaluation behind one provider adapter (ADR 0012). It never calls Swiggy. Python enforces capabilities, safety classes, math, budget caps, cart SHA-256 fingerprints, and the 3-lock checkout gate.
 6. **Physical Button Tap Only (Lock 1 Authority):** An order can ONLY be placed if the user physically taps a WhatsApp button. Text "yes" never places an order.
 7. **Refresh First, Then Park:** Use the stored refresh token on expiry or 401. Park and replay the shopping list only if refresh fails.
 8. **DPDP Compliance & 24h Data Minimization:** Customer addresses and order snapshots are deleted from DB storage after 24 hours.
 9. **Living Status:** `STATUS.md` is the single source of truth. Update it, `.scratch/HANDOFF.md`, and `JOURNAL.md` before ending any session.
+10. **Unknown Never Writes:** Every message routes to a capability with a safety class (`read`, `basket`, `account`, `money`). A read capability can never reach a write path. Unknown or low-confidence messages answer read-only or ask.
 
 ---
 

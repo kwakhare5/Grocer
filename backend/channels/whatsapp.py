@@ -408,6 +408,19 @@ async def handle_webhook(
                     else:
                         session_history = []
 
+                    async def remember(reply_text: str) -> None:
+                        session_history.append({"role": "user", "text": msg.text})
+                        session_history.append({"role": "assistant", "text": reply_text})
+                        await conn.execute(
+                            """
+                            INSERT INTO grocer.sessions (user_id, history, last_active_at)
+                            VALUES ($1, $2::jsonb, now())
+                            ON CONFLICT (user_id) DO UPDATE SET history = $2::jsonb, last_active_at = now();
+                            """,
+                            user_id,
+                            json.dumps(session_history[-12:]),
+                        )
+
                     address_count = 1
                     if not active_addr_id:
                         try:
@@ -485,6 +498,61 @@ async def handle_webhook(
                             "capability": decision.capability.value,
                             "wa_id": msg.sender_wa_id,
                         }
+
+                    if decision.capability is Capability.SWITCH_ADDRESS:
+                        from backend.agent.address_actions import handle_switch_request
+
+                        addr_reply = await handle_switch_request(
+                            decision, turn_client, conn, user_id, active_addr_id
+                        )
+                        if addr_reply.buttons:
+                            await wa_client.send_quick_reply_buttons(
+                                to_wa_id=msg.sender_wa_id,
+                                body_text=addr_reply.text,
+                                buttons=addr_reply.buttons,
+                            )
+                        else:
+                            await wa_client.send_text_message(
+                                to_wa_id=msg.sender_wa_id, text=addr_reply.text
+                            )
+                        await remember(addr_reply.text)
+                        return {
+                            "status": "address_switch_requested",
+                            "wa_id": msg.sender_wa_id,
+                        }
+
+                    if decision.capability is Capability.DELETE_ADDRESS:
+                        from backend.agent.address_actions import handle_delete_request
+
+                        addr_reply = await handle_delete_request(
+                            decision, turn_client, active_addr_id
+                        )
+                        if addr_reply.buttons:
+                            await wa_client.send_quick_reply_buttons(
+                                to_wa_id=msg.sender_wa_id,
+                                body_text=addr_reply.text,
+                                buttons=addr_reply.buttons,
+                            )
+                        else:
+                            await wa_client.send_text_message(
+                                to_wa_id=msg.sender_wa_id, text=addr_reply.text
+                            )
+                        await remember(addr_reply.text)
+                        return {
+                            "status": "address_delete_requested",
+                            "wa_id": msg.sender_wa_id,
+                        }
+
+                    if decision.capability is Capability.ADD_ADDRESS:
+                        add_text = (
+                            "Share your WhatsApp location pin and I'll add that address "
+                            "to your Swiggy account."
+                        )
+                        await wa_client.send_text_message(
+                            to_wa_id=msg.sender_wa_id, text=add_text
+                        )
+                        await remember(add_text)
+                        return {"status": "address_add_requested", "wa_id": msg.sender_wa_id}
 
                     if decision.capability is not Capability.ADD_ITEMS:
                         await wa_client.send_text_message(

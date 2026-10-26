@@ -1,8 +1,7 @@
 # Grocer v1.0 — Session Handoff
 
-- **Goal:** Gate 1.2 — make live refresh usable, then prove checkout paths. No orders.
-- **Current:** Gate 1.1 committed locally (`HEAD` = this commit), not pushed. Migration 003 applied to Supabase. Live cart now reads: 11 items, ₹1,751, one store. Live payment options return 10 methods. Live search returns 9 products, 0 orders.
-- **Blocking fact:** The live account has **no stored refresh token**. It expires 2026-10-31 14:51 UTC. Karan must reconnect once through grocerr.vercel.app to capture one.
+- **Goal:** Finish Gate 1.2 — get a stored refresh token and prove it.
+- **Current:** `grocer-v1` pushed to origin at `c8d31c9`; Render deploy triggered. Backend `/health` reports healthy and DB connected. Access token is valid; **no refresh token stored** because the login went through the old deployed code.
 - **Passing Tests:** 38 offline tests pass; Ruff clean. DB-backed and Gemini suites were not run.
-- **Next Action:** Reconnect Swiggy to store a refresh token, verify one forced refresh rotates it, then run the DB-backed suites. Do not check out or place an order.
+- **Next Action:** After Render finishes the deploy, Karan logs in once at grocerr.vercel.app. Then verify `refresh_token IS NOT NULL`, run one forced refresh, confirm the rotated token still works. No checkout, no order.
 - **Source of Truth:** `STATUS.md`

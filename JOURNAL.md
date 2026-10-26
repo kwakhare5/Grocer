@@ -344,3 +344,11 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: Migrations 001–003 applied and recorded in `grocer.schema_migrations`; `address_coords` and `checkouts.swiggy_order_ids` now exist. `CartItem.storeId` accepts a number and normalizes it to text, with a regression test in `test_staging_fixtures.py`.
 - **Proof**: Live reads against the real account: 3 addresses, 9 search results, 0 orders, 11 cart items, ₹1,751, one store, all in stock, 10 payment methods. `ruff check` clean; 38 offline tests pass in 2.37s.
 - **Still broken**: No refresh token stored for the live account (reconnect required before 2026-10-31). Live refresh, confirm, split order and payment poller remain unproven. No order placed.
+
+### [GROCER v1 — Gate 1.1 Deployed] 2026-10-26
+
+#### Work Card: Push Gate 1.1 so the live backend can store refresh tokens
+- **Problem**: Every login through grocerr.vercel.app was handled by the old Render build, which stores only the access token. The refresh token was returned by Swiggy and discarded, so silent refresh could never work.
+- **Change**: Pushed `273c198..c8d31c9` to `origin/grocer-v1`. Render deploys that branch, so the callback now saves the encrypted refresh token and startup migrations run.
+- **Proof**: `git push` succeeded to https://github.com/kwakhare5/Grocer.git; `GET /health` returns healthy with database connected.
+- **Still broken**: No refresh token stored yet. It needs one login after the new build is live. Live refresh, confirm, split order and payment poller remain unproven.

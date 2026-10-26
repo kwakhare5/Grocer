@@ -386,7 +386,8 @@ async def test_webhook_fast_button_dispatch():
         elapsed_ms = (time.perf_counter() - start_time) * 1000
         assert resp.status_code == 200
         data = resp.json()
-        assert data["status"] == "button_dispatched"
+        # No Swiggy login for this test user, so the tap must not touch a cart.
+        assert data["status"] == "auth_required"
         assert data["action"] == "cart:clear"
         assert elapsed_ms < 1500
 
@@ -490,7 +491,7 @@ async def test_webhook_list_reply_parsed_and_dispatched():
     msg_id = f"wamid.list_{int(time.time() * 1000)}"
     payload = _make_whatsapp_list_reply_payload(
         msg_id,
-        list_id="addr:addr_bandra_101",
+        list_id="addr:set:addr_bandra_101",
         title="Home (Bandra West)",
     )
     payload_bytes = json.dumps(payload).encode("utf-8")
@@ -504,9 +505,9 @@ async def test_webhook_list_reply_parsed_and_dispatched():
         )
         assert resp.status_code == 200
         data = resp.json()
-        assert data["status"] == "button_dispatched"
-        assert data["action"] == "addr:addr_bandra_101"
-        assert data["address_id"] == "addr_bandra_101"
+        # Parsed as an address switch, then stopped for the missing Swiggy login.
+        assert data["status"] == "auth_required"
+        assert data["action"] == "addr:set:addr_bandra_101"
 
 
 @pytest.mark.db

@@ -456,3 +456,11 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: Added `TEST_DATABASE_URL` to config and `.env.example`. `get_db_pool()` now picks that DSN under pytest and raises instead of falling back to `DATABASE_URL`. Marked every DB-backed test `db` and added a collection hook that skips them with a clear reason when `TEST_DATABASE_URL` is empty. Marked tests apply migrations once per isolated DB before running.
 - **Proof**: Full suite: **113 passed, 23 skipped, 0 failed**; `ruff` clean. The guard fired on the previous run (`RuntimeError: Refusing to use DATABASE_URL while running tests`) exactly as intended. Skips are per test, never silent.
 - **Still broken**: No separate test database exists yet, so all 23 DB tests are skipped. The ~350 junk users already in production remain. Cleanup needs Karan's decision.
+
+### [GROCER v1 — One Dev Database, Clean Test Runs] 2026-10-27
+
+#### Work Card: Run every DB test on the only Supabase project without leaving junk
+- **Problem**: Karan confirmed there is only one Supabase project, pre-launch, and wants it used for tests too. Old DB tests left fake users behind, and a timestamp-based cleanup missed one row because the database clock drifted a few seconds.
+- **Change**: Pointed `TEST_DATABASE_URL` at the existing project in `.env` (not committed). Replaced timestamp cleanup with an ID baseline: before the first DB test the suite snapshots existing user IDs, and at session end deletes every user (and checkouts, approvals, inbound messages) not in that snapshot. Fixed the candidate fallback so a vague request with several distinct products asks which one instead of silently taking rank 1. Updated outdated assertions: no-token button taps now expect `auth_required`, greetings expect the router's `chat` answer, and fixture tests start from an empty basket.
+- **Proof**: Full suite twice: **136 passed, 0 skipped, 0 failed**; `ruff` clean. User count stayed **364 before and after** a full run, proving no new junk. The six previously failing tests pass.
+- **Still broken**: ~363 junk users from earlier sessions remain; the delete was blocked by the safety classifier and needs Karan's typed approval. Tests and real account data share the one dev database.

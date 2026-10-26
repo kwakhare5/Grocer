@@ -103,7 +103,7 @@ The boundary is the Swiggy Instamart MCP surface, plus an honest fallback where 
 | 12 | Address type hardcoded to HOME | `backend/agent/address_lifecycle.py:140` | Wrong category for work/family addresses | Ask or infer only with confirmation |
 | 13 | Every location pin restarts onboarding | `backend/channels/whatsapp.py:217` | Existing users get a new address instead of a choice | Distinguish add-new vs switch |
 | 14 | Fake production branches remain | `backend/integrations/commerce/swiggy_client.py:105`, `backend/channels/whatsapp_client.py:48` | Violates zero-mock and hides live failures | Remove fixture/catalog/mock branches from production |
-| 15 | ~~Tests write to live Supabase~~ | `backend/database.py`, `tests/conftest.py` | **Guarded 2026-10-27:** `get_db_pool()` refuses `DATABASE_URL` under pytest; 23 DB tests are marked `db` and skip unless `TEST_DATABASE_URL` is set. ~350 junk users from earlier runs remain in the live DB. | Create a separate Supabase test project, set `TEST_DATABASE_URL`, then decide cleanup |
+| 15 | ~~Tests write to live Supabase~~ | `backend/database.py`, `tests/conftest.py` | **Fixed 2026-10-27:** pytest uses `TEST_DATABASE_URL` (the one dev project) and never falls back silently. Every user created during a run is deleted at session end using an ID baseline; proven 364 → 364 users across a full run. ~363 junk users from earlier runs remain. | Delete old junk after typed approval |
 | 16 | Webhook is synchronous | `backend/channels/whatsapp.py` | Gemini + Swiggy calls block the 200 response | ACK first, process from a durable queue |
 | 17 | ~~Button router stubs~~ | `backend/channels/button_router.py` | **Fixed in Gate 2** for cart, reorder and address buttons; recipe buttons are no longer emitted | — |
 | 18 | ~~Missing concierge intents~~ | `backend/agent/router.py` | **Fixed in Gate 2:** 17 capabilities with safety classes cover the product scope; `add_items` still makes a second legacy LLM call | Move recipes into the router, then delete the second call |
@@ -163,7 +163,7 @@ The boundary is the Swiggy Instamart MCP surface, plus an honest fallback where 
 - Two full live runs on Groq `openai/gpt-oss-120b`: **39/40 both times, 0 unsafe writes both times.** The miss moved between runs ("how long till my food arrives" → store_info; "delete my old address" → chat). Each was fixed with a one-line prompt rule and passes when rerun alone. Treat 39/40 as the honest floor and expect run-to-run variance; a 3-pass per-case consistency score is the next measurement step.
 - Targeted offline suites (router, basket, reorder, catalog): 47 passed; `ruff` clean on changed files.
 - Not built yet: add address by typed text (location pin works), text checkout (button only), and the reorder write on live data.
-- **Test isolation guard:** `get_db_pool()` now refuses `DATABASE_URL` while pytest is running. DB-backed tests are marked `db` and skip until `TEST_DATABASE_URL` points at a separate database. Full suite: 113 passed, 23 skipped, 0 failed. The ~350 junk users created earlier remain and need a cleanup decision.
+- **Test database:** one dev project is used for both app and tests. `get_db_pool()` refuses to run under pytest without `TEST_DATABASE_URL`. Every test run snapshots existing user IDs and deletes any user created during the run, so no new junk accumulates. Full suite: **136 passed, 0 skipped, 0 failed**; user count unchanged at 364 across a full run. ~363 junk users from earlier sessions remain and need a typed-approval cleanup.
 
 **Not fixed:** the P0 and P1 items above.
 

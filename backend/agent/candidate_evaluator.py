@@ -663,7 +663,23 @@ def evaluate_customer_intent(
         is_staple = any(st in words for st in staple_terms) and len(words) <= 3
 
         if not selected and candidates:
-            selected = candidates[0]
+            if is_staple or len(candidates) == 1:
+                selected = candidates[0]
+            else:
+                # A vague request with several distinct products must never
+                # silently take rank 1.
+                options = [
+                    DisambiguationOption.from_candidate(c) for c in candidates[:3]
+                ]
+                options_str = " and ".join(
+                    f"{opt.display_name} for {format_paise_to_rupees(opt.price_paise)}"
+                    for opt in options[:2]
+                )
+                return CandidateEvaluationResult(
+                    intent_type=IntentType.DISAMBIGUATION,
+                    disambiguation_options=options,
+                    message=f"We have {options_str}. Which one would you like?",
+                )
 
         if is_staple and selected:
             return CandidateEvaluationResult(

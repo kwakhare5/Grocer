@@ -204,6 +204,7 @@ async def test_webhook_authenticated_user_creates_approval_and_sends_receipt():
 
     fixtures_dir = Path(__file__).resolve().parent / "fixtures"
     staging_client = SwiggyClient(fixtures_dir=fixtures_dir)
+    staging_client.clear_cart()  # fixture state only; starts from an empty basket
 
     res = await handle_webhook(MockRequest(), swiggy_client=staging_client)
     assert res["status"] == "cart_updated"
@@ -345,8 +346,8 @@ async def test_webhook_greeting_returns_conversational_reply_without_cart():
     staging_client = SwiggyClient(fixtures_dir=fixtures_dir)
 
     res = await handle_webhook(MockRequest(), swiggy_client=staging_client)
-    assert res["status"] == "conversational_replied"
-    assert res["intent"] == "greeting"
+    assert res["status"] == "capability_answered"
+    assert res["capability"] == "chat"
     assert res["wa_id"] == wa_id
 
     # Verify that NO approval was created for a simple greeting
@@ -415,6 +416,7 @@ async def test_webhook_multi_item_list_assembles_composite_cart():
     fixtures_dir = Path(__file__).resolve().parent / "fixtures"
     from backend.integrations.commerce.swiggy_client import SwiggyClient
     staging_client = SwiggyClient(fixtures_dir=fixtures_dir)
+    staging_client.clear_cart()  # fixture state only; starts from an empty basket
 
     res = await handle_webhook(MockRequest(), swiggy_client=staging_client)
     assert res["status"] == "cart_updated"

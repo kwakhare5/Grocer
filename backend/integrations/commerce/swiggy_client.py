@@ -24,7 +24,9 @@ from backend.integrations.commerce.schemas import (
     ConfirmOrderData,
     CreateAddressData,
     DeleteAddressData,
+    DeliveryStatusData,
     GetAddressesData,
+    ListCouponsData,
     OrderDetailsData,
     OrdersListData,
     PaymentStatusData,
@@ -435,3 +437,22 @@ class SwiggyClient:
 
     def confirm_order(self, order_id: str) -> ConfirmOrderData:
         return self.call_remote_tool("confirm_order", {"orderId": order_id}, ConfirmOrderData)
+
+    def list_coupons(self, address_id: str | None = None) -> ListCouponsData:
+        args: dict[str, Any] = {}
+        if address_id:
+            args["addressId"] = address_id
+        return self.call_remote_tool("list_coupons", args, ListCouponsData)
+
+    def apply_coupon(self, coupon_code: str) -> CartData:
+        if self.fixtures_dir:
+            if not coupon_code:
+                self._staging_cart = None
+                return self.get_cart()
+            cart = self._call_fixture_tool("apply_coupon", {"couponCode": coupon_code}, CartData)
+            self._staging_cart = cart
+            return cart
+        return self.call_remote_tool("apply_coupon", {"couponCode": coupon_code}, CartData)
+
+    def get_delivery_status(self, order_id: str) -> DeliveryStatusData:
+        return self.call_remote_tool("get_delivery_status", {"orderId": order_id}, DeliveryStatusData)

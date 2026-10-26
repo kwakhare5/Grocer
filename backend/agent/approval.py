@@ -17,10 +17,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from backend.agent.customer_advocate import (
-    SmallCartFeeWarning,
-    check_small_cart_fee,
     extract_cart_to_pay_paise,
-    parse_price_to_paise,
 )
 from backend.integrations.commerce.schemas import CartData, CartItem
 
@@ -28,12 +25,8 @@ logger = logging.getLogger("grocer.approval")
 
 __all__ = [
     "ApprovalRecord",
-    "SmallCartFeeWarning",
-    "check_small_cart_fee",
     "compute_cart_fingerprint",
     "create_checkout_approval",
-    "extract_cart_to_pay_paise",
-    "parse_price_to_paise",
 ]
 
 
@@ -51,21 +44,13 @@ class ApprovalRecord:
 
 def compute_cart_fingerprint(
     items: list[CartItem | dict[str, Any]],
-    address_id_or_paise: str | int,
-    address_id: str | None = None,
+    to_pay_paise: int,
+    address_id: str,
 ) -> str:
-    """Compute canonical SHA-256 fingerprint for a cart basket and destination.
+    """Compute canonical SHA-256 fingerprint for cart items, integer paise, and destination.
 
-    Decouples item/quantity integrity from store price fluctuations so the ₹1
-    price-drift rule (ADR 0002) can evaluate pricing shifts independently.
+    Enforces ARCHITECTURE.md line 291: Canonical SHA-256 hash of basket items & paise.
     """
-    if address_id is not None:
-        target_addr = address_id
-    elif isinstance(address_id_or_paise, str):
-        target_addr = address_id_or_paise
-    else:
-        target_addr = ""
-
     normalized_items: list[tuple[str, int]] = []
     for it in items:
         if isinstance(it, CartItem):
@@ -79,7 +64,7 @@ def compute_cart_fingerprint(
     # Sort deterministically by spinId
     normalized_items.sort(key=lambda x: x[0])
     items_repr = ",".join(f"{s}:{q}" for s, q in normalized_items)
-    payload = f"{items_repr}|{target_addr}"
+    payload = f"{items_repr}|{to_pay_paise}|{address_id}"
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 

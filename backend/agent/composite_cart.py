@@ -11,11 +11,16 @@ Enforces:
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 from typing import Any
 
+import httpx
+
 from backend.agent.candidate_evaluator import format_paise_to_rupees
 from backend.integrations.commerce.schemas import CartData, CartItem
+
+logger = logging.getLogger("grocer.composite_cart")
 
 
 @dataclass
@@ -54,6 +59,8 @@ def format_cart_receipt(
     cart: CartData,
     dropped_items: list[TargetCartItem] | None = None,
     store_name: str | None = None,
+    coupon_code: str | None = None,
+    coupon_savings_paise: int = 0,
 ) -> str:
     """Format WhatsApp receipt card adhering to DESIGN.md Section 1."""
     lines: list[str] = []
@@ -76,6 +83,10 @@ def format_cart_receipt(
     if cart.billBreakdown and cart.billBreakdown.lineItems:
         for line in cart.billBreakdown.lineItems:
             lines.append(f"*{line.label}:* {line.value}")
+
+    # Coupon savings line
+    if coupon_code and coupon_savings_paise > 0:
+        lines.append(f"🎟️ *Coupon ({coupon_code}):* -{format_paise_to_rupees(coupon_savings_paise)} saved")
 
     # To pay
     if cart.billBreakdown and cart.billBreakdown.toPay:
@@ -103,6 +114,7 @@ class CompositeCartManager:
         self,
         items_to_add: list[TargetCartItem],
         address_id: str | None = None,
+        auto_optimize_coupons: bool = False,
     ) -> CartReconciliationResult:
         # 1. Read existing baseline cart
         current_cart = self.client.get_cart(address_id=address_id)
@@ -167,15 +179,35 @@ class CompositeCartManager:
                     }
                 )
 
+        # 6. Autonomous Wallet Advocate: optimize coupons if enabled
+        coupon_res = None
+        if auto_optimize_coupons and hasattr(self.client, "list_coupons") and hasattr(self.client, "apply_coupon"):
+            try:
+                from backend.agent.customer_advocate import optimize_coupons
+
+                coupon_res = optimize_coupons(
+                    cart=verified_cart,
+                    swiggy_client=self.client,
+                    address_id=address_id,
+                )
+            except (httpx.HTTPError, ValueError, KeyError, RuntimeError) as exc:
+                logger.debug("Coupon optimization skipped in cart builder: %s", exc)
+
+        final_cart = coupon_res.final_cart if coupon_res else verified_cart
+        coupon_code = coupon_res.applied_coupon if coupon_res else None
+        coupon_savings = coupon_res.savings_paise if coupon_res else 0
+
         receipt = format_cart_receipt(
-            cart=verified_cart,
+            cart=final_cart,
             dropped_items=dropped_out_of_stock,
+            coupon_code=coupon_code,
+            coupon_savings_paise=coupon_savings,
         )
 
         return CartReconciliationResult(
-            cart=verified_cart,
+            cart=final_cart,
             requested_items=items_to_add,
-            added_items=verified_cart.items,
+            added_items=final_cart.items,
             dropped_out_of_stock=dropped_out_of_stock,
             reduced_quantity=reduced_quantity,
             receipt_text=receipt,

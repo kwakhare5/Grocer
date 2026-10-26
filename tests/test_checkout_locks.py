@@ -25,10 +25,8 @@ import pytest
 
 from backend.agent.approval import (
     ApprovalRecord,
-    check_small_cart_fee,
     compute_cart_fingerprint,
     create_checkout_approval,
-    parse_price_to_paise,
 )
 from backend.agent.checkout_executor import (
     DEFAULT_LAUNCH_CAP_PAISE,
@@ -42,6 +40,10 @@ from backend.agent.checkout_executor import (
     poll_pending_checkouts_batch,
     verify_lock_1_authority,
     verify_lock_2_truth,
+)
+from backend.agent.customer_advocate import (
+    check_small_cart_fee,
+    parse_price_to_paise,
 )
 from backend.database import get_db_pool
 from backend.integrations.commerce.schemas import (
@@ -112,11 +114,13 @@ def test_lock_2_price_drift_aborts_checkout(swiggy_client):
     assert res_valid.passed is True
 
     # Approval where price shifted by ₹2.00 (200 paise) aborts
+    drift_to_pay = live_to_pay - 200
+    drift_fp = compute_cart_fingerprint(live_cart.items, drift_to_pay, "addr_01HXYZ")
     approval_drift = ApprovalRecord(
         id=str(uuid.uuid4()),
         user_id=str(uuid.uuid4()),
-        fingerprint=matching_fp,
-        to_pay_paise=live_to_pay - 200,  # ₹2 price shift
+        fingerprint=drift_fp,
+        to_pay_paise=drift_to_pay,  # ₹2 price shift
         address_id="addr_01HXYZ",
         snapshot={},
         status="shown",
@@ -190,7 +194,7 @@ def test_lock_2_launch_safety_cap_enforced(swiggy_client):
         },
     )
 
-    expensive_fp = compute_cart_fingerprint(expensive_cart.items, "addr_01HXYZ")
+    expensive_fp = compute_cart_fingerprint(expensive_cart.items, 125000, "addr_01HXYZ")
     approval = ApprovalRecord(
         id=str(uuid.uuid4()),
         user_id=str(uuid.uuid4()),

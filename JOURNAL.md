@@ -283,6 +283,16 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: `.\verify.ps1` ran all 4 verification stages exiting 0 with terminal proof (104/104 tests green in 17.06s, Ruff clean, Supabase live check 6/6 passed, Next.js build clean in 2.1s); pushed commit `261c22e` to `origin/grocer-v1`.
 - **Still broken**: None. All outbound WhatsApp delivery paths, inbound chat, and milestone push notifications are 100% complete and verified.
 
+### [GROCER v1 — Project Verification Skill & Test Driver] 2026-10-26
+
+#### Work Card: Build `verify-grocer` Skill, Feature Map & CLI Driver
+- **Problem**: Need an automated, repeatable way for any autonomous agent to launch the Grocer backend, run doctor checks, drive customer WhatsApp journeys with HMAC-SHA256 signatures, and capture database proof.
+- **Change**: Built `scripts/drive_grocer.py` with `doctor`, `send-text`, `send-button`, `send-location`, and `inspect-db`; generated project-local verification skill `.agents/skills/verify-grocer/SKILL.md` and feature map in `features/` (`grocery-shopping.md`, `checkout-3-lock.md`, `address-management.md`); mirrored skill to global agent skills; proved end-to-end against live local instance with database proof recorded in `.scratch/verification-proof/button_dispatch_proof.txt`.
+- **Proof**: `.\verify.ps1` ran all 4 verification stages exiting 0 with terminal proof (104/104 tests green in 16.60s, Ruff clean, Supabase live check 6/6 passed, Next.js build clean in 2.3s); pushed commit `396ad8f` to `origin/grocer-v1`.
+- **Still broken**: None. Ready for real WhatsApp live testing.
+
+
+
 
 
 

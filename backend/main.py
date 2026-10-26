@@ -21,16 +21,31 @@ logger = logging.getLogger("grocer.main")
 
 
 async def _run_delivery_poller_loop() -> None:
-    """Periodically poll in-flight deliveries across dark stores."""
+    """Periodically poll in-flight deliveries across dark stores and push milestone updates."""
     from backend.agent.checkout_executor import poll_in_flight_deliveries_batch
+    from backend.channels.whatsapp_client import WhatsAppClient
     from backend.integrations.commerce.swiggy_client import SwiggyClient
 
     swiggy = SwiggyClient()
+    wa_client = WhatsAppClient()
     while True:
         try:
             await asyncio.sleep(30)
             pool = await get_db_pool()
-            await poll_in_flight_deliveries_batch(pool=pool, swiggy_client=swiggy)
+            notes = await poll_in_flight_deliveries_batch(pool=pool, swiggy_client=swiggy)
+            for note in notes:
+                async with pool.acquire() as conn:
+                    wa_id = await conn.fetchval(
+                        """
+                        SELECT u.wa_id
+                        FROM grocer.checkouts c
+                        JOIN grocer.users u ON c.user_id = u.id
+                        WHERE c.swiggy_order_id = $1;
+                        """,
+                        note.order_id,
+                    )
+                    if wa_id:
+                        await wa_client.send_text_message(to_wa_id=wa_id, text=note.message)
         except asyncio.CancelledError:
             break
         except (httpx.HTTPError, ValueError, KeyError, RuntimeError, asyncpg.PostgresError, OSError) as exc:

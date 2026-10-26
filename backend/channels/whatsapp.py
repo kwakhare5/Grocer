@@ -6,6 +6,7 @@ import json
 import logging
 from typing import Any
 
+import httpx
 from fastapi import APIRouter, HTTPException, Request, Response
 
 from backend.channels.button_router import dispatch_button_action
@@ -40,7 +41,10 @@ async def verify_webhook(request: Request) -> Response:
 
 
 @router.post("/webhook")
-async def handle_webhook(request: Request) -> dict[str, Any]:
+async def handle_webhook(
+    request: Request,
+    swiggy_client: Any | None = None,
+) -> dict[str, Any]:
     """Inbound WhatsApp message ingestion shield (<25ms target).
 
     1. Validates HMAC-SHA256 signature against WHATSAPP_APP_SECRET.
@@ -161,10 +165,163 @@ async def handle_webhook(request: Request) -> dict[str, Any]:
             # 8. Inbound Command Dispatcher (DPDP, admin commands)
             if msg.text:
                 from backend.channels.command_router import dispatch_text_command
+                from backend.channels.whatsapp_client import WhatsAppClient
 
+                wa_client = WhatsAppClient()
                 cmd_res = await dispatch_text_command(msg.text, str(user_id), conn)
                 if cmd_res is not None:
+                    if cmd_res.get("message"):
+                        await wa_client.send_text_message(
+                            to_wa_id=msg.sender_wa_id,
+                            text=cmd_res["message"],
+                        )
                     results.append(cmd_res)
+                    continue
+
+                # 9. Conversational Grocery Concierge Pipeline
+                from backend.integrations.commerce.token_vault import get_user_token
+
+                user_token = await get_user_token(user_id)
+                if not user_token:
+                    # User is not connected to Swiggy yet
+                    login_url = f"https://grocerr.vercel.app?phone={msg.sender_wa_id}"
+                    await wa_client.send_cta_url_button(
+                        to_wa_id=msg.sender_wa_id,
+                        body_text=(
+                            "👋 *Welcome to Grocer!*\n\n"
+                            "To order from Swiggy Instamart dark stores in 10-15 minutes, "
+                            "please connect your Swiggy account first:"
+                        ),
+                        button_text="Connect Swiggy",
+                        url=login_url,
+                    )
+                    results.append({"status": "auth_required", "wa_id": msg.sender_wa_id})
+                    continue
+
+                from backend.agent.approval import create_checkout_approval
+                from backend.agent.candidate_evaluator import (
+                    evaluate_customer_intent,
+                    format_paise_to_rupees,
+                )
+                from backend.agent.candidate_search import search_catalog
+                from backend.agent.composite_cart import (
+                    CompositeCartManager,
+                    TargetCartItem,
+                )
+                from backend.integrations.commerce.swiggy_client import (
+                    SwiggyAuthExpiredError,
+                    SwiggyClient,
+                )
+
+                client = swiggy_client or SwiggyClient(auth_token=user_token)
+
+                try:
+                    # Resolve active address
+                    session_row = await conn.fetchrow(
+                        "SELECT active_address_id FROM grocer.sessions WHERE user_id = $1;",
+                        user_id,
+                    )
+                    active_addr_id = session_row["active_address_id"] if session_row else None
+                    if not active_addr_id:
+                        try:
+                            addrs = client.get_addresses()
+                            if addrs.addresses:
+                                active_addr_id = addrs.addresses[0].id
+                                await conn.execute(
+                                    """
+                                    INSERT INTO grocer.sessions (user_id, active_address_id, last_active_at)
+                                    VALUES ($1, $2, now())
+                                    ON CONFLICT (user_id) DO UPDATE SET active_address_id = $2, last_active_at = now();
+                                    """,
+                                    user_id,
+                                    active_addr_id,
+                                )
+                        except (httpx.HTTPError, ValueError, KeyError, RuntimeError) as addr_err:
+                            logger.warning("Could not fetch user addresses: %s", addr_err)
+
+                    candidates = search_catalog(
+                        msg.text,
+                        swiggy_client=client,
+                        address_id=active_addr_id,
+                    )
+                    evaluation = evaluate_customer_intent(msg.text, candidates)
+
+                    if evaluation.intent_type == "conversational_qa":
+                        await wa_client.send_text_message(
+                            to_wa_id=msg.sender_wa_id,
+                            text=evaluation.conversational_response
+                            or "How can I help with your groceries today?",
+                        )
+                        results.append(
+                            {"status": "conversational_replied", "wa_id": msg.sender_wa_id}
+                        )
+                        continue
+
+                    if evaluation.selected_candidate:
+                        cand = evaluation.selected_candidate
+                        items_to_add = [
+                            TargetCartItem(
+                                spin_id=cand.spin_id,
+                                quantity=1,
+                                item_name=cand.display_name,
+                                price_paise=cand.offer_price_paise,
+                            )
+                        ]
+                        cart_mgr = CompositeCartManager(client)
+                        cart_res = cart_mgr.assemble_and_update_cart(
+                            items_to_add=items_to_add,
+                            address_id=active_addr_id,
+                            auto_optimize_coupons=True,
+                        )
+
+                        approval = await create_checkout_approval(
+                            conn=conn,
+                            user_id=str(user_id),
+                            cart=cart_res.cart,
+                            address_id=active_addr_id or "default",
+                        )
+
+                        to_pay_formatted = format_paise_to_rupees(approval.to_pay_paise)
+                        await wa_client.send_quick_reply_buttons(
+                            to_wa_id=msg.sender_wa_id,
+                            body_text=cart_res.receipt_text,
+                            buttons=[
+                                (f"pay:{approval.id}", f"Pay {to_pay_formatted}"),
+                                ("cart:clear", "Clear Basket"),
+                            ],
+                        )
+                        results.append(
+                            {
+                                "status": "cart_updated",
+                                "approval_id": approval.id,
+                                "to_pay_paise": approval.to_pay_paise,
+                            }
+                        )
+                        continue
+                    else:
+                        await wa_client.send_text_message(
+                            to_wa_id=msg.sender_wa_id,
+                            text=f"Sorry, I couldn't find items matching '{msg.text}' at your local dark store. Could you try a different brand or item name?",
+                        )
+                        results.append({"status": "no_match", "query": msg.text})
+                        continue
+                except SwiggyAuthExpiredError:
+                    # Token expired (401) — Park shopping list and prompt reconnection (ADR 0010)
+                    await conn.execute(
+                        "UPDATE grocer.inbound_messages SET status = 'parked' WHERE id = $1;",
+                        inbound_id,
+                    )
+                    login_url = f"https://grocerr.vercel.app?phone={msg.sender_wa_id}"
+                    await wa_client.send_cta_url_button(
+                        to_wa_id=msg.sender_wa_id,
+                        body_text=(
+                            "⚠️ *Your Swiggy login needs a 5-day security refresh.*\n\n"
+                            "Tap below to reconnect your account. Your grocery list has been saved and will resume automatically:"
+                        ),
+                        button_text="Reconnect Swiggy",
+                        url=login_url,
+                    )
+                    results.append({"status": "auth_expired", "wa_id": msg.sender_wa_id})
                     continue
 
             results.append({"status": "processed", "wa_message_id": msg.wa_message_id})

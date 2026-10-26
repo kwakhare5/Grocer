@@ -2,6 +2,7 @@
 
 > **Product:** Grocer — Instamart on WhatsApp  
 > **Status:** Agreed & Authoritative Product Requirements (v1.0 Clean-Slate)  
+> **This is the target product, not current state.** What works today lives in `STATUS.md`.  
 > **Target Audience:** Indian urban households & quick-commerce shoppers managing their entire Swiggy Instamart account on WhatsApp  
 
 ---

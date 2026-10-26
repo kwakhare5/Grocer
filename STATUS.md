@@ -40,10 +40,10 @@ The boundary is the Swiggy Instamart MCP surface, plus an honest fallback where 
 | Startup | Applies pending migrations on boot, tracked in `grocer.schema_migrations` |
 | Last recorded test run | 109/109 passed (42 fast + 37 checkout/e2e/channels + 30 Gemini) |
 | Test integrity | One location-pin test was weakened to expect `auth_required` |
-| Live refresh | **Blocked**: no refresh token is stored for the live account (login predates Gate 1). One reconnect is needed to capture it. Token expires 2026-10-31 14:51 UTC |
+| Live refresh | **Passed**: refresh token stored, forced exchange rotated it, new token called Swiggy successfully |
 | Live checkout | Not tested; no order placed |
 | Account order history | `get_orders` returns 0 orders |
-| Token expiry | **2026-10-31 14:51 UTC** |
+| Token expiry | **2026-11-25 17:40 UTC** (30-day refresh token stored) |
 | Gemini | Works; primary model hit a free-tier 429, fallback answered |
 | Production readiness | **No** |
 
@@ -81,7 +81,7 @@ The boundary is the Swiggy Instamart MCP surface, plus an honest fallback where 
 
 | # | Blocker | State | Fix applied | Proof |
 |---|---|---|---|---|
-| 1 | Refresh is not used on normal expiry | **FIXED (code), BLOCKED (data)** | `resolve_user_token` in `token_vault.py`: valid → use, expired → refresh once. Used by webhook, button router and both pollers. 401 and JSON-RPC `-32001` both raise auth-expired. Refresh is serialized per user so rotation cannot race. | The live account has **no stored refresh token**, so the code cannot refresh it. Karan must reconnect once before 2026-10-31 14:51 UTC. |
+| 1 | Refresh is not used on normal expiry | **FIXED (live proven)** | `resolve_user_token` in `token_vault.py`: valid → use, expired → refresh once. Used by webhook, button router and both pollers. 401 and JSON-RPC `-32001` both raise auth-expired. Refresh is serialized per user so rotation cannot race. | Forced `/auth/token` exchange returned a new pair, stored it, and the rotated token loaded 3 addresses. New expiry 2026-11-25. |
 | 2 | Migration 002 untracked; nothing applied on boot | **FIXED (code)** | 002 tracked; `apply_migrations` records files in `grocer.schema_migrations` and runs only new ones; called in the lifespan before workers start. | Offline only; first real run applies 003 to Supabase |
 | 3 | Multi-store checkout schema | **FIXED (contract)** | `CheckoutData` accepts single, UPI, and `orders[]` split shapes; every order id is stored in `checkouts.swiggy_order_ids`; receipt reports each order and any partial failure. | Documented contract test passes; no live split order captured |
 | 4 | `confirm_order` errors uncaught | **FIXED (code)** | Per-order confirm wrapped in `try/except`; row moves to `confirming` (not `failed`) so the poller keeps retrying for 2 hours. | No live paid order to prove it |

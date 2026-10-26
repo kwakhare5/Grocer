@@ -1,7 +1,7 @@
 # Grocer v1.0 — Session Handoff
 
-- **Goal:** Finish Gate 1.2 — get a stored refresh token and prove it.
-- **Current:** `grocer-v1` pushed to origin at `c8d31c9`; Render deploy triggered. Backend `/health` reports healthy and DB connected. Access token is valid; **no refresh token stored** because the login went through the old deployed code.
-- **Passing Tests:** 38 offline tests pass; Ruff clean. DB-backed and Gemini suites were not run.
-- **Next Action:** After Render finishes the deploy, Karan logs in once at grocerr.vercel.app. Then verify `refresh_token IS NOT NULL`, run one forced refresh, confirm the rotated token still works. No checkout, no order.
+- **Goal:** Gate 2 — make the concierge answer the full Instamart surface, not just shopping.
+- **Current:** Gate 1 + 1.1 committed and deployed (`c8d31c9`). Live refresh proven: forced exchange rotated the pair, new token loaded 3 addresses, expiry now 2026-11-25 17:40 UTC. Migration 003 applied. Live cart reads 11 items / ₹1,751 / one store.
+- **Passing Tests:** 38 offline tests pass; Ruff clean. DB-backed and Gemini suites were not run (they write to live Supabase).
+- **Next Action:** Gate 2 — price/stock/store, address list, order history, tracking, reorder intents with real live data. Unproven and blocked on an approved paid order: confirm_order, split orders, payment poller.
 - **Source of Truth:** `STATUS.md`

@@ -1,5 +1,8 @@
 # AGENTS.md — Grocer v1.0 Working Rules & Pair Programming Contract
 
+> **MANDATORY INSTRUCTION:** Read and obey the global master rules at C:\Users\kwakh\.agents\AGENTS.md. Treat this file as project-specific facts and invariants that override or extend global rules.
+
+
 > **Workspace Scope:** `D:\Grocer-v5\` (All clean-slate code and docs live strictly here)  
 > **Source of Truth:** `PRD.md`, `ARCHITECTURE.md`, `DESIGN.md`, `TASKS.md`, `JOURNAL.md`  
 

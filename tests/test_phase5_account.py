@@ -407,6 +407,9 @@ async def test_replay_reruns_a_parked_text_once(monkeypatch):
         def __init__(self) -> None:
             self.texts: list[str] = []
 
+        async def mark_read(self, message_id: str) -> None:
+            return None
+
         async def send_text_message(self, to_wa_id: str, text: str) -> None:
             self.texts.append(text)
 

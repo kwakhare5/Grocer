@@ -18,11 +18,11 @@ _Avoid_: Feature list, roadmap, journey checklist
 
 **Active Address**:
 The customer's currently selected Swiggy delivery location that anchors catalog search, stock availability, and dark store assignment.
-_Current_: if the session has no active address, the webhook grounds to the first saved address, not Swiggy's `defaultAddressId`.
+_Current_: if the session has no active address, the webhook grounds to Swiggy's `defaultAddressId`, falling back to the first saved address only when no default exists.
 _Avoid_: Default address, current location, shipping address
 
 **Basket**:
-The transient, unconfirmed list of grocery items the customer is currently assembling locally or in Swiggy's cart API. Swiggy calls it a cart; Grocer's customer-facing word is basket.
+The transient, unconfirmed list of grocery items in Swiggy's server-side cart. Grocer keeps no copy and always re-reads it. Swiggy calls it a cart; Grocer's customer-facing word is basket.
 _Avoid_: Cart, bag, order list
 
 **Product Variation (`spinId`)**:
@@ -31,7 +31,7 @@ _Avoid_: Item, SKU, product ID
 
 **Approval Latch (3-Lock Gate)**:
 The deterministic Python security barrier ensuring an order is verified for authority (physical button tap), truth (live stock and paise math), and idempotency before checkout.
-_Current_: the CAS and the external Swiggy checkout share a rollback-able transaction, so exactly-once is not proven. See `STATUS.md` P0 #1.
+_Current_: the CAS, the attempt row and the result commit separately. No transaction spans a Swiggy call. See `STATUS.md` §4.
 _Avoid_: Payment gate, order validation, checkout lock
 
 **Bridge URL**:
@@ -40,7 +40,7 @@ _Avoid_: Deep link, UPI intent, payment gateway
 
 **Split Order**:
 An order that Swiggy automatically splits into multiple fulfillments when items originate from separate dark stores or partner nodes.
-_Current_: the pollers look up only the first `swiggy_order_id`, so orders 2..n are not notified.
+_Current_: every order id in a split checkout is polled, and each order+milestone fires once via `notified_milestones`.
 _Avoid_: Multi-order, partial order, batch order
 
 **Customer Care Escalation**:
@@ -57,21 +57,21 @@ _Avoid_: GPS tracking, location sharing, address autofill
 
 **One-Time Destination Order**:
 An order intentionally routed to a specific alternative address (e.g., family or work) that fulfills without altering the customer's primary home default.
-_Status_: target; not implemented.
+_Status_: parked, pending Karan's decision (2026-10-27). Not in v1 until then.
 _Avoid_: Guest delivery, remote order, secondary address checkout
 
 **Recipe Checklist**:
 A conversational proposal listing required dish ingredients before adding to basket, distinguishing fresh items from assumed pantry staples.
-_Status_: target; the current recipe buttons are no longer emitted and the flow is not wired.
+_Status_: in v1, decided 2026-10-27. The bot proposes the checklist and pack counts, then waits for a tap. Nothing is added from text alone.
 _Avoid_: Meal kit, recipe bundle, auto-add recipe
 
 **Small-Cart Fee Threshold**:
 The point where Swiggy delivery, handling, and surge fees exceed 35% of item value, triggering a proactive alert to add essentials and unlock free delivery.
-_Status_: target; the helper exists but has no caller.
+_Status_: in v1 as a money warning (Phase 7). The helper exists; it has no caller yet.
 _Avoid_: Delivery fee penalty, minimum order surge, surge warning
 
 **JIT Re-Auth Latch**:
-The state-recovery mechanism for an expired Swiggy session. Grocer stores an access token plus a 30-day refresh token. On expiry or 401 it refreshes silently and retries once. It parks only if the refresh fails, then asks the customer to reconnect. Current replay is not wired end to end.
+The state-recovery mechanism for an expired Swiggy session. Grocer stores an access token plus a 30-day refresh token. On expiry or 401 it refreshes silently and retries once. It parks only if the refresh fails, then asks the customer to reconnect. The callback replays the saved message and restores the row if the replay fails.
 _Avoid_: Session refresher, token relink, auth interceptor
 
 **Cold-Start Onboarding**:
@@ -83,7 +83,7 @@ The front-door validation and fast-dispatch gateway that verifies Meta HMAC-SHA2
 _Avoid_: Webhook listener, incoming router, message receiver
 
 **Per-Customer Advisory Lock**:
-The non-blocking PostgreSQL transaction latch (`pg_try_advisory_xact_lock`) guarding a customer's active session to ensure rapid double-taps are serialized or dropped safely.
+The non-blocking PostgreSQL session latch (`pg_try_advisory_lock`) guarding a customer's active turn. A second message that arrives mid-turn is marked dropped and gets no reply; that drop is a known UX gap.
 _Avoid_: Mutex, thread lock, queue barrier
 
 **Stale Message Latch**:

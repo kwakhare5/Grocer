@@ -7,6 +7,7 @@ the safe path: read-only information or a clarifying question.
 
 from __future__ import annotations
 
+import json
 import logging
 from dataclasses import dataclass, field
 from enum import Enum
@@ -35,6 +36,7 @@ class Capability(str, Enum):
     LIST_COUPONS = "list_coupons"
     PAYMENT_OPTIONS = "payment_options"
     CANCEL_HELP = "cancel_help"
+    VIEW_BASKET = "view_basket"
     ADD_ITEMS = "add_items"
     CHANGE_ITEM = "change_item"
     CLEAR_BASKET = "clear_basket"
@@ -63,6 +65,7 @@ CAPABILITY_SPECS: tuple[CapabilitySpec, ...] = (
     CapabilitySpec(Capability.LIST_COUPONS, SafetyClass.READ, "Show available coupons and savings."),
     CapabilitySpec(Capability.PAYMENT_OPTIONS, SafetyClass.READ, "Show which payment methods are available."),
     CapabilitySpec(Capability.CANCEL_HELP, SafetyClass.READ, "Customer wants to cancel. Grocer cannot cancel; it gives Swiggy care details."),
+    CapabilitySpec(Capability.VIEW_BASKET, SafetyClass.READ, "Show what is currently in the basket, with quantities and the total."),
     CapabilitySpec(Capability.ADD_ITEMS, SafetyClass.BASKET, "Add one or more groceries to the basket."),
     CapabilitySpec(Capability.CHANGE_ITEM, SafetyClass.BASKET, "Change quantity, replace or remove an item already in the basket."),
     CapabilitySpec(Capability.CLEAR_BASKET, SafetyClass.BASKET, "Empty the whole basket."),
@@ -88,6 +91,11 @@ SAFETY_CONFIDENCE_FLOOR: dict[SafetyClass, float] = {
 SAFE_PATH_REPLY = (
     "I didn't quite catch that. Do you want me to check a product, "
     "or add something to your basket?"
+)
+
+AI_OUTAGE_REPLY = (
+    "My AI is offline right now, so I couldn't read that. Nothing in your "
+    "basket changed. Send that again in a minute."
 )
 
 
@@ -126,6 +134,8 @@ def _system_prompt() -> str:
         "If the customer wants a product in their basket, use add_items.\n"
         "A bare grocery list with no question ('milk and bread', '2 kg atta') is "
         "a request to add those items, so use add_items.\n"
+        "If the customer asks what is already in their basket or what it costs, "
+        "use view_basket.\n"
         "If the message is unclear, use chat and ask one short question.\n"
         "Understand English, Hindi and Hinglish grocery words (doodh, dahi, atta, pyaz, cheeni).\n"
         "Never invent order ids, address ids or product ids. Use null when unknown.\n"
@@ -279,14 +289,35 @@ def route_message(
     )
     result = complete_json(_system_prompt(), user_prompt, provider)
     if not result.ok:
-        logger.warning("Router LLM unavailable: %s", result.error)
+        logger.warning(
+            "Router LLM unavailable after %sms: %s", result.latency_ms, result.error
+        )
         return RoutingDecision(
             capability=Capability.CHAT,
             safety=SafetyClass.READ,
             confidence=0.0,
-            reply=SAFE_PATH_REPLY,
+            reply=AI_OUTAGE_REPLY,
             safe_path=True,
             provider=result.provider,
             error=result.error,
         )
-    return parse_decision(result.data, message, provider=result.provider)
+    decision = parse_decision(result.data, message, provider=result.provider)
+    logger.info(
+        "route decision %s",
+        json.dumps(
+            {
+                "capability": decision.capability.value,
+                "safety": decision.safety.value,
+                "confidence": round(decision.confidence, 2),
+                "items": decision.items,
+                "order_ref": decision.order_ref,
+                "address_ref": decision.address_ref,
+                "change_action": decision.change_action,
+                "safe_path": decision.safe_path,
+                "provider": decision.provider,
+                "latency_ms": result.latency_ms,
+            },
+            ensure_ascii=True,
+        ),
+    )
+    return decision

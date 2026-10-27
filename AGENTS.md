@@ -7,7 +7,7 @@
 > **Document Authority:** `PRD.md` = v1 target. `ARCHITECTURE.md` = how it works and known gaps. `DESIGN.md` = WhatsApp product UI and website landing page. `AGENTS.md` = rules. `TASKS.md` = the fix plan and phase status. `STATUS.md` = the only current truth. `JOURNAL.md` = append-only history. `GLOSSARY.md` = terms. `docs/adr/` = decisions, amended not rewritten. `.scratch/HANDOFF.md` = session handoff.  
 > **Current Status:** Read `STATUS.md` first. If any document disagrees with it, `STATUS.md` wins until the next sync.  
 > **Product Scope:** Grocer is Swiggy Instamart on WhatsApp. Chat is the front door to everything the Instamart MCP allows: shopping, price/stock/store questions, saved addresses, order history, tracking, coupons, reorders, payments, support, and privacy. If Swiggy has a tool for it, a customer can ask for it in plain language. Ordering is one capability, not the whole product.  
-> **Scope truth (2026-10-27):** The journeys in `PRD.md` §3 are examples of what people can do, not a checklist. The bar is full tool coverage in `ARCHITECTURE.md` §4. Anything no Swiggy tool backs is not v1 scope.
+> **Scope truth (2026-10-27):** The journeys in `PRD.md` §3 are examples of what people can do, not a checklist. The bar is full tool coverage in `ARCHITECTURE.md` §4. Planning that ends in a real tool write (a recipe checklist, for example) is in scope; a feature no tool can carry out is not. The full scope table is in `TASKS.md`.
 
 ---
 

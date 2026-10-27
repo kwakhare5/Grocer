@@ -99,7 +99,9 @@ def test_go_to_items_proposal_and_1_tap_reorder(swiggy_client):
     # Execute 1-tap reorder
     result = manager.reorder_go_to_items(address_id="addr_01HXYZ")
     assert any(it.spinId == "spin_nandini_500ml" for it in result.cart.items)
-    assert "🛒 *Your Basket" in result.receipt_text
+    # The fixture cart already had an item, so the receipt shows the delta.
+    assert "✅ *Added to your basket*" in result.receipt_text
+    assert "Nandini Pasteurised Toned Milk" in result.receipt_text
 
 
 def test_address_switch_mid_basket_clears_and_rebuilds(swiggy_client):
@@ -122,3 +124,30 @@ def test_address_switch_mid_basket_clears_and_rebuilds(swiggy_client):
     )
     assert swiggy_client.clear_cart_called is True
     assert rebuilt_result is not None
+
+
+def test_stock_cap_is_applied_and_shown_not_silent(swiggy_client):
+    manager = CompositeCartManager(swiggy_client)
+    result = manager.assemble_and_update_cart(
+        items_to_add=[
+            TargetCartItem(
+                spin_id="spin_pizza_base",
+                sku_id="sku_pizza_base",
+                quantity=5,
+                item_name="Pizza Base",
+                price_paise=10200,
+                max_quantity=2,
+                max_quantity_message="Only 2 unit(s) of this item can be added per order.",
+            )
+        ]
+    )
+
+    pizza = next(it for it in result.cart.items if it.spinId == "spin_pizza_base")
+    assert pizza.quantity == 2
+    assert result.capped_items[0]["requested"] == 5
+    assert result.capped_items[0]["allowed"] == 2
+    assert result.baseline_count == 1
+    assert "✅ *Added to your basket*" in result.receipt_text
+    assert "You already had 1 items" in result.receipt_text
+    assert "Only 2 unit(s) of this item can be added per order." in result.receipt_text
+    assert "I asked for 5, so I added 2" in result.receipt_text

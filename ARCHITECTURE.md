@@ -2,7 +2,7 @@
 
 > **Status:** Agreed technical design. Current state and known gaps live in `STATUS.md`.  
 > **Product Goal:** Swiggy Instamart grocery concierge and account manager on WhatsApp.  
-> **Stack:** Python 3.11 + FastAPI • Groq `openai/gpt-oss-120b` primary for development and tests; Gemini optional (ADR 0012) • Swiggy Instamart MCP (20 tools) • Meta WhatsApp Cloud API • PostgreSQL (one Supabase project; `grocer` schema in `postgres`, separate `grocer_test` database for tests) • Render backend • Vercel landing page  
+> **Stack:** Python 3.12 + FastAPI • Groq `openai/gpt-oss-120b` primary for development and tests; Gemini optional (ADR 0012) • Swiggy Instamart MCP (20 tools) • Meta WhatsApp Cloud API • PostgreSQL (one Supabase project; `grocer` schema in `postgres`, separate `grocer_test` database for tests) • Render backend • Vercel landing page
 > **Live checkout:** `LIVE_CHECKOUT_ENABLED=false` until Karan approves a specific order.  
 
 ---
@@ -114,7 +114,7 @@ sequenceDiagram
     Swiggy-->>Cart: 5 bread candidates (white, brown, sourdough)
     Cart->>Swiggy: search_products("1L toned milk")
     Swiggy-->>Cart: Milk candidates
-    Note over Cart: LLM evaluates candidates through the adapter;<br/>Python owns every Swiggy call and picks the variant
+    Note over Cart: The LLM picks the variant from the candidate list;<br/>Python validates it and owns every Swiggy call
 
     Brain->>Cart: modify_basket(add=[Bread, Milk])
     Cart->>Swiggy: get_cart() (Fetch baseline)
@@ -148,10 +148,11 @@ sequenceDiagram
 
 ### Layer 1: Channel Ingestion & Fast Button Router (`backend/channels/`)
 - **HMAC Verification:** Computes SHA-256 HMAC of raw inbound payload using `WHATSAPP_APP_SECRET`. Compares with `X-Hub-Signature-256` using constant-time string comparison (`hmac.compare_digest`).
-- **Immediate Acknowledgment:** Target is HTTP 200 OK to Meta in under 25ms. Current implementation is synchronous: the webhook holds the request while the LLM and Swiggy calls run. This is a known P0/P1 gap (`STATUS.md` P1 webhook row).
-- **Durable Deduplication:** Inbound messages are inserted into `inbound_messages` with `ON CONFLICT (wa_message_id) DO NOTHING`. Current caveat: the insert shares a transaction with the whole turn, so a later exception can roll the dedupe row back (`STATUS.md` P0 #8).
-- **Stale Message Dropping:** Discards any inbound webhook with a timestamp older than 15 minutes.
-- **Per-User Concurrency Lock:** Serializes operations per user using `pg_try_advisory_xact_lock(hashtext(user_id))`. If the lock is busy, the message is marked `concurrency_dropped`; it is not queued.
+- **Immediate Acknowledgment:** Target is HTTP 200 OK to Meta in under 25ms. Current implementation is synchronous: the webhook holds the request while the LLM and Swiggy calls run. Changing this to an ACK-then-work queue is Phase 7 work.
+- **Durable Deduplication:** Inbound messages are inserted into `inbound_messages` with `ON CONFLICT (wa_message_id) DO NOTHING`. The user and message rows commit before the turn runs, so a later exception cannot roll the dedupe row back. Fixed in Phase 3.
+- **Stale Message Dropping:** Discards any inbound webhook with a timestamp older than 15 minutes. A message that arrives after Render wakes can be dropped with no reply; that is a known UX gap.
+- **Per-User Concurrency Lock:** Serializes operations per user using the session-scoped `pg_try_advisory_lock(hashtext(user_id))`. If the lock is busy, the message is marked `concurrency_dropped`, and the customer gets no reply. Changing this to a queue is Phase 7 work.
+- **Presence:** Every accepted inbound message is marked read with a 25-second typing indicator (`POST /messages` with `status=read` and `typing_indicator`). The call runs as a fire-and-forget task after dedupe, so a slow Meta call never delays the turn; failures are logged only. Built 2026-10-27.
 - **Fast Button Dispatcher (`button_router.py`):**
   - If the incoming message is a physical interactive button tap (`pay:<approval_id>`, `addr:<id>`, `cart:clear`), it **bypasses the LLM**.
   - Target: respond in under 50ms. Current: address and cart buttons are fast; the pay button calls Swiggy checkout synchronously, so it is not fast yet.
@@ -169,9 +170,10 @@ sequenceDiagram
   - Step 3: Python applies the safety class. A `read` capability stops at the answer; a `basket` capability writes only after the choice is confident.
   - Step 4: If ambiguous, Grocer asks the user conversationally: *"We have X and Y. Which one do you prefer?"*
 - **Smart Kirana Defaults for Vague Staples (ADR 0004):**
-  - Unqualified requests (*"milk"*, *"bread"*, *"eggs"*) auto-select the #1 dark-store bestseller and provide a 1-tap `[Change Items]` button.
-- **Conversational Recipe Checklists (ADR 0009):**
-  - Meal requests (*"Aglio Olio for 2"*) propose an ingredient checklist first, distinguishing fresh items from assumed pantry staples, with buttons: `[Add All Ingredients]` and `[Let Me Pick]`.
+  - Unqualified requests (*"milk"*, *"bread"*, *"eggs"*) auto-select the #1 dark-store bestseller and provide a 1-tap `[Change item]` button. Since 2026-10-27 the button works: it searches real alternatives and swaps the old SKU for the chosen one, keeping the quantity and restoring the old item if the swap verify fails.
+- **Basket View:** `view_basket` is a `read` capability that answers from the live `get_cart`, with item count and total. It never writes and never requires an add first. Added 2026-10-27.
+- **Recipe Plans (ADR 0009, in v1 2026-10-27):**
+  - Meal requests (*"Aglio Olio for 2"*) propose an ingredient checklist with pack counts, distinguishing fresh items from assumed pantry staples, with buttons: `[Add all]` and `[Let me pick]`. The plan is a proposal built from `search_products`; nothing is added until the tap. Not built yet; Phase 7.
 - **Zero Forced Cart Appends:**
   - If the user asks a question (*"What is my default address?"*, *"Is the store open?"*), the LLM answers conversationally. Python is strictly forbidden from appending old shopping carts.
 
@@ -213,10 +215,13 @@ sequenceDiagram
 - **Full Address Lifecycle:**
   - `get_addresses`: Surfaces saved locations with pagination (10/page).
   - `create_address` & `recommend_address`: Two-step pin geocoding onboarding (pin provides coordinates; follow-up asks for flat/building number).
-  - `delete_address`: Target rule is prohibited if an active delivery is in flight; always requires WhatsApp confirmation button `[Confirm Delete: <Label>]`. Current code checks only the last/current address; the active-delivery guard is not wired.
-  - `recommend_address`: Geocodes free-text or WhatsApp pins to coordinates. Typed-text address add is not built yet.
+  - `delete_address`: Refused if an active delivery uses the address; always requires the confirmation button `[Confirm Delete: <Label>]`. The guard runs on the real delete path and again on the final tap. Fixed in Phase 5.
+  - `recommend_address`: Geocodes free-text or WhatsApp pins to coordinates. Typed-text address add is built and reuses the flat/name/city steps. Fixed in Phase 5.
 - **Destructive Cart Overwrite Handling:**
   - Swiggy's `update_cart` replaces the entire cart. Grocer reads `get_cart`, merges items locally, and submits the full assembled cart (`items=[{spinId, quantity}]`).
+  - Since 2026-10-27 the merge is cap-aware: each requested quantity is clamped to Swiggy's `maxQuantity`, the cap and its message are printed on the receipt, and an add to a non-empty basket returns a delta line (old count and total, new count) instead of dumping the whole basket as if it were new.
+  - `[Keep only new]` clears the old basket, re-adds the items from this turn, and verifies the result. `[Change item]` swaps one vague pick for a real alternative, keeping the quantity and restoring the old item if the verify fails.
+  - An idle basket is noticed after 1 hour: the add receipt adds a Keep / Clear prompt. The server-side cart still expires on Swiggy's undocumented TTL; Grocer does not yet answer `CART_EXPIRED` with a specific message.
 - **Read-After-Write Verification:**
   - Following `update_cart`, Grocer calls `get_cart` and diffs requested items against actual items. Dropped items are explicitly flagged under **"⚠️ Not added (Out of stock)"**.
 - **Address Switching Mid-Basket (ADR 0007):**
@@ -442,7 +447,7 @@ backend/
 └── (backend ends here)
 
 Repository root:
-├── migrations/                 # 001..003, applied in order and tracked
+├── migrations/                 # 001..004, applied in order and tracked
 ├── tests/                      # Contract fixtures, router tests, invariant checks, DB suites
 ├── app/                        # Next.js landing page + OAuth bridge. Not the product UI.
 ├── scripts/                    # eval_router, verify_db, drive_grocer
@@ -457,7 +462,7 @@ Repository root:
 > Current phase, blockers and acceptance conditions live in `STATUS.md`. This section covers how any task is judged, not what is left to do.
 
 A task or phase is considered complete **ONLY** when:
-1. `.\verify.ps1` (or the documented test command) exits 0 with pasted raw terminal output. Current `verify.ps1` fails at the schema check; code item 1 fixes it.
+1. `.\verify.ps1` (or the documented test command) exits 0 with pasted raw terminal output. `verify.ps1 -Db` exits 0 as of 2026-10-27.
 2. Production code has no fake Swiggy, WhatsApp, database, or LLM branches.
 3. Contract tests use recorded real Swiggy responses. Gate proof uses live calls. Fixtures prove shape; they never count as live proof.
 4. DB tests use the `grocer_test` database, never the real one.

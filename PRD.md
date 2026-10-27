@@ -5,7 +5,7 @@
 > **This is the v1 target, not current state.** What works today lives in `STATUS.md`.  
 > **Target Audience:** Indian urban households & quick-commerce shoppers managing their entire Swiggy Instamart account on WhatsApp  
 > **Product goal (2026-10-27):** Bring Swiggy Instamart to WhatsApp. Chat is the front door to everything the Instamart MCP allows. If Swiggy has a tool for it, a customer should be able to ask for it in plain language and get the real result.  
-> **How to read this document:** the journeys in §3 are examples of what people can do. They are not a checklist and not extra features to build. Scope is the tool surface in `ARCHITECTURE.md` §4. Anything no Swiggy tool backs is not v1 scope.
+> **How to read this document:** the journeys in §3 are examples of what people can do. They are not a checklist and not extra features to build. Scope is the tool surface in `ARCHITECTURE.md` §4. Planning that ends in a real tool write (a recipe checklist, for example) is in scope; a feature no tool can carry out is not.
 
 ---
 
@@ -31,7 +31,7 @@ Grocer is not limited to pasting grocery lists. It is your personal Instamart co
 2. **Full Account & Address Lifecycle:**
    - **View Addresses:** Call `get_addresses` to surface saved places (paginated 10 per page) with labels (Home, Work, Other).
    - **Switch Address:** Set `selectedAddressId` to re-ground catalog search and cart availability with 1-tap list pickers.
-   - **Add Address:** Use `create_address` and `recommend_address` to geocode WhatsApp GPS pins or free-text addresses, automatically parsing street, building, city, and postal code.
+   - **Add Address:** Use `create_address` and `recommend_address` to geocode WhatsApp GPS pins or free-text addresses. The flat and name steps are deterministic turns, not an LLM parse.
    - **Delete Address:** Call `delete_address` only after explicit customer confirmation (`[Confirm Delete: Address]`).
 
 3. **Zero Assumptions & Radical Truth:**
@@ -114,9 +114,9 @@ These show the kind of thing a person can ask for. They are not a build checklis
 - **Customer:** *"Send 2L milk and brown bread to Mom's house in Delhi."*  
 - **Grocer:** Selects the Delhi address, queries Delhi dark store stock, and outputs: `📍 Delivering to: Mom's House (Delhi)`. Once completed, automatically retains the customer's primary Bangalore address as active for subsequent turns.
 
-### Journey 7: Conversational Recipe Proposals ("Aglio Olio")
+### Journey 7: Recipe Plans, Confirmed Before Any Write ("Aglio Olio")
 
-**Example only, not a v1 requirement.** No Instamart tool backs recipes. Grocer can answer a cooking question in chat, but only tool-backed actions are in scope.
+**In scope for v1, decided 2026-10-27.** The checklist is a proposal built from `search_products`. Nothing reaches the basket until the customer taps. Pack counts respect Swiggy's `maxQuantity`.
 
 - **Customer:** *"I want to make Aglio Olio pasta for 2 people tonight."*  
 - **Grocer:** Proposes the recipe checklist conversationally (*"For Aglio Olio (2): Spaghetti 500g, Olive Oil 250ml, Garlic 100g, Parmesan 100g. Assuming you have salt & chili flakes!"*) and presents buttons: `[Add All 4 Items]` and `[Let Me Pick]`.

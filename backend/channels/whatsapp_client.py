@@ -61,6 +61,16 @@ def build_buttons_payload(
     }
 
 
+def build_read_payload(message_id: str) -> dict[str, Any]:
+    """Mark an inbound message read and show a typing bubble."""
+    return {
+        "messaging_product": "whatsapp",
+        "status": "read",
+        "message_id": message_id,
+        "typing_indicator": {"type": "text"},
+    }
+
+
 def build_cta_payload(
     to_wa_id: str,
     body_text: str,
@@ -140,6 +150,10 @@ class WhatsAppClient:
         except (httpx.HTTPError, ValueError, KeyError, RuntimeError) as exc:
             logger.warning("WhatsApp message delivery failed to %s: %s", payload.get("to"), exc)
             return {"status": "failed", "error": str(exc), "to": payload.get("to")}
+
+    async def mark_read(self, message_id: str) -> dict[str, Any]:
+        """Blue ticks plus a typing indicator; Meta clears it after ~25 seconds."""
+        return await self._post_message(build_read_payload(message_id))
 
     async def send_text_message(
         self,

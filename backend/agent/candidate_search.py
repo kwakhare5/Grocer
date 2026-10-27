@@ -7,6 +7,8 @@ with strict integer paise currency math. Zero floating point currency formatting
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
+
 from pydantic import BaseModel, ConfigDict
 
 from backend.integrations.commerce.swiggy_client import SwiggyClient
@@ -27,14 +29,35 @@ class CandidateItem(BaseModel):
     offer_price_paise: int
     is_in_stock: bool
     veg_classifier: str | None = None
+    max_quantity: int | None = None
+    max_quantity_message: str | None = None
 
 
-def search_catalog(
+@dataclass
+class CatalogSearch:
+    """In-stock candidates plus the store's own alternative names."""
+
+    candidates: list[CandidateItem] = field(default_factory=list)
+    alternatives: list[str] = field(default_factory=list)
+
+
+def _alternative_names(products: list[object], limit: int = 3) -> list[str]:
+    names: list[str] = []
+    for product in products:
+        name = getattr(product, "displayName", None)
+        if name and name not in names:
+            names.append(name)
+        if len(names) >= limit:
+            break
+    return names
+
+
+def search_catalog_full(
     query: str,
     address_id: str | None = None,
     swiggy_client: SwiggyClient | None = None,
-) -> list[CandidateItem]:
-    """Search hyper-local Instamart dark store and return top in-stock candidate variations."""
+) -> CatalogSearch:
+    """Search the live dark store and return in-stock candidates plus alternatives."""
     if swiggy_client is None:
         swiggy_client = SwiggyClient()
 
@@ -56,8 +79,21 @@ def search_catalog(
                         offer_price_paise=variation.price.offer_price_paise,
                         is_in_stock=True,
                         veg_classifier=variation.vegClassifier,
+                        max_quantity=variation.maxQuantity,
+                        max_quantity_message=variation.maxQuantityMessage,
                     )
                 )
 
-    # Return top 5 in-stock candidates
-    return candidates[:5]
+    return CatalogSearch(
+        candidates=candidates[:5],
+        alternatives=_alternative_names(search_data.similarProducts or []),
+    )
+
+
+def search_catalog(
+    query: str,
+    address_id: str | None = None,
+    swiggy_client: SwiggyClient | None = None,
+) -> list[CandidateItem]:
+    """Return only the in-stock candidates (backwards-compatible wrapper)."""
+    return search_catalog_full(query, address_id, swiggy_client).candidates

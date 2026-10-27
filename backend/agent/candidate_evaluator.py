@@ -123,7 +123,11 @@ Return JSON only:
     )
     result = complete_json(system_prompt, user_prompt)
     if not result.ok or not result.data:
-        logger.warning("Candidate evaluation LLM unavailable: %s", result.error)
+        logger.warning(
+            "Candidate evaluation LLM unavailable after %sms: %s",
+            result.latency_ms,
+            result.error,
+        )
         return None
     parsed = result.data
     raw_intent = parsed.get("intent_type", "conversational_qa")
@@ -131,6 +135,20 @@ Return JSON only:
         intent = IntentType(raw_intent)
     except ValueError:
         return None
+    logger.info(
+        "candidate decision %s",
+        json.dumps(
+            {
+                "query": query,
+                "intent": intent.value,
+                "selected_spin": parsed.get("selected_spin_id"),
+                "candidates": len(candidates),
+                "vague_staple": bool(parsed.get("is_vague_staple")),
+                "latency_ms": result.latency_ms,
+            },
+            ensure_ascii=True,
+        ),
+    )
 
     if intent == IntentType.ZERO_ADDRESS_ONBOARDING:
         return CandidateEvaluationResult(
@@ -183,7 +201,19 @@ Return JSON only:
             None,
         )
         if not selected and candidates:
-            selected = candidates[0]
+            # The model named an id outside the list. Never quietly take rank 1.
+            options = [
+                DisambiguationOption.from_candidate(c) for c in candidates[:3]
+            ]
+            options_str = " and ".join(
+                f"{opt.display_name} for {format_paise_to_rupees(opt.price_paise)}"
+                for opt in options[:2]
+            )
+            return CandidateEvaluationResult(
+                intent_type=IntentType.DISAMBIGUATION,
+                disambiguation_options=options,
+                message=f"We have {options_str}. Which one would you like?",
+            )
 
         is_vague = parsed.get("is_vague_staple", False)
         actions = []

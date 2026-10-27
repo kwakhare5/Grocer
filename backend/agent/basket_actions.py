@@ -83,6 +83,47 @@ async def apply_clear(client: SwiggyClient, address_id: str | None) -> BasketRep
     return BasketReply("Your basket is empty now.")
 
 
+def parse_fresh_items(button_id: str) -> list[dict[str, Any]] | None:
+    """Decode the stateless 'Keep only new' button into update_cart items."""
+    payload = button_id.partition("cart:fresh:")[2]
+    if not payload:
+        return None
+    items: list[dict[str, Any]] = []
+    for chunk in payload.split("|"):
+        parts = chunk.split(":")
+        if len(parts) != 3:
+            return None
+        spin_id, sku_id, quantity_text = parts
+        if not spin_id or not sku_id or not quantity_text.isdigit():
+            return None
+        quantity = int(quantity_text)
+        if quantity < 1 or quantity > 99:
+            return None
+        items.append({"spinId": spin_id, "skuId": sku_id, "quantity": quantity})
+    if not items or len(items) > 12:
+        return None
+    return items
+
+
+async def apply_keep_only_new(
+    client: SwiggyClient,
+    address_id: str | None,
+    button_id: str,
+) -> tuple[CartData, str]:
+    """Clear the old basket and put back only the items this turn added."""
+    items = parse_fresh_items(button_id)
+    if items is None:
+        return await _cart(client, address_id), (
+            "That button didn't carry a valid basket. Nothing was changed."
+        )
+    await asyncio.to_thread(client.clear_cart)
+    await asyncio.to_thread(client.update_cart, items, address_id)
+    cart = await _cart(client, address_id)
+    if not cart.items:
+        return cart, "I cleared the old items, but Swiggy didn't re-add the new ones. Please add them again."
+    return cart, ""
+
+
 async def handle_change_request(
     decision: Any,
     client: SwiggyClient,
@@ -193,6 +234,59 @@ async def apply_set_quantity(
             f"Swiggy didn't set *{target.itemName}* to {quantity}, so I put your basket back."
         )
     return BasketReply(f"Set *{target.itemName}* to quantity {quantity}.")
+
+
+async def apply_swap(
+    client: SwiggyClient,
+    address_id: str | None,
+    old_spin_id: str,
+    new_spin_id: str,
+    new_sku_id: str,
+) -> BasketReply:
+    """Replace one basket item with another, keeping the quantity."""
+    cart = await _cart(client, address_id)
+    old = next((item for item in cart.items if item.spinId == old_spin_id), None)
+    if old is None:
+        return BasketReply("That item isn't in your basket any more.")
+
+    existing_new = next((item for item in cart.items if item.spinId == new_spin_id), None)
+    expected_quantity = old.quantity + (existing_new.quantity if existing_new else 0)
+
+    payload: list[dict[str, Any]] = []
+    for item in cart.items:
+        if item.spinId == old_spin_id:
+            if existing_new:
+                continue
+            payload.append(
+                {
+                    "spinId": new_spin_id,
+                    "skuId": new_sku_id,
+                    "quantity": item.quantity,
+                }
+            )
+        elif item.spinId == new_spin_id and existing_new:
+            payload.append(
+                {
+                    "spinId": item.spinId,
+                    "skuId": item.skuId,
+                    "quantity": expected_quantity,
+                }
+            )
+        else:
+            payload.append(
+                {"spinId": item.spinId, "skuId": item.skuId, "quantity": item.quantity}
+            )
+
+    await _write(client, payload, address_id)
+    after = await _cart(client, address_id)
+    swapped = next((item for item in after.items if item.spinId == new_spin_id), None)
+    still_old = any(item.spinId == old_spin_id for item in after.items)
+    if swapped is None or still_old or swapped.quantity != expected_quantity:
+        await _write(client, _full_payload(cart), address_id)
+        return BasketReply(
+            "Swiggy didn't apply that swap, so I put your basket back."
+        )
+    return BasketReply(f"Swapped *{old.itemName}* for *{swapped.itemName}*.")
 
 
 async def apply_add_new_item(

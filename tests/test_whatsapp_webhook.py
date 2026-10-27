@@ -36,6 +36,10 @@ class RecordingWA:
         self.texts: list[tuple[str, str]] = []
         self.buttons: list[tuple[str, str, list[tuple[str, str]]]] = []
         self.ctas: list[tuple[str, str, str, str]] = []
+        self.reads: list[str] = []
+
+    async def mark_read(self, message_id: str) -> None:
+        self.reads.append(message_id)
 
     async def send_text_message(self, to_wa_id: str, text: str) -> None:
         self.texts.append((to_wa_id, text))
@@ -128,6 +132,7 @@ async def test_duplicate_tap_is_dropped_before_it_runs_twice():
 
     assert first["status"] == "basket_updated"
     assert second["status"] == "duplicate_dropped"
+    assert outbound.reads == [wamid]
     spins = [item.spinId for item in client.get_cart("addr_01HXYZ").items]
     assert spins.count("spin_test_cookie") == 1
     assert any("Added" in text for _, text in outbound.texts)
@@ -190,3 +195,50 @@ async def test_park_sends_a_signed_reconnect_link():
     token = url.split("?t=", 1)[1]
     assert url.startswith("https://grocerr.vercel.app?t=")
     assert verify_link_token(token) == wa_id
+
+
+@pytest.mark.asyncio
+async def test_keep_only_new_button_rebuilds_and_reissues_pay():
+    pool = await get_db_pool()
+    wa_id = _new_wa_id()
+    outbound = RecordingWA()
+    client = SwiggyClient(fixtures_dir=FIXTURES_DIR)
+
+    async with pool.acquire() as conn:
+        user_id = await conn.fetchval(
+            "INSERT INTO grocer.users (wa_id) VALUES ($1) RETURNING id;", wa_id
+        )
+        await conn.execute(
+            """
+            INSERT INTO grocer.sessions (user_id, active_address_id)
+            VALUES ($1, $2)
+            ON CONFLICT (user_id) DO UPDATE SET active_address_id = $2;
+            """,
+            user_id,
+            "addr_01HXYZ",
+        )
+
+    result = await handle_webhook(
+        SignedRequest(
+            _message(
+                wa_id,
+                button_id="cart:fresh:spin_bread_white:sku_bread:1",
+            )
+        ),
+        swiggy_client=client,
+        wa_client=outbound,
+    )
+    await asyncio.sleep(0.05)
+
+    assert result["status"] == "cart_fresh"
+    assert [item.spinId for item in client.get_cart("addr_01HXYZ").items] == [
+        "spin_bread_white"
+    ]
+    async with pool.acquire() as conn:
+        approval = await conn.fetchrow(
+            "SELECT to_pay_paise FROM grocer.approvals WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1;",
+            user_id,
+        )
+    assert approval is not None
+    assert outbound.buttons
+    assert outbound.buttons[-1][2][0][0].startswith("pay:")

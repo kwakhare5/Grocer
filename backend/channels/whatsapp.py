@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+from datetime import datetime, timezone
 from typing import Any
 
 import httpx
@@ -19,6 +20,52 @@ from backend.database import get_db_pool
 logger = logging.getLogger("grocer.channels.whatsapp")
 
 router = APIRouter(prefix="/api/whatsapp", tags=["whatsapp"])
+
+_READ_TASKS: set[asyncio.Task[Any]] = set()
+
+
+def _mark_read_in_background(wa_client: Any, message_id: str) -> None:
+    """Blue ticks must never add Meta latency to the turn."""
+    task = asyncio.create_task(wa_client.mark_read(message_id))
+    _READ_TASKS.add(task)
+    task.add_done_callback(_READ_TASKS.discard)
+
+
+def _basket_notice(
+    last_active_at: Any,
+    cart: Any,
+    idle_seconds: int = 3600,
+) -> tuple[str, list[tuple[str, str]]] | None:
+    """A new-day reminder for a basket the customer may have forgotten."""
+    if last_active_at is None or cart is None or not cart.items:
+        return None
+    age = datetime.now(timezone.utc) - last_active_at
+    if age.total_seconds() < idle_seconds:
+        return None
+    count = sum(item.quantity for item in cart.items)
+    to_pay = (
+        cart.billBreakdown.toPay.value
+        if cart.billBreakdown and cart.billBreakdown.toPay
+        else None
+    )
+    total = f" ({to_pay})" if to_pay else ""
+    return (
+        f"Your basket still has {count} items{total}. Keep it, or clear it?",
+        [("cart:keep", "Keep basket"), ("cart:clear", "Clear basket")],
+    )
+
+
+def _fresh_button_id(added_lines: list[Any]) -> str | None:
+    """Encode the just-added lines so 'Keep only new' needs no stored state."""
+    parts: list[str] = []
+    for item in added_lines:
+        if item.quantity < 1 or not item.sku_id:
+            return None
+        parts.append(f"{item.spin_id}:{item.sku_id}:{item.quantity}")
+    if not parts:
+        return None
+    encoded = "cart:fresh:" + "|".join(parts)
+    return encoded if len(encoded) <= 250 else None
 
 
 def _login_url(wa_id: str) -> str:
@@ -164,6 +211,12 @@ async def handle_webhook(
                         {"status": "duplicate_dropped", "wa_message_id": msg.wa_message_id}
                     )
                     continue
+
+            # 5a. Blue ticks and a typing bubble while the turn runs.
+            from backend.channels.whatsapp_client import WhatsAppClient
+
+            wa_client = wa_client or WhatsAppClient()
+            _mark_read_in_background(wa_client, msg.wa_message_id)
 
             # 6. Per-User Session Advisory Lock (Fast concurrency serialization).
             # Session-scoped so it survives the commit above; asyncpg releases it
@@ -411,7 +464,7 @@ async def handle_webhook(
                     evaluate_customer_intent,
                     format_paise_to_rupees,
                 )
-                from backend.agent.candidate_search import search_catalog
+                from backend.agent.candidate_search import search_catalog_full
                 from backend.agent.composite_cart import (
                     CompositeCartManager,
                     TargetCartItem,
@@ -426,7 +479,7 @@ async def handle_webhook(
                 ) -> dict[str, Any]:
                     # Resolve active address and past dialogue history
                     session_row = await conn.fetchrow(
-                        "SELECT active_address_id, history FROM grocer.sessions WHERE user_id = $1;",
+                        "SELECT active_address_id, history, last_active_at FROM grocer.sessions WHERE user_id = $1;",
                         user_id,
                     )
                     active_addr_id = (
@@ -474,7 +527,7 @@ async def handle_webhook(
                     # here and can never write. Basket requests continue below.
                     from backend.agent.read_actions import (
                         NOT_READY_REPLY,
-                        answer_read_capability,
+                        build_read_reply,
                         format_disambiguation_choices,
                     )
                     from backend.agent.router import (
@@ -540,12 +593,30 @@ async def handle_webhook(
                                         session_coords["delivery_latitude"],
                                         session_coords["delivery_longitude"],
                                     )
-                        reply_text = await answer_read_capability(
+                        read_reply = await build_read_reply(
                             decision, turn_client, active_addr_id, coords
                         )
-                        await wa_client.send_text_message(
-                            to_wa_id=msg.sender_wa_id, text=reply_text
+                        reply_text = read_reply.text
+                        if read_reply.buttons:
+                            await wa_client.send_quick_reply_buttons(
+                                to_wa_id=msg.sender_wa_id,
+                                body_text=reply_text,
+                                buttons=read_reply.buttons,
+                            )
+                        else:
+                            await wa_client.send_text_message(
+                                to_wa_id=msg.sender_wa_id, text=reply_text
+                            )
+                        notice = _basket_notice(
+                            session_row["last_active_at"] if session_row else None,
+                            live_cart,
                         )
+                        if notice:
+                            await wa_client.send_quick_reply_buttons(
+                                to_wa_id=msg.sender_wa_id,
+                                body_text=notice[0],
+                                buttons=notice[1],
+                            )
                         session_history.append({"role": "user", "text": msg.text})
                         session_history.append({"role": "assistant", "text": reply_text})
                         await conn.execute(
@@ -820,8 +891,8 @@ async def handle_webhook(
                         addr_id: str | None = active_addr_id,
                         addr_cnt: int = address_count,
                     ):
-                        cands = await asyncio.to_thread(
-                            search_catalog,
+                        outcome = await asyncio.to_thread(
+                            search_catalog_full,
                             query=target.query,
                             swiggy_client=sw_client,
                             address_id=addr_id,
@@ -829,22 +900,26 @@ async def handle_webhook(
                         eval_res = await asyncio.to_thread(
                             evaluate_customer_intent,
                             query=target.query,
-                            candidates=cands,
+                            candidates=outcome.candidates,
                             address_count=addr_cnt,
                         )
-                        return target, cands, eval_res
+                        return target, outcome.candidates, eval_res, outcome.alternatives
 
                     search_results = await asyncio.gather(
                         *(search_and_eval(target) for target in extracted_items)
                     )
 
                     items_to_add: list[TargetCartItem] = []
-                    disambiguation_notes: list[str] = []
+                    choice_prompts: list[tuple[Any, list[Any]]] = []
                     unfound_queries: list[str] = []
+                    alternative_hints: list[str] = []
+                    vague_spins: set[str] = set()
 
-                    for target, cands, evaluation in search_results:
+                    for target, cands, evaluation, alternatives in search_results:
                         if evaluation.selected_candidate:
                             cand = evaluation.selected_candidate
+                            if evaluation.is_vague_staple:
+                                vague_spins.add(cand.spin_id)
                             items_to_add.append(
                                 TargetCartItem(
                                     spin_id=cand.spin_id,
@@ -852,28 +927,44 @@ async def handle_webhook(
                                     quantity=target.quantity,
                                     item_name=cand.display_name,
                                     price_paise=cand.offer_price_paise,
+                                    max_quantity=cand.max_quantity,
+                                    max_quantity_message=cand.max_quantity_message,
                                 )
                             )
-                        elif (
-                            evaluation.intent_type == IntentType.DISAMBIGUATION
-                            and evaluation.message
-                        ):
-                            disambiguation_notes.append(evaluation.message)
+                        elif evaluation.intent_type == IntentType.DISAMBIGUATION:
+                            choice_prompts.append((target, cands))
                         else:
                             unfound_queries.append(target.query)
+                            if alternatives:
+                                alternative_hints.append(
+                                    f"{target.query} → {', '.join(alternatives)}"
+                                )
 
                     if (
                         not items_to_add
                         and len(search_results) == 1
                         and len(search_results[0][1]) >= 2
                     ):
-                        target, cands, evaluation = search_results[0]
-                        # A one-word request like "milk" is never substituted
-                        # silently. Show the real products and let the customer tap.
-                        if (
-                            evaluation.intent_type == IntentType.DISAMBIGUATION
-                            or len(target.query.split()) <= 1
-                        ):
+                        target, cands, _evaluation, alternatives = search_results[0]
+                        choice_text, choice_buttons = format_disambiguation_choices(
+                            target.query, cands, target.quantity
+                        )
+                        if alternatives:
+                            choice_text += f"\n\nSimilar: {', '.join(alternatives)}"
+                        await wa_client.send_quick_reply_buttons(
+                            to_wa_id=msg.sender_wa_id,
+                            body_text=choice_text,
+                            buttons=choice_buttons,
+                        )
+                        await remember(choice_text)
+                        return {
+                            "status": "item_choices",
+                            "wa_id": msg.sender_wa_id,
+                            "candidates": len(cands),
+                        }
+
+                    if not items_to_add and choice_prompts:
+                        for target, cands in choice_prompts[:2]:
                             choice_text, choice_buttons = format_disambiguation_choices(
                                 target.query, cands, target.quantity
                             )
@@ -882,12 +973,21 @@ async def handle_webhook(
                                 body_text=choice_text,
                                 buttons=choice_buttons,
                             )
-                            await remember(choice_text)
-                            return {
-                                "status": "item_choices",
-                                "wa_id": msg.sender_wa_id,
-                                "candidates": len(cands),
-                            }
+                        if unfound_queries:
+                            await wa_client.send_text_message(
+                                to_wa_id=msg.sender_wa_id,
+                                text=(
+                                    "I couldn't find at this store: "
+                                    + ", ".join(unfound_queries)
+                                    + "."
+                                ),
+                            )
+                        await remember("Asked which product to pick")
+                        return {
+                            "status": "item_choices",
+                            "wa_id": msg.sender_wa_id,
+                            "candidates": len(choice_prompts),
+                        }
 
                     if items_to_add:
                         cart_mgr = CompositeCartManager(turn_client)
@@ -906,21 +1006,50 @@ async def handle_webhook(
 
                         to_pay_formatted = format_paise_to_rupees(approval.to_pay_paise)
                         receipt_body = cart_res.receipt_text
-                        if disambiguation_notes:
-                            receipt_body += "\n\n💡 *" + "\n".join(disambiguation_notes) + "*"
                         if unfound_queries:
+                            detail = ", ".join(unfound_queries)
+                            if alternative_hints:
+                                detail += "\nSimilar: " + "; ".join(alternative_hints)
+                            receipt_body += f"\n\n⚠️ *Not found at store:* {detail}"
+                        cap_paise = await conn.fetchval(
+                            "SELECT budget_cap_paise FROM grocer.sessions WHERE user_id = $1;",
+                            user_id,
+                        ) or settings.DEFAULT_BUDGET_CAP_PAISE
+                        if approval.to_pay_paise > int(cap_paise):
                             receipt_body += (
-                                f"\n\n⚠️ *Not found at store:* {', '.join(unfound_queries)}"
+                                f"\n\n⚠️ This is above your "
+                                f"{format_paise_to_rupees(int(cap_paise))} safety cap. "
+                                "You'll be asked to raise it when you tap Pay."
                             )
+
+                        buttons: list[tuple[str, str]] = [
+                            (f"pay:{approval.id}", f"Pay {to_pay_formatted}")
+                        ]
+                        fresh_id = _fresh_button_id(cart_res.added_lines)
+                        if cart_res.baseline_count and fresh_id:
+                            buttons.append((fresh_id, "Keep only new"))
+                        if len(vague_spins) == 1 and len(items_to_add) == 1:
+                            buttons.append(
+                                (f"item:change:{next(iter(vague_spins))}", "Change item")
+                            )
+                        if len(buttons) < 3:
+                            buttons.append(("cart:clear", "Clear basket"))
 
                         await wa_client.send_quick_reply_buttons(
                             to_wa_id=msg.sender_wa_id,
                             body_text=receipt_body,
-                            buttons=[
-                                (f"pay:{approval.id}", f"Pay {to_pay_formatted}"),
-                                ("cart:clear", "Clear Basket"),
-                            ],
+                            buttons=buttons,
                         )
+
+                        for target, cands in choice_prompts[:2]:
+                            choice_text, choice_buttons = format_disambiguation_choices(
+                                target.query, cands, target.quantity
+                            )
+                            await wa_client.send_quick_reply_buttons(
+                                to_wa_id=msg.sender_wa_id,
+                                body_text=choice_text,
+                                buttons=choice_buttons,
+                            )
 
                         session_history.append({"role": "user", "text": msg.text})
                         session_history.append(
@@ -944,9 +1073,15 @@ async def handle_webhook(
                             "to_pay_paise": approval.to_pay_paise,
                         }
 
+                    suffix = ""
+                    if alternative_hints:
+                        suffix = "\n\nSimilar items: " + "; ".join(alternative_hints)
                     await wa_client.send_text_message(
                         to_wa_id=msg.sender_wa_id,
-                        text=f"Sorry, I couldn't find items matching '{msg.text}' at your local dark store. Could you try a different brand or item name?",
+                        text=(
+                            f"Sorry, I couldn't find items matching '{msg.text}' at your "
+                            f"local dark store. Could you try a different brand or item name?{suffix}"
+                        ),
                     )
                     return {"status": "no_match", "query": msg.text}
 

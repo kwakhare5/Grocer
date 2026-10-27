@@ -14,10 +14,13 @@ import pytest
 from backend.agent.basket_actions import (
     apply_add_quantity,
     apply_clear,
+    apply_keep_only_new,
     apply_remove,
     apply_set_quantity,
+    apply_swap,
     handle_change_request,
     handle_clear_request,
+    parse_fresh_items,
 )
 from backend.integrations.commerce.swiggy_client import SwiggyClient
 
@@ -100,3 +103,34 @@ async def test_unknown_item_does_not_write(client):
     reply = await handle_change_request(decision, client, ADDRESS_ID)
     assert "couldn't match" in reply.text
     assert len(client.get_cart().items) == 1
+
+
+def test_fresh_button_parser_accepts_real_lines_and_rejects_bad_ones():
+    assert parse_fresh_items("cart:fresh:spin_a:sku_a:2|spin_b:sku_b:1") == [
+        {"spinId": "spin_a", "skuId": "sku_a", "quantity": 2},
+        {"spinId": "spin_b", "skuId": "sku_b", "quantity": 1},
+    ]
+    assert parse_fresh_items("cart:fresh:bad") is None
+    assert parse_fresh_items("cart:fresh:spin_a:sku_a:0") is None
+
+
+@pytest.mark.asyncio
+async def test_keep_only_new_clears_the_old_cart_and_readds_the_new_item(client):
+    cart, err = await apply_keep_only_new(
+        client, ADDRESS_ID, "cart:fresh:spin_bread_white:sku_bread:1"
+    )
+    assert err == ""
+    assert [item.spinId for item in cart.items] == ["spin_bread_white"]
+    assert all(item.spinId != SPIN for item in cart.items)
+
+
+@pytest.mark.asyncio
+async def test_swap_replaces_the_old_item_and_keeps_the_quantity(client):
+    reply = await apply_swap(
+        client, ADDRESS_ID, SPIN, "spin_nandini_500ml", "sku_nandini"
+    )
+    assert "Swapped" in reply.text
+    cart = client.get_cart()
+    assert all(item.spinId != SPIN for item in cart.items)
+    new_item = next(item for item in cart.items if item.spinId == "spin_nandini_500ml")
+    assert new_item.quantity == 2

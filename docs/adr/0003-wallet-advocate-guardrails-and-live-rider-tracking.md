@@ -1,6 +1,6 @@
 # ADR 0003: The Wallet Champion Promise, HTTPS Mobile Payments, and Live GPS Tracking
 
-> **Status 2026-10-27:** Active with gaps. The coupon guard works, but the savings message is not sent, and tracking does not call `track_order`. See `STATUS.md` P0 #7 and P1.
+> **Status 2026-10-27:** Active with gaps. The coupon guard works, but the savings message is not sent. Tracking calls `track_order` with saved coordinates and falls back to delivery status. See `STATUS.md` §5.
 
 ## Context
 1. **The Coupon Trap:** Grocery shoppers in India love discounts, but quick-commerce coupons often carry minimum spend cutoffs. If applying a ₹50 discount drops a cart from ₹210 to ₹160, Swiggy slaps a ₹60 delivery fee on the order, increasing the final payable total from ₹210 to ₹220. The customer used a coupon and ended up paying MORE money.

@@ -1,11 +1,11 @@
 # Grocery Shopping & Concierge
 
-Grocery shopping lets a customer send unstructured grocery lists in Hinglish or English on WhatsApp, receive intelligent product matching from Swiggy Instamart dark stores without blind rank-1 picking, and review an interactive WhatsApp receipt card with payment buttons.
+Grocery shopping lets a customer send unstructured grocery lists in Hinglish or English on WhatsApp, receive product matching from Swiggy Instamart dark stores, and review an interactive WhatsApp receipt card with payment buttons. Candidate evaluation still has a rank-1 fallback; Phase 7 removes it.
 
 ## Sub-features
 
-- `shop-vague-staple`: resolves vague items like "milk" or "bread" to standard Kirana pack sizes with a "Change items" button.
-- `shop-recipe-checklist`: converts meal ideas (e.g. "Making chai") into item proposals with checkboxes.
+- `shop-vague-staple`: resolves vague items like "milk" or "bread" to a named pack size. The `Change items` button has no handler yet, and the auto-pick versus show-choices behavior depends on the model. Phase 7 fixes both.
+- `shop-recipe-checklist`: planned for Phase 7, not built. A meal request currently routes to chat or adds a single SKU.
 - `shop-conversational-qa`: answers questions about cooking times or ingredients without generating unwanted receipt cards.
 - `shop-receipt-dispatch`: dispatches interactive receipt cards with `[Pay: ₹X]` and `[Clear Basket]` buttons.
 

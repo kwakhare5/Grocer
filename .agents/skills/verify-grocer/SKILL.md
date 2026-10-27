@@ -30,7 +30,7 @@ python scripts/drive_grocer.py doctor --url http://127.0.0.1:8000
 
 Doctor confirms:
 1. Meta WhatsApp Webhook GET challenge verification (`200 OK` with valid hub challenge).
-2. Supabase PostgreSQL connectivity and active schema (6/6 tables: `users`, `inbound_messages`, `oauth_tokens`, `sessions`, `approvals`, `checkouts`).
+2. Supabase PostgreSQL connectivity and active schema (8/8 tables: `users`, `inbound_messages`, `oauth_tokens`, `sessions`, `approvals`, `checkouts`, `address_coords`, `schema_migrations`).
 
 If doctor exits non-zero, check `.env` credentials and database connection before attempting to drive.
 

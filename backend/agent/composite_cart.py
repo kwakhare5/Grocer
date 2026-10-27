@@ -30,6 +30,8 @@ class TargetCartItem:
     item_name: str | None = None
     price_paise: int = 0  # Strict integer paise (₹1 = 100 paise)
     sku_id: str | None = None
+    max_quantity: int | None = None
+    max_quantity_message: str | None = None
 
 
 @dataclass
@@ -39,6 +41,10 @@ class CartReconciliationResult:
     added_items: list[CartItem]
     dropped_out_of_stock: list[TargetCartItem]
     reduced_quantity: list[dict[str, Any]] = field(default_factory=list)
+    capped_items: list[dict[str, Any]] = field(default_factory=list)
+    added_lines: list[TargetCartItem] = field(default_factory=list)
+    baseline_count: int = 0
+    baseline_to_pay: str | None = None
     receipt_text: str = ""
 
 
@@ -62,23 +68,59 @@ def format_cart_receipt(
     store_name: str | None = None,
     coupon_code: str | None = None,
     coupon_savings_paise: int = 0,
+    added_items: list[TargetCartItem] | None = None,
+    capped_items: list[dict[str, Any]] | None = None,
+    reduced_quantity: list[dict[str, Any]] | None = None,
+    baseline_count: int = 0,
+    baseline_to_pay: str | None = None,
 ) -> str:
-    """Format WhatsApp receipt card adhering to DESIGN.md Section 1."""
+    """Format the receipt. Show the change, not a second full basket dump.
+
+    When the cart already had items, the added lines and the totals are the
+    answer. When it was empty, the full list is the change.
+    """
     lines: list[str] = []
     item_count = sum(it.quantity for it in cart.items)
-    lines.append("-----------------------------------")
-    lines.append(f"🛒 *Your Basket ({item_count} items)*")
+    show_delta_only = bool(added_items) and baseline_count > 0
 
-    for it in cart.items:
-        it_price_paise = it.discounted_final_price_paise
-        item_total_paise = it_price_paise * it.quantity
-        formatted_price = format_paise_to_rupees(item_total_paise)
-        variant_desc = f" ({it.itemVariant})" if it.itemVariant else ""
+    if show_delta_only:
+        lines.append("✅ *Added to your basket*")
+        for it in added_items or []:
+            total = format_paise_to_rupees(it.price_paise * it.quantity)
+            lines.append(f"• {it.item_name or it.spin_id} x{it.quantity} — {total}")
+        lines.append("")
+        old = f" ({baseline_to_pay})" if baseline_to_pay else ""
         lines.append(
-            f"• {it.itemName}{variant_desc} x{it.quantity} — {formatted_price}"
+            f"You already had {baseline_count} items{old}. Basket now: *{item_count} items*. "
+            "Ask *what's in my basket* to see them."
         )
+        lines.append("-----------------------------------")
+    else:
+        lines.append("-----------------------------------")
+        lines.append(f"🛒 *Your Basket ({item_count} items)*")
+        for it in cart.items:
+            it_price_paise = it.discounted_final_price_paise
+            item_total_paise = it_price_paise * it.quantity
+            formatted_price = format_paise_to_rupees(item_total_paise)
+            variant_desc = f" ({it.itemVariant})" if it.itemVariant else ""
+            lines.append(
+                f"• {it.itemName}{variant_desc} x{it.quantity} — {formatted_price}"
+            )
+        lines.append("-----------------------------------")
 
-    lines.append("-----------------------------------")
+    for cap in capped_items or []:
+        allowed = cap.get("allowed", 0)
+        requested = cap.get("requested", 0)
+        message = cap.get("message") or f"Swiggy allows {allowed} of this item per order."
+        if requested and allowed:
+            lines.append(f"⚠️ {message} I asked for {requested}, so I added {allowed}.")
+        else:
+            lines.append(f"⚠️ {message}")
+
+    for red in reduced_quantity or []:
+        lines.append(
+            f"⚠️ Swiggy kept *{red['itemName']}* at {red['actual']} instead of {red['requested']}."
+        )
 
     # Add bill breakdown lines
     if cart.billBreakdown and cart.billBreakdown.lineItems:
@@ -119,6 +161,12 @@ class CompositeCartManager:
     ) -> CartReconciliationResult:
         # 1. Read existing baseline cart
         current_cart = self.client.get_cart(address_id=address_id)
+        baseline_count = len(current_cart.items)
+        baseline_to_pay = (
+            current_cart.billBreakdown.toPay.value
+            if current_cart.billBreakdown and current_cart.billBreakdown.toPay
+            else None
+        )
 
         # 2. Assemble target dictionary: spin_id -> {spinId, skuId, quantity, itemName, price, mrp}
         target_map: dict[str, dict[str, Any]] = {}
@@ -133,20 +181,50 @@ class CompositeCartManager:
                 "mrp": it.mrp,
             }
 
+        added_lines: list[TargetCartItem] = []
+        capped_items: list[dict[str, Any]] = []
         for new_it in items_to_add:
             price_rupees = new_it.price_paise / 100 if new_it.price_paise else 0.0
-            if new_it.spin_id in target_map:
-                target_map[new_it.spin_id]["quantity"] += new_it.quantity
+            existing = target_map.get(new_it.spin_id)
+            existing_qty = existing["quantity"] if existing else 0
+            allowed = new_it.quantity
+            if new_it.max_quantity is not None and existing_qty + allowed > new_it.max_quantity:
+                allowed = max(0, new_it.max_quantity - existing_qty)
+                capped_items.append(
+                    {
+                        "spinId": new_it.spin_id,
+                        "itemName": new_it.item_name or new_it.spin_id,
+                        "requested": new_it.quantity,
+                        "allowed": allowed,
+                        "max": new_it.max_quantity,
+                        "message": new_it.max_quantity_message,
+                    }
+                )
+            if allowed <= 0:
+                continue
+            if existing:
+                existing["quantity"] += allowed
             else:
                 target_map[new_it.spin_id] = {
                     "spinId": new_it.spin_id,
                     "skuId": new_it.sku_id or f"sku_{new_it.spin_id}",
-                    "quantity": new_it.quantity,
+                    "quantity": allowed,
                     "itemName": new_it.item_name or new_it.spin_id,
                     "price": price_rupees,
                     "price_paise": new_it.price_paise,
                     "mrp": price_rupees,
                 }
+            added_lines.append(
+                TargetCartItem(
+                    spin_id=new_it.spin_id,
+                    quantity=allowed,
+                    item_name=new_it.item_name,
+                    price_paise=new_it.price_paise,
+                    sku_id=new_it.sku_id,
+                    max_quantity=new_it.max_quantity,
+                    max_quantity_message=new_it.max_quantity_message,
+                )
+            )
 
         # 3. Call destructive update_cart with full assembled target cart
         assembled_list = list(target_map.values())
@@ -205,6 +283,11 @@ class CompositeCartManager:
             dropped_items=dropped_out_of_stock,
             coupon_code=coupon_code,
             coupon_savings_paise=coupon_savings,
+            added_items=added_lines,
+            capped_items=capped_items,
+            reduced_quantity=reduced_quantity,
+            baseline_count=baseline_count,
+            baseline_to_pay=baseline_to_pay,
         )
 
         return CartReconciliationResult(
@@ -213,6 +296,10 @@ class CompositeCartManager:
             added_items=final_cart.items,
             dropped_out_of_stock=dropped_out_of_stock,
             reduced_quantity=reduced_quantity,
+            capped_items=capped_items,
+            added_lines=added_lines,
+            baseline_count=baseline_count,
+            baseline_to_pay=baseline_to_pay,
             receipt_text=receipt,
         )
 

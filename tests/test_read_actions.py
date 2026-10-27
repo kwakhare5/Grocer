@@ -14,13 +14,20 @@ import pytest
 from backend.agent.candidate_search import CandidateItem
 from backend.agent.read_actions import (
     answer_read_capability,
+    build_read_reply,
     format_disambiguation_choices,
 )
 from backend.agent.router import Capability, RoutingDecision, SafetyClass
 from backend.integrations.commerce.schemas import (
+    AddressPagination,
+    AddressResolution,
     DeliveryStatusData,
+    GetAddressesData,
     OrderHistoryItem,
     OrdersListData,
+    SavedAddress,
+    SearchProduct,
+    SearchProductsData,
     TrackOrderData,
     TrackOrderStatus,
 )
@@ -172,3 +179,84 @@ def test_disambiguation_choices_are_tappable_real_products():
         ("cart:add:spin_a:2", "Chitale Dairy Cow Mi"),
         ("cart:add:spin_b:2", "Amul Taaza Toned Mil"),
     ]
+
+
+class AddressClient:
+    def get_addresses(self) -> GetAddressesData:
+        return GetAddressesData(
+            addresses=[
+                SavedAddress(
+                    id="a1",
+                    addressLine=(
+                        "Flat 1204, Kingsbury, DY Patil Road, Charholi, Pune, "
+                        "Maharashtra 412105, India"
+                    ),
+                    addressTag="Home",
+                ),
+                SavedAddress(
+                    id="a2",
+                    addressLine=(
+                        "3rd floor, Shitole Nagar, Spicer College Road, Old Sangvi, "
+                        "Pune, Pimpri-Chinchwad, Maharashtra 411027, India"
+                    ),
+                    addressTag="Work",
+                ),
+            ],
+            pagination=AddressPagination(
+                page=1, pageSize=10, total=2, totalPages=1, hasMore=False
+            ),
+            resolution=AddressResolution(
+                defaultAddressId="a1", resolutionSource="default"
+            ),
+        )
+
+
+class OutOfStockClient:
+    def search_products(self, query: str, address_id: str | None = None) -> SearchProductsData:
+        return SearchProductsData(
+            products=[],
+            similarProducts=[
+                SearchProduct(
+                    displayName="Mother Dairy Table Butter",
+                    inStock=True,
+                    isAvail=True,
+                    productId="p_butter",
+                    variations=[],
+                )
+            ],
+        )
+
+
+@pytest.mark.asyncio
+async def test_view_basket_reads_the_live_cart():
+    client = SwiggyClient(fixtures_dir=FIXTURES_DIR)
+    reply = await build_read_reply(
+        _decision(Capability.VIEW_BASKET), client, "addr_01HXYZ"
+    )
+    assert "Amul" in reply.text
+    assert "To Pay" in reply.text
+    assert reply.buttons == []
+
+
+@pytest.mark.asyncio
+async def test_address_list_is_short_and_switchable():
+    reply = await build_read_reply(
+        _decision(Capability.LIST_ADDRESSES), AddressClient(), None
+    )
+    assert "1. *Home* · default" in reply.text
+    assert "Kingsbury" in reply.text
+    assert "Spicer College Road" not in reply.text
+    assert reply.buttons == [("addr:set:a2", "Switch to Work")]
+
+
+@pytest.mark.asyncio
+async def test_item_info_names_real_alternatives_when_out_of_stock():
+    decision = RoutingDecision(
+        capability=Capability.ITEM_INFO,
+        safety=SafetyClass.READ,
+        confidence=0.95,
+        items=[{"query": "amul butter"}],
+    )
+    reply = await build_read_reply(decision, OutOfStockClient(), "addr_01HXYZ")
+    assert "couldn't find" in reply.text
+    assert "Mother Dairy Table Butter" in reply.text

@@ -1,8 +1,5 @@
-# Grocer v1 — Session Handoff
-
-- **Goal:** Swiggy Instamart on WhatsApp. Scope is full tool coverage, not the PRD example journeys. No live order during the build; Karan places the first real order after handoff.
-- **Current:** Phases 0-5 done. Phase 7 Batch 1 done in code (2026-10-27): honest AI-outage copy and an 8s turn budget, blue ticks + typing indicator, delta receipts with Swiggy stock caps, Keep only new / Change item / Clear buttons, view basket, readable address card with switch buttons, deterministic vague-staple rule with a working Change swap, real out-of-stock alternatives, no blind rank-1, decision logging, idle-basket notice. Repo cleanup landed after Batch 1: dead formatter/cart/fee/cap/parking code deleted, fixture engine moved to tests, unused config and fields removed, net -1,017 lines. Phase 7 Batch 2 (list pickers with typed numbers, message merge/queue, full message context, recipe plan-confirm-add, grouped search, receipt chunking) and Batch 3 (coupons on every cart path, savings line, itemized bill, support report, fee warning) are next. Phase 6 privacy must finish before handoff.
-- **Passing Tests:** `verify.ps1 -Db` exit 0 on 2026-10-27 after Batch 1 and cleanup: schema check, `ruff` clean, 103 offline, 46 DB on `grocer_test`, 169 collected, Next build. Both databases at migration 004.
-- **Blocked on Karan:** Live WhatsApp checks for Batch 1 (one-word "milk", Change item, view basket, address card, blue ticks). One decision parked: one-time destination orders. Live address add/delete on the one throwaway address is optional proof.
-- **Next Action:** Commit and push Batch 1 so Render rebuilds, then Karan runs the WhatsApp checks. Then Phase 7 Batch 2, Batch 3, Phase 6 privacy, Phase 8 landing, Phase 9 handoff.
-- **Source of Truth:** `STATUS.md`, plan in `TASKS.md`.
+Goal: Phase 7 remaining (queue/backoff, typed pickers, merge, chunks, coupons/fees/bill/support), then Phase 6 privacy, 8 landing, 9 handoff. No live order.
+Shipped: reactions + sparse card emojis pushed (36d2ec2, 0fa0270). Batch 2 slice local and uncommitted: multi-item merge, clearer existing-item copy, recipe plan-confirm-add.
+Passing tests: verify.ps1 -Db exit 0 — 113 offline, 52 DB, 185 collected, ruff clean, Next build pass.
+Next action: commit/push the Batch 2 slice, deploy, then live-check "make pizza for 5", Add all, and the reactions.
+Unproven: live reaction draw, live recipe route/tap, Change-item tap, blue ticks with a real wamid. Open backlog table is in TASKS.md.

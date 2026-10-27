@@ -172,8 +172,8 @@ sequenceDiagram
 - **Smart Kirana Defaults for Vague Staples (ADR 0004):**
   - Unqualified requests (*"milk"*, *"bread"*, *"eggs"*) auto-select the #1 dark-store bestseller and provide a 1-tap `[Change item]` button. Since 2026-10-27 the button works: it searches real alternatives and swaps the old SKU for the chosen one, keeping the quantity and restoring the old item if the swap verify fails.
 - **Basket View:** `view_basket` is a `read` capability that answers from the live `get_cart`, with item count and total. It never writes and never requires an add first. Added 2026-10-27.
-- **Recipe Plans (ADR 0009, in v1 2026-10-27):**
-  - Meal requests (*"Aglio Olio for 2"*) propose an ingredient checklist with pack counts, distinguishing fresh items from assumed pantry staples, with buttons: `[Add all]` and `[Let me pick]`. The plan is a proposal built from `search_products`; nothing is added until the tap. Not built yet; Phase 7.
+- **Recipe Plans (ADR 0009, in v1 2026-10-27, live in code 2026-10-28):**
+  - Meal requests (*"Aglio Olio for 2"*) propose an ingredient checklist with pack counts, distinguishing fresh items from assumed pantry staples, with buttons: `[Add all]` and `[Let me pick]`. The model names the dish, people count and ingredient packs; Python searches `search_products`, prices each line, and respects `maxQuantity`. Nothing is written before a tap. `Add all` re-checks live stock and writes all ingredients or none. `Let me pick` asks for the item numbers to add.
 - **Zero Forced Cart Appends:**
   - If the user asks a question (*"What is my default address?"*, *"Is the store open?"*), the LLM answers conversationally. Python is strictly forbidden from appending old shopping carts.
 

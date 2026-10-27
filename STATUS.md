@@ -32,11 +32,11 @@
 |---|---|
 | Documentation sync | **DONE 2026-10-27, scope corrected 2026-10-27.** Recipes are in v1 as plan-confirm-add; proactivity is money-and-truth only; replies stay English. Stale "current" notes were removed from PRD, ARCHITECTURE, DESIGN, GLOSSARY and the ADR index. The scope table lives in `TASKS.md`. |
 | Lint | **PASS 2026-10-27:** `ruff check backend tests` → `All checks passed!` |
-| Offline tests | **PASS 2026-10-28:** 108 passed, 67 deselected (`pytest -q -m "not db and not live"`). |
-| DB tests | **PASS 2026-10-28:** 47 passed on `grocer_test` (`pytest -q -m "db"`). |
+| Offline tests | **PASS 2026-10-28:** 113 passed, 72 deselected (`pytest -q -m "not db and not live"`). |
+| DB tests | **PASS 2026-10-28:** 52 passed on `grocer_test` (`pytest -q -m "db"`). |
 | Live tests | **22 collected, not run.** `test_catalog_search.py` calls the live Gemini evaluator and is marked `live`. |
-| Full test collection | **175 tests collected 2026-10-28.** |
-| Full suite claim | The old "136 passed, 0 skipped" claim is retired. The current verified set is 108 offline + 47 DB; live is excluded by default. Scripted tests are marked `scripted` and never counted as live proof. |
+| Full test collection | **185 tests collected 2026-10-28.** |
+| Full suite claim | The old "136 passed, 0 skipped" claim is retired. The current verified set is 113 offline + 52 DB; live is excluded by default. Scripted tests are marked `scripted` and never counted as live proof. |
 | Live Swiggy smoke | **PASS 2026-10-27:** real token, real MCP. 3 addresses, 20 milk products with live prices, 12-item cart read, 0 orders, 10 payment methods, 0 coupons. Cart add verified then restored (12 items, same spins and quantities). No order placed. Raw: `scripts/live_smoke.py`. |
 | Live Groq pass | **PASS 2026-10-27:** 10 real messages → 10 correct routes (item_info ×3, list_addresses, order_history, list_coupons, payment_options, add_items, chat, track_order) with real read answers. 55s. |
 | Live checkout lock | **PASS 2026-10-27:** with `LIVE_CHECKOUT_ENABLED=false`, the real path returned "Checkout is locked" and a sentinel client proved no Swiggy method ran. |
@@ -49,10 +49,11 @@
 | No fake sends | **DONE 2026-10-27:** the production mock branch in `WhatsAppClient` is gone. Tests inject a recording client instead, so a test can never silently "deliver" to nobody. |
 | Conversation trust (Phase 7 Batch 1) | **DONE (code) 2026-10-27:** AI outage now says so instead of "I didn't catch that", with an 8-second deadline and one retry only when it can help (`backend/agent/router.py`, `backend/agent/llm.py`). Every inbound message is marked read with a typing indicator (`backend/channels/whatsapp_client.py`, `backend/channels/whatsapp.py`). Receipts show the delta, Swiggy's stock cap, the old basket and the total; `Keep only new` is stateless (`backend/agent/composite_cart.py`, `backend/agent/basket_actions.py`). A total above the ₹1,000 cap is named at add time. `view_basket` answers "what's in my basket". Address cards are shortened with up to 3 switch buttons. Vague staples auto-pick with a working `Change item` and swap; discretionary items show choices; the blind rank-1 fallback is gone. Out-of-stock answers name real `similarProducts`. Every route decision is logged as JSON with latency. A text after an hour idle with a non-empty basket gets a Keep/Clear prompt. |
 | Code cleanup (repo audit) | **DONE 2026-10-27:** removed 1,212 lines and added 442 (including the new test fixture client), net -770. Deleted three dead formatter functions and module, a 97-line duplicate go-to/address-switch engine, the unused small-cart fee and launch-cap helpers, the test-only park helpers, the dead milestone helper, and the legacy 2-part cap raise. Removed seven settings with no reader, the duplicate `AddressReply`, the unused `LLMResult.model`, dead evaluator result fields, the parsed-but-unused button title, unused client header/footer params, and frontend dead paths. Moved the fixture playback engine out of the production Swiggy client into `tests/fixture_client.py`. Fixed `drive_grocer.py` checking 6 tables instead of 8. No money or lock logic changed. Dead schema columns and the unused approvals index are deferred to Phase 6. |
-| Live Batch 1 check | **PASS (routing) 2026-10-28:** real signed messages to the Render app. `milk` → HTTP 200 `cart_updated` in 11.9s; latest approval is ₹283 with 2 items including milk. `what's in my basket` → HTTP 200 `view_basket` in 4.8s, 359-char reply with 2 item bullets. `show my addresses` → HTTP 200 `list_addresses` in 4.1s, 366-char card with 3 numbered entries. No order, no checkout. Blue ticks/typing are unproven because the wamid was simulated. The exact receipt copy is not stored: session history keeps a 26-char summary (`Basket updated. Total ₹283`) instead of the receipt sent, so the delta-receipt copy needs a handset look or a fix to store the real text. |
+| Live Batch 1 check | **PASS (routing) 2026-10-28:** real signed messages to the Render app. `milk` → HTTP 200 `cart_updated` in 11.9s; latest approval is ₹283 with 2 items including milk. `what's in my basket` → HTTP 200 `view_basket` in 4.8s, 359-char reply with 2 item bullets. `show my addresses` → HTTP 200 `list_addresses` in 4.1s, 366-char card with 3 numbered entries. No order, no checkout. Blue ticks/typing are unproven because the wamid was simulated. Fixed 2026-10-28: session history now stores the real receipt (see the next row). |
 | Live basket receipt | **PASS 2026-10-28:** after the receipt fix, a real `1 litre doodh` turn returned a full basket with `＋` on the new line, `You had 3 items (₹283)` and `Your Basket (4 items)`. No "Ask *what's in my basket*" copy. The receipt is stored in session history now. |
 | Live natural-language eval (20 cases) | **MIXED 2026-10-28:** 20 messy messages against Render, real Groq + real Swiggy, no fixtures. 13/20 answered on the first pass. 7/20 got the honest AI-outage copy from Groq's 8k TPM burst limit; retried with 20s spacing, 5/7 then passed. Genuine failures: `make pizza for 5 people` asked "How many pizza bases?" instead of a recipe plan, and `add milk and bread` only handled the milk. Copy gap: the existing-milk prompt says "Do you want the total to be 1, or 1 more?" which is confusing. `show payment options` lists COD and Swiggy Money even though v1 supports UPI only; `is the store open` gives a quote, not a yes/no. Raw: `.scratch/live_eval_20.json` and `.scratch/live_eval_retry.json`. |
-| Reactions and card emojis | **DONE (code) 2026-10-28:** one reaction per inbound message, chosen by Python from the turn outcome (`backend/channels/reactions.py`), sent off the critical path after the reply (`backend/channels/whatsapp.py`). 🏠 addresses, 🛒 basket, 📦 orders, 🛵 tracking, 🎟️ coupons, 💳 payments; ❓ when the bot needs a choice; 📍 when it asks for a pin. No reaction on chat, misses, locks, auth or outages. Cards carry at most one header emoji (address, orders, track, coupons, payments, reorder); error and money copy carries none. Payload: `backend/channels/whatsapp_client.py`. Proof: `verify.ps1 -Db` exit 0, 108 offline + 47 DB, including a signed-webhook test that asserts exactly one 🏠 for an address question. Meta's live reaction delivery is unproven until a real inbound wamid is reacted to. |
+| Reactions and card emojis | **DONE (code) 2026-10-28:** one reaction per inbound message, chosen by Python from the turn outcome (`backend/channels/reactions.py`), sent off the critical path after the reply (`backend/channels/whatsapp.py`). 🏠 addresses, 🛒 basket, 📦 orders, 🛵 tracking, 🎟️ coupons, 💳 payments, 🍳 meal plan; ❓ when the bot needs a choice; 📍 when it asks for a pin. No reaction on chat, misses, locks, auth or outages. Cards carry at most one header emoji (address, orders, track, coupons, payments, reorder); error and money copy carries none. Payload: `backend/channels/whatsapp_client.py`. Proof: `verify.ps1 -Db` exit 0, 113 offline + 52 DB, including a signed-webhook test that asserts exactly one 🏠 for an address question. Meta's live reaction delivery is unproven until a real inbound wamid is reacted to. |
+| Batch 2 first slice | **DONE (code) 2026-10-28:** multi-item text adds now process every requested item. Root cause of the eval failure `add milk and bread`: the single existing-item branch returned early and dropped bread. That branch now runs only when exactly one item is asked for, and its copy/buttons say "Add 1 more" / "Make total 1". Recipe plans are live in code as plan-confirm-add: a new `plan_meal` read capability carries dish + servings + ingredient packs from the model; `backend/agent/meal_planner.py` searches and prices each line; `[Add all]` re-checks live stock and writes all ingredients or none; `[Let me pick]` asks for item numbers. The plan card is stored in dialogue history. No hardcoded recipe list (ADR 0011). Proof: 5 new offline tests, 5 new webhook tests, 1 router test; full gate 113 offline + 52 DB. The live Groq route for "make pizza for 5" and a live Add-all tap are not tested yet. |
 | Router eval (live Groq) | **PASS with one miss 2026-10-27:** 39/40 exact (97.5%), 0 unsafe writes, 0 under-acted writes, 0 LLM errors. Miss: "how long till my food arrives" → `store_info`, expected `track_order`. Latency was not recorded by the harness. Raw: `.scratch/eval_phase2.json`. |
 | One LLM brain | **DONE 2026-10-27:** routing and candidate evaluation both call `backend/agent/llm.py`. Direct Gemini calls and the second classification call are gone. Gemini key is optional. |
 | Live reads | Recorded live on 2026-10-26: price/stock, addresses, order history, cancel help, payment options, coupons. Not re-run on 2026-10-27. |
@@ -87,12 +88,12 @@ Gate 2 is read-only. No checkout, order, payment call, or address write is in sc
 
 | Safety class | Capabilities | Reality |
 |---|---|---|
-| **read** (10) | chat, item_info, store_info, view_basket, list_addresses, order_history, track_order, list_coupons, payment_options, cancel_help | Nine are live-proven. `view_basket` reads the real cart and is fixture-tested; it needs a WhatsApp read. `store_info` gives the live cart quote and says Swiggy does not expose the store or window. `track_order` calls the tracking tool when coordinates are saved, else delivery status. |
-| **basket** (4) | add_items, change_item, clear_basket, reorder | `add_items` works live. Change, clear and reorder are fixture-proven only. Reorder's live write is blocked. `add_items` makes one routing call plus one candidate-evaluation call per item; that is the intended design (ADR 0012). |
+| **read** (11) | chat, item_info, store_info, view_basket, list_addresses, order_history, track_order, list_coupons, payment_options, cancel_help, plan_meal | Ten are live-proven. `view_basket` reads the real cart and is fixture-tested; it needs a WhatsApp read. `plan_meal` is built and fixture-proven (2026-10-28); the live Groq route for "make pizza for 5" is not tested. `store_info` gives the live cart quote and says Swiggy does not expose the store or window. `track_order` calls the tracking tool when coordinates are saved, else delivery status. |
+| **basket** (4) | add_items, change_item, clear_basket, reorder | `add_items` works live and now handles multiple items in one message. Change, clear and reorder are fixture-proven only. Reorder's live write is blocked. `add_items` makes one routing call plus one candidate-evaluation call per item; that is the intended design (ADR 0012). |
 | **account** (3) | add_address, switch_address, delete_address | Address list works live. Switch warns, clears and rebuilds the basket at the new store. Delete is blocked while a delivery is in flight and guarded again on the final tap. Typed-text add geocodes and reuses the flat/name/city steps. Live add/delete is still unproven (needs the one throwaway address). |
 | **money** (1) | checkout | Button path is wired end to end and no longer holds a DB transaction across the Swiggy call. Text "place the order" returns a not-ready reply by design: Lock 1 requires a physical tap. Never live-tested; no order placed. |
 
-**Capability count:** 18 declared. 17 are dispatched from the router; `checkout` is reachable only from the pay button, by design (Lock 1).
+**Capability count:** 19 declared. 18 are dispatched from the router; `checkout` is reachable only from the pay button, by design (Lock 1).
 
 ---
 
@@ -125,10 +126,10 @@ Gate 2 is read-only. No checkout, order, payment call, or address write is in sc
 
 - Money math outside checkout still uses floats and `round()` for paise (`backend/integrations/commerce/schemas.py:90`, `backend/agent/composite_cart.py:137`). The checkout path now parses response rupees through `parse_price_to_paise`.
 - Coupons run only on the add-items path. Only the first two applicable coupons are tried. The savings message is built but never sent (`backend/agent/customer_advocate.py:251`).
-- Receipt bodies are still truncated at 1024 characters for long fresh baskets (`backend/channels/whatsapp_client.py:46`). Delta receipts now avoid the full dump when the basket already had items.
+- Receipt bodies are still truncated at 1024 characters for long fresh baskets (`backend/channels/whatsapp_client.py:46`). Delta receipts now avoid the full dump when the basket already had items; chunking is still open.
 - The dead go-to add and post-order add buttons were deleted with their dead code in the 2026-10-27 cleanup. `item:change` works. `report_error` is still not wired to chat.
-- Rapid messages: the second is still `concurrency_dropped` with no reply. Merge/queue is Batch 2.
-- Recipes, list pickers, the full message in the evaluator prompt, grouped search, queue/merge and receipt chunking are Batch 2. Itemized bill, coupon apply, the savings line and the support report are Batch 3.
+- Rapid messages: the second is still `concurrency_dropped` with no reply. Merge/queue is still open.
+- Recipes are built in code (2026-10-28). Still open in Batch 2: typed-number list pickers, the full message in the evaluator prompt, grouped search, queue/merge and receipt chunking. Itemized bill, coupon apply on every path, the savings line and the support report are Batch 3.
 - DPDP scrubs some fields but leaves `sessions.onboarding_context`, `users.display_name`, delivery coordinates, `address_coords`, the user row, and approval/checkout rows (`backend/agent/dpdp.py:19`, `backend/agent/dpdp.py:112`).
 - No RLS on any table and PII is plaintext. The caller-supplied-phone hole was closed in Phase 5 with signed bot links; PKCE state is still in process memory (`backend/integrations/commerce/token_vault.py:73`).
 - The landing page footer says "Systems Operational" with no health check, and the page falls back to a fake WhatsApp number (`app/page.tsx:76`, `app/page.tsx:269`).
@@ -147,7 +148,7 @@ Gate 2 is read-only. No checkout, order, payment call, or address write is in sc
 
 ---
 
-## 6. Test Truth (2026-10-27)
+## 6. Test Truth (2026-10-28)
 
 **What each kind of test proves.**
 
@@ -165,19 +166,22 @@ ruff check backend tests
 All checks passed!
 
 pytest -q -m "not db and not live"
-106 passed, 66 deselected in 0.87s
+113 passed, 72 deselected in 1.03s
 
 pytest -q -m "db"
-46 passed, 126 deselected in 26.76s
+52 passed, 133 deselected in 30.88s
 
 pytest --collect-only -q
-172 tests collected
+185 tests collected
 
 powershell -File verify.ps1 -Db
 === [PASS] Grocer v1.0 verification complete ===
-# 2026-10-27 after cleanup: schema check exit 0, ruff clean,
-# 106 offline pass, 46 DB pass, Next.js build pass, script exit 0
+# 2026-10-28 after reactions + Batch 2 first slice:
+# schema check exit 0, ruff clean, 113 offline pass, 52 DB pass,
+# Next.js build pass, script exit 0
 ```
+
+**New in Batch 2 first slice and reactions (2026-10-28):** 5 meal-planner tests (`test_meal_planner.py`: card contents, Add-all rebuild, missing ingredient blocks the whole write, button-length limit), 1 router test (plan fields and read safety), 2 payload/mapping tests (reaction payload, sparse map), 1 webhook reaction test (exactly one 🏠 for an address question), and 5 webhook tests (multi-item merge, clearer existing-item prompt, recipe card with no write, Add-all tap with Pay, missing ingredient with no write). The unsent savings line, coupon paths, typed-number pickers, queue/merge and receipt chunking remain unproven by design.
 
 **New in Phase 5:** 12 DB tests in `tests/test_phase5_account.py` (default grounding, switch rebuild, missing-item report, delete guard both ways, typed add with and without PIN, unresolvable text, link-token roundtrip/tamper/expiry, phone-only login rejected, parked replay) and 3 webhook tests in `tests/test_whatsapp_webhook.py` that post the exact Meta JSON for a button tap: duplicate tap, pay tap while locked (spy client never called), and a signed reconnect link. The outbound mock branch was deleted; tests inject a recording client instead.
 
@@ -210,7 +214,7 @@ RuntimeError: Refusing to run tests against database 'postgres'. TEST_DATABASE_U
 | 0006 | Partial | ₹1,000 cap stays. Cap-raise now re-opens the same receipt. DPDP is partial. |
 | 0007 | Active | Switch clears and rebuilds the basket at the new store. Delete guard runs on the real delete path. Split orders poll every id. |
 | 0008 | Partial | Typed-text address add is built. Reorder is fixture-only and needs a past order. |
-| 0009 | Amended | Recipes are in v1 as a plan-confirm-add flow (decided 2026-10-27). Fee warning and post-order truth are Phase 7. One-time destination is parked. |
+| 0009 | Amended | Recipes are in v1 as a plan-confirm-add flow (decided 2026-10-27; built in code 2026-10-28). Fee warning and post-order truth are Phase 7. One-time destination is parked. |
 | 0010 | Active | Refresh first, park only on refresh failure. Park status matches replay, and the callback replays in the background. |
 | 0011 | Superseded | Replaced by ADR 0012. No extra classification call; candidate evaluation is one call per item and is intentional. |
 | 0012 | Active | Groq is primary and the only adapter. Direct Gemini calls are gone; the key is optional. |
@@ -219,11 +223,29 @@ RuntimeError: Refusing to run tests against database 'postgres'. TEST_DATABASE_U
 
 ## 8. Next Action
 
-**Phases 0-5 are done.** Checkout is transaction-safe with reconcile, the read path answers from live Swiggy data, and pollers handle split orders, repeats, 401s and wake. Live smoke on 2026-10-27 proved real reads, a real cart add/restore, 10/10 Groq routes, and a checkout that stops before Swiggy. Migration 004 is applied to both databases and `verify.ps1 -Db` exits 0. The 2026-10-27 doc pass corrected scope and removed stale notes.
+**Where we are (2026-10-28).** Phases 0-5 are done. Phase 7 Batch 1 and the first Batch 2 slice are done in code: multi-item adds, clearer existing-item copy, recipe plan-confirm-add, and one outcome reaction per message. The last full gate is green: `verify.ps1 -Db` exit 0, 113 offline + 52 DB, 185 collected, Next build pass. The reaction commits (`36d2ec2`, `0fa0270`) are pushed. The Batch 2 slice is local and **uncommitted**. Render is live on `09b5fa2`; the pushed reaction commits are not deploy-verified.
 
-**Next: Phase 7 Batch 2 and Batch 3.** Batch 1 is done in code (2026-10-27) and the receipt now shows the full basket with added-line markers (2026-10-28): honest AI-outage copy, typing and read receipts, full-basket receipts with Swiggy's cap, Keep only new / Change item / View basket, readable address card, working Change swap, real out-of-stock alternatives, decision logging. Batch 2 priorities from the live eval: extract multiple items from one message (`add milk and bread` handled only milk), recipe plan-confirm-add (`pizza for 5` asked for pizza bases only), clearer existing-item quantity copy, a global LLM queue/backoff so free-tier bursts wait instead of failing, list pickers that accept a typed number, full message context, grouped search, receipt chunking. Batch 3: coupons on every cart path, savings sent, fee warning, itemized bill, support report wiring, payment-method truth and store-open truth. **Then Phase 6 privacy:** finish the DPDP scrub and delete cascade, decide RLS or service-only access, redact logs, add CHECK constraints and `updated_at` triggers.
+**Remaining Phase 7, in order.**
 
-**Open proofs:** Gate 2 case 7 (needs a past order), case 8 (vague-item behavior is model-dependent), and the Phase 2 latency miss. Re-run the full gate at launch.
+| # | Item | State | Proof needed |
+|---|---|---|---|
+| 1 | LLM queue/backoff for Groq free-tier bursts | OPEN | 20-case live run with 0 first-pass outages |
+| 2 | List pickers that accept a typed number | OPEN | picker test plus a live reply with "2" |
+| 3 | Message merge/queue for rapid second text | OPEN | two quick messages both answered, conflicting writes serialized |
+| 4 | Full message in the model prompt | OPEN | evaluator gets the whole text, live check |
+| 5 | Grouped search for related items | OPEN | one search per group, live check |
+| 6 | Receipt chunking over 1024 chars | OPEN | long basket split, no truncation |
+| 7 | Coupons on every cart path; savings line sent | OPEN | coupon applied on text and button paths, savings in the reply |
+| 8 | Fee warning | OPEN | fee threshold warning shown before pay |
+| 9 | Itemized bill (`get_order_details`) | OPEN | live bill for a real past order (blocked until one exists) |
+| 10 | Support report (`report_error`) | OPEN | report reaches Swiggy with an order id |
+| 11 | Payment-method truth (UPI only) | OPEN | no COD/Swiggy Money shown as supported |
+| 12 | Store-open truth | OPEN | yes/no answer, not a quote |
+| 13 | Post-order add truth | OPEN | a placed order is never edited; a separate order is offered |
+
+**After Phase 7:** Phase 6 privacy (DPDP scrub + delete cascade, RLS or service-only, log redaction, CHECK constraints, `updated_at` triggers), Phase 8 landing page, Phase 9 handoff. No live order during the build.
+
+**Open proofs:** reactions drawn on a real handset; live Groq route for "make pizza for 5" and a live Add-all tap; live Change-item tap; blue ticks/typing with a real wamid; live address add/delete; Gate 2 case 7 (needs a past order) and case 8 (live tap); the Phase 2 latency miss. Re-run the full gate at launch.
 
 ---
 

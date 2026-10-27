@@ -41,9 +41,47 @@ The bar is still full tool coverage. These experiences use existing tools, so th
 | 4 | Post-payment truth + Gate 2 | **DONE (code) 2026-10-27** | Real `track_order` with saved coordinates and a delivery-status fallback. Honest store/window answer. Tappable products for one-word requests like "milk". Pollers catch 401s per row, latch each order+milestone once (migration 004), poll every id in a split order, and confirm payments made while Render slept. Live smoke on the real account: reads, cart add/restore, 10/10 Groq routes, checkout lock. Migration 004 applied to the app database. | `verify.ps1 -Db` exit 0: 100 offline + 34 DB pass, ruff clean, Next build pass; 5 read tests + 3 poller tests. Open: Gate 2 case 8 needs a WhatsApp tap, case 7 needs a past order. |
 | 5 | Account and address lifecycle | **DONE (code) 2026-10-27** | Grounding uses Swiggy's default address. Switch warns, clears and rebuilds at the new store. Delete guard runs on the real path. Typed-text add geocodes via `recommend_address(query=...)`. OAuth login only accepts a signed bot link. Park/replay runs after the callback. Also deleted the production WhatsApp mock branch and labeled scripted tests. | `verify.ps1 -Db` exit 0: 99 offline + 45 DB, ruff clean, Next build pass. Proof: 12 account tests + 3 webhook button tests. Open: live add/delete of the one throwaway address. |
 | 6 | Privacy and data | Pending | Complete DPDP scrub and delete cascade. RLS or service-only access. Log redaction. CHECK constraints and `updated_at` triggers. | Test-schema scrub proof plus a live query after TTL. |
-| 7 | Conversation quality and tool coverage | **IN PROGRESS — Batch 1 DONE (code) 2026-10-27** | Map all 20 tools to capabilities and safety classes. Fill gaps and give honest "not supported" replies. Trust pass done in Batch 1: honest AI-outage copy, 8s turn budget, read receipts and typing indicator, outcome-based message reactions with sparse card emojis, delta receipt with Swiggy's stock cap, existing-basket delta plus Keep only new / Change item, view basket, readable address card with switch buttons, deterministic vague-staple rule with a working Change button, real out-of-stock alternatives, no blind rank-1, decision logging at both LLM calls, idle-basket notice. Open: list pickers that accept a typed number, message merge/queue, full message to the model, recipe plan-confirm-add, grouped search, receipt chunking, coupons on every cart path, savings sent, fee warning, support report wiring. | Batch 1: `verify.ps1 -Db` exit 0, 108 offline + 47 DB on `grocer_test`, 175 collected. Dead-code cleanup (net -770 lines; 1,212 removed, 442 added) landed 2026-10-27. Live WhatsApp run per flow still open; reactions await a real inbound wamid. |
+| 7 | Conversation quality and tool coverage | **IN PROGRESS — Batch 1 DONE (code) 2026-10-27; Batch 2 first slice DONE (code) 2026-10-28** | Map all 20 tools to capabilities and safety classes. Fill gaps and give honest "not supported" replies. Trust pass done in Batch 1: honest AI-outage copy, 8s turn budget, read receipts and typing indicator, outcome-based message reactions with sparse card emojis, delta receipt with Swiggy's stock cap, existing-basket delta plus Keep only new / Change item, view basket, readable address card with switch buttons, deterministic vague-staple rule with a working Change button, real out-of-stock alternatives, no blind rank-1, decision logging at both LLM calls, idle-basket notice. Batch 2 first slice: multi-item adds process every item (the old early return dropped the second item), the existing-item prompt is "Add 1 more / Make total 1", and recipe plans run as plan-confirm-add with a `plan_meal` capability, live pricing, Add all or Let me pick, and no write before a tap. Open items are tracked in the Phase 7 backlog table below. | Batch 2: `verify.ps1 -Db` exit 0, 113 offline + 52 DB on `grocer_test`, 185 collected. New: 5 meal-planner tests, 5 webhook tests (multi-item merge, clearer existing-item prompt, recipe card, Add-all tap, missing-ingredient no-write), 1 router test. Live WhatsApp run per flow still open; reactions and the live Groq recipe route await a real message. |
 | 8 | Landing page and deploy | Pending | Rebuild per `DESIGN.md` Part B. No phone-entry form. Placeholder number only. Real link from env. Health-driven status, no fake badge. Render reconcile-on-wake verified. | `npm run build` plus a live smoke of the page and one WhatsApp read. |
 | 9 | Handoff gate | Pending | Run every gate except a live order. Write a short WhatsApp test checklist for Karan. | Raw output for each gate; checklist in `STATUS.md`. Karan's own order is the final live proof. |
+
+## Phase 7 backlog (2026-10-28)
+
+The durable checklist. Update the status here when an item lands; the checkpoint row above stays a summary.
+
+| Item | Batch | Status | Notes |
+|---|---|---|---|
+| Multi-item extraction and merge | 2 | **DONE (code) 2026-10-28** | Every item in the message is processed. The old single existing-item branch returned early and dropped the rest; it now runs only for one item. Proof: webhook multi-item test. |
+| Recipe plan-confirm-add | 2 | **DONE (code) 2026-10-28** | `plan_meal` read capability; model names dish/servings/ingredient packs; Python prices live; Add all re-checks stock and writes all or none; Let me pick asks for numbers. Live route/tap unproven. |
+| Existing-item quantity copy | 2 | **DONE (code) 2026-10-28** | "Add 1 more / Make total 1"; buttons add-more first. Proof: webhook test. |
+| LLM queue/backoff for free-tier bursts | 2 | OPEN | 7/20 live eval messages got the outage copy from Groq's 8k TPM burst. Wait and retry instead of failing the turn. |
+| List pickers that accept a typed number | 2 | OPEN | Pickers currently only offer taps. A typed "2" must select that option. |
+| Message merge/queue for a rapid second text | 2 | OPEN | The second message is still `concurrency_dropped` with no reply. Merge additive messages; serialize conflicting writes. |
+| Full message in the model prompt | 2 | OPEN | Candidate evaluation currently gets the extracted query, not the whole message. |
+| Grouped search for related items | 2 | OPEN | One search per item today; group related queries. |
+| Receipt chunking over 1024 chars | 2 | OPEN | Long fresh baskets are truncated at the body limit. |
+| Coupons on every cart path | 3 | OPEN | Coupons run only on add-items; change/clear/reorder paths skip them. |
+| Savings line sent | 3 | OPEN | Savings are computed but never sent (`customer_advocate.py:251`). |
+| Fee warning | 3 | OPEN | Warn when fees are high relative to item value, before pay. |
+| Itemized bill (`get_order_details`) | 3 | OPEN | Needs a real past order for live proof. |
+| Support report (`report_error`) | 3 | OPEN | Tool is not reachable from chat. |
+| Payment-method truth (UPI only) | 3 | OPEN | The card lists COD and Swiggy Money although v1 supports UPI only. |
+| Store-open truth | 3 | OPEN | "Is the store open" returns a cart quote, not yes/no. |
+| Post-order add truth | 3 | OPEN | A placed order cannot change; say so, then offer a separate order. |
+
+## Open proofs
+
+| Proof | Status | Blocker |
+|---|---|---|
+| Reaction drawn on a real handset | OPEN | Needs a real inbound wamid after deploy. |
+| Live Groq route for "make pizza for 5" | OPEN | Real message on Render. |
+| Live Add-all tap and receipt | OPEN | Tap after the recipe route works. |
+| Live Change-item tap | OPEN | Handset tap. |
+| Blue ticks and typing indicator | OPEN | Needs a real wamid, not a simulated one. |
+| Live address add and delete | OPEN | One throwaway address on Karan's account. |
+| Gate 2 case 7 (reorder) | OPEN | Needs a past order. |
+| Gate 2 case 8 (vague item tap) | OPEN | Live tap. |
+| Phase 2 latency | OPEN | Re-run the router eval with per-call latency. |
 
 ## Order and dependencies
 

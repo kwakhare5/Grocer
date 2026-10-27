@@ -71,6 +71,10 @@ def test_reactions_are_sparse_and_match_the_outcome():
         reaction_for_result({"status": "capability_answered", "capability": "track_order"})
         == "🛵"
     )
+    assert (
+        reaction_for_result({"status": "capability_answered", "capability": "plan_meal"})
+        == "🍳"
+    )
     assert reaction_for_result({"status": "cart_updated"}) == "🛒"
     assert reaction_for_result({"status": "item_choices"}) == "❓"
 

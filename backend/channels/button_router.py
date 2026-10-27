@@ -15,6 +15,55 @@ from backend.config import settings
 logger = logging.getLogger("grocer.button_router")
 
 
+async def _send_add_receipt(
+    conn: Any,
+    wa_client: Any,
+    wa_id: str,
+    user_id: Any,
+    active: str | None,
+    cart: Any,
+    status: str,
+    action: str | None,
+) -> dict[str, Any]:
+    """One payable receipt for any button path that writes the basket."""
+    from backend.agent.approval import create_checkout_approval
+    from backend.agent.candidate_evaluator import format_paise_to_rupees
+    from backend.agent.composite_cart import format_cart_receipt
+
+    approval = await create_checkout_approval(
+        conn=conn,
+        user_id=str(user_id),
+        cart=cart,
+        address_id=active or "default",
+    )
+    body = format_cart_receipt(cart)
+    cap_paise = await conn.fetchval(
+        "SELECT budget_cap_paise FROM grocer.sessions WHERE user_id = $1;",
+        user_id,
+    ) or settings.DEFAULT_BUDGET_CAP_PAISE
+    if approval.to_pay_paise > int(cap_paise):
+        body += (
+            f"\n\n⚠️ This is above your "
+            f"{format_paise_to_rupees(int(cap_paise))} safety cap. "
+            "You'll be asked to raise it when you tap Pay."
+        )
+    pay_label = format_paise_to_rupees(approval.to_pay_paise)
+    await wa_client.send_quick_reply_buttons(
+        to_wa_id=wa_id,
+        body_text=body,
+        buttons=[
+            (f"pay:{approval.id}", f"Pay {pay_label}"),
+            ("cart:clear", "Clear basket"),
+        ],
+    )
+    return {
+        "status": status,
+        "action": action,
+        "approval_id": str(approval.id),
+        "to_pay_paise": approval.to_pay_paise,
+    }
+
+
 async def dispatch_button_action(
     button_id: str,
     wa_id: str,
@@ -95,47 +144,22 @@ async def dispatch_button_action(
                 elif button_id == "cart:clear":
                     reply = await apply_clear(client, active)
                 elif button_id.startswith("cart:fresh:"):
-                    from backend.agent.approval import create_checkout_approval
                     from backend.agent.basket_actions import apply_keep_only_new
-                    from backend.agent.candidate_evaluator import format_paise_to_rupees
-                    from backend.agent.composite_cart import format_cart_receipt
 
                     cart, err = await apply_keep_only_new(client, active, button_id)
                     if err or not cart.items:
                         reply = BasketReply(err or "Your basket is empty.")
                     else:
-                        approval = await create_checkout_approval(
-                            conn=conn,
-                            user_id=str(user_id),
-                            cart=cart,
-                            address_id=active or "default",
-                        )
-                        body = format_cart_receipt(cart)
-                        cap_paise = await conn.fetchval(
-                            "SELECT budget_cap_paise FROM grocer.sessions WHERE user_id = $1;",
+                        special_result = await _send_add_receipt(
+                            conn,
+                            wa_client,
+                            wa_id,
                             user_id,
-                        ) or settings.DEFAULT_BUDGET_CAP_PAISE
-                        if approval.to_pay_paise > int(cap_paise):
-                            body += (
-                                f"\n\n⚠️ This is above your "
-                                f"{format_paise_to_rupees(int(cap_paise))} safety cap. "
-                                "You'll be asked to raise it when you tap Pay."
-                            )
-                        pay_label = format_paise_to_rupees(approval.to_pay_paise)
-                        await wa_client.send_quick_reply_buttons(
-                            to_wa_id=wa_id,
-                            body_text=body,
-                            buttons=[
-                                (f"pay:{approval.id}", f"Pay {pay_label}"),
-                                ("cart:clear", "Clear basket"),
-                            ],
+                            active,
+                            cart,
+                            "cart_fresh",
+                            button_id,
                         )
-                        special_result = {
-                            "status": "cart_fresh",
-                            "action": button_id,
-                            "approval_id": str(approval.id),
-                            "to_pay_paise": approval.to_pay_paise,
-                        }
                 else:
                     action, _, rest = (target_arg or "").partition(":")
                     if action == "rm":
@@ -171,6 +195,97 @@ async def dispatch_button_action(
             return special_result
         asyncio.create_task(wa_client.send_text_message(to_wa_id=wa_id, text=reply.text))
         return {"status": "basket_updated", "action": button_id, "message": reply.text}
+
+    # 1b. Meal plan confirmation taps
+    if prefix == "plan" and target_arg:
+        from backend.agent.composite_cart import CompositeCartManager
+        from backend.agent.meal_planner import resolve_plan_items
+        from backend.channels.whatsapp_client import WhatsAppClient
+        from backend.integrations.commerce.swiggy_client import (
+            SwiggyAuthExpiredError,
+            SwiggyClient,
+        )
+        from backend.integrations.commerce.token_vault import resolve_user_token
+
+        wa_client = wa_client or WhatsAppClient()
+
+        if target_arg == "pick":
+            text = "Reply with the numbers you want, like 1 and 3. I'll add only those."
+            asyncio.create_task(wa_client.send_text_message(to_wa_id=wa_id, text=text))
+            return {"status": "plan_pick_requested", "action": button_id, "message": text}
+
+        action_name, _, token = target_arg.partition(":")
+        if action_name != "add" or not token or not pool:
+            return {
+                "status": "button_ignored",
+                "action": button_id,
+                "message": "Meal plan action needs a database connection.",
+            }
+
+        async with pool.acquire() as conn:
+            user_id = await conn.fetchval(
+                "SELECT id FROM grocer.users WHERE wa_id = $1;", wa_id
+            )
+            if not user_id:
+                return {"status": "unknown_user", "action": button_id}
+
+            active = await conn.fetchval(
+                "SELECT active_address_id FROM grocer.sessions WHERE user_id = $1;",
+                user_id,
+            )
+            client = swiggy_client
+            if client is None:
+                user_token = await resolve_user_token(user_id)
+                if not user_token:
+                    await wa_client.send_text_message(
+                        to_wa_id=wa_id,
+                        text="Your Swiggy login expired. Please reconnect your account.",
+                    )
+                    return {"status": "auth_required", "action": button_id}
+                client = SwiggyClient(auth_token=user_token)
+
+            try:
+                items, error = await resolve_plan_items(client, active, token)
+                if error or not items:
+                    text = error or "That plan is not available. Nothing was added."
+                    await wa_client.send_text_message(to_wa_id=wa_id, text=text)
+                    return {
+                        "status": "plan_unavailable",
+                        "action": button_id,
+                        "message": text,
+                    }
+                manager = CompositeCartManager(client)
+                cart_res = await asyncio.to_thread(
+                    manager.assemble_and_update_cart,
+                    items_to_add=items,
+                    address_id=active,
+                    auto_optimize_coupons=True,
+                )
+                return await _send_add_receipt(
+                    conn,
+                    wa_client,
+                    wa_id,
+                    user_id,
+                    active,
+                    cart_res.cart,
+                    "plan_added",
+                    button_id,
+                )
+            except (
+                ValueError,
+                KeyError,
+                RuntimeError,
+                OSError,
+                httpx.HTTPError,
+                SwiggyAuthExpiredError,
+            ) as exc:
+                logger.warning("Meal plan add failed: %s", exc)
+
+        await wa_client.send_text_message(
+            to_wa_id=wa_id,
+            text="That plan didn't finish. Ask me for your basket before paying.",
+        )
+        return {"status": "plan_add_failed", "action": button_id}
 
     # 2. Reorder confirmation taps
     if prefix == "reorder":

@@ -310,6 +310,11 @@ async def build_read_reply(
             return await _list_addresses(client)
         if decision.capability is Capability.VIEW_BASKET:
             return await _view_basket(client, address_id)
+        if decision.capability is Capability.PLAN_MEAL:
+            from backend.agent.meal_planner import build_meal_plan
+
+            text, buttons = await build_meal_plan(decision, client, address_id)
+            return ReadReply(text, buttons)
         if decision.capability is Capability.ORDER_HISTORY:
             return ReadReply(await _order_history(client))
         if decision.capability is Capability.TRACK_ORDER:

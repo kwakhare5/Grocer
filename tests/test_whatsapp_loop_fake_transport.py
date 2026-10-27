@@ -1,6 +1,6 @@
-"""Grocer v1.0 — Live WhatsApp Outbound Delivery & Chat Loop Tests.
+"""Grocer v1.0 — Fake-Transport WhatsApp Loop Tests.
 
-Strictly tests:
+These use a fake WhatsApp transport, not the live Meta API. Strictly tests:
 1. WhatsAppClient payload structure & https URL validation.
 2. Unauthenticated customer welcome & Swiggy connect prompt.
 3. Inbound grocery search, cart assembly & interactive receipt card delivery.

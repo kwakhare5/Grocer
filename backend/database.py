@@ -10,6 +10,7 @@ import asyncio
 import logging
 import os
 from pathlib import Path
+from urllib.parse import urlparse
 
 import asyncpg
 
@@ -25,17 +26,33 @@ def _under_pytest() -> bool:
     return "PYTEST_CURRENT_TEST" in os.environ
 
 
+def _database_name(dsn: str) -> str:
+    return urlparse(dsn).path.lstrip("/")
+
+
 def resolve_database_url() -> str:
     """Return the DSN for this process.
 
     Tests never fall back to the production database: without TEST_DATABASE_URL
-    they fail loudly instead of writing real customer data.
+    they fail loudly instead of writing real customer data. The test DSN must
+    name the grocer_test database in the same project.
     """
     if _under_pytest():
         if not settings.TEST_DATABASE_URL:
             raise RuntimeError(
                 "Refusing to use DATABASE_URL while running tests. Set "
-                "TEST_DATABASE_URL to a dedicated test database."
+                "TEST_DATABASE_URL to the grocer_test database."
+            )
+        test_db = _database_name(settings.TEST_DATABASE_URL)
+        if test_db != "grocer_test":
+            raise RuntimeError(
+                f"Refusing to run tests against database '{test_db}'. "
+                "TEST_DATABASE_URL must point at grocer_test."
+            )
+        if test_db == _database_name(settings.DATABASE_URL):
+            raise RuntimeError(
+                "Refusing to run tests: TEST_DATABASE_URL and DATABASE_URL "
+                "name the same database."
             )
         return settings.TEST_DATABASE_URL
     return settings.DATABASE_URL
@@ -77,7 +94,7 @@ async def check_db_health() -> bool:
         async with pool.acquire() as conn:
             val = await conn.fetchval("SELECT 1")
             return val == 1
-    except (asyncpg.PostgresError, OSError) as exc:
+    except (asyncpg.PostgresError, OSError, TimeoutError, ValueError) as exc:
         logger.error("Database health check failed: %s", exc)
         return False
 

@@ -35,8 +35,8 @@ class Settings(BaseSettings):
         ..., description="Meta Webhook Verification Token"
     )
 
-    # Google Gemini AI
-    GEMINI_API_KEY: str = Field(..., description="Google Gemini API Key")
+    # Google Gemini AI (optional; Groq is primary)
+    GEMINI_API_KEY: str | None = None
     GEMINI_MODEL: str = "gemini-3.5-flash"
     GEMINI_FALLBACK_MODEL: str = "gemini-3.5-flash-lite"
 
@@ -51,7 +51,7 @@ class Settings(BaseSettings):
     DATABASE_URL: str = Field(
         ..., description="PostgreSQL connection string with sslmode=require"
     )
-    # Tests refuse DATABASE_URL. Point this at a separate Supabase project.
+    # Same Supabase project until launch. Must point at the grocer_test database.
     TEST_DATABASE_URL: str | None = None
     DATABASE_POOL_MIN_SIZE: int = 1
     DATABASE_POOL_MAX_SIZE: int = 5
@@ -67,6 +67,7 @@ class Settings(BaseSettings):
     SWIGGY_MCP_BASE_URL: str = "https://mcp.swiggy.com"
 
     # Safety Caps (Integer Paise strictly: ₹1 = 100 paise)
+    LIVE_CHECKOUT_ENABLED: bool = False  # Deploy lock: no real order unless explicitly enabled
     DEFAULT_BUDGET_CAP_PAISE: int = 100000  # ₹1,000 launch safety cap
     PRICE_DRIFT_THRESHOLD_PAISE: int = 100  # ₹1 price drift abort latch
     APPROVAL_EXPIRY_SECONDS: int = 600  # 10-minute approval TTL

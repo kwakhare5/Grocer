@@ -90,53 +90,55 @@ async def handle_webhook(
             )
             continue
 
-        async with (
-            pool.acquire() as conn,
-            conn.transaction(),
-        ):
-            # 4. User profile lookup / auto-registration
-            user_id = await conn.fetchval(
-                """
-                INSERT INTO grocer.users (wa_id)
-                VALUES ($1)
-                ON CONFLICT (wa_id) DO UPDATE SET updated_at = now()
-                RETURNING id;
-                """,
-                msg.sender_wa_id,
-            )
+        async with pool.acquire() as conn:
+            # 4-5 commit before the turn. If the turn dies mid-way, Meta's retry
+            # must still hit the dedupe row instead of repeating a cart write.
+            async with conn.transaction():
+                # 4. User profile lookup / auto-registration
+                user_id = await conn.fetchval(
+                    """
+                    INSERT INTO grocer.users (wa_id)
+                    VALUES ($1)
+                    ON CONFLICT (wa_id) DO UPDATE SET updated_at = now()
+                    RETURNING id;
+                    """,
+                    msg.sender_wa_id,
+                )
 
-            # 5. PostgreSQL Message Deduplication (Atomic ON CONFLICT DO NOTHING)
-            # Safe recording FIRST: message is never lost from database
-            raw_payload_json = json.dumps(msg.raw_payload) if msg.raw_payload else None
-            inbound_id = await conn.fetchval(
-                """
-                INSERT INTO grocer.inbound_messages (
-                    wa_message_id,
+                # 5. PostgreSQL Message Deduplication (Atomic ON CONFLICT DO NOTHING)
+                # Safe recording FIRST: message is never lost from database
+                raw_payload_json = json.dumps(msg.raw_payload) if msg.raw_payload else None
+                inbound_id = await conn.fetchval(
+                    """
+                    INSERT INTO grocer.inbound_messages (
+                        wa_message_id,
+                        user_id,
+                        message_type,
+                        raw_payload,
+                        status
+                    )
+                    VALUES ($1, $2, $3, $4, 'received')
+                    ON CONFLICT (wa_message_id) DO NOTHING
+                    RETURNING id;
+                    """,
+                    msg.wa_message_id,
                     user_id,
-                    message_type,
-                    raw_payload,
-                    status
+                    msg.message_type,
+                    raw_payload_json,
                 )
-                VALUES ($1, $2, $3, $4, 'received')
-                ON CONFLICT (wa_message_id) DO NOTHING
-                RETURNING id;
-                """,
-                msg.wa_message_id,
-                user_id,
-                msg.message_type,
-                raw_payload_json,
-            )
 
-            if not inbound_id:
-                logger.info("Duplicate WhatsApp message dropped: %s", msg.wa_message_id)
-                results.append(
-                    {"status": "duplicate_dropped", "wa_message_id": msg.wa_message_id}
-                )
-                continue
+                if not inbound_id:
+                    logger.info("Duplicate WhatsApp message dropped: %s", msg.wa_message_id)
+                    results.append(
+                        {"status": "duplicate_dropped", "wa_message_id": msg.wa_message_id}
+                    )
+                    continue
 
-            # 6. Per-User Advisory Lock (Fast concurrency serialization)
+            # 6. Per-User Session Advisory Lock (Fast concurrency serialization).
+            # Session-scoped so it survives the commit above; asyncpg releases it
+            # when this connection returns to the pool.
             lock_acquired = await conn.fetchval(
-                "SELECT pg_try_advisory_xact_lock(hashtext($1));",
+                "SELECT pg_try_advisory_lock(hashtext($1));",
                 str(user_id),
             )
             if not lock_acquired:
@@ -158,7 +160,10 @@ async def handle_webhook(
             # 7. Fast 50ms Button Dispatcher for interactive replies
             if msg.button_id:
                 action_res = await dispatch_button_action(
-                    msg.button_id, msg.sender_wa_id, pool
+                    msg.button_id,
+                    msg.sender_wa_id,
+                    pool,
+                    message_type=msg.message_type,
                 )
                 results.append(action_res)
                 continue
@@ -372,7 +377,6 @@ async def handle_webhook(
                     IntentType,
                     evaluate_customer_intent,
                     format_paise_to_rupees,
-                    orchestrate_conversational_turn,
                 )
                 from backend.agent.candidate_search import search_catalog
                 from backend.agent.composite_cart import (
@@ -447,6 +451,7 @@ async def handle_webhook(
                     from backend.agent.read_actions import (
                         NOT_READY_REPLY,
                         answer_read_capability,
+                        format_disambiguation_choices,
                     )
                     from backend.agent.router import (
                         Capability,
@@ -489,8 +494,30 @@ async def handle_webhook(
                         }
 
                     if decision.safety is SafetyClass.READ:
+                        coords: tuple[float, float] | None = None
+                        if decision.capability is Capability.TRACK_ORDER:
+                            coord_row = await conn.fetchrow(
+                                "SELECT latitude, longitude FROM grocer.address_coords WHERE address_id = $1;",
+                                active_addr_id,
+                            )
+                            if coord_row:
+                                coords = (coord_row["latitude"], coord_row["longitude"])
+                            else:
+                                session_coords = await conn.fetchrow(
+                                    "SELECT delivery_latitude, delivery_longitude FROM grocer.sessions WHERE user_id = $1;",
+                                    user_id,
+                                )
+                                if (
+                                    session_coords
+                                    and session_coords["delivery_latitude"] is not None
+                                    and session_coords["delivery_longitude"] is not None
+                                ):
+                                    coords = (
+                                        session_coords["delivery_latitude"],
+                                        session_coords["delivery_longitude"],
+                                    )
                         reply_text = await answer_read_capability(
-                            decision, turn_client, active_addr_id
+                            decision, turn_client, active_addr_id, coords
                         )
                         await wa_client.send_text_message(
                             to_wa_id=msg.sender_wa_id, text=reply_text
@@ -702,97 +729,23 @@ async def handle_webhook(
                             "wa_id": msg.sender_wa_id,
                         }
 
-                    # 2. Single-Pass Conversational Intent & Item Extraction (ADR 0011)
-                    turn_result = orchestrate_conversational_turn(
-                        message=msg.text,
-                        history=session_history,
-                        address_count=address_count,
-                    )
-
-                    # Handle Chit-Chat Greetings & Conversational Q&A
-                    if turn_result.intent_type in [
-                        IntentType.GREETING,
-                        IntentType.CONVERSATIONAL_QA,
-                    ]:
-                        reply_text = (
-                            turn_result.conversational_reply
-                            or "Hey! What groceries do you need today?"
-                        )
-                        await wa_client.send_text_message(
-                            to_wa_id=msg.sender_wa_id,
-                            text=reply_text,
-                        )
-                        session_history.append({"role": "user", "text": msg.text})
-                        session_history.append({"role": "assistant", "text": reply_text})
-                        await conn.execute(
-                            """
-                            INSERT INTO grocer.sessions (user_id, history, last_active_at)
-                            VALUES ($1, $2::jsonb, now())
-                            ON CONFLICT (user_id) DO UPDATE SET history = $2::jsonb, last_active_at = now();
-                            """,
-                            user_id,
-                            json.dumps(session_history[-12:]),
-                        )
-                        return {
-                            "status": "conversational_replied",
-                            "intent": turn_result.intent_type.value,
-                            "wa_id": msg.sender_wa_id,
-                        }
-
-                    # Handle Cold-Start Zero-Address Onboarding (ADR 0010)
-                    if turn_result.intent_type == IntentType.ZERO_ADDRESS_ONBOARDING:
-                        prompt_text = (
-                            turn_result.conversational_reply
-                            or "Welcome to Grocer! Please share your WhatsApp delivery location pin or address so I can check your local dark store."
-                        )
-                        await wa_client.send_text_message(
-                            to_wa_id=msg.sender_wa_id,
-                            text=prompt_text,
-                        )
-                        return {
-                            "status": "location_pin_requested",
-                            "wa_id": msg.sender_wa_id,
-                        }
-
-                    # Handle Recipe Checklist Proposals (ADR 0009)
-                    if turn_result.intent_type == IntentType.RECIPE_CHECKLIST:
-                        recipe_lines = [f"🍳 *{turn_result.recipe_name or 'Recipe'} Checklist*:\n"]
-                        for r_item in turn_result.recipe_items:
-                            qty_desc = f" ({r_item.quantity})" if r_item.quantity else ""
-                            recipe_lines.append(f"• {r_item.name}{qty_desc}")
-                        if turn_result.assumed_pantry_staples:
-                            recipe_lines.append(
-                                f"\n_Pantry staples assumed:_ {', '.join(turn_result.assumed_pantry_staples)}"
+                    # 2. Items come from the router. No second classification call.
+                    extracted_items: list[ExtractedGroceryItem] = []
+                    for item in decision.items:
+                        query_text = str(item.get("query") or "").strip()
+                        if not query_text:
+                            continue
+                        try:
+                            quantity = max(1, int(item.get("quantity") or 1))
+                        except (TypeError, ValueError):
+                            quantity = 1
+                        extracted_items.append(
+                            ExtractedGroceryItem(
+                                query=query_text,
+                                quantity=quantity,
+                                unit=str(item.get("unit") or "") or None,
                             )
-                        recipe_body = "\n".join(recipe_lines)
-                        buttons = [
-                            (act["id"], act["title"][:20])
-                            for act in turn_result.suggested_actions[:3]
-                        ] or [("recipe:add:all", "Add All Items")]
-                        await wa_client.send_quick_reply_buttons(
-                            to_wa_id=msg.sender_wa_id,
-                            body_text=recipe_body,
-                            buttons=buttons,
                         )
-                        session_history.append({"role": "user", "text": msg.text})
-                        session_history.append({"role": "assistant", "text": recipe_body})
-                        await conn.execute(
-                            """
-                            INSERT INTO grocer.sessions (user_id, history, last_active_at)
-                            VALUES ($1, $2::jsonb, now())
-                            ON CONFLICT (user_id) DO UPDATE SET history = $2::jsonb, last_active_at = now();
-                            """,
-                            user_id,
-                            json.dumps(session_history[-12:]),
-                        )
-                        return {
-                            "status": "recipe_proposed",
-                            "recipe": turn_result.recipe_name,
-                            "wa_id": msg.sender_wa_id,
-                        }
-
-                    # 2. Grocery List Intent: Parallel Search & Candidate Evaluation (ADR 0011)
-                    extracted_items = turn_result.extracted_items
                     if not extracted_items:
                         extracted_items = [ExtractedGroceryItem(query=msg.text, quantity=1)]
 
@@ -808,7 +761,8 @@ async def handle_webhook(
                             swiggy_client=sw_client,
                             address_id=addr_id,
                         )
-                        eval_res = evaluate_customer_intent(
+                        eval_res = await asyncio.to_thread(
+                            evaluate_customer_intent,
                             query=target.query,
                             candidates=cands,
                             address_count=addr_cnt,
@@ -842,6 +796,33 @@ async def handle_webhook(
                             disambiguation_notes.append(evaluation.message)
                         else:
                             unfound_queries.append(target.query)
+
+                    if (
+                        not items_to_add
+                        and len(search_results) == 1
+                        and len(search_results[0][1]) >= 2
+                    ):
+                        target, cands, evaluation = search_results[0]
+                        # A one-word request like "milk" is never substituted
+                        # silently. Show the real products and let the customer tap.
+                        if (
+                            evaluation.intent_type == IntentType.DISAMBIGUATION
+                            or len(target.query.split()) <= 1
+                        ):
+                            choice_text, choice_buttons = format_disambiguation_choices(
+                                target.query, cands, target.quantity
+                            )
+                            await wa_client.send_quick_reply_buttons(
+                                to_wa_id=msg.sender_wa_id,
+                                body_text=choice_text,
+                                buttons=choice_buttons,
+                            )
+                            await remember(choice_text)
+                            return {
+                                "status": "item_choices",
+                                "wa_id": msg.sender_wa_id,
+                                "candidates": len(cands),
+                            }
 
                     if items_to_add:
                         cart_mgr = CompositeCartManager(turn_client)

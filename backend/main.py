@@ -11,6 +11,7 @@ import asyncpg
 import httpx
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from backend.channels.swiggy_auth import router as swiggy_auth_router
 from backend.channels.whatsapp import router as whatsapp_router
@@ -21,6 +22,7 @@ from backend.database import (
     close_db_pool,
     get_db_pool,
 )
+from backend.integrations.commerce.swiggy_client import SwiggyAuthExpiredError
 
 logger = logging.getLogger("grocer.main")
 
@@ -43,7 +45,8 @@ async def _run_delivery_poller_loop() -> None:
                         SELECT u.wa_id
                         FROM grocer.checkouts c
                         JOIN grocer.users u ON c.user_id = u.id
-                        WHERE c.swiggy_order_id = $1;
+                        WHERE c.swiggy_order_id = $1 OR c.swiggy_order_ids ? $1
+                        LIMIT 1;
                         """,
                         note.order_id,
                     )
@@ -51,7 +54,15 @@ async def _run_delivery_poller_loop() -> None:
                         await wa_client.send_text_message(to_wa_id=wa_id, text=note.message)
         except asyncio.CancelledError:
             break
-        except (httpx.HTTPError, ValueError, KeyError, RuntimeError, asyncpg.PostgresError, OSError) as exc:
+        except (
+            httpx.HTTPError,
+            ValueError,
+            KeyError,
+            RuntimeError,
+            asyncpg.PostgresError,
+            OSError,
+            SwiggyAuthExpiredError,
+        ) as exc:
             logger.warning("Background delivery poller error: %s", exc)
 
 
@@ -83,7 +94,15 @@ async def _run_payment_poller_loop() -> None:
                     await wa_client.send_text_message(to_wa_id=wa_id, text=res.message)
         except asyncio.CancelledError:
             break
-        except (httpx.HTTPError, ValueError, KeyError, RuntimeError, asyncpg.PostgresError, OSError) as exc:
+        except (
+            httpx.HTTPError,
+            ValueError,
+            KeyError,
+            RuntimeError,
+            asyncpg.PostgresError,
+            OSError,
+            SwiggyAuthExpiredError,
+        ) as exc:
             logger.warning("Background payment poller error: %s", exc)
 
 
@@ -98,7 +117,15 @@ async def _run_dpdp_scrubber_loop() -> None:
             await run_24h_dpdp_scrubber(pool)
         except asyncio.CancelledError:
             break
-        except (httpx.HTTPError, ValueError, KeyError, RuntimeError, asyncpg.PostgresError, OSError) as exc:
+        except (
+            httpx.HTTPError,
+            ValueError,
+            KeyError,
+            RuntimeError,
+            asyncpg.PostgresError,
+            OSError,
+            SwiggyAuthExpiredError,
+        ) as exc:
             logger.warning("Background DPDP scrubber error: %s", exc)
 
 
@@ -143,13 +170,20 @@ app.include_router(whatsapp_router)
 app.include_router(swiggy_auth_router)
 
 
+def health_response(db_ok: bool) -> JSONResponse:
+    """Healthy means the API can reach PostgreSQL, not just that the process is up."""
+    return JSONResponse(
+        status_code=200 if db_ok else 503,
+        content={
+            "status": "healthy" if db_ok else "down",
+            "database": "connected" if db_ok else "unreachable",
+            "app": settings.APP_NAME,
+            "environment": settings.ENVIRONMENT,
+        },
+    )
+
+
 @app.get("/health")
-async def health_check() -> dict[str, str]:
+async def health_check() -> JSONResponse:
     """Health check endpoint confirming API and PostgreSQL availability."""
-    db_ok = await check_db_health()
-    return {
-        "status": "healthy" if db_ok else "degraded",
-        "database": "connected" if db_ok else "unreachable",
-        "app": settings.APP_NAME,
-        "environment": settings.ENVIRONMENT,
-    }
+    return health_response(await check_db_health())

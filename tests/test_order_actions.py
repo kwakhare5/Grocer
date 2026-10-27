@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from fixture_client import FixtureSwiggyClient
 
 from backend.agent.order_actions import apply_reorder, handle_reorder_request
 from backend.integrations.commerce.swiggy_client import SwiggyClient
@@ -30,7 +31,7 @@ class FakeDecision:
 
 @pytest.fixture
 def client() -> SwiggyClient:
-    return SwiggyClient(fixtures_dir=FIXTURES_DIR)
+    return FixtureSwiggyClient(FIXTURES_DIR)
 
 
 def _cart_quantity(client: SwiggyClient, spin_id: str) -> int:
@@ -93,7 +94,7 @@ async def test_no_past_orders_says_so_and_writes_nothing(tmp_path: Path):
         json.dumps({"success": True, "data": {"orders": [], "hasMore": False}}),
         encoding="utf-8",
     )
-    client = SwiggyClient(fixtures_dir=fixtures)
+    client = FixtureSwiggyClient(fixtures)
 
     reply = await handle_reorder_request(
         FakeDecision(order_ref="last"), client, ADDRESS_ID, "repeat my last order"

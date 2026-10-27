@@ -24,6 +24,7 @@ from pathlib import Path
 
 import httpx
 import pytest
+from fixture_client import FixtureSwiggyClient
 
 from backend.agent import checkout_executor
 from backend.agent.approval import (
@@ -36,10 +37,7 @@ from backend.agent.checkout_executor import (
     SWIGGY_CARE_PHONE,
     check_and_settle_payment,
     execute_3_lock_checkout,
-    format_multi_store_split_receipt,
     format_whatsapp_cta_url_button,
-    get_order_cancellation_instructions,
-    handle_post_order_addition,
     poll_in_flight_deliveries_batch,
     poll_pending_checkouts_batch,
     reconcile_attempting_checkouts,
@@ -47,7 +45,6 @@ from backend.agent.checkout_executor import (
     verify_lock_2_truth,
 )
 from backend.agent.customer_advocate import (
-    check_small_cart_fee,
     parse_price_to_paise,
     raise_session_budget_cap,
 )
@@ -73,7 +70,7 @@ pytestmark = pytest.mark.scripted
 
 @pytest.fixture
 def swiggy_client() -> SwiggyClient:
-    return SwiggyClient(fixtures_dir=FIXTURES_DIR)
+    return FixtureSwiggyClient(FIXTURES_DIR)
 
 
 class ScriptedClient:
@@ -386,44 +383,6 @@ def test_upi_checkout_sends_qr_request(swiggy_client):
 # ==============================================================================
 # 4. Small-Cart Fee Warning (ADR 0009)
 # ==============================================================================
-def test_small_cart_fee_warning_adr_0009():
-    """Warns customer when delivery and handling fees exceed 35% of item total."""
-    # Cart with ₹14 Maggi and ₹60 delivery/handling fee (total ₹74)
-    small_cart = CartData(
-        cartId="cart_small",
-        cartTotalAmount="14.00",
-        items=[
-            CartItem(
-                spinId="spin_maggi",
-                skuId="sku_maggi",
-                productId="prod_maggi",
-                itemName="Maggi 2-Minute Noodles",
-                quantity=1,
-                isInStockAndAvailable=True,
-                mrp=14.0,
-                discountedFinalPrice=14.0,
-            )
-        ],
-        billBreakdown={
-            "toPay": {"label": "To Pay", "value": "₹74.00"},
-            "lineItems": [
-                {"label": "Item Total", "value": "₹14.00"},
-                {"label": "Delivery Fee", "value": "₹45.00"},
-                {"label": "Handling Fee", "value": "₹15.00"},
-            ],
-        },
-    )
-
-    warning = check_small_cart_fee(small_cart, free_delivery_threshold_paise=19900)
-    assert warning is not None
-    assert warning.item_total_paise == 1400
-    assert warning.fee_paise == 6000
-    assert "Heads up" in warning.warning_text
-    assert "FREE delivery" in warning.warning_text
-    assert len(warning.action_buttons) == 2
-    assert warning.action_buttons[0]["id"] == "cart:add_essentials"
-
-
 # ==============================================================================
 # 5. Lock 3 (Atomic CAS) & Double-Tap Prevention
 # ==============================================================================
@@ -518,7 +477,7 @@ async def test_concurrent_taps_place_exactly_one_order(swiggy_client, monkeypatc
         *(
             execute_3_lock_checkout(
                 pool=pool,
-                swiggy_client=SwiggyClient(fixtures_dir=FIXTURES_DIR),
+                swiggy_client=FixtureSwiggyClient(FIXTURES_DIR),
                 user_id=str(user_id),
                 approval_id=approval.id,
                 message_type="button_reply",
@@ -1012,50 +971,16 @@ def test_real_time_gps_rider_tracking(swiggy_client):
 
 
 # ==============================================================================
-# 8. Multi-Store Split Order Handling (ADR 0007)
-# ==============================================================================
-def test_multi_store_split_order_receipt_adr_0007():
-    """Unified WhatsApp receipt for orders split across multiple dark stores."""
-    receipt = format_multi_store_split_receipt(
-        order_ids=["189456789012", "189456789099"],
-        store_names=["Bellandur Pod", "Koramangala Dark Store"],
-        total_paise=24900,
-    )
-    assert "Multi-Store Order Confirmed" in receipt
-    assert "2 separate deliveries" in receipt
-    assert "order #189456789012" in receipt
-    assert "order #189456789099" in receipt
-    assert "https://swiggy.com/track/189456789012" in receipt
-    assert "https://swiggy.com/track/189456789099" in receipt
-
-
-# ==============================================================================
-# 9. Order Cancellation Protocol (ADR 0007)
+# 8. Order Cancellation Protocol (ADR 0007)
 # ==============================================================================
 def test_order_cancellation_protocol_adr_0007():
     """Inbound cancellation requests instruct customer to call Swiggy Care phone directly."""
-    instructions = get_order_cancellation_instructions("189456789012")
+    from backend.agent.read_actions import _cancel_help
+
+    instructions = _cancel_help()
     assert SWIGGY_CARE_PHONE in instructions
     assert "080-67466729" in instructions
-    assert "189456789012" in instructions
-    assert "Swiggy Customer Care" in instructions
-
-
-# ==============================================================================
-# 10. Post-Order Additions Protocol (ADR 0009)
-# ==============================================================================
-def test_post_order_addition_protocol_adr_0009():
-    """Informing customer that active order is sealed and proposing 1-tap separate order."""
-    res = handle_post_order_addition(
-        order_id="189456789012",
-        item_name="6 Eggs",
-        item_price_paise=5500,
-        order_is_packing=True,
-    )
-    assert "already being packed at the dark store" in res["text"]
-    assert "cannot be modified" in res["text"]
-    assert len(res["buttons"]) == 2
-    assert "Order 6 Eggs Now" in res["buttons"][0]["title"]
+    assert "cancel" in instructions.lower()
 
 
 # ==============================================================================
@@ -1121,16 +1046,11 @@ def test_parse_price_to_paise_zero_float_loss():
 # ==============================================================================
 # 13. Module Placement & Architectural Boundaries
 # ==============================================================================
-def test_customer_advocate_and_formatters_module_placement():
-    """Verify Layer 4 Customer Advocate and formatters live in dedicated modules."""
+def test_customer_advocate_module_placement():
+    """Verify Layer 4 Customer Advocate lives in its dedicated module."""
     import backend.agent.customer_advocate as advocate
-    from backend.agent import formatters
 
-    assert hasattr(advocate, "check_small_cart_fee")
     assert hasattr(advocate, "extract_cart_to_pay_paise")
-    assert hasattr(formatters, "format_multi_store_split_receipt")
-    assert hasattr(formatters, "get_order_cancellation_instructions")
-    assert hasattr(formatters, "handle_post_order_addition")
 
 
 # ==============================================================================

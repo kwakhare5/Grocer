@@ -17,7 +17,6 @@ class InboundMessage:
     message_type: str
     text: str | None = None
     button_id: str | None = None
-    button_title: str | None = None
     latitude: float | None = None
     longitude: float | None = None
     raw_payload: dict[str, Any] | None = None
@@ -60,7 +59,6 @@ def parse_webhook_payload(payload: dict[str, Any]) -> tuple[str, list[InboundMes
 
                     text_val: str | None = None
                     btn_id: str | None = None
-                    btn_title: str | None = None
                     lat: float | None = None
                     lon: float | None = None
 
@@ -74,7 +72,6 @@ def parse_webhook_payload(payload: dict[str, Any]) -> tuple[str, list[InboundMes
                         if sub_type in ("button_reply", "list_reply"):
                             reply_obj = interactive.get(sub_type, {})
                             btn_id = reply_obj.get("id")
-                            btn_title = reply_obj.get("title")
                     elif raw_type == "location":
                         msg_type = "location"
                         loc = msg.get("location", {})
@@ -91,7 +88,6 @@ def parse_webhook_payload(payload: dict[str, Any]) -> tuple[str, list[InboundMes
                             message_type=msg_type,
                             text=text_val,
                             button_id=btn_id,
-                            button_title=btn_title,
                             latitude=lat,
                             longitude=lon,
                             raw_payload=msg,

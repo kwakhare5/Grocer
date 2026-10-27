@@ -10,6 +10,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from fixture_client import FixtureSwiggyClient
 
 from backend.agent.candidate_search import CandidateItem
 from backend.agent.read_actions import (
@@ -31,7 +32,6 @@ from backend.integrations.commerce.schemas import (
     TrackOrderData,
     TrackOrderStatus,
 )
-from backend.integrations.commerce.swiggy_client import SwiggyClient
 
 FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures"
 
@@ -139,7 +139,7 @@ async def test_track_order_with_no_active_order_says_so():
 
 @pytest.mark.asyncio
 async def test_store_info_is_honest_about_store_and_window():
-    client = SwiggyClient(fixtures_dir=FIXTURES_DIR)
+    client = FixtureSwiggyClient(FIXTURES_DIR)
     answer = await answer_read_capability(
         _decision(Capability.STORE_INFO), client, "addr_01HXYZ"
     )
@@ -229,7 +229,7 @@ class OutOfStockClient:
 
 @pytest.mark.asyncio
 async def test_view_basket_reads_the_live_cart():
-    client = SwiggyClient(fixtures_dir=FIXTURES_DIR)
+    client = FixtureSwiggyClient(FIXTURES_DIR)
     reply = await build_read_reply(
         _decision(Capability.VIEW_BASKET), client, "addr_01HXYZ"
     )

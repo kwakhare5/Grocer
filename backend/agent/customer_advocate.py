@@ -1,17 +1,15 @@
 """Grocer v1.0 — Customer Advocate Engine (Layer 4).
 
 Enforces:
-1. Small-Cart Fee Shock Protection (ADR 0009).
-2. Pure integer paise math discipline; zero floating-point formatting.
-3. Radical price transparency and wallet championship.
-4. Bounded coupon trial-and-reset with net-savings check (ADR 0004 & PRD 2.4).
-5. ₹1,000 launch safety cap enforcement with 1-tap Raise Limit action (ADR 0006).
+1. Pure integer paise math discipline; zero floating-point formatting.
+2. Radical price transparency and wallet championship.
+3. Bounded coupon trial-and-reset with net-savings check (ADR 0004 & PRD 2.4).
 """
 
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 import httpx
@@ -21,27 +19,6 @@ from backend.integrations.commerce.schemas import CartData
 from backend.integrations.commerce.swiggy_client import SwiggyClient
 
 logger = logging.getLogger("grocer.customer_advocate")
-
-DEFAULT_LAUNCH_CAP_PAISE = 100000  # ₹1,000 launch safety cap
-
-
-@dataclass
-class SmallCartFeeWarning:
-    item_total_paise: int
-    fee_paise: int
-    threshold_paise: int
-    shortfall_paise: int
-    warning_text: str
-    action_buttons: list[dict[str, str]] = field(default_factory=list)
-
-
-@dataclass
-class LaunchCapWarning:
-    current_to_pay_paise: int
-    cap_paise: int
-    excess_paise: int
-    warning_text: str
-    action_buttons: list[dict[str, str]] = field(default_factory=list)
 
 
 @dataclass
@@ -76,81 +53,6 @@ def extract_cart_to_pay_paise(cart: CartData) -> int:
 
     # Fallback: sum item totals in paise
     return sum(it.discounted_final_price_paise * it.quantity for it in cart.items)
-
-
-def check_small_cart_fee(
-    cart: CartData,
-    free_delivery_threshold_paise: int = 19900,  # ₹199 free delivery threshold
-) -> SmallCartFeeWarning | None:
-    """Warn customer if fees exceed 35% of item total (ADR 0009 Small-Cart Fee Shock)."""
-    item_total_paise = sum(it.discounted_final_price_paise * it.quantity for it in cart.items)
-    to_pay_paise = extract_cart_to_pay_paise(cart)
-    fee_paise = max(0, to_pay_paise - item_total_paise)
-
-    if item_total_paise <= 0:
-        return None
-
-    # Trigger warning strictly if fees exceed 35% of item total (ADR 0009 & ARCHITECTURE.md line 200)
-    is_fee_shock = (fee_paise * 100) > (item_total_paise * 35)
-    if not is_fee_shock:
-        return None
-
-    shortfall_paise = max(0, free_delivery_threshold_paise - item_total_paise)
-    item_rs = format_paise_to_rupees(item_total_paise)
-    fee_rs = format_paise_to_rupees(fee_paise)
-    total_rs = format_paise_to_rupees(to_pay_paise)
-    shortfall_rs = format_paise_to_rupees(shortfall_paise)
-
-    warning_text = (
-        f"⚠️ *Heads up:* Your item total is {item_rs}, but delivery and handling fees add {fee_rs} "
-        f"(Total: {total_rs}). Adding {shortfall_rs} more in groceries unlocks FREE delivery."
-    )
-
-    buttons = [
-        {"id": "cart:add_essentials", "title": "Add Daily Essentials"},
-        {"id": "cart:proceed_checkout", "title": f"Proceed for {total_rs}"},
-    ]
-
-    return SmallCartFeeWarning(
-        item_total_paise=item_total_paise,
-        fee_paise=fee_paise,
-        threshold_paise=free_delivery_threshold_paise,
-        shortfall_paise=shortfall_paise,
-        warning_text=warning_text,
-        action_buttons=buttons,
-    )
-
-
-def check_launch_safety_cap(
-    to_pay_paise: int,
-    cap_paise: int = DEFAULT_LAUNCH_CAP_PAISE,
-) -> LaunchCapWarning | None:
-    """Enforce ₹1,000 launch safety cap with 1-tap Raise Limit action button (ADR 0006)."""
-    if to_pay_paise <= cap_paise:
-        return None
-
-    excess_paise = to_pay_paise - cap_paise
-    cap_rs = format_paise_to_rupees(cap_paise)
-    total_rs = format_paise_to_rupees(to_pay_paise)
-    suggested_new_cap_paise = ((to_pay_paise // 50000) + 1) * 50000
-    suggested_rs = format_paise_to_rupees(suggested_new_cap_paise)
-
-    warning_text = (
-        f"⚠️ *Safety Limit:* Your order total is {total_rs}, exceeding the initial {cap_rs} "
-        f"safety limit. Tap below to raise your limit to {suggested_rs}."
-    )
-    buttons = [
-        {"id": f"budget:raise:{suggested_new_cap_paise}", "title": f"Raise Limit to {suggested_rs}"},
-        {"id": "cart:clear", "title": "Adjust Basket"},
-    ]
-
-    return LaunchCapWarning(
-        current_to_pay_paise=to_pay_paise,
-        cap_paise=cap_paise,
-        excess_paise=excess_paise,
-        warning_text=warning_text,
-        action_buttons=buttons,
-    )
 
 
 async def raise_session_budget_cap(

@@ -4,9 +4,7 @@ Enforces:
 1. Destructive Overwrite Safety: Reads get_cart(), merges existing items locally, and submits assembled target cart.
 2. Read-After-Write Verification: Full-basket diffing against verified cart to detect drops, quantity reductions, or reverts.
 3. Out-of-Stock Reconciliation: Missing items are rendered under "⚠️ *Not added (Out of stock)*" receipt cards.
-4. Top 3-5 Go-To Items Proposal (ADR 0008:10): Surfaces top frequent SKUs with [Add All to Basket] button.
-5. Address Switching Mid-Basket (ADR 0007): Warns, clears cart, and rebuilds available items at new store.
-6. Integer Paise Math Discipline: Zero floating-point money calculations.
+4. Integer Paise Math Discipline: Zero floating-point money calculations.
 """
 
 from __future__ import annotations
@@ -18,7 +16,7 @@ from typing import Any
 import httpx
 
 from backend.agent.candidate_evaluator import format_paise_to_rupees
-from backend.integrations.commerce.schemas import CartData, CartItem
+from backend.integrations.commerce.schemas import CartData
 
 logger = logging.getLogger("grocer.composite_cart")
 
@@ -37,8 +35,6 @@ class TargetCartItem:
 @dataclass
 class CartReconciliationResult:
     cart: CartData
-    requested_items: list[TargetCartItem]
-    added_items: list[CartItem]
     dropped_out_of_stock: list[TargetCartItem]
     reduced_quantity: list[dict[str, Any]] = field(default_factory=list)
     capped_items: list[dict[str, Any]] = field(default_factory=list)
@@ -46,20 +42,6 @@ class CartReconciliationResult:
     baseline_count: int = 0
     baseline_to_pay: str | None = None
     receipt_text: str = ""
-
-
-@dataclass
-class AddressSwitchPlan:
-    has_active_basket: bool
-    confirm_action_id: str
-    prompt_text: str
-
-
-@dataclass
-class GoToItemsProposal:
-    card_text: str
-    action_id: str
-    items: list[TargetCartItem]
 
 
 def format_cart_receipt(
@@ -292,8 +274,6 @@ class CompositeCartManager:
 
         return CartReconciliationResult(
             cart=final_cart,
-            requested_items=items_to_add,
-            added_items=final_cart.items,
             dropped_out_of_stock=dropped_out_of_stock,
             reduced_quantity=reduced_quantity,
             capped_items=capped_items,
@@ -301,102 +281,4 @@ class CompositeCartManager:
             baseline_count=baseline_count,
             baseline_to_pay=baseline_to_pay,
             receipt_text=receipt,
-        )
-
-    def propose_go_to_items(
-        self,
-        address_id: str | None = None,
-    ) -> GoToItemsProposal:
-        """Surface customer's top 3–5 frequently ordered SKUs in a structured card (ADR 0008:10)."""
-        go_to_data = self.client.your_go_to_items(address_id=address_id)
-        candidates: list[TargetCartItem] = []
-
-        lines = ["📋 *Your Go-To Items (Frequent Staples)*"]
-        count = 0
-        for prod in go_to_data.products:
-            for v in prod.variations:
-                if count >= 5:
-                    break
-                paise = round(v.price.offerPrice * 100)
-                formatted_p = format_paise_to_rupees(paise)
-                lines.append(
-                    f"• {v.displayName} ({v.quantityDescription}) — {formatted_p}"
-                )
-                candidates.append(
-                    TargetCartItem(
-                        spin_id=v.spinId,
-                        sku_id=v.skuId,
-                        quantity=1,
-                        item_name=v.displayName,
-                        price_paise=paise,
-                    )
-                )
-                count += 1
-            if count >= 5:
-                break
-
-        lines.append("\nTap below to reorder your staples in one tap.")
-        return GoToItemsProposal(
-            card_text="\n".join(lines),
-            action_id="goto:add_all",
-            items=candidates,
-        )
-
-    def reorder_go_to_items(
-        self,
-        address_id: str | None = None,
-    ) -> CartReconciliationResult:
-        """Add top 3–5 frequent SKUs to basket with graceful partial stock handling (ADR 0008/0010)."""
-        proposal = self.propose_go_to_items(address_id=address_id)
-        return self.assemble_and_update_cart(
-            items_to_add=proposal.items,
-            address_id=address_id,
-        )
-
-    def plan_address_switch(
-        self,
-        new_address_id: str,
-        current_address_name: str = "",
-        new_address_name: str = "",
-    ) -> AddressSwitchPlan:
-        """Warn user about dark store inventory change when switching address mid-basket (ADR 0007)."""
-        current_cart = self.client.get_cart()
-        has_items = bool(current_cart.items)
-
-        prompt = (
-            f"You have items in your basket. Changing delivery address to {new_address_name} "
-            f"switches to a different dark store where item availability and prices may vary. "
-            f"Would you like to rebuild your basket at the new location?"
-            if has_items
-            else f"Switching delivery address to {new_address_name}."
-        )
-
-        return AddressSwitchPlan(
-            has_active_basket=has_items,
-            confirm_action_id=f"switch_rebuild:{new_address_id}",
-            prompt_text=f"{prompt}\n[Switch & Rebuild Basket] [Keep Current Address]",
-        )
-
-    def execute_address_switch(
-        self,
-        new_address_id: str,
-    ) -> CartReconciliationResult:
-        """Clear old cart and rebuild basket under new address dark store (ADR 0007)."""
-        prev_cart = self.client.get_cart()
-        prev_items = [
-            TargetCartItem(
-                spin_id=it.spinId,
-                quantity=it.quantity,
-                item_name=it.itemName,
-                price_paise=it.discounted_final_price_paise,
-                sku_id=it.skuId,
-            )
-            for it in prev_cart.items
-        ]
-
-        self.client.clear_cart()
-
-        return self.assemble_and_update_cart(
-            items_to_add=prev_items,
-            address_id=new_address_id,
         )

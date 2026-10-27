@@ -20,7 +20,6 @@ class Settings(BaseSettings):
     # Core Application
     APP_NAME: str = "Grocer"
     ENVIRONMENT: str = "development"
-    LOG_LEVEL: str = "INFO"
 
     # Meta WhatsApp Cloud API
     WHATSAPP_PHONE_NUMBER_ID: str = Field(
@@ -62,21 +61,15 @@ class Settings(BaseSettings):
     )
 
     # Swiggy MCP & OAuth
-    COMMERCE_ADAPTER_TYPE: str = "swiggy_mcp"
     SWIGGY_REDIRECT_URI: str = "https://grocerr.vercel.app/"
     SWIGGY_MCP_BASE_URL: str = "https://mcp.swiggy.com"
 
     # Safety Caps (Integer Paise strictly: ₹1 = 100 paise)
     LIVE_CHECKOUT_ENABLED: bool = False  # Deploy lock: no real order unless explicitly enabled
     DEFAULT_BUDGET_CAP_PAISE: int = 100000  # ₹1,000 launch safety cap
-    PRICE_DRIFT_THRESHOLD_PAISE: int = 100  # ₹1 price drift abort latch
-    APPROVAL_EXPIRY_SECONDS: int = 600  # 10-minute approval TTL
-    DPDP_RETENTION_HOURS: int = 24  # 24h data minimization
 
     # Deployment
-    INTENT_BACKEND_URL: str = "https://grocer-backend-qwk4.onrender.com"
     CORS_ALLOWED_ORIGINS: str = "https://grocerr.vercel.app"
-    RENDER_API_KEY: str | None = None
 
 
 # Authoritative settings singleton

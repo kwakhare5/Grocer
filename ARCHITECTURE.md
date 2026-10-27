@@ -71,8 +71,8 @@ flowchart TD
 
     subgraph L4["Layer 4: Customer Advocate Engine (Wallet Champion)"]
         direction TB
-        COMPOSITE --> ADVOCATE["customer_advocate.py\n- Bounded Coupon Trial (Max 2)\n- Net-Savings Guardrail (never increase bill)\n- Small-Cart Fee Warning (if fees > 35%)\n- Pure Integer Paise Math"]
-        ADVOCATE --> RECEIPT["formatters.py\n- Verified Cart Receipt\n- Physical [Pay ₹X] CTA URL Button"]
+        COMPOSITE --> ADVOCATE["customer_advocate.py\n- Bounded Coupon Trial (Max 2)\n- Net-Savings Guardrail (never increase bill)\n- Pure Integer Paise Math"]
+        ADVOCATE --> RECEIPT["composite_cart.py receipt\n- Verified cart or delta\n- Physical [Pay ₹X] CTA URL Button"]
     end
 
     subgraph L5["Layer 5: 3-Lock Payment Gate (The Vault)"]
@@ -243,7 +243,7 @@ sequenceDiagram
   - Current scope: coupon optimization runs on the add-items path only, not reorder or checkout.
 - **Small-Cart Fee Shock Protection (ADR 0009):**
   - Target: when delivery, handling, or small-order fees exceed 35% of the item total, warn the customer and suggest essentials.
-  - Current: the helper exists but has no caller. It does not run.
+  - Current: not built. The dead helper was removed in the 2026-10-27 cleanup; the live flow belongs in Phase 7 Batch 3.
 - **Pure Integer Paise Math:**
   - All currency calculations use integer paise (`to_pay_paise: int`, ₹1 = 100 paise). Floating-point math is banned.
 
@@ -434,10 +434,9 @@ backend/
 │   ├── approval.py             # Paise math, fingerprint, approval latch
 │   ├── checkout_executor.py    # 3-lock checkout, settlement, pollers
 │   ├── composite_cart.py       # Target cart assembly, read-after-write
-│   ├── customer_advocate.py    # Coupons and small-cart fee warning
+│   ├── customer_advocate.py    # Coupons and integer paise math
 │   ├── delivery_tracker.py     # Milestone notifications
 │   ├── dpdp.py                 # 24-hour scrubber and data deletion
-│   └── formatters.py           # Receipt and message formatting
 │
 ├── integrations/commerce/      # Swiggy Instamart gateway (20 tools)
 │   ├── swiggy_client.py        # JSON-RPC transport and tool methods

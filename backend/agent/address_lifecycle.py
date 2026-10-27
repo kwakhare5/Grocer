@@ -13,7 +13,6 @@ from __future__ import annotations
 import json
 import logging
 import re
-import secrets
 import uuid
 from dataclasses import dataclass, field
 from enum import Enum
@@ -22,7 +21,6 @@ from typing import Any
 import asyncpg
 
 from backend.database import get_db_pool
-from backend.integrations.commerce.schemas import GetAddressesData
 
 logger = logging.getLogger("grocer.address_lifecycle")
 
@@ -253,92 +251,10 @@ class DeletionCheckResult:
     can_delete: bool
     active_order_id: str | None = None
     block_reason: str = ""
-    confirmation_action_id: str = ""
-    confirmation_label: str = ""
-
-
-class OneTimeDestinationSession:
-    """Manages delivery address destination for remote orders (ADR 0009)."""
-
-    def __init__(self, primary_address_id: str) -> None:
-        self.primary_address_id = primary_address_id
-        self.one_time_destination_id: str | None = None
-
-    @property
-    def active_delivery_address_id(self) -> str:
-        return self.one_time_destination_id or self.primary_address_id
-
-    def set_one_time_destination(self, destination_id: str) -> None:
-        self.one_time_destination_id = destination_id
-
-    def reset_after_order(self) -> None:
-        self.one_time_destination_id = None
 
 
 class TokenParkedRequestManager:
     """Parks pending commerce requests upon 401 token expiry into PostgreSQL and replays on auth (ADR 0010)."""
-
-    def __init__(self) -> None:
-        self._memory_backup: dict[str, dict[str, Any]] = {}
-
-    async def park_request(
-        self,
-        user_id: uuid.UUID | str,
-        action: str,
-        payload: dict[str, Any],
-    ) -> str:
-        """Park uncommitted request in grocer.inbound_messages (status='awaiting_link')."""
-        uid = _as_uuid(user_id)
-        token = secrets.token_urlsafe(16)
-        pack = {"action": action, "payload": payload, "token": token}
-
-        if uid is not None:
-            try:
-                pool = await get_db_pool()
-                wa_msg_id = f"parked_{uid}_{secrets.token_hex(4)}"
-                await pool.execute(
-                    """
-                    INSERT INTO grocer.inbound_messages (wa_message_id, user_id, message_type, raw_payload, status)
-                    VALUES ($1, $2, 'awaiting_link', $3::jsonb, 'awaiting_link');
-                    """,
-                    wa_msg_id,
-                    uid,
-                    json.dumps(pack),
-                )
-            except (asyncpg.PostgresError, OSError, ConnectionError):
-                self._memory_backup[str(user_id)] = pack
-        else:
-            self._memory_backup[str(user_id)] = pack
-
-        return token
-
-    async def has_parked_request(self, user_id: uuid.UUID | str) -> bool:
-        """Check if an un-replayed parked request exists."""
-        uid = _as_uuid(user_id)
-        if uid is not None:
-            try:
-                pool = await get_db_pool()
-                row = await pool.fetchrow(
-                    """
-                    SELECT id FROM grocer.inbound_messages
-                    WHERE user_id = $1 AND status = 'awaiting_link'
-                    LIMIT 1;
-                    """,
-                    uid,
-                )
-                if row:
-                    return True
-            except (asyncpg.PostgresError, OSError, ConnectionError):
-                pass
-
-        return str(user_id) in self._memory_backup
-
-    def get_reconnect_button_payload(self, parked_token: str) -> dict[str, str]:
-        """Generate WhatsApp CTA button payload (ADR 0010)."""
-        return {
-            "title": "Reconnect Swiggy",
-            "action_id": f"connect_swiggy:{parked_token}",
-        }
 
     async def pop_parked_request(
         self, user_id: uuid.UUID | str
@@ -368,8 +284,7 @@ class TokenParkedRequestManager:
             except (asyncpg.PostgresError, OSError, ConnectionError):
                 pass
 
-        pack = self._memory_backup.pop(str(user_id), None)
-        return (None, pack) if pack else None
+        return None
 
     async def restore_parked(self, row_id: Any) -> None:
         """Put a claimed request back when replay could not run."""
@@ -403,9 +318,6 @@ class AddressLifecycleManager:
     def __init__(self, swiggy_client: Any) -> None:
         self.client = swiggy_client
 
-    def list_addresses(self, page: int = 1, page_size: int = 10) -> GetAddressesData:
-        return self.client.get_addresses(page=page, page_size=page_size)
-
     def can_delete_address(self, address_id: str) -> DeletionCheckResult:
         """Check if an address can be safely deleted or is locked by an active delivery (ADR 0007)."""
         orders_data = self.client.get_orders(count=20, order_type="INSTAMART", active_only=True)
@@ -429,28 +341,4 @@ class AddressLifecycleManager:
                     block_reason=f"Cannot delete address while an active delivery (#{order.orderId}) is in transit to it.",
                 )
 
-        # Lookup address label for button presentation
-        label = "Address"
-        try:
-            addr_list = self.client.get_addresses(page=1, page_size=20)
-            for a in addr_list.addresses:
-                if a.id == address_id:
-                    label = a.addressTag or a.addressCategory or "Address"
-                    break
-        except (KeyError, ValueError, AttributeError):
-            label = "Address"
-
-        return DeletionCheckResult(
-            can_delete=True,
-            confirmation_action_id=f"delete_address_confirm:{address_id}",
-            confirmation_label=f"Confirm Delete: {label}",
-        )
-
-    def confirm_delete_address(self, address_id: str) -> bool:
-        """Enforce deletion guardrail before triggering delete_address MCP tool."""
-        check = self.can_delete_address(address_id)
-        if not check.can_delete:
-            raise ValueError(check.block_reason)
-
-        self.client.delete_address(address_id=address_id)
-        return True
+        return DeletionCheckResult(can_delete=True)

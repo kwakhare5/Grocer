@@ -313,11 +313,8 @@ async def dispatch_button_action(
 
     # 3. Delivery Address Switch / Delete confirmation tap
     if prefix == "addr":
-        from backend.agent.address_actions import (
-            AddressReply,
-            apply_delete,
-            apply_switch,
-        )
+        from backend.agent.address_actions import apply_delete, apply_switch
+        from backend.agent.read_actions import ReadReply
         from backend.channels.whatsapp_client import WhatsAppClient
         from backend.integrations.commerce.swiggy_client import SwiggyClient
         from backend.integrations.commerce.token_vault import resolve_user_token
@@ -352,7 +349,7 @@ async def dispatch_button_action(
             if client is None:
                 token = await resolve_user_token(user_id)
                 if not token:
-                    reply = AddressReply(
+                    reply = ReadReply(
                         "Your Swiggy login has expired. Please reconnect your account."
                     )
                     asyncio.create_task(
@@ -477,14 +474,14 @@ async def dispatch_button_action(
         from backend.agent.candidate_evaluator import format_paise_to_rupees
         from backend.agent.checkout_executor import DEFAULT_LAUNCH_CAP_PAISE
 
-        # Current format: raise:<approval_id>:<paise>. Legacy: raise:<paise>.
         parts = target_arg.split(":")
-        if len(parts) == 3:
-            approval_id, limit_text = parts[1], parts[2]
-        elif len(parts) == 2:
-            approval_id, limit_text = None, parts[1]
-        else:
-            approval_id, limit_text = None, ""
+        if len(parts) != 3:
+            return {
+                "status": "button_ignored",
+                "action": button_id,
+                "message": "That limit change did not go through. Nothing was changed.",
+            }
+        approval_id, limit_text = parts[1], parts[2]
 
         new_limit = int(limit_text) if limit_text.isdigit() else None
         if new_limit is None or not (DEFAULT_LAUNCH_CAP_PAISE < new_limit <= 10000000):

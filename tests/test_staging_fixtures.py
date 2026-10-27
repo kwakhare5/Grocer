@@ -9,6 +9,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from fixture_client import FixtureSwiggyClient
+
 from backend.integrations.commerce.schemas import (
     CartData,
     CheckoutData,
@@ -308,9 +310,8 @@ def test_zero_mocks_invariant():
 # 7. Gate 1: new client tool methods against committed real fixtures
 def test_client_get_payment_options_report_error_confirm_order():
     """Gate 1: get_payment_options, report_error, and confirm_order(paasId) parse real fixtures."""
-    from backend.integrations.commerce.swiggy_client import SwiggyClient
 
-    client = SwiggyClient(fixtures_dir=FIXTURES_DIR)
+    client = FixtureSwiggyClient(FIXTURES_DIR)
 
     opts = client.get_payment_options()
     assert opts.placeOrderToolName == "checkout"

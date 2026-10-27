@@ -53,27 +53,6 @@ def resolve_delivery_milestone(
     return MILESTONE_CONFIRMED
 
 
-def should_send_milestone_push(
-    last_milestone: str | None,
-    new_milestone: str,
-) -> bool:
-    """Anti-spam guardrail: strictly push only when milestone state advances."""
-    if last_milestone == new_milestone:
-        return False
-
-    order_hierarchy = {
-        None: 0,
-        MILESTONE_CONFIRMED: 1,
-        MILESTONE_PICKED_UP: 2,
-        MILESTONE_DELIVERED: 3,
-    }
-
-    last_rank = order_hierarchy.get(last_milestone, 0)
-    new_rank = order_hierarchy.get(new_milestone, 0)
-
-    return new_rank > last_rank
-
-
 def format_milestone_notification(
     order_id: str,
     milestone: str,

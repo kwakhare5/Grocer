@@ -3,11 +3,8 @@
 :root {
   --background: #0a0a0b;
   --foreground: #f4f4f5;
-  --surface: #121215;
-  --surface-hover: #18181c;
   --border: rgba(255, 255, 255, 0.08);
   --border-focus: rgba(255, 255, 255, 0.2);
-  --brand: #fc8019;
 }
 
 body {

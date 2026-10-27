@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { MessageSquare, ArrowRight, ShieldCheck, Zap, Sparkles, CheckCircle2, Lock, ShoppingBag, ExternalLink } from "lucide-react";
+import { useState, useEffect } from "react";
+import { MessageSquare, ArrowRight, ShieldCheck, Zap, Sparkles, CheckCircle2, Lock, ShoppingBag } from "lucide-react";
 
 export default function Home() {
   const [linkToken, setLinkToken] = useState<string | null>(null);
@@ -10,41 +10,36 @@ export default function Home() {
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Check query params on mount (for Swiggy OAuth redirect & ticket handling)
+  // Check query params on mount (Swiggy OAuth redirect and bot link)
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      const code = params.get("code");
-      const state = params.get("state");
-      const ticket = params.get("ticket") || params.get("connect_ticket");
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get("code");
+    const state = params.get("state");
 
-      if (code && state) {
-        setIsLoading(true);
-        window.history.replaceState({}, "", window.location.pathname);
-        fetch("/api/auth/swiggy/callback", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ code, state }),
+    if (code && state) {
+      setIsLoading(true);
+      window.history.replaceState({}, "", window.location.pathname);
+      fetch("/api/auth/swiggy/callback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code, state }),
+      })
+        .then(async (res) => {
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || "Failed to exchange authorization code");
+          setIsConnected(true);
+          setStatusMessage("Swiggy account linked successfully! You can now order directly on WhatsApp.");
         })
-          .then(async (res) => {
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.error || "Failed to exchange authorization code");
-            setIsConnected(true);
-            setStatusMessage("Swiggy account linked successfully! You can now order directly on WhatsApp.");
-          })
-          .catch((err) => {
-            setErrorMessage(err.message || "Failed to link Swiggy account. Please try again.");
-          })
-          .finally(() => setIsLoading(false));
-      } else if (ticket) {
-        setStatusMessage("WhatsApp session detected. Click below to authorize Swiggy.");
-      }
+        .catch((err) => {
+          setErrorMessage(err.message || "Failed to link Swiggy account. Please try again.");
+        })
+        .finally(() => setIsLoading(false));
+    }
 
-      const link = params.get("t");
-      if (link) {
-        setLinkToken(link);
-        setStatusMessage("Open from WhatsApp confirmed. Tap below to authorize Swiggy.");
-      }
+    const link = params.get("t");
+    if (link) {
+      setLinkToken(link);
+      setStatusMessage("Open from WhatsApp confirmed. Tap below to authorize Swiggy.");
     }
   }, []);
 

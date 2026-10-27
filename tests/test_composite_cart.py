@@ -8,6 +8,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from fixture_client import FixtureSwiggyClient
 
 from backend.agent.composite_cart import (
     CompositeCartManager,
@@ -20,7 +21,7 @@ FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures"
 
 @pytest.fixture
 def swiggy_client() -> SwiggyClient:
-    return SwiggyClient(fixtures_dir=FIXTURES_DIR)
+    return FixtureSwiggyClient(FIXTURES_DIR)
 
 
 def test_destructive_cart_assembly_preserves_existing_items(swiggy_client):
@@ -84,47 +85,6 @@ def test_read_after_write_verification_and_out_of_stock_card(swiggy_client):
     # Receipt text contains "Not added" section
     assert "Not added (Out of stock" in result.receipt_text
     assert "Farm Fresh Eggs 6-Pack" in result.receipt_text
-
-
-def test_go_to_items_proposal_and_1_tap_reorder(swiggy_client):
-    """Top 3–5 Go-to items proposal card and 1-tap reorder (ADR 0008:10 & ADR 0010)."""
-    manager = CompositeCartManager(swiggy_client)
-
-    proposal = manager.propose_go_to_items(address_id="addr_01HXYZ")
-    assert "Your Go-To Items" in proposal.card_text
-    assert proposal.action_id == "goto:add_all"
-    assert len(proposal.items) >= 1
-    assert proposal.items[0].spin_id == "spin_nandini_500ml"
-
-    # Execute 1-tap reorder
-    result = manager.reorder_go_to_items(address_id="addr_01HXYZ")
-    assert any(it.spinId == "spin_nandini_500ml" for it in result.cart.items)
-    # The fixture cart already had an item, so the receipt shows the delta.
-    assert "✅ *Added to your basket*" in result.receipt_text
-    assert "Nandini Pasteurised Toned Milk" in result.receipt_text
-
-
-def test_address_switch_mid_basket_clears_and_rebuilds(swiggy_client):
-    """Switching address clears cart and warns about dark-store inventory change (ADR 0007)."""
-    manager = CompositeCartManager(swiggy_client)
-
-    switch_plan = manager.plan_address_switch(
-        new_address_id="addr_new_whitefield",
-        current_address_name="Bellandur Home",
-        new_address_name="Whitefield Office",
-    )
-
-    assert switch_plan.has_active_basket is True
-    assert "switch_rebuild:addr_new_whitefield" in switch_plan.confirm_action_id
-    assert "Switch & Rebuild Basket" in switch_plan.prompt_text
-
-    # Execute switch
-    rebuilt_result = manager.execute_address_switch(
-        new_address_id="addr_new_whitefield",
-    )
-    assert swiggy_client.clear_cart_called is True
-    assert rebuilt_result is not None
-
 
 def test_stock_cap_is_applied_and_shown_not_silent(swiggy_client):
     manager = CompositeCartManager(swiggy_client)

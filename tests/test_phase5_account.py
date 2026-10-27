@@ -14,13 +14,13 @@ from typing import Any
 import pytest
 
 from backend.agent.address_actions import (
-    AddressReply,
     apply_delete,
     apply_switch,
     ensure_active_address,
     resolve_default_address,
 )
 from backend.agent.address_lifecycle import AddressOnboardingFlow, OnboardingStep
+from backend.agent.read_actions import ReadReply
 from backend.channels.link_tokens import issue_link_token, verify_link_token
 from backend.channels.swiggy_auth import replay_parked_request
 from backend.config import settings
@@ -241,7 +241,7 @@ async def test_switch_clears_and_rebuilds_at_the_new_store():
             user_id,
         )
 
-    assert isinstance(reply, AddressReply)
+    assert isinstance(reply, ReadReply)
     assert saved == "addr_new"
     assert client.clear_calls == 1
     items, address_id = client.last_update

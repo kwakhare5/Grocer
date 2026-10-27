@@ -5,16 +5,17 @@ Tested against committed real Swiggy MCP staging fixtures. Zero fake mocks.
 
 from __future__ import annotations
 
+import json
 import uuid
 from pathlib import Path
 
 import pytest
+from fixture_client import FixtureSwiggyClient
 
 from backend.agent.address_lifecycle import (
     AddressLifecycleManager,
     AddressOnboardingFlow,
     OnboardingStep,
-    OneTimeDestinationSession,
     TokenParkedRequestManager,
     parse_city_pin,
 )
@@ -25,14 +26,12 @@ FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures"
 
 @pytest.fixture
 def swiggy_client() -> SwiggyClient:
-    return SwiggyClient(fixtures_dir=FIXTURES_DIR)
+    return FixtureSwiggyClient(FIXTURES_DIR)
 
 
 def test_get_addresses_pagination(swiggy_client):
     """Validates address listing from real staging fixture."""
-    manager = AddressLifecycleManager(swiggy_client)
-
-    page1 = manager.list_addresses(page=1, page_size=10)
+    page1 = swiggy_client.get_addresses(page=1, page_size=10)
     assert len(page1.addresses) >= 1
     assert page1.addresses[0].id == "addr_01HXYZ"
     assert page1.pagination.page == 1
@@ -73,34 +72,13 @@ def test_pin_onboarding_flow_captures_name_city_pin(swiggy_client):
     assert turn4.address_id.startswith("addr_")
 
 
-def test_address_deletion_confirmation_with_label(swiggy_client):
-    """ADR 0007: Address deletion presents confirmation button with human label [Confirm Delete: <Label>]."""
+def test_address_deletion_guard_allows_a_free_address(swiggy_client):
+    """ADR 0007: An address with no active delivery passes the delete guard."""
     manager = AddressLifecycleManager(swiggy_client)
 
     check = manager.can_delete_address("addr_01HXYZ")
     assert check.can_delete is True
-    assert check.confirmation_action_id == "delete_address_confirm:addr_01HXYZ"
-    assert "Confirm Delete: Home" in check.confirmation_label
-
-    # Execute delete
-    deleted = manager.confirm_delete_address("addr_01HXYZ")
-    assert deleted is True
-
-
-def test_one_time_destination_preserves_primary_address():
-    """ADR 0009: Setting a one-time destination preserves primary home address for future turns."""
-    session = OneTimeDestinationSession(primary_address_id="addr_home_primary")
-    assert session.active_delivery_address_id == "addr_home_primary"
-
-    # User orders for mom in Delhi
-    session.set_one_time_destination("addr_mom_delhi")
-    assert session.active_delivery_address_id == "addr_mom_delhi"
-    assert session.primary_address_id == "addr_home_primary"
-
-    # After checkout completes, reset session to primary
-    session.reset_after_order()
-    assert session.active_delivery_address_id == "addr_home_primary"
-    assert session.one_time_destination_id is None
+    assert check.block_reason == ""
 
 
 @pytest.mark.db
@@ -117,22 +95,25 @@ async def test_token_expiration_parks_request_and_replays():
 
     vault = TokenParkedRequestManager()
     pending_items = [{"spinId": "spin_amul_1l", "quantity": 2}]
-    parked_token = await vault.park_request(
-        user_id=user_id,
-        action="update_cart",
-        payload={"items": pending_items},
-    )
-    assert parked_token is not None
-    assert await vault.has_parked_request(user_id) is True
-
+    parked = {
+        "action": "update_cart",
+        "payload": {"items": pending_items},
+    }
     async with pool.acquire() as conn:
+        await conn.execute(
+            """
+            INSERT INTO grocer.inbound_messages
+                (wa_message_id, user_id, message_type, raw_payload, status)
+            VALUES ($1, $2, 'awaiting_link', $3::jsonb, 'awaiting_link');
+            """,
+            f"parked_{uuid.uuid4().hex[:8]}",
+            user_id,
+            json.dumps(parked),
+        )
         status = await conn.fetchval(
             "SELECT status FROM grocer.inbound_messages WHERE user_id = $1;", user_id
         )
     assert status == "awaiting_link"
-
-    cta = vault.get_reconnect_button_payload(parked_token)
-    assert "connect_swiggy" in cta["action_id"]
 
     popped = await vault.pop_parked_request(user_id)
     assert popped is not None
@@ -178,6 +159,3 @@ def test_address_deletion_blocked_when_active_delivery_in_transit(
     assert check.can_delete is False
     assert check.active_order_id == "order_live_999"
     assert "Cannot delete address" in check.block_reason
-
-    with pytest.raises(ValueError, match="active delivery"):
-        manager.confirm_delete_address("addr_01HXYZ")

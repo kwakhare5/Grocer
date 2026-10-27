@@ -16,7 +16,6 @@ import httpx
 from backend.agent.candidate_evaluator import format_paise_to_rupees
 from backend.agent.candidate_search import search_catalog_full
 from backend.agent.composite_cart import format_cart_receipt
-from backend.agent.formatters import SWIGGY_CARE_PHONE
 from backend.agent.router import Capability, RoutingDecision
 from backend.integrations.commerce.swiggy_client import (
     SwiggyAuthExpiredError,
@@ -24,6 +23,8 @@ from backend.integrations.commerce.swiggy_client import (
 )
 
 logger = logging.getLogger("grocer.read_actions")
+
+SWIGGY_CARE_PHONE = "080-67466729"
 
 NOT_READY_REPLY = (
     "I can't do that yet. Right now I can check prices and stock, show your "

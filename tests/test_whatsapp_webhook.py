@@ -17,12 +17,12 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from fixture_client import FixtureSwiggyClient
 
 from backend.channels.link_tokens import verify_link_token
 from backend.channels.whatsapp import _park_and_prompt, handle_webhook
 from backend.config import settings
 from backend.database import get_db_pool
-from backend.integrations.commerce.swiggy_client import SwiggyClient
 
 FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures"
 
@@ -116,7 +116,7 @@ def _new_wa_id() -> str:
 async def test_duplicate_tap_is_dropped_before_it_runs_twice():
     wa_id = _new_wa_id()
     wamid = f"wamid.{uuid.uuid4()}"
-    client = SwiggyClient(fixtures_dir=FIXTURES_DIR)
+    client = FixtureSwiggyClient(FIXTURES_DIR)
     outbound = RecordingWA()
     payload = _message(wa_id, wamid=wamid, button_id="cart:add:spin_test_cookie:1")
 
@@ -144,7 +144,7 @@ async def test_pay_tap_while_locked_never_calls_swiggy():
     outbound = RecordingWA()
     approval_id = str(uuid.uuid4())
 
-    class SpyClient(SwiggyClient):
+    class SpyClient(FixtureSwiggyClient):
         checkout_calls = 0
 
         def checkout(self, *args: Any, **kwargs: Any):  # pragma: no cover - must not run
@@ -202,7 +202,7 @@ async def test_keep_only_new_button_rebuilds_and_reissues_pay():
     pool = await get_db_pool()
     wa_id = _new_wa_id()
     outbound = RecordingWA()
-    client = SwiggyClient(fixtures_dir=FIXTURES_DIR)
+    client = FixtureSwiggyClient(FIXTURES_DIR)
 
     async with pool.acquire() as conn:
         user_id = await conn.fetchval(

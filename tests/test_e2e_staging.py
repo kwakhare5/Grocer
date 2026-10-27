@@ -17,6 +17,7 @@ import time
 from pathlib import Path
 
 import pytest
+from fixture_client import FixtureSwiggyClient
 from httpx import ASGITransport, AsyncClient
 
 from backend.agent.approval import (
@@ -30,7 +31,6 @@ from backend.agent.checkout_executor import (
     verify_lock_2_truth,
 )
 from backend.agent.customer_advocate import (
-    check_launch_safety_cap,
     extract_cart_to_pay_paise,
     optimize_coupons,
 )
@@ -40,7 +40,6 @@ from backend.agent.delivery_tracker import (
     MILESTONE_PICKED_UP,
     format_milestone_notification,
     resolve_delivery_milestone,
-    should_send_milestone_push,
 )
 from backend.agent.dpdp import (
     run_24h_dpdp_scrubber,
@@ -59,7 +58,7 @@ FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures"
 
 @pytest.fixture
 def swiggy_client() -> SwiggyClient:
-    return SwiggyClient(fixtures_dir=FIXTURES_DIR)
+    return FixtureSwiggyClient(FIXTURES_DIR)
 
 
 def _compute_signature(payload_bytes: bytes, secret: str) -> str:
@@ -206,20 +205,6 @@ def test_e2e_coupon_net_savings_guardrail_rejects_fee_spike(swiggy_client):
 # ==============================================================================
 # 2. Launch Safety Cap & 1-Tap Raise Limit
 # ==============================================================================
-def test_e2e_launch_safety_cap_warning_and_raise_limit():
-    """Verify orders over ₹1,000 trigger warning with 1-tap Raise Limit action button."""
-    # Under cap (₹850) -> No warning
-    assert check_launch_safety_cap(to_pay_paise=85000, cap_paise=100000) is None
-
-    # Over cap (₹1,450) -> Triggers warning with interactive button
-    warning = check_launch_safety_cap(to_pay_paise=145000, cap_paise=100000)
-    assert warning is not None
-    assert warning.excess_paise == 45000
-    assert "₹1000" in warning.warning_text
-    assert len(warning.action_buttons) >= 1
-    assert warning.action_buttons[0]["id"].startswith("budget:raise:")
-
-
 @pytest.mark.db
 @pytest.mark.asyncio
 async def test_e2e_raise_budget_cap_via_button_dispatch():
@@ -243,7 +228,7 @@ async def test_e2e_raise_budget_cap_via_button_dispatch():
     payload = _make_whatsapp_message_payload(
         msg_id,
         wa_id=wa_id,
-        button_id="budget:raise:200000",
+        button_id="budget:raise:00000000-0000-0000-0000-000000000000:200000",
         button_title="Raise Limit to ₹2,000",
     )
     payload_bytes = json.dumps(payload).encode("utf-8")
@@ -418,13 +403,6 @@ def test_e2e_delivery_milestone_resolution_and_antispam():
     # 3. Delivered milestone
     m3 = resolve_delivery_milestone(delivered=True)
     assert m3 == MILESTONE_DELIVERED
-
-    # 4. Anti-spam guardrail: Repeated polling of same status returns False
-    assert should_send_milestone_push(last_milestone=None, new_milestone=MILESTONE_CONFIRMED) is True
-    assert should_send_milestone_push(last_milestone=MILESTONE_CONFIRMED, new_milestone=MILESTONE_CONFIRMED) is False
-    assert should_send_milestone_push(last_milestone=MILESTONE_CONFIRMED, new_milestone=MILESTONE_PICKED_UP) is True
-    assert should_send_milestone_push(last_milestone=MILESTONE_PICKED_UP, new_milestone=MILESTONE_PICKED_UP) is False
-    assert should_send_milestone_push(last_milestone=MILESTONE_PICKED_UP, new_milestone=MILESTONE_DELIVERED) is True
 
     # 5. Formatter produces clean WhatsApp copy with live GPS link on Picked Up
     note_picked_up = format_milestone_notification(

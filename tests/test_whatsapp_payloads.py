@@ -6,6 +6,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
+from fixture_client import FixtureSwiggyClient
 
 from backend.channels.whatsapp import _basket_notice
 from backend.channels.whatsapp_client import (
@@ -62,9 +63,8 @@ def test_cta_payload_requires_https():
 
 
 def test_old_basket_is_mentioned_only_after_an_idle_hour():
-    from backend.integrations.commerce.swiggy_client import SwiggyClient
 
-    cart = SwiggyClient(fixtures_dir=Path(__file__).parent / "fixtures").get_cart(
+    cart = FixtureSwiggyClient(Path(__file__).parent / "fixtures").get_cart(
         "addr_01HXYZ"
     )
     old = datetime.now(timezone.utc) - timedelta(hours=2)

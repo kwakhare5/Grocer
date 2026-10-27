@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from fixture_client import FixtureSwiggyClient
 
 from backend.agent.basket_actions import (
     apply_add_quantity,
@@ -37,7 +38,7 @@ class FakeDecision:
 
 @pytest.fixture
 def client() -> SwiggyClient:
-    return SwiggyClient(fixtures_dir=FIXTURES_DIR)
+    return FixtureSwiggyClient(FIXTURES_DIR)
 
 
 @pytest.mark.asyncio

@@ -54,13 +54,10 @@ def _alternative_names(products: list[object], limit: int = 3) -> list[str]:
 
 def search_catalog_full(
     query: str,
+    swiggy_client: SwiggyClient,
     address_id: str | None = None,
-    swiggy_client: SwiggyClient | None = None,
 ) -> CatalogSearch:
     """Search the live dark store and return in-stock candidates plus alternatives."""
-    if swiggy_client is None:
-        swiggy_client = SwiggyClient()
-
     search_data = swiggy_client.search_products(query=query, address_id=address_id)
     candidates: list[CandidateItem] = []
 
@@ -92,8 +89,8 @@ def search_catalog_full(
 
 def search_catalog(
     query: str,
+    swiggy_client: SwiggyClient,
     address_id: str | None = None,
-    swiggy_client: SwiggyClient | None = None,
 ) -> list[CandidateItem]:
-    """Return only the in-stock candidates (backwards-compatible wrapper)."""
-    return search_catalog_full(query, address_id, swiggy_client).candidates
+    """Return only the in-stock candidates."""
+    return search_catalog_full(query, swiggy_client, address_id).candidates

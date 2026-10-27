@@ -30,8 +30,6 @@ def build_buttons_payload(
     to_wa_id: str,
     body_text: str,
     buttons: list[tuple[str, str]],
-    header_text: str | None = None,
-    footer_text: str | None = None,
 ) -> dict[str, Any]:
     meta_buttons = [
         {
@@ -46,11 +44,6 @@ def build_buttons_payload(
         "body": {"text": body_text[:1024]},
         "action": {"buttons": meta_buttons},
     }
-
-    if header_text:
-        interactive["header"] = {"type": "text", "text": header_text[:60]}
-    if footer_text:
-        interactive["footer"] = {"type": "text", "text": footer_text[:60]}
 
     return {
         "messaging_product": "whatsapp",
@@ -76,8 +69,6 @@ def build_cta_payload(
     body_text: str,
     button_text: str,
     url: str,
-    header_text: str | None = None,
-    footer_text: str | None = None,
 ) -> dict[str, Any]:
     if not url.startswith("https://"):
         raise ValueError(f"Strict scheme violation: CTA URL must use 'https://', got '{url}'")
@@ -93,11 +84,6 @@ def build_cta_payload(
             },
         },
     }
-
-    if header_text:
-        interactive["header"] = {"type": "text", "text": header_text[:60]}
-    if footer_text:
-        interactive["footer"] = {"type": "text", "text": footer_text[:60]}
 
     return {
         "messaging_product": "whatsapp",
@@ -168,14 +154,10 @@ class WhatsAppClient:
         to_wa_id: str,
         body_text: str,
         buttons: list[tuple[str, str]],
-        header_text: str | None = None,
-        footer_text: str | None = None,
     ) -> dict[str, Any]:
         """Send an interactive message with up to 3 quick-reply buttons (DESIGN.md)."""
         return await self._post_message(
-            build_buttons_payload(
-                to_wa_id, body_text, buttons, header_text, footer_text
-            )
+            build_buttons_payload(to_wa_id, body_text, buttons)
         )
 
     async def send_cta_url_button(
@@ -184,12 +166,8 @@ class WhatsAppClient:
         body_text: str,
         button_text: str,
         url: str,
-        header_text: str | None = None,
-        footer_text: str | None = None,
     ) -> dict[str, Any]:
         """Send an interactive CTA URL button (opens Swiggy HTTPS bridgeUrl)."""
         return await self._post_message(
-            build_cta_payload(
-                to_wa_id, body_text, button_text, url, header_text, footer_text
-            )
+            build_cta_payload(to_wa_id, body_text, button_text, url)
         )

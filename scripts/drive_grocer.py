@@ -137,10 +137,19 @@ async def run_doctor(base_url: str) -> bool:
                 """
             )
             names = [r["table_name"] for r in tables]
-            expected = {"users", "inbound_messages", "oauth_tokens", "sessions", "approvals", "checkouts"}
+            expected = {
+                "users",
+                "inbound_messages",
+                "oauth_tokens",
+                "sessions",
+                "approvals",
+                "checkouts",
+                "address_coords",
+                "schema_migrations",
+            }
             missing = expected - set(names)
             if not missing:
-                print(f"[PASS] Database 6/6 tables verified: {sorted(names)}")
+                print(f"[PASS] Database 8/8 tables verified: {sorted(names)}")
             else:
                 print(f"[FAIL] Missing database tables: {missing}")
                 all_ok = False

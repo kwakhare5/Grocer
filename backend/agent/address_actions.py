@@ -9,21 +9,15 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from dataclasses import dataclass, field
 from typing import Any
 
 import httpx
 
+from backend.agent.read_actions import ReadReply
 from backend.integrations.commerce.schemas import GetAddressesData, SavedAddress
 from backend.integrations.commerce.swiggy_client import SwiggyClient
 
 logger = logging.getLogger("grocer.address_actions")
-
-
-@dataclass
-class AddressReply:
-    text: str
-    buttons: list[tuple[str, str]] = field(default_factory=list)
 
 
 def _label(address: Any) -> str:
@@ -103,15 +97,15 @@ async def handle_switch_request(
     conn: Any,
     user_id: Any,
     active_address_id: str | None,
-) -> AddressReply:
+) -> ReadReply:
     try:
         data = await _fetch_addresses(client)
     except (httpx.HTTPError, ValueError, KeyError, RuntimeError, OSError) as exc:
         logger.warning("Address list failed during switch: %s", exc)
-        return AddressReply("I couldn't reach Swiggy just now. Please try again in a moment.")
+        return ReadReply("I couldn't reach Swiggy just now. Please try again in a moment.")
 
     if not data.addresses:
-        return AddressReply(
+        return ReadReply(
             "You have no saved Swiggy addresses yet. Share a WhatsApp location pin to add one."
         )
 
@@ -119,24 +113,24 @@ async def handle_switch_request(
     candidates = matches or list(data.addresses)
 
     if len(candidates) > 1:
-        return AddressReply(
+        return ReadReply(
             "Which address should I use? Switching can change which dark store serves you.",
             _picker(candidates, "addr:set"),
         )
 
     target = candidates[0]
     if target.id == active_address_id:
-        return AddressReply(f"You're already using *{_label(target)}*.")
+        return ReadReply(f"You're already using *{_label(target)}*.")
 
     if await _basket_has_items(client):
-        return AddressReply(
+        return ReadReply(
             f"Your basket has items. Switching to *{_label(target)}* may change prices, "
             "stock or fees because it's a different dark store. Switch anyway?",
             [(f"addr:set:{target.id}", "Switch & rebuild"), ("addr:keep", "Keep current")],
         )
 
     await _save_active_address(conn, user_id, target.id)
-    return AddressReply(
+    return ReadReply(
         f"Done. Your active address is now *{_label(target)}* — {_short(target.addressLine, 60)}."
     )
 
@@ -146,17 +140,17 @@ async def apply_switch(
     conn: Any,
     user_id: Any,
     address_id: str,
-) -> AddressReply:
+) -> ReadReply:
     """Apply a switch chosen from a button, then rebuild the basket at the new store."""
     try:
         data = await _fetch_addresses(client)
     except (httpx.HTTPError, ValueError, KeyError, RuntimeError, OSError) as exc:
         logger.warning("Address list failed applying switch: %s", exc)
-        return AddressReply("I couldn't reach Swiggy just now. Please try again in a moment.")
+        return ReadReply("I couldn't reach Swiggy just now. Please try again in a moment.")
 
     target = next((a for a in data.addresses if a.id == address_id), None)
     if target is None:
-        return AddressReply("That address is no longer in your Swiggy account.")
+        return ReadReply("That address is no longer in your Swiggy account.")
 
     previous_id = await conn.fetchval(
         "SELECT active_address_id FROM grocer.sessions WHERE user_id = $1;", user_id
@@ -177,7 +171,7 @@ async def apply_switch(
     header = f"Done. Your active address is now *{_label(target)}*."
 
     if not items:
-        return AddressReply(f"{header} Your basket is empty, so there was nothing to move.")
+        return ReadReply(f"{header} Your basket is empty, so there was nothing to move.")
 
     try:
         await asyncio.to_thread(client.clear_cart)
@@ -189,7 +183,7 @@ async def apply_switch(
         rebuilt = await asyncio.to_thread(client.get_cart, target.id)
     except (httpx.HTTPError, ValueError, KeyError, RuntimeError, OSError) as exc:
         logger.warning("Basket rebuild after address switch failed: %s", exc)
-        return AddressReply(
+        return ReadReply(
             f"{header} The old basket was cleared, but Swiggy didn't rebuild it at the "
             "new store. Add your items again."
         )
@@ -200,45 +194,45 @@ async def apply_switch(
     text = f"{header} Moved {moved} of {len(items)} items to the new store."
     if missing:
         text += f" Not available there: {', '.join(missing[:3])}."
-    return AddressReply(text)
+    return ReadReply(text)
 
 
 async def handle_delete_request(
     decision: Any,
     client: SwiggyClient,
     active_address_id: str | None,
-) -> AddressReply:
+) -> ReadReply:
     try:
         data = await _fetch_addresses(client)
     except (httpx.HTTPError, ValueError, KeyError, RuntimeError, OSError) as exc:
         logger.warning("Address list failed during delete: %s", exc)
-        return AddressReply("I couldn't reach Swiggy just now. Please try again in a moment.")
+        return ReadReply("I couldn't reach Swiggy just now. Please try again in a moment.")
 
     if len(data.addresses) <= 1:
-        return AddressReply(
+        return ReadReply(
             "You only have one saved address, so I can't delete it. Add another address first."
         )
 
     matches = _match(data.addresses, decision.address_ref)
     if not matches:
-        return AddressReply(
+        return ReadReply(
             "Which address should I delete?",
             _picker(data.addresses, "addr:del"),
         )
     if len(matches) > 1:
-        return AddressReply(
+        return ReadReply(
             "Which one exactly?",
             _picker(matches, "addr:del"),
         )
 
     target = matches[0]
     if target.id == active_address_id:
-        return AddressReply(
+        return ReadReply(
             f"*{_label(target)}* is your active address. Switch to another address first, "
             "then I can delete it."
         )
 
-    return AddressReply(
+    return ReadReply(
         f"Delete *{_label(target)}* — {_short(target.addressLine, 60)}? This can't be undone.",
         [(f"addr:del:{target.id}", "Yes, delete"), ("addr:keep", "Cancel")],
     )
@@ -248,22 +242,22 @@ async def apply_delete(
     client: SwiggyClient,
     active_address_id: str | None,
     address_id: str,
-) -> AddressReply:
+) -> ReadReply:
     """Delete after the confirmation tap, re-checking both guards live."""
     try:
         data = await _fetch_addresses(client)
     except (httpx.HTTPError, ValueError, KeyError, RuntimeError, OSError) as exc:
         logger.warning("Address list failed applying delete: %s", exc)
-        return AddressReply("I couldn't reach Swiggy just now. Please try again in a moment.")
+        return ReadReply("I couldn't reach Swiggy just now. Please try again in a moment.")
 
     if len(data.addresses) <= 1:
-        return AddressReply("I can't delete your only saved address.")
+        return ReadReply("I can't delete your only saved address.")
     if address_id == active_address_id:
-        return AddressReply("That's your active address. Switch first, then delete.")
+        return ReadReply("That's your active address. Switch first, then delete.")
 
     target = next((a for a in data.addresses if a.id == address_id), None)
     if target is None:
-        return AddressReply("That address is already gone.")
+        return ReadReply("That address is already gone.")
 
     from backend.agent.address_lifecycle import AddressLifecycleManager
 
@@ -271,12 +265,12 @@ async def apply_delete(
         AddressLifecycleManager(client).can_delete_address, address_id
     )
     if not guard.can_delete:
-        return AddressReply(guard.block_reason or "That address has an active delivery.")
+        return ReadReply(guard.block_reason or "That address has an active delivery.")
 
     try:
         await asyncio.to_thread(client.delete_address, address_id)
     except (httpx.HTTPError, ValueError, KeyError, RuntimeError, OSError) as exc:
         logger.warning("delete_address failed: %s", exc)
-        return AddressReply("Swiggy didn't delete that address. Nothing was changed.")
+        return ReadReply("Swiggy didn't delete that address. Nothing was changed.")
 
-    return AddressReply(f"Deleted *{_label(target)}* from your Swiggy addresses.")
+    return ReadReply(f"Deleted *{_label(target)}* from your Swiggy addresses.")

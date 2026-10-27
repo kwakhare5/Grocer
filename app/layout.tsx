@@ -4,9 +4,6 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Grocer — Instamart on WhatsApp",
   description: "AI-powered grocery concierge for Swiggy Instamart on WhatsApp. Instant dark-store search, automated coupon optimization, and 1-tap checkout.",
-  icons: {
-    icon: "/favicon.ico",
-  },
 };
 
 export default function RootLayout({

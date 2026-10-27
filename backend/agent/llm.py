@@ -29,7 +29,6 @@ class LLMResult:
 
     data: dict[str, Any] | None
     provider: str
-    model: str
     error: str | None = None
     latency_ms: int = 0
 
@@ -40,7 +39,7 @@ class LLMResult:
 
 def _groq_json(system_prompt: str, user_prompt: str) -> LLMResult:
     if not settings.GROQ_API_KEY:
-        return LLMResult(None, "groq", settings.GROQ_MODEL, "GROQ_API_KEY is not set")
+        return LLMResult(None, "groq", "GROQ_API_KEY is not set")
 
     payload = {
         "model": settings.GROQ_MODEL,
@@ -75,7 +74,7 @@ def _groq_json(system_prompt: str, user_prompt: str) -> LLMResult:
             if not isinstance(parsed, dict):
                 raise TypeError("Groq returned JSON that is not an object")
             latency_ms = int((time.monotonic() - started) * 1000)
-            return LLMResult(parsed, "groq", settings.GROQ_MODEL, latency_ms=latency_ms)
+            return LLMResult(parsed, "groq", latency_ms=latency_ms)
         except (httpx.HTTPError, KeyError, IndexError, TypeError, ValueError) as exc:
             last_error = str(exc)
             # A bad key or a bad request will not improve on a second attempt.
@@ -91,24 +90,18 @@ def _groq_json(system_prompt: str, user_prompt: str) -> LLMResult:
         latency_ms,
         last_error,
     )
-    return LLMResult(
-        None,
-        "groq",
-        settings.GROQ_MODEL,
-        last_error,
-        latency_ms=latency_ms,
-    )
+    return LLMResult(None, "groq", last_error, latency_ms=latency_ms)
 
 
 def _gemini_json(system_prompt: str, user_prompt: str) -> LLMResult:
     if not settings.GEMINI_API_KEY:
-        return LLMResult(None, "gemini", settings.GEMINI_MODEL, "GEMINI_API_KEY is not set")
+        return LLMResult(None, "gemini", "GEMINI_API_KEY is not set")
     try:
         from google import genai
         from google.genai import types
         from google.genai.errors import APIError
     except ImportError as exc:
-        return LLMResult(None, "gemini", settings.GEMINI_MODEL, str(exc))
+        return LLMResult(None, "gemini", str(exc))
 
     client = genai.Client(api_key=settings.GEMINI_API_KEY)
     for model_name in (settings.GEMINI_MODEL, settings.GEMINI_FALLBACK_MODEL):
@@ -125,10 +118,10 @@ def _gemini_json(system_prompt: str, user_prompt: str) -> LLMResult:
                 parsed = json.loads(response.text)
                 if not isinstance(parsed, dict):
                     raise TypeError("Gemini returned JSON that is not an object")
-                return LLMResult(parsed, "gemini", model_name)
+                return LLMResult(parsed, "gemini")
         except (APIError, OSError, KeyError, TypeError, ValueError) as exc:
             logger.warning("Gemini completion failed on %s: %s", model_name, exc)
-    return LLMResult(None, "gemini", settings.GEMINI_MODEL, "gemini unavailable")
+    return LLMResult(None, "gemini", "gemini unavailable")
 
 
 def complete_json(
@@ -146,4 +139,4 @@ def complete_json(
         return _gemini_json(system_prompt, user_prompt)
     if chosen == "groq":
         return _groq_json(system_prompt, user_prompt)
-    return LLMResult(None, chosen, "", f"unknown LLM provider: {chosen}")
+    return LLMResult(None, chosen, f"unknown LLM provider: {chosen}")

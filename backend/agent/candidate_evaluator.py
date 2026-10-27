@@ -5,7 +5,7 @@ Evaluates user queries against dark-store candidate items. The LLM goes through
 Implements:
 1. Strict Rank-1 prevention (no blind res[0] on discretionary snacks/drinks or ambiguous matches).
 2. Smart Kirana Defaults for vague staples (ADR 0004) with a physical [Change items] button.
-3. Zero-Address Onboarding flow (ADR 0010) requesting a WhatsApp GPS pin.
+3. Zero-address and conversational results, with copy owned by the router.
 4. Honest rupee formatting preserving paise; zero float formatting.
 5. A deterministic fallback when the LLM is unavailable.
 """
@@ -16,9 +16,8 @@ import json
 import logging
 import re
 from enum import Enum
-from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict
 
 from backend.agent.candidate_search import CandidateItem
 from backend.agent.llm import complete_json
@@ -39,33 +38,11 @@ def format_paise_to_rupees(paise: int) -> str:
 class IntentType(str, Enum):
     """Classification of customer intent in WhatsApp dialogue."""
 
-    GREETING = "greeting"
     CONVERSATIONAL_QA = "conversational_qa"
     GROCERY_LIST = "grocery_list"
     DISAMBIGUATION = "disambiguation"
     ADD_TO_BASKET = "add_to_basket"
     ZERO_ADDRESS_ONBOARDING = "zero_address_onboarding"
-
-
-class DisambiguationOption(BaseModel):
-    """Candidate option presented to user during disambiguation."""
-
-    model_config = ConfigDict(extra="ignore")
-
-    spin_id: str
-    display_name: str
-    quantity_description: str
-    price_paise: int
-
-    @classmethod
-    def from_candidate(cls, c: CandidateItem) -> DisambiguationOption:
-        """Create option from candidate item."""
-        return cls(
-            spin_id=c.spin_id,
-            display_name=c.display_name,
-            quantity_description=c.quantity_description,
-            price_paise=c.offer_price_paise,
-        )
 
 
 class ExtractedGroceryItem(BaseModel):
@@ -75,7 +52,6 @@ class ExtractedGroceryItem(BaseModel):
 
     query: str
     quantity: int = 1
-    unit: str | None = None
 
 
 class CandidateEvaluationResult(BaseModel):
@@ -86,11 +62,6 @@ class CandidateEvaluationResult(BaseModel):
     intent_type: IntentType
     selected_candidate: CandidateItem | None = None
     is_vague_staple: bool = False
-    disambiguation_options: list[DisambiguationOption] = Field(default_factory=list)
-    suggested_actions: list[dict[str, Any]] = Field(default_factory=list)
-    message: str | None = None
-    conversational_response: str | None = None
-    request_location_pin: bool = False
 
 
 def _call_llm_candidate_evaluator(
@@ -151,48 +122,13 @@ Return JSON only:
     )
 
     if intent == IntentType.ZERO_ADDRESS_ONBOARDING:
-        return CandidateEvaluationResult(
-            intent_type=IntentType.ZERO_ADDRESS_ONBOARDING,
-            message=(
-                "Welcome to Grocer! Please share your WhatsApp delivery "
-                "location pin or address so I can check your local dark store."
-            ),
-            request_location_pin=True,
-        )
+        return CandidateEvaluationResult(intent_type=IntentType.ZERO_ADDRESS_ONBOARDING)
 
     if intent == IntentType.CONVERSATIONAL_QA:
-        msg = parsed.get(
-            "message",
-            "Instamart delivery is free for orders over ₹199.",
-        )
-        return CandidateEvaluationResult(
-            intent_type=IntentType.CONVERSATIONAL_QA,
-            message=msg,
-            conversational_response=msg,
-        )
+        return CandidateEvaluationResult(intent_type=IntentType.CONVERSATIONAL_QA)
 
     if intent == IntentType.DISAMBIGUATION:
-        opt_spins = parsed.get("disambiguation_spin_ids", [])
-        options = [
-            DisambiguationOption.from_candidate(c)
-            for c in candidates
-            if c.spin_id in opt_spins
-        ]
-        if not options and len(candidates) >= 2:
-            options = [
-                DisambiguationOption.from_candidate(c)
-                for c in candidates[:3]
-            ]
-
-        options_str = " and ".join(
-            f"{opt.display_name} for {format_paise_to_rupees(opt.price_paise)}"
-            for opt in options[:2]
-        )
-        return CandidateEvaluationResult(
-            intent_type=IntentType.DISAMBIGUATION,
-            disambiguation_options=options,
-            message=f"We have {options_str}. Which one would you like?",
-        )
+        return CandidateEvaluationResult(intent_type=IntentType.DISAMBIGUATION)
 
     if intent == IntentType.ADD_TO_BASKET:
         selected_spin = parsed.get("selected_spin_id")
@@ -201,35 +137,12 @@ Return JSON only:
             None,
         )
         if not selected and candidates:
-            # The model named an id outside the list. Never quietly take rank 1.
-            options = [
-                DisambiguationOption.from_candidate(c) for c in candidates[:3]
-            ]
-            options_str = " and ".join(
-                f"{opt.display_name} for {format_paise_to_rupees(opt.price_paise)}"
-                for opt in options[:2]
-            )
-            return CandidateEvaluationResult(
-                intent_type=IntentType.DISAMBIGUATION,
-                disambiguation_options=options,
-                message=f"We have {options_str}. Which one would you like?",
-            )
-
-        is_vague = parsed.get("is_vague_staple", False)
-        actions = []
-        if is_vague and selected:
-            actions.append(
-                {
-                    "title": "Change items",
-                    "id": f"item:change:{selected.spin_id}",
-                }
-            )
+            return CandidateEvaluationResult(intent_type=IntentType.DISAMBIGUATION)
 
         return CandidateEvaluationResult(
             intent_type=IntentType.ADD_TO_BASKET,
             selected_candidate=selected,
-            is_vague_staple=is_vague,
-            suggested_actions=actions,
+            is_vague_staple=bool(parsed.get("is_vague_staple", False)),
         )
 
     return None
@@ -252,14 +165,7 @@ def evaluate_customer_intent(
 
     # 1. Zero-Address Onboarding Gate (ADR 0010)
     if address_count == 0:
-        return CandidateEvaluationResult(
-            intent_type=IntentType.ZERO_ADDRESS_ONBOARDING,
-            message=(
-                "Welcome to Grocer! Please share your WhatsApp delivery location "
-                "pin or address so I can check your local dark store."
-            ),
-            request_location_pin=True,
-        )
+        return CandidateEvaluationResult(intent_type=IntentType.ZERO_ADDRESS_ONBOARDING)
 
     # 2. Ask the configured LLM first
     llm_result = _call_llm_candidate_evaluator(
@@ -321,16 +227,7 @@ def evaluate_customer_intent(
         discretionary_hints = ["chips", "coffee", "biscuits", "biscuit", "namkeen"]
         is_discretionary = any(h in lower_query for h in discretionary_hints)
         if is_discretionary and not selected and len(candidates) >= 2:
-            options = [DisambiguationOption.from_candidate(c) for c in candidates[:3]]
-            options_str = " and ".join(
-                f"{opt.display_name} for {format_paise_to_rupees(opt.price_paise)}"
-                for opt in options[:2]
-            )
-            return CandidateEvaluationResult(
-                intent_type=IntentType.DISAMBIGUATION,
-                disambiguation_options=options,
-                message=f"We have {options_str}. Which one would you like?",
-            )
+            return CandidateEvaluationResult(intent_type=IntentType.DISAMBIGUATION)
 
         # Unqualified staple check (milk, eggs, bread, pyaz, atta)
         staple_terms = ["milk", "doodh", "eggs", "egg", "anda", "bread", "pyaz", "onion", "atta"]
@@ -342,30 +239,13 @@ def evaluate_customer_intent(
             else:
                 # A vague request with several distinct products must never
                 # silently take rank 1.
-                options = [
-                    DisambiguationOption.from_candidate(c) for c in candidates[:3]
-                ]
-                options_str = " and ".join(
-                    f"{opt.display_name} for {format_paise_to_rupees(opt.price_paise)}"
-                    for opt in options[:2]
-                )
-                return CandidateEvaluationResult(
-                    intent_type=IntentType.DISAMBIGUATION,
-                    disambiguation_options=options,
-                    message=f"We have {options_str}. Which one would you like?",
-                )
+                return CandidateEvaluationResult(intent_type=IntentType.DISAMBIGUATION)
 
         if is_staple and selected:
             return CandidateEvaluationResult(
                 intent_type=IntentType.ADD_TO_BASKET,
                 selected_candidate=selected,
                 is_vague_staple=True,
-                suggested_actions=[
-                    {
-                        "title": "Change items",
-                        "id": f"item:change:{selected.spin_id}",
-                    }
-                ],
             )
 
         if selected:
@@ -375,8 +255,4 @@ def evaluate_customer_intent(
                 is_vague_staple=False,
             )
 
-    return CandidateEvaluationResult(
-        intent_type=IntentType.CONVERSATIONAL_QA,
-        message="I couldn't find that item at your local dark store. Would you like me to check an alternative?",
-        conversational_response="I couldn't find that item at your local dark store. Would you like me to check an alternative?",
-    )
+    return CandidateEvaluationResult(intent_type=IntentType.CONVERSATIONAL_QA)

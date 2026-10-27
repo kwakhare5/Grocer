@@ -13,7 +13,9 @@ from fixture_client import FixtureSwiggyClient
 from backend.agent.composite_cart import (
     CompositeCartManager,
     TargetCartItem,
+    format_cart_receipt,
 )
+from backend.integrations.commerce.schemas import CartData, CartItem
 from backend.integrations.commerce.swiggy_client import SwiggyClient
 
 FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures"
@@ -106,8 +108,88 @@ def test_stock_cap_is_applied_and_shown_not_silent(swiggy_client):
     assert pizza.quantity == 2
     assert result.capped_items[0]["requested"] == 5
     assert result.capped_items[0]["allowed"] == 2
-    assert result.baseline_count == 1
+    assert result.baseline_count == 2
     assert "✅ *Added to your basket*" in result.receipt_text
-    assert "You already had 1 items" in result.receipt_text
+    assert "You had 2 items" in result.receipt_text
+    assert "🛒 *Your Basket (4 items)*" in result.receipt_text
+    assert "＋ Pizza Base x2" in result.receipt_text
+    assert "Ask *what's in my basket*" not in result.receipt_text
     assert "Only 2 unit(s) of this item can be added per order." in result.receipt_text
     assert "I asked for 5, so I added 2" in result.receipt_text
+
+
+def _cart_with(items: list[CartItem]) -> CartData:
+    return CartData(
+        cartId="cart_test",
+        cartTotalAmount="283.00",
+        items=items,
+        billBreakdown={
+            "lineItems": [{"label": "Item Total", "value": "₹272.00"}],
+            "toPay": {"label": "To Pay", "value": "₹283.00"},
+        },
+    )
+
+
+def _item(spin: str, name: str, qty: int, price: float) -> CartItem:
+    return CartItem(
+        spinId=spin,
+        skuId=f"sku_{spin}",
+        productId=f"prod_{spin}",
+        itemName=name,
+        quantity=qty,
+        isInStockAndAvailable=True,
+        mrp=price,
+        discountedFinalPrice=price,
+    )
+
+
+def test_receipt_lists_full_basket_and_marks_the_added_line():
+    cart = _cart_with(
+        [
+            _item("spin_old_milk", "Amul Taaza Milk 1L", 2, 104.0),
+            _item("spin_new_milk", "Chitale Dairy Cow Milk", 1, 64.0),
+        ]
+    )
+    text = format_cart_receipt(
+        cart,
+        added_items=[
+            TargetCartItem(
+                spin_id="spin_new_milk",
+                quantity=1,
+                item_name="Chitale Dairy Cow Milk",
+                price_paise=6400,
+            )
+        ],
+        baseline_count=2,
+        baseline_to_pay="₹208",
+    )
+    assert "🛒 *Your Basket (3 items)*" in text
+    assert "You had 2 items (₹208) before this add." in text
+    assert "＋ Chitale Dairy Cow Milk x1 — ₹64" in text
+    assert "• Amul Taaza Milk 1L x2 — ₹208" in text
+    assert "Ask *what's in my basket*" not in text
+
+
+def test_receipt_marks_a_merged_line_with_the_added_quantity():
+    cart = _cart_with([_item("spin_old_milk", "Amul Taaza Milk 1L", 3, 104.0)])
+    text = format_cart_receipt(
+        cart,
+        added_items=[
+            TargetCartItem(
+                spin_id="spin_old_milk",
+                quantity=1,
+                item_name="Amul Taaza Milk 1L",
+                price_paise=10400,
+            )
+        ],
+        baseline_count=2,
+    )
+    assert "＋ Amul Taaza Milk 1L x3 — ₹312 (added 1)" in text
+
+
+def test_receipt_caps_long_baskets_with_a_count_not_an_instruction():
+    items = [_item(f"spin_{i}", f"Item {i}", 1, 10.0) for i in range(12)]
+    text = format_cart_receipt(_cart_with(items), max_item_lines=10)
+    assert "🛒 *Your Basket (12 items)*" in text
+    assert "…and 2 more items." in text
+    assert "Ask *what's in my basket*" not in text

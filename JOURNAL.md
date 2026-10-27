@@ -571,3 +571,11 @@ A chronological record of project milestones, architectural decisions, and verif
 
 #### Correction: cleanup diff count
 - The committed diff is 442 insertions and 1,212 deletions, net -770 lines. The earlier -1,017 figure counted only tracked files before `tests/fixture_client.py` (265 lines) was added.
+
+### [GROCER v1 — Live Batch 1 Check] 2026-10-28
+
+#### Work Card: Real messages on Render, and the receipt proof gap
+- **Problem**: Batch 1 was only proven offline. The first live driver stalled before sending because it tried to refresh the Swiggy token first; the second was piped, so progress was hidden. The DB also has two user rows, and the script assumed exactly one.
+- **Change**: Ran three signed webhook messages against the Render app. `milk` → 200 `cart_updated` in 11.9s; latest approval ₹283 with 2 items including milk. `what's in my basket` → 200 `view_basket` in 4.8s. `show my addresses` → 200 `list_addresses` in 4.1s. No order, no checkout, no address write. Only scratch scripts changed; no project code.
+- **Proof**: Raw log `.scratch/live_text_check.log`; `grocer.inbound_messages` has exactly 3 new text rows at 18:47:36, 18:47:50 and 18:47:56 UTC, all `received`; latest `grocer.approvals` row is `shown` at 28300 paise with 2 items and milk present. Blue ticks/typing remain unproven because the wamid was simulated.
+- **Still broken**: Session history stores `Basket updated. Total ₹283` instead of the receipt that was sent, so the delta-receipt copy cannot be proven from the DB and the next turn's model context loses the real receipt. The Change item tap and address buttons were not exercised live. No live order.

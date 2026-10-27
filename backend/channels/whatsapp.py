@@ -466,6 +466,7 @@ async def handle_webhook(
                 )
                 from backend.agent.candidate_search import search_catalog_full
                 from backend.agent.composite_cart import (
+                    MAX_RECEIPT_ITEM_LINES,
                     CompositeCartManager,
                     TargetCartItem,
                 )
@@ -1025,15 +1026,19 @@ async def handle_webhook(
                         buttons: list[tuple[str, str]] = [
                             (f"pay:{approval.id}", f"Pay {to_pay_formatted}")
                         ]
+                        if len(cart_res.cart.items) > MAX_RECEIPT_ITEM_LINES:
+                            buttons.append(("cart:view", "View basket"))
                         fresh_id = _fresh_button_id(cart_res.added_lines)
-                        if cart_res.baseline_count and fresh_id:
+                        if cart_res.baseline_count and fresh_id and len(buttons) < 3:
                             buttons.append((fresh_id, "Keep only new"))
-                        if len(vague_spins) == 1 and len(items_to_add) == 1:
+                        if (
+                            len(vague_spins) == 1
+                            and len(items_to_add) == 1
+                            and len(buttons) < 3
+                        ):
                             buttons.append(
                                 (f"item:change:{next(iter(vague_spins))}", "Change item")
                             )
-                        if len(buttons) < 3:
-                            buttons.append(("cart:clear", "Clear basket"))
 
                         await wa_client.send_quick_reply_buttons(
                             to_wa_id=msg.sender_wa_id,
@@ -1053,10 +1058,7 @@ async def handle_webhook(
 
                         session_history.append({"role": "user", "text": msg.text})
                         session_history.append(
-                            {
-                                "role": "assistant",
-                                "text": f"Basket updated. Total {to_pay_formatted}",
-                            }
+                            {"role": "assistant", "text": receipt_body}
                         )
                         await conn.execute(
                             """

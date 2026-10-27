@@ -1,5 +1,7 @@
 # ADR 0012: Capability Routing, Safety Classes, and Measured LLM Selection
 
+> **Status 2026-10-27:** Active. Groq `openai/gpt-oss-120b` is primary for development and tests. The write floors are 0.80/0.85/0.95, not one 0.70 floor. Legacy direct Gemini calls remain until code item 2. See `STATUS.md`.
+
 ## Context
 The conversational layer classified every text into one of four intents: greeting, conversational Q&A, recipe, or grocery list. Anything unrecognised, including a price or stock question, fell into `grocery_list`, which searches and then writes to the basket. With the free Gemini quota exhausted (20 requests/day), every message took that path. A customer asking "how much is milk" could end up with milk in their basket. Adding two more intents would fix two phrasings and leave every unknown wording on the same unsafe path.
 

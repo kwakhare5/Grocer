@@ -1,5 +1,7 @@
 # ADR 0010: Session Lifecycle, JIT Checkout Re-Auth, Partial Stock Reorders, and Cold-Start Onboarding
 
+> **Status 2026-10-27:** Amended. Refresh first; park only if refresh fails. The webhook writes `parked`, replay claims `awaiting_link`, and the callback does not re-execute the message. See `STATUS.md` P0 #6.
+
 ## Context
 Production grocery commerce introduces four failure points across user lifecycle boundaries:
 1. Shopping sessions retaining lingering cart states post-checkout, confusing subsequent shopping runs.

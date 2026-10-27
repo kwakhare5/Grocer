@@ -1,8 +1,9 @@
 # ARCHITECTURE.md — Grocer Technical Architecture (Clean-Slate v1.0)
 
-> **Status:** Agreed & Authoritative Technical Architecture (Single Source of Truth)  
-> **Product Goal:** Production-Grade Swiggy Instamart Grocery Concierge & Account Manager on WhatsApp  
-> **Stack:** Python 3.11 + FastAPI • LLM adapter (Groq free tier in development, Gemini supported; winner chosen by measurement, see ADR 0012) • Swiggy Instamart MCP (20 Tools) • Meta WhatsApp Cloud API • PostgreSQL (Supabase) • Render  
+> **Status:** Agreed technical design. Current state and known gaps live in `STATUS.md`.  
+> **Product Goal:** Swiggy Instamart grocery concierge and account manager on WhatsApp.  
+> **Stack:** Python 3.11 + FastAPI • Groq `openai/gpt-oss-120b` primary for development and tests; Gemini optional (ADR 0012) • Swiggy Instamart MCP (20 tools) • Meta WhatsApp Cloud API • PostgreSQL (one Supabase project; `grocer` schema in `postgres`, separate `grocer_test` database for tests) • Render backend • Vercel landing page  
+> **Live checkout:** `LIVE_CHECKOUT_ENABLED=false` until Karan approves a specific order.  
 
 ---
 
@@ -17,19 +18,19 @@ It rejects two fatal quick-commerce software traps:
 Instead, Grocer operates on a clean, decoupled **Brain vs. Muscle** architecture:
 
 * **The LLM (The Conversational Brain):**
-  - Sits behind one provider adapter (ADR 0012). Groq's free tier is used during development; Gemini stays supported; the winner of the evaluation set becomes primary.
+  - Sits behind one provider adapter (ADR 0012). Groq `openai/gpt-oss-120b` is primary for development and tests. Gemini stays optional. A provider that cannot serve normal traffic cannot be the primary.
   - Reads full multi-turn conversation context (up to 12 turns).
-  - Understands customer intent across natural language, typos, Hinglish (*doodh, atta, pyaz, cheeni*), recipes, and brand requests.
+  - Understands customer intent across natural language, typos, Hinglish (*doodh, atta, pyaz, cheeni*), and brand requests.
   - Searches the live Swiggy dark store and **evaluates candidates intelligently** (matching variants against user constraints instead of blindly picking rank #1).
-  - Generates recipe checklists, guides address onboarding, and answers casual questions naturally without forcing unwanted shopping cart receipts.
+  - Guides address onboarding and answers casual questions naturally without forcing unwanted shopping cart receipts.
   - **Strict Boundaries:** the LLM is FORBIDDEN from calculating prices, calling Swiggy tools itself, modifying database rows, or touching checkout endpoints. It only returns a routing decision: capability, arguments and confidence.
 * **Python (The Muscle, Accountant & Security Guard):**
   - Manages deterministic state machines, full-cart target assembly, and read-after-write verification.
   - Computes all math in **strict integer paise** (`100 paise = ₹1.00`). Floating-point math is banned.
-  - Intercepts physical button taps (`pay:<id>`, `addr:<id>`, `cart:clear`) in under 50ms, bypassing the LLM completely for instant app-like speed.
+  - Intercepts physical button taps (`pay:<id>`, `addr:<id>`, `cart:clear`) without the LLM. Target: under 50ms. Current: the checkout button still calls Swiggy synchronously before replying, so the target is not met (see `STATUS.md` §4).
   - Enforces the **3-Lock Checkout Gate**—an order can ONLY be paid for if the user physically taps a WhatsApp button. Text "yes" never spends money.
 * **Swiggy Instamart MCP (The Source of Truth):**
-  - All 20 native Instamart MCP tools running live over HTTPS JSON-RPC (`https://mcp.swiggy.com/im`). Zero fake mocks.
+  - All 20 native Instamart MCP tools run live over HTTPS JSON-RPC (`https://mcp.swiggy.com/im`). Production code must not contain fake Swiggy branches; current fixture/catalog branches are listed in `STATUS.md` P1.
 * **Meta WhatsApp Cloud API (The Interface):**
   - Interactive buttons (max 3 per message), list pickers (max 10 rows), location pins, and HTTPS payment buttons.
 
@@ -42,21 +43,21 @@ flowchart TD
     subgraph L1["Layer 1: Channel Ingestion Shield & Button Dispatcher"]
         direction TB
         WA_MSG["Customer WhatsApp Message\n(Text / Location Pin / Button Tap)"] --> WEBHOOK["/api/whatsapp/webhook\n(Verify HMAC-SHA256)"]
-        WEBHOOK --> ACK["Instant HTTP 200 OK (<25ms)"]
+        WEBHOOK --> ACK["Target: HTTP 200 <25ms\nCurrent: synchronous"]
         WEBHOOK --> DEDUPE["Postgres Message Deduplication\n(ON CONFLICT DO NOTHING on wa_message_id)"]
         DEDUPE --> ROUTER{"Is Physical Button Tap?"}
-        ROUTER -- "Yes (Pay / Address / Clear)" --> FAST_PATH["Fast 50ms Python Dispatcher\n(Zero LLM lag, instant execution)"]
+        ROUTER -- "Yes (Pay / Address / Clear)" --> FAST_PATH["Button dispatcher\n(no LLM; pay still calls Swiggy)"]
     end
 
-    subgraph L2["Layer 2: Conversational Brain (Gemini 3.5 Flash)"]
+    subgraph L2["Layer 2: Conversational Brain (provider adapter: Groq primary, Gemini optional)"]
         direction TB
-        ROUTER -- "No (Text / List / Recipe / Pin)" --> BRAIN["Gemini Conversational Engine\n(Multi-Turn ReAct Loop)"]
-        BRAIN --> INTENT{"Customer Intent"}
-        INTENT -- "Grocery Search / List" --> T_SEARCH["Tool: search_products(query)"]
-        INTENT -- "1-Tap Reorder" --> T_GOTO["Tool: your_go_to_items(address_id)"]
-        INTENT -- "Address Question / Pin" --> T_ADDR["Tool: get_addresses / create_address"]
-        INTENT -- "Order History / Status" --> T_ORDER["Tool: get_orders / track_order"]
-        INTENT -- "Cancellation Request" --> CARE_ROUTER["Route to Swiggy Care (080-67466729)"]
+        ROUTER -- "No (Text / List / Recipe / Pin)" --> BRAIN["LLM routing decision\n(capability + arguments + confidence)"]
+        BRAIN --> INTENT{"Capability chosen"}
+        INTENT -- "Grocery Search / List" --> T_SEARCH["Python: search_products(query)"]
+        INTENT -- "1-Tap Reorder" --> T_GOTO["Python: your_go_to_items(address_id)"]
+        INTENT -- "Address Question / Pin" --> T_ADDR["Python: get_addresses / create_address"]
+        INTENT -- "Order History / Status" --> T_ORDER["Python: get_orders / track_order"]
+        INTENT -- "Cancellation Request" --> CARE_ROUTER["Python: route to Swiggy Care (080-67466729)"]
     end
 
     subgraph L3["Layer 3: Parallel Commerce & Cart Reconciliation (Python)"]
@@ -85,7 +86,7 @@ flowchart TD
     end
 ```
 
-Layer 2 is provider-agnostic since ADR 0012. The diagram keeps the original "Gemini" label; the actual call goes through `backend/agent/llm.py`.
+Layer 2 is provider-agnostic since ADR 0012. The LLM never calls Swiggy; Python does. Every model call goes through `backend/agent/llm.py`. A basket turn makes one routing call, then one candidate-evaluation call per item that has candidates. No provider SDK is imported outside the adapter.
 
 ---
 
@@ -98,23 +99,22 @@ sequenceDiagram
     autonumber
     actor User as Customer (WhatsApp)
     participant Ingest as Layer 1 (Ingestion)
-    participant Brain as Layer 2 (Gemini Brain)
+    participant Brain as Layer 2 (provider adapter)
     participant Cart as Layer 3 (Cart Engine)
     participant Advocate as Layer 4 (Customer Advocate)
     participant Swiggy as Swiggy Instamart MCP
     participant Gate as Layer 5 (Checkout Gate)
 
     User->>Ingest: "Add brown bread and 1L toned milk"
-    Ingest-->>User: HTTP 200 OK (<25ms ack)
+    Ingest-->>User: Target: HTTP 200 <25ms (current: synchronous)
     Ingest->>Brain: Forward message in 12-turn session context
     
-    Brain->>Swiggy: search_products("brown bread")
-    Swiggy-->>Brain: 5 bread candidates (white, brown, sourdough)
-    Note over Brain: Evaluates candidates against constraints<br/>Picks: The Health Factory Zero Maida Brown Bread (400g)
-    
-    Brain->>Swiggy: search_products("1L toned milk")
-    Swiggy-->>Brain: Milk candidates
-    Note over Brain: Picks: Amul Taaza Toned Milk (1L)
+    Brain->>Cart: modify_basket(add=["brown bread", "1L toned milk"])
+    Cart->>Swiggy: search_products("brown bread")
+    Swiggy-->>Cart: 5 bread candidates (white, brown, sourdough)
+    Cart->>Swiggy: search_products("1L toned milk")
+    Swiggy-->>Cart: Milk candidates
+    Note over Cart: LLM evaluates candidates through the adapter;<br/>Python owns every Swiggy call and picks the variant
 
     Brain->>Cart: modify_basket(add=[Bread, Milk])
     Cart->>Swiggy: get_cart() (Fetch baseline)
@@ -128,7 +128,7 @@ sequenceDiagram
     Advocate-->>User: Verified receipt card + [Pay ₹115 (UPI / Card)] button
 
     User->>Ingest: Taps [Pay ₹115] button
-    Ingest->>Gate: Execute 3-Lock Checkout (50ms bypass)
+    Ingest->>Gate: Execute 3-Lock Checkout (no LLM; not yet 50ms)
     Note over Gate: Lock 1: Physical button verified<br/>Lock 2: Live cart verified (paise match, stock 100%)<br/>Lock 3: Atomic DB CAS claimed
     Gate->>Swiggy: checkout(paymentMethod="UPI")
     Swiggy-->>Gate: Returns orderId, paasId, bridgeUrl
@@ -137,7 +137,7 @@ sequenceDiagram
     Note over Gate: Background poller checks check_payment_status (~19s)
     User->>Swiggy: Completes UPI payment in GPay/PhonePe
     Gate-->>User: "🎉 Payment confirmed! Swiggy dark store is packing order #IM-982."
-    Gate->>Swiggy: track_order(orderId)
+    Gate->>Swiggy: track_order(orderId, lat, lng)
     Swiggy-->>Gate: Rider Ramesh assigned, ETA 11 mins, live map URL
     Gate-->>User: "🛵 Rider Ramesh is on the way! Live Map: https://swiggy.com/track/IM-982"
 ```
@@ -148,21 +148,21 @@ sequenceDiagram
 
 ### Layer 1: Channel Ingestion & Fast Button Router (`backend/channels/`)
 - **HMAC Verification:** Computes SHA-256 HMAC of raw inbound payload using `WHATSAPP_APP_SECRET`. Compares with `X-Hub-Signature-256` using constant-time string comparison (`hmac.compare_digest`).
-- **Immediate Acknowledgment:** Returns HTTP 200 OK to Meta in under 25 milliseconds. Never blocks on external network calls.
-- **Durable Deduplication:** Inbound messages are inserted into `inbound_messages` table with `ON CONFLICT (wa_message_id) DO NOTHING`. Retried webhooks are safely dropped.
+- **Immediate Acknowledgment:** Target is HTTP 200 OK to Meta in under 25ms. Current implementation is synchronous: the webhook holds the request while the LLM and Swiggy calls run. This is a known P0/P1 gap (`STATUS.md` P1 webhook row).
+- **Durable Deduplication:** Inbound messages are inserted into `inbound_messages` with `ON CONFLICT (wa_message_id) DO NOTHING`. Current caveat: the insert shares a transaction with the whole turn, so a later exception can roll the dedupe row back (`STATUS.md` P0 #8).
 - **Stale Message Dropping:** Discards any inbound webhook with a timestamp older than 15 minutes.
-- **Per-User Concurrency Lock:** Serializes operations per user using PostgreSQL advisory locks (`pg_advisory_xact_lock(user_id)`). Rapid double-taps are handled sequentially, never concurrently.
-- **50ms Fast Button Dispatcher (`button_router.py`):**
-  - If the incoming message is a physical interactive button tap (`pay:<approval_id>`, `addr:<id>`, `cart:clear`), it **bypasses Gemini completely**.
-  - Python deterministically executes the state change or checkout gate and responds in under 50ms.
+- **Per-User Concurrency Lock:** Serializes operations per user using `pg_try_advisory_xact_lock(hashtext(user_id))`. If the lock is busy, the message is marked `concurrency_dropped`; it is not queued.
+- **Fast Button Dispatcher (`button_router.py`):**
+  - If the incoming message is a physical interactive button tap (`pay:<approval_id>`, `addr:<id>`, `cart:clear`), it **bypasses the LLM**.
+  - Target: respond in under 50ms. Current: address and cart buttons are fast; the pay button calls Swiggy checkout synchronously, so it is not fast yet.
 
 ---
 
 ### Layer 2: Conversational Brain (`backend/agent/`)
 - **Capability Router (ADR 0012):** The LLM returns one routing decision per message — a capability from the fixed list, the extracted arguments, and a confidence score. Python validates the capability and makes every Swiggy call.
-- **Safety Classes:** Every capability is labelled `read`, `basket`, `account` or `money`. A `read` capability can never reach a write path. This is enforced in Python, not in the prompt.
-- **Safe Path:** Unknown capability, or confidence below 0.70, produces read-only options when a concrete product exists, otherwise a clarifying question. Nothing is written on a guess.
-- **Single-Pass Turn:** The adapter makes one call per message with the last 12 dialogue turns, using the provider's JSON mode.
+- **Safety Classes:** Every capability is labelled `read`, `basket`, `account` or `money`. A read capability stops before any write path. This is enforced in Python dispatch, not in the prompt.
+- **Safe Path:** Unknown capability, or confidence below the floor, produces read-only options when a concrete product exists, otherwise a clarifying question. Floors: read 0.70, basket 0.80, account 0.85, money 0.95 (`backend/agent/router.py:81`). Nothing is written on a guess.
+- **One adapter, no provider SDKs:** routing and candidate evaluation both call `backend.agent.llm.complete_json`. A basket turn makes one routing call, then one candidate-evaluation call per item that has candidates. The legacy second intent call and the direct Gemini calls are gone. Prompts are provider-neutral and use JSON mode.
 - **Two-Step Search & Candidate Evaluation (Kills Blind `res[0]`):**
   - Step 1: Python runs `search_products` for each extracted item and collects the top 3–5 in-stock candidates with pack sizes and prices.
   - Step 2: The LLM evaluates candidates against user constraints (brand, dietary, size) and returns the chosen variant plus a confidence score.
@@ -173,27 +173,60 @@ sequenceDiagram
 - **Conversational Recipe Checklists (ADR 0009):**
   - Meal requests (*"Aglio Olio for 2"*) propose an ingredient checklist first, distinguishing fresh items from assumed pantry staples, with buttons: `[Add All Ingredients]` and `[Let Me Pick]`.
 - **Zero Forced Cart Appends:**
-  - If the user asks a question (*"What is my default address?"*, *"Is the store open?"*), Gemini answers conversationally. Python is strictly forbidden from appending old shopping carts.
+  - If the user asks a question (*"What is my default address?"*, *"Is the store open?"*), the LLM answers conversationally. Python is strictly forbidden from appending old shopping carts.
 
 ---
 
 ### Layer 3: Commerce & Account Engine (`backend/integrations/commerce/`)
-- **20 Native Swiggy MCP Tools:** All operations run directly against live Swiggy Instamart dark stores (`https://mcp.swiggy.com/im`). Zero fake mocks.
+- **20 Native Swiggy Instamart Tools:** All operations run directly against live Swiggy Instamart dark stores (`https://mcp.swiggy.com/im`). Production code must not contain fake Swiggy branches.
+
+| Tool | Grocer use |
+|---|---|
+| `get_addresses` | List saved addresses, 10 per page |
+| `create_address` | Create a delivery address |
+| `delete_address` | Delete a saved address after confirmation |
+| `recommend_address` | Geocode a pin or free-text address |
+| `search_products` | Find products and variants |
+| `your_go_to_items` | Reorder usual items |
+| `get_cart` | Read the live basket and bill |
+| `update_cart` | Replace the full basket |
+| `clear_cart` | Empty the basket |
+| `list_coupons` | Discover applicable coupons |
+| `apply_coupon` | Apply a coupon code |
+| `get_payment_options` | Read live payment methods |
+| `checkout` | Place the order (not idempotent) |
+| `check_payment_status` | Poll an in-flight UPI payment |
+| `confirm_order` | Finalize a paid Instamart order |
+| `get_orders` | Order history and active orders |
+| `get_order_details` | Itemized bill and order detail |
+| `track_order` | Rider, ETA and live map |
+| `get_delivery_status` | Structured delivery polling |
+| `report_error` | Build a Swiggy support report |
+
+- **Tool coverage rule:** every tool above maps to a chat capability with a safety class (`read`, `basket`, `account`, `money`). An unmapped tool is a gap, not a feature. If no tool exists for a request, Grocer says it cannot do that instead of inventing one. The `PRD.md` §3 journeys are examples; this table is the scope. The build never places a live order: checkout proof uses simulated failures and recorded real responses.
+- **Instamart checkout contract (authoritative):**
+  - `checkout` is **not idempotent**. Before the call, snapshot active order IDs with `get_orders`. On a 5xx or network failure, wait 2–5 seconds, call `get_orders` again, and compare. If a new order exists, treat the original call as success. If not, retry once. Never blind-retry.
+  - UPI requires `paymentMethod="UPI"` plus either `intentApp` (the method ID from `get_payment_options`) or `generateUPIQR=true`. Sending UPI without one of those is not a valid real-order request.
+  - For Instamart, `confirm_order` takes `orderId` + `paasId`.
+  - The cart is server-side. Re-read it at turn boundaries. Do not cache cart state in the agent.
+  - Address switch mid-basket: clear the cart first, then rebuild at the new store. Current code only writes `sessions.active_address_id`; cart rebuild is not implemented (`STATUS.md` P1).
 - **Full Address Lifecycle:**
   - `get_addresses`: Surfaces saved locations with pagination (10/page).
   - `create_address` & `recommend_address`: Two-step pin geocoding onboarding (pin provides coordinates; follow-up asks for flat/building number).
-  - `delete_address`: Prohibited if active delivery is in flight; always requires WhatsApp confirmation button `[Confirm Delete: <Label>]`.
-  - `recommend_address`: Geocodes free-text or WhatsApp pins to coordinates.
+  - `delete_address`: Target rule is prohibited if an active delivery is in flight; always requires WhatsApp confirmation button `[Confirm Delete: <Label>]`. Current code checks only the last/current address; the active-delivery guard is not wired.
+  - `recommend_address`: Geocodes free-text or WhatsApp pins to coordinates. Typed-text address add is not built yet.
 - **Destructive Cart Overwrite Handling:**
   - Swiggy's `update_cart` replaces the entire cart. Grocer reads `get_cart`, merges items locally, and submits the full assembled cart (`items=[{spinId, quantity}]`).
 - **Read-After-Write Verification:**
   - Following `update_cart`, Grocer calls `get_cart` and diffs requested items against actual items. Dropped items are explicitly flagged under **"⚠️ Not added (Out of stock)"**.
 - **Address Switching Mid-Basket (ADR 0007):**
-  - Switching delivery address with an active basket warns the user that dark-store inventory differs, clears the cart via `clear_cart`, and attempts to rebuild available items at the new store.
+  - Target: warn that dark-store inventory differs, clear the cart via `clear_cart`, and attempt to rebuild available items at the new store.
+  - Current: the switch updates `sessions.active_address_id` only. The cart is not cleared or rebuilt. Do not describe this as complete.
 - **Order Cancellation Escalation (ADR 0007):**
   - Swiggy MCP does not support automated cancellation. Inbound cancellation requests lookup the active order ID and reply with Swiggy Care's phone number (`080-67466729`).
 - **Token Renewal & JIT Re-Auth Latch (ADR 0010):**
-  - When the access token expires, Grocer refreshes silently with the stored refresh token, retries once, then continues. Only if the refresh itself fails does it park the active basket or checkout, send a 1-tap `[Reconnect Swiggy]` button, and replay the request after the OAuth callback.
+  - Target: when the access token expires, refresh silently with the stored refresh token, retry once, then continue. Only if refresh fails, park the active basket or checkout, send a 1-tap `[Reconnect Swiggy]` button, and replay after the OAuth callback.
+  - Current: the webhook writes `status='parked'`; replay only claims `awaiting_link`; the OAuth callback returns the payload to the browser but never re-executes or sends it. The latch is not wired end to end (`STATUS.md` P0 #6).
 
 ---
 
@@ -201,9 +234,11 @@ sequenceDiagram
 - **The Wallet Champion Promise (ADR 0003):**
   - Tests up to 2 applicable coupons via `list_coupons` and `apply_coupon`.
   - **Net-Savings Guardrail:** If applying a coupon drops the order below free delivery and triggers a delivery fee that increases the net bill, Grocer cancels the coupon, restores baseline prices, and explains why on the receipt.
-  - Highlights exact rupee savings: `🎉 *You saved ₹X on this order!*`.
+  - Target: highlight exact rupee savings on the receipt. Current: the savings message is built but never sent (`backend/agent/customer_advocate.py:251`).
+  - Current scope: coupon optimization runs on the add-items path only, not reorder or checkout.
 - **Small-Cart Fee Shock Protection (ADR 0009):**
-  - When delivery, handling, or small-order fees exceed 35% of the item total, Grocer warns the customer and suggests common essentials to unlock free delivery.
+  - Target: when delivery, handling, or small-order fees exceed 35% of the item total, warn the customer and suggest essentials.
+  - Current: the helper exists but has no caller. It does not run.
 - **Pure Integer Paise Math:**
   - All currency calculations use integer paise (`to_pay_paise: int`, ₹1 = 100 paise). Floating-point math is banned.
 
@@ -230,90 +265,110 @@ An order can **never** be placed unless all 3 locks pass simultaneously:
 |                         Guarded by UNIQUE constraint on checkouts.approval_id.    |
 |                         Snapshot existing order IDs before checkout call.         |
 +-----------------------------------------------------------------------------------+
+Current caveat: the fingerprint includes the payable paise, so any paise change
+fails Lock 2 even though the text says ₹1. The ₹1 threshold is not the binding
+check.
 ```
 
+- **Execution order:** Lock 1 → claim the approval with one atomic `UPDATE` bound to `id + user_id` → Lock 2 live verification → order snapshot → attempt row → Swiggy call → record. Each database step commits on its own. No transaction spans a Swiggy call (`backend/agent/checkout_executor.py`).
+- **Claim ownership:** the CAS requires the tapping WhatsApp user to own the approval, and the webhook passes the real `message_type`.
+- **Failure reconcile:** the pre-checkout order snapshot is required. On timeout, 5xx or a malformed response, `get_orders` is compared with that snapshot; a new order means success, none means the call is retried once, and an unreachable order list marks the attempt `unknown` so the customer is told not to retry. `reconcile_attempting_checkouts` runs from the payment poller and resolves attempts left by a crash.
 - **Payment Link Delivery:**
   - Swiggy's `checkout` response provides an authoritative HTTPS `bridgeUrl`.
   - Grocer delivers this link as a WhatsApp CTA URL button: `[Pay ₹X (UPI / Card)]`. Tapping opens Swiggy's web payment screen where the customer taps to open GPay, PhonePe, Paytm, or cards.
+  - UPI sends `generateUPIQR=true`, or `intentApp` when one is supplied. A recovered order (the response was lost but `get_orders` proved it) has no bridge link; the customer is told to pay in the Swiggy app.
 - **Payment Lifecycle & Polling:**
-  - `check_payment_status` is a ~19-second long-poll monitored by a background PostgreSQL poller (`FOR UPDATE SKIP LOCKED`) up to the 5-minute cap (`maxTimeToPollForInMs`).
-  - Upon confirmed settlement, Grocer transitions immediately to live GPS tracking (`track_order`) and sends 3 milestone updates (Packed, On the Way with Live Map Link, Delivered).
+  - Target: honor Swiggy's `pollingIntervalInMs` and `maxTimeToPollForInMs` from the checkout response. Use `check_payment_status`; call `confirm_order` once after a successful terminal payment if Swiggy has not auto-confirmed.
+  - Current: the payment loop sleeps 15 seconds and the delivery loop sleeps 30 seconds. It does not read Swiggy's interval fields.
+  - Milestones: 3 (Packed, On the Way with live map, Delivered). Each order id in a checkout is polled, and `notified_milestones` (migration 004) latches every order+milestone so it fires once. `SwiggyAuthExpiredError` is caught per row, and a pending payment made while Render slept is checked on wake before any stale-failure mark.
 - **Post-Payment Session Reset (ADR 0010):**
-  - Once payment confirms, the basket is reset to empty in PostgreSQL, ensuring the next shopping trip starts fresh with zero state leakage.
+  - Target: reset the basket and dialogue state after payment confirms.
+  - Current: the poller clears session history and `one_time_destination_id`, but does not clear the Swiggy cart.
 
 ---
 
 ## 5. PostgreSQL Database Schema
 
+The migrations are the source of truth: `migrations/001_initial_schema.sql`, `002_oauth_refresh_token.sql`, `003_checkout_orders_and_address_coords.sql`, `004_checkout_milestones.sql`. This is the current shape, not the original 001-only sketch.
+
 ```sql
 create schema if not exists grocer;
 
--- 1. Users and WhatsApp Identifiers
+-- 1. Users
 create table grocer.users (
   id uuid primary key default gen_random_uuid(),
-  wa_id text not null unique,                   -- Normalized phone number (e.g. '919876543210')
-  swiggy_customer_id text,                      -- Mapped customer ID in Swiggy
+  wa_id text not null unique,                   -- normalized phone
+  swiggy_customer_id text,
+  display_name text,                            -- 002
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
 
--- 2. Durable Token Vault (AES-256-GCM Encrypted)
+-- 2. Token vault (AES-256-GCM)
 create table grocer.oauth_tokens (
   user_id uuid primary key references grocer.users(id) on delete cascade,
   key_version int not null default 1,
-  encrypted_token bytea not null,               -- AES-256-GCM encrypted Swiggy bearer token
-  nonce bytea not null,                         -- 12-byte fresh nonce
+  encrypted_token bytea not null,
+  nonce bytea not null,
+  refresh_token bytea,                          -- 002
+  refresh_nonce bytea,                          -- 002
   expires_at timestamptz not null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
 
--- 3. Inbound Messages & Deduplication
+-- 3. Inbound messages
 create table grocer.inbound_messages (
   id uuid primary key default gen_random_uuid(),
-  wa_message_id text not null unique,           -- Meta WhatsApp Message ID (wamid.HBg...)
+  wa_message_id text not null unique,
   user_id uuid not null references grocer.users(id),
-  message_type text not null default 'text',    -- text | button_reply | location
-  raw_payload jsonb,                            -- Retained for 24h, then purged (DPDP)
-  status text not null default 'received',      -- received | processing | done | awaiting_link | dropped
+  message_type text not null default 'text',
+  raw_payload jsonb,                            -- scrubbed after 24h
+  status text not null default 'received',      -- received | processing | done | parked | concurrency_dropped | awaiting_link
   created_at timestamptz not null default now()
 );
 create index on grocer.inbound_messages (user_id, created_at desc);
 
--- 4. Customer Sessions & Dialogue State
+-- 4. Sessions
 create table grocer.sessions (
   user_id uuid primary key references grocer.users(id) on delete cascade,
-  active_address_id text,                       -- Primary active delivery address
-  one_time_destination_id text,                 -- Temporary destination for remote orders
-  budget_cap_paise bigint not null default 100000, -- ₹1,000 launch safety cap in paise
-  history jsonb not null default '[]',          -- Last 12 dialogue turns; pruned daily
+  active_address_id text,
+  one_time_destination_id text,
+  budget_cap_paise bigint not null default 100000,
+  history jsonb not null default '[]',
+  delivery_latitude double precision,           -- 002
+  delivery_longitude double precision,          -- 002
+  onboarding_state text,                        -- 002
+  onboarding_context jsonb,                     -- 002
   last_active_at timestamptz not null default now()
 );
 
--- 5. Checkout Approvals (Lock 1 & 2)
+-- 5. Approvals
 create table grocer.approvals (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references grocer.users(id) on delete cascade,
-  fingerprint char(64) not null,                -- Canonical SHA-256 hash of basket items & paise
-  to_pay_paise bigint not null,                 -- Integer paise strictly
+  fingerprint char(64) not null,                -- SHA-256 of items, quantities, paise and address
+  to_pay_paise bigint not null,
   address_id text not null,
-  snapshot jsonb not null,                      -- Receipt snapshot; deleted after 24h (DPDP)
+  snapshot jsonb not null,                      -- scrubbed after 24h
   status text not null default 'shown',         -- shown | consuming | consumed | expired
   created_at timestamptz not null default now(),
   expires_at timestamptz not null               -- 10-minute TTL
 );
 create index on grocer.approvals (user_id, created_at desc);
 
--- 6. Checkouts & Payment Lifecycle (Lock 3)
+-- 6. Checkouts
 create table grocer.checkouts (
   id uuid primary key default gen_random_uuid(),
   approval_id uuid not null unique references grocer.approvals(id),
   user_id uuid not null references grocer.users(id),
   payment_method text not null,                 -- upi | cod | swiggypay
   address_id text not null,
-  known_order_ids jsonb not null default '[]',  -- Swiggy order IDs before checkout call
-  status text not null,                         -- attempting | pending_payment | placed | failed | partial
+  known_order_ids jsonb not null default '[]',  -- pre-checkout order snapshot; recovery must read it
+  status text not null,                         -- attempting | pending_payment | placed | failed | confirming | out_for_delivery | delivered
   swiggy_order_id text,
+  swiggy_order_ids jsonb not null default '[]', -- 003, split orders
+  notified_milestones jsonb not null default '[]', -- 004, "<orderId>:<milestone>" latch
   paas_id text,
   bridge_url text,
   approved_to_pay_paise bigint not null,
@@ -321,9 +376,26 @@ create table grocer.checkouts (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
-create unique index one_inflight_checkout on grocer.checkouts (user_id) 
+create unique index one_inflight_checkout on grocer.checkouts (user_id)
   where status in ('attempting', 'pending_payment');
+
+-- 7. Address coordinates (003)
+create table grocer.address_coords (
+  address_id text primary key,
+  user_id uuid not null references grocer.users(id) on delete cascade,
+  latitude double precision not null,
+  longitude double precision not null,
+  created_at timestamptz not null default now()
+);
+
+-- 8. Migration ledger (created at runtime by backend/database.py)
+create table grocer.schema_migrations (
+  filename text primary key,
+  applied_at timestamptz not null default now()
+);
 ```
+
+**Security state:** no RLS policies, no CHECK constraints, and no `updated_at` triggers exist. PII is plaintext except Swiggy tokens. The frontend does not talk to Supabase directly today; that is the only reason the missing RLS is latent rather than active. Test data must use the separate `grocer_test` database, not this one.
 
 ---
 
@@ -367,8 +439,15 @@ backend/
 │   ├── token_vault.py          # AES-256-GCM tokens, refresh, PKCE state
 │   └── schemas.py              # Pydantic contracts for tool responses
 │
+└── (backend ends here)
+
+Repository root:
 ├── migrations/                 # 001..003, applied in order and tracked
-└── tests/                      # Contract fixtures, router tests, invariant checks, live suites
+├── tests/                      # Contract fixtures, router tests, invariant checks, DB suites
+├── app/                        # Next.js landing page + OAuth bridge. Not the product UI.
+├── scripts/                    # eval_router, verify_db, drive_grocer
+├── docs/                       # ADRs, Swiggy MCP reference, archive/
+└── .scratch/                   # Session handoff and local proof artifacts
 ```
 
 ---
@@ -378,7 +457,8 @@ backend/
 > Current phase, blockers and acceptance conditions live in `STATUS.md`. This section covers how any task is judged, not what is left to do.
 
 A task or phase is considered complete **ONLY** when:
-1. `.\verify.ps1` (or `pytest`) exits 0 with pasted raw terminal output.
-2. Zero fake in-memory mocks (`MockCommerceAdapter` does not exist in the codebase).
-3. All commerce tests run against recorded staging fixtures or live staging endpoints.
-4. Git working directory is clean.
+1. `.\verify.ps1` (or the documented test command) exits 0 with pasted raw terminal output. Current `verify.ps1` fails at the schema check; code item 1 fixes it.
+2. Production code has no fake Swiggy, WhatsApp, database, or LLM branches.
+3. Contract tests use recorded real Swiggy responses. Gate proof uses live calls. Fixtures prove shape; they never count as live proof.
+4. DB tests use the `grocer_test` database, never the real one.
+5. Git working directory is clean.

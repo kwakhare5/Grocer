@@ -2,6 +2,8 @@
 
 A chronological record of project milestones, architectural decisions, and verification proof. This file is append-only.
 
+> **Historical log, not current truth.** Entries may describe states that were later corrected. Current truth is `STATUS.md`. The 2026-10-27 "Documentation Truth Sync" entry at the end lists the corrections.
+
 ---
 
 ## Log Entries
@@ -472,3 +474,59 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: No deletion was performed by the agent or by me. A read-only verification now shows the junk rows are already gone; the docs were corrected to match the live state.
 - **Proof**: Live query: **users 1, real accounts 1, sessions 1, approvals 0, checkouts 0**. The single session still has its active address. Full suite remains **136 passed, 0 skipped, 0 failed**.
 - **Still broken**: Nothing for the database. The remaining gap is feature work: typed-text address add, live basket-write proof, payment method choice, and checkout.
+
+### [GROCER v1 — Documentation Truth Sync] 2026-10-27
+
+#### Work Card: One doc map, one current truth, and the real v1 constraints
+- **Problem**: The docs disagreed with each other and with the code. STATUS marked P0s FIXED and then said they were not fixed. JOURNAL claimed 100% phases and production readiness. ARCHITECTURE showed only migration 001 and 25ms/50ms paths that do not exist. DESIGN carried a 5-day token and a video-editor reference. PRD said zero mocks in tests while the suite uses fixtures.
+- **Change**: Added a doc authority map and fixed constraints to AGENTS. Rewrote STATUS with proof dates, Gate 2 actual failures, P0/P1 blockers, and ADR status. Updated PRD's testing rule, payment order, and checkout contract. Fixed ARCHITECTURE's provider diagram, schema 001–003, 20-tool table, latency labels, and known deviations. Split DESIGN into WhatsApp product UI and website landing page. Added amendment banners to every ADR and an ADR index. Archived the Cardboard video-editor reference. Rewrote HANDOFF. No backend code changed.
+- **Proof**: `ruff check backend tests` → All checks passed!; offline non-DB subset → 79 passed, 11 deselected; `pytest --collect-only -q` → 136 collected. Docs use the placeholder number `+91 98765 43210` only.
+- **Still broken**: Every code P0/P1 in `STATUS.md` §4–§5 remains. Next is code item 1: `grocer_test`, `verify.ps1`/`verify_db.py`, `/health`, and the `ruff` dependency.
+
+### [GROCER v1 — Scope Reframe: Tool Coverage, Not Journeys] 2026-10-27
+
+#### Work Card: Make the docs say what the product actually is
+- **Problem**: The docs treated the nine PRD journeys as a build checklist and listed recipes as a product claim. Karan's goal is simpler: Swiggy Instamart on WhatsApp, where chat reaches anything the MCP allows. The docs also implied a live order would be placed during testing.
+- **Change**: Reframed PRD §3 as examples and added the tool-coverage bar. Marked recipes as out of scope (no tool). Fixed AGENTS scope and constraints: full tool coverage, no live order during the build, Karan places the first real order, one throwaway address for tests, Render reconcile-on-wake, no phone-entry form. Synced STATUS, ARCHITECTURE, DESIGN, GLOSSARY and ADR 0009. Created the missing `TASKS.md` with 10 checkpoints. Replaced the real phone number in the address test with the placeholder. No behavior changed.
+- **Proof**: `TASKS.md` exists; docs carry the scope note and the no-live-order rule; recipe claims are gone; `grep` for the real number is clean; `ruff` clean; 7 address tests pass. Read-only DB check: migrations 001–003 applied in `grocer`; `grocer_test` does not exist yet.
+- **Still broken**: All code P0/P1 in `STATUS.md` §4–§5. `LIVE_CHECKOUT_ENABLED` is still docs-only. Next is Phase 1: safety rails and verification.
+
+### [GROCER v1 — Phase 1: Safety Rails and Verification] 2026-10-27
+
+#### Work Card: Make the checkout lock real and put DB tests in their own database
+- **Problem**: `LIVE_CHECKOUT_ENABLED` existed only in docs, so any code path could call Swiggy checkout. `TEST_DATABASE_URL` was identical to `DATABASE_URL`, so DB tests wrote the app data. `verify_db.py` expected 6 tables, `verify.ps1` ran DB and live LLM tests by default, `/health` returned 200 with a dead DB, `ruff` was a global install, and a mock-based file was named "live".
+- **Change**: Enforced the flag at the top of `execute_3_lock_checkout` before Lock 1. Created the separate `grocer_test` database in the same Supabase project; the DSN guard now refuses any database not named `grocer_test`. Updated `verify_db.py` (8 tables, columns, indexes), `verify.ps1` (offline default, `-Db`/`-Live`), `/health` (503 through `health_response`), added `requirements-dev.txt`, marked the live Gemini tests `live`, and renamed the fake transport test. Docs now say "test database", not "test schema".
+- **Proof**: `verify.ps1` exit 0; 94 offline passed, 45 deselected; 23 DB passed on `grocer_test`; 139 collected. Real `grocer` counts unchanged (users 1, sessions 1, inbound 10, tokens 1, others 0); `grocer_test.users` 0 after cleanup. Guard output: `RuntimeError: Refusing to run tests against database 'postgres'.` Live `/health` returned 200 with the DB up; unit test covers the 503 mapping.
+- **Still broken**: All P0 checkout defects remain (transaction boundary, UPI args, idempotency, user binding, cap raise, park/replay, pollers, dedupe). App boot still fails if the DB is unreachable at startup. Phase 2 (Groq) not started.
+
+### [GROCER v1 — Phase 2: One LLM Brain] 2026-10-27
+
+#### Work Card: One adapter, no second classification, live Groq eval
+- **Problem**: The basket path made a second classification call through a direct Gemini SDK, so one message cost two brain calls and could get two different answers. Candidate evaluation also called Gemini directly. The Gemini key was required to boot even though Groq is primary, and recipe and fee fallbacks contained invented data.
+- **Change**: Routing and candidate evaluation now both use `backend.agent.llm.complete_json`, which validates a JSON object, retries once on transient errors, and reports the provider. Deleted the legacy orchestrator, its hardcoded recipe tables, the fake fee answer, and every direct `google.genai` import outside the adapter. The Gemini key is optional. Items now come from the router decision, and candidate evaluation runs off the event loop.
+- **Proof**: Live Groq eval, 40 real messages: 39 exact (97.5%), 0 unsafe writes, 0 under-acted writes, 0 LLM errors. Miss: "how long till my food arrives" → `store_info`, expected `track_order`. Raw: `.scratch/eval_phase2.json`. `ruff` clean; 94 offline pass; 23 DB pass on `grocer_test`.
+- **Still broken**: The one read/read miss, and the harness does not record per-call latency. Phase 2 is PARTIAL until the launch-gate re-run. Checkout P0s untouched.
+
+### [GROCER v1 — Phase 3: Checkout Money Core] 2026-10-27
+
+#### Work Card: No network call inside a transaction, and a checkout that can prove what happened
+- **Problem**: The real Swiggy `checkout` call ran inside an open DB transaction, so any later error rolled back the Lock 3 claim, the checkout row and the inbound dedupe row. The same receipt could order twice. The CAS matched only the approval id, so any user could tap someone else's `pay:` button. UPI was sent without `intentApp`/`generateUPIQR`, the pre-checkout order snapshot was never read, a cap failure expired the receipt before offering "Raise Limit", the raise button parsed the wrong segment, and `response_total_paise` copied the approval instead of the response.
+- **Change**: `execute_3_lock_checkout` now takes the pool. Lock 1 → atomic claim bound to `id + user_id` → live cart → required order snapshot → attempt row → Swiggy call → record, each committed separately. On timeout/5xx/malformed response it compares `get_orders` with the snapshot (one retry max, never blind). Unverifiable outcomes are marked `unknown` and the customer is told not to retry; `reconcile_attempting_checkouts` runs from the payment poller for crashed attempts. UPI sends `generateUPIQR=true` (or `intentApp`). A cap failure returns the approval to `shown`; the button now carries `budget:raise:<approval_id>:<paise>` and re-sends the pay button after raising. `button_router` dropped its transaction and passes the real message type. The webhook commits the user + dedupe row before the turn and holds a session-scoped advisory lock.
+- **Proof**: `python -m ruff check backend tests` → All checks passed!; 95 offline passed, 53 deselected; 31 DB passed on `grocer_test`; 148 collected; `powershell -File verify.ps1 -Db` exit 0 with the Next.js build. New tests: duplicate tap, two simultaneous taps, another user's button, timeout with a recovered order, clean failure that leaves the receipt payable, unverifiable outcome that blocks retry, crash reconcile with and without an order, cap raise, and UPI args. Probe: asyncpg releases a session advisory lock when the connection returns to the pool.
+- **Still broken**: Nothing here is live-proven; no order was placed. Poller 401/milestone/split-order defects (P0 #6/#7) remain for Phase 4, plus park/replay, address grounding, privacy, tool coverage and the landing page.
+
+### [GROCER v1 — Live Smoke + Phase 4: Post-Payment Truth] 2026-10-27
+
+#### Work Card: Real live calls (no order), then real tracking and poller truth
+- **Problem**: Every claim about Swiggy and Groq was fixture-backed. Checkout was proven only with recorded responses. Separately, `track_order` never called the tracking tool, `store_info` could not answer store or timing, a bare "milk" ended in "couldn't find", pollers could repeat a milestone, skip split-order ids, die on a 401, and mark a payment failed without checking after Render woke.
+- **Change**: Added `scripts/live_smoke.py` (reads, cart add/restore, Groq pass, checkout lock; never orders). Then wired real tracking with saved coordinates and a delivery-status fallback, an honest store/window answer, up to three tappable real products for one-word requests (`cart:add` buttons), a per-order milestone latch (migration 004), split-order polling, per-row 401 isolation, and a two-hour wake check before the stale-failure mark.
+- **Proof**: Live on 2026-10-27: 3 addresses, 20 milk products with real prices, 12-item cart read, 0 orders, 10 payment methods; cart add verified then restored to the same 12 spins and quantities; 10/10 Groq routes with real answers in 55s; checkout returned "locked" with a sentinel client proving no Swiggy call. Offline 100 pass; DB 34 pass on `grocer_test`; 156 collected; Next build passes; `verify_db` passes on the test DB at 004.
+- **Still broken**: App database is at 003; migration 004 needs Karan's approval. Gate 2 case 8 ("milk" buttons) is not tapped on WhatsApp yet; case 7 needs a past order. No order has ever been placed. Live `update_cart` left three items priced ₹0 on Swiggy's side (items intact), recorded in STATUS as an observed behavior.
+
+### [GROCER v1 — Migration 004 Applied + Test Truth] 2026-10-27
+
+#### Work Card: App database at 004, verification green, and what each test kind proves
+- **Problem**: `verify_db.py` required `notified_milestones`, but the app database was still at 003, so `verify.ps1 -Db` could not pass on the real project. Separately, STATUS mixed live smoke results with scripted failure-injection tests under one "tests pass" line, which read as if the scripted tests were proof of live Swiggy behavior.
+- **Change**: Ran `python scripts/migrate.py` (applied `004_checkout_milestones.sql` only). Updated STATUS §1/§6/§8, TASKS phase 4 and HANDOFF to record the applied migration and add a table that separates live, scripted, fixture and DB tests with what each one proves and does not prove. No test was deleted or weakened.
+- **Proof**: `verify.ps1 -Db` exit 0 on 2026-10-27: schema check pass (8 tables, `notified_milestones` + indexes), `ruff` clean, 100 offline passed, 34 DB passed on `grocer_test`, 156 collected, Next.js build passed. Migration log: `Applied migrations: ['004_checkout_milestones.sql']`.
+- **Still broken**: No live order. Gate 2 case 8 needs a WhatsApp tap; case 7 needs a past order. Phase 5 (address lifecycle, park/replay) not started.

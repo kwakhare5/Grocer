@@ -1,28 +1,28 @@
-# STATUS.md — Grocer v1.0 Single Source of Truth
+# STATUS.md — Grocer v1 Current Truth
 
-> **Updated:** 2026-10-26
-> **Read this first.** This is the only current status document.
-> **Maintenance rule:** every session updates this file before it ends.
+> **Updated:** 2026-10-27  
+> **Authority:** This is the only current status document. `PRD.md` is the v1 target. `ARCHITECTURE.md` is the design plus known gaps. `DESIGN.md` is the WhatsApp UI plus the website landing page. `JOURNAL.md` is append-only history. `docs/adr/` records decisions, amended not rewritten.  
+> **Rule:** DONE needs a proof command, date, and raw output. Everything else is PARTIAL, BROKEN, or NOT VERIFIED. A green test is not proof that the live product works.
 
 ---
 
-## 0. Product Scope
+## 0. Environment & Fixed Constraints
 
-Grocer is a full Swiggy Instamart concierge on WhatsApp. The customer should be able to do anything the Swiggy Instamart MCP allows, through natural WhatsApp conversation.
-
-That includes shopping, price/stock/store questions, saved addresses, adding and switching addresses, order history, live tracking, coupons, reorders, recipes, payments, support escalation, and privacy controls. Ordering is one capability, not the whole product.
-
-The boundary is the Swiggy Instamart MCP surface, plus an honest fallback where Swiggy does not support an action. Examples are illustrations only; they are not the scope limit.
-
-**Hard rules:**
-
-- No fake Swiggy MCP in production.
-- No fake Gemini in production.
-- No order or checkout without Karan's explicit approval.
-- Cart changes are allowed for testing; checkout is not.
-- No tests against a launched production database. Pre-launch, the single dev project is used and every test-created user is deleted at session end.
-- No deleting customer data without listing it first and getting approval.
-- No weakening a test to make it pass.
+| Item | Current fact |
+|---|---|
+| Git branch | `grocer-v1`; main branch is `main` |
+| Supabase | One project until launch. App data lives in the `postgres` database, schema `grocer` (7 app tables + `schema_migrations`). Both the app database and `grocer_test` are migrated through 004 (app DB applied 2026-10-27). |
+| LLM | Groq `openai/gpt-oss-120b` is primary for development and tests. Gemini is optional and its free quota is not a dependency. |
+| Swiggy auth | Allowlisted OAuth redirect: `https://grocerr.vercel.app/`. Backend calls `https://mcp.swiggy.com/im` with the customer token. |
+| Checkout | `LIVE_CHECKOUT_ENABLED=false`. The build must stay real-order capable. No live order without Karan's explicit approval. |
+| Order cap | ₹1,000 default (`100000` paise). |
+| Hosting | Backend on Render free plan (sleeps when idle). Landing page on Vercel. |
+| Landing page number | Display placeholder `+91 98765 43210`. Real WhatsApp link comes only from `NEXT_PUBLIC_WHATSAPP_NUMBER`. Karan's real number is never committed or published. |
+| Product goal | Chat is the front door to all 20 Instamart tools. `PRD.md` §3 journeys are examples, not a checklist. |
+| Build-time order policy | No live order during the build. Checkout proof is simulated plus recorded responses. Karan places the first real order after handoff. |
+| Address test writes | One throwaway address on Karan's account may be created and deleted. |
+| Hosting | Render free plan; pollers reconcile from the DB on wake. No paid instance. |
+| Landing OAuth | Phone-entry form is removed. OAuth is a bot-sent bridge only. |
 
 ---
 
@@ -30,201 +30,199 @@ The boundary is the Swiggy Instamart MCP surface, plus an honest fallback where 
 
 | Item | State |
 |---|---|
-| Branch | `grocer-v1` |
-| Gate 0 live check | Passed: token works, 3 addresses, live search returns 9 products, 0 orders |
-| Live cart read | Passed after fixing a schema bug: 11 items, ₹1,751, one dark store, all in stock |
-| Live payment options | Passed: 10 methods returned (GPay, PhonePe, Paytm, BHIM, CRED, QR, COD, Swiggy Money) |
-| Gate 1 code | Committed and pushed (`1ae6431`) |
-| Gate 1.1 code | Committed and pushed (`c8d31c9`); deployed |
-| Gate 2 router | Wired for read capabilities. Live-proven: price/stock, addresses, order history, tracking, cancel help, payment options |
-| Migrations | 002 tracked and applied; 003 added locally, not yet applied to Supabase |
-| Startup | Applies pending migrations on boot, tracked in `grocer.schema_migrations` |
-| Tests run today | **136 passed, 0 skipped, 0 failed**, including DB tests on the dev project. |
-| Test integrity | No weakened tests; the location-pin test now states exactly what it proves (P0 #7) |
-| Live refresh | **Passed**: refresh token stored, forced exchange rotated it, new token called Swiggy successfully |
-| Live checkout | Not tested; no order placed |
-| Account order history | `get_orders` returns 0 orders |
-| Token expiry | **2026-11-25 17:40 UTC** (30-day refresh token stored) |
-| Gemini | Works; primary model hit a free-tier 429, fallback answered |
-| Production readiness | **No** |
+| Documentation sync | **DONE 2026-10-27.** Docs share one authority map, one current status, and one scope: full tool coverage, journeys are examples. `TASKS.md` now exists. |
+| Lint | **PASS 2026-10-27:** `ruff check backend tests` → `All checks passed!` |
+| Offline tests | **PASS 2026-10-27:** 100 passed, 56 deselected (`pytest -q -m "not db and not live"`). |
+| DB tests | **PASS 2026-10-27:** 34 passed on `grocer_test` (`pytest -q -m "db"`). |
+| Live tests | **22 collected, not run.** `test_catalog_search.py` calls the live Gemini evaluator and is now marked `live`. |
+| Full test collection | **156 tests collected 2026-10-27.** |
+| Full suite claim | The old "136 passed, 0 skipped" claim is retired. The current verified set is 100 offline + 34 DB; live is excluded by default. |
+| Live Swiggy smoke | **PASS 2026-10-27:** real token, real MCP. 3 addresses, 20 milk products with live prices, 12-item cart read, 0 orders, 10 payment methods, 0 coupons. Cart add verified then restored (12 items, same spins and quantities). No order placed. Raw: `scripts/live_smoke.py`. |
+| Live Groq pass | **PASS 2026-10-27:** 10 real messages → 10 correct routes (item_info ×3, list_addresses, order_history, list_coupons, payment_options, add_items, chat, track_order) with real read answers. 55s. |
+| Live checkout lock | **PASS 2026-10-27:** with `LIVE_CHECKOUT_ENABLED=false`, the real path returned "Checkout is locked" and a sentinel client proved no Swiggy method ran. |
+| Checkout deploy lock | **DONE 2026-10-27:** `LIVE_CHECKOUT_ENABLED=false` is enforced in `execute_3_lock_checkout` before any Swiggy call. A test proves no client call and no approval consumption while locked. |
+| Checkout money core | **DONE (simulated) 2026-10-27:** claim, attempt row and result each commit separately; no transaction spans the Swiggy call. CAS binds approval + user. UPI sends `generateUPIQR`. Timeout/5xx reconciles against `get_orders` with one retry; stuck attempts are resolved by the payment poller. Cap raise returns the receipt to payable. Proof: 8 new DB tests incl. duplicate, concurrent, crash, timeout, unconfirmed and cap-raise. Never live-tested. |
+| Inbound dedupe | **DONE 2026-10-27:** user + `inbound_messages` row commit before the turn; the per-user lock is session-scoped and asyncpg releases it on pool release (probe run). |
+| Post-payment truth | **DONE (code) 2026-10-27:** `track_order` is called with saved coordinates, with `get_delivery_status` as the no-map fallback. `store_info` answers honestly instead of inventing a store or window. Split orders poll every order id; each order+milestone fires once via `notified_milestones` (migration 004). A payment made while Render slept is confirmed on wake; an auth failure leaves the row pending instead of failed. Proof: 3 new DB tests, 5 read tests. |
+| Test isolation | **DONE 2026-10-27:** `grocer_test` database live; the DSN guard refuses any test DSN that is not `grocer_test`. |
+| Router eval (live Groq) | **PASS with one miss 2026-10-27:** 39/40 exact (97.5%), 0 unsafe writes, 0 under-acted writes, 0 LLM errors. Miss: "how long till my food arrives" → `store_info`, expected `track_order`. Latency was not recorded by the harness. Raw: `.scratch/eval_phase2.json`. |
+| One LLM brain | **DONE 2026-10-27:** routing and candidate evaluation both call `backend/agent/llm.py`. Direct Gemini calls and the second classification call are gone. Gemini key is optional. |
+| Live reads | Recorded live on 2026-10-26: price/stock, addresses, order history, cancel help, payment options, coupons. Not re-run on 2026-10-27. |
+| Live refresh | Recorded 2026-10-26: forced refresh returned a new token pair; new expiry 2026-11-25. Journal also records a fixture-only refresh proof. Treat the live proof as recorded, not re-verified. |
+| Live checkout | **Never tested. No order placed.** |
+| Migration 004 | **VERIFIED 2026-10-27:** `python scripts/migrate.py` applied `004_checkout_milestones.sql` to the app database; `verify_db.py` exits 0 with 8 tables, `notified_milestones` present, and the required indexes. `grocer_test` is also at 004. |
+| Production readiness | **No.** |
+| Current gate | **Gate 2 — Concierge Answers.** 6 of 8 pass (3 of them live on 2026-10-27), 1 partial (reorder needs a past order), 1 unverified on WhatsApp ("milk" choices). See §2. |
 
 ---
 
-## 2. Status Legend
+## 2. Gate 2 — Actual Results
 
-| Label | Meaning |
-|---|---|
-| **FIXED** | Implemented and proven with a live call or a real captured response |
-| **FIXED-UNCOMMITTED** | Code exists but is not committed, deployed, or fully proven |
-| **PARTIAL** | Some code exists, but it is not wired, not proven, or misses cases |
-| **BROKEN** | Code exists and is known to be wrong or dangerous |
-| **NOT STARTED** | No implementation yet |
-| **BLOCKED** | Cannot proceed without a decision, credential, or external approval |
+Gate 2 is read-only. No checkout, order, payment call, or address write is in scope.
 
----
-
-## 3. Phase Table
-
-| Phase | Fixed | Partial | Broken / Remaining | Acceptance Condition |
+| # | Customer says | Required | Actual | Result |
 |---|---|---|---|---|
-| **0. Truth and baseline** | Scope docs corrected; 6 DB tables exist; migration 001 applied; `STATUS.md` created | Migration 002 untracked; handoff and journal stale | Fake production branches; tests use live DB; old docs claim all phases complete | Clean git tree; migration tracked; no fake production branch; isolated test DB; docs agree with code |
-| **1. Live Swiggy spine** | Correct field names for `update_cart`, `create_address`, `get_orders`, `track_order`, `confirm_order`; all 20 tool methods exist; refresh token stored; checkout copy fixed | Refresh-on-401 only; multi-store not modeled; confirm-order error not caught; tracking coords missing for existing users; payment options unused | Refresh on expiry; refresh in buttons/pollers; UPI args; live read-only and cart proof | Live read-only and cart test pass; refresh works on expiry and 401; multi-store parsed; confirm errors handled; tracking works or tells the truth |
-| **2. Concierge conversations** | Greeting, Q&A, recipe proposal, grocery-list extraction; 12-turn history; multi-item extraction | Q&A is not grounded in live data; per-item Gemini calls; disambiguation is broken; fallback keyword tables remain | Intents for price/stock/store, addresses, order history, tracking, cancel, reorder, post-order additions, fee questions | Every capability in the product scope has a real intent and a live proof |
-| **3. Address and account lifecycle** | Pin onboarding → flat → name → city/PIN → `create_address`; full address fields; display name; pin coordinates | Only onboarding; no list/add-another/switch/delete; every pin restarts onboarding; hardcoded `HOME`; contradicts Swiggy's one-address guidance | Address list, switch, delete guardrail, default-address grounding, one-time destination, address-type choices | All address journeys work live, including switch and delete guardrail |
-| **4. Cart and wallet** | Composite cart read/merge/update/verify; `skuId` threaded; coupon optimizer; net-savings guard; fingerprint | Out-of-stock alternatives missing; cart clear is a stub; change-item is a stub; fee-shock dead; reorder dead; float math remains; invented `sku_<spin>` fallback | Real clear, change item, fee warning, reorder, alternatives, integer-only money | Live add/remove/clear; fee warning; coupon savings; no invented IDs; no float money |
-| **5. Orders and payments** | 3-lock gate; CAS; fingerprint; HTTPS bridge; `confirm_order` call added; premature "placed" copy fixed | Payment poller not scheduled; delivery poller has no token; payment options unused; multi-store fails; cap-raise flow broken; milestones can spam | Payment settlement loop; per-user tokens; payment method choice; multi-store; cap raise; delivery milestones; cancellation; post-order additions | No order until approved; after approval, live payment → confirm → tracking works |
-| **6. Privacy and operations** | 24h DPDP scrubber; encrypted token vault; `delete my data` handler | Delete leaves the user row; onboarding context stores PII unencrypted/unpruned; outbound failures swallowed; Render free plan can sleep | Full purge; retention for onboarding data; retries; observability; always-on deploy; landing-page fixes | DPDP verified on isolated DB; workers stay alive; no fake UI copy |
-| **7. Real proof** | Gate 0 read-only live proof | Test suite mixes real calls with hand-written fixtures and live DB writes | One real low-value order (only with approval); live refresh; live confirm; live tracking; live address add/switch/delete | Evidence recorded in `JOURNAL.md` and `STATUS.md`; no green-chasing |
+| 1 | "How much is Amul milk?" | Real price and pack size; cart untouched | Read path built; live result recorded 2026-10-26 | **PASS (recorded)** |
+| 2 | "Is Amul milk in stock?" | Real availability at the default store | Read path built; live result recorded 2026-10-26 | **PASS (recorded)** |
+| 3 | "Which store? When will it arrive?" | Real store and delivery window | Honest: the cart quote plus "Swiggy doesn't share the dark store name or a delivery window before an order is placed" (`backend/agent/read_actions.py:66`) | **PASS (honest)** |
+| 4 | "What addresses do I have?" | The 3 saved addresses, default marked | Live 2026-10-27: 3 addresses, default marked | **PASS** |
+| 5 | "Show my last orders" | Real history; 0 is truth | Live 2026-10-27: 0 orders, said so | **PASS** |
+| 6 | "Where is my order?" | Track the order or say there are none | `track_order` with saved coords, `get_delivery_status` fallback; with 0 orders says so (`backend/agent/read_actions.py:129`) | **PASS (no-order path live)** |
+| 7 | "Reorder that" | Build the basket, stop before checkout | Fixture-proven only; live write blocked because the account has 0 orders | **PARTIAL** |
+| 8 | "milk" | Tappable choices for real products; never "couldn't find" | One-word requests now return up to 3 real products as tappable `cart:add` buttons (`backend/channels/whatsapp.py:812`) | **UNVERIFIED on WhatsApp** |
+
+**Done means:** every case shows its real answer, `ruff` clean, offline tests green, and docs updated. That is not met.
 
 ---
 
-## 4. P0 Blockers — Fix Before Commit or Deploy
+## 3. Capability Truth
 
-| # | Blocker | State | Fix applied | Proof |
-|---|---|---|---|---|
-| 1 | Refresh is not used on normal expiry | **FIXED (live proven)** | `resolve_user_token` in `token_vault.py`: valid → use, expired → refresh once. Used by webhook, button router and both pollers. 401 and JSON-RPC `-32001` both raise auth-expired. Refresh is serialized per user so rotation cannot race. | Forced `/auth/token` exchange returned a new pair, stored it, and the rotated token loaded 3 addresses. New expiry 2026-11-25. |
-| 2 | Migration 002 untracked; nothing applied on boot | **FIXED (code)** | 002 tracked; `apply_migrations` records files in `grocer.schema_migrations` and runs only new ones; called in the lifespan before workers start. | Offline only; first real run applies 003 to Supabase |
-| 3 | Multi-store checkout schema | **FIXED (contract)** | `CheckoutData` accepts single, UPI, and `orders[]` split shapes; every order id is stored in `checkouts.swiggy_order_ids`; receipt reports each order and any partial failure. | Documented contract test passes; no live split order captured |
-| 4 | `confirm_order` errors uncaught | **FIXED (code)** | Per-order confirm wrapped in `try/except`; row moves to `confirming` (not `failed`) so the poller keeps retrying for 2 hours. | No live paid order to prove it |
-| 5 | Tracking coordinates missing for existing users | **PARTIAL** | Onboarding now saves pin coords to `grocer.address_coords`; settlement reads address coords, then session pin. Accounts created before this still have no coords, so `track_order` is skipped and only status text is sent. | Needs a pin once per old address |
-| 6 | Payment poller never scheduled | **FIXED (code)** | `_run_payment_poller_loop` runs every 15s, settles per user with that user's token, and messages the customer. | No live paid order |
-| 7 | Location-pin test weakened | **FIXED (honest)** | Test renamed to what it proves (pin saved, no token → connect CTA). Post-login onboarding is covered offline by `test_address_lifecycle.py::test_pin_onboarding_flow_captures_name_city_pin`. A live webhook onboarding test needs an isolated test DB (P1 #15). | 37 offline tests pass |
-| 8 | Migrations not applied at startup | **FIXED (code)** | Same fix as #2. | — |
+| Safety class | Capabilities | Reality |
+|---|---|---|
+| **read** (9) | chat, item_info, store_info, list_addresses, order_history, track_order, list_coupons, payment_options, cancel_help | All 9 answer live. `store_info` gives the live cart quote and says Swiggy does not expose the store or window. `track_order` calls the tracking tool when coordinates are saved, else delivery status. |
+| **basket** (4) | add_items, change_item, clear_basket, reorder | `add_items` works live. Change, clear and reorder are fixture-proven only. Reorder's live write is blocked. `add_items` still makes a second legacy LLM call. |
+| **account** (3) | add_address, switch_address, delete_address | Address list is a read capability and works. Switch only writes `sessions.active_address_id`; it does not clear or rebuild the basket. Delete has a confirmation but the active-delivery guard is not wired; actual delete is unproven. Typed-text add is not built; every pin restarts onboarding. |
+| **money** (1) | checkout | Button path is wired end to end and no longer holds a DB transaction across the Swiggy call. Text "place the order" still returns a not-ready reply (`backend/channels/whatsapp.py:697`). Never live-tested; no order placed. |
+
+**Capability count:** 17 declared, 16 reachable. `checkout` is the unwired one.
 
 ---
 
-## 5. P1 Blockers — Fix Before Calling It a Working Concierge
+## 4. P0 — Fix Before Any Live Order
 
-| # | Blocker | File | Why It Matters | Fix |
-|---|---|---|---|---|
-| 9 | Payment options are not used | `backend/integrations/commerce/swiggy_client.py:495` | Checkout cannot choose UPI app, QR, Cash, or Swiggy Money correctly | Fetch options, show choices, pass the selected method |
-| 10 | UPI checkout arguments incomplete | `backend/integrations/commerce/swiggy_client.py:440` | Missing `intentApp` / QR path can fail live | Wire the chosen payment option into checkout |
-| 11 | Onboarding contradicts Swiggy docs | `backend/agent/address_lifecycle.py:75` | Swiggy asks for one full address; code asks components separately | Align the flow or document the deliberate difference |
-| 12 | Address type hardcoded to HOME | `backend/agent/address_lifecycle.py:140` | Wrong category for work/family addresses | Ask or infer only with confirmation |
-| 13 | Every location pin restarts onboarding | `backend/channels/whatsapp.py:217` | Existing users get a new address instead of a choice | Distinguish add-new vs switch |
-| 14 | Fake production branches remain | `backend/integrations/commerce/swiggy_client.py:105`, `backend/channels/whatsapp_client.py:48` | Violates zero-mock and hides live failures | Remove fixture/catalog/mock branches from production |
-| 15 | ~~Tests write to live Supabase~~ | `backend/database.py`, `tests/conftest.py` | **Fixed 2026-10-27:** pytest uses `TEST_DATABASE_URL` (the one dev project) and never falls back silently. Every user created during a run is deleted at session end using an ID baseline. DB verified: **1 user, 1 real account, 1 session, 0 approvals, 0 checkouts**; the old junk rows are gone. | — |
-| 16 | Webhook is synchronous | `backend/channels/whatsapp.py` | Gemini + Swiggy calls block the 200 response | ACK first, process from a durable queue |
-| 17 | ~~Button router stubs~~ | `backend/channels/button_router.py` | **Fixed in Gate 2** for cart, reorder and address buttons; recipe buttons are no longer emitted | — |
-| 18 | ~~Missing concierge intents~~ | `backend/agent/router.py` | **Fixed in Gate 2:** 17 capabilities with safety classes cover the product scope; `add_items` still makes a second legacy LLM call | Move recipes into the router, then delete the second call |
-| 19 | Disambiguation is broken | `backend/channels/whatsapp.py:394,454` | Ambiguous items fall into "couldn't find" | Add tappable options and pending state |
-| 20 | Fee-shock warning is dead | `backend/agent/customer_advocate.py:81` | Small carts can surprise customers with fees | Call it before checkout |
-| 21 | Post-order additions and split receipts are dead | `backend/agent/checkout_executor.py:31` | Promised journeys never run | Wire or remove |
-| 22 | One-time destination is dead | `backend/agent/address_lifecycle.py:53` | Send-to-Mom journey does not exist | Wire or remove |
-| 23 | DPDP delete is partial | `backend/agent/dpdp.py:112` | User row and audit rows remain | Define and implement the full purge |
-| 24 | Outbound WhatsApp failures are swallowed | `backend/channels/whatsapp_client.py:63` | Receipts can vanish unseen | Retry, log, and surface failure |
-| 25 | Receipt body is truncated at 1024 chars | `backend/channels/whatsapp_client.py:105` | Long bills silently lose lines | Split messages or summarize honestly |
-| 26 | Float money and invented SKU fallback | `backend/agent/composite_cart.py:135,143` | Violates integer-paise and "do not invent IDs" | Use real `skuId`; integer math only |
-| 27 | ~~`store_user_token` can wipe refresh token~~ | `backend/integrations/commerce/token_vault.py` | **Fixed in Gate 1.1** with `COALESCE(EXCLUDED.refresh_token, stored.refresh_token)`; regression assertion added to `test_swiggy_auth.py` | — |
-| 28 | Approval is not bound to the tapping user | `backend/agent/checkout_executor.py:255` | Ownership check is missing | Add `user_id` to CAS |
-| 29 | Frontend fallback WhatsApp number is fake | `app/page.tsx:76` | Landing page can send users to a stranger | Require the env var and fail loudly |
-| 30 | Render free plan sleeps | `render.yaml:1` | Pollers stop | Use an always-on service/worker |
-| 31 | Gemini free-tier quota | `.env` | Full live tests hit 20 requests/day | Paid key or quota-aware tests |
-| 32 | OAuth state is in memory and login accepts any phone | `backend/integrations/commerce/token_vault.py:24`, `backend/channels/swiggy_auth.py:63` | Account hijack and lost login state | DB-backed state plus signed WhatsApp ticket |
-| 33 | Old docs still overclaim | `PRD.md`, `JOURNAL.md` | PRD describes the target product; JOURNAL is history. Future chats may read them as current. | Keep `STATUS.md` authoritative; treat the other two as target and history |
-| 34 | Green-chasing tests | `tests/` | Passing tests do not prove live behavior | Test user-visible outcomes and real contracts |
+**Still open (Phase 5):**
+
+6. **Park and replay are disconnected.** The webhook writes `status='parked'` (`backend/channels/whatsapp.py:910`). Replay only claims `awaiting_link` (`backend/agent/address_lifecycle.py:216`). The OAuth callback returns the payload to the browser but never re-executes or sends it (`backend/channels/swiggy_auth.py:158`). The current test proves the unused path.
+
+**Fixed in Phase 3 (2026-10-27):**
+
+1. **Checkout ran inside a DB transaction.** `execute_3_lock_checkout` now takes the pool and commits the CAS, the attempt row and the result separately. No transaction spans a Swiggy call, and `button_router` no longer opens one. Proof: duplicate-tap, concurrent-tap and crash tests in `tests/test_checkout_locks.py`.
+2. **UPI arguments were incomplete.** `SwiggyClient.checkout` sends `generateUPIQR=true` for UPI, or `intentApp` when one is given. Proof: `test_upi_checkout_sends_qr_request`.
+3. **Not idempotent; retry guard unused.** The pre-checkout snapshot is now required. On timeout/5xx the order list is compared with it, the call retries once only, and `reconcile_attempting_checkouts` resolves attempts left by a crash. Proof: timeout-recovered, clean-failure, unconfirmed and crash tests.
+4. **Lock 1 did not bind the approval to the tapper.** The CAS matches `id + user_id`, and the webhook passes the real `message_type` instead of a hardcoded one. Proof: `test_lock_3_cas_rejects_another_user`.
+5. **Budget-raise was a dead end.** A cap failure returns the approval to `shown`. The button carries `budget:raise:<approval_id>:<paise>`; the handler raises the cap and re-sends the pay button. Proof: `test_cap_raise_keeps_receipt_payable`.
+8. **Dedupe could roll back.** The user and `inbound_messages` rows commit before the turn runs. The per-user lock is session-scoped; a probe proved asyncpg releases it when the connection returns to the pool.
+
+**Fixed in Phase 4 (2026-10-27):**
+
+7. **Pollers could die, spam and skip orders.** `SwiggyAuthExpiredError` is now caught by every loop and by each row inside the payment batch, so one 401 no longer aborts the batch or marks a payment failed. Each order id in a split checkout is polled, and `notified_milestones` (migration 004) sends each order+milestone once. A pending payment older than five minutes is checked on wake rather than failed blindly. Proof: split-milestone, wake-payment and auth-failure tests.
+
+**Honest limit:** none of this is proof that a live order works. It is proof that a live order cannot double-place or charge without a tap.
 
 ---
 
-## 6. What Is Actually Fixed
+## 5. P1 — Real, Lower Blast Radius
 
-### Gate 0 — Live proof
+- Address grounding uses `addresses[0]`, not Swiggy's default address (`backend/channels/whatsapp.py:430`).
+- Address switch does not clear or rebuild the basket, so the basket can belong to the old store.
+- The active-delivery delete guard exists but is called only in tests (`backend/agent/address_lifecycle.py:304`).
+- Money math outside checkout still uses floats and `round()` for paise (`backend/integrations/commerce/schemas.py:90`, `backend/agent/composite_cart.py:137`). The checkout path now parses response rupees through `parse_price_to_paise`.
+- Coupons run only on the add-items path. Only the first two applicable coupons are tried. The savings message is built but never sent (`backend/agent/customer_advocate.py:251`).
+- Receipt bodies are truncated at 1024 characters, so long bills silently lose lines (`backend/channels/whatsapp_client.py:105`).
+- Dead buttons end at "Action processed": recipe, item change, go-to add, post-order add, and proceed checkout (`backend/agent/customer_advocate.py:111`, `backend/agent/candidate_evaluator.py:481`).
+- DPDP scrubs some fields but leaves `sessions.onboarding_context`, `users.display_name`, delivery coordinates, `address_coords`, the user row, and approval/checkout rows (`backend/agent/dpdp.py:19`, `backend/agent/dpdp.py:112`).
+- No RLS on any table; PII is plaintext; OAuth login accepts any phone and binds the token to the caller-supplied phone (`backend/channels/swiggy_auth.py:63`, `migrations/001_initial_schema.sql:9`).
+- The landing page footer says "Systems Operational" with no health check, and the page falls back to a fake WhatsApp number (`app/page.tsx:76`, `app/page.tsx:269`).
+- Render free plan sleeps, so pollers stop when idle (`render.yaml:6`).
+- The app still fails to boot if the database is unreachable at startup, so `/health` cannot report that first failure. It reports later DB failures.
 
-- Swiggy token decrypts and works.
-- `get_addresses` returns 3 addresses with a default.
-- `search_products("Amul milk")` returns 10 live products.
-- `get_orders(count=10, orderType=INSTAMART)` works and returns 0 orders.
-- Gemini 3.5 works; primary model can hit a free-tier 429, fallback answers.
+**Fixed in Phase 1 (2026-10-27):** `verify_db.py` table/column/index check, `verify.ps1` offline default, `/health` 503 mapping, `ruff` dev requirements, real test database, DSN guard, live-test marker, mock-based "live" test rename.
 
-### Gate 1 — committed, pushed and deployed
+**Fixed in Phase 3 (2026-10-27):** checkout transaction boundary, CAS ownership, UPI args, timeout/5xx reconcile, crash reconcile, cap-raise loop, checkout `response_total_paise`, independent inbound dedupe.
 
-- Swiggy field names fixed for `update_cart`, `create_address`, `get_orders`, `track_order`, `confirm_order`.
-- All 20 Instamart tool methods exist, including `get_payment_options` and `report_error`.
-- Encrypted refresh-token storage and refresh-on-401 added.
-- Address onboarding flow added.
-- Checkout copy no longer says "placed" on `PENDING_PAYMENT`.
-- `confirm_order` is called after payment when Swiggy does not auto-confirm.
-- Migration 002 applied to Supabase.
-- Last recorded run: 109/109 tests, Ruff clean, Next build clean.
+**Fixed in Phase 4 (2026-10-27):** real `track_order` with map fallback, honest `store_info`, tappable choices for one-word requests, split-order milestone latch, wake reconciliation, 401 isolation per row.
 
-### Gate 2 — capabilities wired
-
-- 17 capabilities with four safety classes (ADR 0012).
-- Provider adapter: Groq `openai/gpt-oss-120b` and Gemini behind one JSON call.
-- Router wired into the webhook. Read capability → answer; `add_items` → existing basket path; any other write → honest "not yet" reply.
-- Live-proven reads: price and stock, saved addresses, order history, active-order status, cancel help, payment options, delivery quote and coupons.
-- Address switch works with a basket warning and a confirmation tap; delete shows a confirmation and refuses the last or active address. Actual delete execution is unproven.
-- Live proof that a price question leaves the cart untouched: 11 items ₹1,763 before and after.
-- English-only replies enforced in the prompt.
-- Known cost: basket requests still make a second LLM call through the old classifier until recipes move into the router.
-- Basket clear, remove and quantity changes are previewed, confirmed by tap, and verified after writing. Proven against fixtures only, not the live cart.
-- Reorder (last order or usual items) previews resolved live products with prices, then rebuilds the basket only from a tap, with read-after-write verification and revert. Proven against real fixture shapes; live proof blocked because the account has 0 orders and the live DB read was refused by the safety classifier.
-- Router accuracy is measured by `scripts/eval_router.py`: 40 messy real-world phrasings sent to the live LLM, scored on capability and unsafe writes.
-- Two full live runs on Groq `openai/gpt-oss-120b`: **39/40 both times, 0 unsafe writes both times.** The miss moved between runs ("how long till my food arrives" → store_info; "delete my old address" → chat). Each was fixed with a one-line prompt rule and passes when rerun alone. Treat 39/40 as the honest floor and expect run-to-run variance; a 3-pass per-case consistency score is the next measurement step.
-- Targeted offline suites (router, basket, reorder, catalog): 47 passed; `ruff` clean on changed files.
-- Not built yet: add address by typed text (location pin works), text checkout (button only), and the reorder write on live data.
-- **Test database:** one dev project is used for both app and tests. `get_db_pool()` refuses to run under pytest without `TEST_DATABASE_URL`. Every test run snapshots existing user IDs and deletes any user created during the run, so no new junk accumulates. Full suite: **136 passed, 0 skipped, 0 failed**. DB verified at **1 user (the real account), 1 session, 0 approvals, 0 checkouts**; earlier junk rows are gone.
-
-**Not fixed:** the P0 and P1 items above.
+**Observed live 2026-10-27:** calling `update_cart` on a 12-item real cart (₹1751 quote) left all 12 items and quantities intact but Swiggy priced three lines at ₹0 (NOICE peanut butter, Alt Co almond beverage, Amul butter), so its own total became ₹753. Nothing was removed by Grocer. Lock 2 would abort checkout on that drift, which is the intended behavior, but the cause is Swiggy-side and worth watching.
 
 ---
 
-## 7. Rules for Every Future Chat
+## 6. Test Truth (2026-10-27)
+
+**What each kind of test proves.**
+
+| Kind | Where | Proves | Does not prove |
+|---|---|---|---|
+| Live smoke | `scripts/live_smoke.py` (run by hand with real tokens) | Real Swiggy reads, a real cart add/restore, real Groq routing, the checkout lock stopping before Swiggy | That a live order completes |
+| Scripted tests | `tests/test_checkout_locks.py`, `ScriptedClient` | Grocer's own logic on failure paths that cannot be triggered on demand (timeout, 5xx, crash, another user's tap) | Any live Swiggy behavior |
+| Fixture tests | `tests/test_staging_fixtures.py` | Response shapes parse correctly | That the live service returns them today |
+| DB tests | `-m db` on `grocer_test` | Real SQL, constraints, CAS, pollers against real Postgres | Nothing about Swiggy |
+
+Scripted tests are not fake product tests. They inject failures the live API will not produce on request. They are never counted as proof of a live capability; every live claim in this file is tied to a dated smoke run.
+
+```
+ruff check backend tests
+All checks passed!
+
+pytest -q -m "not db and not live"
+100 passed, 56 deselected in 0.74s
+
+pytest -q -m "db"
+34 passed, 122 deselected in 33.49s
+
+pytest --collect-only -q
+156 tests collected
+
+powershell -File verify.ps1 -Db
+=== [PASS] Grocer v1.0 verification complete ===
+# 2026-10-27 after migration 004: schema check exit 0, ruff clean,
+# 100 offline pass, 34 DB pass, Next.js build pass, script exit 0
+```
+
+**New in Phase 4:** 5 read-path tests (track with coords, track without coords, no active order, honest store info, tappable choices) and 3 DB tests (split milestones sent once, wake payment confirmed, 401 keeps the row pending). `npm run build` passes. `verify.ps1 -Db` now exits 0 after migration 004 was applied to the app database on 2026-10-27.
+
+**New in Phase 3:** duplicate tap, two simultaneous taps, another user's button, timeout with a recovered order, clean failure that leaves the receipt payable, unverifiable outcome that blocks retry, crash reconcile with and without an order, cap raise, and UPI QR args. Raw log: `.scratch/verify_phase3.log`.
+
+**Guard proof:** with `TEST_DATABASE_URL` set to the app DSN, pytest exits 1:
+```
+RuntimeError: Refusing to run tests against database 'postgres'. TEST_DATABASE_URL must point at grocer_test.
+```
+
+**Real schema proof:** before and after the DB run, `grocer` held the same counts
+(`users=1, sessions=1, approvals=0, checkouts=0, inbound_messages=10, oauth_tokens=1, address_coords=0`).
+`grocer_test.users` was 0 after cleanup.
+
+**Not run:** live Swiggy calls, live WhatsApp sends, live Groq eval, and checkout. `test_catalog_search` is marked `live` and excluded by default.
+
+---
+
+## 7. ADR Status
+
+| ADR | Status | Current note |
+|---|---|---|
+| 0001 | Amended | 25ms ACK and 50ms button path are targets. The webhook is synchronous today. |
+| 0002 | Active with deviation | Grounding uses the first saved address, not the default. Fingerprint includes payable paise, so any paise change fails. |
+| 0003 | Active with gaps | Coupon guard works. Savings message is not sent. Tracking now calls `track_order` with saved coordinates and falls back to delivery status. |
+| 0004 | Amended | The 5-day/no-refresh claim is obsolete. Refresh token exists. Parked replay is broken. |
+| 0005 | Partial | Payment buttons are Pay + Clear only. COD, Change Address and Change Items are target. |
+| 0006 | Partial | ₹1,000 cap stays. Cap-raise now re-opens the same receipt. DPDP is partial. |
+| 0007 | Partial | Address switch does not rebuild the cart. Delete guard is not wired. |
+| 0008 | Partial | Typed-text address add is missing. Reorder is fixture-only. |
+| 0009 | Not implemented | Examples, not v1 scope. Recipes have no tool. Do not describe as live. |
+| 0010 | Amended | Refresh first, park only on refresh failure. The parked status does not match replay. |
+| 0011 | Superseded | Replaced by ADR 0012. The legacy second LLM call is removed. |
+| 0012 | Active | Groq is primary and the only adapter. Direct Gemini calls are gone; the key is optional. |
+
+---
+
+## 8. Next Action
+
+**Phases 0-4 are done.** Checkout is transaction-safe with reconcile, the read path answers from live Swiggy data, and pollers handle split orders, repeats, 401s and wake. Live smoke on 2026-10-27 proved real reads, a real cart add/restore, 10/10 Groq routes, and a checkout that stops before Swiggy. Migration 004 is applied to both databases and `verify.ps1 -Db` exits 0.
+
+**Phase 5: account and address lifecycle.** Ground to the default address, clear and rebuild the basket on switch, wire the delete guard, typed-text address add, OAuth state bound to the user, park/replay wired end to end (open P0 #6).
+
+**Open proofs:** Gate 2 case 7 (needs a past order), case 8 ("milk" choices need a WhatsApp tap), and the Phase 2 latency miss. Re-run the full gate at launch.
+
+---
+
+## 9. Rules for Every Future Chat
 
 1. Read `STATUS.md`, `.scratch/HANDOFF.md`, and the latest `JOURNAL.md` entry before planning.
 2. Do not edit code without showing the exact plan and getting `proceed`.
-3. Do not place an order or call checkout without explicit approval.
-4. Cart changes are allowed only with approval.
-5. Do not fake Swiggy, Gemini, WhatsApp, or the database.
-6. Do not run destructive tests against the live database.
+3. Do not place an order during the build. Karan places the first real order himself after handoff. `LIVE_CHECKOUT_ENABLED=false` must be enforced in code.
+4. Cart changes need approval. Tests never write the real `grocer` schema.
+5. Do not fake Swiggy, Groq, Gemini, WhatsApp, or the database.
+6. Do not claim a live result you did not run. Label it "recorded" or "not verified".
 7. Do not delete data without listing it first.
 8. Do not weaken a test to pass. If the feature is broken, say so.
 9. Show `git diff`, test output, and database proof.
 10. Update `STATUS.md`, `.scratch/HANDOFF.md`, and `JOURNAL.md` before ending the session.
-
----
-
-## 8. Current Gate Contract — Gate 2: Concierge Answers
-
-**Goal, one sentence:** a customer can ask about price, stock, store, saved addresses, order history, tracking or a reorder and get a correct answer from live Swiggy data, in plain English.
-
-**Non-goals for this gate:** no checkout, no order, no payment call, no address create/switch/delete, no cart mutation, no deploy.
-
-**Before changing any code, the chat must show:**
-
-1. What the bot does today, with the exact code path and line numbers.
-2. What `PRD.md` says it should do.
-3. The smallest change that closes the gap.
-4. The live read-only call that will prove it.
-
-**Acceptance tests — each one runs live, read-only:**
-
-| # | Customer says | Must happen |
-|---|---|---|
-| 1 | "How much is Amul milk?" | Real price and pack size. Cart untouched. |
-| 2 | "Is Amul milk in stock?" | Real availability at the default store. |
-| 3 | "Which store? When will it arrive?" | Real store and delivery window for the active address. |
-| 4 | "What addresses do I have?" | The 3 saved addresses, default marked. |
-| 5 | "Show my last orders" | Real history. It is 0 today, so it must say 0. |
-| 6 | "Where is my order?" | Asks which order, or says there are none. Never invents one. |
-| 7 | "Reorder that" | With no past order, says so truthfully. With one, builds the basket and stops before checkout. Cart change needs Karan's yes. |
-| 8 | "milk" | Tappable choices for the real products. Never "couldn't find". |
-
-**Done means:** every test shows its real answer in the terminal, `ruff` clean, offline tests green, and `STATUS.md` / `.scratch/HANDOFF.md` / `JOURNAL.md` updated. Anything unproven is listed as unproven.
-
-**Review rule:** a read-only reviewer agent checks the plan against `PRD.md` before edits when the change touches more than one file.
-
----
-
-## 9. Maintenance Contract
-
-| File | Purpose | When to Update |
-|---|---|---|
-| `STATUS.md` | Single source of truth: fixed, partial, broken, next | Every session start and end |
-| `.scratch/HANDOFF.md` | Five-line resume note | End of session |
-| `JOURNAL.md` | Proof log: problem, change, proof, still broken | Every change |
-| `docs/design-reference.md` | Web landing-page visual system (Cardboard.ai) | Only when the frontend style changes |
-| `AGENTS.md` | Rules and product scope | When rules or scope change |
-| `PRD.md` | Product requirements | When product requirements change |
-
-If code and docs disagree, the code plus live proof win. Update the docs.

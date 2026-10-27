@@ -4,9 +4,28 @@
 
 
 > **Workspace Scope:** `D:\Grocer-v5\` (All clean-slate code and docs live strictly here)  
-> **Source of Truth:** `PRD.md`, `ARCHITECTURE.md`, `DESIGN.md`, `STATUS.md`, `JOURNAL.md`  
-> **Current Status:** Read `STATUS.md` first. It is the only current status document.  
-> **Product Scope:** Grocer is a full Swiggy Instamart concierge on WhatsApp. The customer should be able to do anything the Instamart MCP allows through natural conversation: shopping, price/stock/store questions, saved addresses, order history, tracking, coupons, reorders, recipes, payments, support escalation, and privacy. Ordering is one capability, not the whole product.
+> **Document Authority:** `PRD.md` = v1 target. `ARCHITECTURE.md` = how it works and known gaps. `DESIGN.md` = WhatsApp product UI and website landing page. `AGENTS.md` = rules. `TASKS.md` = the fix plan and phase status. `STATUS.md` = the only current truth. `JOURNAL.md` = append-only history. `GLOSSARY.md` = terms. `docs/adr/` = decisions, amended not rewritten. `.scratch/HANDOFF.md` = session handoff.  
+> **Current Status:** Read `STATUS.md` first. If any document disagrees with it, `STATUS.md` wins until the next sync.  
+> **Product Scope:** Grocer is Swiggy Instamart on WhatsApp. Chat is the front door to everything the Instamart MCP allows: shopping, price/stock/store questions, saved addresses, order history, tracking, coupons, reorders, payments, support, and privacy. If Swiggy has a tool for it, a customer can ask for it in plain language. Ordering is one capability, not the whole product.  
+> **Scope truth (2026-10-27):** The journeys in `PRD.md` §3 are examples of what people can do, not a checklist. The bar is full tool coverage in `ARCHITECTURE.md` §4. Anything no Swiggy tool backs is not v1 scope.
+
+---
+
+## 0. Fixed Environment & Constraints (2026-10-27)
+
+These are facts, not preferences. Do not re-ask or silently change them.
+
+1. **One Supabase project until launch.** The app uses the `grocer` schema in the `postgres` database. Tests use a separate `grocer_test` database in the same project; its schema is also `grocer`. Tests never write the real database.
+2. **Groq is the development and test LLM.** Use `openai/gpt-oss-120b` through the provider adapter. Gemini is optional and its free quota is not a dependency. A provider that cannot serve normal traffic cannot be the primary.
+3. **Swiggy OAuth redirect is allowlisted.** `https://grocerr.vercel.app/` is the exact redirect URI. The backend calls `https://mcp.swiggy.com/im` with the customer's token.
+4. **Real-order capable, live order locked.** The code must be able to place a real order. `LIVE_CHECKOUT_ENABLED=false` by default. No live checkout or order during the build. Karan tests on WhatsApp and places the first real order himself after handoff.
+5. **₹1,000 default cap.** Keep the launch cap unless Karan changes it.
+6. **Landing page number policy.** The website displays the placeholder `+91 98765 43210`. The real WhatsApp link comes only from `NEXT_PUBLIC_WHATSAPP_NUMBER`. Never commit or publish Karan's real number.
+7. **No fake claims.** A feature is DONE only with a proof command, date, and raw output in `STATUS.md`. Everything else is PARTIAL, BROKEN, or NOT VERIFIED.
+8. **Full tool coverage is the bar.** Every one of the 20 Instamart MCP tools is reachable by chat or gets an honest "not supported" reply. `PRD.md` §3 journeys are examples, not scope.
+9. **Address writes for testing are allowed.** One throwaway address on Karan's account may be created and deleted. Nothing else in his account is touched.
+10. **No paid hosting.** Render stays on the free plan. Pollers reconcile from the database on wake; no always-on instance.
+11. **No phone-entry form on the landing page.** OAuth is a bot-sent bridge. The page never asks a visitor for a phone number.
 
 ---
 
@@ -19,7 +38,10 @@
 ---
 
 ## 2. Universal Non-Negotiables for Grocer v1
-1. **Real Data Over Mocks:** Zero mocking of project code, databases, APIs, the LLM, or Swiggy MCP tools. `MockCommerceAdapter` is permanently deleted. Contract tests use real captured Swiggy responses; behavior tests call live Swiggy and the live LLM.
+
+> These are rules and targets. Current implementation status is in `STATUS.md`; do not assume a rule is implemented.
+
+1. **No Mocks in Production:** Production code never contains fake Swiggy, WhatsApp, database, or LLM branches. Contract tests may use recorded real Swiggy responses. Gate proof and behavior claims require live calls. Fixtures prove response shape; they do not prove live behavior.
 2. **Zero Assumptions About Orders or Addresses:** Never assume customer intent. Never substitute specific requests. Ground to primary address with 1-tap switch.
 3. **Radical Truth:** If an item is out of stock, if the dark store is closed, or if an API error occurs, communicate the exact truth in plain English. Never silently omit items.
 4. **Customer Advocate Engine:** Auto-apply the best valid Swiggy coupon. Never apply a coupon if the final payable total increases. Show exact rupee savings.
@@ -29,15 +51,17 @@
 8. **DPDP Compliance & 24h Data Minimization:** Customer addresses and order snapshots are deleted from DB storage after 24 hours.
 9. **Living Status:** `STATUS.md` is the single source of truth. Update it, `.scratch/HANDOFF.md`, and `JOURNAL.md` before ending any session.
 10. **Unknown Never Writes:** Every message routes to a capability with a safety class (`read`, `basket`, `account`, `money`). A read capability can never reach a write path. Unknown or low-confidence messages answer read-only or ask.
+11. **No Live Order During The Build:** The build must remain capable of a real order, but checkout stays locked. `LIVE_CHECKOUT_ENABLED=false` is the default and must be enforced in code, not only in docs. Checkout is proven with simulated failures and recorded responses. Karan's own post-handoff test is the first real order.
 
 ---
 
 ## 3. Evidence, Testing & Done Condition
 - Every task is verified with terminal proof.
 - Done check = Test + Lint both exit 0 with pasted raw terminal output.
-- Tests must not write to the production Supabase database.
+- Tests must not write the real database. DB tests use the separate `grocer_test` database in the one Supabase project.
 - Do not weaken a test to make it pass. If a feature is broken, say so.
 - Two-Fail Circuit Breaker: If a test fails twice on the same fix attempt, stop immediately, state the conflict plainly, and ask for direction.
+- Doc sync: `STATUS.md` is the only current truth. `PRD.md` and `DESIGN.md` may describe targets, but must say so. `JOURNAL.md` is append-only; corrections are new entries, never rewrites.
 
 ---
 

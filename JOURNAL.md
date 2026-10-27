@@ -611,3 +611,6 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: `STATUS.md` now has current counts (113 offline, 52 DB, 185 collected), 19 capabilities, the Batch 2/3 state and a 13-item ordered backlog in §8. `TASKS.md` has a durable "Phase 7 backlog" table plus an "Open proofs" table. `ARCHITECTURE.md`, `DESIGN.md`, `GLOSSARY.md` and ADR 0009 now state recipe planning is built in code but not live-proven. `.scratch/HANDOFF.md` and project memory mirror the same state.
 - **Proof**: `grep` over the core docs returns no stale `106/46/172/175` counts, no `18 capabilities`, and no "recipes not built" claim. Docs only; no code changed in this pass.
 - **Still broken**: The Batch 2 slice and doc changes are uncommitted. Live reaction, live recipe route, Add-all tap, Change-item tap, blue ticks and address add/delete remain unproven.
+
+#### Correction: commit state
+- `0fe6ef0` (Batch 2 code) and `89d95c0` (docs) are local commits; both are not pushed. The previous card and STATUS said "uncommitted"; that is fixed.

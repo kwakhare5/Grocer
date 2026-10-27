@@ -223,7 +223,7 @@ RuntimeError: Refusing to run tests against database 'postgres'. TEST_DATABASE_U
 
 ## 8. Next Action
 
-**Where we are (2026-10-28).** Phases 0-5 are done. Phase 7 Batch 1 and the first Batch 2 slice are done in code: multi-item adds, clearer existing-item copy, recipe plan-confirm-add, and one outcome reaction per message. The last full gate is green: `verify.ps1 -Db` exit 0, 113 offline + 52 DB, 185 collected, Next build pass. The reaction commits (`36d2ec2`, `0fa0270`) are pushed. The Batch 2 slice is local and **uncommitted**. Render is live on `09b5fa2`; the pushed reaction commits are not deploy-verified.
+**Where we are (2026-10-28).** Phases 0-5 are done. Phase 7 Batch 1 and the first Batch 2 slice are done in code: multi-item adds, clearer existing-item copy, recipe plan-confirm-add, and one outcome reaction per message. The last full gate is green: `verify.ps1 -Db` exit 0, 113 offline + 52 DB, 185 collected, Next build pass. The reaction commits (`36d2ec2`, `0fa0270`) are pushed. The Batch 2 slice is committed locally (`0fe6ef0`, docs `89d95c0`) and **not pushed**. Render is live on `09b5fa2`; the pushed reaction commits are not deploy-verified.
 
 **Remaining Phase 7, in order.**
 

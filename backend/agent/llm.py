@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 from dataclasses import dataclass
 from typing import Any
 
@@ -18,6 +19,8 @@ from backend.config import settings
 logger = logging.getLogger("grocer.llm")
 
 GROQ_CHAT_URL = "https://api.groq.com/openai/v1/chat/completions"
+RETRYABLE_STATUS = {408, 425, 429, 500, 502, 503, 504}
+RETRY_DELAY_SECONDS = 1.0
 
 
 @dataclass(frozen=True)
@@ -47,22 +50,37 @@ def _groq_json(system_prompt: str, user_prompt: str) -> LLMResult:
             {"role": "user", "content": user_prompt},
         ],
     }
-    try:
-        response = httpx.post(
-            GROQ_CHAT_URL,
-            headers={"Authorization": f"Bearer {settings.GROQ_API_KEY}"},
-            json=payload,
-            timeout=settings.LLM_TIMEOUT_SECONDS,
-        )
-        response.raise_for_status()
-        content = response.json()["choices"][0]["message"]["content"]
-        return LLMResult(json.loads(content), "groq", settings.GROQ_MODEL)
-    except (httpx.HTTPError, KeyError, IndexError, TypeError, ValueError) as exc:
-        logger.warning("Groq completion failed on %s: %s", settings.GROQ_MODEL, exc)
-        return LLMResult(None, "groq", settings.GROQ_MODEL, str(exc))
+    last_error = "groq request failed"
+    for attempt in range(2):
+        try:
+            response = httpx.post(
+                GROQ_CHAT_URL,
+                headers={"Authorization": f"Bearer {settings.GROQ_API_KEY}"},
+                json=payload,
+                timeout=settings.LLM_TIMEOUT_SECONDS,
+            )
+            if response.status_code in RETRYABLE_STATUS and attempt == 0:
+                last_error = f"HTTP {response.status_code}"
+                time.sleep(RETRY_DELAY_SECONDS)
+                continue
+            response.raise_for_status()
+            content = response.json()["choices"][0]["message"]["content"]
+            parsed = json.loads(content)
+            if not isinstance(parsed, dict):
+                raise TypeError("Groq returned JSON that is not an object")
+            return LLMResult(parsed, "groq", settings.GROQ_MODEL)
+        except (httpx.HTTPError, KeyError, IndexError, TypeError, ValueError) as exc:
+            last_error = str(exc)
+            if attempt == 0:
+                time.sleep(RETRY_DELAY_SECONDS)
+
+    logger.warning("Groq completion failed on %s: %s", settings.GROQ_MODEL, last_error)
+    return LLMResult(None, "groq", settings.GROQ_MODEL, last_error)
 
 
 def _gemini_json(system_prompt: str, user_prompt: str) -> LLMResult:
+    if not settings.GEMINI_API_KEY:
+        return LLMResult(None, "gemini", settings.GEMINI_MODEL, "GEMINI_API_KEY is not set")
     try:
         from google import genai
         from google.genai import types
@@ -82,7 +100,10 @@ def _gemini_json(system_prompt: str, user_prompt: str) -> LLMResult:
                 ),
             )
             if response.text:
-                return LLMResult(json.loads(response.text), "gemini", model_name)
+                parsed = json.loads(response.text)
+                if not isinstance(parsed, dict):
+                    raise TypeError("Gemini returned JSON that is not an object")
+                return LLMResult(parsed, "gemini", model_name)
         except (APIError, OSError, KeyError, TypeError, ValueError) as exc:
             logger.warning("Gemini completion failed on %s: %s", model_name, exc)
     return LLMResult(None, "gemini", settings.GEMINI_MODEL, "gemini unavailable")

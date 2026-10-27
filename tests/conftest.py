@@ -26,6 +26,9 @@ def pytest_configure(config: pytest.Config) -> None:
     config.addinivalue_line(
         "markers", "db: needs PostgreSQL; requires TEST_DATABASE_URL"
     )
+    config.addinivalue_line(
+        "markers", "live: calls a live external service; excluded by default"
+    )
 
 
 def pytest_collection_modifyitems(

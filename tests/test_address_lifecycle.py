@@ -67,7 +67,7 @@ def test_pin_onboarding_flow_captures_name_city_pin(swiggy_client):
 
     # Step 4: city + PIN -> address created on Swiggy
     turn4 = flow.advance(
-        turn3.next_step, turn3.context, text="Bengaluru, 560034", wa_id="918237803170"
+        turn3.next_step, turn3.context, text="Bengaluru, 560034", wa_id="919876543210"
     )
     assert turn4.completed is True
     assert turn4.address_id.startswith("addr_")

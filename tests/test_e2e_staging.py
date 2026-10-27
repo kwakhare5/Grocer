@@ -441,7 +441,8 @@ def test_e2e_delivery_milestone_resolution_and_antispam():
 # ==============================================================================
 @pytest.mark.db
 @pytest.mark.asyncio
-async def test_e2e_full_staging_customer_journey(swiggy_client):
+async def test_e2e_full_staging_customer_journey(swiggy_client, monkeypatch):
+    monkeypatch.setattr(settings, "LIVE_CHECKOUT_ENABLED", True)
     """Full staging smoke test: Address -> Search -> Update Cart -> Coupon -> 3-Lock -> Settle -> Track."""
     pool = await get_db_pool()
     wa_id = f"9194{int(time.time()) % 100000000:08d}"
@@ -497,7 +498,7 @@ async def test_e2e_full_staging_customer_journey(swiggy_client):
 
         # Step 8: Lock 3 Exactly-Once Checkout
         checkout_res = await execute_3_lock_checkout(
-            conn=conn,
+            pool=pool,
             swiggy_client=swiggy_client,
             user_id=str(user_id),
             approval_id=approval.id,
@@ -588,8 +589,9 @@ async def test_e2e_in_flight_delivery_poller_and_milestone_transition(swiggy_cli
 
 @pytest.mark.db
 @pytest.mark.asyncio
-async def test_e2e_pay_button_fast_path_executes_3_lock_checkout(swiggy_client):
+async def test_e2e_pay_button_fast_path_executes_3_lock_checkout(swiggy_client, monkeypatch):
     """Verify interactive [Pay] button tap directly executes 3-lock checkout in button_router."""
+    monkeypatch.setattr(settings, "LIVE_CHECKOUT_ENABLED", True)
     from backend.channels.button_router import dispatch_button_action
 
     pool = await get_db_pool()

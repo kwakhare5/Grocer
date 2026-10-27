@@ -46,6 +46,8 @@ from backend.integrations.commerce.schemas import (
 )
 from backend.integrations.commerce.swiggy_client import SwiggyClient
 
+pytestmark = pytest.mark.live
+
 FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures"
 
 

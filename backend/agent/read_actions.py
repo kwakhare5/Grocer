@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from typing import Any
 
 import httpx
 
@@ -15,7 +16,10 @@ from backend.agent.candidate_evaluator import format_paise_to_rupees
 from backend.agent.candidate_search import search_catalog
 from backend.agent.formatters import SWIGGY_CARE_PHONE
 from backend.agent.router import Capability, RoutingDecision
-from backend.integrations.commerce.swiggy_client import SwiggyClient
+from backend.integrations.commerce.swiggy_client import (
+    SwiggyAuthExpiredError,
+    SwiggyClient,
+)
 
 logger = logging.getLogger("grocer.read_actions")
 
@@ -63,8 +67,9 @@ async def _store_info(client: SwiggyClient, address_id: str | None) -> str:
     cart = await asyncio.to_thread(client.get_cart, address_id)
     if not cart.items:
         return (
-            "Your basket is empty, so there's no live delivery quote yet. "
-            "Start a basket and I can show the exact delivery fee and total."
+            "Swiggy doesn't share the dark store name or a delivery window before "
+            "an order is placed.\n\n"
+            "Add items to your basket and I can show the exact delivery fee and total."
         )
 
     lines = ["*Your current delivery quote:*"]
@@ -72,7 +77,8 @@ async def _store_info(client: SwiggyClient, address_id: str | None) -> str:
         lines.append(f"• {line.label}: {line.value}")
     lines.append(f"*To pay: {cart.billBreakdown.toPay.value}*")
     lines.append(
-        "\nSwiggy doesn't share the dark store name or opening hours before an order is placed."
+        "\nSwiggy doesn't share the dark store name or a delivery window before "
+        "an order is placed."
     )
     return "\n".join(lines)
 
@@ -120,7 +126,11 @@ async def _order_history(client: SwiggyClient) -> str:
     return "\n".join(lines)
 
 
-async def _track_order(decision: RoutingDecision, client: SwiggyClient) -> str:
+async def _track_order(
+    decision: RoutingDecision,
+    client: SwiggyClient,
+    coords: tuple[float, float] | None = None,
+) -> str:
     data = await asyncio.to_thread(
         client.get_orders, count=10, order_type="INSTAMART", active_only=True
     )
@@ -132,11 +142,69 @@ async def _track_order(decision: RoutingDecision, client: SwiggyClient) -> str:
     if not active:
         return "You have no active order right now."
 
-    lines = ["*Your active orders:*"]
-    for order in active:
-        eta = f" — ETA {order.estimatedDeliveryTime}" if order.estimatedDeliveryTime else ""
-        lines.append(f"• #{order.orderId} — {order.status}{eta}")
-    return "\n".join(lines)
+    order = active[0]
+    if coords:
+        tracking = None
+        try:
+            tracking = await asyncio.to_thread(
+                client.track_order, order.orderId, coords[0], coords[1]
+            )
+        except (
+            httpx.HTTPError,
+            ValueError,
+            KeyError,
+            RuntimeError,
+            OSError,
+            SwiggyAuthExpiredError,
+        ) as exc:
+            logger.warning("track_order failed for %s: %s", order.orderId, exc)
+
+        if tracking:
+            status = tracking.status.statusMessage
+            eta = tracking.status.etaText or (
+                f"{tracking.status.etaMinutes} mins" if tracking.status.etaMinutes else None
+            )
+            lines = [
+                f"*Order #{order.orderId}*",
+                f"Status: {status}" + (f" — ETA {eta}" if eta else ""),
+            ]
+            store = (tracking.storeInfo or {}).get("name")
+            if store:
+                lines.append(f"Store: {store}")
+            lines.append(f"Live map: https://swiggy.com/track/{order.orderId}")
+            if len(active) > 1:
+                lines.append(
+                    f"\nYou have {len(active)} active orders. Ask about a specific order number for details."
+                )
+            return "\n".join(lines)
+
+    # No saved coordinates: the status tool still answers without a map position.
+    delivery = None
+    try:
+        delivery = await asyncio.to_thread(client.get_delivery_status, order.orderId)
+    except (
+        httpx.HTTPError,
+        ValueError,
+        KeyError,
+        RuntimeError,
+        OSError,
+        SwiggyAuthExpiredError,
+    ) as exc:
+        logger.warning("get_delivery_status failed for %s: %s", order.orderId, exc)
+
+    if delivery:
+        lines = [
+            f"*Order #{order.orderId}*",
+            f"Status: {delivery.statusText or 'in progress'}",
+        ]
+        if delivery.etaText:
+            lines.append(f"ETA: {delivery.etaText}")
+        lines.append(
+            "Share your WhatsApp location pin and I can show the rider on the map."
+        )
+        return "\n".join(lines)
+
+    return f"Order #{order.orderId} is {order.status}. Swiggy didn't return a live rider update just now."
 
 
 async def _payment_options(client: SwiggyClient) -> str:
@@ -158,10 +226,31 @@ def _cancel_help() -> str:
     )
 
 
+def format_disambiguation_choices(
+    query: str,
+    candidates: list[Any],
+    quantity: int = 1,
+) -> tuple[str, list[tuple[str, str]]]:
+    """Build tappable choices for a vague request like 'milk'."""
+    choices = candidates[:3]
+    lines = [f"Which *{query}* did you mean?"]
+    for index, cand in enumerate(choices, start=1):
+        lines.append(
+            f"{index}. {cand.display_name} ({cand.quantity_description}) — "
+            f"{format_paise_to_rupees(cand.offer_price_paise)}"
+        )
+    buttons = [
+        (f"cart:add:{cand.spin_id}:{quantity}", cand.display_name[:20])
+        for cand in choices
+    ]
+    return "\n".join(lines), buttons
+
+
 async def answer_read_capability(
     decision: RoutingDecision,
     client: SwiggyClient,
     address_id: str | None,
+    coords: tuple[float, float] | None = None,
 ) -> str:
     """Answer a read capability. Never writes to Swiggy or the database."""
     try:
@@ -178,12 +267,20 @@ async def answer_read_capability(
         if decision.capability is Capability.ORDER_HISTORY:
             return await _order_history(client)
         if decision.capability is Capability.TRACK_ORDER:
-            return await _track_order(decision, client)
+            return await _track_order(decision, client, coords)
         if decision.capability is Capability.PAYMENT_OPTIONS:
             return await _payment_options(client)
         if decision.capability is Capability.CANCEL_HELP:
             return _cancel_help()
-    except (httpx.HTTPError, ValueError, KeyError, TypeError, RuntimeError, OSError) as exc:
+    except (
+        httpx.HTTPError,
+        ValueError,
+        KeyError,
+        TypeError,
+        RuntimeError,
+        OSError,
+        SwiggyAuthExpiredError,
+    ) as exc:
         logger.warning("Read capability %s failed: %s", decision.capability.value, exc)
         return "I couldn't fetch that from Swiggy just now. Please try again in a moment."
 

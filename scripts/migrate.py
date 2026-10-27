@@ -32,8 +32,16 @@ async def run():
             for t in tables:
                 print(f"  [x] grocer.{t['table_name']}")
 
-            # Verify all 6 expected tables exist
-            expected = {"users", "oauth_tokens", "inbound_messages", "sessions", "approvals", "checkouts"}
+            expected = {
+                "address_coords",
+                "approvals",
+                "checkouts",
+                "inbound_messages",
+                "oauth_tokens",
+                "schema_migrations",
+                "sessions",
+                "users",
+            }
             actual = {t["table_name"] for t in tables}
             missing = expected - actual
 
@@ -41,7 +49,7 @@ async def run():
                 print(f"\nERROR: Missing expected tables: {missing}")
                 sys.exit(1)
             else:
-                print("\nSUCCESS: All 6 core Grocer tables created and verified cleanly in Supabase!")
+                print("\nSUCCESS: All 8 Grocer tables present in Supabase!")
     finally:
         await close_db_pool()
 

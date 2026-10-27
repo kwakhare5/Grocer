@@ -193,3 +193,35 @@ async def apply_set_quantity(
             f"Swiggy didn't set *{target.itemName}* to {quantity}, so I put your basket back."
         )
     return BasketReply(f"Set *{target.itemName}* to quantity {quantity}.")
+
+
+async def apply_add_new_item(
+    client: SwiggyClient,
+    address_id: str | None,
+    spin_id: str,
+    quantity: int = 1,
+) -> BasketReply:
+    """Add a searched product the customer picked from tappable results."""
+    if quantity < 1:
+        return BasketReply("Quantity has to be at least 1.")
+
+    cart = await _cart(client, address_id)
+    existing = next((item for item in cart.items if item.spinId == spin_id), None)
+    if existing:
+        return await apply_add_quantity(client, address_id, spin_id, quantity)
+
+    await _write(
+        client,
+        _payload_with(cart) + [{"spinId": spin_id, "quantity": quantity}],
+        address_id,
+    )
+    after = await _cart(client, address_id)
+    added = next((item for item in after.items if item.spinId == spin_id), None)
+    if added is None:
+        await _write(client, _full_payload(cart), address_id)
+        return BasketReply("Swiggy didn't add that item, so I put your basket back.")
+
+    return BasketReply(
+        f"Added *{added.itemName}* x{added.quantity}. "
+        f"Basket total: {after.billBreakdown.toPay.value}"
+    )

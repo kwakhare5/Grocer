@@ -28,6 +28,8 @@ from backend.integrations.commerce.swiggy_client import SwiggyClient
 
 FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures"
 
+pytestmark = pytest.mark.scripted
+
 
 def _decision(capability: Capability, order_ref: str | None = None) -> RoutingDecision:
     return RoutingDecision(
@@ -37,6 +39,8 @@ def _decision(capability: Capability, order_ref: str | None = None) -> RoutingDe
         order_ref=order_ref,
     )
 
+
+pytestmark = pytest.mark.scripted
 
 def _active_order(order_id: str = "189456789012") -> OrderHistoryItem:
     return OrderHistoryItem(

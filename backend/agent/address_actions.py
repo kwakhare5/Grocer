@@ -14,7 +14,7 @@ from typing import Any
 
 import httpx
 
-from backend.integrations.commerce.schemas import GetAddressesData
+from backend.integrations.commerce.schemas import GetAddressesData, SavedAddress
 from backend.integrations.commerce.swiggy_client import SwiggyClient
 
 logger = logging.getLogger("grocer.address_actions")
@@ -54,6 +54,26 @@ def _picker(addresses: list[Any], prefix: str) -> list[tuple[str, str]]:
         (f"{prefix}:{address.id}", _short(_label(address), 20))
         for address in addresses[:3]
     ]
+
+
+def resolve_default_address(data: GetAddressesData) -> SavedAddress | None:
+    """Swiggy's own default wins over list order."""
+    default_id = data.resolution.defaultAddressId
+    if default_id:
+        for address in data.addresses:
+            if address.id == default_id:
+                return address
+    return data.addresses[0] if data.addresses else None
+
+
+async def ensure_active_address(conn: Any, user_id: Any, client: SwiggyClient) -> str | None:
+    """Ground a session with no address to Swiggy's default, not addresses[0]."""
+    data = await _fetch_addresses(client)
+    target = resolve_default_address(data)
+    if target is None:
+        return None
+    await _save_active_address(conn, user_id, target.id)
+    return target.id
 
 
 async def _fetch_addresses(client: SwiggyClient) -> GetAddressesData:
@@ -112,7 +132,7 @@ async def handle_switch_request(
         return AddressReply(
             f"Your basket has items. Switching to *{_label(target)}* may change prices, "
             "stock or fees because it's a different dark store. Switch anyway?",
-            [(f"addr:set:{target.id}", "Switch anyway"), ("addr:keep", "Keep current")],
+            [(f"addr:set:{target.id}", "Switch & rebuild"), ("addr:keep", "Keep current")],
         )
 
     await _save_active_address(conn, user_id, target.id)
@@ -127,7 +147,7 @@ async def apply_switch(
     user_id: Any,
     address_id: str,
 ) -> AddressReply:
-    """Apply a switch chosen from a button. Revalidates against live addresses."""
+    """Apply a switch chosen from a button, then rebuild the basket at the new store."""
     try:
         data = await _fetch_addresses(client)
     except (httpx.HTTPError, ValueError, KeyError, RuntimeError, OSError) as exc:
@@ -138,10 +158,49 @@ async def apply_switch(
     if target is None:
         return AddressReply("That address is no longer in your Swiggy account.")
 
-    await _save_active_address(conn, user_id, target.id)
-    return AddressReply(
-        f"Done. Your active address is now *{_label(target)}* — {_short(target.addressLine, 60)}."
+    previous_id = await conn.fetchval(
+        "SELECT active_address_id FROM grocer.sessions WHERE user_id = $1;", user_id
     )
+
+    items: list[tuple[str, str, int]] = []
+    try:
+        cart = await asyncio.to_thread(client.get_cart, previous_id)
+        items = [
+            (item.spinId, item.itemName, item.quantity)
+            for item in cart.items
+            if item.isInStockAndAvailable
+        ]
+    except (httpx.HTTPError, ValueError, KeyError, RuntimeError, OSError) as exc:
+        logger.warning("Could not read the old basket before switching: %s", exc)
+
+    await _save_active_address(conn, user_id, target.id)
+    header = f"Done. Your active address is now *{_label(target)}*."
+
+    if not items:
+        return AddressReply(f"{header} Your basket is empty, so there was nothing to move.")
+
+    try:
+        await asyncio.to_thread(client.clear_cart)
+        await asyncio.to_thread(
+            client.update_cart,
+            [{"spinId": spin_id, "quantity": quantity} for spin_id, _, quantity in items],
+            target.id,
+        )
+        rebuilt = await asyncio.to_thread(client.get_cart, target.id)
+    except (httpx.HTTPError, ValueError, KeyError, RuntimeError, OSError) as exc:
+        logger.warning("Basket rebuild after address switch failed: %s", exc)
+        return AddressReply(
+            f"{header} The old basket was cleared, but Swiggy didn't rebuild it at the "
+            "new store. Add your items again."
+        )
+
+    kept = {item.spinId for item in rebuilt.items}
+    missing = [name for spin_id, name, _ in items if spin_id not in kept]
+    moved = len(items) - len(missing)
+    text = f"{header} Moved {moved} of {len(items)} items to the new store."
+    if missing:
+        text += f" Not available there: {', '.join(missing[:3])}."
+    return AddressReply(text)
 
 
 async def handle_delete_request(
@@ -205,6 +264,14 @@ async def apply_delete(
     target = next((a for a in data.addresses if a.id == address_id), None)
     if target is None:
         return AddressReply("That address is already gone.")
+
+    from backend.agent.address_lifecycle import AddressLifecycleManager
+
+    guard = await asyncio.to_thread(
+        AddressLifecycleManager(client).can_delete_address, address_id
+    )
+    if not guard.can_delete:
+        return AddressReply(guard.block_reason or "That address has an active delivery.")
 
     try:
         await asyncio.to_thread(client.delete_address, address_id)

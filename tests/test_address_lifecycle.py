@@ -103,13 +103,19 @@ def test_one_time_destination_preserves_primary_address():
     assert session.one_time_destination_id is None
 
 
+@pytest.mark.db
 @pytest.mark.asyncio
 async def test_token_expiration_parks_request_and_replays():
-    """ADR 0010: 401 parks shopping list in DB/session, re-auth replays automatically."""
-    vault = TokenParkedRequestManager()
-    user_id = uuid.uuid4()
+    """ADR 0010: 401 parks the list in Postgres, and the claim returns it once."""
+    from backend.database import get_db_pool
 
-    # Customer tries adding items, but token is expired
+    pool = await get_db_pool()
+    wa_id = f"91{uuid.uuid4().int % 10000000000:010d}"
+    user_id = await pool.fetchval(
+        "INSERT INTO grocer.users (wa_id) VALUES ($1) RETURNING id;", wa_id
+    )
+
+    vault = TokenParkedRequestManager()
     pending_items = [{"spinId": "spin_amul_1l", "quantity": 2}]
     parked_token = await vault.park_request(
         user_id=user_id,
@@ -119,17 +125,30 @@ async def test_token_expiration_parks_request_and_replays():
     assert parked_token is not None
     assert await vault.has_parked_request(user_id) is True
 
-    # WhatsApp CTA button is provided
+    async with pool.acquire() as conn:
+        status = await conn.fetchval(
+            "SELECT status FROM grocer.inbound_messages WHERE user_id = $1;", user_id
+        )
+    assert status == "awaiting_link"
+
     cta = vault.get_reconnect_button_payload(parked_token)
     assert "connect_swiggy" in cta["action_id"]
 
-    # Customer reconnects Swiggy OAuth
-    replayed = await vault.pop_and_replay_request(user_id)
-    assert replayed is not None
-    assert replayed["action"] == "update_cart"
-    assert replayed["payload"]["items"][0]["spinId"] == "spin_amul_1l"
+    popped = await vault.pop_parked_request(user_id)
+    assert popped is not None
+    row_id, payload = popped
+    assert payload["action"] == "update_cart"
+    assert payload["payload"]["items"][0]["spinId"] == "spin_amul_1l"
+
+    await vault.mark_replayed(row_id)
+    async with pool.acquire() as conn:
+        status = await conn.fetchval(
+            "SELECT status FROM grocer.inbound_messages WHERE user_id = $1;", user_id
+        )
+    assert status == "replayed"
 
 
+@pytest.mark.scripted
 def test_address_deletion_blocked_when_active_delivery_in_transit(
     swiggy_client, monkeypatch
 ):

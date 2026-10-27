@@ -1,0 +1,192 @@
+"""Grocer v1.0 — WhatsApp webhook plumbing.
+
+Runs on PostgreSQL with a scripted Swiggy boundary and a recording outbound
+client. It proves the exact JSON Meta posts for a button tap reaches the right
+handler. It does not prove Meta's delivery or a human tap.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import hashlib
+import hmac
+import json
+import time
+import uuid
+from pathlib import Path
+from typing import Any
+
+import pytest
+
+from backend.channels.link_tokens import verify_link_token
+from backend.channels.whatsapp import _park_and_prompt, handle_webhook
+from backend.config import settings
+from backend.database import get_db_pool
+from backend.integrations.commerce.swiggy_client import SwiggyClient
+
+FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures"
+
+pytestmark = [pytest.mark.db, pytest.mark.scripted]
+
+
+class RecordingWA:
+    """Captures outbound calls instead of sending them to Meta."""
+
+    def __init__(self) -> None:
+        self.texts: list[tuple[str, str]] = []
+        self.buttons: list[tuple[str, str, list[tuple[str, str]]]] = []
+        self.ctas: list[tuple[str, str, str, str]] = []
+
+    async def send_text_message(self, to_wa_id: str, text: str) -> None:
+        self.texts.append((to_wa_id, text))
+
+    async def send_quick_reply_buttons(
+        self, to_wa_id: str, body_text: str, buttons: list[tuple[str, str]]
+    ) -> None:
+        self.buttons.append((to_wa_id, body_text, buttons))
+
+    async def send_cta_url_button(
+        self, to_wa_id: str, body_text: str, button_text: str, url: str
+    ) -> None:
+        self.ctas.append((to_wa_id, body_text, button_text, url))
+
+
+class SignedRequest:
+    def __init__(self, payload: dict[str, Any]) -> None:
+        self._body = json.dumps(payload).encode("utf-8")
+        signature = hmac.new(
+            settings.WHATSAPP_APP_SECRET.encode("utf-8"), self._body, hashlib.sha256
+        ).hexdigest()
+        self.headers = {"X-Hub-Signature-256": f"sha256={signature}"}
+
+    async def body(self) -> bytes:
+        return self._body
+
+
+def _message(
+    wa_id: str,
+    *,
+    wamid: str | None = None,
+    text: str | None = None,
+    button_id: str | None = None,
+) -> dict[str, Any]:
+    message: dict[str, Any] = {
+        "from": wa_id,
+        "id": wamid or f"wamid.{uuid.uuid4()}",
+        "timestamp": str(int(time.time())),
+    }
+    if button_id:
+        message["type"] = "interactive"
+        message["interactive"] = {
+            "type": "button_reply",
+            "button_reply": {"id": button_id, "title": button_id[:20]},
+        }
+    else:
+        message["type"] = "text"
+        message["text"] = {"body": text or ""}
+    return {
+        "object": "whatsapp_business_account",
+        "entry": [
+            {
+                "id": "entry_01",
+                "changes": [
+                    {
+                        "field": "messages",
+                        "value": {
+                            "messaging_product": "whatsapp",
+                            "metadata": {"phone_number_id": "109876543210"},
+                            "messages": [message],
+                        },
+                    }
+                ],
+            }
+        ],
+    }
+
+
+def _new_wa_id() -> str:
+    return f"91{uuid.uuid4().int % 10000000000:010d}"
+
+
+@pytest.mark.asyncio
+async def test_duplicate_tap_is_dropped_before_it_runs_twice():
+    wa_id = _new_wa_id()
+    wamid = f"wamid.{uuid.uuid4()}"
+    client = SwiggyClient(fixtures_dir=FIXTURES_DIR)
+    outbound = RecordingWA()
+    payload = _message(wa_id, wamid=wamid, button_id="cart:add:spin_test_cookie:1")
+
+    first = await handle_webhook(
+        SignedRequest(payload), swiggy_client=client, wa_client=outbound
+    )
+    second = await handle_webhook(
+        SignedRequest(_message(wa_id, wamid=wamid, button_id="cart:add:spin_test_cookie:1")),
+        swiggy_client=client,
+        wa_client=outbound,
+    )
+    await asyncio.sleep(0.05)
+
+    assert first["status"] == "basket_updated"
+    assert second["status"] == "duplicate_dropped"
+    spins = [item.spinId for item in client.get_cart("addr_01HXYZ").items]
+    assert spins.count("spin_test_cookie") == 1
+    assert any("Added" in text for _, text in outbound.texts)
+
+
+@pytest.mark.asyncio
+async def test_pay_tap_while_locked_never_calls_swiggy():
+    wa_id = _new_wa_id()
+    outbound = RecordingWA()
+    approval_id = str(uuid.uuid4())
+
+    class SpyClient(SwiggyClient):
+        checkout_calls = 0
+
+        def checkout(self, *args: Any, **kwargs: Any):  # pragma: no cover - must not run
+            SpyClient.checkout_calls += 1
+            raise AssertionError("checkout must not run while the lock is on")
+
+    result = await handle_webhook(
+        SignedRequest(_message(wa_id, button_id=f"pay:{approval_id}")),
+        swiggy_client=SpyClient(fixtures_dir=FIXTURES_DIR),
+        wa_client=outbound,
+    )
+    await asyncio.sleep(0.05)
+
+    assert result["status"] == "checkout_failed"
+    assert "locked" in result["error_message"].lower()
+    assert SpyClient.checkout_calls == 0
+    assert outbound.texts and "locked" in outbound.texts[0][1].lower()
+
+
+@pytest.mark.asyncio
+async def test_park_sends_a_signed_reconnect_link():
+    pool = await get_db_pool()
+    wa_id = _new_wa_id()
+    outbound = RecordingWA()
+
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            user_id = await conn.fetchval(
+                "INSERT INTO grocer.users (wa_id) VALUES ($1) RETURNING id;", wa_id
+            )
+            inbound_id = await conn.fetchval(
+                """
+                INSERT INTO grocer.inbound_messages (wa_message_id, user_id, message_type, status)
+                VALUES ($1, $2, 'text', 'received') RETURNING id;
+                """,
+                f"wamid.{uuid.uuid4()}",
+                user_id,
+            )
+        await _park_and_prompt(conn, inbound_id, wa_id, outbound)
+
+    async with pool.acquire() as conn:
+        status = await conn.fetchval(
+            "SELECT status FROM grocer.inbound_messages WHERE id = $1;", inbound_id
+        )
+    assert status == "awaiting_link"
+    assert outbound.ctas
+    url = outbound.ctas[0][3]
+    token = url.split("?t=", 1)[1]
+    assert url.startswith("https://grocerr.vercel.app?t=")
+    assert verify_link_token(token) == wa_id

@@ -68,6 +68,8 @@ from backend.integrations.commerce.swiggy_client import (
 
 FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures"
 
+pytestmark = pytest.mark.scripted
+
 
 @pytest.fixture
 def swiggy_client() -> SwiggyClient:

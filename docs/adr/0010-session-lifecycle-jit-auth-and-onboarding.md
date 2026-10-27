@@ -1,6 +1,6 @@
 # ADR 0010: Session Lifecycle, JIT Checkout Re-Auth, Partial Stock Reorders, and Cold-Start Onboarding
 
-> **Status 2026-10-27:** Amended. Refresh first; park only if refresh fails. The webhook writes `parked`, replay claims `awaiting_link`, and the callback does not re-execute the message. See `STATUS.md` P0 #6.
+> **Status 2026-10-27:** Active. Refresh first; park only if refresh fails. The webhook parks as `awaiting_link`, and the callback replays the stored message in the background. The link is a signed token tied to the WhatsApp number. See `STATUS.md`.
 
 ## Context
 Production grocery commerce introduces four failure points across user lifecycle boundaries:

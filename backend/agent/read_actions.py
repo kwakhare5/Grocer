@@ -36,10 +36,11 @@ async def _item_info(decision: RoutingDecision, client: SwiggyClient, address_id
 
     if not address_id:
         # Search needs a store; fall back to the customer's default address.
+        from backend.agent.address_actions import resolve_default_address
+
         addresses = await asyncio.to_thread(client.get_addresses)
-        address_id = addresses.resolution.defaultAddressId or (
-            addresses.addresses[0].id if addresses.addresses else None
-        )
+        default = resolve_default_address(addresses)
+        address_id = default.id if default else None
 
     candidates = await asyncio.to_thread(
         search_catalog,

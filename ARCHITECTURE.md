@@ -209,7 +209,7 @@ sequenceDiagram
   - UPI requires `paymentMethod="UPI"` plus either `intentApp` (the method ID from `get_payment_options`) or `generateUPIQR=true`. Sending UPI without one of those is not a valid real-order request.
   - For Instamart, `confirm_order` takes `orderId` + `paasId`.
   - The cart is server-side. Re-read it at turn boundaries. Do not cache cart state in the agent.
-  - Address switch mid-basket: clear the cart first, then rebuild at the new store. Current code only writes `sessions.active_address_id`; cart rebuild is not implemented (`STATUS.md` P1).
+  - Address switch mid-basket: the confirm tap clears the cart, saves the new address, rebuilds the in-stock items at the new store and names anything it could not move.
 - **Full Address Lifecycle:**
   - `get_addresses`: Surfaces saved locations with pagination (10/page).
   - `create_address` & `recommend_address`: Two-step pin geocoding onboarding (pin provides coordinates; follow-up asks for flat/building number).
@@ -221,12 +221,12 @@ sequenceDiagram
   - Following `update_cart`, Grocer calls `get_cart` and diffs requested items against actual items. Dropped items are explicitly flagged under **"⚠️ Not added (Out of stock)"**.
 - **Address Switching Mid-Basket (ADR 0007):**
   - Target: warn that dark-store inventory differs, clear the cart via `clear_cart`, and attempt to rebuild available items at the new store.
-  - Current: the switch updates `sessions.active_address_id` only. The cart is not cleared or rebuilt. Do not describe this as complete.
+  - Current: the switch clears and rebuilds the cart. Items the new store cannot fill are named in the reply.
 - **Order Cancellation Escalation (ADR 0007):**
   - Swiggy MCP does not support automated cancellation. Inbound cancellation requests lookup the active order ID and reply with Swiggy Care's phone number (`080-67466729`).
 - **Token Renewal & JIT Re-Auth Latch (ADR 0010):**
   - Target: when the access token expires, refresh silently with the stored refresh token, retry once, then continue. Only if refresh fails, park the active basket or checkout, send a 1-tap `[Reconnect Swiggy]` button, and replay after the OAuth callback.
-  - Current: the webhook writes `status='parked'`; replay only claims `awaiting_link`; the OAuth callback returns the payload to the browser but never re-executes or sends it. The latch is not wired end to end (`STATUS.md` P0 #6).
+  - Current: the webhook parks as `awaiting_link`; the OAuth callback stores the token and schedules a replay that re-runs the stored message through the normal pipeline under a fresh `wamid.replay.*` id. A failed replay restores the row instead of losing the list.
 
 ---
 
@@ -324,7 +324,7 @@ create table grocer.inbound_messages (
   user_id uuid not null references grocer.users(id),
   message_type text not null default 'text',
   raw_payload jsonb,                            -- scrubbed after 24h
-  status text not null default 'received',      -- received | processing | done | parked | concurrency_dropped | awaiting_link
+  status text not null default 'received',      -- received | processing | done | replayed | concurrency_dropped | awaiting_link
   created_at timestamptz not null default now()
 );
 create index on grocer.inbound_messages (user_id, created_at desc);

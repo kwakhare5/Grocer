@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { MessageSquare, ArrowRight, ShieldCheck, Zap, Sparkles, CheckCircle2, Lock, ShoppingBag, ExternalLink } from "lucide-react";
 
 export default function Home() {
-  const [phone, setPhone] = useState("");
+  const [linkToken, setLinkToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
@@ -37,19 +37,24 @@ export default function Home() {
           })
           .finally(() => setIsLoading(false));
       } else if (ticket) {
-        // Auto-fill or prompt for ticket login
         setStatusMessage("WhatsApp session detected. Click below to authorize Swiggy.");
+      }
+
+      const link = params.get("t");
+      if (link) {
+        setLinkToken(link);
+        setStatusMessage("Open from WhatsApp confirmed. Tap below to authorize Swiggy.");
       }
     }
   }, []);
 
-  const handleConnect = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleConnect = async () => {
     setErrorMessage(null);
 
-    const cleanPhone = phone.replace(/\D/g, "");
-    if (cleanPhone.length < 10) {
-      setErrorMessage("Please enter a valid 10-digit mobile number.");
+    if (!linkToken) {
+      setErrorMessage(
+        "Open the connect link sent by the Grocer bot on WhatsApp to link your account.",
+      );
       return;
     }
 
@@ -58,7 +63,7 @@ export default function Home() {
       const res = await fetch("/api/auth/swiggy/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: cleanPhone.slice(-10) }),
+        body: JSON.stringify({ token: linkToken }),
       });
       const data = await res.json();
       if (!res.ok || !data.authorizeUrl) {
@@ -144,24 +149,11 @@ export default function Home() {
               </a>
             </div>
           ) : (
-            <form onSubmit={handleConnect} className="space-y-4">
-              <div>
-                <label className="block text-xs font-mono uppercase tracking-wider text-zinc-400 mb-2">
-                  Connect WhatsApp Number
-                </label>
-                <div className="flex items-center rounded-xl bg-black/50 border border-white/10 focus-within:border-[#FC8019]/60 transition-all px-3.5 py-2.5">
-                  <span className="text-zinc-500 font-mono text-sm mr-2 select-none">+91</span>
-                  <input
-                    type="tel"
-                    maxLength={10}
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="Enter 10-digit number"
-                    className="bg-transparent text-white placeholder-zinc-600 focus:outline-none w-full text-sm font-mono"
-                    disabled={isLoading}
-                  />
-                </div>
-              </div>
+            <div className="space-y-4">
+              <p className="text-xs text-zinc-400 leading-relaxed text-center">
+                Linking starts in WhatsApp. Open the connect link the bot sends you,
+                then authorize Swiggy here.
+              </p>
 
               {errorMessage && (
                 <div className="text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-lg p-2.5 leading-relaxed">
@@ -170,8 +162,9 @@ export default function Home() {
               )}
 
               <button
-                type="submit"
-                disabled={isLoading}
+                type="button"
+                onClick={handleConnect}
+                disabled={isLoading || !linkToken}
                 className="w-full py-3 px-4 rounded-xl font-semibold text-black bg-[#FC8019] hover:bg-[#ff8f33] active:scale-[0.99] transition-all text-sm flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(252,128,25,0.3)] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
               >
                 {isLoading ? (
@@ -194,7 +187,7 @@ export default function Home() {
                 </span>
                 <span>Official OAuth 2.1 via Swiggy Builders Club</span>
               </div>
-            </form>
+            </div>
           )}
         </div>
 
@@ -242,7 +235,7 @@ export default function Home() {
               <span className="text-xs font-mono font-bold text-[#FC8019]">STEP 01</span>
               <h4 className="font-semibold text-white text-sm">Link Your Number</h4>
               <p className="text-xs text-zinc-400 leading-relaxed">
-                Enter your mobile number above and authorize Swiggy via official OTP login.
+                Open the connect link from the WhatsApp bot and authorize Swiggy.
               </p>
             </div>
             <div className="space-y-2">

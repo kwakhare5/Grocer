@@ -1,6 +1,6 @@
 # ADR 0002: Customer Trust Contract: Radical Price Guarantee and Live Location Grounding
 
-> **Status 2026-10-27:** Active with deviation. Grounding currently uses the first saved address, not Swiggy's default. The fingerprint includes payable paise, so any paise change fails Lock 2. See `STATUS.md` P1.
+> **Status 2026-10-27:** Active. Grounding uses Swiggy's default address. The fingerprint includes payable paise, so any paise change fails Lock 2. See `STATUS.md`.
 
 ## Context
 In quick-commerce grocery, two critical trust breakdowns frequently ruin customer confidence:

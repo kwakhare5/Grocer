@@ -4,17 +4,20 @@ import { getBackendUrl } from "../../../_lib/backend";
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const phone = body?.phone;
+    const token = body?.token;
 
-    if (!phone || typeof phone !== "string") {
-      return NextResponse.json({ error: "Phone number is required" }, { status: 400 });
+    if (!token || typeof token !== "string") {
+      return NextResponse.json(
+        { error: "Open the connect link sent by the Grocer bot on WhatsApp." },
+        { status: 400 },
+      );
     }
 
     const backendUrl = getBackendUrl();
     const response = await fetch(`${backendUrl}/api/auth/swiggy/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ phone }),
+      body: JSON.stringify({ token }),
     });
 
     const data = await response.json();

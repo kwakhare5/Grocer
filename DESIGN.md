@@ -107,6 +107,8 @@ A recipe request is a proposal, never a write.
 
 No plan is added from text alone. A customer who writes "make pizza for 5" must never get one surprise SKU in the basket.
 
+Live in code since 2026-10-28: the model names the dish, people count and ingredient packs (no hardcoded recipe list); Python searches the live store, prices each line and caps at `maxQuantity`. `[Add all]` re-checks stock and writes all ingredients or none. `[Let me pick]` asks for the item numbers and the next message adds only those. The plan card is also stored in dialogue history, so numbers refer to the card the customer just saw.
+
 ### A4.6 Basket view
 
 `What's in my basket?` always answers with the live cart, item count and total. There is no need to add something first. Live since 2026-10-27: the `view_basket` capability reads `get_cart` and never writes.
@@ -195,7 +197,7 @@ Done 2026-10-27: the phone form is gone. The page accepts a signed `?t=` link fr
 
 1. **Hero.** "Groceries on WhatsApp. Real Swiggy Instamart." One sentence: chat naturally, see live prices, tap once to pay. Primary CTA.
 2. **Problem.** Grocery apps are heavy. People already live in WhatsApp. Grocer removes the app hop.
-3. **What Grocer does.** Shopping lists, price/stock questions, saved addresses, order history, tracking, coupons, reorders, and recipe plans. Mark which are live today and which are coming next. Recipes are in v1 as a plan-confirm-add flow (decided 2026-10-27); they are not live yet.
+3. **What Grocer does.** Shopping lists, price/stock questions, saved addresses, order history, tracking, coupons, reorders, and recipe plans. Mark which are live today and which are coming next. Recipes are in v1 as a plan-confirm-add flow and built in code (2026-10-28); do not mark them live until the handset route and Add-all tap pass.
 4. **The 3-lock safety story.** Physical tap only; live cart re-check; exactly-once lock. Explain in plain words, not internal names.
 5. **What is live today.** Pull from `STATUS.md`. Do not list a feature as live if it is partial or fixture-only. Current live: read answers, basket add, address list, switch with rebuild, coupon discovery, signed OAuth link, park and replay. Checkout is locked. Live add and delete of a real address is still unproven.
 6. **How it works.** Three steps: open WhatsApp, connect Swiggy, chat and tap to pay.

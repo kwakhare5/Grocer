@@ -2,6 +2,7 @@
 
 > **Status 2026-10-27:** Not built yet. Pieces exist for the fee warning and post-order copy, but no flow is wired. Do not describe any of them as live. See `STATUS.md` §5.
 > **Amendment 2026-10-27 (Karan):** Recipes are in v1 as a plan-confirm-add flow: propose the checklist and pack counts, wait for a tap, then write. The fee warning and the post-order truth reply are Phase 7. One-time destination is parked pending Karan's decision. Proactivity stays limited to money and truth; no upsell.
+> **Amendment 2026-10-28:** Recipe plan-confirm-add is built in code (`plan_meal`, `backend/agent/meal_planner.py`): model-named dish/servings/packs, live pricing, Add all or Let me pick, no write before a tap. Its live route and Add-all tap are still unproven. Fee warning and post-order add remain unbuilt; do not describe them as live.
 
 ## Context
 Real-world WhatsApp grocery shopping introduces critical behavioral edge cases where standard commerce bots fail user trust:

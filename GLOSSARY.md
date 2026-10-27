@@ -62,7 +62,7 @@ _Avoid_: Guest delivery, remote order, secondary address checkout
 
 **Recipe Checklist**:
 A conversational proposal listing required dish ingredients before adding to basket, distinguishing fresh items from assumed pantry staples.
-_Status_: in v1, decided 2026-10-27. The bot proposes the checklist and pack counts, then waits for a tap. Nothing is added from text alone.
+_Status_: in v1, decided 2026-10-27; live in code 2026-10-28. The bot proposes the checklist and pack counts, then waits for a tap. Nothing is added from text alone.
 _Avoid_: Meal kit, recipe bundle, auto-add recipe
 
 **Small-Cart Fee Threshold**:

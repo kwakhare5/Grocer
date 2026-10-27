@@ -116,6 +116,8 @@ No plan is added from text alone. A customer who writes "make pizza for 5" must 
 - Every accepted inbound message is marked read (blue ticks) with a 25-second typing indicator, sent off the critical path. A send failure is logged and never blocks the reply.
 - The typing indicator covers the first model and search call. It is not a promise of a live agent.
 - Never send a fake "I'm still working" message. If work runs longer than the indicator, send the real result or the real failure.
+- Reaction: at most one emoji per inbound message, chosen in code from the outcome, never by the model. 🏠 addresses, 🛒 basket, 📦 orders, 🛵 tracking, 🎟️ coupons, 💳 payments, 🍳 a recipe plan, ❓ when the bot needs a pick, 📍 when it asks for a pin. No reaction on chat, misses, lock refusals, auth or outages. Sent after the reply, fire-and-forget.
+- Cards get at most one header emoji. Failure copy and money warnings get none. No emoji chains, no decorative emoji.
 
 ## A5. Tone and copy
 

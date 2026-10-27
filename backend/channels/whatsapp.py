@@ -12,6 +12,7 @@ import httpx
 from fastapi import APIRouter, HTTPException, Request, Response
 
 from backend.channels.button_router import dispatch_button_action
+from backend.channels.reactions import reaction_for_result
 from backend.channels.whatsapp_crypto import verify_signature, verify_webhook_challenge
 from backend.channels.whatsapp_parser import parse_webhook_payload
 from backend.config import settings
@@ -22,6 +23,7 @@ logger = logging.getLogger("grocer.channels.whatsapp")
 router = APIRouter(prefix="/api/whatsapp", tags=["whatsapp"])
 
 _READ_TASKS: set[asyncio.Task[Any]] = set()
+_REACTION_TASKS: set[asyncio.Task[Any]] = set()
 
 
 def _mark_read_in_background(wa_client: Any, message_id: str) -> None:
@@ -29,6 +31,22 @@ def _mark_read_in_background(wa_client: Any, message_id: str) -> None:
     task = asyncio.create_task(wa_client.mark_read(message_id))
     _READ_TASKS.add(task)
     task.add_done_callback(_READ_TASKS.discard)
+
+
+def _react_in_background(wa_client: Any, msg: Any, result: dict[str, Any]) -> None:
+    """One reaction, after the reply lands. Never blocks or fails the turn."""
+    emoji = reaction_for_result(result)
+    if not emoji:
+        return
+    task = asyncio.create_task(
+        wa_client.send_reaction(
+            to_wa_id=msg.sender_wa_id,
+            message_id=msg.wa_message_id,
+            emoji=emoji,
+        )
+    )
+    _REACTION_TASKS.add(task)
+    task.add_done_callback(_REACTION_TASKS.discard)
 
 
 def _basket_notice(
@@ -1088,22 +1106,24 @@ async def handle_webhook(
                     return {"status": "no_match", "query": msg.text}
 
                 try:
-                    results.append(await run_turn(client, msg, user_id, conn, wa_client))
+                    turn_result = await run_turn(client, msg, user_id, conn, wa_client)
+                    _react_in_background(wa_client, msg, turn_result)
+                    results.append(turn_result)
                 except SwiggyAuthExpiredError:
                     # Try a silent refresh before parking (Gate 1). Park only if it fails.
                     new_token = await refresh_user_token(user_id, force=True)
                     retried = False
                     if new_token:
                         try:
-                            results.append(
-                                await run_turn(
-                                    SwiggyClient(auth_token=new_token),
-                                    msg,
-                                    user_id,
-                                    conn,
-                                    wa_client,
-                                )
+                            turn_result = await run_turn(
+                                SwiggyClient(auth_token=new_token),
+                                msg,
+                                user_id,
+                                conn,
+                                wa_client,
                             )
+                            _react_in_background(wa_client, msg, turn_result)
+                            results.append(turn_result)
                             retried = True
                         except SwiggyAuthExpiredError:
                             retried = False

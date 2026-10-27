@@ -64,6 +64,21 @@ def build_read_payload(message_id: str) -> dict[str, Any]:
     }
 
 
+def build_reaction_payload(
+    to_wa_id: str,
+    message_id: str,
+    emoji: str,
+) -> dict[str, Any]:
+    # Meta allows one reaction per message; an empty emoji removes it.
+    return {
+        "messaging_product": "whatsapp",
+        "recipient_type": "individual",
+        "to": to_wa_id,
+        "type": "reaction",
+        "reaction": {"message_id": message_id, "emoji": emoji},
+    }
+
+
 def build_cta_payload(
     to_wa_id: str,
     body_text: str,
@@ -170,4 +185,15 @@ class WhatsAppClient:
         """Send an interactive CTA URL button (opens Swiggy HTTPS bridgeUrl)."""
         return await self._post_message(
             build_cta_payload(to_wa_id, body_text, button_text, url)
+        )
+
+    async def send_reaction(
+        self,
+        to_wa_id: str,
+        message_id: str,
+        emoji: str,
+    ) -> dict[str, Any]:
+        """Put one emoji on the customer's message. Meta keeps it under 30 days."""
+        return await self._post_message(
+            build_reaction_payload(to_wa_id, message_id, emoji)
         )

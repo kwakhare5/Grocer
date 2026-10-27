@@ -108,7 +108,7 @@ async def _list_coupons(client: SwiggyClient, address_id: str | None) -> str:
     if not usable:
         return "No coupons are available for your basket right now."
 
-    lines = ["*Coupons you can use:*"]
+    lines = ["🎟️ *Coupons you can use:*"]
     for coupon in usable[:5]:
         lines.append(f"• *{coupon.couponCode}* — {coupon.title}")
         if coupon.description:
@@ -132,7 +132,7 @@ async def _list_addresses(client: SwiggyClient) -> ReadReply:
         )
 
     default_id = data.resolution.defaultAddressId
-    lines = ["*Your saved addresses*", ""]
+    lines = ["🏠 *Your saved addresses*", ""]
     buttons: list[tuple[str, str]] = []
     for index, addr in enumerate(data.addresses[:10], start=1):
         label = addr.addressTag or addr.addressCategory or "Address"
@@ -162,7 +162,7 @@ async def _order_history(client: SwiggyClient) -> str:
     if not data.orders:
         return "You have no Instamart orders in the last 15 days."
 
-    lines = ["*Your recent Instamart orders:*"]
+    lines = ["📦 *Your recent Instamart orders:*"]
     for order in data.orders[:10]:
         when = (order.createdAt or "")[:10]
         total = format_paise_to_rupees(order.total_amount_paise)
@@ -209,7 +209,7 @@ async def _track_order(
                 f"{tracking.status.etaMinutes} mins" if tracking.status.etaMinutes else None
             )
             lines = [
-                f"*Order #{order.orderId}*",
+                f"🛵 *Order #{order.orderId}*",
                 f"Status: {status}" + (f" — ETA {eta}" if eta else ""),
             ]
             store = (tracking.storeInfo or {}).get("name")
@@ -238,7 +238,7 @@ async def _track_order(
 
     if delivery:
         lines = [
-            f"*Order #{order.orderId}*",
+            f"🛵 *Order #{order.orderId}*",
             f"Status: {delivery.statusText or 'in progress'}",
         ]
         if delivery.etaText:
@@ -260,7 +260,7 @@ async def _payment_options(client: SwiggyClient) -> str:
     ]
     if not names:
         return "No payment methods are available for your account right now."
-    return "*Payment methods available:*\n" + "\n".join(f"• {name}" for name in names)
+    return "💳 *Payment methods available:*\n" + "\n".join(f"• {name}" for name in names)
 
 
 def _cancel_help() -> str:

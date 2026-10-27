@@ -8,10 +8,12 @@ from pathlib import Path
 import pytest
 from fixture_client import FixtureSwiggyClient
 
+from backend.channels.reactions import reaction_for_result
 from backend.channels.whatsapp import _basket_notice
 from backend.channels.whatsapp_client import (
     build_buttons_payload,
     build_cta_payload,
+    build_reaction_payload,
     build_read_payload,
     build_text_payload,
 )
@@ -45,6 +47,39 @@ def test_read_payload_marks_read_and_types():
     assert payload["message_id"] == "wamid.HBgM123"
     assert payload["typing_indicator"] == {"type": "text"}
     assert "to" not in payload
+
+
+def test_reaction_payload_shape():
+    payload = build_reaction_payload("919876543210", "wamid.HBgM123", "🏠")
+    assert payload["type"] == "reaction"
+    assert payload["to"] == "919876543210"
+    assert payload["reaction"] == {"message_id": "wamid.HBgM123", "emoji": "🏠"}
+
+
+def test_reactions_are_sparse_and_match_the_outcome():
+    assert (
+        reaction_for_result(
+            {"status": "capability_answered", "capability": "list_addresses"}
+        )
+        == "🏠"
+    )
+    assert (
+        reaction_for_result({"status": "capability_answered", "capability": "view_basket"})
+        == "🛒"
+    )
+    assert (
+        reaction_for_result({"status": "capability_answered", "capability": "track_order"})
+        == "🛵"
+    )
+    assert reaction_for_result({"status": "cart_updated"}) == "🛒"
+    assert reaction_for_result({"status": "item_choices"}) == "❓"
+
+    # Nothing to celebrate on chat, misses, locks or outages.
+    assert reaction_for_result({"status": "capability_answered", "capability": "chat"}) is None
+    assert reaction_for_result({"status": "no_match"}) is None
+    assert reaction_for_result({"status": "capability_unavailable"}) is None
+    assert reaction_for_result({"status": "auth_required"}) is None
+    assert reaction_for_result({"status": "checkout_failed"}) is None
 
 
 def test_cta_payload_requires_https():

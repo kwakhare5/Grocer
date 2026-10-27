@@ -23,6 +23,7 @@ from backend.channels.link_tokens import verify_link_token
 from backend.channels.whatsapp import _park_and_prompt, handle_webhook
 from backend.config import settings
 from backend.database import get_db_pool
+from backend.integrations.commerce.token_vault import store_user_token
 
 FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures"
 
@@ -37,6 +38,7 @@ class RecordingWA:
         self.buttons: list[tuple[str, str, list[tuple[str, str]]]] = []
         self.ctas: list[tuple[str, str, str, str]] = []
         self.reads: list[str] = []
+        self.reactions: list[tuple[str, str, str]] = []
 
     async def mark_read(self, message_id: str) -> None:
         self.reads.append(message_id)
@@ -53,6 +55,11 @@ class RecordingWA:
         self, to_wa_id: str, body_text: str, button_text: str, url: str
     ) -> None:
         self.ctas.append((to_wa_id, body_text, button_text, url))
+
+    async def send_reaction(
+        self, to_wa_id: str, message_id: str, emoji: str
+    ) -> None:
+        self.reactions.append((to_wa_id, message_id, emoji))
 
 
 class SignedRequest:
@@ -242,3 +249,51 @@ async def test_keep_only_new_button_rebuilds_and_reissues_pay():
     assert approval is not None
     assert outbound.buttons
     assert outbound.buttons[-1][2][0][0].startswith("pay:")
+
+
+@pytest.mark.asyncio
+async def test_address_question_gets_one_home_reaction(monkeypatch):
+    pool = await get_db_pool()
+    wa_id = _new_wa_id()
+    wamid = f"wamid.{uuid.uuid4()}"
+    client = FixtureSwiggyClient(FIXTURES_DIR)
+    outbound = RecordingWA()
+
+    async with pool.acquire() as conn:
+        user_id = await conn.fetchval(
+            "INSERT INTO grocer.users (wa_id) VALUES ($1) RETURNING id;", wa_id
+        )
+        await conn.execute(
+            """
+            INSERT INTO grocer.sessions (user_id, active_address_id, last_active_at)
+            VALUES ($1, 'addr_01HXYZ', now())
+            ON CONFLICT (user_id) DO UPDATE
+            SET active_address_id = 'addr_01HXYZ', last_active_at = now();
+            """,
+            user_id,
+        )
+    await store_user_token(user_id=user_id, access_token="swiggy_reaction_token")
+
+    from backend.agent import router as router_module
+    from backend.agent.router import Capability, RoutingDecision, SafetyClass
+
+    monkeypatch.setattr(
+        router_module,
+        "route_message",
+        lambda *args, **kwargs: RoutingDecision(
+            capability=Capability.LIST_ADDRESSES,
+            safety=SafetyClass.READ,
+            confidence=1.0,
+        ),
+    )
+
+    result = await handle_webhook(
+        SignedRequest(_message(wa_id, wamid=wamid, text="show my address")),
+        swiggy_client=client,
+        wa_client=outbound,
+    )
+    await asyncio.sleep(0.05)
+
+    assert result["status"] == "capability_answered"
+    assert result["capability"] == "list_addresses"
+    assert outbound.reactions == [(wa_id, wamid, "🏠")]

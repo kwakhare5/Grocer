@@ -198,7 +198,7 @@ def _preview(plan: _Plan, basket_has_items: bool) -> OrderReply:
         )
 
     total_paise = sum(line.price_paise * line.quantity for line in plan.lines)
-    lines = [f"Here's {plan.label}:"]
+    lines = [f"📦 Here's {plan.label}:"]
     for line in plan.lines:
         lines.append(
             f"• {line.name} x{line.quantity} — "

@@ -1,5 +1,7 @@
 # ADR 0008: WhatsApp Location Pin Onboarding, 1-Tap Go-To Reordering, and Universal BridgeUrl Payments
 
+> **Status 2026-10-27:** Partial. Pin onboarding works. Typed-text address add is not built. Reorder is fixture-proven only and its live write is blocked. See `STATUS.md`.
+
 ## Context
 1. Receiving a native WhatsApp location attachment provides geographic coordinates via `recommend_address`, but lacks essential sub-premises (flat, house number, floor) needed for dark-store rider dispatch.
 2. Returning grocery customers frequently repeat weekly staples; navigating search menus introduces friction.

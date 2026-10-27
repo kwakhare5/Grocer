@@ -1,5 +1,7 @@
 # ADR 0002: Customer Trust Contract: Radical Price Guarantee and Live Location Grounding
 
+> **Status 2026-10-27:** Active with deviation. Grounding currently uses the first saved address, not Swiggy's default. The fingerprint includes payable paise, so any paise change fails Lock 2. See `STATUS.md` P1.
+
 ## Context
 In quick-commerce grocery, two critical trust breakdowns frequently ruin customer confidence:
 1. **The Price Fluctuation Trap:** A customer reviews a receipt card for ₹250 at 2:00 PM, steps away, and taps pay at 2:30 PM. In the interim, vegetable prices increased or a flash sale expired, shifting the true store cost to ₹270. Silently charging ₹270 feels deceptive and destroys customer trust.

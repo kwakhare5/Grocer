@@ -1,5 +1,7 @@
 # ADR 0004: Smart Kirana Defaults, Physical Button Checkout Authority, and Parked Replay
 
+> **Status 2026-10-27:** Amended. The 5-day/no-refresh claim is obsolete: Grocer stores a 30-day refresh token and refreshes first. Parked replay is not wired end to end. See `STATUS.md` P0 #6.
+
 ## Context
 Real-world customer behavior on WhatsApp diverges into high-frequency edge cases:
 1. **Lazy Messaging:** Shoppers text vague keywords (*"milk"*, *"bread"*, *"atta"*). Inquiring about 5 different attributes (brand, fat, pack size) creates friction and causes user abandonment.

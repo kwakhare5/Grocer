@@ -1,5 +1,7 @@
 # ADR 0007: Instamart Lifecycle Guardrails: Address Switching, Split Orders, Deletion, and Cancellation
 
+> **Status 2026-10-27:** Partial. Address switch writes the session only and does not rebuild the cart. The active-delivery delete guard is not wired. Split-order notifications follow only the first order ID. See `STATUS.md`.
+
 ## Context
 Expanding Grocer v1.0 from a shopping list bot to a full WhatsApp Instamart concierge introduces four critical lifecycle edge cases:
 1. Customers changing delivery addresses while holding an uncommitted basket.

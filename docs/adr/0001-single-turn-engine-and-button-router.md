@@ -1,5 +1,7 @@
 # ADR 0001: Customer Experience Speed: Snappy Button Action vs Warm Conversational Concierge
 
+> **Status 2026-10-27:** Amended. The webhook is synchronous today; 25ms ACK, 50ms button and under-3.5s turn are targets, not measured guarantees. See `docs/adr/README.md` and `STATUS.md`.
+
 ## Context
 When someone shops for groceries on WhatsApp, there are two distinct user interactions:
 1. **Conversational Inquiries & Shopping Lists:** When texting groceries (*"doodh, bread, and eggs"*), asking cooking questions, or speaking in Hinglish, the customer expects a warm, intelligent conversational assistant that understands context.

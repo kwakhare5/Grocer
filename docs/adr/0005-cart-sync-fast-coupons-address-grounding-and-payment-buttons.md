@@ -1,5 +1,7 @@
 # ADR 0005: Cart Sync, Fast Coupons, Address Grounding, and WhatsApp Payment Buttons
 
+> **Status 2026-10-27:** Partial. Current checkout buttons are Pay + Clear only. COD, Change Address and Change Items are target. Coupon trials are capped at 2, but savings is not displayed. See `STATUS.md`.
+
 ## Context
 1. In high-velocity dark-store grocery commerce, product inventory fluctuates in real-time. Items in a customer's active basket can sell out between conversational turns.
 2. Swiggy Instamart exposes applicable coupon codes without discount magnitudes and provides no "undo coupon" tool. Exhaustive trial-and-reset loops over 5+ coupons degrade turn latency to 10–15 seconds.

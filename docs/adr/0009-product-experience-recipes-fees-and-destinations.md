@@ -1,7 +1,7 @@
 # ADR 0009: Product Experience Guardrails: Destinations, Recipes, Post-Order Additions, and Fee Shock
 
-> **Status 2026-10-27:** Not implemented. Recipes, fee shock, post-order add-on and one-time destination are dead or absent. Do not describe them as live. See `STATUS.md` P1.  
-> **Scope note 2026-10-27:** these are product examples, not v1 requirements. Recipes have no Instamart tool. v1 scope is full tool coverage in `ARCHITECTURE.md` §4. Fee, destination and add-on ideas stay parked unless Karan asks for them.
+> **Status 2026-10-27:** Not built yet. Pieces exist for the fee warning and post-order copy, but no flow is wired. Do not describe any of them as live. See `STATUS.md` §5.
+> **Amendment 2026-10-27 (Karan):** Recipes are in v1 as a plan-confirm-add flow: propose the checklist and pack counts, wait for a tap, then write. The fee warning and the post-order truth reply are Phase 7. One-time destination is parked pending Karan's decision. Proactivity stays limited to money and truth; no upsell.
 
 ## Context
 Real-world WhatsApp grocery shopping introduces critical behavioral edge cases where standard commerce bots fail user trust:

@@ -5,7 +5,7 @@ This directory is the maintained source for verifying user-facing behavior of Gr
 ## Baseline Preconditions
 
 - Backend server is running at `http://127.0.0.1:8000`.
-- Supabase PostgreSQL has 6/6 tables present.
+- Supabase PostgreSQL has 8/8 tables present: `users`, `oauth_tokens`, `inbound_messages`, `sessions`, `approvals`, `checkouts`, `address_coords`, `schema_migrations`.
 - `python scripts/drive_grocer.py doctor` exits 0.
 - Test customer phone number: `919876543210`.
 

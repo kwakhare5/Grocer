@@ -1,8 +1,8 @@
 # Grocer v1 — Session Handoff
 
 - **Goal:** Swiggy Instamart on WhatsApp. Scope is full tool coverage, not the PRD example journeys. No live order during the build; Karan places the first real order after handoff.
-- **Current:** Phases 0-5 done. Account lifecycle works: default-address grounding, switch that clears and rebuilds, delete guard on the real path, typed-text address add, signed OAuth links, park/replay after login. The production WhatsApp mock branch is gone; scripted tests carry a `scripted` marker.
-- **Passing Tests:** `verify.ps1 -Db` exit 0 on 2026-10-27: schema check, `ruff` clean, 99 offline, 45 DB on `grocer_test`, 166 collected, Next build. Both databases at migration 004.
-- **Blocked on Karan:** Nothing. Live address add/delete on the one throwaway address is optional proof.
-- **Next Action:** Phase 6 — DPDP scrub and delete cascade, RLS or service-only access, log redaction, CHECK constraints and `updated_at` triggers.
+- **Current:** Phases 0-5 done. Phase 7 Batch 1 done in code (2026-10-27): honest AI-outage copy and an 8s turn budget, blue ticks + typing indicator, delta receipts with Swiggy stock caps, Keep only new / Change item / Clear buttons, view basket, readable address card with switch buttons, deterministic vague-staple rule with a working Change swap, real out-of-stock alternatives, no blind rank-1, decision logging, idle-basket notice. Phase 7 Batch 2 (list pickers with typed numbers, message merge/queue, full message context, recipe plan-confirm-add, grouped search, receipt chunking) and Batch 3 (coupons on every cart path, savings line, itemized bill, support report, dead buttons) are next. Phase 6 privacy must finish before handoff.
+- **Passing Tests:** `verify.ps1 -Db` exit 0 on 2026-10-27 after Batch 1: schema check, `ruff` clean, 110 offline, 46 DB on `grocer_test`, 178 collected, Next build. Both databases at migration 004.
+- **Blocked on Karan:** Live WhatsApp checks for Batch 1 (one-word "milk", Change item, view basket, address card, blue ticks). One decision parked: one-time destination orders. Live address add/delete on the one throwaway address is optional proof.
+- **Next Action:** Commit and push Batch 1 so Render rebuilds, then Karan runs the WhatsApp checks. Then Phase 7 Batch 2, Batch 3, Phase 6 privacy, Phase 8 landing, Phase 9 handoff.
 - **Source of Truth:** `STATUS.md`, plan in `TASKS.md`.

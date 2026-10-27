@@ -8,6 +8,9 @@ import uuid
 from typing import Any
 
 import asyncpg
+import httpx
+
+from backend.config import settings
 
 logger = logging.getLogger("grocer.button_router")
 
@@ -38,6 +41,7 @@ async def dispatch_button_action(
             apply_clear,
             apply_remove,
             apply_set_quantity,
+            apply_swap,
         )
         from backend.channels.whatsapp_client import WhatsAppClient
         from backend.integrations.commerce.swiggy_client import SwiggyClient
@@ -81,9 +85,52 @@ async def dispatch_button_action(
                     return {"status": "auth_required", "action": button_id}
                 client = SwiggyClient(auth_token=token)
 
+            special_result: dict[str, Any] | None = None
             try:
                 if button_id == "cart:clear":
                     reply = await apply_clear(client, active)
+                elif button_id.startswith("cart:fresh:"):
+                    from backend.agent.approval import create_checkout_approval
+                    from backend.agent.basket_actions import apply_keep_only_new
+                    from backend.agent.candidate_evaluator import format_paise_to_rupees
+                    from backend.agent.composite_cart import format_cart_receipt
+
+                    cart, err = await apply_keep_only_new(client, active, button_id)
+                    if err or not cart.items:
+                        reply = BasketReply(err or "Your basket is empty.")
+                    else:
+                        approval = await create_checkout_approval(
+                            conn=conn,
+                            user_id=str(user_id),
+                            cart=cart,
+                            address_id=active or "default",
+                        )
+                        body = format_cart_receipt(cart)
+                        cap_paise = await conn.fetchval(
+                            "SELECT budget_cap_paise FROM grocer.sessions WHERE user_id = $1;",
+                            user_id,
+                        ) or settings.DEFAULT_BUDGET_CAP_PAISE
+                        if approval.to_pay_paise > int(cap_paise):
+                            body += (
+                                f"\n\n⚠️ This is above your "
+                                f"{format_paise_to_rupees(int(cap_paise))} safety cap. "
+                                "You'll be asked to raise it when you tap Pay."
+                            )
+                        pay_label = format_paise_to_rupees(approval.to_pay_paise)
+                        await wa_client.send_quick_reply_buttons(
+                            to_wa_id=wa_id,
+                            body_text=body,
+                            buttons=[
+                                (f"pay:{approval.id}", f"Pay {pay_label}"),
+                                ("cart:clear", "Clear basket"),
+                            ],
+                        )
+                        special_result = {
+                            "status": "cart_fresh",
+                            "action": button_id,
+                            "approval_id": str(approval.id),
+                            "to_pay_paise": approval.to_pay_paise,
+                        }
                 else:
                     action, _, rest = (target_arg or "").partition(":")
                     if action == "rm":
@@ -103,12 +150,20 @@ async def dispatch_button_action(
                         reply = await apply_add_new_item(
                             client, active, spin_id, int(quantity_text)
                         )
+                    elif action == "swap":
+                        old_spin, _, remainder = rest.partition(":")
+                        new_spin, _, new_sku = remainder.partition(":")
+                        reply = await apply_swap(
+                            client, active, old_spin, new_spin, new_sku
+                        )
                     else:
                         reply = BasketReply("Nothing changed.")
-            except (ValueError, KeyError, RuntimeError, OSError) as exc:
+            except (ValueError, KeyError, RuntimeError, OSError, httpx.HTTPError) as exc:
                 logger.warning("Basket button action failed: %s", exc)
                 reply = BasketReply("That change didn't go through. Nothing was changed.")
 
+        if special_result is not None:
+            return special_result
         asyncio.create_task(wa_client.send_text_message(to_wa_id=wa_id, text=reply.text))
         return {"status": "basket_updated", "action": button_id, "message": reply.text}
 
@@ -314,6 +369,105 @@ async def dispatch_button_action(
         asyncio.create_task(wa_client.send_text_message(to_wa_id=wa_id, text=reply.text))
         return {
             "status": "address_updated",
+            "action": button_id,
+            "message": reply.text,
+        }
+
+    # 3b. Change a vague staple: show real replacements for the same item.
+    if prefix == "item":
+        from backend.agent.basket_actions import BasketReply
+        from backend.agent.candidate_search import search_catalog
+        from backend.channels.whatsapp_client import WhatsAppClient
+        from backend.integrations.commerce.swiggy_client import SwiggyClient
+        from backend.integrations.commerce.token_vault import resolve_user_token
+
+        wa_client = wa_client or WhatsAppClient()
+        action, _, spin_id = (target_arg or "").partition(":")
+        if action != "change" or not spin_id:
+            return {"status": "button_ignored", "action": button_id}
+        if not pool:
+            return {
+                "status": "button_ignored",
+                "action": button_id,
+                "message": "Changing an item needs a database connection.",
+            }
+
+        async with pool.acquire() as conn:
+            user_id = await conn.fetchval(
+                "SELECT id FROM grocer.users WHERE wa_id = $1;", wa_id
+            )
+            if not user_id:
+                return {"status": "unknown_user", "action": button_id}
+            active = await conn.fetchval(
+                "SELECT active_address_id FROM grocer.sessions WHERE user_id = $1;",
+                user_id,
+            )
+            client = swiggy_client
+            if client is None:
+                token = await resolve_user_token(user_id)
+                if not token:
+                    asyncio.create_task(
+                        wa_client.send_text_message(
+                            to_wa_id=wa_id,
+                            text="Your Swiggy login has expired. Please reconnect your account.",
+                        )
+                    )
+                    return {"status": "auth_required", "action": button_id}
+                client = SwiggyClient(auth_token=token)
+
+            try:
+                cart = await asyncio.to_thread(client.get_cart, active)
+                current = next(
+                    (item for item in cart.items if item.spinId == spin_id), None
+                )
+                if current is None:
+                    reply = BasketReply("That item isn't in your basket any more.")
+                else:
+                    candidates = await asyncio.to_thread(
+                        search_catalog,
+                        query=current.itemName,
+                        address_id=active,
+                        swiggy_client=client,
+                    )
+                    options = [
+                        cand for cand in candidates if cand.spin_id != spin_id
+                    ][:3]
+                    if not options:
+                        reply = BasketReply(
+                            "I couldn't find another size or brand for that item right now."
+                        )
+                    else:
+                        await wa_client.send_quick_reply_buttons(
+                            to_wa_id=wa_id,
+                            body_text=f"Pick a replacement for *{current.itemName}*:",
+                            buttons=[
+                                (
+                                    f"cart:swap:{spin_id}:{opt.spin_id}:{opt.sku_id}",
+                                    opt.display_name[:20],
+                                )
+                                for opt in options
+                            ],
+                        )
+                        return {
+                            "status": "item_choices",
+                            "action": button_id,
+                            "candidates": len(options),
+                        }
+            except (
+                ValueError,
+                KeyError,
+                RuntimeError,
+                OSError,
+                httpx.HTTPError,
+            ) as exc:
+                logger.warning("Item change failed: %s", exc)
+                reply = BasketReply(
+                    "I couldn't load alternatives just now. Please try again."
+                )
+
+        asyncio.create_task(wa_client.send_text_message(to_wa_id=wa_id, text=reply.text))
+        return {
+            "status": "item_change",
             "action": button_id,
             "message": reply.text,
         }

@@ -7,11 +7,13 @@ behaviour is graded separately by scripts/eval_router.py.
 from __future__ import annotations
 
 from backend.agent.router import (
+    AI_OUTAGE_REPLY,
     CAPABILITY_SPECS,
     SAFETY_BY_CAPABILITY,
     Capability,
     SafetyClass,
     parse_decision,
+    route_message,
 )
 
 
@@ -120,3 +122,18 @@ def test_account_delete_needs_high_confidence():
     assert d.capability is Capability.CHAT
     assert d.safe_path is True
     assert d.is_write is False
+
+
+def test_view_basket_is_a_read_capability():
+    d = parse_decision(
+        {"capability": "view_basket", "confidence": 0.96}, "what's in my basket"
+    )
+    assert d.capability is Capability.VIEW_BASKET
+    assert d.safety is SafetyClass.READ
+
+
+def test_llm_outage_is_not_reported_as_customer_confusion():
+    d = route_message("add milk", provider="no-such-provider")
+    assert d.error is not None
+    assert d.reply == AI_OUTAGE_REPLY
+    assert d.reply != "I didn't quite catch that"

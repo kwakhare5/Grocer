@@ -31,6 +31,7 @@ class LLMResult:
     provider: str
     model: str
     error: str | None = None
+    latency_ms: int = 0
 
     @property
     def ok(self) -> bool:
@@ -50,32 +51,53 @@ def _groq_json(system_prompt: str, user_prompt: str) -> LLMResult:
             {"role": "user", "content": user_prompt},
         ],
     }
+    started = time.monotonic()
+    deadline = started + settings.LLM_TIMEOUT_SECONDS
     last_error = "groq request failed"
     for attempt in range(2):
+        remaining = deadline - time.monotonic()
+        if remaining < 1.0:
+            break
         try:
             response = httpx.post(
                 GROQ_CHAT_URL,
                 headers={"Authorization": f"Bearer {settings.GROQ_API_KEY}"},
                 json=payload,
-                timeout=settings.LLM_TIMEOUT_SECONDS,
+                timeout=remaining,
             )
             if response.status_code in RETRYABLE_STATUS and attempt == 0:
                 last_error = f"HTTP {response.status_code}"
-                time.sleep(RETRY_DELAY_SECONDS)
+                time.sleep(min(RETRY_DELAY_SECONDS, max(0.0, deadline - time.monotonic())))
                 continue
             response.raise_for_status()
             content = response.json()["choices"][0]["message"]["content"]
             parsed = json.loads(content)
             if not isinstance(parsed, dict):
                 raise TypeError("Groq returned JSON that is not an object")
-            return LLMResult(parsed, "groq", settings.GROQ_MODEL)
+            latency_ms = int((time.monotonic() - started) * 1000)
+            return LLMResult(parsed, "groq", settings.GROQ_MODEL, latency_ms=latency_ms)
         except (httpx.HTTPError, KeyError, IndexError, TypeError, ValueError) as exc:
             last_error = str(exc)
+            # A bad key or a bad request will not improve on a second attempt.
+            if isinstance(exc, httpx.HTTPStatusError) and exc.response.status_code not in RETRYABLE_STATUS:
+                break
             if attempt == 0:
-                time.sleep(RETRY_DELAY_SECONDS)
+                time.sleep(min(RETRY_DELAY_SECONDS, max(0.0, deadline - time.monotonic())))
 
-    logger.warning("Groq completion failed on %s: %s", settings.GROQ_MODEL, last_error)
-    return LLMResult(None, "groq", settings.GROQ_MODEL, last_error)
+    latency_ms = int((time.monotonic() - started) * 1000)
+    logger.warning(
+        "Groq completion failed on %s after %sms: %s",
+        settings.GROQ_MODEL,
+        latency_ms,
+        last_error,
+    )
+    return LLMResult(
+        None,
+        "groq",
+        settings.GROQ_MODEL,
+        last_error,
+        latency_ms=latency_ms,
+    )
 
 
 def _gemini_json(system_prompt: str, user_prompt: str) -> LLMResult:

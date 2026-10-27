@@ -8,12 +8,14 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from dataclasses import dataclass, field
 from typing import Any
 
 import httpx
 
 from backend.agent.candidate_evaluator import format_paise_to_rupees
-from backend.agent.candidate_search import search_catalog
+from backend.agent.candidate_search import search_catalog_full
+from backend.agent.composite_cart import format_cart_receipt
 from backend.agent.formatters import SWIGGY_CARE_PHONE
 from backend.agent.router import Capability, RoutingDecision
 from backend.integrations.commerce.swiggy_client import (
@@ -24,9 +26,18 @@ from backend.integrations.commerce.swiggy_client import (
 logger = logging.getLogger("grocer.read_actions")
 
 NOT_READY_REPLY = (
-    "I can't do that yet. Right now I can check prices and stock, list your "
-    "saved addresses, show your orders, track a delivery, and show payment options."
+    "I can't do that yet. Right now I can check prices and stock, show your "
+    "basket, list or switch addresses, show your orders, track a delivery, "
+    "show coupons and show payment options."
 )
+
+
+@dataclass
+class ReadReply:
+    """A text answer with optional tappable follow-ups."""
+
+    text: str
+    buttons: list[tuple[str, str]] = field(default_factory=list)
 
 
 async def _item_info(decision: RoutingDecision, client: SwiggyClient, address_id: str | None) -> str:
@@ -42,13 +53,19 @@ async def _item_info(decision: RoutingDecision, client: SwiggyClient, address_id
         default = resolve_default_address(addresses)
         address_id = default.id if default else None
 
-    candidates = await asyncio.to_thread(
-        search_catalog,
+    outcome = await asyncio.to_thread(
+        search_catalog_full,
         query=query,
         address_id=address_id,
         swiggy_client=client,
     )
+    candidates = outcome.candidates
     if not candidates:
+        if outcome.alternatives:
+            return (
+                f"I couldn't find '{query}' in stock right now. "
+                f"Similar items at this store: {', '.join(outcome.alternatives)}."
+            )
         return f"I couldn't find '{query}' at your local Instamart store right now."
 
     lines = [f"Here's what I found for *{query}*:"]
@@ -98,18 +115,43 @@ async def _list_coupons(client: SwiggyClient, address_id: str | None) -> str:
     return "\n".join(lines)
 
 
-async def _list_addresses(client: SwiggyClient) -> str:
+def _short_address(line: str, max_segments: int = 4) -> str:
+    """Keep the two useful ends of a long geocoded line, not the whole wall."""
+    parts = [part.strip() for part in line.split(",") if part.strip()]
+    if len(parts) <= max_segments:
+        return ", ".join(parts)
+    return ", ".join(parts[:2] + ["…"] + parts[-2:])
+
+
+async def _list_addresses(client: SwiggyClient) -> ReadReply:
     data = await asyncio.to_thread(client.get_addresses)
     if not data.addresses:
-        return "You have no saved Swiggy addresses yet. Share a location pin to add one."
+        return ReadReply(
+            "You have no saved Swiggy addresses yet. Share a location pin to add one."
+        )
 
     default_id = data.resolution.defaultAddressId
-    lines = ["*Your saved addresses:*"]
-    for addr in data.addresses[:10]:
+    lines = ["*Your saved addresses*", ""]
+    buttons: list[tuple[str, str]] = []
+    for index, addr in enumerate(data.addresses[:10], start=1):
         label = addr.addressTag or addr.addressCategory or "Address"
-        marker = " ✅ default" if addr.id == default_id else ""
-        lines.append(f"• {label} — {addr.addressLine}{marker}")
-    return "\n".join(lines)
+        marker = " · default" if addr.id == default_id else ""
+        lines.append(f"{index}. *{label}*{marker}")
+        lines.append(f"   {_short_address(addr.addressLine)}")
+        lines.append("")
+        if addr.id != default_id and len(buttons) < 3:
+            buttons.append((f"addr:set:{addr.id}", f"Switch to {label}"[:20]))
+
+    if buttons:
+        lines.append("Tap a button to switch, or tell me the label.")
+    return ReadReply("\n".join(lines).strip(), buttons)
+
+
+async def _view_basket(client: SwiggyClient, address_id: str | None) -> ReadReply:
+    cart = await asyncio.to_thread(client.get_cart, address_id)
+    if not cart.items:
+        return ReadReply("Your basket is empty. Tell me what you need and I'll add it.")
+    return ReadReply(format_cart_receipt(cart))
 
 
 async def _order_history(client: SwiggyClient) -> str:
@@ -247,32 +289,34 @@ def format_disambiguation_choices(
     return "\n".join(lines), buttons
 
 
-async def answer_read_capability(
+async def build_read_reply(
     decision: RoutingDecision,
     client: SwiggyClient,
     address_id: str | None,
     coords: tuple[float, float] | None = None,
-) -> str:
+) -> ReadReply:
     """Answer a read capability. Never writes to Swiggy or the database."""
     try:
         if decision.capability is Capability.CHAT:
-            return decision.reply or "Hey! What do you need from Instamart?"
+            return ReadReply(decision.reply or "Hey! What do you need from Instamart?")
         if decision.capability is Capability.ITEM_INFO:
-            return await _item_info(decision, client, address_id)
+            return ReadReply(await _item_info(decision, client, address_id))
         if decision.capability is Capability.STORE_INFO:
-            return await _store_info(client, address_id)
+            return ReadReply(await _store_info(client, address_id))
         if decision.capability is Capability.LIST_COUPONS:
-            return await _list_coupons(client, address_id)
+            return ReadReply(await _list_coupons(client, address_id))
         if decision.capability is Capability.LIST_ADDRESSES:
             return await _list_addresses(client)
+        if decision.capability is Capability.VIEW_BASKET:
+            return await _view_basket(client, address_id)
         if decision.capability is Capability.ORDER_HISTORY:
-            return await _order_history(client)
+            return ReadReply(await _order_history(client))
         if decision.capability is Capability.TRACK_ORDER:
-            return await _track_order(decision, client, coords)
+            return ReadReply(await _track_order(decision, client, coords))
         if decision.capability is Capability.PAYMENT_OPTIONS:
-            return await _payment_options(client)
+            return ReadReply(await _payment_options(client))
         if decision.capability is Capability.CANCEL_HELP:
-            return _cancel_help()
+            return ReadReply(_cancel_help())
     except (
         httpx.HTTPError,
         ValueError,
@@ -283,6 +327,16 @@ async def answer_read_capability(
         SwiggyAuthExpiredError,
     ) as exc:
         logger.warning("Read capability %s failed: %s", decision.capability.value, exc)
-        return "I couldn't fetch that from Swiggy just now. Please try again in a moment."
+        return ReadReply("I couldn't fetch that from Swiggy just now. Please try again in a moment.")
 
-    return NOT_READY_REPLY
+    return ReadReply(NOT_READY_REPLY)
+
+
+async def answer_read_capability(
+    decision: RoutingDecision,
+    client: SwiggyClient,
+    address_id: str | None,
+    coords: tuple[float, float] | None = None,
+) -> str:
+    """Text-only wrapper kept for tests and simple callers."""
+    return (await build_read_reply(decision, client, address_id, coords)).text

@@ -44,7 +44,7 @@ class Settings(BaseSettings):
     LLM_PROVIDER: str = "groq"
     GROQ_API_KEY: str | None = None
     GROQ_MODEL: str = "openai/gpt-oss-120b"
-    LLM_TIMEOUT_SECONDS: float = 30.0
+    LLM_TIMEOUT_SECONDS: float = 8.0  # One interactive turn budget; no 60s dead air
     ROUTER_CONFIDENCE_FLOOR: float = 0.70
 
     # Database (Supabase PostgreSQL with SSL)

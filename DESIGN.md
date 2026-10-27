@@ -18,7 +18,7 @@
 - Maximum 10 rows in a list picker.
 - Maximum 1024 characters in an interactive body.
 - Plain text, bold and monospace only. No HTML, tables or rich cards.
-- Replies are in English. Grocer understands Hindi and Hinglish grocery words but writes back in English.
+- Replies are in English. Grocer understands Hindi and Hinglish grocery words but writes back in English. Decided 2026-10-27.
 
 ## A2. Receipt card
 
@@ -42,7 +42,16 @@ Target template:
 🎉 *You saved ₹50 on this order!*
 ```
 
-Current gap: the receipt prints a coupon line but the savings message is never sent (`backend/agent/customer_advocate.py:251`). Long receipts are truncated at 1024 characters (`backend/channels/whatsapp_client.py:105`). The target is to split long receipts, never silently drop lines.
+Rules for every add receipt:
+
+1. Show what was just added, not only the whole basket.
+2. If the basket already had items, show the old total and the new total, and offer `[Keep only new]` (clears the old basket after a tap, keeps this turn) plus a clear action. Never call the old basket "added".
+3. Name any Swiggy stock cap that changed the request ("Swiggy allows 2 of this item per order").
+4. Never say "Basket updated" unless the verified cart matches the request.
+
+Live since 2026-10-27: an add receipt shows only the change plus a delta line ("You already had N items (₹X). Basket now: M items."), and any Swiggy stock cap is printed with the capped quantity. A fresh-basket add still prints the whole basket.
+
+Current gaps: the savings line is built but never sent (`backend/agent/customer_advocate.py:251`), coupons still run only on the add path, and long receipts are truncated at 1024 characters (`backend/channels/whatsapp_client.py:46`). Target: split long receipts, never drop a line.
 
 ## A3. Out-of-stock and unserviceable items
 
@@ -60,7 +69,7 @@ If Swiggy does not provide an alternative, say so. Do not invent one.
 
 ### A4.1 Checkout receipt
 
-Current: the basket path sends two quick replies, `[Pay ₹X]` (`pay:<approval_id>`) and `[Clear Basket]` (`cart:clear`). After the pay tap, the bot sends a CTA URL button, `[Pay on Swiggy]`, using the HTTPS `bridgeUrl`.
+Live since 2026-10-27: the add receipt sends up to three quick replies, `[Pay ₹X]`, `[Keep only new]` (only when the basket already had items) and either `[Change item]` (one vague item) or `[Clear basket]`. After the pay tap, the bot sends a CTA URL button, `[Pay on Swiggy]`, using the HTTPS `bridgeUrl`.
 
 Target: one CTA URL button `[Pay ₹X (UPI / Card)]`, plus up to two secondary actions:
 1. `[Cash on Delivery]` when Swiggy offers it.
@@ -70,22 +79,43 @@ A CTA URL button opens Swiggy's payment page. A quick reply only sends a button 
 
 ### A4.2 Clear basket
 
-Current and target: preview first, then two buttons, `[Clear Cart]` (`cart:clear`) and `[Keep Cart]` (`cart:keep`). Never clear on a text guess.
+Preview first, then two buttons, `[Clear Cart]` (`cart:clear`) and `[Keep Cart]` (`cart:keep`). Never clear on a text guess. A clear is permanent by decision 2026-10-27: no undo. The confirm copy must say that plainly.
 
 ### A4.3 Address switch and delete
 
-- Switch: show the saved addresses as a list (max 10 rows), then confirm. Current code writes `sessions.active_address_id` only; it does not clear or rebuild the basket. The target is to warn, clear and rebuild.
-- Delete: `[Confirm Delete: <Label>]` and `[Keep Address]`. The target guard refuses deletion when an active delivery uses that address. Current code only refuses the last/current address.
+- Switch: show the saved addresses, then confirm. Live since 2026-10-27: a short numbered card keeps the first and last segments of each address and offers up to 3 `[Use: <Label>]` buttons. The switch warns, clears and rebuilds the basket at the new store and names anything it could not move. A 10-row list picker is still the target for more than 3 addresses.
+- Delete: `[Confirm Delete: <Label>]` and `[Keep Address]`. The guard refuses deletion when an active delivery uses that address, and it runs again on the final tap.
 
 ### A4.4 Token expiry
 
 Target copy:
 
-> Your Swiggy login needs a quick security refresh. Tap below to reconnect. Your grocery list is saved.
+> Your Swiggy login needs a security refresh. Tap below to reconnect. Your grocery list is saved and will resume automatically.
 
 Button: `[Reconnect Swiggy]` (CTA URL to the allowlisted OAuth redirect).
 
-Current gap: the webhook writes `status='parked'` but replay waits for `awaiting_link`, and the callback does not re-execute the saved message. Do not claim the list resumes automatically until that is fixed.
+Current: the webhook parks as `awaiting_link`, the callback stores the token and replays the saved message in the background. A failed replay restores the row instead of losing the list.
+
+### A4.5 Recipe plan
+
+A recipe request is a proposal, never a write.
+
+1. Show the dish, the people count, and each ingredient with a pack count.
+2. Say what it assumes the kitchen already has (salt, oil, spices).
+3. Wait for `[Add all]` or `[Let me pick]`.
+4. Respect Swiggy's `maxQuantity` and say when a cap changed the plan.
+
+No plan is added from text alone. A customer who writes "make pizza for 5" must never get one surprise SKU in the basket.
+
+### A4.6 Basket view
+
+`What's in my basket?` always answers with the live cart, item count and total. There is no need to add something first. Live since 2026-10-27: the `view_basket` capability reads `get_cart` and never writes.
+
+### A4.7 Presence and interim updates
+
+- Every accepted inbound message is marked read (blue ticks) with a 25-second typing indicator, sent off the critical path. A send failure is logged and never blocks the reply.
+- The typing indicator covers the first model and search call. It is not a promise of a live agent.
+- Never send a fake "I'm still working" message. If work runs longer than the indicator, send the real result or the real failure.
 
 ## A5. Tone and copy
 
@@ -101,7 +131,7 @@ Current gap: the webhook writes `status='parked'` but replay waits for `awaiting
 
 - UPI is the first path. The customer taps the CTA, pays on Swiggy's HTTPS page, and Grocer polls `check_payment_status`.
 - `checkout` is not idempotent. On a 5xx or network failure, check `get_orders` before retrying. Never blind-retry.
-- UPI requires `intentApp` or `generateUPIQR` from `get_payment_options`. The current client sends neither; that is a P0 gap.
+- UPI sends `generateUPIQR=true`, or `intentApp` when one is supplied. Fixed in Phase 3.
 - COD is the second path. SwiggyPay is later, only when the live response offers it.
 - The ₹1,000 cap is a safety limit, not a product upsell. The customer must explicitly raise it.
 
@@ -113,7 +143,7 @@ Target: exactly three milestones.
 2. Picked up and out for delivery, with ETA and live map link.
 3. Delivered.
 
-Current gaps: the "Confirmed" branch can repeat every 30 seconds, a 401 can kill the poller, and split orders 2..n are not notified. Do not promise reliable milestones until those are fixed.
+Current: every order id in a split checkout is polled, each order+milestone fires once via `notified_milestones`, and a 401 is caught per row. Fixed in Phase 4.
 
 ## A8. Error truth
 
@@ -124,6 +154,7 @@ Every error must say what happened and what the customer can do:
 - Price changed: say the price changed, by how much, and ask them to review the new receipt.
 - Cap exceeded: say the cap, show the total, offer the explicit raise button.
 - Swiggy or network failure: say it failed, do not claim the order was placed, and do not retry a non-idempotent checkout blindly.
+- AI or model outage: say the assistant itself is unavailable, confirm nothing was changed, and offer one retry. Never turn an outage into "I didn't catch that". Live since 2026-10-27: `AI_OUTAGE_REPLY` names the outage, says the basket did not change, and asks the customer to resend in a minute. The turn budget is 8 seconds.
 - WhatsApp send failure: log it and surface it. Never pretend the message was delivered.
 
 ## A9. Privacy
@@ -156,15 +187,15 @@ Target:
 2. The link is `https://wa.me/<NEXT_PUBLIC_WHATSAPP_NUMBER>`.
 3. Swiggy OAuth is a hidden bridge. The bot sends the reconnect link only when a customer needs to link or refresh Swiggy. The normal landing page does not ask for a phone number.
 
-Current: the page shows a phone-entry form and runs the OAuth flow. **Decision 2026-10-27: remove it.** The landing page never asks for a phone number. OAuth is only reached from a button the bot sends.
+Done 2026-10-27: the phone form is gone. The page accepts a signed `?t=` link from the bot, and it never asks for a phone number.
 
 ## B3. Page sections
 
 1. **Hero.** "Groceries on WhatsApp. Real Swiggy Instamart." One sentence: chat naturally, see live prices, tap once to pay. Primary CTA.
 2. **Problem.** Grocery apps are heavy. People already live in WhatsApp. Grocer removes the app hop.
-3. **What Grocer does.** Shopping lists, price/stock questions, saved addresses, order history, tracking, coupons, reorders. Cover only tool-backed abilities. Mark which are live today and which are coming next. Recipes are not a Swiggy tool, so they are not a product claim.
+3. **What Grocer does.** Shopping lists, price/stock questions, saved addresses, order history, tracking, coupons, reorders, and recipe plans. Mark which are live today and which are coming next. Recipes are in v1 as a plan-confirm-add flow (decided 2026-10-27); they are not live yet.
 4. **The 3-lock safety story.** Physical tap only; live cart re-check; exactly-once lock. Explain in plain words, not internal names.
-5. **What is live today.** Pull from `STATUS.md`. Do not list a feature as live if it is partial or fixture-only. Current live: read answers, basket add, address list/switch preview, coupon discovery. Checkout is not live.
+5. **What is live today.** Pull from `STATUS.md`. Do not list a feature as live if it is partial or fixture-only. Current live: read answers, basket add, address list, switch with rebuild, coupon discovery, signed OAuth link, park and replay. Checkout is locked. Live add and delete of a real address is still unproven.
 6. **How it works.** Three steps: open WhatsApp, connect Swiggy, chat and tap to pay.
 7. **Privacy.** 24-hour data minimization, encrypted Swiggy tokens, "delete my data". Only claim what the code does.
 8. **Proof.** Real tests, real Swiggy reads, Groq router eval. No invented percentages, no fake uptime.
@@ -198,7 +229,7 @@ Current: the page shows a phone-entry form and runs the OAuth flow. **Decision 2
 - Routes: `/api/auth/swiggy/login` and `/api/auth/swiggy/callback`.
 - Exact redirect: `https://grocerr.vercel.app/`.
 - The bridge stores the phone in PKCE state and links the Swiggy token to that `wa_id`.
-- Target: DB-backed state with a TTL and a signed WhatsApp ticket. Current state is in process memory and the login accepts any phone; this is a security gap.
+- Current: login requires a signed bot link (HMAC, 1-hour TTL). PKCE state is still in process memory, so a Render restart mid-login forces a retry. Target: DB-backed state with a TTL.
 - The landing page must not render customer data after the callback. It only shows a success or failure state.
 
 ## B8. Landing page done condition

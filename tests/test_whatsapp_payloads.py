@@ -2,11 +2,16 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+
 import pytest
 
+from backend.channels.whatsapp import _basket_notice
 from backend.channels.whatsapp_client import (
     build_buttons_payload,
     build_cta_payload,
+    build_read_payload,
     build_text_payload,
 )
 
@@ -33,6 +38,14 @@ def test_buttons_payload_shape_and_limits():
     assert len(four["interactive"]["action"]["buttons"]) == 3
 
 
+def test_read_payload_marks_read_and_types():
+    payload = build_read_payload("wamid.HBgM123")
+    assert payload["status"] == "read"
+    assert payload["message_id"] == "wamid.HBgM123"
+    assert payload["typing_indicator"] == {"type": "text"}
+    assert "to" not in payload
+
+
 def test_cta_payload_requires_https():
     payload = build_cta_payload(
         "919876543210",
@@ -46,3 +59,17 @@ def test_cta_payload_requires_https():
 
     with pytest.raises(ValueError, match="Strict scheme violation"):
         build_cta_payload("9198", "x", "Pay", "upi://pay?pa=swiggy@icici")
+
+
+def test_old_basket_is_mentioned_only_after_an_idle_hour():
+    from backend.integrations.commerce.swiggy_client import SwiggyClient
+
+    cart = SwiggyClient(fixtures_dir=Path(__file__).parent / "fixtures").get_cart(
+        "addr_01HXYZ"
+    )
+    old = datetime.now(timezone.utc) - timedelta(hours=2)
+    notice = _basket_notice(old, cart)
+    assert notice is not None
+    assert "still has" in notice[0]
+    assert notice[1] == [("cart:keep", "Keep basket"), ("cart:clear", "Clear basket")]
+    assert _basket_notice(datetime.now(timezone.utc), cart) is None

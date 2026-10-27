@@ -137,3 +137,21 @@ def test_llm_outage_is_not_reported_as_customer_confusion():
     assert d.error is not None
     assert d.reply == AI_OUTAGE_REPLY
     assert d.reply != "I didn't quite catch that"
+
+
+def test_plan_meal_is_read_only_and_parses_dish_and_servings():
+    d = parse_decision(
+        {
+            "capability": "plan_meal",
+            "confidence": 0.95,
+            "items": [{"query": "pizza base", "quantity": 3}],
+            "dish": "pizza",
+            "servings": 5,
+        },
+        "make pizza for 5 people",
+    )
+    assert d.capability is Capability.PLAN_MEAL
+    assert d.safety is SafetyClass.READ
+    assert d.is_write is False
+    assert d.dish == "pizza"
+    assert d.servings == 5

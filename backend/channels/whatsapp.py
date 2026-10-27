@@ -828,11 +828,12 @@ async def handle_webhook(
                             "wa_id": msg.sender_wa_id,
                         }
 
-                    # Adding an item that is already in the basket is ambiguous:
-                    # ask whether it means "set the total" or "add more".
+                    # Adding one item that is already in the basket is ambiguous:
+                    # ask whether it means "set the total" or "add more". A list of
+                    # several items is a plain add; asking there would drop the rest.
                     if (
                         decision.capability is Capability.ADD_ITEMS
-                        and decision.items
+                        and len(decision.items) == 1
                         and live_cart is not None
                     ):
                         wanted = str(decision.items[0].get("query") or "").strip().lower()
@@ -851,20 +852,20 @@ async def handle_webhook(
                                 add_qty = 1
                             prompt_text = (
                                 f"You already have *{existing.itemName}* "
-                                f"({existing.quantity}) in your basket. Do you want the "
-                                f"total to be {add_qty}, or {add_qty} more?"
+                                f"({existing.quantity}) in your basket. Add {add_qty} more, "
+                                f"or make the total {add_qty}?"
                             )
                             await wa_client.send_quick_reply_buttons(
                                 to_wa_id=msg.sender_wa_id,
                                 body_text=prompt_text,
                                 buttons=[
                                     (
-                                        f"cart:qty:{existing.spinId}:{add_qty}",
-                                        f"Set to {add_qty}"[:20],
-                                    ),
-                                    (
                                         f"cart:addqty:{existing.spinId}:{add_qty}",
                                         f"Add {add_qty} more"[:20],
+                                    ),
+                                    (
+                                        f"cart:qty:{existing.spinId}:{add_qty}",
+                                        f"Make total {add_qty}"[:20],
                                     ),
                                 ],
                             )

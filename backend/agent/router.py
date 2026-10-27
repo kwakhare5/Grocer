@@ -37,6 +37,7 @@ class Capability(str, Enum):
     PAYMENT_OPTIONS = "payment_options"
     CANCEL_HELP = "cancel_help"
     VIEW_BASKET = "view_basket"
+    PLAN_MEAL = "plan_meal"
     ADD_ITEMS = "add_items"
     CHANGE_ITEM = "change_item"
     CLEAR_BASKET = "clear_basket"
@@ -66,6 +67,7 @@ CAPABILITY_SPECS: tuple[CapabilitySpec, ...] = (
     CapabilitySpec(Capability.PAYMENT_OPTIONS, SafetyClass.READ, "Show which payment methods are available."),
     CapabilitySpec(Capability.CANCEL_HELP, SafetyClass.READ, "Customer wants to cancel. Grocer cannot cancel; it gives Swiggy care details."),
     CapabilitySpec(Capability.VIEW_BASKET, SafetyClass.READ, "Show what is currently in the basket, with quantities and the total."),
+    CapabilitySpec(Capability.PLAN_MEAL, SafetyClass.READ, "Plan a dish or recipe for a number of people. Show ingredients, pack counts and a total; add only after a tap."),
     CapabilitySpec(Capability.ADD_ITEMS, SafetyClass.BASKET, "Add one or more groceries to the basket."),
     CapabilitySpec(Capability.CHANGE_ITEM, SafetyClass.BASKET, "Change quantity, replace or remove an item already in the basket."),
     CapabilitySpec(Capability.CLEAR_BASKET, SafetyClass.BASKET, "Empty the whole basket."),
@@ -109,6 +111,8 @@ class RoutingDecision:
     address_ref: str | None = None
     change_action: str | None = None
     reply: str | None = None
+    dish: str | None = None
+    servings: int | None = None
     safe_path: bool = False
     provider: str | None = None
     error: str | None = None
@@ -132,6 +136,11 @@ def _system_prompt() -> str:
         "Delivery time or fee for a new basket is store_info. Status, rider or ETA "
         "of an order already placed ('arrives', 'coming', 'delivered') is track_order.\n"
         "If the customer wants a product in their basket, use add_items.\n"
+        "A request to make, cook or plan a dish for some people ('make pizza for 5') "
+        "is plan_meal, never add_items. Put the dish in dish, the people count in "
+        "servings, and the packs needed in items. Never add anything; the customer "
+        "confirms first. Leave salt, oil, water and common spices out; use specific "
+        "grocery names like 'mozzarella cheese', not 'cheese'.\n"
         "A bare grocery list with no question ('milk and bread', '2 kg atta') is "
         "a request to add those items, so use add_items.\n"
         "If the customer asks what is already in their basket or what it costs, "
@@ -148,6 +157,9 @@ def _system_prompt() -> str:
         "or remove it, use change_item, not add_items.\n"
         "Repeating a past order or the customer's usual list ('same as last time', "
         "'my regular items') is reorder, never add_items.\n"
+        "If the last assistant message was a numbered recipe plan and the customer "
+        "replies with numbers, use add_items for those plan items with the same "
+        "pack counts.\n"
         "Asking to remove or delete a saved address is delete_address, even when the "
         "label is vague ('my old address'). Ask which one only after choosing the "
         "capability.\n"
@@ -161,6 +173,16 @@ def _system_prompt() -> str:
         '"items":[{"query":"milk","quantity":3}],"change_action":"set_quantity"}\n'
         'Customer: add 2 eggs -> {"capability":"add_items","confidence":0.95,'
         '"items":[{"query":"eggs","quantity":2}],"change_action":null}\n'
+        'Customer: add milk and bread -> {"capability":"add_items","confidence":0.95,'
+        '"items":[{"query":"milk","quantity":1},{"query":"bread","quantity":1}],'
+        '"change_action":null}\n'
+        'Customer: get 1 litre milk and 6 eggs -> {"capability":"add_items","confidence":0.95,'
+        '"items":[{"query":"milk 1 litre","quantity":1},{"query":"eggs","quantity":6}],'
+        '"change_action":null}\n'
+        'Customer: make pizza for 5 people -> {"capability":"plan_meal","confidence":0.95,'
+        '"items":[{"query":"pizza base","quantity":3},{"query":"mozzarella cheese","quantity":2},'
+        '{"query":"pizza sauce","quantity":1}],"dish":"pizza","servings":5,'
+        '"change_action":null}\n'
         'Customer: how much is milk -> {"capability":"item_info","confidence":0.95,'
         '"items":[{"query":"milk","quantity":1}],"change_action":null}\n'
         'Customer: same as last time -> {"capability":"reorder","confidence":0.95,'
@@ -171,6 +193,8 @@ def _system_prompt() -> str:
         '"order_ref": "<order id or last or null>", '
         '"address_ref": "<address label or id or null>", '
         '"change_action": "<remove or set_quantity or null>", '
+        '"dish": "<dish for plan_meal or null>", '
+        '"servings": <people count for plan_meal or null>, '
         '"reply": "<short reply, mainly for chat>"}'
     )
 
@@ -252,6 +276,14 @@ def parse_decision(
     if change_action not in {"remove", "set_quantity"}:
         change_action = None
 
+    dish = str(payload.get("dish") or "").strip() or None
+    try:
+        servings = int(payload.get("servings") or 0) or None
+    except (TypeError, ValueError):
+        servings = None
+    if servings is not None:
+        servings = max(1, min(servings, 50))
+
     if reply is None and capability is Capability.CHAT:
         reply = "Hey! What groceries do you need?"
 
@@ -264,6 +296,8 @@ def parse_decision(
         address_ref=payload.get("address_ref"),
         change_action=change_action,
         reply=reply,
+        dish=dish,
+        servings=servings,
         provider=provider,
     )
 

@@ -10,6 +10,7 @@ from typing import Any
 _READ_REACTIONS: dict[str, str] = {
     "list_addresses": "🏠",
     "view_basket": "🛒",
+    "plan_meal": "🍳",
     "order_history": "📦",
     "track_order": "🛵",
     "list_coupons": "🎟️",

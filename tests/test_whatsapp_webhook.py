@@ -23,9 +23,36 @@ from backend.channels.link_tokens import verify_link_token
 from backend.channels.whatsapp import _park_and_prompt, handle_webhook
 from backend.config import settings
 from backend.database import get_db_pool
+from backend.integrations.commerce.schemas import SearchProductsData, ToolEnvelope
 from backend.integrations.commerce.token_vault import store_user_token
 
 FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures"
+
+
+def _catalog() -> SearchProductsData:
+    raw = json.loads((FIXTURES_DIR / "catalog_samples.json").read_text(encoding="utf-8"))
+    envelope = ToolEnvelope[SearchProductsData].model_validate(raw)
+    assert envelope.data is not None
+    return envelope.data
+
+
+async def _seed_text_user(pool: Any) -> tuple[str, Any]:
+    wa_id = _new_wa_id()
+    async with pool.acquire() as conn:
+        user_id = await conn.fetchval(
+            "INSERT INTO grocer.users (wa_id) VALUES ($1) RETURNING id;", wa_id
+        )
+        await conn.execute(
+            """
+            INSERT INTO grocer.sessions (user_id, active_address_id, last_active_at)
+            VALUES ($1, 'addr_01HXYZ', now())
+            ON CONFLICT (user_id) DO UPDATE
+            SET active_address_id = 'addr_01HXYZ', last_active_at = now();
+            """,
+            user_id,
+        )
+    await store_user_token(user_id=user_id, access_token="swiggy_webhook_token")
+    return wa_id, user_id
 
 pytestmark = [pytest.mark.db, pytest.mark.scripted]
 
@@ -297,3 +324,179 @@ async def test_address_question_gets_one_home_reaction(monkeypatch):
     assert result["status"] == "capability_answered"
     assert result["capability"] == "list_addresses"
     assert outbound.reactions == [(wa_id, wamid, "🏠")]
+
+
+@pytest.mark.asyncio
+async def test_multiple_items_all_land_even_when_one_is_already_in_the_basket(
+    monkeypatch,
+):
+    pool = await get_db_pool()
+    wa_id, _user_id = await _seed_text_user(pool)
+    client = FixtureSwiggyClient(FIXTURES_DIR, catalog_data=_catalog())
+    outbound = RecordingWA()
+
+    from backend.agent import customer_advocate
+    from backend.agent import router as router_module
+    from backend.agent.router import Capability, RoutingDecision, SafetyClass
+
+    monkeypatch.setattr(settings, "LLM_PROVIDER", "scripted")
+    monkeypatch.setattr(customer_advocate, "optimize_coupons", lambda **kwargs: None)
+    monkeypatch.setattr(
+        router_module,
+        "route_message",
+        lambda *args, **kwargs: RoutingDecision(
+            capability=Capability.ADD_ITEMS,
+            safety=SafetyClass.BASKET,
+            confidence=0.95,
+            items=[
+                {"query": "milk", "quantity": 1},
+                {"query": "bread", "quantity": 1},
+            ],
+        ),
+    )
+
+    result = await handle_webhook(
+        SignedRequest(_message(wa_id, text="add milk and bread")),
+        swiggy_client=client,
+        wa_client=outbound,
+    )
+
+    assert result["status"] == "cart_updated"
+    quantities = {item.spinId: item.quantity for item in client.get_cart("addr_01HXYZ").items}
+    assert quantities["spin_amul_1l"] == 3
+    assert quantities["spin_bread_white"] == 1
+
+
+@pytest.mark.asyncio
+async def test_one_existing_item_asks_add_more_or_make_total(monkeypatch):
+    pool = await get_db_pool()
+    wa_id, _user_id = await _seed_text_user(pool)
+    client = FixtureSwiggyClient(FIXTURES_DIR, catalog_data=_catalog())
+    outbound = RecordingWA()
+
+    from backend.agent import router as router_module
+    from backend.agent.router import Capability, RoutingDecision, SafetyClass
+
+    monkeypatch.setattr(settings, "LLM_PROVIDER", "scripted")
+    monkeypatch.setattr(
+        router_module,
+        "route_message",
+        lambda *args, **kwargs: RoutingDecision(
+            capability=Capability.ADD_ITEMS,
+            safety=SafetyClass.BASKET,
+            confidence=0.95,
+            items=[{"query": "milk", "quantity": 1}],
+        ),
+    )
+
+    result = await handle_webhook(
+        SignedRequest(_message(wa_id, text="add milk")),
+        swiggy_client=client,
+        wa_client=outbound,
+    )
+
+    assert result["status"] == "basket_quantity_choice"
+    assert client.last_update_items == []
+    assert outbound.buttons
+    _to, body, buttons = outbound.buttons[-1]
+    assert "Add 1 more, or make the total 1?" in body
+    assert buttons == [
+        ("cart:addqty:spin_amul_1l:1", "Add 1 more"),
+        ("cart:qty:spin_amul_1l:1", "Make total 1"),
+    ]
+
+
+@pytest.mark.asyncio
+async def test_plan_add_tap_writes_every_ingredient_and_reissues_pay(monkeypatch):
+    pool = await get_db_pool()
+    wa_id, _user_id = await _seed_text_user(pool)
+    client = FixtureSwiggyClient(FIXTURES_DIR, catalog_data=_catalog())
+    outbound = RecordingWA()
+
+    from backend.agent import customer_advocate
+    from backend.agent.meal_planner import encode_plan
+
+    monkeypatch.setattr(customer_advocate, "optimize_coupons", lambda **kwargs: None)
+    button_id = encode_plan([("milk", 1), ("bread", 1)])
+    assert button_id is not None
+
+    result = await handle_webhook(
+        SignedRequest(_message(wa_id, button_id=button_id)),
+        swiggy_client=client,
+        wa_client=outbound,
+    )
+
+    assert result["status"] == "plan_added"
+    quantities = {item.spinId: item.quantity for item in client.get_cart("addr_01HXYZ").items}
+    assert quantities["spin_amul_1l"] == 3
+    assert quantities["spin_bread_white"] == 1
+    assert outbound.buttons
+    assert outbound.buttons[-1][2][0][0].startswith("pay:")
+
+
+@pytest.mark.asyncio
+async def test_plan_add_tap_writes_nothing_when_an_ingredient_is_missing():
+    pool = await get_db_pool()
+    wa_id, _user_id = await _seed_text_user(pool)
+    client = FixtureSwiggyClient(FIXTURES_DIR, catalog_data=_catalog())
+    outbound = RecordingWA()
+
+    from backend.agent.meal_planner import encode_plan
+
+    button_id = encode_plan([("milk", 1), ("unicorn steak", 1)])
+    assert button_id is not None
+
+    result = await handle_webhook(
+        SignedRequest(_message(wa_id, button_id=button_id)),
+        swiggy_client=client,
+        wa_client=outbound,
+    )
+
+    assert result["status"] == "plan_unavailable"
+    assert client.last_update_items == []
+    assert outbound.texts
+    assert "unicorn steak" in outbound.texts[-1][1]
+
+
+@pytest.mark.asyncio
+async def test_recipe_question_shows_a_plan_and_writes_nothing(monkeypatch):
+    pool = await get_db_pool()
+    wa_id, _user_id = await _seed_text_user(pool)
+    wamid = f"wamid.{uuid.uuid4()}"
+    client = FixtureSwiggyClient(FIXTURES_DIR, catalog_data=_catalog())
+    outbound = RecordingWA()
+
+    from backend.agent import router as router_module
+    from backend.agent.router import Capability, RoutingDecision, SafetyClass
+
+    monkeypatch.setattr(
+        router_module,
+        "route_message",
+        lambda *args, **kwargs: RoutingDecision(
+            capability=Capability.PLAN_MEAL,
+            safety=SafetyClass.READ,
+            confidence=0.95,
+            items=[
+                {"query": "milk", "quantity": 2},
+                {"query": "bread", "quantity": 1},
+            ],
+            dish="breakfast",
+            servings=2,
+        ),
+    )
+
+    result = await handle_webhook(
+        SignedRequest(_message(wa_id, wamid=wamid, text="make breakfast for 2")),
+        swiggy_client=client,
+        wa_client=outbound,
+    )
+    await asyncio.sleep(0.05)
+
+    assert result["status"] == "capability_answered"
+    assert result["capability"] == "plan_meal"
+    assert client.last_update_items == []
+    assert outbound.buttons
+    _to, body, buttons = outbound.buttons[-1]
+    assert "Breakfast for 2" in body
+    assert buttons[0][1] == "Add all"
+    assert outbound.reactions == [(wa_id, wamid, "🍳")]

@@ -18,6 +18,7 @@ async def dispatch_button_action(
     pool: asyncpg.Pool | None = None,
     swiggy_client: Any | None = None,
     message_type: str = "button_reply",
+    wa_client: Any | None = None,
 ) -> dict[str, Any]:
     """Execute interactive WhatsApp button taps directly in Python in <50ms.
 
@@ -42,7 +43,7 @@ async def dispatch_button_action(
         from backend.integrations.commerce.swiggy_client import SwiggyClient
         from backend.integrations.commerce.token_vault import resolve_user_token
 
-        wa_client = WhatsAppClient()
+        wa_client = wa_client or WhatsAppClient()
 
         if button_id == "cart:keep":
             text = "Okay, your basket is unchanged."
@@ -118,7 +119,7 @@ async def dispatch_button_action(
         from backend.integrations.commerce.swiggy_client import SwiggyClient
         from backend.integrations.commerce.token_vault import resolve_user_token
 
-        wa_client = WhatsAppClient()
+        wa_client = wa_client or WhatsAppClient()
 
         if not pool or not target_arg:
             return {
@@ -168,7 +169,7 @@ async def dispatch_button_action(
             from backend.integrations.commerce.swiggy_client import SwiggyClient
             from backend.integrations.commerce.token_vault import resolve_user_token
 
-            wa_client = WhatsAppClient()
+            wa_client = wa_client or WhatsAppClient()
 
             async with pool.acquire() as conn:
                 user_id = await conn.fetchval(
@@ -266,7 +267,7 @@ async def dispatch_button_action(
         from backend.integrations.commerce.swiggy_client import SwiggyClient
         from backend.integrations.commerce.token_vault import resolve_user_token
 
-        wa_client = WhatsAppClient()
+        wa_client = wa_client or WhatsAppClient()
         action, _, address_id = (target_arg or "").partition(":")
 
         if action == "keep" or not address_id:
@@ -371,7 +372,7 @@ async def dispatch_button_action(
                                     f"Pay {format_paise_to_rupees(int(row['to_pay_paise']))}",
                                 )
 
-            wa_client = WhatsAppClient()
+            wa_client = wa_client or WhatsAppClient()
             if pay_button:
                 asyncio.create_task(
                     wa_client.send_quick_reply_buttons(

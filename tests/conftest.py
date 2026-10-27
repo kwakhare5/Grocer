@@ -29,6 +29,10 @@ def pytest_configure(config: pytest.Config) -> None:
     config.addinivalue_line(
         "markers", "live: calls a live external service; excluded by default"
     )
+    config.addinivalue_line(
+        "markers",
+        "scripted: injects a fake external client on purpose; never proof of live behavior",
+    )
 
 
 def pytest_collection_modifyitems(

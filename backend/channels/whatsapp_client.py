@@ -16,6 +16,88 @@ from backend.config import settings
 logger = logging.getLogger("grocer.channels.whatsapp_client")
 
 
+def build_text_payload(to_wa_id: str, text: str) -> dict[str, Any]:
+    return {
+        "messaging_product": "whatsapp",
+        "recipient_type": "individual",
+        "to": to_wa_id,
+        "type": "text",
+        "text": {"body": text},
+    }
+
+
+def build_buttons_payload(
+    to_wa_id: str,
+    body_text: str,
+    buttons: list[tuple[str, str]],
+    header_text: str | None = None,
+    footer_text: str | None = None,
+) -> dict[str, Any]:
+    meta_buttons = [
+        {
+            "type": "reply",
+            "reply": {"id": btn_id, "title": title[:20]},
+        }
+        for btn_id, title in buttons[:3]
+    ]
+
+    interactive: dict[str, Any] = {
+        "type": "button",
+        "body": {"text": body_text[:1024]},
+        "action": {"buttons": meta_buttons},
+    }
+
+    if header_text:
+        interactive["header"] = {"type": "text", "text": header_text[:60]}
+    if footer_text:
+        interactive["footer"] = {"type": "text", "text": footer_text[:60]}
+
+    return {
+        "messaging_product": "whatsapp",
+        "recipient_type": "individual",
+        "to": to_wa_id,
+        "type": "interactive",
+        "interactive": interactive,
+    }
+
+
+def build_cta_payload(
+    to_wa_id: str,
+    body_text: str,
+    button_text: str,
+    url: str,
+    header_text: str | None = None,
+    footer_text: str | None = None,
+) -> dict[str, Any]:
+    if not url.startswith("https://"):
+        raise ValueError(f"Strict scheme violation: CTA URL must use 'https://', got '{url}'")
+
+    interactive: dict[str, Any] = {
+        "type": "cta_url",
+        "body": {"text": body_text[:1024]},
+        "action": {
+            "name": "cta_url",
+            "parameters": {
+                "display_text": button_text[:20],
+                "url": url,
+            },
+        },
+    }
+
+    if header_text:
+        interactive["header"] = {"type": "text", "text": header_text[:60]}
+    if footer_text:
+        interactive["footer"] = {"type": "text", "text": footer_text[:60]}
+
+    return {
+        "messaging_product": "whatsapp",
+        "recipient_type": "individual",
+        "to": to_wa_id,
+        "type": "interactive",
+        "interactive": interactive,
+    }
+
+
 class WhatsAppClient:
     """Outbound client sending messages to Meta's WhatsApp Cloud API (v21.0)."""
 
@@ -39,15 +121,10 @@ class WhatsAppClient:
         }
 
     async def _post_message(self, payload: dict[str, Any]) -> dict[str, Any]:
-        """Deliver payload to Meta Graph API, safely catching network issues in test/offline environments."""
+        """Deliver payload to the Meta Graph API."""
         # Clean recipient phone number (remove any leading '+')
         if "to" in payload:
             payload["to"] = payload["to"].lstrip("+").strip()
-
-        # Offline / Test fallback when credentials are placeholder or offline
-        if not self.access_token or self.access_token.startswith("mock_") or settings.ENVIRONMENT == "test":
-            logger.info("WhatsApp outbound delivery mocked in %s environment for %s", settings.ENVIRONMENT, payload.get("to"))
-            return {"status": "mock_delivered", "payload": payload}
 
         try:
             async with httpx.AsyncClient(timeout=self.timeout_seconds) as client:
@@ -70,14 +147,7 @@ class WhatsAppClient:
         text: str,
     ) -> dict[str, Any]:
         """Send a standard text message."""
-        payload = {
-            "messaging_product": "whatsapp",
-            "recipient_type": "individual",
-            "to": to_wa_id,
-            "type": "text",
-            "text": {"body": text},
-        }
-        return await self._post_message(payload)
+        return await self._post_message(build_text_payload(to_wa_id, text))
 
     async def send_quick_reply_buttons(
         self,
@@ -88,37 +158,11 @@ class WhatsAppClient:
         footer_text: str | None = None,
     ) -> dict[str, Any]:
         """Send an interactive message with up to 3 quick-reply buttons (DESIGN.md)."""
-        meta_buttons = []
-        for btn_id, title in buttons[:3]:
-            meta_buttons.append(
-                {
-                    "type": "reply",
-                    "reply": {
-                        "id": btn_id,
-                        "title": title[:20],  # Meta 20-char button title limit
-                    },
-                }
+        return await self._post_message(
+            build_buttons_payload(
+                to_wa_id, body_text, buttons, header_text, footer_text
             )
-
-        interactive: dict[str, Any] = {
-            "type": "button",
-            "body": {"text": body_text[:1024]},
-            "action": {"buttons": meta_buttons},
-        }
-
-        if header_text:
-            interactive["header"] = {"type": "text", "text": header_text[:60]}
-        if footer_text:
-            interactive["footer"] = {"text": footer_text[:60]}
-
-        payload = {
-            "messaging_product": "whatsapp",
-            "recipient_type": "individual",
-            "to": to_wa_id,
-            "type": "interactive",
-            "interactive": interactive,
-        }
-        return await self._post_message(payload)
+        )
 
     async def send_cta_url_button(
         self,
@@ -130,31 +174,8 @@ class WhatsAppClient:
         footer_text: str | None = None,
     ) -> dict[str, Any]:
         """Send an interactive CTA URL button (opens Swiggy HTTPS bridgeUrl)."""
-        if not url.startswith("https://"):
-            raise ValueError(f"Strict scheme violation: CTA URL must use 'https://', got '{url}'")
-
-        interactive: dict[str, Any] = {
-            "type": "cta_url",
-            "body": {"text": body_text[:1024]},
-            "action": {
-                "name": "cta_url",
-                "parameters": {
-                    "display_text": button_text[:20],
-                    "url": url,
-                },
-            },
-        }
-
-        if header_text:
-            interactive["header"] = {"type": "text", "text": header_text[:60]}
-        if footer_text:
-            interactive["footer"] = {"text": footer_text[:60]}
-
-        payload = {
-            "messaging_product": "whatsapp",
-            "recipient_type": "individual",
-            "to": to_wa_id,
-            "type": "interactive",
-            "interactive": interactive,
-        }
-        return await self._post_message(payload)
+        return await self._post_message(
+            build_cta_payload(
+                to_wa_id, body_text, button_text, url, header_text, footer_text
+            )
+        )

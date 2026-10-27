@@ -12,6 +12,7 @@ from __future__ import annotations
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+from backend.channels.link_tokens import issue_link_token
 from backend.config import settings
 from backend.integrations.commerce.token_vault import (
     decrypt_token,
@@ -44,12 +45,12 @@ def test_pkce_generation():
 
 @pytest.mark.asyncio
 async def test_swiggy_login_endpoint():
-    """POST /api/auth/swiggy/login must return Swiggy authorizeUrl with PKCE parameters."""
+    """POST /api/auth/swiggy/login accepts the bot-issued link token, not a phone."""
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         resp = await client.post(
             "/api/auth/swiggy/login",
-            json={"phone": "9876543210"},
+            json={"token": issue_link_token("919876543210")},
         )
         assert resp.status_code == 200
         data = resp.json()
@@ -64,15 +65,21 @@ async def test_swiggy_login_endpoint():
 
 
 @pytest.mark.asyncio
-async def test_swiggy_login_missing_phone_rejects():
-    """POST /api/auth/swiggy/login requires a valid 10-digit phone number."""
+async def test_swiggy_login_rejects_phone_only_and_unsigned_tokens():
+    """A caller cannot name the phone; only a signed bot link starts the flow."""
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        resp = await client.post(
+        phone_only = await client.post(
             "/api/auth/swiggy/login",
-            json={"phone": "123"},
+            json={"phone": "9876543210"},
         )
-        assert resp.status_code == 400
+        assert phone_only.status_code == 422
+
+        forged = await client.post(
+            "/api/auth/swiggy/login",
+            json={"token": "919876543210.9999999999.deadbeef"},
+        )
+        assert forged.status_code == 400
 
 
 @pytest.mark.asyncio

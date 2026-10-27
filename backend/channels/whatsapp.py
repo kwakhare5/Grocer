@@ -21,6 +21,36 @@ logger = logging.getLogger("grocer.channels.whatsapp")
 router = APIRouter(prefix="/api/whatsapp", tags=["whatsapp"])
 
 
+def _login_url(wa_id: str) -> str:
+    """The bot issues the link, so the link names the number being connected."""
+    from backend.channels.link_tokens import issue_link_token
+
+    return f"https://grocerr.vercel.app?t={issue_link_token(wa_id)}"
+
+
+async def _park_and_prompt(
+    conn: Any,
+    inbound_id: Any,
+    wa_id: str,
+    wa_client: Any,
+) -> None:
+    """Mark the inbound row replayable and send the signed reconnect link."""
+    await conn.execute(
+        "UPDATE grocer.inbound_messages SET status = 'awaiting_link' WHERE id = $1;",
+        inbound_id,
+    )
+    await wa_client.send_cta_url_button(
+        to_wa_id=wa_id,
+        body_text=(
+            "⚠️ *Your Swiggy login needs a security refresh.*\n\n"
+            "Tap below to reconnect your account. Your grocery list has been saved "
+            "and will resume automatically:"
+        ),
+        button_text="Reconnect Swiggy",
+        url=_login_url(wa_id),
+    )
+
+
 @router.get("/webhook")
 async def verify_webhook(request: Request) -> Response:
     """Meta webhook verification endpoint."""
@@ -45,6 +75,7 @@ async def verify_webhook(request: Request) -> Response:
 async def handle_webhook(
     request: Request,
     swiggy_client: Any | None = None,
+    wa_client: Any | None = None,
 ) -> dict[str, Any]:
     """Inbound WhatsApp message ingestion shield (<25ms target).
 
@@ -163,7 +194,9 @@ async def handle_webhook(
                     msg.button_id,
                     msg.sender_wa_id,
                     pool,
+                    swiggy_client=swiggy_client,
                     message_type=msg.message_type,
+                    wa_client=wa_client,
                 )
                 results.append(action_res)
                 continue
@@ -176,7 +209,7 @@ async def handle_webhook(
                 if cmd_res is not None:
                     from backend.channels.whatsapp_client import WhatsAppClient
 
-                    wa_client = WhatsAppClient()
+                    wa_client = wa_client or WhatsAppClient()
                     if cmd_res.get("message"):
                         await wa_client.send_text_message(
                             to_wa_id=msg.sender_wa_id,
@@ -197,11 +230,11 @@ async def handle_webhook(
                     resolve_user_token,
                 )
 
-                wa_client = WhatsAppClient()
+                wa_client = wa_client or WhatsAppClient()
 
                 user_token = await resolve_user_token(user_id)
                 if not user_token:
-                    login_url = f"https://grocerr.vercel.app?phone={msg.sender_wa_id}"
+                    login_url = _login_url(msg.sender_wa_id)
                     await wa_client.send_cta_url_button(
                         to_wa_id=msg.sender_wa_id,
                         body_text=(
@@ -425,24 +458,15 @@ async def handle_webhook(
                             json.dumps(session_history[-12:]),
                         )
 
+                    from backend.agent.address_actions import ensure_active_address
+
                     address_count = 1
                     if not active_addr_id:
                         try:
-                            addrs = turn_client.get_addresses()
-                            address_count = len(addrs.addresses)
-                            if addrs.addresses:
-                                active_addr_id = addrs.addresses[0].id
-                                await conn.execute(
-                                    """
-                                    INSERT INTO grocer.sessions (user_id, active_address_id, last_active_at)
-                                    VALUES ($1, $2, now())
-                                    ON CONFLICT (user_id) DO UPDATE SET active_address_id = $2, last_active_at = now();
-                                    """,
-                                    user_id,
-                                    active_addr_id,
-                                )
-                            else:
-                                address_count = 0
+                            active_addr_id = await ensure_active_address(
+                                conn, user_id, turn_client
+                            )
+                            address_count = 1 if active_addr_id else 0
                         except (httpx.HTTPError, ValueError, KeyError, RuntimeError) as addr_err:
                             logger.warning("Could not fetch user addresses: %s", addr_err)
 
@@ -584,15 +608,56 @@ async def handle_webhook(
                         }
 
                     if decision.capability is Capability.ADD_ADDRESS:
-                        add_text = (
-                            "Share your WhatsApp location pin and I'll add that address "
-                            "to your Swiggy account."
+                        from backend.agent.address_lifecycle import (
+                            AddressOnboardingFlow,
+                        )
+
+                        try:
+                            turn = AddressOnboardingFlow(turn_client).start_from_text(
+                                msg.text or ""
+                            )
+                        except (httpx.HTTPError, ValueError, KeyError, RuntimeError) as exc:
+                            logger.warning("Typed address start failed: %s", exc)
+                            turn = None
+
+                        if turn is None:
+                            add_text = (
+                                "I couldn't read that address. Send the full address with "
+                                "the area and PIN, or share a WhatsApp location pin."
+                            )
+                            await wa_client.send_text_message(
+                                to_wa_id=msg.sender_wa_id, text=add_text
+                            )
+                            await remember(add_text)
+                            return {
+                                "status": "address_add_failed",
+                                "wa_id": msg.sender_wa_id,
+                            }
+
+                        await conn.execute(
+                            """
+                            INSERT INTO grocer.sessions (
+                                user_id, onboarding_state, onboarding_context, last_active_at
+                            )
+                            VALUES ($1, $2, $3::jsonb, now())
+                            ON CONFLICT (user_id) DO UPDATE SET
+                                onboarding_state = $2,
+                                onboarding_context = $3::jsonb,
+                                last_active_at = now();
+                            """,
+                            user_id,
+                            turn.next_step.value,
+                            json.dumps(turn.context),
                         )
                         await wa_client.send_text_message(
-                            to_wa_id=msg.sender_wa_id, text=add_text
+                            to_wa_id=msg.sender_wa_id, text=turn.prompt
                         )
-                        await remember(add_text)
-                        return {"status": "address_add_requested", "wa_id": msg.sender_wa_id}
+                        await remember(turn.prompt)
+                        return {
+                            "status": "address_add_started",
+                            "wa_id": msg.sender_wa_id,
+                            "step": turn.next_step.value,
+                        }
 
                     if decision.capability in (
                         Capability.CLEAR_BASKET,
@@ -906,19 +971,8 @@ async def handle_webhook(
                         except SwiggyAuthExpiredError:
                             retried = False
                     if not retried:
-                        await conn.execute(
-                            "UPDATE grocer.inbound_messages SET status = 'parked' WHERE id = $1;",
-                            inbound_id,
-                        )
-                        login_url = f"https://grocerr.vercel.app?phone={msg.sender_wa_id}"
-                        await wa_client.send_cta_url_button(
-                            to_wa_id=msg.sender_wa_id,
-                            body_text=(
-                                "⚠️ *Your Swiggy login needs a security refresh.*\n\n"
-                                "Tap below to reconnect your account. Your grocery list has been saved and will resume automatically:"
-                            ),
-                            button_text="Reconnect Swiggy",
-                            url=login_url,
+                        await _park_and_prompt(
+                            conn, inbound_id, msg.sender_wa_id, wa_client
                         )
                         results.append({"status": "auth_expired", "wa_id": msg.sender_wa_id})
                 continue

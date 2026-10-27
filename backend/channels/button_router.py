@@ -87,7 +87,12 @@ async def dispatch_button_action(
 
             special_result: dict[str, Any] | None = None
             try:
-                if button_id == "cart:clear":
+                if button_id == "cart:view":
+                    from backend.agent.composite_cart import format_cart_receipt
+
+                    cart = await asyncio.to_thread(client.get_cart, active)
+                    reply = BasketReply(format_cart_receipt(cart))
+                elif button_id == "cart:clear":
                     reply = await apply_clear(client, active)
                 elif button_id.startswith("cart:fresh:"):
                     from backend.agent.approval import create_checkout_approval

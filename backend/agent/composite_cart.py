@@ -44,6 +44,13 @@ class CartReconciliationResult:
     receipt_text: str = ""
 
 
+MAX_RECEIPT_ITEM_LINES = 10
+
+
+def _item_label(count: int) -> str:
+    return "1 item" if count == 1 else f"{count} items"
+
+
 def format_cart_receipt(
     cart: CartData,
     dropped_items: list[TargetCartItem] | None = None,
@@ -55,40 +62,52 @@ def format_cart_receipt(
     reduced_quantity: list[dict[str, Any]] | None = None,
     baseline_count: int = 0,
     baseline_to_pay: str | None = None,
+    max_item_lines: int = 20,
 ) -> str:
-    """Format the receipt. Show the change, not a second full basket dump.
+    """Format the live basket, marking what this turn added.
 
-    When the cart already had items, the added lines and the totals are the
-    answer. When it was empty, the full list is the change.
+    The basket is the answer. Never ask the customer to send a second message
+    to see it. Long baskets are cut with a count of the rest, and the caller
+    adds a View basket button.
     """
     lines: list[str] = []
     item_count = sum(it.quantity for it in cart.items)
-    show_delta_only = bool(added_items) and baseline_count > 0
+    added_by_spin = {it.spin_id: it for it in added_items or []}
 
-    if show_delta_only:
+    if added_by_spin and baseline_count > 0:
         lines.append("✅ *Added to your basket*")
-        for it in added_items or []:
-            total = format_paise_to_rupees(it.price_paise * it.quantity)
-            lines.append(f"• {it.item_name or it.spin_id} x{it.quantity} — {total}")
-        lines.append("")
         old = f" ({baseline_to_pay})" if baseline_to_pay else ""
-        lines.append(
-            f"You already had {baseline_count} items{old}. Basket now: *{item_count} items*. "
-            "Ask *what's in my basket* to see them."
+        lines.append(f"You had {_item_label(baseline_count)}{old} before this add.")
+
+    lines.append("-----------------------------------")
+    lines.append(f"🛒 *Your Basket ({_item_label(item_count)})*")
+
+    visible = list(cart.items)
+    if len(visible) > max_item_lines:
+        new_first = [it for it in visible if it.spinId in added_by_spin]
+        rest = [it for it in visible if it.spinId not in added_by_spin]
+        visible = (new_first + rest)[:max_item_lines]
+
+    for it in visible:
+        item_total_paise = it.discounted_final_price_paise * it.quantity
+        formatted_price = format_paise_to_rupees(item_total_paise)
+        variant_desc = f" ({it.itemVariant})" if it.itemVariant else ""
+        marker = "＋ " if it.spinId in added_by_spin else "• "
+        added_qty = added_by_spin[it.spinId].quantity if it.spinId in added_by_spin else 0
+        added_suffix = (
+            f" (added {added_qty})"
+            if added_qty and added_qty != it.quantity
+            else ""
         )
-        lines.append("-----------------------------------")
-    else:
-        lines.append("-----------------------------------")
-        lines.append(f"🛒 *Your Basket ({item_count} items)*")
-        for it in cart.items:
-            it_price_paise = it.discounted_final_price_paise
-            item_total_paise = it_price_paise * it.quantity
-            formatted_price = format_paise_to_rupees(item_total_paise)
-            variant_desc = f" ({it.itemVariant})" if it.itemVariant else ""
-            lines.append(
-                f"• {it.itemName}{variant_desc} x{it.quantity} — {formatted_price}"
-            )
-        lines.append("-----------------------------------")
+        lines.append(
+            f"{marker}{it.itemName}{variant_desc} x{it.quantity} — "
+            f"{formatted_price}{added_suffix}"
+        )
+
+    if len(cart.items) > len(visible):
+        lines.append(f"…and {len(cart.items) - len(visible)} more items.")
+
+    lines.append("-----------------------------------")
 
     for cap in capped_items or []:
         allowed = cap.get("allowed", 0)
@@ -143,7 +162,7 @@ class CompositeCartManager:
     ) -> CartReconciliationResult:
         # 1. Read existing baseline cart
         current_cart = self.client.get_cart(address_id=address_id)
-        baseline_count = len(current_cart.items)
+        baseline_count = sum(it.quantity for it in current_cart.items)
         baseline_to_pay = (
             current_cart.billBreakdown.toPay.value
             if current_cart.billBreakdown and current_cart.billBreakdown.toPay
@@ -270,6 +289,7 @@ class CompositeCartManager:
             reduced_quantity=reduced_quantity,
             baseline_count=baseline_count,
             baseline_to_pay=baseline_to_pay,
+            max_item_lines=MAX_RECEIPT_ITEM_LINES,
         )
 
         return CartReconciliationResult(

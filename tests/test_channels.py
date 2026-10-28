@@ -394,7 +394,7 @@ async def test_webhook_fast_button_dispatch():
 
 @pytest.mark.db
 @pytest.mark.asyncio
-async def test_webhook_concurrent_double_tap_advisory_lock():
+async def test_webhook_concurrent_message_waits_then_asks_to_resend(monkeypatch):
     transport = ASGITransport(app=app)
     wa_id = f"9199{int(time.time()) % 100000000:08d}"
     pool = await get_db_pool()
@@ -410,6 +410,24 @@ async def test_webhook_concurrent_double_tap_advisory_lock():
             """,
             wa_id,
         )
+
+    sent: list[str] = []
+
+    class _RecorderWA:
+        def __init__(self, *args: object, **kwargs: object) -> None:
+            pass
+
+        async def mark_read(self, message_id: str) -> None:
+            pass
+
+        async def send_text_message(self, to_wa_id: str, text: str) -> None:
+            sent.append(text)
+
+    from backend.channels import whatsapp as whatsapp_module
+    from backend.channels import whatsapp_client as wa_client_module
+
+    monkeypatch.setattr(whatsapp_module, "CONCURRENCY_WAIT_SECONDS", 0.2)
+    monkeypatch.setattr(wa_client_module, "WhatsAppClient", _RecorderWA)
 
     # 2. Hold advisory transaction lock on a separate connection
     async with (
@@ -438,15 +456,16 @@ async def test_webhook_concurrent_double_tap_advisory_lock():
                 },
             )
             assert resp.status_code == 200
-            assert resp.json()["status"] == "concurrency_dropped"
+            assert resp.json()["status"] == "concurrency_wait_timeout"
 
-    # 4. Verify message was safely recorded in database even when lock held
+    # 4. Verify message was recorded and the customer was told to resend
     async with pool.acquire() as conn:
         status = await conn.fetchval(
             "SELECT status FROM grocer.inbound_messages WHERE wa_message_id = $1",
             msg_id,
         )
-        assert status == "concurrency_dropped"
+        assert status == "concurrency_wait_timeout"
+    assert sent and "send that again" in sent[-1]
 
 
 @pytest.mark.db

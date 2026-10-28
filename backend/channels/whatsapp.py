@@ -5,13 +5,14 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import time
 from datetime import datetime, timezone
 from typing import Any
 
 import httpx
 from fastapi import APIRouter, HTTPException, Request, Response
 
-from backend.channels.button_router import dispatch_button_action
+from backend.channels.button_router import dispatch_button_action, send_receipt
 from backend.channels.reactions import reaction_for_result
 from backend.channels.whatsapp_crypto import verify_signature, verify_webhook_challenge
 from backend.channels.whatsapp_parser import parse_webhook_payload
@@ -24,6 +25,12 @@ router = APIRouter(prefix="/api/whatsapp", tags=["whatsapp"])
 
 _READ_TASKS: set[asyncio.Task[Any]] = set()
 _REACTION_TASKS: set[asyncio.Task[Any]] = set()
+
+# A quick second message waits for the first turn instead of being lost. The
+# wait stays inside Meta's webhook window; a turn still running after that
+# gets an honest "send it again" reply.
+CONCURRENCY_WAIT_SECONDS = 12.0
+CONCURRENCY_POLL_SECONDS = 0.2
 
 
 def _mark_read_in_background(wa_client: Any, message_id: str) -> None:
@@ -238,22 +245,38 @@ async def handle_webhook(
 
             # 6. Per-User Session Advisory Lock (Fast concurrency serialization).
             # Session-scoped so it survives the commit above; asyncpg releases it
-            # when this connection returns to the pool.
-            lock_acquired = await conn.fetchval(
-                "SELECT pg_try_advisory_lock(hashtext($1));",
-                str(user_id),
-            )
+            # when this connection returns to the pool. A second quick message
+            # waits its turn and is then answered against the fresh cart.
+            deadline = time.monotonic() + CONCURRENCY_WAIT_SECONDS
+            lock_acquired = False
+            while True:
+                lock_acquired = await conn.fetchval(
+                    "SELECT pg_try_advisory_lock(hashtext($1));",
+                    str(user_id),
+                )
+                if lock_acquired or time.monotonic() >= deadline:
+                    break
+                await asyncio.sleep(CONCURRENCY_POLL_SECONDS)
             if not lock_acquired:
                 logger.warning(
-                    "User %s locked by concurrent action; queuing message", user_id
+                    "User %s still locked after %.1fs; asking for a resend",
+                    user_id,
+                    CONCURRENCY_WAIT_SECONDS,
                 )
                 await conn.execute(
-                    "UPDATE grocer.inbound_messages SET status = 'concurrency_dropped' WHERE id = $1;",
+                    "UPDATE grocer.inbound_messages SET status = 'concurrency_wait_timeout' WHERE id = $1;",
                     inbound_id,
+                )
+                await wa_client.send_text_message(
+                    to_wa_id=msg.sender_wa_id,
+                    text=(
+                        "I'm still finishing your last message. "
+                        "Give me a few seconds, then send that again."
+                    ),
                 )
                 results.append(
                     {
-                        "status": "concurrency_dropped",
+                        "status": "concurrency_wait_timeout",
                         "wa_message_id": msg.wa_message_id,
                     }
                 )
@@ -987,6 +1010,21 @@ async def handle_webhook(
                     if not extracted_items:
                         extracted_items = [ExtractedGroceryItem(query=msg.text, quantity=1)]
 
+                    # 1a. The same words asked twice share one search and one
+                    # evaluation; the quantities add up.
+                    from backend.integrations.commerce.swiggy_client import (
+                        normalize_query,
+                    )
+
+                    merged_items: dict[str, ExtractedGroceryItem] = {}
+                    for target in extracted_items:
+                        key = normalize_query(target.query).lower()
+                        if key in merged_items:
+                            merged_items[key].quantity += target.quantity
+                        else:
+                            merged_items[key] = target
+                    extracted_items = list(merged_items.values())
+
                     async def search_one(
                         target: ExtractedGroceryItem,
                         sw_client: SwiggyClient = turn_client,
@@ -1010,6 +1048,7 @@ async def handle_webhook(
                             for target, cands, _alternatives in search_results
                         ],
                         address_count,
+                        msg.text,
                     )
 
                     items_to_add: list[TargetCartItem] = []
@@ -1144,10 +1183,11 @@ async def handle_webhook(
                                 (f"item:change:{next(iter(vague_spins))}", "Change item")
                             )
 
-                        await wa_client.send_quick_reply_buttons(
-                            to_wa_id=msg.sender_wa_id,
-                            body_text=receipt_body,
-                            buttons=buttons,
+                        await send_receipt(
+                            wa_client,
+                            msg.sender_wa_id,
+                            receipt_body,
+                            buttons,
                         )
 
                         for target, cands in choice_prompts[:2]:

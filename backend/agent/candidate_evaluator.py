@@ -92,6 +92,7 @@ def _batch_system_prompt(address_count: int) -> str:
         f"Saved address count: {address_count}\n"
         f"{_CANDIDATE_RULES}\n\n"
         "Evaluate every item in the list. Use its index. Never merge items.\n"
+        "Use the customer's full message for brand, size and flavour hints.\n"
         "Return JSON only:\n"
         '{"items": [{"index": <int>, "intent_type": "add_to_basket" | '
         '"disambiguation" | "conversational_qa" | "zero_address_onboarding", '
@@ -103,12 +104,18 @@ def _call_llm_candidate_evaluator(
     query: str,
     candidates: list[CandidateItem],
     address_count: int = 1,
+    message: str | None = None,
 ) -> CandidateEvaluationResult | None:
     """Ask the configured LLM to evaluate candidates. Python still owns safety."""
     candidates_json = [c.model_dump() for c in candidates]
     system_prompt = _single_system_prompt(address_count)
     user_prompt = json.dumps(
-        {"query": query, "address_count": address_count, "candidates": candidates_json}
+        {
+            "query": query,
+            "message": message,
+            "address_count": address_count,
+            "candidates": candidates_json,
+        }
     )
     result = complete_json(system_prompt, user_prompt)
     if not result.ok or not result.data:
@@ -170,6 +177,7 @@ def evaluate_customer_intent(
     query: str,
     candidates: list[CandidateItem] | None = None,
     address_count: int = 1,
+    message: str | None = None,
 ) -> CandidateEvaluationResult:
     """Evaluate a query against candidate dark-store items.
 
@@ -188,6 +196,7 @@ def evaluate_customer_intent(
         query=query,
         candidates=candidates,
         address_count=address_count,
+        message=message,
     )
     if llm_result is not None:
         return llm_result
@@ -341,6 +350,7 @@ def parse_batch_evaluations(
 def evaluate_customer_intents_batch(
     targets: list[tuple[str, list[CandidateItem]]],
     address_count: int = 1,
+    message: str | None = None,
 ) -> list[CandidateEvaluationResult]:
     """Evaluate every item in a turn with one model call.
 
@@ -354,7 +364,10 @@ def evaluate_customer_intents_batch(
     if len(targets) == 1:
         return [
             evaluate_customer_intent(
-                targets[0][0], targets[0][1], address_count=address_count
+                targets[0][0],
+                targets[0][1],
+                address_count=address_count,
+                message=message,
             )
         ]
 
@@ -368,7 +381,13 @@ def evaluate_customer_intents_batch(
     ]
     result = complete_json(
         _batch_system_prompt(address_count),
-        json.dumps({"address_count": address_count, "items": items}),
+        json.dumps(
+            {
+                "message": message,
+                "address_count": address_count,
+                "items": items,
+            }
+        ),
     )
     parsed = parse_batch_evaluations(result.data, targets)
     final: list[CandidateEvaluationResult] = []

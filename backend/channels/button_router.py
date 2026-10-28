@@ -16,6 +16,28 @@ from backend.config import settings
 logger = logging.getLogger("grocer.button_router")
 
 
+RECEIPT_BODY_LIMIT = 1024
+RECEIPT_FOLLOW_UP = "Ready when you are. Tap below to pay or clear the basket."
+
+
+async def send_receipt(
+    wa_client: Any,
+    wa_id: str,
+    body: str,
+    buttons: list[tuple[str, str]],
+) -> None:
+    """A long basket is never cut off: full body as text, buttons in a short follow-up."""
+    if len(body) <= RECEIPT_BODY_LIMIT:
+        await wa_client.send_quick_reply_buttons(
+            to_wa_id=wa_id, body_text=body, buttons=buttons
+        )
+        return
+    await wa_client.send_text_message(to_wa_id=wa_id, text=body)
+    await wa_client.send_quick_reply_buttons(
+        to_wa_id=wa_id, body_text=RECEIPT_FOLLOW_UP, buttons=buttons
+    )
+
+
 async def send_add_receipt(
     conn: Any,
     wa_client: Any,
@@ -49,10 +71,11 @@ async def send_add_receipt(
             "You'll be asked to raise it when you tap Pay."
         )
     pay_label = format_paise_to_rupees(approval.to_pay_paise)
-    await wa_client.send_quick_reply_buttons(
-        to_wa_id=wa_id,
-        body_text=body,
-        buttons=[
+    await send_receipt(
+        wa_client,
+        wa_id,
+        body,
+        [
             (f"pay:{approval.id}", f"Pay {pay_label}"),
             ("cart:clear", "Clear basket"),
         ],

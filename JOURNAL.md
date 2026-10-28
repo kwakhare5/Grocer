@@ -32,15 +32,15 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: `PRD.md` updated at `D:\Grocer-v5\PRD.md`; single `HANDOFF.md` confirmed at root; zero occurrences of old paths remain in repo.
 - **Still broken**: None. Ready for `ARCHITECTURE.md` review.
 
-### [GROCER v1 — Project Version Reset to v1.0] 2026-10-25
+### [Grocer — Project Version Reset to v1.0] 2026-10-25
 
 #### Work Card: Reset Workspace Product Version from v5.0 to v1.0
-- **Problem**: Project docs referenced legacy version numbering "v5.0" across headers and roadmaps; user requested clean product naming as Grocer v1.0.
-- **Change**: Renamed all occurrences of "v5.0" / "Grocer v5" to "Grocer v1.0" in `PRD.md`, `ARCHITECTURE.md`, `DESIGN.md`, `AGENTS.md`, `TASKS.md`, `JOURNAL.md`, and `HANDOFF.md`.
+- **Problem**: Project docs referenced legacy version numbering "v5.0" across headers and roadmaps; user requested clean product naming as Grocer.
+- **Change**: Renamed all occurrences of "v5.0" / "Grocer v5" to "Grocer" in `PRD.md`, `ARCHITECTURE.md`, `DESIGN.md`, `AGENTS.md`, `TASKS.md`, `JOURNAL.md`, and `HANDOFF.md`.
 - **Proof**: Git diff confirms clean update across all markdown headers; scope verified in `AGENTS.md`.
 - **Still broken**: None. Ready for architectural grilling round.
 
-### [GROCER v1 — Domain Glossary Setup & ADR 0007 Instamart Lifecycle Guardrails] 2026-10-25
+### [Grocer — Domain Glossary Setup & ADR 0007 Instamart Lifecycle Guardrails] 2026-10-25
 
 #### Work Card: Create Domain Glossary and Record ADR 0007 from Round 1 Grilling
 - **Problem**: Expanding to full Instamart account lifecycle required formalizing domain terminology and capturing hard guardrails for address switching, split orders, deletion safety, and cancellations.
@@ -48,7 +48,7 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: `GLOSSARY.md` verified at repo root; ADR 0007 verified in `docs/adr/`; zero conflicting terminology.
 - **Still broken**: None. Frontier advancing to Round 2.
 
-### [GROCER v1 — ADR 0008 Pin Onboarding, Go-To Reordering & Bridge Payments] 2026-10-25
+### [Grocer — ADR 0008 Pin Onboarding, Go-To Reordering & Bridge Payments] 2026-10-25
 
 #### Work Card: Record ADR 0008 from Round 2 Grilling and Update Domain Glossary
 - **Problem**: Need clear architectural decisions for converting WhatsApp GPS pins to complete addresses, 1-tap reordering UX, and avoiding wallet balance payment failures.
@@ -56,15 +56,15 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: ADR 0008 verified in `docs/adr/`; `GLOSSARY.md` updated with canonical terms; `HANDOFF.md` synchronized.
 - **Still broken**: None. PRD and decisions fully locked; ready for `ARCHITECTURE.md` review.
 
-### [GROCER v1 — ADR 0001-0003 Clean-Slate Rewrite & Legacy Purge] 2026-10-25
+### [Grocer — ADR 0001-0003 Clean-Slate Rewrite & Legacy Purge] 2026-10-25
 
 #### Work Card: Purge Old Codebase Artifacts & Align ADR 1-3 with Official Swiggy MCP Docs
 - **Problem**: ADR 0001 referenced old codebase files; ADR 0002 referenced float `.2f` formatting instead of integer paise; ADR 0003 claimed `upi://pay` and 15s polling conflicting with Meta CTA button rules and official Swiggy MCP long-poll specifications.
-- **Change**: Rewrote ADR 0001, 0002, and 0003 to be 100% clean-slate Grocer v1.0 specifications; purged all dead file names; locked hashing and math to integer paise (`to_pay_paise`); locked payments to official Swiggy HTTPS `bridgeUrl` with 5-minute durable polling.
+- **Change**: Rewrote ADR 0001, 0002, and 0003 to be 100% clean-slate Grocer specifications; purged all dead file names; locked hashing and math to integer paise (`to_pay_paise`); locked payments to official Swiggy HTTPS `bridgeUrl` with 5-minute durable polling.
 - **Proof**: Git diff confirms complete purge of legacy references; verified against Swiggy MCP documentation at `docs/swiggy-mcp/llms-full.txt`.
 - **Still broken**: None. Ready for Grilling verification.
 
-### [GROCER v1 — ADR 0009 Product Experience Guardrails & PRD Journeys 6-9] 2026-10-25
+### [Grocer — ADR 0009 Product Experience Guardrails & PRD Journeys 6-9] 2026-10-25
 
 #### Work Card: Author ADR 0009 & Expand PRD with Human Experience Journeys
 - **Problem**: Need explicit product guardrails for ordering to remote relatives, recipe checklists, post-order additions, and small-order delivery fee shock.
@@ -72,7 +72,7 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: ADR 0009 verified in `docs/adr/`; `PRD.md` updated with Journeys 6-9; `GLOSSARY.md` synchronized.
 - **Still broken**: None. Product exploration complete; ready for `ARCHITECTURE.md` review.
 
-### [GROCER v1 — ADR 0001-0006 Full Product-First Alignment] 2026-10-25
+### [Grocer — ADR 0001-0006 Full Product-First Alignment] 2026-10-25
 
 #### Work Card: Rewrite All Early ADRs to Product-First Customer Contracts
 - **Problem**: Earlier ADRs (1, 2, 3, 4, 6) were framed around internal technical architecture rather than first-principles product experience and customer trust.
@@ -80,7 +80,7 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: All 9 ADRs in `docs/adr/` verified clean-slate, free of legacy file references, and directly tied to human customer promises and official Swiggy MCP documentation.
 - **Still broken**: None. PRD and all 9 ADRs 100% locked; ready for `ARCHITECTURE.md`.
 
-### [GROCER v1 — ADR 0010 & Authoritative Clean-Slate ARCHITECTURE.md Sync] 2026-10-25
+### [Grocer — ADR 0010 & Authoritative Clean-Slate ARCHITECTURE.md Sync] 2026-10-25
 
 #### Work Card: Author ADR 0010 & Rebuild ARCHITECTURE.md as a Servant to the PRD
 - **Problem**: Need explicit architecture specifications reflecting full Instamart on WhatsApp concierge lifecycle (20 tools, address management, JIT re-auth, session reset, zero-address onboarding).
@@ -88,23 +88,23 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: `ARCHITECTURE.md` verified clean-slate v1.0 at `D:\Grocer-v5\ARCHITECTURE.md`; all 10 ADRs synchronized in `docs/adr/`; `git status` clean and verified.
 - **Still broken**: None. Complete project memory locked and ready for Phase 0 review.
 
-### [GROCER v1 — Remote Branch Initialization & GitHub Sync] 2026-10-25
+### [Grocer — Remote Branch Initialization & GitHub Sync] 2026-10-25
 
-#### Work Card: Create and Push `grocer-v1` Branch to GitHub Repository
+#### Work Card: Create and Push `main` Branch to GitHub Repository
 - **Problem**: Project memory was local; needed a dedicated remote tracking branch on `https://github.com/kwakhare5/Grocer` to preserve all architectural contracts and ADRs.
-- **Change**: Added remote `origin` pointing to `https://github.com/kwakhare5/Grocer.git`; created branch `grocer-v1`; committed `.gitignore`, `PRD.md`, `ARCHITECTURE.md`, `DESIGN.md`, `GLOSSARY.md`, `TASKS.md`, `HANDOFF.md`, and all 10 ADRs; pushed cleanly to `origin/grocer-v1`.
-- **Proof**: `git push -u origin grocer-v1` exited 0; branch tracked at `https://github.com/kwakhare5/Grocer/tree/grocer-v1`; working tree clean.
+- **Change**: Added remote `origin` pointing to `https://github.com/kwakhare5/Grocer.git`; created branch `main`; committed `.gitignore`, `PRD.md`, `ARCHITECTURE.md`, `DESIGN.md`, `GLOSSARY.md`, `TASKS.md`, `HANDOFF.md`, and all 10 ADRs; pushed cleanly to `origin/main`.
+- **Proof**: `git push -u origin main` exited 0; branch tracked at `https://github.com/kwakhare5/Grocer/tree/main`; working tree clean.
 - **Still broken**: None. Ready for Phase 0 execution.
 
-### [GROCER v1 — Environment Setup & Supabase Database Wipe] 2026-10-25
+### [Grocer — Environment Setup & Supabase Database Wipe] 2026-10-25
 
 #### Work Card: Harvest Environment Credentials & Wipe Supabase Database Clean
-- **Problem**: Need clean-slate runtime configuration and an empty database ready for Grocer v1.0 schemas, with zero legacy code or stale database tables.
+- **Problem**: Need clean-slate runtime configuration and an empty database ready for Grocer schemas, with zero legacy code or stale database tables.
 - **Change**: Created `D:\Grocer-v5\.env` with harvested credentials (WhatsApp Cloud API, Supabase connection, Gemini key, AES token encryption key, Swiggy redirect URI); created tracked `.env.example`; ran automated wipe script dropping all 8 legacy tables and `grocer_internal` schema from Supabase PostgreSQL.
 - **Proof**: `asyncpg` execution reported 0 remaining user tables; `.gitignore` verified ignoring `.env`; database confirmed 100% clean.
 - **Still broken**: None. Ready for Phase 0 schema migration and fixture capture.
 
-### [GROCER v1 — Phase 0 Complete: Staging Fixtures & Schema Migration] 2026-10-25
+### [Grocer — Phase 0 Complete: Staging Fixtures & Schema Migration] 2026-10-25
 
 #### Work Card: Complete Phase 0 with Staging Fixtures, Pydantic Contract, and Database Schema
 - **Problem**: Need clean-slate runtime architecture, verified database tables, and real JSON fixtures for all 20 Swiggy Instamart tools with 0 fake mocks.
@@ -112,7 +112,7 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: `.\verify.ps1` and `pytest` exited 0 with 21/21 passing tests; 6/6 Supabase tables verified active; 0 mocks present.
 - **Still broken**: None. Phase 0 is complete. Ready for Phase 1 (Ingestion Shield & Fast Button Router).
 
-### [GROCER v1 — TASKS.md ADR Alignment & Session Handoff] 2026-10-25
+### [Grocer — TASKS.md ADR Alignment & Session Handoff] 2026-10-25
 
 #### Work Card: Expand TASKS.md Roadmap with All 10 ADRs & Create Session Handoff
 - **Problem**: Need explicit subtasks in `TASKS.md` reflecting all settled decisions from ADR 0007–0010 and an authoritative handoff for next session.
@@ -120,7 +120,7 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: `.\verify.ps1` confirms 21/21 tests green and Supabase active; git status verified clean upon commit.
 - **Still broken**: None. Ready for Phase 1 in the fresh chat session.
 
-### [GROCER v1 — Cardboard.ai Web Landing Page & OAuth Bridge] 2026-10-25
+### [Grocer — Cardboard.ai Web Landing Page & OAuth Bridge] 2026-10-25
 
 #### Work Card: Build Cardboard.ai Web Landing Page and Swiggy OAuth Bridge
 - **Problem**: Need clean-slate Next.js landing page on `grocerr.vercel.app` supporting direct WhatsApp phone connection and whitelisted Swiggy OAuth 2.1 login with 0 old files.
@@ -128,7 +128,7 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: `verify.ps1` exited 0 with 21/21 passing Python tests, active Supabase database, and clean Next.js Turbopack build in 1.8s.
 - **Still broken**: None. Ready to delete `D:\Grocer` and proceed to Phase 1 in the next session.
 
-### [GROCER v1 — Logo Recovery & Master Rule .scratch/HANDOFF.md Consolidation] 2026-10-25
+### [Grocer — Logo Recovery & Master Rule .scratch/HANDOFF.md Consolidation] 2026-10-25
 
 #### Work Card: Recover Official Brand Logo and Consolidate Master Handoff into .scratch/HANDOFF.md
 - **Problem**: Need the official Apple-squircle `logo.svg` restored and single authoritative handoff consolidated strictly at `.scratch/HANDOFF.md` per Master AGENTS.md rules.
@@ -136,15 +136,15 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: `.\verify.ps1` exited 0 with 21/21 passing contract tests, Supabase database verified, and Next.js Turbopack build clean; `.scratch/HANDOFF.md` verified as the sole handoff file.
 - **Still broken**: None. Ready for Phase 1 in the fresh chat session.
 
-### [GROCER v1 — Code Review Resolution & AST Safety Invariants] 2026-10-25
+### [Grocer — Code Review Resolution & AST Safety Invariants] 2026-10-25
 
 #### Work Card: Enforce AST Safety Invariants, Integer Paise Properties, and Clean Linting
 - **Problem**: `/code-review` surfaced standard violations (`catch (err: any)` in Next.js routes), missing AST invariant enforcement against float math and mock imports, and ruff formatting warnings.
 - **Change**: Updated Next.js API routes with typed `err: unknown` checks; added `@property` integer paise conversion getters to all Pydantic price schemas; added AST safety invariant tests in `tests/test_invariants.py`; integrated `ruff check backend tests` into `verify.ps1`.
-- **Proof**: `.\verify.ps1` ran all 4 stages (Supabase check, Ruff lint, 24 Pytest tests, Next.js build) exiting 0; committed as `e674b88` on branch `grocer-v1`.
+- **Proof**: `.\verify.ps1` ran all 4 stages (Supabase check, Ruff lint, 24 Pytest tests, Next.js build) exiting 0; committed as `e674b88` on branch `main`.
 - **Still broken**: None. Ready for Phase 1 (Channel Ingestion Shield & Deduplication).
 
-### [GROCER v1 — ADR 0011 Ingestion Shield & GLOSSARY Alignment] 2026-10-25
+### [Grocer — ADR 0011 Ingestion Shield & GLOSSARY Alignment] 2026-10-25
 
 #### Work Card: Document Ingestion Shield ADR 0011 and Update Domain Glossary
 - **Problem**: Need explicit ADR and domain terminology defining webhook HMAC authentication, 25ms responses, atomic database deduplication, per-customer advisory locks, and stale message latches.
@@ -152,7 +152,7 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: ADR 0011 created in `docs/adr/`; `GLOSSARY.md` updated with 3 new core concepts; markdown structure verified.
 - **Still broken**: None. Advancing to Round 2 grilling on downstream channel behaviors.
 
-### [GROCER v1 — ADR 0011 Expansion & Fast Button Dispatcher Glossary] 2026-10-25
+### [Grocer — ADR 0011 Expansion & Fast Button Dispatcher Glossary] 2026-10-25
 
 #### Work Card: Complete ADR 0011 with Round 2 Decisions and Add Fast Button Dispatcher
 - **Problem**: Need explicit specifications for expired button clicks, first-time welcome flows, fast button routing without LLM lag, and async outbound WhatsApp client architecture.
@@ -160,7 +160,7 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: ADR 0011 verified with 10 authoritative decisions; `GLOSSARY.md` verified with zero naming ambiguities; grilling frontier is empty.
 - **Still broken**: None. Ready for Plan Gate approval to execute Phase 1 via TDD.
 
-### [GROCER v1 — Purge Redundant ADR 0011] 2026-10-25
+### [Grocer — Purge Redundant ADR 0011] 2026-10-25
 
 #### Work Card: Purge Redundant ADR 0011 and Consolidate Source of Truth
 - **Problem**: ADR 0011 duplicated requirements already settled across `ARCHITECTURE.md` Layer 1 and ADRs 0001/0004.
@@ -168,7 +168,7 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: File deletion confirmed with `Test-Path` returning False; 10 canonical ADRs (0001–0010) intact.
 - **Still broken**: None. Ready for Phase 1 implementation.
 
-### [GROCER v1 — Phase 1 Complete: Channel Ingestion Shield & Deduplication] 2026-10-25
+### [Grocer — Phase 1 Complete: Channel Ingestion Shield & Deduplication] 2026-10-25
 
 #### Work Card: Build WhatsApp Ingestion Shield, PostgreSQL Deduplication & Advisory Lock
 - **Problem**: Need production-grade front door for WhatsApp handling Meta webhooks in <25ms, dropping cellular replay attacks, serializing per-customer concurrent taps, and routing button clicks in 50ms without LLM lag.
@@ -176,7 +176,7 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: `.\verify.ps1` ran all 4 stages exiting 0 with terminal proof (Supabase SSL check, Ruff check clean, 32/32 tests passed in 1.76s, Next.js build clean).
 - **Still broken**: None. Phase 1 is 100% complete. Ready for Phase 2 (Conversational Brain & Intelligent Candidate Search).
 
-### [GROCER v1 — Canonical Cardboard.ai DESIGN.md Integration] 2026-10-25
+### [Grocer — Canonical Cardboard.ai DESIGN.md Integration] 2026-10-25
 
 #### Work Card: Unify Master Cardboard.ai Design System & WhatsApp UX in DESIGN.md
 - **Problem**: Needed official `DESIGN.md` to establish the exact Cardboard.ai design system (colors, typography, bento layouts, micro-interactions) for our Next.js frontend while retaining WhatsApp mobile receipt card specifications.
@@ -184,7 +184,7 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: `.\verify.ps1` ran all 4 stages (database check, Ruff lint, 32 pytest tests, Next.js web build) and exited 0 with 100% green output.
 - **Still broken**: None. Master design specification established.
 
-### [GROCER v1 — Code Review Resolution: Batch Ingestion & Concurrency Safety] 2026-10-25
+### [Grocer — Code Review Resolution: Batch Ingestion & Concurrency Safety] 2026-10-25
 
 #### Work Card: Fix Multi-Message Batch Processing, Atomic Lock Persistence, and GPS Tests
 - **Problem**: Code review identified multi-message webhook loops exiting early, messages dropped by advisory locks without database persistence, private attribute access on connection pool, and missing GPS/list-reply integration tests.
@@ -193,7 +193,7 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Still broken**: None. Phase 1 ingestion shield is 100% hardened and spec-compliant.
 
 
-### [GROCER v1 — Phase 2 Complete: Conversational Brain & Candidate Search Matrix] 2026-10-25
+### [Grocer — Phase 2 Complete: Conversational Brain & Candidate Search Matrix] 2026-10-25
 
 #### Work Card: Build Intelligent Candidate Search, Swiggy Client & 20-Phrase Test Matrix
 - **Problem**: Need grounded hyper-local product search, variant matching, smart kirana defaults for vague staples (ADR 0004), discretionary snack disambiguation with strict rank-1 prevention, recipe checklists (ADR 0009), conversational Q&A without forced carts, and zero-address onboarding (ADR 0010).
@@ -201,7 +201,7 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: `.\verify.ps1` ran all 4 verification stages exiting 0 with terminal proof (Supabase check passed, Ruff clean, 55/55 pytest tests passed, Next.js Turbopack build passed in 2.4s).
 - **Still broken**: None. Phase 2 is 100% complete. Ready for Phase 3 (Commerce & Account Lifecycle).
 
-### [GROCER v1 — Code Review Resolution: Gemini Brain Integration & Strict Rank-1 Prevention] 2026-10-25
+### [Grocer — Code Review Resolution: Gemini Brain Integration & Strict Rank-1 Prevention] 2026-10-25
 
 #### Work Card: Fix Code Review Findings for Gemini Brain, Vague Staples, and Rank-1 Safety
 - **Problem**: Code review flagged missing Gemini 3.5 Flash candidate evaluation, silent blind rank-1 fallback, missing WhatsApp [Change items] button, floor division truncating paise, and assert validation in production branches.
@@ -210,7 +210,7 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Still broken**: None. All code-review findings 100% resolved.
 
 
-### [GROCER v1 — Phase 3 Complete: Commerce & Account Lifecycle] 2026-10-25
+### [Grocer — Phase 3 Complete: Commerce & Account Lifecycle] 2026-10-25
 
 #### Work Card: Build Target Cart Assembly, Out-of-Stock Reconciliation & Address Lifecycle
 - **Problem**: Swiggy's destructive update_cart risks wiping carts, out-of-stock items risk dropping silently, address deletion could strand in-transit deliveries, and 5-day token expiration loses customer baskets.
@@ -219,7 +219,7 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Still broken**: None. Phase 3 is 100% complete. Ready for Phase 4 (3-Lock Payment Gate & Web Checkout).
 
 
-### [GROCER v1 — Swiggy OAuth 2.1 PKCE Flow & Token Vault] 2026-10-26
+### [Grocer — Swiggy OAuth 2.1 PKCE Flow & Token Vault] 2026-10-26
 
 #### Work Card: Build Live Swiggy OAuth Login, PKCE S256 Challenge & Token Vault
 - **Problem**: Vercel login on https://grocerr.vercel.app returned 404 because HTTP OAuth endpoints were not implemented in FastAPI.
@@ -228,7 +228,7 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Still broken**: None. OAuth PKCE and callback handlers are fully tested and functional.
 
 
-### [GROCER v1 — Live Swiggy MCP Verification & Code Review Findings] 2026-10-26
+### [Grocer — Live Swiggy MCP Verification & Code Review Findings] 2026-10-26
 
 #### Work Card: Verify Live Swiggy MCP Tools & Execute Dual-Axis Code Review
 - **Problem**: Needed to verify live Swiggy MCP integration with real decrypted OAuth token without placing orders, and audit Phase 3 diff along Standards and Spec axes.
@@ -237,15 +237,15 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Still broken**: None. Live MCP verified and code review findings cataloged for resolution.
 
 
-### [GROCER v1 — Code Review Resolution & Zero-Mock Invariant Enforcement] 2026-10-26
+### [Grocer — Code Review Resolution & Zero-Mock Invariant Enforcement] 2026-10-26
 
 #### Work Card: Eliminate Test Doubles, Enforce Full-Basket Diffing & Integer Paise
 - **Problem**: Code review flagged in-memory test doubles violating zero-mock invariant, partial-basket diffing, missing human deletion labels, and un-persisted token request parking.
 - **Change**: Eliminated all `FakeSwiggyStore` test doubles in favor of `SwiggyClient` with staging fixtures; implemented full-basket diffing across existing and new items in `composite_cart.py`; added human address labels to deletion confirmation buttons; persisted parked requests to `grocer.inbound_messages` with auto-replay in `swiggy_auth.py`; enforced strict integer paise math across models.
-- **Proof**: `.\verify.ps1` ran all 4 verification stages exiting 0 with terminal proof (72/72 tests green, Ruff clean, Supabase SSL check passed, Next.js build clean in 3.8s); pushed commit `c99b313` to `grocer-v1`.
+- **Proof**: `.\verify.ps1` ran all 4 verification stages exiting 0 with terminal proof (72/72 tests green, Ruff clean, Supabase SSL check passed, Next.js build clean in 3.8s); pushed commit `c99b313` to `main`.
 - **Still broken**: None. Phase 3 and all code-review findings are 100% resolved and verified.
 
-### [GROCER v1 — Phase 4 Complete: 3-Lock Payment Gate & Web Checkout] 2026-10-26
+### [Grocer — Phase 4 Complete: 3-Lock Payment Gate & Web Checkout] 2026-10-26
 
 #### Work Card: Implement 3-Lock Safety Gate, HTTPS Bridge URLs, Durable Poller & Tracking
 - **Problem**: Need deterministic prevention of double-charging, text "yes" accidental checkouts, price-drift gouging, small-cart fee shocks (ADR 0009), invalid UPI deep link schemes, and stranded post-order sessions (ADR 0010).
@@ -253,7 +253,7 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: `.\verify.ps1` ran all 4 verification stages exiting 0 with terminal proof (85/85 tests green in 5.2s, Ruff clean, Supabase live check passed, Next.js Turbopack build passed in 4.7s).
 - **Still broken**: None. Phase 4 is 100% complete and verified. Ready for Phase 5 (Wallet Advocate & Production Hardening).
 
-### [GROCER v1 — Phase 4 Code Review Resolution: Float Elimination, Lock 1 Validation & SKIP LOCKED Poller] 2026-10-26
+### [Grocer — Phase 4 Code Review Resolution: Float Elimination, Lock 1 Validation & SKIP LOCKED Poller] 2026-10-26
 
 #### Work Card: Fix Standards Violations, Strict Button Matching & Background Batch Poller
 - **Problem**: Code review identified float multiplication fallback in `approval.py`, missing approval ID validation in Lock 1, fingerprint hash masking the ₹1 price-drift rule, missing durable `FOR UPDATE SKIP LOCKED` poller query, and module placement violations.
@@ -261,7 +261,7 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: `.\verify.ps1` ran all 4 verification stages exiting 0 with terminal proof (88/88 tests green in 4.04s, Ruff clean, Supabase live check passed, Next.js build clean in 2.0s).
 - **Still broken**: None. All Phase 4 code review findings are 100% resolved and verified.
 
-### [GROCER v1 — Phase 5 Complete: Wallet Advocate & Production Hardening] 2026-10-26
+### [Grocer — Phase 5 Complete: Wallet Advocate & Production Hardening] 2026-10-26
 
 #### Work Card: Implement Bounded Coupon Optimization, Safety Cap, DPDP Scrubber & Milestone Push
 - **Problem**: Need bounded coupon trials with net-savings protection, ₹1,000 launch safety cap with 1-tap raise button, 24-hour DPDP compliance scrubber, "delete my data" instant wipe, and milestone-only delivery notifications without polling spam.
@@ -269,7 +269,7 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: `.\verify.ps1` ran all 4 verification stages exiting 0 with terminal proof (96/96 tests green in 5.53s, Ruff lint clean, Supabase live schema 6/6 verified, Next.js build clean in 2.2s).
 - **Still broken**: None. Phase 5 is 100% complete and verified. Ready for production deployment.
 
-### [GROCER v1 — Phase 5 Real System Wiring & Hardening] 2026-10-26
+### [Grocer — Phase 5 Real System Wiring & Hardening] 2026-10-26
 
 #### Work Card: Connect Live MCP Client, Cart Coupon Engine, Lifespan Poller & Address Redaction
 - **Problem**: Review identified production coupling to test fixtures in `button_router.py`, unhooked coupon optimization in `composite_cart.py`, missing background scheduling in `main.py`, unredacted address IDs on "delete my data", and Lock 2 fingerprint using approval paise.
@@ -277,20 +277,20 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: `.\verify.ps1` ran all 4 verification stages exiting 0 with terminal proof (98/98 tests green in 6.04s, Ruff lint clean, Supabase live check 6/6 passed, Next.js Turbopack build passed in 2.5s).
 - **Still broken**: None. All Phase 5 real wires are fully connected and verified end-to-end.
 
-### [GROCER v1 — Live WhatsApp Outbound Delivery & Chat Orchestration] 2026-10-26
+### [Grocer — Live WhatsApp Outbound Delivery & Chat Orchestration] 2026-10-26
 
 #### Work Card: Build Outbound Meta WhatsApp Client, Live Shopping Orchestrator & Milestone Push
 - **Problem**: Meta WhatsApp Cloud API webhooks ignore HTTP response bodies, dropping receipt cards and text answers unless actively pushed via outbound HTTP POST to Meta's Graph API.
 - **Change**: Built `backend/channels/whatsapp_client.py` supporting text, quick replies (max 3), and CTA URL buttons (`https://` only); wired conversational grocery pipeline in `backend/channels/whatsapp.py` (search, intent evaluation, composite cart, 10-minute approval creation, receipt delivery, 401 token parking); wired fast non-blocking button delivery in `backend/channels/button_router.py`; connected live delivery poller milestone push in `backend/main.py`; increased test network latency budget for WAN Supabase calls; authored 6 new contract tests in `tests/test_whatsapp_live_loop.py`.
-- **Proof**: `.\verify.ps1` ran all 4 verification stages exiting 0 with terminal proof (104/104 tests green in 17.06s, Ruff clean, Supabase live check 6/6 passed, Next.js build clean in 2.1s); pushed commit `261c22e` to `origin/grocer-v1`.
+- **Proof**: `.\verify.ps1` ran all 4 verification stages exiting 0 with terminal proof (104/104 tests green in 17.06s, Ruff clean, Supabase live check 6/6 passed, Next.js build clean in 2.1s); pushed commit `261c22e` to `origin/main`.
 - **Still broken**: None. All outbound WhatsApp delivery paths, inbound chat, and milestone push notifications are 100% complete and verified.
 
-### [GROCER v1 — Project Verification Skill & Test Driver] 2026-10-26
+### [Grocer — Project Verification Skill & Test Driver] 2026-10-26
 
 #### Work Card: Build `verify-grocer` Skill, Feature Map & CLI Driver
 - **Problem**: Need an automated, repeatable way for any autonomous agent to launch the Grocer backend, run doctor checks, drive customer WhatsApp journeys with HMAC-SHA256 signatures, and capture database proof.
 - **Change**: Built `scripts/drive_grocer.py` with `doctor`, `send-text`, `send-button`, `send-location`, and `inspect-db`; generated project-local verification skill `.agents/skills/verify-grocer/SKILL.md` and feature map in `features/` (`grocery-shopping.md`, `checkout-3-lock.md`, `address-management.md`); mirrored skill to global agent skills; proved end-to-end against live local instance with database proof recorded in `.scratch/verification-proof/button_dispatch_proof.txt`.
-- **Proof**: `.\verify.ps1` ran all 4 verification stages exiting 0 with terminal proof (104/104 tests green in 16.60s, Ruff clean, Supabase live check 6/6 passed, Next.js build clean in 2.3s); pushed commit `396ad8f` to `origin/grocer-v1`.
+- **Proof**: `.\verify.ps1` ran all 4 verification stages exiting 0 with terminal proof (104/104 tests green in 16.60s, Ruff clean, Supabase live check 6/6 passed, Next.js build clean in 2.3s); pushed commit `396ad8f` to `origin/main`.
 - **Still broken**: None. Ready for real WhatsApp live testing.
 
 
@@ -298,7 +298,7 @@ A chronological record of project milestones, architectural decisions, and verif
 
 
 
-### [GROCER v1 — Real Gemini Conversational Orchestrator & Multi-Item Assembly] 2026-10-26
+### [Grocer — Real Gemini Conversational Orchestrator & Multi-Item Assembly] 2026-10-26
 
 #### Work Card: Purge Keyword Dictionaries, Implement Single-Pass Gemini Orchestrator & Multi-Item Cart
 - **Problem**: Gemini was bypassed in favor of hardcoded keyword dictionaries and an unconditional store search on every inbound text, breaking greetings ("hello" -> "couldn't find items"), single-item cart assembly traps, and zero multi-turn context.
@@ -306,7 +306,7 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: `.\verify.ps1` ran all 4 verification stages exiting 0 with terminal proof (106/106 tests green in 325.60s, Ruff clean with 0 errors, Supabase live check 6/6 tables passed, Next.js Turbopack build passed in 2.2s).
 - **Still broken**: None. Conversational greeting, multi-turn memory, and multi-item shopping lists verified and live.
 
-### [GROCER v1 — Gate 1: Real Swiggy Contract Fixes, Refresh Tokens & Onboarding] 2026-10-26
+### [Grocer — Gate 1: Real Swiggy Contract Fixes, Refresh Tokens & Onboarding] 2026-10-26
 
 #### Work Card: Fix live Swiggy `/im` contract, add encrypted refresh-token storage, and wire multi-turn address onboarding
 - **Problem**: The Swiggy client sent the wrong request shapes for `update_cart` (missing `skuId`, wrong `addressId` key), `create_address` (missing required `fullAddress`/`city`/`postalCode`/`userName`/`userPhone`), `get_orders` (`offset/limit` vs `count/orderType/activeOnly`), `track_order` (missing required `lat/lng`), and `confirm_order` (missing `paasId`); `get_payment_options` and `report_error` were absent; checkout was treated as "placed" on `PENDING_PAYMENT`; and a 5-day token expiry forced full re-auth instead of silent refresh.
@@ -314,7 +314,7 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: All 4 verify stages green — `ruff check` clean (0 errors), `scripts/verify_db.py` 6/6 tables, 109/109 tests passed (42 fast + 37 checkout/e2e/channels + 30 Gemini-dependent), `npm run build` exit 0. Migration 002 applied to Supabase (3 idempotent ALTERs).
 - **Still broken**: None known. Refresh-on-401 is proven fixture-only (no live auth call, per instruction); the confirm_order-in-settlement branch is not directly test-covered because the committed `check_payment_status` fixture returns `confirmed=true`.
 
-### [GROCER v1 — Reality Tracker & Product Scope Correction] 2026-10-26
+### [Grocer — Reality Tracker & Product Scope Correction] 2026-10-26
 
 #### Work Card: Establish STATUS.md as the single source of truth and correct the full-concierge scope
 - **Problem**: Documentation marked all phases complete while Gate 1 remains uncommitted and several live paths are unproven. Product scope was also described too narrowly as grocery ordering.
@@ -323,15 +323,15 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Still broken**: All implementation blockers remain as listed in `STATUS.md`, starting with refresh-on-expiry, untracked migration 002, multi-store checkout, uncaught `confirm_order` errors, and missing tracking coordinates.
 
 
-### [GROCER v1 — Gate 1 Committed Locally, No Push] 2026-10-26
+### [Grocer — Gate 1 Committed Locally, No Push] 2026-10-26
 
-#### Work Card: Commit Gate 1 and migration 002 to `grocer-v1` without deploying
+#### Work Card: Commit Gate 1 and migration 002 to `main` without deploying
 - **Problem**: Gate 1 code and migration 002 sat uncommitted. Pushing would have deployed known P0 bugs (multi-store checkout, uncaught `confirm_order`, unscheduled payment poller). `scratch/inspect_user.py` printed a phone number and decrypted token bytes and was one `git add .` away from being committed.
 - **Change**: Committed Gate 1 code, migration 002, `STATUS.md`, and the `AGENTS.md`/`TASKS.md`/`HANDOFF.md` updates locally as `1ae6431`. Added `scratch/` to `.gitignore`. Nothing pushed.
 - **Proof**: `git commit` created `1ae6431`, 23 files, 937 insertions, 205 deletions. `git status` clean afterwards.
 - **Still broken**: All seven Gate 1.1 P0 blockers in `STATUS.md`.
 
-### [GROCER v1 — Gate 1.1: Refresh, Migrations, Split Orders, Settlement, Pollers] 2026-10-26
+### [Grocer — Gate 1.1: Refresh, Migrations, Split Orders, Settlement, Pollers] 2026-10-26
 
 #### Work Card: Close the seven P0 blockers before deploy
 - **Problem**: The access token had no refresh path on expiry, so the bot asked customers to reconnect when a silent refresh would work. Migrations were applied by hand and never on boot. `checkout` modelled only one order, so a split cart could be read as a failure. `confirm_order` errors were uncaught, tracking had no coordinates for existing accounts, the payment poller was never started, and one location test proved less than its name said.
@@ -339,7 +339,7 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: `ruff check backend/ tests/` clean. `pytest tests/test_staging_fixtures.py tests/test_address_lifecycle.py tests/test_invariants.py tests/test_composite_cart.py` → 37 passed in 2.94s. `import backend.main, backend.agent.checkout_executor, backend.channels.button_router` ok.
 - **Still broken**: No live proof yet for refresh, confirm, split orders, or the payment poller. Migration 003 is not applied to Supabase. Old addresses still have no coordinates, so live map is skipped for them. DB-backed and Gemini suites were not run.
 
-### [GROCER v1 — Gate 1.1 Proven Live: Migration 003, Cart Schema Fix] 2026-10-26
+### [Grocer — Gate 1.1 Proven Live: Migration 003, Cart Schema Fix] 2026-10-26
 
 #### Work Card: Apply migration 003, verify live reads, and fix the live cart contract
 - **Problem**: The live cart failed to parse because Swiggy returns `storeId` as a number while the schema required text. That killed cart display and Lock 2 verification against the real account. The account also has no stored refresh token, so silent refresh cannot work despite the new code.
@@ -347,15 +347,15 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: Live reads against the real account: 3 addresses, 9 search results, 0 orders, 11 cart items, ₹1,751, one store, all in stock, 10 payment methods. `ruff check` clean; 38 offline tests pass in 2.37s.
 - **Still broken**: No refresh token stored for the live account (reconnect required before 2026-10-31). Live refresh, confirm, split order and payment poller remain unproven. No order placed.
 
-### [GROCER v1 — Gate 1.1 Deployed] 2026-10-26
+### [Grocer — Gate 1.1 Deployed] 2026-10-26
 
 #### Work Card: Push Gate 1.1 so the live backend can store refresh tokens
 - **Problem**: Every login through grocerr.vercel.app was handled by the old Render build, which stores only the access token. The refresh token was returned by Swiggy and discarded, so silent refresh could never work.
-- **Change**: Pushed `273c198..c8d31c9` to `origin/grocer-v1`. Render deploys that branch, so the callback now saves the encrypted refresh token and startup migrations run.
+- **Change**: Pushed `273c198..c8d31c9` to `origin/main`. Render deploys that branch, so the callback now saves the encrypted refresh token and startup migrations run.
 - **Proof**: `git push` succeeded to https://github.com/kwakhare5/Grocer.git; `GET /health` returns healthy with database connected.
 - **Still broken**: No refresh token stored yet. It needs one login after the new build is live. Live refresh, confirm, split order and payment poller remain unproven.
 
-### [GROCER v1 — Refresh Proven Live] 2026-10-26
+### [Grocer — Refresh Proven Live] 2026-10-26
 
 #### Work Card: Capture a refresh token and prove rotation end to end
 - **Problem**: The live account had no stored refresh token because every login hit the pre-Gate-1 Render build. Without it the token would die and force a full re-auth.
@@ -363,7 +363,7 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: `refresh_token_stored: True`; forced refresh returned a new pair; new expiry 2026-11-25 17:40 UTC; refresh token still stored after rotation; rotated token loaded 3 addresses from Swiggy.
 - **Still broken**: Live confirm_order, split orders and the payment poller remain unproven because they need a real paid order. DB-backed and Gemini suites were not run.
 
-### [GROCER v1 — Docs Cleanup Before Gate 2] 2026-10-26
+### [Grocer — Docs Cleanup Before Gate 2] 2026-10-26
 
 #### Work Card: Remove the false roadmap and split the design spec
 - **Problem**: `TASKS.md` marked fee warnings, the payment poller, split orders and post-order additions as complete. None were. `ARCHITECTURE.md` carried a second roadmap that disagreed with `STATUS.md`. `DESIGN.md` was mostly a scraped analysis of an unrelated website.
@@ -371,7 +371,7 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: `grep TASKS.md` outside JOURNAL history returns nothing. `ruff check` clean. 38 offline tests pass in 2.81s.
 - **Still broken**: `PRD.md` still describes the target product as if built, and `JOURNAL.md` is history. `STATUS.md` remains the only current source.
 
-### [GROCER v1 — Architecture Amendment for Capability Routing] 2026-10-26
+### [Grocer — Architecture Amendment for Capability Routing] 2026-10-26
 
 #### Work Card: Replace four intents with capabilities and safety classes
 - **Problem**: Any message the LLM could not classify fell into `grocery_list`, which writes to the basket. With Gemini's free quota exhausted, every message took that path, so a price question could add items.
@@ -379,7 +379,7 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: `git commit 0c06102`. Docs only; no runtime change yet.
 - **Still broken**: The code still uses the four intents. No Groq key in `.env`, so live routing tests are blocked.
 
-### [GROCER v1 — Gate 2: Swappable LLM Adapter] 2026-10-26
+### [Grocer — Gate 2: Swappable LLM Adapter] 2026-10-26
 
 #### Work Card: One adapter, two providers, no provider touches Swiggy
 - **Problem**: Every LLM call was written directly against Gemini inside `candidate_evaluator.py`, so changing provider meant rewriting prompt code, and the 20/day free quota stalled all work.
@@ -387,7 +387,7 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: `ruff check` clean. Live Groq call returned parsed JSON `{'ok': True, 'n': 7}` from `openai/gpt-oss-120b`.
 - **Still broken**: The router still uses the four old intents. Nothing calls `complete_json` yet.
 
-### [GROCER v1 — Gate 2: Capability Router] 2026-10-26
+### [Grocer — Gate 2: Capability Router] 2026-10-26
 
 #### Work Card: Replace four intents with 17 capabilities and four safety classes
 - **Problem**: The old classifier had four intents and sent anything unrecognised to `grocery_list`, which writes to the basket. Price questions could add items.
@@ -395,7 +395,7 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: `ruff` clean; 11 router tests pass. Live Groq routing: price and stock → `item_info` (read), addresses → `list_addresses`, "where is my order" → `track_order`, "add 2 litres milk" → `add_items` (basket), "doodh kitna hai" → `item_info`, "cancel my order" → `cancel_help`, "hello" → `chat`.
 - **Still broken**: Nothing calls the router yet. `whatsapp.py` still uses the old four intents.
 
-### [GROCER v1 — Gate 2: English-Only Voice in the Router] 2026-10-26
+### [Grocer — Gate 2: English-Only Voice in the Router] 2026-10-26
 
 #### Work Card: Make the router answer in English regardless of customer language
 - **Problem**: The new router prompt said "reply in the customer's language", which contradicted `DESIGN.md` §3 (understand Hindi and Hinglish, always answer in English). Hinglish input could produce Hinglish output.
@@ -403,7 +403,7 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: `ruff` clean. Live Groq calls: "kaise ho bhai" → chat, English reply; "bhai mujhe doodh chahiye" → chat asking how many litres, English.
 - **Still broken**: The router is still not wired into WhatsApp, so the live bot still uses the old path.
 
-### [GROCER v1 — Docs Audit After ADR 0012] 2026-10-26
+### [Grocer — Docs Audit After ADR 0012] 2026-10-26
 
 #### Work Card: Fix the fictional file map and stale rules
 - **Problem**: `ARCHITECTURE.md` §6 listed files that do not exist (`engine.py`, `gemini.py`, `prompts.py`, `swiggy_adapter.py`, four parser files) and omitted real ones (`router.py`, `llm.py`, `candidate_evaluator.py`, `whatsapp_client.py`, `swiggy_auth.py`). `AGENTS.md` still said Gemini handled language and that behaviour tests call Gemini. ADR 0011 and ADR 0010 described superseded decisions.
@@ -411,7 +411,7 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: File tree verified with `ls` across `backend/`, `agent/`, `channels/`, `integrations/commerce/`, `scripts/` and `tests/`.
 - **Still broken**: `PRD.md` remains the target product, and `JOURNAL.md` remains history. Neither is current state; `STATUS.md` is.
 
-### [GROCER v1 — Gate 2: Read Capabilities Wired] 2026-10-26
+### [Grocer — Gate 2: Read Capabilities Wired] 2026-10-26
 
 #### Work Card: Price questions answer from live Swiggy and never touch the basket
 - **Problem**: The webhook still used the four-intent classifier, so a price or stock question could become an add-to-cart. The new router existed but nothing called it.
@@ -419,7 +419,7 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: Live: "how much is amul milk" → three real variants with prices and "in stock"; addresses, orders, cancel help all answered. Cart was 11 items / ₹1,763 before and after — unchanged. `ruff` clean; 49 offline tests pass.
 - **Still broken**: Basket requests still make a second LLM call through the old classifier. Store info, coupons, address writes, basket edits, reorder and text checkout are not built.
 
-### [GROCER v1 — Gate 2: Store Quote and Coupons] 2026-10-26
+### [Grocer — Gate 2: Store Quote and Coupons] 2026-10-26
 
 #### Work Card: Answer delivery-fee and coupon questions from live data
 - **Problem**: `store_info` and `list_coupons` were routed capabilities with no handler, so they fell to the not-ready reply.
@@ -427,7 +427,7 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: "what is the delivery fee" → Item Total ₹1,753.00, Handling ₹10.01, Delivery FREE, To pay ₹1,763; "any coupons for me" → no coupons available. Cart unchanged before and after. `ruff` clean.
 - **Still broken**: Address add/switch/delete, basket edits, reorder and text checkout remain unbuilt.
 
-### [GROCER v1 — Gate 2: Address Switch and Delete] 2026-10-26
+### [Grocer — Gate 2: Address Switch and Delete] 2026-10-26
 
 #### Work Card: Switch addresses with a basket warning, delete only after a second tap
 - **Problem**: The `addr` button was a stub and the router's account capabilities had no handler, so switching or deleting an address was impossible from chat.
@@ -435,7 +435,7 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: "switch to my home address" → warns the basket may change, offers Switch anyway / Keep current; applying switched the session to the home address and restoring put it back. "delete my pune address" → asks for confirmation; the address still exists because no delete was performed. 49 offline tests pass; `ruff` clean.
 - **Still broken**: Actual `delete_address` execution is unproven (not performed on a real address). Basket edits, reorder and text checkout are not built.
 
-### [GROCER v1 — Gate 2: Basket Clear, Remove and Quantity] 2026-10-26
+### [Grocer — Gate 2: Basket Clear, Remove and Quantity] 2026-10-26
 
 #### Work Card: Preview every basket change, and stop guessing when the item already exists
 - **Problem**: Clear/remove/quantity had no handler, and "make milk 3" was routed as add_items, which would have added three more instead of setting the total.
@@ -443,7 +443,7 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: Live previews: "clear my cart" → 11 items, confirm buttons; "remove milk" → names Amul Taaza; "make milk 3" → routed add_items but the guard caught it and offered Set to 3 / Add 3 more. Cart stayed 11 items / ₹1,751 before and after. 8 basket tests and 57 offline tests pass; `ruff` clean.
 - **Still broken**: The write paths for clear/remove/quantity are proven only against fixtures, not the live cart. Reorder and text checkout are not built.
 
-### [GROCER v1 — Gate 2: Reorder and Live Router Evaluation] 2026-10-27
+### [Grocer — Gate 2: Reorder and Live Router Evaluation] 2026-10-27
 
 #### Work Card: Reorder from a real past order, then score the router on real AI calls
 - **Problem**: Reorder was an advertised capability with no handler, and routing quality had never been measured — only hand-picked examples and Python unit tests existed.
@@ -451,7 +451,7 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: `ruff` clean on changed files; 47 targeted offline tests pass (router, basket, reorder, catalog fixtures), including reorder preview does not write, apply lands the right quantity, unknown order and empty history write nothing. Live Groq eval, two full runs: 39/40 exact both times, **0 unsafe writes both times**, 0 LLM errors; miss moved between runs (delivery ETA, then vague address delete), and each passes when rerun after its prompt rule. Raw JSON in `.scratch/eval_router_groq_*.json`.
 - **Still broken**: Reorder's write is unproven on live Swiggy (account has 0 orders; live DB read was refused by the safety classifier). The model is not deterministic across runs, so 39/40 is a floor, not a guarantee. `tests/test_whatsapp_live_loop.py` still writes ~350 junk users to the live Supabase DB and fails with `auth_required`. Text checkout still answers "can't do that yet".
 
-### [GROCER v1 — P0: Stop Tests Writing to Production] 2026-10-27
+### [Grocer — P0: Stop Tests Writing to Production] 2026-10-27
 
 #### Work Card: Make the database layer refuse production under pytest
 - **Problem**: 23 database-backed tests were writing users, tokens and sessions into the live Supabase database. They created ~350 junk users and their fake tokens made webhook tests fail with `auth_required`.
@@ -459,7 +459,7 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: Full suite: **113 passed, 23 skipped, 0 failed**; `ruff` clean. The guard fired on the previous run (`RuntimeError: Refusing to use DATABASE_URL while running tests`) exactly as intended. Skips are per test, never silent.
 - **Still broken**: No separate test database exists yet, so all 23 DB tests are skipped. The ~350 junk users already in production remain. Cleanup needs Karan's decision.
 
-### [GROCER v1 — One Dev Database, Clean Test Runs] 2026-10-27
+### [Grocer — One Dev Database, Clean Test Runs] 2026-10-27
 
 #### Work Card: Run every DB test on the only Supabase project without leaving junk
 - **Problem**: Karan confirmed there is only one Supabase project, pre-launch, and wants it used for tests too. Old DB tests left fake users behind, and a timestamp-based cleanup missed one row because the database clock drifted a few seconds.
@@ -467,7 +467,7 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: Full suite twice: **136 passed, 0 skipped, 0 failed**; `ruff` clean. User count stayed **364 before and after** a full run, proving no new junk. The six previously failing tests pass.
 - **Still broken**: ~363 junk users from earlier sessions remain; the delete was blocked by the safety classifier and needs Karan's typed approval. Tests and real account data share the one dev database.
 
-### [GROCER v1 — Junk Accounts Gone, Database Verified] 2026-10-27
+### [Grocer — Junk Accounts Gone, Database Verified] 2026-10-27
 
 #### Work Card: Confirm the database holds only the real account
 - **Problem**: Earlier counts showed 364 users, of which only one had a stored Swiggy refresh token. The cleanup agent could not delete because the safety policy blocks bulk database deletes.
@@ -475,7 +475,7 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: Live query: **users 1, real accounts 1, sessions 1, approvals 0, checkouts 0**. The single session still has its active address. Full suite remains **136 passed, 0 skipped, 0 failed**.
 - **Still broken**: Nothing for the database. The remaining gap is feature work: typed-text address add, live basket-write proof, payment method choice, and checkout.
 
-### [GROCER v1 — Documentation Truth Sync] 2026-10-27
+### [Grocer — Documentation Truth Sync] 2026-10-27
 
 #### Work Card: One doc map, one current truth, and the real v1 constraints
 - **Problem**: The docs disagreed with each other and with the code. STATUS marked P0s FIXED and then said they were not fixed. JOURNAL claimed 100% phases and production readiness. ARCHITECTURE showed only migration 001 and 25ms/50ms paths that do not exist. DESIGN carried a 5-day token and a video-editor reference. PRD said zero mocks in tests while the suite uses fixtures.
@@ -483,7 +483,7 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: `ruff check backend tests` → All checks passed!; offline non-DB subset → 79 passed, 11 deselected; `pytest --collect-only -q` → 136 collected. Docs use the placeholder number `+91 98765 43210` only.
 - **Still broken**: Every code P0/P1 in `STATUS.md` §4–§5 remains. Next is code item 1: `grocer_test`, `verify.ps1`/`verify_db.py`, `/health`, and the `ruff` dependency.
 
-### [GROCER v1 — Scope Reframe: Tool Coverage, Not Journeys] 2026-10-27
+### [Grocer — Scope Reframe: Tool Coverage, Not Journeys] 2026-10-27
 
 #### Work Card: Make the docs say what the product actually is
 - **Problem**: The docs treated the nine PRD journeys as a build checklist and listed recipes as a product claim. Karan's goal is simpler: Swiggy Instamart on WhatsApp, where chat reaches anything the MCP allows. The docs also implied a live order would be placed during testing.
@@ -491,7 +491,7 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: `TASKS.md` exists; docs carry the scope note and the no-live-order rule; recipe claims are gone; `grep` for the real number is clean; `ruff` clean; 7 address tests pass. Read-only DB check: migrations 001–003 applied in `grocer`; `grocer_test` does not exist yet.
 - **Still broken**: All code P0/P1 in `STATUS.md` §4–§5. `LIVE_CHECKOUT_ENABLED` is still docs-only. Next is Phase 1: safety rails and verification.
 
-### [GROCER v1 — Phase 1: Safety Rails and Verification] 2026-10-27
+### [Grocer — Phase 1: Safety Rails and Verification] 2026-10-27
 
 #### Work Card: Make the checkout lock real and put DB tests in their own database
 - **Problem**: `LIVE_CHECKOUT_ENABLED` existed only in docs, so any code path could call Swiggy checkout. `TEST_DATABASE_URL` was identical to `DATABASE_URL`, so DB tests wrote the app data. `verify_db.py` expected 6 tables, `verify.ps1` ran DB and live LLM tests by default, `/health` returned 200 with a dead DB, `ruff` was a global install, and a mock-based file was named "live".
@@ -499,7 +499,7 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: `verify.ps1` exit 0; 94 offline passed, 45 deselected; 23 DB passed on `grocer_test`; 139 collected. Real `grocer` counts unchanged (users 1, sessions 1, inbound 10, tokens 1, others 0); `grocer_test.users` 0 after cleanup. Guard output: `RuntimeError: Refusing to run tests against database 'postgres'.` Live `/health` returned 200 with the DB up; unit test covers the 503 mapping.
 - **Still broken**: All P0 checkout defects remain (transaction boundary, UPI args, idempotency, user binding, cap raise, park/replay, pollers, dedupe). App boot still fails if the DB is unreachable at startup. Phase 2 (Groq) not started.
 
-### [GROCER v1 — Phase 2: One LLM Brain] 2026-10-27
+### [Grocer — Phase 2: One LLM Brain] 2026-10-27
 
 #### Work Card: One adapter, no second classification, live Groq eval
 - **Problem**: The basket path made a second classification call through a direct Gemini SDK, so one message cost two brain calls and could get two different answers. Candidate evaluation also called Gemini directly. The Gemini key was required to boot even though Groq is primary, and recipe and fee fallbacks contained invented data.
@@ -507,7 +507,7 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: Live Groq eval, 40 real messages: 39 exact (97.5%), 0 unsafe writes, 0 under-acted writes, 0 LLM errors. Miss: "how long till my food arrives" → `store_info`, expected `track_order`. Raw: `.scratch/eval_phase2.json`. `ruff` clean; 94 offline pass; 23 DB pass on `grocer_test`.
 - **Still broken**: The one read/read miss, and the harness does not record per-call latency. Phase 2 is PARTIAL until the launch-gate re-run. Checkout P0s untouched.
 
-### [GROCER v1 — Phase 3: Checkout Money Core] 2026-10-27
+### [Grocer — Phase 3: Checkout Money Core] 2026-10-27
 
 #### Work Card: No network call inside a transaction, and a checkout that can prove what happened
 - **Problem**: The real Swiggy `checkout` call ran inside an open DB transaction, so any later error rolled back the Lock 3 claim, the checkout row and the inbound dedupe row. The same receipt could order twice. The CAS matched only the approval id, so any user could tap someone else's `pay:` button. UPI was sent without `intentApp`/`generateUPIQR`, the pre-checkout order snapshot was never read, a cap failure expired the receipt before offering "Raise Limit", the raise button parsed the wrong segment, and `response_total_paise` copied the approval instead of the response.
@@ -515,7 +515,7 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: `python -m ruff check backend tests` → All checks passed!; 95 offline passed, 53 deselected; 31 DB passed on `grocer_test`; 148 collected; `powershell -File verify.ps1 -Db` exit 0 with the Next.js build. New tests: duplicate tap, two simultaneous taps, another user's button, timeout with a recovered order, clean failure that leaves the receipt payable, unverifiable outcome that blocks retry, crash reconcile with and without an order, cap raise, and UPI args. Probe: asyncpg releases a session advisory lock when the connection returns to the pool.
 - **Still broken**: Nothing here is live-proven; no order was placed. Poller 401/milestone/split-order defects (P0 #6/#7) remain for Phase 4, plus park/replay, address grounding, privacy, tool coverage and the landing page.
 
-### [GROCER v1 — Live Smoke + Phase 4: Post-Payment Truth] 2026-10-27
+### [Grocer — Live Smoke + Phase 4: Post-Payment Truth] 2026-10-27
 
 #### Work Card: Real live calls (no order), then real tracking and poller truth
 - **Problem**: Every claim about Swiggy and Groq was fixture-backed. Checkout was proven only with recorded responses. Separately, `track_order` never called the tracking tool, `store_info` could not answer store or timing, a bare "milk" ended in "couldn't find", pollers could repeat a milestone, skip split-order ids, die on a 401, and mark a payment failed without checking after Render woke.
@@ -523,7 +523,7 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: Live on 2026-10-27: 3 addresses, 20 milk products with real prices, 12-item cart read, 0 orders, 10 payment methods; cart add verified then restored to the same 12 spins and quantities; 10/10 Groq routes with real answers in 55s; checkout returned "locked" with a sentinel client proving no Swiggy call. Offline 100 pass; DB 34 pass on `grocer_test`; 156 collected; Next build passes; `verify_db` passes on the test DB at 004.
 - **Still broken**: App database is at 003; migration 004 needs Karan's approval. Gate 2 case 8 ("milk" buttons) is not tapped on WhatsApp yet; case 7 needs a past order. No order has ever been placed. Live `update_cart` left three items priced ₹0 on Swiggy's side (items intact), recorded in STATUS as an observed behavior.
 
-### [GROCER v1 — Migration 004 Applied + Test Truth] 2026-10-27
+### [Grocer — Migration 004 Applied + Test Truth] 2026-10-27
 
 #### Work Card: App database at 004, verification green, and what each test kind proves
 - **Problem**: `verify_db.py` required `notified_milestones`, but the app database was still at 003, so `verify.ps1 -Db` could not pass on the real project. Separately, STATUS mixed live smoke results with scripted failure-injection tests under one "tests pass" line, which read as if the scripted tests were proof of live Swiggy behavior.
@@ -531,7 +531,7 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: `verify.ps1 -Db` exit 0 on 2026-10-27: schema check pass (8 tables, `notified_milestones` + indexes), `ruff` clean, 100 offline passed, 34 DB passed on `grocer_test`, 156 collected, Next.js build passed. Migration log: `Applied migrations: ['004_checkout_milestones.sql']`.
 - **Still broken**: No live order. Gate 2 case 8 needs a WhatsApp tap; case 7 needs a past order. Phase 5 (address lifecycle, park/replay) not started.
 
-### [GROCER v1 — Phase 5: Account Lifecycle + Test Honesty] 2026-10-27
+### [Grocer — Phase 5: Account Lifecycle + Test Honesty] 2026-10-27
 
 #### Work Card: Default address, switch that rebuilds, signed links, and real replay
 - **Problem**: Grounding used `addresses[0]` instead of Swiggy's default, so an order could go to the wrong door. Switching addresses left the basket from the old store. The active-delivery delete guard existed but only tests called it. Typed-text address add was missing. `/login` trusted any caller-supplied phone, so anyone could bind a Swiggy token to any number. The webhook parked with `status='parked'` while replay claimed only `awaiting_link`, and the callback never re-ran the message. Separately, `WhatsAppClient` had a production mock branch (`ENVIRONMENT == "test"` / `mock_` token) that reported fake delivery, and scripted tests were indistinguishable from live ones.
@@ -539,7 +539,7 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: `verify.ps1 -Db` exit 0 on 2026-10-27: schema check pass, `ruff` clean, 99 offline passed, 45 DB passed on `grocer_test`, 166 collected, Next.js build pass. New: 12 account tests (`tests/test_phase5_account.py`), 3 webhook button tests that post real Meta JSON (`tests/test_whatsapp_webhook.py`), 3 payload tests. Two real defects surfaced by the new tests: the parked-request manager silently ignored UUID objects (fell back to memory), and replay stored a UUID row id as an int.
 - **Still broken**: No live order. Live address add/delete on the throwaway address not run. Gate 2 case 8 still needs a WhatsApp tap; case 7 needs a past order. Phase 6 privacy work (DPDP scrub, RLS, log redaction) not started.
 
-### [GROCER v1 — Scope Correction + Doc Truth] 2026-10-27
+### [Grocer — Scope Correction + Doc Truth] 2026-10-27
 
 #### Work Card: Recipes in v1, one scope table, and every stale "current" note removed
 - **Problem**: The docs disagreed with each other on scope. PRD Journey 7, ARCHITECTURE Layer 2, ADR 0009 and GLOSSARY described recipe checklists, while TASKS, STATUS, DESIGN and the ADR index excluded them. The exclusion was written during the doc closeout and attributed to Karan, who never agreed to it. The same closeout silently parked fee warnings, post-order additions and one-time destinations. Separately, about 30 present-tense "current" notes described defects fixed in Phases 3-5, the ADR index had 8 wrong rows out of 12, and STATUS contradicted itself on OAuth, phase count, the second LLM call and test numbers. The verify-grocer skill claimed 6 tables and a working recipe checklist.
@@ -553,7 +553,7 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: `grep -rn "undo"` over the docs returns only this journal; no planning doc promises it.
 - **Still broken**: No code changed. The queue/merge design is waiting for approval; every other Phase 7 defect is still open.
 
-### [GROCER v1 — Phase 7 Batch 1: Trust Pass] 2026-10-27
+### [Grocer — Phase 7 Batch 1: Trust Pass] 2026-10-27
 
 #### Work Card: Honest failure, readable receipts, and controls that work
 - **Problem**: A missing LLM key produced "I didn't quite catch that" instead of naming the outage, and the turn could hang 30 seconds. Receipts dumped the whole basket, ignored Swiggy's `maxQuantity` (the 5-pizza order silently capped at 2), and never said the request was cut. The `Change item` button did nothing. `What's in my basket?` could not answer. Address and basket replies were walls of text. The candidate evaluator quietly picked rank 1 when the model did not answer.
@@ -561,7 +561,7 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: `powershell -File verify.ps1 -Db` exit 0 on 2026-10-27: schema check pass, `ruff` clean, 110 offline passed, 46 DB passed on `grocer_test`, 178 collected, Next.js build pass. New tests: outage copy and view basket (`test_router.py`), address card and alternatives (`test_read_actions.py`), cap and delta receipt (`test_composite_cart.py`), fresh/keep-only-new/swap (`test_basket_actions.py`), read payload and idle notice (`test_whatsapp_payloads.py`), mark-read and `cart:fresh` webhook path (`test_whatsapp_webhook.py`).
 - **Still broken**: No live order. No live WhatsApp run for one-word "milk", Change item, view basket, address card or blue ticks. Rapid second message is still dropped (Batch 2). No recipe plan, no typed-number list picker, no receipt chunking, savings line still unsent, coupon paths still add-only, `goto:` / `post_add:` buttons still dead, `CART_EXPIRED` still gets a generic answer.
 
-### [GROCER v1 — Repo Audit Cleanup] 2026-10-27
+### [Grocer — Repo Audit Cleanup] 2026-10-27
 
 #### Work Card: Delete the dead code, move fixtures out of production
 - **Problem**: The audit found about 1,000 lines of code that no production path reached: a dead formatter module with fake `post_add:` buttons, a duplicate go-to/address-switch engine, an unused fee and launch-cap helper, test-only parking helpers, a duplicate milestone rule, a legacy 2-part cap-raise branch, seven settings with no reader, dead evaluator result fields, and a fixture engine living inside the production Swiggy client. `drive_grocer.py doctor` checked 6 tables while the schema had 8, so it passed while tables were missing.
@@ -572,7 +572,7 @@ A chronological record of project milestones, architectural decisions, and verif
 #### Correction: cleanup diff count
 - The committed diff is 442 insertions and 1,212 deletions, net -770 lines. The earlier -1,017 figure counted only tracked files before `tests/fixture_client.py` (265 lines) was added.
 
-### [GROCER v1 — Live Batch 1 Check] 2026-10-28
+### [Grocer — Live Batch 1 Check] 2026-10-28
 
 #### Work Card: Real messages on Render, and the receipt proof gap
 - **Problem**: Batch 1 was only proven offline. The first live driver stalled before sending because it tried to refresh the Swiggy token first; the second was piped, so progress was hidden. The DB also has two user rows, and the script assumed exactly one.
@@ -580,7 +580,7 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: Raw log `.scratch/live_text_check.log`; `grocer.inbound_messages` has exactly 3 new text rows at 18:47:36, 18:47:50 and 18:47:56 UTC, all `received`; latest `grocer.approvals` row is `shown` at 28300 paise with 2 items and milk present. Blue ticks/typing remain unproven because the wamid was simulated.
 - **Still broken**: Session history stores `Basket updated. Total ₹283` instead of the receipt that was sent, so the delta-receipt copy cannot be proven from the DB and the next turn's model context loses the real receipt. The Change item tap and address buttons were not exercised live. No live order.
 
-### [GROCER v1 — Full Basket Receipt + 20-Case Live Eval] 2026-10-28
+### [Grocer — Full Basket Receipt + 20-Case Live Eval] 2026-10-28
 
 #### Work Card: Stop the double-text, then test 20 messy messages for real
 - **Problem**: The add receipt showed only the new line and told the customer to ask "what's in my basket" to see the rest. It also mixed units ("1 items" counted product lines, "3 items" counted units). The live check read a 26-char summary from session history instead of the receipt that was sent, so the copy was unprovable. Separately, most tests are fixtures/scripted and do not prove natural understanding.
@@ -588,7 +588,7 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: `verify.ps1 -Db` exit 0: 106 offline, 46 DB, 172 collected, ruff clean, Next build pass. Deploy `09b5fa2` live. Live `1 litre doodh` returned a 435-char receipt with `＋ Chitale Bandhu Cow Milk`, `You had 3 items (₹283)`, `Your Basket (4 items)`, and no "Ask what's in my basket". First eval pass: 13/20 answered; 7 hit Groq's 8k TPM burst limit and got the honest outage copy. Retry of those 7 with 20s spacing: 5 passed, so 18/20 understood. Raw `.scratch/live_eval_20.json` and `.scratch/live_eval_retry.json`.
 - **Still broken**: Genuine understanding failures: `make pizza for 5 people` → "How many pizza bases?" (no recipe plan), `add milk and bread` → only milk. The existing-milk prompt says "total to be 1, or 1 more?" which is confusing. Free-tier bursts need a queue/backoff. Payment options list COD/Swiggy Money though v1 is UPI only; store-open answer gives a quote, not yes/no. Change-item tap and blue ticks unproven. No live order.
 
-### [GROCER v1 — Outcome Reactions + Sparse Card Emojis] 2026-10-28
+### [Grocer — Outcome Reactions + Sparse Card Emojis] 2026-10-28
 
 #### Work Card: One reaction per message, decided by code
 - **Problem**: The bot replied but never acknowledged the customer's message at the WhatsApp level. Cards were walls of text with inconsistent emojis, and the model was not a safe place to choose UI signals: a failed payment must never get a check mark.
@@ -596,7 +596,7 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: `powershell -File verify.ps1 -Db` exit 0 on 2026-10-28: schema pass, ruff clean, 108 offline, 47 DB on `grocer_test`, 175 collected, Next build pass. New tests: reaction payload and outcome map (`test_whatsapp_payloads.py`), signed-webhook address question asserts exactly one 🏠 using the real wamid (`test_whatsapp_webhook.py`).
 - **Still broken**: Meta's live reaction delivery is unproven until a real inbound wamid is reacted to on the handset. Button taps do not get reactions by design. No live order. Batch 2 still open.
 
-### [GROCER v1 — Batch 2 First Slice: Multi-Item + Recipe Plan] 2026-10-28
+### [Grocer — Batch 2 First Slice: Multi-Item + Recipe Plan] 2026-10-28
 
 #### Work Card: Stop dropping the second item, and plan meals before writing
 - **Problem**: The live eval's `add milk and bread` only handled milk. The code's single existing-item branch (`whatsapp.py`) returned before the basket write, dropping every other item. `make pizza for 5 people` had no recipe plan at all; the model asked "How many pizza bases?".
@@ -604,7 +604,7 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: `powershell -File verify.ps1 -Db` exit 0 on 2026-10-28: schema pass, ruff clean, 113 offline, 52 DB on `grocer_test`, 185 collected, Next build pass. New tests: `test_meal_planner.py` (5), webhook multi-item merge, clearer existing prompt, recipe card, Add-all tap, missing-ingredient no-write (5), router plan fields (1).
 - **Still broken**: The live Groq route for "make pizza for 5" and a live Add-all tap are untested. Let me pick relies on the model reading the numbered plan from history. List pickers that accept a typed number, message queueing/merge, grouped search, receipt chunking, coupons on every cart path, savings line, fee warning and support report are still open. No live order. Reactions still await a real inbound wamid.
 
-### [GROCER v1 — Doc Truth Sync] 2026-10-28
+### [Grocer — Doc Truth Sync] 2026-10-28
 
 #### Work Card: Put the backlog and every open proof in one place
 - **Problem**: After reactions and the Batch 2 slice, the docs still carried old test counts, 18 capabilities, "recipes not built", and no single checklist of what remains. That is how items get forgotten.
@@ -615,7 +615,7 @@ A chronological record of project milestones, architectural decisions, and verif
 #### Correction: commit state
 - `0fe6ef0` (Batch 2 code) and `89d95c0` (docs) are local commits; both are not pushed. The previous card and STATUS said "uncommitted"; that is fixed.
 
-### [GROCER v1 — Q3 AI Load: One Queue, One Batch] 2026-10-28
+### [Grocer — Q3 AI Load: One Queue, One Batch] 2026-10-28
 
 #### Work Card: Stop the burst failures and the per-item call pile-up
 - **Problem**: 7 of 20 live eval messages died on Groq's 8k TPM burst and got the outage copy. A 4-item add made 5 model calls (1 route + 4 evaluations), so a normal list could exhaust the free tier. The existing retry slept 1 second without reading Groq's reset, and a long rate-limit wait could hang past the 8-second turn budget.
@@ -623,7 +623,7 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: `powershell -File verify.ps1 -Db` exit 0 on 2026-10-28: schema pass, ruff clean, 120 offline, 52 DB on `grocer_test`, 192 collected, Next build pass. New `tests/test_llm_batching.py` (7 tests: duration parsing, retry headers/body, deadline refusal, batch parsing, one-call selection, malformed-batch fallback).
 - **Still broken**: The live burst behavior is not re-tested. Batch evaluation quality is not measured live; a bad batch falls back item by item deterministically. Q1/Q2 (stored plan + amount math) are next. The Q3 changes are uncommitted.
 
-### [GROCER v1 — Q1/Q2: Stored Plan and Real Pack Math] 2026-10-28
+### [Grocer — Q1/Q2: Stored Plan and Real Pack Math] 2026-10-28
 
 #### Work Card: The plan waits in the database, not in a button token
 - **Problem**: The priced recipe plan lived in a base64 button id, so long plans could not fit, the confirmed plan could drift from the card, and "Let me pick" asked for numbers nothing could read. Pack counts were model guesses against free text like "250 g".
@@ -631,7 +631,7 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: `powershell -File verify.ps1 -Db` exit 0 on 2026-10-28: schema pass, ruff clean, 128 offline, 57 DB on `grocer_test`, 185 collected, Next build pass. New tests: pack math, stored-spin preference, partial picks, expired plan, typed pick, no-hijack, expired-numbers routing.
 - **Still broken**: The live Groq recipe route and a live Add-all or typed pick on a handset are unproven. The Q3 and Q1/Q2 changes are uncommitted. Message merge/queue, grouped search, receipt chunking, coupons/savings/fee warning, support report and Phases 6-9 remain. No live order.
 
-### [GROCER v1 — Code Review Fixes] 2026-10-28
+### [Grocer — Code Review Fixes] 2026-10-28
 
 #### Work Card: No lookalike at tap time
 - **Problem**: Two review agents found that a confirmed SKU was silently replaced by the first search result when it went out of stock, plan lines past 8 were dropped without a word, the router prompt still told the model to add recipe numbers itself, a stale plan was only ignored (never cleared), and the batch refactor left dead prompt fields and a dead parser branch.
@@ -639,7 +639,7 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: `verify.ps1 -Db` exit 0: 131 offline + 57 DB, 208 collected, ruff clean, Next build pass. New: gone-SKU add-all block, gone-SKU pick, >8 ingredient note, stale plan cleared on a normal turn, DPDP scrub clears the plan.
 - **Still broken**: The model budget is 8s per call, so a slow turn can take about 16s; docs now say that. Live tap/route still unproven. Review leftovers kept by choice: `build_meal_plan` returns a tuple instead of `ReadReply`, the plan is still an untyped dict, and `send_add_receipt` is a wide pass-through.
 
-### [GROCER v1 — Rapid Messages Queue Instead of Vanish] 2026-10-28
+### [Grocer — Rapid Messages Queue Instead of Vanish] 2026-10-28
 
 #### Work Card: The second message waits its turn
 - **Problem**: two quick messages: the first held the per-user advisory lock, the second was marked `concurrency_dropped` and got no reply. The customer saw one answer and silence.
@@ -647,7 +647,7 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: `powershell -File verify.ps1 -Db` exit 0 on 2026-10-28: schema pass, ruff clean, 131 offline, 58 DB on `grocer_test`, 209 collected, Next build pass.
 - **Still broken**: Live double-text on a handset is unproven. Waiting is bounded by Meta's webhook window, so a turn longer than 12s still needs a resend. Remaining Batch 2: full message to the evaluator, grouped search, receipt chunking.
 
-### [GROCER v1 — Batch 2 Close-out] 2026-10-28
+### [Grocer — Batch 2 Close-out] 2026-10-28
 
 #### Work Card: Every quick message answered, every receipt whole
 - **Problem**: the second quick text was dropped with no reply; the candidate evaluator only saw the extracted word, not "the brown one"; the same item asked twice cost two searches; long receipts were cut off at the 1024-char button-body limit.
@@ -655,7 +655,7 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: `powershell -File verify.ps1 -Db` exit 0 on 2026-10-28: schema pass, ruff clean, 131 offline, 61 DB on `grocer_test`, 212 collected, Next build pass. New: wait-then-add webhook test, timeout route test, whole-message batch test, one-search dedupe test, two receipt-length tests.
 - **Still broken**: Live double-text, a live long basket and the live whole-message evaluation are unproven. Batch 2 is code-complete; Batch 3 (coupons everywhere, savings line, fee warning, itemized bill, support report, payment/store truth, post-order add) is next.
 
-### [GROCER v1 — Batch 3 First Slice: Coupons, Fees, Payment Truth] 2026-10-28
+### [Grocer — Batch 3 First Slice: Coupons, Fees, Payment Truth] 2026-10-28
 
 #### Work Card: The wallet speaks on every cart path
 - **Problem**: reorder and address-switch rebuilt the basket without trying coupons; the computed savings were never stated outside the receipt; small baskets never warned about charges; payment options listed COD and Swiggy Money as if usable.
@@ -663,7 +663,7 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: `powershell -File verify.ps1 -Db` exit 0 on 2026-10-28: schema pass, ruff clean, 137 offline, 61 DB on `grocer_test`, 218 collected, Next build pass. New: coupon kept/refused tests, reorder savings test, two charge-warning tests, payment-truth test; staging coupon test updated off the deleted field.
 - **Still broken**: Batch 3 left: itemized bill (`get_order_details`), support report (`report_error`), store-open truth, post-order add truth. Live coupon savings and a live payment-options read are unproven.
 
-### [GROCER v1 — Batch 3 Tail: Bill, Report, Truth] 2026-10-28
+### [Grocer — Batch 3 Tail: Bill, Report, Truth] 2026-10-28
 
 #### Work Card: The last four tools reach chat
 - **Problem**: `get_order_details` and `report_error` were unreachable from chat, "is the store open" got a quote instead of an answer, and "add this to my order" had no honest reply.
@@ -671,7 +671,7 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: `powershell -File verify.ps1 -Db` exit 0 on 2026-10-28: schema pass, ruff clean, 142 offline, 61 DB on `grocer_test`, 223 collected, Next build pass. New: bill, report, placed-order and store-open tests plus three router tests.
 - **Still broken**: Live bill (needs a real past order), live report filing and live store-open behavior are unproven. Phase 6 privacy, Phase 8 landing and Phase 9 handoff remain.
 
-### [GROCER v1 — Phase 6 Privacy Slice] 2026-10-28
+### [Grocer — Phase 6 Privacy Slice] 2026-10-28
 
 #### Work Card: Delete means delete
 - **Problem**: the 24h scrub left onboarding context, plan-time coordinates and cached geocodes; "delete my data" only nulled payloads and kept the phone number as `wa_id`; money columns had no guards; one log line printed the customer's phone.
@@ -679,7 +679,7 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: `powershell -File verify.ps1 -Db` exit 0 on 2026-10-28: 142 offline, 61 DB on `grocer_test`, 223 collected, ruff clean, Next build pass; extended scrub and delete tests.
 - **Still broken**: service-only DB role/RLS needs DB admin credentials and a Render env change; dead schema columns not dropped. Phase 8 landing and Phase 9 handoff remain.
 
-### [GROCER v1 — Phase 7 Cleanup Pass] 2026-10-28
+### [Grocer — Phase 7 Cleanup Pass] 2026-10-28
 
 #### Work Card: Delete only what is provably dead
 - **Problem**: two audits were asked to find dead files, junk and stale docs. Nothing structural was dead, but the tracked Swiggy fixtures still carried the owner's name and home address, two write-only test bits existed, and several docs described pre-Batch-3 behaviour.
@@ -687,7 +687,7 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: ruff clean; offline 142 passed; DB suite green. Grep evidence: zero readers for the removed fixture and flag.
 - **Still broken**: remaining stale doc lines listed by the audit (ARCHITECTURE Layer 4, DESIGN A2/A9, PRD COD claim, ADR README) are next; service-only DB role and dead schema columns still need Karan/credentials.
 
-### [GROCER v1 — Doc Truth Pass] 2026-10-28
+### [Grocer — Doc Truth Pass] 2026-10-28
 
 #### Work Card: Docs stop describing last week
 - **Problem**: several docs still described pre-Batch-3 behavior: the fee warning "not built", coupons "add path only", the savings line "not sent", COD as a live payment path, delete-my-data "leaves the user row", an 8-second turn budget, test counts of 120/52/192, and migrations at 004.
@@ -695,7 +695,7 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: `python -m ruff check backend tests` → All checks passed; `pytest -q -m "not db and not live"` → 142 passed, 81 deselected; `schema_migrations` on the app DB lists 001–006; 223 tests collected.
 - **Still broken**: every live proof is unchanged; Phase 6 service-role/RLS and dead columns; Phase 8 landing and Phase 9 handoff pending.
 
-### [GROCER v1 — Block 1 Hardening] 2026-10-28
+### [Grocer — Block 1 Hardening] 2026-10-28
 
 #### Work Card: Close the Phase 6 tail and the last P1s
 - **Problem**: PKCE state died with the process; a dead DB stopped the app from booting; rupee-to-paise still used float `round()` outside checkout; Phase 6's least-privilege role and dead columns were open; the router eval had no latency record.
@@ -703,7 +703,7 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: `verify.ps1 -Db` exit 0: schema check pass (9 tables, `grocer_app`, no CREATE on `grocer`), ruff clean, 141 offline, 66 DB on `grocer_test`, 227 collected, Next build pass. Live Groq rerun: 40/40 exact, 0 unsafe writes, avg 1461ms, p95 2312ms, max 2577ms. New tests: DDL refusal, durable/expired PKCE state, backdated 24h scrub, dead-DB boot.
 - **Still broken**: live 24-hour TTL needs a day of real traffic; live handset proofs; Phase 8 landing and Phase 9 handoff. Changes are uncommitted and Render has not seen them.
 
-### [GROCER v1 — Phase 8 Landing Page] 2026-10-28
+### [Grocer — Phase 8 Landing Page] 2026-10-28
 
 #### Work Card: A page a customer and the Swiggy team can read
 - **Problem**: the old page was an OAuth widget with a fake "Systems Operational" line, a fallback link to a placeholder number, and claims such as "best coupon" that overstate the code. It did not explain the product in plain words.
@@ -711,7 +711,7 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: `npm run build` pass; browser checked at 1440px and real 360px emulation with `scrollWidth=360` and no overflowing elements; `?t=` connect card and callback state render; CTA disabled without env and enabled with a test env. Screenshots: `.scratch/landing_1440.png`, `.scratch/landing_360_emulated.png`, `.scratch/landing_configured_top.png`.
 - **Still broken**: Vercel deploy not run; `NEXT_PUBLIC_WHATSAPP_NUMBER` must be set there. Live handset proofs and Phase 9 handoff remain.
 
-### [GROCER v1 — Review Fixes] 2026-10-28
+### [Grocer — Review Fixes] 2026-10-28
 
 #### Work Card: The review caught real holes
 - **Problem**: the dead-DB test inherited `PYTEST_CURRENT_TEST`, so it could hit the test DB; the app pool silently fell back to the owner when `grocer_app` was missing; the app could write the migration ledger; expired PKCE rows stayed until the next login; `/health` only ran `SELECT 1`; two STATUS lines still described the old boot and float bugs; the page marked tracking Live and ignored Swiggy error returns.
@@ -719,18 +719,18 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: `verify_db.py` exit 0 (9 tables, `grocer_app`, no CREATE, no ledger INSERT); DB suite 66 passed; offline 142 passed; real dead-DB subprocess test; live router rerun 40/40, avg 1574ms, p95 2265ms, max 3422ms. Raw: `.scratch/eval_router_20261028_reviewfix.json`. Also fixed a flaky link-token tamper test that could change nothing when the signature already ended in `0`.
 - **Still broken**: live 24h TTL, live OAuth reconnect, handset proofs, Vercel deploy, Phase 9. Changes are uncommitted.
 
-### [GROCER v1 — Deploy 50fc967] 2026-10-28
+### [Grocer — Deploy 50fc967] 2026-10-28
 
 #### Work Card: The reviewed tree is live
 - **Problem**: the review fixes and Phase 8 page were committed to local history only; Render was still serving `09b5fa2`.
-- **Change**: pushed `b03573c..50fc967` to `origin/grocer-v1`. No env var was changed. `STATUS.md` and `.scratch/HANDOFF.md` now record the live commit and the remaining handoff steps.
-- **Proof**: `git log -1` → `50fc967`; push accepted by `origin/grocer-v1`; Render deploy `dep-dbgugmi9lscs7394rr80` reached `live` on `50fc967`; `GET /health` → HTTP 200 `{"status":"healthy","database":"connected","app":"Grocer","environment":"development"}`.
+- **Change**: pushed `b03573c..50fc967` to `origin/main`. No env var was changed. `STATUS.md` and `.scratch/HANDOFF.md` now record the live commit and the remaining handoff steps.
+- **Proof**: `git log -1` → `50fc967`; push accepted by `origin/main`; Render deploy `dep-dbgugmi9lscs7394rr80` reached `live` on `50fc967`; `GET /health` → HTTP 200 `{"status":"healthy","database":"connected","app":"Grocer","environment":"development"}`.
 - **Still broken**: no live bot read since the deploy; reactions/blue ticks unproven on a real wamid; Vercel env/deploy and the Phase 9 handset proofs are Karan's; checkout stays locked and no order will be placed.
 
 ### [GROCER — main swap, rename, CI] 2026-10-28
 
 #### Work Card: One branch, one name, green CI
-- **Problem**: `main` was the old pre-rewrite project with unrelated history; Render deployed `grocer-v1`; four stale branches existed; the product still said "Grocer v1.0" everywhere; there was no README or CI.
-- **Change**: archived the old tips as tags `legacy-main-2026-10-28` and `legacy-codex-2026-10-28`, force-replaced `main` with the current tree, deleted `codex/full-whatsapp-recovery`, `feat/architecture-v1`, `redesign`, and `grocer-v1`. Renamed the product to "Grocer" in code headers, docs, package name, and env template, leaving JOURNAL history untouched. Switched the Render service to `main` and updated `render.yaml`. Added a README and `quality.yml` (ruff, non-live pytest on throwaway Postgres, Next build) plus `keep_warm.yml`.
+- **Problem**: `main` was the old pre-rewrite project with unrelated history; Render deployed `main`; four stale branches existed; the product still said "Grocer" everywhere; there was no README or CI.
+- **Change**: archived the old tips as tags `legacy-main-2026-10-28` and `legacy-codex-2026-10-28`, force-replaced `main` with the current tree, deleted `codex/full-whatsapp-recovery`, `feat/architecture-v1`, `redesign`, and `main`. Renamed the product to "Grocer" in code headers, docs, package name, and env template, leaving JOURNAL history untouched. Switched the Render service to `main` and updated `render.yaml`. Added a README and `quality.yml` (ruff, non-live pytest on throwaway Postgres, Next build) plus `keep_warm.yml`.
 - **Proof**: `git push --force-with-lease` accepted; Render deploy `dep-dbguma942hec739cfba0` live on `42d5b56`; `/health` 200. GitHub Actions first run 40688131830 failed on lint (CI pulled ruff 0.17.3 vs the proven 0.16.6), then the run for `42d5b56` passed backend and frontend. `verify.ps1 -Db` exit 0: schema pass, ruff clean, 142 offline, 66 DB, 228 collected, Next build pass.
 - **Still broken**: Vercel branch and env are still Karan's to set; handset proofs open; live 24h scrub unproven; checkout never live-tested and no order will be placed. Old repo tags `v2.0.0` and `checkpoint-working` still exist.

@@ -62,6 +62,7 @@
 | Live refresh | Recorded 2026-10-26: forced refresh returned a new token pair; new expiry 2026-11-25. Journal also records a fixture-only refresh proof. Treat the live proof as recorded, not re-verified. |
 | Live checkout | **Never tested. No order placed.** |
 | Migration 004 | **VERIFIED 2026-10-27:** `python scripts/migrate.py` applied `004_checkout_milestones.sql` to the app database; `verify_db.py` exits 0 with 8 tables, `notified_milestones` present, and the required indexes. `grocer_test` is also at 004. |
+| Phase 6 privacy slice | **DONE (code) 2026-10-28:** 24h scrub also clears onboarding state/context, plan-time coordinates, and deletes geocode rows older than 24h. "delete my data" deletes inbound messages and geocodes, clears plan/onboarding/coords, and anonymizes the user row. Migration 006 adds `updated_at` triggers on users/oauth_tokens/checkouts and non-negative money checks. The button-router phone log is removed. Open: service-only DB role/RLS (needs credentials), dead schema columns. |
 | Migration 005 | **APPLIED 2026-10-28:** `python scripts/migrate.py` added `sessions.pending_plan` and `sessions.pending_plan_expires_at` to the app database; `verify_db.py` exits 0. `grocer_test` applied it through the DB suite. Render applies pending migrations at startup on the next deploy. |
 | Production readiness | **No.** |
 | Current gate | **Gate 2 — Concierge Answers.** 6 of 8 pass; 1 partial (reorder needs a past order); 1 code-complete but not tapped live ("milk" now auto-picks with a working Change button, discretionary items show choices). See §2. |
@@ -133,7 +134,7 @@ Gate 2 is read-only. No checkout, order, payment call, or address write is in sc
 - The dead go-to add and post-order add buttons were deleted with their dead code in the 2026-10-27 cleanup. `item:change` works. `report_issue` now files a Swiggy report and returns the reference and support email; itemised bills use `get_order_details`.
 - Rapid messages: the second waits up to 12 seconds for the first turn, then answers against the fresh cart. A turn still running after that gets an honest resend reply (`concurrency_wait_timeout`).
 - Recipes are built in code (2026-10-28) with a stored plan, typed picks, queueing, whole-message evaluation, duplicate grouping and receipt chunking. Batch 3 is code-complete: coupons on every cart path, savings line, 35% charges warning, itemised bill, support report, payment truth, store-open truth and post-order add truth.
-- DPDP scrubs some fields but leaves `sessions.onboarding_context`, `users.display_name`, delivery coordinates, `address_coords`, the user row, and approval/checkout rows (`backend/agent/dpdp.py:19`, `backend/agent/dpdp.py:112`).
+- DPDP: the 24h scrub clears history, plan, onboarding state/context, plan-time coordinates and the geocode cache; "delete my data" deletes inbound messages and cached geocodes and anonymizes the user row (`deleted-<uuid>`, no name, no Swiggy id) while audit rows keep an anonymous id. Open: service-only DB role/RLS (needs DB admin credentials and a Render env change) and dead schema columns.
 - No RLS on any table and PII is plaintext. The caller-supplied-phone hole was closed in Phase 5 with signed bot links; PKCE state is still in process memory (`backend/integrations/commerce/token_vault.py:73`).
 - The landing page footer says "Systems Operational" with no health check, and the page falls back to a fake WhatsApp number (`app/page.tsx:76`, `app/page.tsx:269`).
 - Render free plan sleeps, so pollers stop when idle (`render.yaml:6`).
@@ -250,7 +251,7 @@ RuntimeError: Refusing to run tests against database 'postgres'. TEST_DATABASE_U
 | 12 | Store-open truth | **DONE (code) 2026-10-28** | cart quote plus the honest open signal: items adding means the store is taking orders; no invented flag |
 | 13 | Post-order add truth | **DONE (code) 2026-10-28** | `placed_order_add` says the order is locked and offers a new basket |
 
-**After Phase 7:** Phase 6 privacy (DPDP scrub + delete cascade, RLS or service-only, log redaction, CHECK constraints, `updated_at` triggers), Phase 8 landing page, Phase 9 handoff. No live order during the build.
+**After Phase 7:** Phase 6 privacy is partly done (DPDP scrub/delete cascade, log redaction, CHECK constraints, `updated_at` triggers in migration 006). Open: service-only DB role/RLS and dead schema columns. Then Phase 8 landing page, Phase 9 handoff. No live order during the build.
 
 **Open proofs:** reactions drawn on a real handset; live Groq route for "make pizza for 5" and a live Add-all tap; live Change-item tap; blue ticks/typing with a real wamid; live address add/delete; Gate 2 case 7 (needs a past order) and case 8 (live tap); the Phase 2 latency miss. Re-run the full gate at launch.
 

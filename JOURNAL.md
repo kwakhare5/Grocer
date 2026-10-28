@@ -670,3 +670,11 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: three capabilities: `order_bill` (read) shows items, line items and total for the last or named order; `report_issue` (account) files a Swiggy report with the order id and returns the reference link and support email; `placed_order_add` (read) says a placed order is locked and offers a new basket. `store_info` now answers open/closed honestly from the live cart. Router prompt, schema, `issue` field and 📦 reaction updated; capability count 19 → 22.
 - **Proof**: `powershell -File verify.ps1 -Db` exit 0 on 2026-10-28: schema pass, ruff clean, 142 offline, 61 DB on `grocer_test`, 223 collected, Next build pass. New: bill, report, placed-order and store-open tests plus three router tests.
 - **Still broken**: Live bill (needs a real past order), live report filing and live store-open behavior are unproven. Phase 6 privacy, Phase 8 landing and Phase 9 handoff remain.
+
+### [GROCER v1 — Phase 6 Privacy Slice] 2026-10-28
+
+#### Work Card: Delete means delete
+- **Problem**: the 24h scrub left onboarding context, plan-time coordinates and cached geocodes; "delete my data" only nulled payloads and kept the phone number as `wa_id`; money columns had no guards; one log line printed the customer's phone.
+- **Change**: the scrub now clears onboarding state/context, plan-time coordinates and deletes geocode rows older than 24h. "delete my data" deletes inbound messages and geocodes, clears plan/onboarding/coords, and renames the user row to `deleted-<uuid>` with no name or Swiggy id, so messaging again creates a fresh user. Migration 006 adds `updated_at` triggers on users/oauth_tokens/checkouts and non-negative cap/payable checks. Phone number removed from the button-router log.
+- **Proof**: `powershell -File verify.ps1 -Db` exit 0 on 2026-10-28: 142 offline, 61 DB on `grocer_test`, 223 collected, ruff clean, Next build pass; extended scrub and delete tests.
+- **Still broken**: service-only DB role/RLS needs DB admin credentials and a Render env change; dead schema columns not dropped. Phase 8 landing and Phase 9 handoff remain.

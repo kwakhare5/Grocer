@@ -1,5 +1,5 @@
-Goal: Phase 9 handoff; Vercel deploy; live phone proof session. No paid order. Render env unchanged.
-Shipped: main is the only branch (old history in tags legacy-main-2026-10-28 and legacy-codex-2026-10-28; old v2.0.0/checkpoint-working tags deleted). Product renamed to Grocer everywhere, journal included. Render deploys main; CI is green. Ruff 0.17.3 findings fixed and pinned. README plus quality and keep-warm workflows added.
-Passing tests: ruff 0.17.3 clean; 142 offline; full verify.ps1 -Db result in the latest JOURNAL card. CI green on the latest code push; Render /health 200 after deploy.
-Next action: set NEXT_PUBLIC_WHATSAPP_NUMBER in Vercel, switch its production branch to main, deploy, then run the Phase 9 WhatsApp non-payment proofs from a real phone and paste the results.
+Goal: Phase 9 handoff and a live phone proof session. No paid order. Render env unchanged.
+Shipped: main is the only branch (old history in tags legacy-main-2026-10-28 and legacy-codex-2026-10-28). Product renamed to Grocer everywhere. Render deploys main and is healthy. Landing page is live at https://grocerr.vercel.app with the WhatsApp CTA enabled (NEXT_PUBLIC_WHATSAPP_NUMBER set in Vercel production; the number is not in the repo). CI green.
+Passing tests: ruff 0.17.3 clean; verify.ps1 -Db exit 0 (142 offline + 66 DB, 228 collected, Next build pass). CI green on the latest pushes; Render /health 200.
+Next action: run the Phase 9 WhatsApp non-payment proofs from a real phone and paste the results. Tap the site CTA once to confirm it opens the chat.
 Unproven: live 24h TTL, OAuth reconnect after PKCE move, reaction draw, recipe route/tap/typed pick, double-text, long basket, coupon savings, bill (needs a past order), report filing, store-open, blue ticks, address add/delete, Gate 2 cases 7–8. Checkout stays simulated; no order will be placed.

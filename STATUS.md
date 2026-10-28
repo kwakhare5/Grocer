@@ -72,6 +72,7 @@
 | Live deploy 50fc967 | **PASS 2026-10-28:** pushed `b03573c..50fc967` to the branch then in use (now `main`); Render deploy `dep-dbgugmi9lscs7394rr80` built that commit and reached `live`. `GET https://grocer-backend-qwk4.onrender.com/health` → HTTP 200 `{"status":"healthy","database":"connected","app":"Grocer","environment":"development"}`. No env var was changed. |
 | Repo and CI cleanup | **DONE 2026-10-28:** `main` and the old working branch had unrelated histories, so `main` was replaced by the current tree (`git push --force-with-lease`), not merged; old tips are kept as tags `legacy-main-2026-10-28` and `legacy-codex-2026-10-28`. `codex/full-whatsapp-recovery`, `feat/architecture-v1`, `redesign`, and the old working branch are deleted; `main` is the only branch. Old `v2.0.0` and `checkpoint-working` tags were deleted on 2026-10-28. Renamed the product from the old v1 label to "Grocer" in code headers, docs, package name, journal headings, and the env template; old branch names in journal lines now read `main`. Added `README.md` and two workflows (`quality.yml`, `keep_warm.yml`). The first CI run failed because CI installed ruff 0.17.3 while the local gate ran 0.16.6; 0.17.3 flagged seven `datetime.UTC` style findings, which were fixed, and `requirements.txt` now pins `ruff==0.17.3`. Proof: run 40688131830 backend failed on lint; the runs for `42d5b56`, `da5853a`, and `c4ea0a3` have backend and frontend `success`; local ruff 0.17.3 passes. |
 | Live deploy 42d5b56 | **PASS 2026-10-28:** Render service branch changed to `main`; auto-deploy on commit. Deploy `dep-dbguma942hec739cfba0` for `42d5b56` is `live`; `/health` is 200 with `database: connected`. No env var was changed. |
+| Landing page live | **PASS 2026-10-28:** `https://grocerr.vercel.app` serves the new page (HTTP 200). `NEXT_PUBLIC_WHATSAPP_NUMBER` was added to Vercel production only and the site redeployed; the built page now has 3 `wa.me` links and no disabled note. The number is never committed; it lives only in the Vercel env. A phone tap on the CTA is still unproven. |
 | Production readiness | **No.** |
 | Current gate | **Gate 2 — Concierge Answers.** 6 of 8 pass; 1 partial (reorder needs a past order); 1 code-complete but not tapped live ("milk" now auto-picks with a working Change button, discretionary items show choices). See §2. |
 
@@ -241,7 +242,7 @@ RuntimeError: Refusing to run tests against database 'postgres'. TEST_DATABASE_U
 
 ## 8. Next Action
 
-**Where we are (2026-10-28).** Phases 0, 1, 3, 4 and 5 are done. Phase 2 is done after the 40/40 live rerun with latency recorded. Phase 6 is done in code: DPDP, `grocer_app`, dead columns, and durable PKCE state. Phase 7 is code-complete. Phase 8 is built in code (Vercel deploy pending); Phase 9 handoff remains. The last full gate is green: 142 offline + 66 DB, 228 collected; live router eval 40/40, avg 1574ms, p95 2265ms. `main` is the only branch and Render deploys it; the datetime fix shipped in `f3350f3`, and `/health` was 200 on the docs pushes after it. GitHub Actions is green on `42d5b56`, `da5853a`, and `c4ea0a3`. The old unrelated history is preserved as tags `legacy-main-2026-10-28` and `legacy-codex-2026-10-28`.
+**Where we are (2026-10-28).** Phases 0, 1, 3, 4 and 5 are done. Phase 2 is done after the 40/40 live rerun with latency recorded. Phase 6 is done in code: DPDP, `grocer_app`, dead columns, and durable PKCE state. Phase 7 is code-complete. Phase 8 is live on Vercel with the WhatsApp CTA enabled; Phase 9 handoff remains. The last full gate is green: 142 offline + 66 DB, 228 collected; live router eval 40/40, avg 1574ms, p95 2265ms. `main` is the only branch and Render deploys it; the datetime fix shipped in `f3350f3`, and `/health` was 200 on the docs pushes after it. GitHub Actions is green on `42d5b56`, `da5853a`, and `c4ea0a3`. The old unrelated history is preserved as tags `legacy-main-2026-10-28` and `legacy-codex-2026-10-28`.
 
 **Phase 7 backlog — code-complete; live proofs open.**
 
@@ -290,7 +291,7 @@ Run in this order. Do not press Pay; checkout stays locked.
 
 1. ~~Commit and push the current tree after Karan approves.~~ DONE 2026-10-28: `main` replaced the old history; live commit `42d5b56`.
 2. ~~Render deploy: wait for `/health` 200.~~ DONE 2026-10-28: service branch is `main`; deploy `dep-dbguma942hec739cfba0` for `42d5b56` is `live`; `/health` is 200 with `database: connected`. Still open: one live read from the bot (`what's in my basket`) and a live reaction/blue-tick check on a real wamid. No env changes.
-3. Vercel: set `NEXT_PUBLIC_WHATSAPP_NUMBER`, deploy, open the page at 360px and desktop, and confirm the CTA opens the real chat.
+3. ~~Vercel: set `NEXT_PUBLIC_WHATSAPP_NUMBER` and deploy.~~ DONE 2026-10-28: production env set, site redeployed; `grocerr.vercel.app` returns 200 with 3 `wa.me` links and no disabled note. Still open: tap the CTA from a phone and confirm it opens the chat.
 4. WhatsApp, non-payment:
    - `1 litre milk` → receipt plus one reaction.
    - `what's in my basket` → full basket.

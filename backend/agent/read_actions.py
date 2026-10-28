@@ -83,13 +83,61 @@ async def _item_info(decision: RoutingDecision, client: SwiggyClient, address_id
     return "\n".join(lines)
 
 
+async def _order_bill(decision: RoutingDecision, client: SwiggyClient) -> str:
+    order_id = (decision.order_ref or "").strip()
+    if order_id.lower() in {"", "last"}:
+        data = await asyncio.to_thread(
+            client.get_orders, count=1, order_type="INSTAMART", active_only=False
+        )
+        if not data.orders:
+            return "You have no Instamart orders in the last 15 days, so there's no bill."
+        order_id = data.orders[0].orderId
+
+    try:
+        details = await asyncio.to_thread(client.get_order_details, order_id)
+    except (httpx.HTTPError, ValueError, KeyError, RuntimeError):
+        return (
+            f"I couldn't find a bill for order #{order_id}. "
+            "Check the order number and try again."
+        )
+
+    lines = [
+        f"📦 *Bill for order #{details.orderId}*",
+        f"Status: {details.status}",
+    ]
+    for item in details.items[:12]:
+        price = format_paise_to_rupees(round(item.finalPrice * 100))
+        mark = " (removed)" if item.removed else ""
+        lines.append(f"• {item.name} x{item.quantity} — {price}{mark}")
+    bill = details.bill or {}
+    for line in (bill.get("lineItems") or [])[:10]:
+        lines.append(f"*{line.get('name')}:* ₹{line.get('amount')}")
+    grand_total = bill.get("grandTotal")
+    if grand_total:
+        lines.append(f"*Total: ₹{grand_total}*")
+    else:
+        lines.append(f"*Total: {format_paise_to_rupees(details.total_bill_paise)}*")
+    if details.hasRefunds:
+        lines.append("This order has refunds.")
+    return "\n".join(lines)
+
+
+def _placed_order_add() -> str:
+    return (
+        "Once an order is placed, Swiggy locks it, so I can't add anything to it. "
+        "I can put that item in a new basket and you can place a separate order. "
+        "Send the item whenever you're ready."
+    )
+
+
 async def _store_info(client: SwiggyClient, address_id: str | None) -> str:
     cart = await asyncio.to_thread(client.get_cart, address_id)
     if not cart.items:
         return (
+            "I can't see an open/closed flag for the store. Add an item and I'll "
+            "tell you whether the store accepts it.\n\n"
             "Swiggy doesn't share the dark store name or a delivery window before "
-            "an order is placed.\n\n"
-            "Add items to your basket and I can show the exact delivery fee and total."
+            "an order is placed."
         )
 
     lines = ["*Your current delivery quote:*"]
@@ -97,8 +145,9 @@ async def _store_info(client: SwiggyClient, address_id: str | None) -> str:
         lines.append(f"• {line.label}: {line.value}")
     lines.append(f"*To pay: {cart.billBreakdown.toPay.value}*")
     lines.append(
-        "\nSwiggy doesn't share the dark store name or a delivery window before "
-        "an order is placed."
+        "\nItems are adding to your basket right now, so the store is taking "
+        "orders. Swiggy doesn't share the dark store name or a delivery window "
+        "before an order is placed."
     )
     return "\n".join(lines)
 
@@ -333,6 +382,10 @@ async def build_read_reply(
             return ReadReply(text, buttons, plan)
         if decision.capability is Capability.ORDER_HISTORY:
             return ReadReply(await _order_history(client))
+        if decision.capability is Capability.ORDER_BILL:
+            return ReadReply(await _order_bill(decision, client))
+        if decision.capability is Capability.PLACED_ORDER_ADD:
+            return ReadReply(_placed_order_add())
         if decision.capability is Capability.TRACK_ORDER:
             return ReadReply(await _track_order(decision, client, coords))
         if decision.capability is Capability.PAYMENT_OPTIONS:

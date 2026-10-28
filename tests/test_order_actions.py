@@ -123,3 +123,17 @@ async def test_apply_reorder_reports_coupon_savings(client, monkeypatch):
     reply = await apply_reorder(client, ADDRESS_ID, f"order:{ORDER_ID}")
 
     assert "Coupon SAVE10: you save ₹1." in reply.text
+
+
+@pytest.mark.asyncio
+async def test_report_issue_files_with_swiggy_and_shares_the_reference(client):
+    from backend.agent.order_actions import handle_report_issue
+
+    decision = FakeDecision(order_ref="last")
+    decision.issue = "milk was missing from the bag"
+
+    reply = await handle_report_issue(decision, client)
+
+    assert "Reported to Swiggy for order #189456789012" in reply.text
+    assert "REP-20261025-XYZ123" in reply.text
+    assert "builders@swiggy.in" in reply.text

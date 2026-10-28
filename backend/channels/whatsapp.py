@@ -314,13 +314,16 @@ async def handle_webhook(
                         "WHERE id = $1;",
                         inbound_id,
                     )
-                    await wa_client.send_text_message(
-                        to_wa_id=msg.sender_wa_id,
-                        text=(
-                            "You're sending messages too fast. Give me a few minutes, "
-                            "then try again."
-                        ),
-                    )
+                    # One warning per hour, then silent drops: a spammer must not
+                    # turn the bot into an outbound message amplifier.
+                    if int(recent_count or 0) == MAX_MESSAGES_PER_HOUR + 1:
+                        await wa_client.send_text_message(
+                            to_wa_id=msg.sender_wa_id,
+                            text=(
+                                "You're sending messages too fast. Give me a few minutes, "
+                                "then try again."
+                            ),
+                        )
                     results.append(
                         {"status": "rate_limited", "wa_message_id": msg.wa_message_id}
                     )

@@ -878,3 +878,11 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: no production code changed. Added `test_a_read_turn_stores_exactly_one_user_and_one_assistant_entry` to guard the extracted read path, and made both webhook payload helpers mint a fresh number per call.
 - **Proof**: focused files 66 passed; full suite run twice back to back on the same database -> 222 passed, 20 deselected both times; ruff clean.
 - **Still broken**: move 4 (the add path) is still a closure; no live run yet.
+
+### [GROCER — why the live run fails] 2026-10-29
+
+#### Work Card: The live blocker measured, not guessed
+- **Problem**: the live scorecard returned the AI-offline copy on every case, and the cause had only been guessed at.
+- **Change**: none in code. Queried Groq directly with the real router prompt.
+- **Proof**: `429` body `on tokens per day (TPD): Limit 200000, Used 198816, Requested 1998`, `retry-after: 352`; a 72-token probe still returns `200` with `x-ratelimit-remaining-tokens: 7927`. So the key is valid, 1,184 daily tokens remain, and one router call needs ~2,000. The app caps its wait at 60s and its turn budget at 8s, so it fails fast and answers honestly.
+- **Still broken**: no live score until enough of the daily quota rolls off; the branch is unmerged.

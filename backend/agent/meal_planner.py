@@ -1,4 +1,4 @@
-"""Grocer v1.0 — Recipe plan, confirmed before any write (ADR 0009).
+"""Grocer — Recipe plan, confirmed before any write (ADR 0009).
 
 The model names the dish, the people count and the amount of each ingredient.
 Python searches the live store, turns amounts into whole packs, prices the plan

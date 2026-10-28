@@ -1,4 +1,4 @@
-# TASKS.md — Grocer v1 Fix Plan
+# TASKS.md — Grocer Fix Plan
 
 > **Goal:** Swiggy Instamart on WhatsApp. Chat is the front door to everything the Instamart MCP allows.  
 > **Scope bar:** all 20 tools in `ARCHITECTURE.md` §4 are reachable by chat or get an honest "not supported" reply. `PRD.md` §3 journeys are examples, not a checklist.  

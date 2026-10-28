@@ -1,5 +1,5 @@
 -- ==============================================================================
--- Grocer v1.0 — Phase 7: Stored recipe plan awaiting a tap (ADR 0009)
+-- Grocer — Phase 7: Stored recipe plan awaiting a tap (ADR 0009)
 -- ==============================================================================
 
 -- The exact priced plan shown in chat lives here until it is confirmed, a new

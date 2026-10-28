@@ -1,4 +1,4 @@
-"""Grocer v1.0 — Swiggy Instamart Pydantic Contract Schemas.
+"""Grocer — Swiggy Instamart Pydantic Contract Schemas.
 
 Strictly typed models for all 20 Swiggy Instamart MCP tools based on
 official Swiggy Builders Club specifications (JSON-RPC 2.0 / MCP).

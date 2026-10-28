@@ -1,4 +1,4 @@
-"""Grocer v1.0 — Candidate Evaluator (one LLM brain).
+"""Grocer — Candidate Evaluator (one LLM brain).
 
 Evaluates user queries against dark-store candidate items. The LLM goes through
 `backend.agent.llm.complete_json`, never a provider SDK directly.

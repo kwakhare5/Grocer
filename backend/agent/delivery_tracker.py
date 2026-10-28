@@ -1,4 +1,4 @@
-"""Grocer v1.0 — Milestone-Only Delivery Notification Dispatcher.
+"""Grocer — Milestone-Only Delivery Notification Dispatcher.
 
 Enforces:
 1. 3 discrete delivery milestones: Confirmed, Picked Up, Delivered.

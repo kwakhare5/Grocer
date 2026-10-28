@@ -1,4 +1,4 @@
-"""Grocer v1.0 — Outbound Meta WhatsApp Cloud API Client.
+"""Grocer — Outbound Meta WhatsApp Cloud API Client.
 
 Transmits messages, interactive reply buttons, and CTA URL buttons
 to customer phones adhering to DESIGN.md.

@@ -1,4 +1,4 @@
-# Product Journal — Grocer v1.0 Clean-Slate
+# Product Journal — Grocer
 
 A chronological record of project milestones, architectural decisions, and verification proof. This file is append-only.
 
@@ -718,3 +718,11 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: migrations now run on a separate owner connection, and the app pool refuses to start without `grocer_app` (no fallback, parameterized `set_config`). Migration 009 revokes ledger writes; 010 restores SELECT so the app can still verify tables. Startup waits at most 5s, then serves with `/health` 503 and retries with backoff. `/health` checks both core tables. PKCE consume deletes expired rows; the scrub prunes expired states. The router rule now separates placed-order ETA from new-basket delivery. The eval p95 uses nearest-rank. The page shows Swiggy `?error=` returns, keeps `code/state` on failure for a reload, and no longer marks tracking Live.
 - **Proof**: `verify_db.py` exit 0 (9 tables, `grocer_app`, no CREATE, no ledger INSERT); DB suite 66 passed; offline 142 passed; real dead-DB subprocess test; live router rerun 40/40, avg 1574ms, p95 2265ms, max 3422ms. Raw: `.scratch/eval_router_20261028_reviewfix.json`. Also fixed a flaky link-token tamper test that could change nothing when the signature already ended in `0`.
 - **Still broken**: live 24h TTL, live OAuth reconnect, handset proofs, Vercel deploy, Phase 9. Changes are uncommitted.
+
+### [GROCER v1 — Deploy 50fc967] 2026-10-28
+
+#### Work Card: The reviewed tree is live
+- **Problem**: the review fixes and Phase 8 page were committed to local history only; Render was still serving `09b5fa2`.
+- **Change**: pushed `b03573c..50fc967` to `origin/grocer-v1`. No env var was changed. `STATUS.md` and `.scratch/HANDOFF.md` now record the live commit and the remaining handoff steps.
+- **Proof**: `git log -1` → `50fc967`; push accepted by `origin/grocer-v1`; Render deploy `dep-dbgugmi9lscs7394rr80` reached `live` on `50fc967`; `GET /health` → HTTP 200 `{"status":"healthy","database":"connected","app":"Grocer","environment":"development"}`.
+- **Still broken**: no live bot read since the deploy; reactions/blue ticks unproven on a real wamid; Vercel env/deploy and the Phase 9 handset proofs are Karan's; checkout stays locked and no order will be placed.

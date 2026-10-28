@@ -1,5 +1,5 @@
 -- ==============================================================================
--- Grocer v1.0 — Phase 6: Privacy hardening and data guards
+-- Grocer — Phase 6: Privacy hardening and data guards
 -- ==============================================================================
 
 -- 1. updated_at must move on every update, not only when code remembers.

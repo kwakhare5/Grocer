@@ -1,4 +1,4 @@
-"""Grocer v1.0 — Deterministic Inbound Command Router (Layer 1 -> Layer 4).
+"""Grocer — Deterministic Inbound Command Router (Layer 1 -> Layer 4).
 
 Decouples deterministic administrative and privacy commands (e.g., 'delete my data')
 from the raw transport webhook ingress.

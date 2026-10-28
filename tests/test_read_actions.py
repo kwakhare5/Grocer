@@ -1,4 +1,4 @@
-"""Grocer v1.0 — Read Capability Tests (offline, fixture-backed).
+"""Grocer — Read Capability Tests (offline, fixture-backed).
 
 Covers the Gate 2 answers that do not need a live account: honest store info,
 real tracking with and without map coordinates, and tappable choices for a

@@ -1,4 +1,4 @@
-"""Grocer v1.0 — Phase 5 account and address lifecycle.
+"""Grocer — Phase 5 account and address lifecycle.
 
 Runs on PostgreSQL. The Swiggy boundary is a scripted client so store-specific
 behavior (an item missing at the new address, an active delivery) can be forced;

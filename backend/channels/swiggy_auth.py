@@ -1,4 +1,4 @@
-"""Grocer v1.0 — Swiggy OAuth 2.1 PKCE Flow, Callback and Parked Replay.
+"""Grocer — Swiggy OAuth 2.1 PKCE Flow, Callback and Parked Replay.
 
 Endpoints:
 - POST /api/auth/swiggy/login: initiates PKCE from a signed bot link, returns authorizeUrl

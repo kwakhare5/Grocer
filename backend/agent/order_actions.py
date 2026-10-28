@@ -1,4 +1,4 @@
-"""Grocer v1.0 — Reorder from Past Orders or Usual Items (ADR 0012).
+"""Grocer — Reorder from Past Orders or Usual Items (ADR 0012).
 
 Rebuilding a basket is a write, so the customer sees the exact items and prices
 first. The confirmation tap re-resolves live stock and prices, then verifies the

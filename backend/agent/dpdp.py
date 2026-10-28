@@ -1,4 +1,4 @@
-"""Grocer v1.0 — DPDP Compliance & 24-Hour Data Minimization (Layer 4).
+"""Grocer — DPDP Compliance & 24-Hour Data Minimization (Layer 4).
 
 Enforces:
 1. 24-Hour Scrubber: Purges raw inbound WhatsApp payloads, receipt snapshots,

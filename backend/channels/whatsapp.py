@@ -1,4 +1,4 @@
-"""Grocer v1.0 — WhatsApp Cloud API Webhook Route & Ingestion Shield."""
+"""Grocer — WhatsApp Cloud API Webhook Route & Ingestion Shield."""
 
 from __future__ import annotations
 

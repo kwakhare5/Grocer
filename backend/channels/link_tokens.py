@@ -1,4 +1,4 @@
-"""Grocer v1.0 — Signed OAuth Link Tokens.
+"""Grocer — Signed OAuth Link Tokens.
 
 The bot sends the link, so the link itself proves which WhatsApp number is
 logging in. The landing page can no longer name an arbitrary phone number.

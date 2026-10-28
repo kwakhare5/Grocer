@@ -1,4 +1,4 @@
-"""Grocer v1.0 — App queries run as the least-privilege database role."""
+"""Grocer — App queries run as the least-privilege database role."""
 
 from __future__ import annotations
 

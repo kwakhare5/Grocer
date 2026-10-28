@@ -1,4 +1,4 @@
-"""Grocer v1.0 — Inbound WhatsApp Payload Parser & Stale Latch."""
+"""Grocer — Inbound WhatsApp Payload Parser & Stale Latch."""
 
 from __future__ import annotations
 

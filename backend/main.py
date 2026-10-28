@@ -1,4 +1,4 @@
-"""Grocer v1.0 — FastAPI Application Setup & Channel Routing."""
+"""Grocer — FastAPI Application Setup & Channel Routing."""
 
 from __future__ import annotations
 

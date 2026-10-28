@@ -1,4 +1,4 @@
-"""Grocer v1.0 — Command-Line Verification & Test Driver.
+"""Grocer — Command-Line Verification & Test Driver.
 
 Programmatically drives Grocer the way a real WhatsApp customer and Meta Cloud
 API webhook does: HMAC-SHA256 signing, interactive button taps, GPS pins, and
@@ -253,7 +253,7 @@ async def inspect_db_state(wa_id: str) -> None:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Grocer v1.0 Test Driver & Verifier")
+    parser = argparse.ArgumentParser(description="Grocer Test Driver & Verifier")
     subparsers = parser.add_subparsers(dest="cmd")
 
     doc_p = subparsers.add_parser("doctor")

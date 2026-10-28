@@ -1,4 +1,4 @@
-"""Grocer v1.0 — Capability Router & Safety Class Tests (ADR 0012).
+"""Grocer — Capability Router & Safety Class Tests (ADR 0012).
 
 Pure-function tests: no LLM call, no database, no Swiggy. The live routing
 behaviour is graded separately by scripts/eval_router.py.

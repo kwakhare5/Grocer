@@ -1,4 +1,4 @@
-"""Grocer v1.0 — Contract Schema Tests Against Committed Staging Fixtures.
+"""Grocer — Contract Schema Tests Against Committed Staging Fixtures.
 
 Validates that Pydantic contract schemas accurately parse real Swiggy MCP tool responses
 for all 20 Instamart tools. Zero fake mocks; 100% ground-truth schema verification.
@@ -299,11 +299,11 @@ def test_fixture_report_error():
 
 # Invariant: Zero mocks present in tests or schemas
 def test_zero_mocks_invariant():
-    """Prove that MockCommerceAdapter or any mock classes do not exist in Grocer v1.0."""
+    """Prove that MockCommerceAdapter or any mock classes do not exist in Grocer."""
     from backend.integrations import commerce
 
     assert not hasattr(commerce, "MockCommerceAdapter"), (
-        "MockCommerceAdapter must never exist in Grocer v1.0"
+        "MockCommerceAdapter must never exist in Grocer"
     )
 
 

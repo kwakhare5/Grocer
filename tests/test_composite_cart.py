@@ -1,4 +1,4 @@
-"""Grocer v1.0 — Phase 3 Composite Cart & Commerce Engine Tests.
+"""Grocer — Phase 3 Composite Cart & Commerce Engine Tests.
 
 Strictly verified against committed real Swiggy MCP staging fixtures. Zero fake mocks.
 """

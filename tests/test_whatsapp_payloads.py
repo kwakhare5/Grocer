@@ -1,4 +1,4 @@
-"""Grocer v1.0 — Outbound WhatsApp payload shape (no network)."""
+"""Grocer — Outbound WhatsApp payload shape (no network)."""
 
 from __future__ import annotations
 

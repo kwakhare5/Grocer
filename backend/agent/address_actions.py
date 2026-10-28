@@ -1,4 +1,4 @@
-"""Grocer v1.0 — Address Switch and Delete (ADR 0012, account safety class).
+"""Grocer — Address Switch and Delete (ADR 0012, account safety class).
 
 Switching changes which dark store serves the customer, so it warns when a
 basket exists. Deleting is irreversible, so it needs a second, explicit tap and

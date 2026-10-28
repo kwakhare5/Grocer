@@ -1,4 +1,4 @@
-"""Grocer v1.0 — Database Verification Helper."""
+"""Grocer — Database Verification Helper."""
 import asyncio
 import sys
 from pathlib import Path

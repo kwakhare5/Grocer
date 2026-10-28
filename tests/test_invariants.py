@@ -1,4 +1,4 @@
-"""Grocer v1.0 — AST Architectural Safety Invariant Tests.
+"""Grocer — AST Architectural Safety Invariant Tests.
 
 Enforces structural guarantees at AST analysis level:
 1. No float formatting in currency calculations (integer paise strictly).

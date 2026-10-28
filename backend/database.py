@@ -1,4 +1,4 @@
-"""Grocer v1.0 — Database Connection Pooling & Advisory Lock Management.
+"""Grocer — Database Connection Pooling & Advisory Lock Management.
 
 Manages asyncpg connection pool to PostgreSQL (Supabase) with strict SSL,
 connection pooling, advisory locking for per-user concurrency, and migration execution.

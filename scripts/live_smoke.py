@@ -1,4 +1,4 @@
-"""Grocer v1.0 — Live smoke test against the real Swiggy MCP and Groq.
+"""Grocer — Live smoke test against the real Swiggy MCP and Groq.
 
 Manual, live, and read-only for the account except for one cart add/restore.
 It never calls checkout. The checkout stage only proves the deploy lock stops

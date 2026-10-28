@@ -1,5 +1,5 @@
 -- ==============================================================================
--- Grocer v1.0 — Gate 2.1: Per-Order Delivery Milestone Latch
+-- Grocer — Gate 2.1: Per-Order Delivery Milestone Latch
 -- ==============================================================================
 
 -- One key per order and milestone ("<orderId>:<milestone>"). Split orders have

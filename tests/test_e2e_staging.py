@@ -1,4 +1,4 @@
-"""Grocer v1.0 — Phase 5 End-to-End Staging Smoke Test Suite.
+"""Grocer — Phase 5 End-to-End Staging Smoke Test Suite.
 
 Validates the complete production-hardened lifecycle:
 1. Bounded coupon trial-and-reset (max 2 applicable coupons; net savings check).

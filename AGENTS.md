@@ -1,4 +1,4 @@
-# AGENTS.md — Grocer v1.0 Working Rules & Pair Programming Contract
+# AGENTS.md — Grocer Working Rules & Pair Programming Contract
 
 > **MANDATORY INSTRUCTION:** Read and obey the global master rules at C:\Users\kwakh\.agents\AGENTS.md. Treat this file as project-specific facts and invariants that override or extend global rules.
 
@@ -37,7 +37,7 @@ These are facts, not preferences. Do not re-ask or silently change them.
 
 ---
 
-## 2. Universal Non-Negotiables for Grocer v1
+## 2. Universal Non-Negotiables for Grocer
 
 > These are rules and targets. Current implementation status is in `STATUS.md`; do not assume a rule is implemented.
 

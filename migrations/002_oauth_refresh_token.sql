@@ -1,5 +1,5 @@
 -- ==============================================================================
--- Grocer v1.0 — Gate 1: Refresh Token Vault, Customer Name & Delivery Coordinates
+-- Grocer — Gate 1: Refresh Token Vault, Customer Name & Delivery Coordinates
 -- ==============================================================================
 
 -- 1. Durable refresh token (AES-256-GCM, rotated on every /auth/token refresh)

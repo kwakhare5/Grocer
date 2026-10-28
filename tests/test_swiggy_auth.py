@@ -1,4 +1,4 @@
-"""Grocer v1.0 — Swiggy OAuth 2.1 & Token Vault Tests.
+"""Grocer — Swiggy OAuth 2.1 & Token Vault Tests.
 
 Tests:
 1. Token Vault AES-256-GCM encryption and decryption round-trip.

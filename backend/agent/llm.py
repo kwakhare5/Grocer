@@ -1,4 +1,4 @@
-"""Grocer v1.0 — Provider-Agnostic LLM Adapter (ADR 0012).
+"""Grocer — Provider-Agnostic LLM Adapter (ADR 0012).
 
 One JSON-mode completion call. Callers never talk to a provider directly, and
 no provider is allowed to call Swiggy. Swapping the brain is an env change.

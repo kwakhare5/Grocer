@@ -1,4 +1,4 @@
-"""Grocer v1.0 — Standalone Database Migration Runner.
+"""Grocer — Standalone Database Migration Runner.
 
 Executes pending SQL migrations against Supabase PostgreSQL and verifies table creation.
 """

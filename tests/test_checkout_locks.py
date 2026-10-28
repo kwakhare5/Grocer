@@ -1,4 +1,4 @@
-"""Grocer v1.0 — Phase 4 3-Lock Payment Safety Gate & Checkout Test Suite.
+"""Grocer — Phase 4 3-Lock Payment Safety Gate & Checkout Test Suite.
 
 Strictly verified against committed real Swiggy MCP staging fixtures and live Supabase PostgreSQL.
 Enforces:

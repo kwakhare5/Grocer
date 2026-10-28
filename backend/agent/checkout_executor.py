@@ -1,4 +1,4 @@
-"""Grocer v1.0 — 3-Lock Payment Safety Gate & Checkout Executor.
+"""Grocer — 3-Lock Payment Safety Gate & Checkout Executor.
 
 Enforces:
 1. Lock 1 (Authority): Physical button tap only (`pay:<approval_id>`); text "yes" strictly rejected.

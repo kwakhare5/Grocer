@@ -1,4 +1,4 @@
-"""Grocer v1.0 — Coupon guard: savings never change the basket."""
+"""Grocer — Coupon guard: savings never change the basket."""
 
 from __future__ import annotations
 

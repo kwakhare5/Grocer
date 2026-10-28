@@ -1,4 +1,4 @@
-"""Grocer v1.0 — WhatsApp webhook plumbing.
+"""Grocer — WhatsApp webhook plumbing.
 
 Runs on PostgreSQL with a scripted Swiggy boundary and a recording outbound
 client. It proves the exact JSON Meta posts for a button tap reaches the right

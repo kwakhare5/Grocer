@@ -10,7 +10,7 @@
 
 | Item | Current fact |
 |---|---|
-| Git branch | `main` is the deploy branch and deploys Render and Vercel. A local `simplify-basket` branch is under test on 2026-10-28; it is not pushed or deployed. |
+| Git branch | `main` is the only branch and deploys Render and Vercel. The size-aware basket changes merged 2026-10-28 as `2c63289`. |
 | Supabase | One project until launch. App data lives in the `postgres` database, schema `grocer` (8 app tables + `schema_migrations`). Both the app database and `grocer_test` are migrated through 010 (app DB applied 2026-10-28; `schema_migrations` lists 001–010). |
 | LLM | Groq `openai/gpt-oss-120b` is primary for development and tests. Gemini is optional and its free quota is not a dependency. |
 | Swiggy auth | Allowlisted OAuth redirect: `https://grocerr.vercel.app/`. Backend calls `https://mcp.swiggy.com/im` with the customer token. |
@@ -34,12 +34,14 @@
 | Doc truth pass | **DONE 2026-10-28:** corrected pre-Batch-3 claims in ARCHITECTURE Layer 2/4, DESIGN A2/A6/A8/A9, PRD payment, GLOSSARY fee term, ADR index rows 0003–0006/0009, STATUS counts/constraints/next action, and the verify-grocer skill. No code changed. |
 | Landing page (Phase 8) | **DONE 2026-10-28, live:** rebuilt per `DESIGN.md` Part B in plain language for customers and the Swiggy team. Live/in-testing labels, safety, privacy, Swiggy strip and FAQ; no fake uptime or test numbers. OAuth card only for `?t=` or callback. `npm run build` pass; checked at 1440px and real 360px emulation with no overflow. Vercel production is live with 3 `wa.me` links and 0 disabled notes. |
 | Lint | **PASS 2026-10-28:** `ruff check backend tests` → `All checks passed!` |
-| Offline tests | **PASS 2026-10-28 on `simplify-basket`:** 146 passed, 92 deselected (`pytest -q -m "not live and not db"`). Main baseline: 144. |
-| DB tests | **PASS 2026-10-28 on `simplify-basket`:** 72 passed on `grocer_test` (`pytest -q -m "db"`). Main baseline: 66. |
-| Basket path | **BRANCH 2026-10-28, not merged:** adds always add and increment an existing line; sizes are exact (200 g never becomes 400 g, 500 g never becomes 1 kg); every missing item is named; explicit set applies with a receipt; remove/clear still confirm. Abuse caps: 20 messages/hour/user, 10 items/message, quantity 1–99, media reply. Proof: 146 offline + 72 DB + Next build; exact paneer/rice regression test. |
+| Offline tests | **PASS 2026-10-28:** 146 passed, 92 deselected (`pytest -q -m "not live and not db"`). |
+| DB tests | **PASS 2026-10-28:** 72 passed on `grocer_test` (`pytest -q -m "db"`). |
+| Basket path | **DONE 2026-10-28, merged in `2c63289`:** adds always add and increment an existing line; sizes are exact (200 g never becomes 400 g, 500 g never becomes 1 kg); every missing item is named; explicit set applies with a receipt; remove/clear still confirm. Abuse caps: 20 messages/hour/user, 10 items/message, quantity 1–99, media reply. Proof: 146 offline + 72 DB + Next build; exact paneer/rice regression test. Live route check: 3 cases pass; multi-item, eggs, Hinglish, bare "milk" and remove were blocked by the shared Groq TPM. |
+| Live route check | **PARTIAL 2026-10-28:** on the branch, "add 1 litre milk" → add 1 L; "add 1 more milk" → add 1; "make milk 3" → set 3. The remaining five live wordings were blocked by the shared Groq TPM, not by an error; the fixture tests for those paths pass. |
+| Live deploy 2c63289 | **PASS 2026-10-28:** push `d61b142..2c63289` accepted; Render deploy `dep-dbh0vkavcj2c73e0ghqg` reached `live` on `2c63289`; `GET https://grocer-backend-qwk4.onrender.com/health` → HTTP 200 `{"status":"healthy","database":"connected","app":"Grocer","environment":"development"}`. GitHub Quality run `40712848895` succeeded on `2c63289`. |
 | Live tests | **20 live-only tests collected, not run.** `test_catalog_search.py` calls the live router/model path and is marked `live`. |
 | Full test collection | **238 tests collected 2026-10-28.** |
-| Full suite claim | The old "136 passed, 0 skipped" claim is retired. The current verified set is 142 offline + 66 DB (228 collected, 20 of them live-only); live is excluded by default. Scripted tests are marked `scripted` and never counted as live proof. |
+| Full suite claim | The old "136 passed, 0 skipped" claim is retired. The current verified set is 146 offline + 72 DB (238 collected, 20 of them live-only); live is excluded by default. Scripted tests are marked `scripted` and never counted as live proof. |
 | Live Swiggy smoke | **PASS 2026-10-27:** real token, real MCP. 3 addresses, 20 milk products with live prices, 12-item cart read, 0 orders, 10 payment methods, 0 coupons. Cart add verified then restored (12 items, same spins and quantities). No order placed. Raw: `scripts/live_smoke.py`. |
 | Live Groq pass | **PASS 2026-10-27:** 10 real messages → 10 correct routes (item_info ×3, list_addresses, order_history, list_coupons, payment_options, add_items, chat, track_order) with real read answers. 55s. |
 | Live checkout lock | **PASS 2026-10-27:** with `LIVE_CHECKOUT_ENABLED=false`, the real path returned "Checkout is locked" and a sentinel client proved no Swiggy method ran. |
@@ -268,7 +270,7 @@ RuntimeError: Refusing to run tests against database 'postgres'. TEST_DATABASE_U
 
 **After Phase 7:** Phase 6 is done in code (DPDP scrub/delete, `grocer_app` role, dead columns, durable PKCE state, lazy boot, integer paise). Live 24h TTL proof is pending. Phase 8 is built in code; the Vercel deploy is pending. Phase 9 handoff remains. No live order during the build.
 
-**Open proofs:** reactions drawn on a real handset (direct Meta call returns 200; simulated wamids cannot be reacted to); live Groq route for "make pizza for 5" and a live Add-all tap; live Change-item tap; blue ticks/typing with a real wamid; live address add/delete; Gate 2 case 7 (needs a past order) and case 8 (live tap); live 24-hour scrub after real traffic; multi-item add completeness (rice omitted, duplicate paneer SKU); Groq free-tier daily cap behavior. Re-run the full gate at launch.
+**Open proofs:** reactions drawn on a real handset (direct Meta call returns 200; simulated wamids cannot be reacted to); live Groq route for "make pizza for 5" and a live Add-all tap; live Change-item tap; blue ticks/typing with a real wamid; live address add/delete; Gate 2 case 7 (needs a past order) and case 8 (live tap); live 24-hour scrub after real traffic; live multi-item/Hinglish router wording (the fixture proof passes; the shared Groq TPM blocked the live check); Groq free-tier daily cap behavior. Re-run the full gate at launch.
 
 ---
 

@@ -365,7 +365,31 @@ async def test_webhook_status_update_receipt_ignored():
 
 @pytest.mark.db
 @pytest.mark.asyncio
-async def test_webhook_fast_button_dispatch():
+async def test_webhook_fast_button_dispatch(monkeypatch):
+    from backend.channels import whatsapp_client as wa_client_module
+
+    class _NoopWA:
+        def __init__(self, *args: object, **kwargs: object) -> None:
+            pass
+
+        async def mark_read(self, message_id: str) -> None:
+            pass
+
+        async def send_text_message(self, to_wa_id: str, text: str) -> None:
+            pass
+
+        async def send_quick_reply_buttons(
+            self, to_wa_id: str, body_text: str, buttons: list
+        ) -> None:
+            pass
+
+        async def send_reaction(
+            self, to_wa_id: str, message_id: str, emoji: str
+        ) -> None:
+            pass
+
+    monkeypatch.setattr(wa_client_module, "WhatsAppClient", _NoopWA)
+
     transport = ASGITransport(app=app)
     msg_id = f"wamid.button_{int(time.time() * 1000)}"
     payload = _make_whatsapp_message_payload(

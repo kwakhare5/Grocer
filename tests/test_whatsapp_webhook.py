@@ -662,6 +662,7 @@ async def test_expired_plan_numbers_route_normally(monkeypatch):
 
     assert result["status"] == "capability_answered"
     assert client.last_update_items == []
+    assert await _stored_plan(pool, user_id) is None
 
 
 @pytest.mark.asyncio

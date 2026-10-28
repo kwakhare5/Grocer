@@ -82,8 +82,7 @@ def _single_system_prompt(address_count: int) -> str:
         "Return JSON only:\n"
         '{"intent_type": "add_to_basket" | "disambiguation" | "conversational_qa" | '
         '"zero_address_onboarding", "selected_spin_id": string | null, '
-        '"is_vague_staple": boolean, "disambiguation_spin_ids": [string], '
-        '"message": string | null}'
+        '"is_vague_staple": boolean}'
     )
 
 
@@ -325,8 +324,6 @@ def parse_batch_evaluations(
 
     entries = payload.get("items")
     if not isinstance(entries, list):
-        if len(targets) == 1:
-            results[0] = _parse_evaluation(payload, targets[0][1])
         return results
 
     for entry in entries:

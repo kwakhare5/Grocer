@@ -65,6 +65,51 @@ async def send_add_receipt(
     }
 
 
+async def confirm_plan(
+    conn: Any,
+    wa_client: Any,
+    wa_id: str,
+    user_id: Any,
+    active: str | None,
+    client: Any,
+    plan: Any,
+    indexes: list[int] | None = None,
+) -> dict[str, Any]:
+    """Write the confirmed rows of a stored plan, then one payable receipt."""
+    from backend.agent.composite_cart import CompositeCartManager
+    from backend.agent.meal_planner import clear_pending_plan, resolve_plan_items
+
+    items, missing, error = await resolve_plan_items(client, active, plan, indexes)
+    if error or not items:
+        text = error or "Nothing from that plan is in stock right now."
+        await wa_client.send_text_message(to_wa_id=wa_id, text=text)
+        return {"status": "plan_unavailable", "message": text}
+    manager = CompositeCartManager(client)
+    cart_res = await asyncio.to_thread(
+        manager.assemble_and_update_cart,
+        items_to_add=items,
+        address_id=active,
+        auto_optimize_coupons=True,
+    )
+    await clear_pending_plan(conn, user_id)
+    result = await send_add_receipt(
+        conn,
+        wa_client,
+        wa_id,
+        user_id,
+        active,
+        cart_res.cart,
+        "plan_picked" if indexes else "plan_added",
+        "plan:pick" if indexes else "plan:add",
+    )
+    if missing:
+        await wa_client.send_text_message(
+            to_wa_id=wa_id,
+            text="Not at this store right now: " + ", ".join(missing) + ".",
+        )
+    return result
+
+
 async def dispatch_button_action(
     button_id: str,
     wa_id: str,
@@ -199,8 +244,7 @@ async def dispatch_button_action(
 
     # 1b. Meal plan confirmation taps (ADR 0009). The plan is stored, not encoded.
     if prefix == "plan" and target_arg:
-        from backend.agent.composite_cart import CompositeCartManager
-        from backend.agent.meal_planner import plan_items, resolve_plan_items
+        from backend.agent.meal_planner import clear_pending_plan, plan_items
         from backend.channels.whatsapp_client import WhatsAppClient
         from backend.integrations.commerce.swiggy_client import (
             SwiggyAuthExpiredError,
@@ -242,11 +286,7 @@ async def dispatch_button_action(
                 except (json.JSONDecodeError, TypeError, ValueError):
                     plan = None
             if not plan_items(plan) or not fresh:
-                await conn.execute(
-                    "UPDATE grocer.sessions SET pending_plan = NULL, "
-                    "pending_plan_expires_at = NULL WHERE user_id = $1;",
-                    user_id,
-                )
+                await clear_pending_plan(conn, user_id)
                 text = "That plan expired. Ask me to plan the meal again."
                 await wa_client.send_text_message(to_wa_id=wa_id, text=text)
                 return {
@@ -276,37 +316,11 @@ async def dispatch_button_action(
                 client = SwiggyClient(auth_token=user_token)
 
             try:
-                items, _missing, error = await resolve_plan_items(client, active, plan)
-                if error or not items:
-                    text = error or "That plan is not available. Nothing was added."
-                    await wa_client.send_text_message(to_wa_id=wa_id, text=text)
-                    return {
-                        "status": "plan_unavailable",
-                        "action": button_id,
-                        "message": text,
-                    }
-                manager = CompositeCartManager(client)
-                cart_res = await asyncio.to_thread(
-                    manager.assemble_and_update_cart,
-                    items_to_add=items,
-                    address_id=active,
-                    auto_optimize_coupons=True,
+                confirmed = await confirm_plan(
+                    conn, wa_client, wa_id, user_id, active, client, plan
                 )
-                await conn.execute(
-                    "UPDATE grocer.sessions SET pending_plan = NULL, "
-                    "pending_plan_expires_at = NULL WHERE user_id = $1;",
-                    user_id,
-                )
-                return await send_add_receipt(
-                    conn,
-                    wa_client,
-                    wa_id,
-                    user_id,
-                    active,
-                    cart_res.cart,
-                    "plan_added",
-                    button_id,
-                )
+                confirmed.setdefault("action", button_id)
+                return confirmed
             except (
                 ValueError,
                 KeyError,

@@ -174,11 +174,21 @@ def _packs(candidate: CandidateItem, amount: Any, unit: str | None, fallback: in
 def _pick(
     candidates: list[CandidateItem], preferred_spin: str | None = None
 ) -> CandidateItem | None:
+    """The confirmed SKU, never a lookalike. No stored SKU means first in stock."""
     if preferred_spin:
-        for candidate in candidates:
-            if candidate.spin_id == preferred_spin:
-                return candidate
+        return next(
+            (c for c in candidates if c.spin_id == preferred_spin),
+            None,
+        )
     return candidates[0] if candidates else None
+
+
+async def clear_pending_plan(conn: Any, user_id: Any) -> None:
+    await conn.execute(
+        "UPDATE grocer.sessions SET pending_plan = NULL, "
+        "pending_plan_expires_at = NULL WHERE user_id = $1;",
+        user_id,
+    )
 
 
 async def _search_one(
@@ -271,6 +281,15 @@ async def build_meal_plan(
         lines.append(f"Not at this store: {', '.join(missing)}.")
     if capped:
         lines.append("⚠️ " + "; ".join(capped) + ".")
+    extra = (
+        sum(1 for raw in decision.items if str(raw.get("query") or "").strip())
+        - MAX_PLAN_ITEMS
+    )
+    if extra > 0:
+        lines.append(
+            f"⚠️ I planned the first {MAX_PLAN_ITEMS} ingredients. "
+            f"Ask me for the other {extra} separately."
+        )
 
     buttons: list[tuple[str, str]] = [
         ("plan:add", "Add in-stock" if missing else "Add all"),

@@ -173,7 +173,7 @@ sequenceDiagram
   - Unqualified requests (*"milk"*, *"bread"*, *"eggs"*) auto-select the #1 dark-store bestseller and provide a 1-tap `[Change item]` button. Since 2026-10-27 the button works: it searches real alternatives and swaps the old SKU for the chosen one, keeping the quantity and restoring the old item if the swap verify fails.
 - **Basket View:** `view_basket` is a `read` capability that answers from the live `get_cart`, with item count and total. It never writes and never requires an add first. Added 2026-10-27.
 - **Recipe Plans (ADR 0009, in v1 2026-10-27, live in code 2026-10-28):**
-  - Meal requests (*"Aglio Olio for 2"*) propose an ingredient checklist with pack counts, distinguishing fresh items from assumed pantry staples, with buttons: `[Add all]` and `[Let me pick]`. The model names the dish, people count and ingredient packs; Python searches `search_products`, prices each line, and respects `maxQuantity`. Nothing is written before a tap. `Add all` re-checks live stock and writes all ingredients or none. `Let me pick` asks for the item numbers to add.
+  - Meal requests (*"Aglio Olio for 2"*) propose an ingredient checklist with pack counts, distinguishing fresh items from assumed pantry staples, with buttons: `[Add all]` and `[Let me pick]`. The model names the dish, people count and each ingredient's amount and unit; Python searches `search_products`, converts amounts to whole packs from the store's pack size, prices each line, and respects `maxQuantity`. The priced plan is stored in `sessions.pending_plan` for 30 minutes (migration 005). Nothing is written before a tap. `Add all` re-checks live stock and writes all ingredients or none. `Let me pick` accepts taps or a number-shaped reply ("1 and 3"); picks add the chosen in-stock rows and name the rest.
 - **Zero Forced Cart Appends:**
   - If the user asks a question (*"What is my default address?"*, *"Is the store open?"*), the LLM answers conversationally. Python is strictly forbidden from appending old shopping carts.
 
@@ -345,6 +345,8 @@ create table grocer.sessions (
   delivery_longitude double precision,          -- 002
   onboarding_state text,                        -- 002
   onboarding_context jsonb,                     -- 002
+  pending_plan jsonb,                           -- 005 priced recipe plan awaiting a tap
+  pending_plan_expires_at timestamptz,          -- 005 30-minute TTL
   last_active_at timestamptz not null default now()
 );
 

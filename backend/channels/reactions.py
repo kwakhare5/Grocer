@@ -19,6 +19,7 @@ _READ_REACTIONS: dict[str, str] = {
 
 _STATUS_REACTIONS: dict[str, str] = {
     "cart_updated": "🛒",
+    "plan_picked": "🛒",
     "item_choices": "❓",
     "basket_quantity_choice": "❓",
     "location_pin_requested": "📍",

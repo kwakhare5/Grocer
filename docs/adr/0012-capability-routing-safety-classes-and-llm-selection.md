@@ -23,3 +23,6 @@ The conversational layer classified every text into one of four intents: greetin
 - Provider quality becomes measurable and can change without touching the router.
 - Capability growth follows the Swiggy tool surface, never a phrase list.
 - The safe path costs one extra read-only search on unclear messages, never a wrong basket write.
+
+## Amendment 2026-10-28
+Item evaluation is **one batched model call per turn**, not one call per item. The batch prompt returns a result per item index; a missing or invalid entry uses the deterministic rules with no extra model call. Reason: a multi-item add on the free Groq tier ran out of tokens. Routing stays one call, so a 4-item add is 2 model calls, not 5.

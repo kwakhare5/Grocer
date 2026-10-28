@@ -52,8 +52,11 @@ async def run_24h_dpdp_scrubber(conn_or_pool: Any) -> dict[str, int]:
         UPDATE grocer.sessions
         SET history = '[]'::jsonb,
             active_address_id = NULL,
-            one_time_destination_id = NULL
-        WHERE (history != '[]'::jsonb OR active_address_id IS NOT NULL OR one_time_destination_id IS NOT NULL)
+            one_time_destination_id = NULL,
+            pending_plan = NULL,
+            pending_plan_expires_at = NULL
+        WHERE (history != '[]'::jsonb OR active_address_id IS NOT NULL OR one_time_destination_id IS NOT NULL
+               OR pending_plan IS NOT NULL)
           AND last_active_at < now() - interval '24 hours';
         """
     )
@@ -127,6 +130,8 @@ async def handle_delete_my_data(
         SET active_address_id = NULL,
             one_time_destination_id = NULL,
             history = '[]'::jsonb,
+            pending_plan = NULL,
+            pending_plan_expires_at = NULL,
             budget_cap_paise = 100000,
             last_active_at = now()
         WHERE user_id = $1;

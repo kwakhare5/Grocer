@@ -479,7 +479,7 @@ async def handle_webhook(
                 from backend.agent.candidate_evaluator import (
                     ExtractedGroceryItem,
                     IntentType,
-                    evaluate_customer_intent,
+                    evaluate_customer_intents_batch,
                     format_paise_to_rupees,
                 )
                 from backend.agent.candidate_search import search_catalog_full
@@ -498,7 +498,9 @@ async def handle_webhook(
                 ) -> dict[str, Any]:
                     # Resolve active address and past dialogue history
                     session_row = await conn.fetchrow(
-                        "SELECT active_address_id, history, last_active_at FROM grocer.sessions WHERE user_id = $1;",
+                        "SELECT active_address_id, history, last_active_at, "
+                        "pending_plan, (pending_plan_expires_at > now()) AS plan_fresh "
+                        "FROM grocer.sessions WHERE user_id = $1;",
                         user_id,
                     )
                     active_addr_id = (
@@ -541,6 +543,78 @@ async def handle_webhook(
                             address_count = 1 if active_addr_id else 0
                         except (httpx.HTTPError, ValueError, KeyError, RuntimeError) as addr_err:
                             logger.warning("Could not fetch user addresses: %s", addr_err)
+
+                    # 0. A numbered reply to the plan on screen picks items with
+                    # no model call. Only number-shaped text is taken.
+                    pending_plan = session_row["pending_plan"] if session_row else None
+                    if pending_plan and session_row["plan_fresh"] and active_addr_id:
+                        from backend.agent.meal_planner import (
+                            parse_pick_indexes,
+                            plan_items,
+                            resolve_plan_items,
+                        )
+
+                        try:
+                            plan = (
+                                json.loads(pending_plan)
+                                if isinstance(pending_plan, str)
+                                else pending_plan
+                            )
+                        except (json.JSONDecodeError, TypeError, ValueError):
+                            plan = None
+                        rows = plan_items(plan)
+                        indexes = parse_pick_indexes(msg.text, len(rows))
+                        if indexes:
+                            from backend.channels.button_router import (
+                                send_add_receipt,
+                            )
+
+                            items, missing, plan_error = await resolve_plan_items(
+                                turn_client, active_addr_id, plan, indexes
+                            )
+                            if plan_error or not items:
+                                text = (
+                                    plan_error
+                                    or "Nothing from that plan is in stock right now."
+                                )
+                                await wa_client.send_text_message(
+                                    to_wa_id=msg.sender_wa_id, text=text
+                                )
+                                return {
+                                    "status": "plan_unavailable",
+                                    "wa_id": msg.sender_wa_id,
+                                }
+                            cart_mgr = CompositeCartManager(turn_client)
+                            cart_res = await asyncio.to_thread(
+                                cart_mgr.assemble_and_update_cart,
+                                items_to_add=items,
+                                address_id=active_addr_id,
+                                auto_optimize_coupons=True,
+                            )
+                            await conn.execute(
+                                "UPDATE grocer.sessions SET pending_plan = NULL, "
+                                "pending_plan_expires_at = NULL WHERE user_id = $1;",
+                                user_id,
+                            )
+                            receipt = await send_add_receipt(
+                                conn,
+                                wa_client,
+                                msg.sender_wa_id,
+                                user_id,
+                                active_addr_id,
+                                cart_res.cart,
+                                "plan_picked",
+                                None,
+                            )
+                            if missing:
+                                await wa_client.send_text_message(
+                                    to_wa_id=msg.sender_wa_id,
+                                    text="Not at this store right now: "
+                                    + ", ".join(missing)
+                                    + ".",
+                                )
+                            await remember("Added the items you picked from the plan.")
+                            return receipt
 
                     # 1. Capability routing (ADR 0012). Read capabilities are answered
                     # here and can never write. Basket requests continue below.
@@ -647,6 +721,17 @@ async def handle_webhook(
                             user_id,
                             json.dumps(session_history[-12:]),
                         )
+                        if read_reply.pending_plan:
+                            from backend.agent.meal_planner import PLAN_TTL_MINUTES
+
+                            await conn.execute(
+                                "UPDATE grocer.sessions SET pending_plan = $2::jsonb, "
+                                "pending_plan_expires_at = now() + ($3 * interval '1 minute') "
+                                "WHERE user_id = $1;",
+                                user_id,
+                                json.dumps(read_reply.pending_plan),
+                                PLAN_TTL_MINUTES,
+                            )
                         return {
                             "status": "capability_answered",
                             "capability": decision.capability.value,
@@ -905,11 +990,10 @@ async def handle_webhook(
                     if not extracted_items:
                         extracted_items = [ExtractedGroceryItem(query=msg.text, quantity=1)]
 
-                    async def search_and_eval(
+                    async def search_one(
                         target: ExtractedGroceryItem,
                         sw_client: SwiggyClient = turn_client,
                         addr_id: str | None = active_addr_id,
-                        addr_cnt: int = address_count,
                     ):
                         outcome = await asyncio.to_thread(
                             search_catalog_full,
@@ -917,16 +1001,18 @@ async def handle_webhook(
                             swiggy_client=sw_client,
                             address_id=addr_id,
                         )
-                        eval_res = await asyncio.to_thread(
-                            evaluate_customer_intent,
-                            query=target.query,
-                            candidates=outcome.candidates,
-                            address_count=addr_cnt,
-                        )
-                        return target, outcome.candidates, eval_res, outcome.alternatives
+                        return target, outcome.candidates, outcome.alternatives
 
                     search_results = await asyncio.gather(
-                        *(search_and_eval(target) for target in extracted_items)
+                        *(search_one(target) for target in extracted_items)
+                    )
+                    evaluations = await asyncio.to_thread(
+                        evaluate_customer_intents_batch,
+                        [
+                            (target.query, cands)
+                            for target, cands, _alternatives in search_results
+                        ],
+                        address_count,
                     )
 
                     items_to_add: list[TargetCartItem] = []
@@ -935,7 +1021,9 @@ async def handle_webhook(
                     alternative_hints: list[str] = []
                     vague_spins: set[str] = set()
 
-                    for target, cands, evaluation, alternatives in search_results:
+                    for (target, cands, alternatives), evaluation in zip(
+                        search_results, evaluations, strict=True
+                    ):
                         if evaluation.selected_candidate:
                             cand = evaluation.selected_candidate
                             if evaluation.is_vague_staple:
@@ -965,7 +1053,7 @@ async def handle_webhook(
                         and len(search_results) == 1
                         and len(search_results[0][1]) >= 2
                     ):
-                        target, cands, _evaluation, alternatives = search_results[0]
+                        target, cands, alternatives = search_results[0]
                         choice_text, choice_buttons = format_disambiguation_choices(
                             target.query, cands, target.quantity
                         )

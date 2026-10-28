@@ -138,9 +138,10 @@ def _system_prompt() -> str:
         "If the customer wants a product in their basket, use add_items.\n"
         "A request to make, cook or plan a dish for some people ('make pizza for 5') "
         "is plan_meal, never add_items. Put the dish in dish, the people count in "
-        "servings, and the packs needed in items. Never add anything; the customer "
-        "confirms first. Leave salt, oil, water and common spices out; use specific "
-        "grocery names like 'mozzarella cheese', not 'cheese'.\n"
+        "servings, and the need for each ingredient in items as amount and unit: "
+        "g, ml or piece ('250 g' cheese, '1 l' milk, '5 pieces' base). Never add "
+        "anything; the customer confirms first. Leave salt, oil, water and common "
+        "spices out; use specific grocery names like 'mozzarella cheese', not 'cheese'.\n"
         "A bare grocery list with no question ('milk and bread', '2 kg atta') is "
         "a request to add those items, so use add_items.\n"
         "If the customer asks what is already in their basket or what it costs, "
@@ -180,8 +181,9 @@ def _system_prompt() -> str:
         '"items":[{"query":"milk 1 litre","quantity":1},{"query":"eggs","quantity":6}],'
         '"change_action":null}\n'
         'Customer: make pizza for 5 people -> {"capability":"plan_meal","confidence":0.95,'
-        '"items":[{"query":"pizza base","quantity":3},{"query":"mozzarella cheese","quantity":2},'
-        '{"query":"pizza sauce","quantity":1}],"dish":"pizza","servings":5,'
+        '"items":[{"query":"pizza base","amount":5,"unit":"piece"},'
+        '{"query":"mozzarella cheese","amount":250,"unit":"g"},'
+        '{"query":"pizza sauce","amount":200,"unit":"g"}],"dish":"pizza","servings":5,'
         '"change_action":null}\n'
         'Customer: how much is milk -> {"capability":"item_info","confidence":0.95,'
         '"items":[{"query":"milk","quantity":1}],"change_action":null}\n'
@@ -189,7 +191,8 @@ def _system_prompt() -> str:
         '"items":[],"order_ref":"last"}\n\n'
         "Return JSON only:\n"
         '{"capability": "<one capability>", "confidence": <0.0-1.0>, '
-        '"items": [{"query": "<product words>", "quantity": <int>}], '
+        '"items": [{"query": "<product words>", "quantity": <int>, '
+        '"amount": <number or null>, "unit": "<g or ml or piece or null>"}], '
         '"order_ref": "<order id or last or null>", '
         '"address_ref": "<address label or id or null>", '
         '"change_action": "<remove or set_quantity or null>", '

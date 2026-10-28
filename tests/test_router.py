@@ -144,7 +144,7 @@ def test_plan_meal_is_read_only_and_parses_dish_and_servings():
         {
             "capability": "plan_meal",
             "confidence": 0.95,
-            "items": [{"query": "pizza base", "quantity": 3}],
+            "items": [{"query": "pizza base", "amount": 5, "unit": "piece"}],
             "dish": "pizza",
             "servings": 5,
         },
@@ -155,3 +155,5 @@ def test_plan_meal_is_read_only_and_parses_dish_and_servings():
     assert d.is_write is False
     assert d.dish == "pizza"
     assert d.servings == 5
+    assert d.items[0]["amount"] == 5
+    assert d.items[0]["unit"] == "piece"

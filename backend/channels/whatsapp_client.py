@@ -149,7 +149,16 @@ class WhatsAppClient:
                 logger.info("WhatsApp message delivered to %s: id=%s", payload.get("to"), data.get("messages", [{}])[0].get("id"))
                 return data
         except (httpx.HTTPError, ValueError, KeyError, RuntimeError) as exc:
-            logger.warning("WhatsApp message delivery failed to %s: %s", payload.get("to"), exc)
+            detail = ""
+            response = getattr(exc, "response", None)
+            if response is not None:
+                detail = f" body={response.text[:300]}"
+            logger.warning(
+                "WhatsApp message delivery failed to %s: %s%s",
+                payload.get("to"),
+                exc,
+                detail,
+            )
             return {"status": "failed", "error": str(exc), "to": payload.get("to")}
 
     async def mark_read(self, message_id: str) -> dict[str, Any]:

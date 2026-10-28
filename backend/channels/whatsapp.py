@@ -547,13 +547,16 @@ async def handle_webhook(
                     # 0. A numbered reply to the plan on screen picks items with
                     # no model call. Only number-shaped text is taken.
                     pending_plan = session_row["pending_plan"] if session_row else None
-                    if pending_plan and session_row["plan_fresh"] and active_addr_id:
-                        from backend.agent.meal_planner import (
-                            parse_pick_indexes,
-                            plan_items,
-                            resolve_plan_items,
-                        )
+                    plan_fresh = bool(session_row and session_row["plan_fresh"])
+                    from backend.agent.meal_planner import (
+                        clear_pending_plan,
+                        parse_pick_indexes,
+                        plan_items,
+                    )
 
+                    if pending_plan and not plan_fresh:
+                        await clear_pending_plan(conn, user_id)
+                    if pending_plan and plan_fresh:
                         try:
                             plan = (
                                 json.loads(pending_plan)
@@ -562,59 +565,53 @@ async def handle_webhook(
                             )
                         except (json.JSONDecodeError, TypeError, ValueError):
                             plan = None
-                        rows = plan_items(plan)
-                        indexes = parse_pick_indexes(msg.text, len(rows))
+                        indexes = parse_pick_indexes(msg.text, len(plan_items(plan)))
+                        if indexes and not active_addr_id:
+                            await wa_client.send_text_message(
+                                to_wa_id=msg.sender_wa_id,
+                                text="Share your delivery location pin and I'll add the plan.",
+                            )
+                            return {
+                                "status": "location_pin_requested",
+                                "wa_id": msg.sender_wa_id,
+                            }
                         if indexes:
-                            from backend.channels.button_router import (
-                                send_add_receipt,
-                            )
+                            from backend.channels.button_router import confirm_plan
 
-                            items, missing, plan_error = await resolve_plan_items(
-                                turn_client, active_addr_id, plan, indexes
-                            )
-                            if plan_error or not items:
-                                text = (
-                                    plan_error
-                                    or "Nothing from that plan is in stock right now."
+                            try:
+                                picked = await confirm_plan(
+                                    conn,
+                                    wa_client,
+                                    msg.sender_wa_id,
+                                    user_id,
+                                    active_addr_id,
+                                    turn_client,
+                                    plan,
+                                    indexes,
                                 )
-                                await wa_client.send_text_message(
-                                    to_wa_id=msg.sender_wa_id, text=text
-                                )
-                                return {
-                                    "status": "plan_unavailable",
-                                    "wa_id": msg.sender_wa_id,
-                                }
-                            cart_mgr = CompositeCartManager(turn_client)
-                            cart_res = await asyncio.to_thread(
-                                cart_mgr.assemble_and_update_cart,
-                                items_to_add=items,
-                                address_id=active_addr_id,
-                                auto_optimize_coupons=True,
-                            )
-                            await conn.execute(
-                                "UPDATE grocer.sessions SET pending_plan = NULL, "
-                                "pending_plan_expires_at = NULL WHERE user_id = $1;",
-                                user_id,
-                            )
-                            receipt = await send_add_receipt(
-                                conn,
-                                wa_client,
-                                msg.sender_wa_id,
-                                user_id,
-                                active_addr_id,
-                                cart_res.cart,
-                                "plan_picked",
-                                None,
-                            )
-                            if missing:
+                            except (
+                                ValueError,
+                                KeyError,
+                                RuntimeError,
+                                OSError,
+                                httpx.HTTPError,
+                            ) as exc:
+                                logger.warning("Plan pick failed: %s", exc)
+                                picked = None
+                            if picked is None:
                                 await wa_client.send_text_message(
                                     to_wa_id=msg.sender_wa_id,
-                                    text="Not at this store right now: "
-                                    + ", ".join(missing)
-                                    + ".",
+                                    text="That plan didn't finish. Ask me for your basket before paying.",
                                 )
-                            await remember("Added the items you picked from the plan.")
-                            return receipt
+                                return {
+                                    "status": "plan_add_failed",
+                                    "wa_id": msg.sender_wa_id,
+                                }
+                            if picked["status"] == "plan_picked":
+                                await remember(
+                                    "Added the items you picked from the plan."
+                                )
+                            return picked
 
                     # 1. Capability routing (ADR 0012). Read capabilities are answered
                     # here and can never write. Basket requests continue below.

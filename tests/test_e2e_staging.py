@@ -290,12 +290,12 @@ async def test_e2e_dpdp_24h_scrubber_prunes_stale_data():
             """,
             user_id,
         )
-        # 3. Insert stale session history (>25 hours ago)
+        # 3. Insert stale session history (>25 hours ago) with a stale plan
         await conn.execute(
             """
-            INSERT INTO grocer.sessions (user_id, history, last_active_at)
-            VALUES ($1, '[{"turn": 1}]'::jsonb, now() - interval '25 hours')
-            ON CONFLICT (user_id) DO UPDATE SET history = '[{"turn": 1}]'::jsonb, last_active_at = now() - interval '25 hours';
+            INSERT INTO grocer.sessions (user_id, history, pending_plan, pending_plan_expires_at, last_active_at)
+            VALUES ($1, '[{"turn": 1}]'::jsonb, '{"dish": "pasta"}'::jsonb, now() + interval '10 minutes', now() - interval '25 hours')
+            ON CONFLICT (user_id) DO UPDATE SET history = '[{"turn": 1}]'::jsonb, pending_plan = '{"dish": "pasta"}'::jsonb, pending_plan_expires_at = now() + interval '10 minutes', last_active_at = now() - interval '25 hours';
             """,
             user_id,
         )
@@ -325,6 +325,12 @@ async def test_e2e_dpdp_24h_scrubber_prunes_stale_data():
             user_id,
         )
         assert scrubbed_addr == "REDACTED"
+
+        stale_plan = await conn.fetchval(
+            "SELECT pending_plan FROM grocer.sessions WHERE user_id = $1;",
+            user_id,
+        )
+        assert stale_plan is None
 
 
 @pytest.mark.db

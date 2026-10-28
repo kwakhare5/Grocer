@@ -233,6 +233,74 @@ async def test_pick_adds_the_rest_and_names_the_missing(swiggy_client):
 
 
 @pytest.mark.asyncio
+async def test_a_gone_sku_blocks_add_all_instead_of_swapping(swiggy_client):
+    plan = {
+        "items": [
+            {
+                "query": "milk",
+                "packs": 1,
+                "spin_id": "spin_amul_gone",
+                "sku_id": "sku_gone",
+                "name": "Amul milk (1 L)",
+                "size": "1 L",
+                "price_paise": 7200,
+            }
+        ]
+    }
+
+    items, missing, error = await resolve_plan_items(swiggy_client, "addr_01HXYZ", plan)
+
+    assert items == []
+    assert missing == ["milk"]
+    assert "Nothing was added" in error
+
+
+@pytest.mark.asyncio
+async def test_a_gone_sku_is_named_in_a_pick(swiggy_client):
+    plan = {
+        "items": [
+            {"query": "milk", "packs": 1, "spin_id": "spin_amul_gone"},
+            {"query": "bread", "packs": 1, "spin_id": "spin_bread_white"},
+        ]
+    }
+
+    items, missing, error = await resolve_plan_items(
+        swiggy_client, "addr_01HXYZ", plan, [1, 2]
+    )
+
+    assert error is None
+    assert missing == ["milk"]
+    assert [(item.spin_id, item.quantity) for item in items] == [
+        ("spin_bread_white", 1)
+    ]
+
+
+@pytest.mark.asyncio
+async def test_extra_ingredients_are_named_not_dropped(swiggy_client):
+    decision = _decision(
+        items=[
+            {"query": "milk", "amount": 1, "unit": "l"},
+            {"query": "bread", "amount": 400, "unit": "g"},
+            {"query": "cheese", "amount": 200, "unit": "g"},
+            {"query": "curd", "amount": 400, "unit": "g"},
+            {"query": "sugar", "amount": 1, "unit": "kg"},
+            {"query": "ginger", "amount": 100, "unit": "g"},
+            {"query": "garlic", "amount": 100, "unit": "g"},
+            {"query": "tea", "amount": 250, "unit": "g"},
+            {"query": "onion", "amount": 1, "unit": "kg"},
+        ],
+        dish="big dinner",
+        servings=6,
+    )
+    text, _buttons, plan = await build_meal_plan(decision, swiggy_client, "addr_01HXYZ")
+
+    assert plan is not None
+    assert len(plan["items"]) == 8
+    assert "planned the first 8 ingredients" in text
+    assert "other 1 separately" in text
+
+
+@pytest.mark.asyncio
 async def test_empty_plan_never_writes(swiggy_client):
     items, _missing, error = await resolve_plan_items(
         swiggy_client, "addr_01HXYZ", None

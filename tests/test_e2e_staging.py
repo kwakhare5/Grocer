@@ -134,7 +134,9 @@ def test_e2e_coupon_optimization_bounded_trials_and_net_savings(swiggy_client):
     assert result.trials_conducted <= 2
     assert result.applied_coupon == "INSTA50"
     assert result.savings_paise > 0
-    assert "INSTA50" in (result.savings_message or "")
+    assert result.savings_paise == (
+        result.original_to_pay_paise - result.final_to_pay_paise
+    )
     assert result.final_to_pay_paise < result.original_to_pay_paise
 
 

@@ -137,6 +137,21 @@ def format_cart_receipt(
         lines.append("-----------------------------------")
         lines.append(f"*To Pay:* *{cart.billBreakdown.toPay.value}*")
 
+        from backend.agent.customer_advocate import parse_price_to_paise
+
+        to_pay_paise = parse_price_to_paise(cart.billBreakdown.toPay.value)
+        item_total_paise = sum(
+            it.discounted_final_price_paise * it.quantity for it in cart.items
+        )
+        charges_paise = to_pay_paise - item_total_paise
+        if item_total_paise > 0 and charges_paise * 100 >= item_total_paise * 35:
+            percent = round(charges_paise * 100 / item_total_paise)
+            lines.append(
+                f"⚠️ Charges add {format_paise_to_rupees(charges_paise)} "
+                f"({percent}% of your items). Swiggy adds delivery and handling "
+                "on small baskets."
+            )
+
     # Out of stock section if any
     if dropped_items:
         store_suffix = f" at {store_name}" if store_name else ""

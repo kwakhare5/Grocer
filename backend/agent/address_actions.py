@@ -13,6 +13,7 @@ from typing import Any
 
 import httpx
 
+from backend.agent.candidate_evaluator import format_paise_to_rupees
 from backend.agent.read_actions import ReadReply
 from backend.integrations.commerce.schemas import GetAddressesData, SavedAddress
 from backend.integrations.commerce.swiggy_client import SwiggyClient
@@ -194,6 +195,20 @@ async def apply_switch(
     text = f"{header} Moved {moved} of {len(items)} items to the new store."
     if missing:
         text += f" Not available there: {', '.join(missing[:3])}."
+
+    try:
+        from backend.agent.customer_advocate import optimize_coupons
+
+        optimized = await asyncio.to_thread(
+            optimize_coupons, rebuilt, client, target.id
+        )
+        if optimized.applied_coupon and optimized.savings_paise > 0:
+            text += (
+                f"\n🎟️ Coupon {optimized.applied_coupon}: you save "
+                f"{format_paise_to_rupees(optimized.savings_paise)}."
+            )
+    except (httpx.HTTPError, ValueError, KeyError, RuntimeError) as exc:
+        logger.debug("Switch coupon step skipped: %s", exc)
     return ReadReply(text)
 
 

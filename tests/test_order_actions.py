@@ -102,3 +102,24 @@ async def test_no_past_orders_says_so_and_writes_nothing(tmp_path: Path):
     assert "don't have any Instamart orders" in reply.text
     assert reply.buttons == []
     assert client.last_update_items == []
+
+
+@pytest.mark.asyncio
+async def test_apply_reorder_reports_coupon_savings(client, monkeypatch):
+    from backend.agent import customer_advocate
+    from backend.agent.customer_advocate import CouponOptimizationResult
+
+    def fake_optimize(cart, swiggy_client, address_id=None):
+        return CouponOptimizationResult(
+            original_to_pay_paise=1000,
+            final_to_pay_paise=900,
+            applied_coupon="SAVE10",
+            savings_paise=100,
+            final_cart=cart,
+        )
+
+    monkeypatch.setattr(customer_advocate, "optimize_coupons", fake_optimize)
+
+    reply = await apply_reorder(client, ADDRESS_ID, f"order:{ORDER_ID}")
+
+    assert "Coupon SAVE10: you save ₹1." in reply.text

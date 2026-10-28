@@ -254,14 +254,29 @@ async def _track_order(
 
 async def _payment_options(client: SwiggyClient) -> str:
     data = await asyncio.to_thread(client.get_payment_options)
-    names = [
+    upi = [
         method.displayName or method.id
         for method in data.allMethods
-        if method.enabled is not False
+        if (method.groupName or "").upper() == "UPI" and method.enabled is not False
     ]
-    if not names:
-        return "No payment methods are available for your account right now."
-    return "💳 *Payment methods available:*\n" + "\n".join(f"• {name}" for name in names)
+    others = [
+        method.displayName or method.id
+        for method in data.allMethods
+        if (method.groupName or "").upper() != "UPI" and method.enabled is not False
+    ]
+    if upi:
+        text = "💳 *Payment:* UPI only in this build.\nUPI apps: " + ", ".join(upi) + "."
+        if others:
+            text += (
+                "\nSwiggy also lists " + ", ".join(others) + ", but I can't use those yet."
+            )
+        return text
+    if others:
+        return (
+            "💳 Swiggy lists " + ", ".join(others) + ", but I can't place a UPI order "
+            "for you right now."
+        )
+    return "No payment methods are available for your account right now."
 
 
 def _cancel_help() -> str:

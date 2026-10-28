@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import sys
 import time
 from dataclasses import dataclass, field
@@ -91,21 +92,26 @@ CASES: tuple[Case, ...] = (
 )
 
 
-def _run_case(case: Case, provider: str) -> Any:
+def _run_case(case: Case, provider: str) -> tuple[Any, int, int]:
     decision = None
+    latency_ms = 0
+    attempts = 0
     for attempt in range(3):
+        attempts = attempt + 1
+        started = time.monotonic()
         decision = route_message(case.text, None, provider, case.basket)
+        latency_ms = int((time.monotonic() - started) * 1000)
         if not decision.error:
-            return decision
+            return decision, latency_ms, attempts
         lowered = decision.error.lower()
         if "429" in lowered or "rate limit" in lowered:
-            wait = 30 * (attempt + 1)
+            wait = 30 * attempt + 30
             print(f"    rate limited, waiting {wait}s", flush=True)
             time.sleep(wait)
             continue
         if attempt < 2:
             time.sleep(3)
-    return decision
+    return decision, latency_ms, attempts
 
 
 def main() -> int:
@@ -124,6 +130,7 @@ def main() -> int:
 
     selected = CASES[args.start - 1 : args.start - 1 + args.limit]
     results: list[dict[str, Any]] = []
+    latencies: list[int] = []
     passes = 0
     unsafe_writes = 0
     missed_writes = 0
@@ -132,7 +139,8 @@ def main() -> int:
 
     print(f"Live router eval: {len(selected)} cases on {args.provider}\n")
     for index, case in enumerate(selected, start=args.start):
-        decision = _run_case(case, args.provider)
+        decision, latency_ms, attempts = _run_case(case, args.provider)
+        latencies.append(latency_ms)
         expected_safety = SAFETY_BY_CAPABILITY[Capability(case.expected)]
         got = decision.capability.value
         ok = got == case.expected
@@ -157,7 +165,7 @@ def main() -> int:
         suffix = "  [" + ", ".join(flags) + "]" if flags else ""
         print(
             f"{index:02d} {mark} {got:<16} expected {case.expected:<16} "
-            f"conf {decision.confidence:.2f}  {case.text!r}{suffix}",
+            f"conf {decision.confidence:.2f}  {latency_ms}ms  {case.text!r}{suffix}",
             flush=True,
         )
 
@@ -179,6 +187,8 @@ def main() -> int:
                 "change_action": decision.change_action,
                 "provider": decision.provider,
                 "error": decision.error,
+                "latency_ms": latency_ms,
+                "attempts": attempts,
             }
         )
         if args.pause and index != args.start + len(selected) - 1:
@@ -186,8 +196,16 @@ def main() -> int:
 
     total = len(selected)
     exact_rate = (passes / total * 100) if total else 0.0
+    ordered = sorted(latencies)
+    p95 = (
+        ordered[min(len(ordered) - 1, math.ceil(len(ordered) * 0.95) - 1)]
+        if ordered
+        else 0
+    )
+    average = sum(ordered) // len(ordered) if ordered else 0
     print("\n" + "=" * 64)
     print(f"Exact capability match: {passes}/{total} ({exact_rate:.1f}%)")
+    print(f"Latency (last call per case): avg {average}ms, p95 {p95}ms, max {max(ordered or [0])}ms")
     print(f"Unsafe writes (read request that wrote): {unsafe_writes}")
     print(f"Under-acted (write request that stayed read): {missed_writes}")
     print(f"Safe-path fallbacks: {safe_paths}")
@@ -218,6 +236,9 @@ def main() -> int:
                 "missed_writes": missed_writes,
                 "safe_paths": safe_paths,
                 "errors": errors,
+                "latency_avg_ms": average,
+                "latency_p95_ms": p95,
+                "latency_max_ms": max(ordered or [0]),
                 "results": results,
             },
             indent=2,

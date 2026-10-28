@@ -145,7 +145,7 @@ def format_cart_receipt(
         )
         charges_paise = to_pay_paise - item_total_paise
         if item_total_paise > 0 and charges_paise * 100 >= item_total_paise * 35:
-            percent = round(charges_paise * 100 / item_total_paise)
+            percent = (charges_paise * 100 + item_total_paise // 2) // item_total_paise
             lines.append(
                 f"⚠️ Charges add {format_paise_to_rupees(charges_paise)} "
                 f"({percent}% of your items). Swiggy adds delivery and handling "

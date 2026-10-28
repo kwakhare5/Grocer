@@ -13,6 +13,7 @@ EXPECTED_TABLES = {
     "approvals",
     "checkouts",
     "inbound_messages",
+    "oauth_states",
     "oauth_tokens",
     "schema_migrations",
     "sessions",
@@ -22,6 +23,7 @@ EXPECTED_TABLES = {
 REQUIRED_COLUMNS = {
     "users": {"wa_id", "display_name", "updated_at"},
     "oauth_tokens": {"encrypted_token", "nonce", "expires_at", "refresh_token", "refresh_nonce"},
+    "oauth_states": {"state", "verifier", "wa_id", "expires_at"},
     "inbound_messages": {"wa_message_id", "raw_payload", "status"},
     "sessions": {"active_address_id", "budget_cap_paise", "history", "onboarding_state", "onboarding_context"},
     "approvals": {"status", "fingerprint", "to_pay_paise", "address_id", "snapshot", "expires_at"},
@@ -75,8 +77,27 @@ async def verify() -> None:
             has_test_db = await conn.fetchval(
                 "SELECT 1 FROM pg_database WHERE datname = 'grocer_test';"
             )
+            has_app_role = await conn.fetchval(
+                "SELECT 1 FROM pg_roles WHERE rolname = 'grocer_app';"
+            )
+            assert has_app_role, "Missing least-privilege role: grocer_app"
+            current_role = await conn.fetchval("SELECT current_user;")
+            can_create_in_grocer = await conn.fetchval(
+                "SELECT has_schema_privilege('grocer_app', 'grocer', 'CREATE');"
+            )
+            can_write_ledger = await conn.fetchval(
+                "SELECT has_table_privilege('grocer_app', 'grocer.schema_migrations', 'INSERT');"
+            )
+            assert current_role == "grocer_app", (
+                f"App queries run as {current_role}, expected grocer_app"
+            )
+            assert not can_create_in_grocer, "grocer_app must not have CREATE on grocer"
+            assert not can_write_ledger, "grocer_app must not write schema_migrations"
             print(f"grocer_test database: {'present' if has_test_db else 'MISSING'}")
-            print("Database schema verification PASSED (8/8 tables, columns, indexes).")
+            print(
+                "Database schema verification PASSED "
+                f"({len(names)} tables, columns, indexes, grocer_app role)."
+            )
     finally:
         await close_db_pool()
 

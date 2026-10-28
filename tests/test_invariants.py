@@ -86,3 +86,14 @@ def test_schema_paise_properties_exist():
     assert item.mrp_paise == 7400
     assert item.discounted_final_price_paise == 7200
     assert isinstance(item.discounted_final_price_paise, int)
+
+
+def test_money_conversion_rounds_half_up_without_float_drift():
+    """1.005 rupees is 100.5 paise; float round gives 100, Decimal gives 101."""
+    from backend.integrations.commerce.schemas import ProductPrice, rupees_to_paise
+
+    assert rupees_to_paise(1.005) == 101
+    assert rupees_to_paise("1.005") == 101
+    price = ProductPrice(mrp=1.005, offerPrice=1.005)
+    assert price.mrp_paise == 101
+    assert price.offer_price_paise == 101

@@ -157,7 +157,7 @@ async def swiggy_login(req: LoginRequest) -> LoginResponse:
     verifier, challenge = generate_pkce_pair()
     state = base64.urlsafe_b64encode(os.urandom(16)).decode("utf-8").rstrip("=")
 
-    store_pkce_session(state=state, verifier=verifier, phone=wa_id)
+    await store_pkce_session(state=state, verifier=verifier, phone=wa_id)
 
     query_params = {
         "response_type": "code",
@@ -223,7 +223,7 @@ async def swiggy_callback(
     background_tasks: BackgroundTasks,
 ) -> CallbackResponse:
     """Exchange the authorization code for a Swiggy token and finish the login."""
-    session_data = consume_pkce_session(req.state)
+    session_data = await consume_pkce_session(req.state)
     if not session_data:
         raise HTTPException(
             status_code=400,

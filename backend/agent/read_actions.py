@@ -106,7 +106,7 @@ async def _order_bill(decision: RoutingDecision, client: SwiggyClient) -> str:
         f"Status: {details.status}",
     ]
     for item in details.items[:12]:
-        price = format_paise_to_rupees(round(item.finalPrice * 100))
+        price = format_paise_to_rupees(item.final_price_paise)
         mark = " (removed)" if item.removed else ""
         lines.append(f"• {item.name} x{item.quantity} — {price}{mark}")
     bill = details.bill or {}

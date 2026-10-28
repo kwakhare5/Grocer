@@ -686,3 +686,35 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: fixtures `get_cart`, `get_addresses`, `checkout`, `get_orders` now carry an example name and address. Removed the unused `fixtures_dir` pytest fixture and the write-only `clear_cart_called` flag. ARCHITECTURE migration ranges now say 001..006; GLOSSARY's rapid-message line describes the 12s queue. No production code touched.
 - **Proof**: ruff clean; offline 142 passed; DB suite green. Grep evidence: zero readers for the removed fixture and flag.
 - **Still broken**: remaining stale doc lines listed by the audit (ARCHITECTURE Layer 4, DESIGN A2/A9, PRD COD claim, ADR README) are next; service-only DB role and dead schema columns still need Karan/credentials.
+
+### [GROCER v1 — Doc Truth Pass] 2026-10-28
+
+#### Work Card: Docs stop describing last week
+- **Problem**: several docs still described pre-Batch-3 behavior: the fee warning "not built", coupons "add path only", the savings line "not sent", COD as a live payment path, delete-my-data "leaves the user row", an 8-second turn budget, test counts of 120/52/192, and migrations at 004.
+- **Change**: corrected ARCHITECTURE Layer 2/Layer 4, DESIGN A2/A6/A8/A9, the PRD payment section, GLOSSARY's fee term, ADR index rows 0003–0006/0009, STATUS constraints/counts/ADR notes/next-action, and the verify-grocer skill. No code changed.
+- **Proof**: `python -m ruff check backend tests` → All checks passed; `pytest -q -m "not db and not live"` → 142 passed, 81 deselected; `schema_migrations` on the app DB lists 001–006; 223 tests collected.
+- **Still broken**: every live proof is unchanged; Phase 6 service-role/RLS and dead columns; Phase 8 landing and Phase 9 handoff pending.
+
+### [GROCER v1 — Block 1 Hardening] 2026-10-28
+
+#### Work Card: Close the Phase 6 tail and the last P1s
+- **Problem**: PKCE state died with the process; a dead DB stopped the app from booting; rupee-to-paise still used float `round()` outside checkout; Phase 6's least-privilege role and dead columns were open; the router eval had no latency record.
+- **Change**: migration 007 adds `grocer_app` (DML only, no CREATE), grants it to the owner, and drops `sessions.one_time_destination_id` and `users.swiggy_customer_id`. Every pooled query runs as `grocer_app`; migrations reset to the owner. Migration 008 adds `grocer.oauth_states`; PKCE state is now one-time, 10-minute, and restart-safe. Startup catches an unreachable DB, `/health` returns 503, and a retry task applies migrations when the DB returns. Rupee conversion uses `Decimal(str(value))` in schemas, order bills and the charge percentage. The eval records per-case latency and the prompt now separates "new basket delivery time" from "my food is arriving".
+- **Proof**: `verify.ps1 -Db` exit 0: schema check pass (9 tables, `grocer_app`, no CREATE on `grocer`), ruff clean, 141 offline, 66 DB on `grocer_test`, 227 collected, Next build pass. Live Groq rerun: 40/40 exact, 0 unsafe writes, avg 1461ms, p95 2312ms, max 2577ms. New tests: DDL refusal, durable/expired PKCE state, backdated 24h scrub, dead-DB boot.
+- **Still broken**: live 24-hour TTL needs a day of real traffic; live handset proofs; Phase 8 landing and Phase 9 handoff. Changes are uncommitted and Render has not seen them.
+
+### [GROCER v1 — Phase 8 Landing Page] 2026-10-28
+
+#### Work Card: A page a customer and the Swiggy team can read
+- **Problem**: the old page was an OAuth widget with a fake "Systems Operational" line, a fallback link to a placeholder number, and claims such as "best coupon" that overstate the code. It did not explain the product in plain words.
+- **Change**: rebuilt per `DESIGN.md` Part B. Hero with one WhatsApp CTA; ten feature cards marked Live or In testing; how it works; safety; privacy; an independent-project strip that explains the Swiggy connection; FAQ. OAuth appears only for a bot `?t=` link or callback. No test numbers, uptime badge, or fake screenshots. Missing `NEXT_PUBLIC_WHATSAPP_NUMBER` disables the CTA with a visible note; the display number is the placeholder only. Metadata rewritten without "AI-powered" and "1-tap checkout".
+- **Proof**: `npm run build` pass; browser checked at 1440px and real 360px emulation with `scrollWidth=360` and no overflowing elements; `?t=` connect card and callback state render; CTA disabled without env and enabled with a test env. Screenshots: `.scratch/landing_1440.png`, `.scratch/landing_360_emulated.png`, `.scratch/landing_configured_top.png`.
+- **Still broken**: Vercel deploy not run; `NEXT_PUBLIC_WHATSAPP_NUMBER` must be set there. Live handset proofs and Phase 9 handoff remain.
+
+### [GROCER v1 — Review Fixes] 2026-10-28
+
+#### Work Card: The review caught real holes
+- **Problem**: the dead-DB test inherited `PYTEST_CURRENT_TEST`, so it could hit the test DB; the app pool silently fell back to the owner when `grocer_app` was missing; the app could write the migration ledger; expired PKCE rows stayed until the next login; `/health` only ran `SELECT 1`; two STATUS lines still described the old boot and float bugs; the page marked tracking Live and ignored Swiggy error returns.
+- **Change**: migrations now run on a separate owner connection, and the app pool refuses to start without `grocer_app` (no fallback, parameterized `set_config`). Migration 009 revokes ledger writes; 010 restores SELECT so the app can still verify tables. Startup waits at most 5s, then serves with `/health` 503 and retries with backoff. `/health` checks both core tables. PKCE consume deletes expired rows; the scrub prunes expired states. The router rule now separates placed-order ETA from new-basket delivery. The eval p95 uses nearest-rank. The page shows Swiggy `?error=` returns, keeps `code/state` on failure for a reload, and no longer marks tracking Live.
+- **Proof**: `verify_db.py` exit 0 (9 tables, `grocer_app`, no CREATE, no ledger INSERT); DB suite 66 passed; offline 142 passed; real dead-DB subprocess test; live router rerun 40/40, avg 1574ms, p95 2265ms, max 3422ms. Raw: `.scratch/eval_router_20261028_reviewfix.json`. Also fixed a flaky link-token tamper test that could change nothing when the signature already ended in `0`.
+- **Still broken**: live 24h TTL, live OAuth reconnect, handset proofs, Vercel deploy, Phase 9. Changes are uncommitted.

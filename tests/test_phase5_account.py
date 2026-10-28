@@ -363,7 +363,8 @@ def test_link_token_roundtrip_and_tampering():
     assert verify_link_token(token) == "919876543210"
 
     parts = token.split(".")
-    assert verify_link_token(f"{parts[0]}.{parts[1]}.{parts[2][:-1]}0") is None
+    flipped = "1" if parts[2][-1] == "0" else "0"
+    assert verify_link_token(f"{parts[0]}.{parts[1]}.{parts[2][:-1]}{flipped}") is None
     assert verify_link_token(issue_link_token("919876543210", ttl_seconds=-10)) is None
     assert verify_link_token("not-a-token") is None
 

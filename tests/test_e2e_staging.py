@@ -385,7 +385,7 @@ async def test_e2e_dpdp_delete_my_data_command():
 
     async with pool.acquire() as conn:
         user_id = await conn.fetchval(
-            "INSERT INTO grocer.users (wa_id, swiggy_customer_id) VALUES ($1, 'cust_12345') RETURNING id;",
+            "INSERT INTO grocer.users (wa_id) VALUES ($1) RETURNING id;",
             wa_id,
         )
         await conn.execute(
@@ -429,10 +429,9 @@ async def test_e2e_dpdp_delete_my_data_command():
         assert token_count == 0
 
         user_row = await conn.fetchrow(
-            "SELECT wa_id, swiggy_customer_id, display_name FROM grocer.users WHERE id = $1;",
+            "SELECT wa_id, display_name FROM grocer.users WHERE id = $1;",
             user_id,
         )
-        assert user_row["swiggy_customer_id"] is None
         assert user_row["display_name"] is None
         assert user_row["wa_id"].startswith("deleted-")
 

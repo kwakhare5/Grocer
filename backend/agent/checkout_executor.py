@@ -616,7 +616,7 @@ async def execute_3_lock_checkout(
             await conn.execute(
                 """
                 UPDATE grocer.sessions
-                SET history = '[]'::jsonb, one_time_destination_id = NULL, last_active_at = now()
+                SET history = '[]'::jsonb, last_active_at = now()
                 WHERE user_id = $1;
                 """,
                 user_uuid,
@@ -769,7 +769,6 @@ async def check_and_settle_payment(
         """
         UPDATE grocer.sessions
         SET history = '[]'::jsonb,
-            one_time_destination_id = NULL,
             last_active_at = now()
         WHERE user_id = $1;
         """,

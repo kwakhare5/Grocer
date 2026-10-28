@@ -25,8 +25,7 @@ from backend.database import get_db_pool
 
 logger = logging.getLogger("grocer.token_vault")
 
-# In-memory PKCE state cache: state -> {"verifier": verifier, "phone": phone, "created_at": datetime}
-_PKCE_SESSIONS: dict[str, dict[str, Any]] = {}
+PKCE_STATE_TTL_SECONDS = 600
 
 # Serializes refresh-token rotation per user. Swiggy rotates the refresh token on
 # every exchange, so two concurrent refreshes would invalidate each other.
@@ -70,18 +69,43 @@ def decrypt_token(encrypted_bytes: bytes, nonce: bytes, key_b64: str) -> str:
     return decrypted_bytes.decode("utf-8")
 
 
-def store_pkce_session(state: str, verifier: str, phone: str) -> None:
-    """Record pending PKCE authorization state."""
-    _PKCE_SESSIONS[state] = {
-        "verifier": verifier,
-        "phone": phone,
-        "created_at": datetime.now(timezone.utc),
-    }
+async def store_pkce_session(state: str, verifier: str, phone: str) -> None:
+    """Record pending PKCE authorization state in PostgreSQL.
+
+    Durable so a Render restart between /login and /callback cannot lose it.
+    """
+    pool = await get_db_pool()
+    await pool.execute("DELETE FROM grocer.oauth_states WHERE expires_at <= now();")
+    await pool.execute(
+        """
+        INSERT INTO grocer.oauth_states (state, verifier, wa_id, expires_at)
+        VALUES ($1, $2, $3, now() + ($4 * interval '1 second'));
+        """,
+        state,
+        verifier,
+        phone,
+        PKCE_STATE_TTL_SECONDS,
+    )
 
 
-def consume_pkce_session(state: str) -> dict[str, Any] | None:
+async def consume_pkce_session(state: str) -> dict[str, Any] | None:
     """Consume and invalidate PKCE session by state (one-time use)."""
-    return _PKCE_SESSIONS.pop(state, None)
+    pool = await get_db_pool()
+    row = await pool.fetchrow(
+        """
+        DELETE FROM grocer.oauth_states
+        WHERE state = $1
+        RETURNING verifier, wa_id, created_at, (expires_at > now()) AS fresh;
+        """,
+        state,
+    )
+    if not row or not row["fresh"]:
+        return None
+    return {
+        "verifier": row["verifier"],
+        "phone": row["wa_id"],
+        "created_at": row["created_at"],
+    }
 
 
 async def store_user_token(

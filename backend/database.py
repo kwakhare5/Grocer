@@ -20,6 +20,21 @@ logger = logging.getLogger("grocer.database")
 
 _pool: asyncpg.Pool | None = None
 _pool_loop: asyncio.AbstractEventLoop | None = None
+_APP_ROLE = "grocer_app"
+
+
+async def _apply_app_role(conn: asyncpg.Connection) -> None:
+    """Drop every pooled connection to the least-privilege app role.
+
+    The login stays the project owner so migrations can run on a separate
+    connection; ordinary queries must never fall back to owner rights.
+    """
+    has_role = await conn.fetchval("SELECT to_regrole($1) IS NOT NULL;", _APP_ROLE)
+    if not has_role:
+        raise RuntimeError(
+            f"Required database role '{_APP_ROLE}' is missing; run migrations."
+        )
+    await conn.execute("SELECT set_config('role', $1, false);", _APP_ROLE)
 
 
 def _under_pytest() -> bool:
@@ -69,6 +84,7 @@ async def get_db_pool() -> asyncpg.Pool:
             min_size=settings.DATABASE_POOL_MIN_SIZE,
             max_size=settings.DATABASE_POOL_MAX_SIZE,
             command_timeout=30.0,
+            init=_apply_app_role,
         )
         _pool_loop = current_loop
     return _pool
@@ -88,13 +104,19 @@ async def close_db_pool() -> None:
 
 
 async def check_db_health() -> bool:
-    """Verify that PostgreSQL is reachable and responsive."""
+    """Healthy means reachable, migrated, and running as the app role."""
     try:
         pool = await get_db_pool()
         async with pool.acquire() as conn:
-            val = await conn.fetchval("SELECT 1")
-            return val == 1
-    except (asyncpg.PostgresError, OSError, TimeoutError, ValueError) as exc:
+            return bool(
+                await conn.fetchval(
+                    """
+                    SELECT to_regclass('grocer.sessions') IS NOT NULL
+                       AND to_regclass('grocer.oauth_states') IS NOT NULL;
+                    """
+                )
+            )
+    except (asyncpg.PostgresError, OSError, TimeoutError, ValueError, RuntimeError) as exc:
         logger.error("Database health check failed: %s", exc)
         return False
 
@@ -104,8 +126,9 @@ async def apply_migrations() -> list[str]:
 
     Each file is recorded in grocer.schema_migrations only after it succeeds, so
     a fresh deploy builds the full schema and a warm deploy skips everything.
+    Runs on its own owner connection; the app pool is created only after the
+    migrations (and the grocer_app role) exist.
     """
-    pool = await get_db_pool()
     migrations_dir = Path(__file__).resolve().parent.parent / "migrations"
     applied: list[str] = []
 
@@ -113,7 +136,11 @@ async def apply_migrations() -> list[str]:
         logger.warning("No migrations directory found at %s", migrations_dir)
         return applied
 
-    async with pool.acquire() as conn:
+    conn = await asyncpg.connect(
+        dsn=resolve_database_url(),
+        command_timeout=30.0,
+    )
+    try:
         await conn.execute("create schema if not exists grocer;")
         await conn.execute(
             """
@@ -140,5 +167,7 @@ async def apply_migrations() -> list[str]:
                     sql_file.name,
                 )
             applied.append(sql_file.name)
+    finally:
+        await conn.close()
 
     return applied

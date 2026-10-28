@@ -1,11 +1,11 @@
 ---
 name: verify-grocer
-description: "Drives Grocer v1.0 end-to-end the way a real WhatsApp customer and Meta Cloud API webhook does. Use whenever verifying conversational shopping, 3-lock checkout buttons, address geocoding, or database receipts on Grocer."
+description: "Drives Grocer end-to-end the way a real WhatsApp customer and Meta Cloud API webhook does. Use whenever verifying conversational shopping, 3-lock checkout buttons, address geocoding, or database receipts on Grocer."
 ---
 
-# Verify Grocer v1.0
+# Verify Grocer
 
-Grocer v1.0 is an AI grocery concierge running on WhatsApp, backed by FastAPI, Google Gemini, Supabase PostgreSQL, and Swiggy Instamart dark stores. This verification skill allows any agent to launch the service, run health doctor checks, drive customer journeys with signed HMAC-SHA256 WhatsApp webhook payloads, and capture database proof.
+Grocer is a grocery concierge running on WhatsApp, backed by FastAPI, Groq, Supabase PostgreSQL, and Swiggy Instamart. This skill launches the service, runs health doctor checks, drives customer journeys with signed HMAC-SHA256 WhatsApp webhook payloads, and captures database proof.
 
 ## Launch
 
@@ -30,7 +30,8 @@ python scripts/drive_grocer.py doctor --url http://127.0.0.1:8000
 
 Doctor confirms:
 1. Meta WhatsApp Webhook GET challenge verification (`200 OK` with valid hub challenge).
-2. Supabase PostgreSQL connectivity and active schema (8/8 tables: `users`, `inbound_messages`, `oauth_tokens`, `sessions`, `approvals`, `checkouts`, `address_coords`, `schema_migrations`).
+2. Supabase PostgreSQL connectivity and active schema (9/9 tables: `users`, `inbound_messages`, `oauth_tokens`, `oauth_states`, `sessions`, `approvals`, `checkouts`, `address_coords`, `schema_migrations`; migrations 001–010 applied; app queries run as the non-superuser `grocer_app`, with no CREATE and no ledger writes).
+3. `/health` returns 200 only when the schema is migrated and the app role is active; during a DB outage it returns 503 instead of the process crashing.
 
 If doctor exits non-zero, check `.env` credentials and database connection before attempting to drive.
 
@@ -69,7 +70,7 @@ python scripts/drive_grocer.py inspect-db --phone 919876543210 > .scratch/verifi
 Proof standards:
 1. Webhook returns HTTP 200 with status payload.
 2. Inbound message is recorded in `grocer.inbound_messages` with status `'received'`.
-3. Valid shopping requests create approval records in `grocer.approvals` with integer `total_paise` and SHA-256 cart fingerprints.
+3. Valid shopping requests create approval records in `grocer.approvals` with integer `to_pay_paise` and SHA-256 cart fingerprints.
 4. Fast button taps (`cart:clear`, `pay:`) respond in <50ms without LLM lag.
 
 ## Cleanup

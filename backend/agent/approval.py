@@ -13,7 +13,7 @@ import hashlib
 import json
 import logging
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from backend.agent.customer_advocate import (
@@ -93,7 +93,7 @@ async def create_checkout_approval(
         "address_id": address_id,
     }
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     expires_at = now + timedelta(minutes=ttl_minutes)
 
     row = await conn.fetchrow(

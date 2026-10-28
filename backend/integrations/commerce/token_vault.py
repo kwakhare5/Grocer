@@ -14,7 +14,7 @@ import hashlib
 import logging
 import os
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import httpx
@@ -121,7 +121,7 @@ async def store_user_token(
     refresh_nonce: bytes | None = None
     if refresh_token:
         encrypted_refresh, refresh_nonce = encrypt_token(refresh_token, key_b64)
-    expires_at = datetime.now(timezone.utc) + timedelta(seconds=expires_in_seconds)
+    expires_at = datetime.now(UTC) + timedelta(seconds=expires_in_seconds)
 
     pool = await get_db_pool()
     query = """

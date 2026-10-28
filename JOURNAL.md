@@ -638,3 +638,19 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: `meal_planner._pick` now requires the stored spin; a gone SKU is reported missing (Add all blocks, picks name it). More than 8 ingredients get a "first 8" note. `clear_pending_plan` is one helper used by the button path, the typed path and stale detection; the typed path and the Add-all tap now share `confirm_plan` instead of two copies. Numbers-only text with no address asks for a pin instead of falling into the router. The rule telling the router to add recipe numbers is gone, and the evaluator prompt lost two fields nothing read plus a dead parser branch.
 - **Proof**: `verify.ps1 -Db` exit 0: 131 offline + 57 DB, 208 collected, ruff clean, Next build pass. New: gone-SKU add-all block, gone-SKU pick, >8 ingredient note, stale plan cleared on a normal turn, DPDP scrub clears the plan.
 - **Still broken**: The model budget is 8s per call, so a slow turn can take about 16s; docs now say that. Live tap/route still unproven. Review leftovers kept by choice: `build_meal_plan` returns a tuple instead of `ReadReply`, the plan is still an untyped dict, and `send_add_receipt` is a wide pass-through.
+
+### [GROCER v1 — Rapid Messages Queue Instead of Vanish] 2026-10-28
+
+#### Work Card: The second message waits its turn
+- **Problem**: two quick messages: the first held the per-user advisory lock, the second was marked `concurrency_dropped` and got no reply. The customer saw one answer and silence.
+- **Change**: the second message polls `pg_try_advisory_lock` every 200ms for up to 12s, then runs normally against the fresh cart and history. Past 12s it is marked `concurrency_wait_timeout` and gets "I'm still finishing your last message... send that again." The old drop status is gone; the API-level concurrency test now asserts the timeout copy and DB status, and a new webhook test holds the lock, releases it mid-request, and asserts the add lands.
+- **Proof**: `powershell -File verify.ps1 -Db` exit 0 on 2026-10-28: schema pass, ruff clean, 131 offline, 58 DB on `grocer_test`, 209 collected, Next build pass.
+- **Still broken**: Live double-text on a handset is unproven. Waiting is bounded by Meta's webhook window, so a turn longer than 12s still needs a resend. Remaining Batch 2: full message to the evaluator, grouped search, receipt chunking.
+
+### [GROCER v1 — Batch 2 Close-out] 2026-10-28
+
+#### Work Card: Every quick message answered, every receipt whole
+- **Problem**: the second quick text was dropped with no reply; the candidate evaluator only saw the extracted word, not "the brown one"; the same item asked twice cost two searches; long receipts were cut off at the 1024-char button-body limit.
+- **Change**: a second message waits up to 12s for the first turn, then answers against the fresh cart; a longer turn gets an honest resend copy. The evaluator receives the customer's whole message. Identical queries share one search and one evaluation with added quantities (cross-item grouping rejected because it mixes candidate pools). A receipt over 1024 chars is sent whole as text, with Pay/Clear in a short buttons follow-up (`send_receipt`).
+- **Proof**: `powershell -File verify.ps1 -Db` exit 0 on 2026-10-28: schema pass, ruff clean, 131 offline, 61 DB on `grocer_test`, 212 collected, Next build pass. New: wait-then-add webhook test, timeout route test, whole-message batch test, one-search dedupe test, two receipt-length tests.
+- **Still broken**: Live double-text, a live long basket and the live whole-message evaluation are unproven. Batch 2 is code-complete; Batch 3 (coupons everywhere, savings line, fee warning, itemized bill, support report, payment/store truth, post-order add) is next.

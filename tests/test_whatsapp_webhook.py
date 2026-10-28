@@ -666,6 +666,58 @@ async def test_expired_plan_numbers_route_normally(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_second_message_waits_for_the_first_turn_and_is_answered(monkeypatch):
+    pool = await get_db_pool()
+    wa_id, user_id = await _seed_text_user(pool)
+    client = FixtureSwiggyClient(FIXTURES_DIR, catalog_data=_catalog())
+    outbound = RecordingWA()
+
+    from backend.agent import customer_advocate
+    from backend.agent import router as router_module
+    from backend.agent.router import Capability, RoutingDecision, SafetyClass
+
+    monkeypatch.setattr(customer_advocate, "optimize_coupons", lambda **kwargs: None)
+    monkeypatch.setattr(
+        router_module,
+        "route_message",
+        lambda *args, **kwargs: RoutingDecision(
+            capability=Capability.ADD_ITEMS,
+            safety=SafetyClass.BASKET,
+            confidence=0.95,
+            items=[{"query": "bread", "quantity": 1}],
+        ),
+    )
+
+    holder = await pool.acquire()
+    assert await holder.fetchval(
+        "SELECT pg_try_advisory_lock(hashtext($1));", str(user_id)
+    )
+
+    async def release() -> None:
+        await asyncio.sleep(0.4)
+        await holder.execute(
+            "SELECT pg_advisory_unlock(hashtext($1));", str(user_id)
+        )
+
+    releaser = asyncio.create_task(release())
+    try:
+        result = await handle_webhook(
+            SignedRequest(_message(wa_id, text="add bread")),
+            swiggy_client=client,
+            wa_client=outbound,
+        )
+    finally:
+        await releaser
+        await pool.release(holder)
+
+    assert result["status"] == "cart_updated"
+    assert outbound.buttons
+    assert "spin_bread_white" in {
+        item.spinId for item in client.get_cart("addr_01HXYZ").items
+    }
+
+
+@pytest.mark.asyncio
 async def test_recipe_question_shows_a_plan_and_writes_nothing(monkeypatch):
     pool = await get_db_pool()
     wa_id, user_id = await _seed_text_user(pool)
@@ -713,3 +765,77 @@ async def test_recipe_question_shows_a_plan_and_writes_nothing(monkeypatch):
     assert [row["query"] for row in stored["items"]] == ["milk", "bread"]
     assert stored["servings"] == 2
     assert stored["items"][0]["packs"] == 2
+
+
+@pytest.mark.asyncio
+async def test_duplicate_items_share_one_search_and_add_up(monkeypatch):
+    pool = await get_db_pool()
+    wa_id, _user_id = await _seed_text_user(pool)
+    client = FixtureSwiggyClient(FIXTURES_DIR, catalog_data=_catalog())
+    outbound = RecordingWA()
+
+    from backend.agent import customer_advocate
+    from backend.agent import router as router_module
+    from backend.agent.router import Capability, RoutingDecision, SafetyClass
+
+    searches: list[str] = []
+    original_search = client.search_products
+
+    def counting_search(query: str, *args, **kwargs):
+        searches.append(query)
+        return original_search(query, *args, **kwargs)
+
+    monkeypatch.setattr(client, "search_products", counting_search)
+    monkeypatch.setattr(settings, "LLM_PROVIDER", "scripted")
+    monkeypatch.setattr(customer_advocate, "optimize_coupons", lambda **kwargs: None)
+    monkeypatch.setattr(
+        router_module,
+        "route_message",
+        lambda *args, **kwargs: RoutingDecision(
+            capability=Capability.ADD_ITEMS,
+            safety=SafetyClass.BASKET,
+            confidence=0.95,
+            items=[
+                {"query": "milk", "quantity": 1},
+                {"query": "Milk", "quantity": 2},
+            ],
+        ),
+    )
+
+    result = await handle_webhook(
+        SignedRequest(_message(wa_id, text="milk and milk")),
+        swiggy_client=client,
+        wa_client=outbound,
+    )
+
+    assert result["status"] == "cart_updated"
+    assert len(searches) == 1
+    assert len(client.last_update_items) == 1
+    assert client.last_update_items[0]["spinId"] == "spin_amul_1l"
+    assert client.last_update_items[0]["quantity"] == 5
+
+
+@pytest.mark.asyncio
+async def test_long_receipt_is_sent_whole_with_buttons_after():
+    from backend.channels.button_router import RECEIPT_FOLLOW_UP, send_receipt
+
+    outbound = RecordingWA()
+    body = "item line\n" * 120
+
+    await send_receipt(outbound, "919876543210", body, [("pay:1", "Pay ₹500")])
+
+    assert outbound.texts[-1] == ("919876543210", body)
+    assert outbound.buttons[-1][1] == RECEIPT_FOLLOW_UP
+    assert outbound.buttons[-1][2] == [("pay:1", "Pay ₹500")]
+
+
+@pytest.mark.asyncio
+async def test_short_receipt_stays_one_buttons_message():
+    from backend.channels.button_router import send_receipt
+
+    outbound = RecordingWA()
+
+    await send_receipt(outbound, "919876543210", "short receipt", [("pay:1", "Pay ₹500")])
+
+    assert outbound.texts == []
+    assert outbound.buttons[-1][1] == "short receipt"

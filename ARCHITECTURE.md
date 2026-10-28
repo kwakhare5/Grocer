@@ -86,7 +86,7 @@ flowchart TD
     end
 ```
 
-Layer 2 is provider-agnostic since ADR 0012. The LLM never calls Swiggy; Python does. Every model call goes through `backend/agent/llm.py`. A basket turn makes one routing call, then one candidate-evaluation call per item that has candidates. No provider SDK is imported outside the adapter.
+Layer 2 is provider-agnostic since ADR 0012. The LLM never calls Swiggy; Python does. Every model call goes through `backend/agent/llm.py`. A basket turn makes one routing call, then one batched candidate-evaluation call for every item with candidates. No provider SDK is imported outside the adapter.
 
 ---
 
@@ -151,7 +151,7 @@ sequenceDiagram
 - **Immediate Acknowledgment:** Target is HTTP 200 OK to Meta in under 25ms. Current implementation is synchronous: the webhook holds the request while the LLM and Swiggy calls run. Changing this to an ACK-then-work queue is Phase 7 work.
 - **Durable Deduplication:** Inbound messages are inserted into `inbound_messages` with `ON CONFLICT (wa_message_id) DO NOTHING`. The user and message rows commit before the turn runs, so a later exception cannot roll the dedupe row back. Fixed in Phase 3.
 - **Stale Message Dropping:** Discards any inbound webhook with a timestamp older than 15 minutes. A message that arrives after Render wakes can be dropped with no reply; that is a known UX gap.
-- **Per-User Concurrency Lock:** Serializes operations per user using the session-scoped `pg_try_advisory_lock(hashtext(user_id))`. If the lock is busy, the message is marked `concurrency_dropped`, and the customer gets no reply. Changing this to a queue is Phase 7 work.
+- **Per-User Concurrency Lock:** Serializes operations per user using the session-scoped `pg_try_advisory_lock(hashtext(user_id))`. A quick second message waits up to 12 seconds for the first turn, then runs against the fresh cart and history. If the turn is still running, the message is marked `concurrency_wait_timeout` and the customer gets an honest "send that again" reply (`backend/channels/whatsapp.py`).
 - **Presence:** Every accepted inbound message is marked read with a 25-second typing indicator (`POST /messages` with `status=read` and `typing_indicator`). The call runs as a fire-and-forget task after dedupe, so a slow Meta call never delays the turn; failures are logged only. Built 2026-10-27.
 - **Fast Button Dispatcher (`button_router.py`):**
   - If the incoming message is a physical interactive button tap (`pay:<approval_id>`, `addr:<id>`, `cart:clear`), it **bypasses the LLM**.
@@ -163,7 +163,7 @@ sequenceDiagram
 - **Capability Router (ADR 0012):** The LLM returns one routing decision per message — a capability from the fixed list, the extracted arguments, and a confidence score. Python validates the capability and makes every Swiggy call.
 - **Safety Classes:** Every capability is labelled `read`, `basket`, `account` or `money`. A read capability stops before any write path. This is enforced in Python dispatch, not in the prompt.
 - **Safe Path:** Unknown capability, or confidence below the floor, produces read-only options when a concrete product exists, otherwise a clarifying question. Floors: read 0.70, basket 0.80, account 0.85, money 0.95 (`backend/agent/router.py:81`). Nothing is written on a guess.
-- **One adapter, no provider SDKs:** routing and candidate evaluation both call `backend.agent.llm.complete_json`. A basket turn makes one routing call, then one candidate-evaluation call per item that has candidates. The legacy second intent call and the direct Gemini calls are gone. Prompts are provider-neutral and use JSON mode.
+- **One adapter, no provider SDKs:** routing and candidate evaluation both call `backend.agent.llm.complete_json`. A basket turn makes one routing call, then one batched candidate-evaluation call for every item with candidates. The legacy second intent call and the direct Gemini calls are gone. Prompts are provider-neutral and use JSON mode.
 - **Two-Step Search & Candidate Evaluation (Kills Blind `res[0]`):**
   - Step 1: Python runs `search_products` for each extracted item and collects the top 3–5 in-stock candidates with pack sizes and prices.
   - Step 2: The LLM evaluates candidates against user constraints (brand, dietary, size) and returns the chosen variant plus a confidence score.
@@ -219,7 +219,7 @@ sequenceDiagram
   - `recommend_address`: Geocodes free-text or WhatsApp pins to coordinates. Typed-text address add is built and reuses the flat/name/city steps. Fixed in Phase 5.
 - **Destructive Cart Overwrite Handling:**
   - Swiggy's `update_cart` replaces the entire cart. Grocer reads `get_cart`, merges items locally, and submits the full assembled cart (`items=[{spinId, quantity}]`).
-  - Since 2026-10-27 the merge is cap-aware: each requested quantity is clamped to Swiggy's `maxQuantity`, the cap and its message are printed on the receipt, and an add to a non-empty basket returns a delta line (old count and total, new count) instead of dumping the whole basket as if it were new.
+  - Since 2026-10-27 the merge is cap-aware: each requested quantity is clamped to Swiggy's `maxQuantity`, the cap and its message are printed on the receipt, and an add to a non-empty basket returns a delta line (old count and total, new count) instead of dumping the whole basket as if it were new. Identical queries in one message share one search and one evaluation and their quantities add. A receipt longer than the 1024-char button limit is sent whole as a text message, with Pay/Clear in a short follow-up.
   - `[Keep only new]` clears the old basket, re-adds the items from this turn, and verifies the result. `[Change item]` swaps one vague pick for a real alternative, keeping the quantity and restoring the old item if the verify fails.
   - An idle basket is noticed after 1 hour: the add receipt adds a Keep / Clear prompt. The server-side cart still expires on Swiggy's undocumented TTL; Grocer does not yet answer `CART_EXPIRED` with a specific message.
 - **Read-After-Write Verification:**
@@ -329,7 +329,7 @@ create table grocer.inbound_messages (
   user_id uuid not null references grocer.users(id),
   message_type text not null default 'text',
   raw_payload jsonb,                            -- scrubbed after 24h
-  status text not null default 'received',      -- received | processing | done | replayed | concurrency_dropped | awaiting_link
+  status text not null default 'received',      -- received | processing | done | replayed | concurrency_wait_timeout | awaiting_link
   created_at timestamptz not null default now()
 );
 create index on grocer.inbound_messages (user_id, created_at desc);

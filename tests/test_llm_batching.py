@@ -144,10 +144,12 @@ def test_one_batch_call_selects_every_item(monkeypatch):
 
     monkeypatch.setattr(candidate_evaluator, "complete_json", fake_complete)
     results = evaluate_customer_intents_batch(
-        [("milk", [MILK]), ("bread", [BREAD])]
+        [("milk", [MILK]), ("bread", [BREAD])],
+        message="get milk and the brown bread",
     )
 
     assert len(calls) == 1
+    assert "the brown bread" in calls[0]
     assert [r.selected_candidate.spin_id for r in results] == [
         "spin_milk",
         "spin_bread",

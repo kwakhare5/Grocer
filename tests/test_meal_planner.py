@@ -10,6 +10,8 @@ from fixture_client import FixtureSwiggyClient
 
 from backend.agent.meal_planner import (
     build_meal_plan,
+    exact_packs_for,
+    measure_from_text,
     packs_for,
     parse_pick_indexes,
     plan_items,
@@ -57,6 +59,26 @@ def test_amounts_become_whole_packs():
     assert packs_for(250, "g", "1 L") is None
     assert packs_for(250, "g", "family pack") is None
     assert packs_for(None, None, "1 L") is None
+
+
+def test_shopping_requires_an_exact_pack_not_a_lookalike():
+    assert exact_packs_for(6, "pieces", "6 pcs") == 1
+    assert exact_packs_for(2, "pieces", "6 pcs") is None
+    assert exact_packs_for(200, "g", "200 g") == 1
+    assert exact_packs_for(200, "g", "400 g") is None
+    assert exact_packs_for(500, "g", "1 kg") is None
+    assert exact_packs_for(1, "l", "500 ml") == 2
+    assert exact_packs_for(5, "kg", "1 kg") == 5
+    assert exact_packs_for(6, "pieces", "pack of 6") == 1
+    assert exact_packs_for(1, "packet", "6 pcs") is None
+
+
+def test_measure_reads_a_size_out_of_the_words():
+    assert measure_from_text("add 200g paneer") == ("g", 200)
+    assert measure_from_text("1 litre milk") == ("ml", 1000)
+    assert measure_from_text("6 pieces") == ("count", 6)
+    assert measure_from_text("6 eggs") is None
+    assert measure_from_text("milk") is None
 
 
 def test_numbered_replies_read_against_the_plan():

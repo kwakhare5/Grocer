@@ -113,6 +113,31 @@ def packs_for(
     return max(1, math.ceil(needed[1] / pack[1]))
 
 
+def measure_from_text(text: str | None) -> tuple[str, float] | None:
+    """Read the first amount and unit in free text ('200 g paneer')."""
+    match = _NUMBER_UNIT.search(text or "")
+    if not match:
+        return None
+    return measure(match.group(1), match.group(2))
+
+
+def exact_packs_for(
+    amount: Any,
+    unit: str | None,
+    quantity_description: str | None,
+) -> int | None:
+    """Packs that meet the amount exactly. A larger or smaller pack is not a match."""
+    needed = measure(amount, unit)
+    pack = parse_pack_size(quantity_description)
+    if not needed or not pack or needed[0] != pack[0] or pack[1] <= 0:
+        return None
+    ratio = needed[1] / pack[1]
+    packs = round(ratio)
+    if packs < 1 or not math.isclose(ratio, packs, rel_tol=1e-9, abs_tol=1e-9):
+        return None
+    return packs
+
+
 def parse_pick_indexes(text: str, item_count: int) -> list[int] | None:
     """Read a numbered reply like '1 and 3' against the plan on screen."""
     if item_count <= 0 or not text:

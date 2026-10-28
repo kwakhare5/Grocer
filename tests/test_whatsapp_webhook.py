@@ -8,6 +8,7 @@ handler. It does not prove Meta's delivery or a human tap.
 from __future__ import annotations
 
 import asyncio
+import copy
 import hashlib
 import hmac
 import json
@@ -31,6 +32,108 @@ FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures"
 
 def _catalog() -> SearchProductsData:
     raw = json.loads((FIXTURES_DIR / "catalog_samples.json").read_text(encoding="utf-8"))
+    envelope = ToolEnvelope[SearchProductsData].model_validate(raw)
+    assert envelope.data is not None
+    return envelope.data
+
+
+def _catalog_with_bananas() -> SearchProductsData:
+    raw = json.loads((FIXTURES_DIR / "catalog_samples.json").read_text(encoding="utf-8"))
+    product = copy.deepcopy(raw["data"]["products"][2])
+    product.update(
+        {
+            "displayName": "Fresh Bananas",
+            "brand": "Local",
+            "productId": "prod_banana_01",
+        }
+    )
+    variation = product["variations"][0]
+    variation.update(
+        {
+            "spinId": "spin_banana_6",
+            "skuId": "sku_banana_6",
+            "quantityDescription": "6 pcs",
+            "displayName": "Fresh Bananas (6 pcs)",
+            "brandName": "Local",
+            "maxQuantity": 4,
+        }
+    )
+    raw["data"]["products"].append(product)
+    envelope = ToolEnvelope[SearchProductsData].model_validate(raw)
+    assert envelope.data is not None
+    return envelope.data
+
+
+def _catalog_with_paneer_and_rice() -> SearchProductsData:
+    raw = json.loads((FIXTURES_DIR / "catalog_samples.json").read_text(encoding="utf-8"))
+    template = copy.deepcopy(raw["data"]["products"][2])
+
+    def product(
+        name: str,
+        brand: str,
+        product_id: str,
+        spin_id: str,
+        size: str,
+        display_name: str,
+        price: int,
+    ) -> dict[str, Any]:
+        item = copy.deepcopy(template)
+        item.update({"displayName": name, "brand": brand, "productId": product_id})
+        variation = item["variations"][0]
+        variation.update(
+            {
+                "spinId": spin_id,
+                "skuId": f"sku_{spin_id}",
+                "quantityDescription": size,
+                "displayName": display_name,
+                "brandName": brand,
+                "maxQuantity": 4,
+            }
+        )
+        variation["price"]["mrp"] = price
+        variation["price"]["offerPrice"] = price
+        return item
+
+    raw["data"]["products"].extend(
+        [
+            product(
+                "Amul Fresh Paneer",
+                "Amul",
+                "prod_paneer_200",
+                "spin_paneer_200g",
+                "200 g",
+                "Amul Fresh Paneer (200 g)",
+                85,
+            ),
+            product(
+                "Amul Fresh Paneer Family Pack",
+                "Amul",
+                "prod_paneer_400",
+                "spin_paneer_400g",
+                "400 g",
+                "Amul Fresh Paneer (400 g)",
+                170,
+            ),
+            product(
+                "Daawat Rozana Basmati Rice",
+                "Daawat",
+                "prod_rice_1kg",
+                "spin_rice_1kg",
+                "1 kg",
+                "Daawat Rozana Basmati Rice (1 kg)",
+                149,
+            ),
+            product(
+                "Mtr Gulab Jamun Mix",
+                "Mtr",
+                "prod_jamun_500",
+                "spin_jamun_500g",
+                "500 g",
+                "Mtr Gulab Jamun Mix (500 g)",
+                144,
+            ),
+        ]
+    )
     envelope = ToolEnvelope[SearchProductsData].model_validate(raw)
     assert envelope.data is not None
     return envelope.data
@@ -199,6 +302,12 @@ def _message(
 
 def _new_wa_id() -> str:
     return f"91{uuid.uuid4().int % 10000000000:010d}"
+
+
+def _all_bodies(outbound: RecordingWA) -> list[str]:
+    return [text for _to, text in outbound.texts] + [
+        body for _to, body, _buttons in outbound.buttons
+    ]
 
 
 @pytest.mark.asyncio
@@ -423,7 +532,212 @@ async def test_multiple_items_all_land_even_when_one_is_already_in_the_basket(
 
 
 @pytest.mark.asyncio
-async def test_one_existing_item_asks_add_more_or_make_total(monkeypatch):
+async def test_adding_an_item_already_in_the_basket_increments_it(monkeypatch):
+    pool = await get_db_pool()
+    wa_id, _user_id = await _seed_text_user(pool)
+    client = FixtureSwiggyClient(FIXTURES_DIR, catalog_data=_catalog())
+    outbound = RecordingWA()
+
+    from backend.agent import customer_advocate
+    from backend.agent import router as router_module
+    from backend.agent.router import Capability, RoutingDecision, SafetyClass
+
+    monkeypatch.setattr(settings, "LLM_PROVIDER", "scripted")
+    monkeypatch.setattr(customer_advocate, "optimize_coupons", lambda **kwargs: None)
+    monkeypatch.setattr(
+        router_module,
+        "route_message",
+        lambda *args, **kwargs: RoutingDecision(
+            capability=Capability.ADD_ITEMS,
+            safety=SafetyClass.BASKET,
+            confidence=0.95,
+            items=[{"query": "milk", "quantity": 1}],
+        ),
+    )
+
+    result = await handle_webhook(
+        SignedRequest(_message(wa_id, text="add 1 more milk")),
+        swiggy_client=client,
+        wa_client=outbound,
+    )
+
+    assert result["status"] == "cart_updated"
+    quantities = {item.spinId: item.quantity for item in client.get_cart("addr_01HXYZ").items}
+    assert quantities["spin_amul_1l"] == 3
+    assert not any(
+        "Add 1 more, or make the total" in body
+        for _to, body, _buttons in outbound.buttons
+    )
+
+
+@pytest.mark.asyncio
+async def test_six_bananas_buys_one_six_pack(monkeypatch):
+    pool = await get_db_pool()
+    wa_id, _user_id = await _seed_text_user(pool)
+    client = FixtureSwiggyClient(FIXTURES_DIR, catalog_data=_catalog_with_bananas())
+    outbound = RecordingWA()
+
+    from backend.agent import customer_advocate
+    from backend.agent import router as router_module
+    from backend.agent.router import Capability, RoutingDecision, SafetyClass
+
+    monkeypatch.setattr(settings, "LLM_PROVIDER", "scripted")
+    monkeypatch.setattr(customer_advocate, "optimize_coupons", lambda **kwargs: None)
+    monkeypatch.setattr(
+        router_module,
+        "route_message",
+        lambda *args, **kwargs: RoutingDecision(
+            capability=Capability.ADD_ITEMS,
+            safety=SafetyClass.BASKET,
+            confidence=0.95,
+            items=[{"query": "bananas", "quantity": 1, "amount": 6, "unit": "piece"}],
+        ),
+    )
+
+    result = await handle_webhook(
+        SignedRequest(_message(wa_id, text="add 6 bananas")),
+        swiggy_client=client,
+        wa_client=outbound,
+    )
+
+    assert result["status"] == "cart_updated"
+    quantities = {item.spinId: item.quantity for item in client.get_cart("addr_01HXYZ").items}
+    assert quantities["spin_banana_6"] == 1
+
+
+@pytest.mark.asyncio
+async def test_two_bananas_never_buys_a_six_pack(monkeypatch):
+    pool = await get_db_pool()
+    wa_id, _user_id = await _seed_text_user(pool)
+    client = FixtureSwiggyClient(FIXTURES_DIR, catalog_data=_catalog_with_bananas())
+    outbound = RecordingWA()
+
+    from backend.agent import router as router_module
+    from backend.agent.router import Capability, RoutingDecision, SafetyClass
+
+    monkeypatch.setattr(settings, "LLM_PROVIDER", "scripted")
+    monkeypatch.setattr(
+        router_module,
+        "route_message",
+        lambda *args, **kwargs: RoutingDecision(
+            capability=Capability.ADD_ITEMS,
+            safety=SafetyClass.BASKET,
+            confidence=0.95,
+            items=[{"query": "bananas", "quantity": 1, "amount": 2, "unit": "piece"}],
+        ),
+    )
+
+    result = await handle_webhook(
+        SignedRequest(_message(wa_id, text="add 2 bananas")),
+        swiggy_client=client,
+        wa_client=outbound,
+    )
+
+    assert result["status"] != "cart_updated"
+    assert client.last_update_items == []
+    assert all(
+        item.spinId != "spin_banana_6" for item in client.get_cart("addr_01HXYZ").items
+    )
+    assert _all_bodies(outbound)
+
+
+@pytest.mark.asyncio
+async def test_paneer_rice_case_never_swaps_or_drops(monkeypatch):
+    pool = await get_db_pool()
+    wa_id, _user_id = await _seed_text_user(pool)
+    client = FixtureSwiggyClient(FIXTURES_DIR, catalog_data=_catalog_with_paneer_and_rice())
+    outbound = RecordingWA()
+
+    from backend.agent import customer_advocate
+    from backend.agent import router as router_module
+    from backend.agent.router import Capability, RoutingDecision, SafetyClass
+
+    monkeypatch.setattr(settings, "LLM_PROVIDER", "scripted")
+    monkeypatch.setattr(customer_advocate, "optimize_coupons", lambda **kwargs: None)
+    monkeypatch.setattr(
+        router_module,
+        "route_message",
+        lambda *args, **kwargs: RoutingDecision(
+            capability=Capability.ADD_ITEMS,
+            safety=SafetyClass.BASKET,
+            confidence=0.95,
+            items=[
+                {"query": "paneer", "quantity": 1, "amount": 200, "unit": "g"},
+                {
+                    "query": "gulab jamun",
+                    "quantity": 1,
+                    "amount": 1,
+                    "unit": "pack",
+                },
+                {"query": "rice", "quantity": 1, "amount": 500, "unit": "g"},
+            ],
+        ),
+    )
+
+    result = await handle_webhook(
+        SignedRequest(
+            _message(wa_id, text="add 200g paneer, 1 packet gulab jamun and 500g rice")
+        ),
+        swiggy_client=client,
+        wa_client=outbound,
+    )
+
+    assert result["status"] == "cart_updated"
+    quantities = {item.spinId: item.quantity for item in client.get_cart("addr_01HXYZ").items}
+    assert quantities["spin_paneer_200g"] == 1
+    assert quantities["spin_jamun_500g"] == 1
+    assert "spin_paneer_400g" not in quantities
+    assert "spin_rice_1kg" not in quantities
+    assert any(
+        "Not added" in body and "rice 500 g" in body
+        for body in _all_bodies(outbound)
+    )
+
+
+@pytest.mark.asyncio
+async def test_partial_add_names_the_missing_item(monkeypatch):
+    pool = await get_db_pool()
+    wa_id, _user_id = await _seed_text_user(pool)
+    client = FixtureSwiggyClient(FIXTURES_DIR, catalog_data=_catalog_with_bananas())
+    outbound = RecordingWA()
+
+    from backend.agent import customer_advocate
+    from backend.agent import router as router_module
+    from backend.agent.router import Capability, RoutingDecision, SafetyClass
+
+    monkeypatch.setattr(settings, "LLM_PROVIDER", "scripted")
+    monkeypatch.setattr(customer_advocate, "optimize_coupons", lambda **kwargs: None)
+    monkeypatch.setattr(
+        router_module,
+        "route_message",
+        lambda *args, **kwargs: RoutingDecision(
+            capability=Capability.ADD_ITEMS,
+            safety=SafetyClass.BASKET,
+            confidence=0.95,
+            items=[
+                {"query": "milk", "quantity": 1},
+                {"query": "bananas", "quantity": 1, "amount": 2, "unit": "piece"},
+            ],
+        ),
+    )
+
+    result = await handle_webhook(
+        SignedRequest(_message(wa_id, text="add milk and 2 bananas")),
+        swiggy_client=client,
+        wa_client=outbound,
+    )
+
+    assert result["status"] == "cart_updated"
+    quantities = {item.spinId: item.quantity for item in client.get_cart("addr_01HXYZ").items}
+    assert quantities["spin_amul_1l"] == 3
+    assert any(
+        "Not added" in body or "Waiting for your pick" in body
+        for body in _all_bodies(outbound)
+    )
+
+
+@pytest.mark.asyncio
+async def test_more_than_ten_items_is_refused_before_search(monkeypatch):
     pool = await get_db_pool()
     wa_id, _user_id = await _seed_text_user(pool)
     client = FixtureSwiggyClient(FIXTURES_DIR, catalog_data=_catalog())
@@ -440,25 +754,64 @@ async def test_one_existing_item_asks_add_more_or_make_total(monkeypatch):
             capability=Capability.ADD_ITEMS,
             safety=SafetyClass.BASKET,
             confidence=0.95,
-            items=[{"query": "milk", "quantity": 1}],
+            items=[{"query": f"item {index}", "quantity": 1} for index in range(11)],
         ),
     )
 
     result = await handle_webhook(
-        SignedRequest(_message(wa_id, text="add milk")),
+        SignedRequest(_message(wa_id, text="add eleven things")),
         swiggy_client=client,
         wa_client=outbound,
     )
 
-    assert result["status"] == "basket_quantity_choice"
+    assert result["status"] == "too_many_items"
     assert client.last_update_items == []
-    assert outbound.buttons
-    _to, body, buttons = outbound.buttons[-1]
-    assert "Add 1 more, or make the total 1?" in body
-    assert buttons == [
-        ("cart:addqty:spin_amul_1l:1", "Add 1 more"),
-        ("cart:qty:spin_amul_1l:1", "Make total 1"),
-    ]
+    assert any("up to 10 items" in text for _to, text in outbound.texts)
+
+
+@pytest.mark.asyncio
+async def test_unsupported_media_gets_one_honest_reply():
+    wa_id = _new_wa_id()
+    client = FixtureSwiggyClient(FIXTURES_DIR, catalog_data=_catalog())
+    outbound = RecordingWA()
+    payload = _message(wa_id, text="")
+    message = payload["entry"][0]["changes"][0]["value"]["messages"][0]
+    message.pop("text", None)
+    message["type"] = "image"
+    message["image"] = {"id": "media_01", "mime_type": "image/jpeg"}
+
+    result = await handle_webhook(
+        SignedRequest(payload), swiggy_client=client, wa_client=outbound
+    )
+
+    assert result["status"] == "unsupported_message"
+    assert any("only read text" in text for _to, text in outbound.texts)
+
+
+@pytest.mark.asyncio
+async def test_hourly_rate_limit_stops_a_spammer():
+    pool = await get_db_pool()
+    wa_id, user_id = await _seed_text_user(pool)
+    async with pool.acquire() as conn:
+        for _ in range(20):
+            await conn.execute(
+                "INSERT INTO grocer.inbound_messages "
+                "(user_id, wa_message_id, status, raw_payload) "
+                "VALUES ($1, $2, 'processed', '{}'::jsonb);",
+                user_id,
+                f"wamid.seed.{uuid.uuid4()}",
+            )
+    client = FixtureSwiggyClient(FIXTURES_DIR, catalog_data=_catalog())
+    outbound = RecordingWA()
+
+    result = await handle_webhook(
+        SignedRequest(_message(wa_id, text="hello")),
+        swiggy_client=client,
+        wa_client=outbound,
+    )
+
+    assert result["status"] == "rate_limited"
+    assert any("too fast" in text for _to, text in outbound.texts)
 
 
 @pytest.mark.asyncio

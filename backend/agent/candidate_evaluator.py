@@ -53,6 +53,8 @@ class ExtractedGroceryItem(BaseModel):
 
     query: str
     quantity: int = 1
+    amount: float | None = None
+    unit: str | None = None
 
 
 class CandidateEvaluationResult(BaseModel):

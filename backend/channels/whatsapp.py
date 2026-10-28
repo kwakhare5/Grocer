@@ -601,6 +601,18 @@ async def handle_webhook(
                     else:
                         session_history = []
 
+                    async def reply_to(customer_reply: Any) -> None:
+                        if customer_reply.buttons:
+                            await wa_client.send_quick_reply_buttons(
+                                to_wa_id=msg.sender_wa_id,
+                                body_text=customer_reply.text,
+                                buttons=customer_reply.buttons,
+                            )
+                        else:
+                            await wa_client.send_text_message(
+                                to_wa_id=msg.sender_wa_id, text=customer_reply.text
+                            )
+
                     async def remember(reply_text: str) -> None:
                         session_history.append({"role": "user", "text": msg.text})
                         session_history.append({"role": "assistant", "text": reply_text})
@@ -769,16 +781,7 @@ async def handle_webhook(
                             decision, turn_client, active_addr_id, coords
                         )
                         reply_text = read_reply.text
-                        if read_reply.buttons:
-                            await wa_client.send_quick_reply_buttons(
-                                to_wa_id=msg.sender_wa_id,
-                                body_text=reply_text,
-                                buttons=read_reply.buttons,
-                            )
-                        else:
-                            await wa_client.send_text_message(
-                                to_wa_id=msg.sender_wa_id, text=reply_text
-                            )
+                        await reply_to(read_reply)
                         notice = _basket_notice(
                             session_row["last_active_at"] if session_row else None,
                             live_cart,
@@ -823,16 +826,7 @@ async def handle_webhook(
                         addr_reply = await handle_switch_request(
                             decision, turn_client, conn, user_id, active_addr_id
                         )
-                        if addr_reply.buttons:
-                            await wa_client.send_quick_reply_buttons(
-                                to_wa_id=msg.sender_wa_id,
-                                body_text=addr_reply.text,
-                                buttons=addr_reply.buttons,
-                            )
-                        else:
-                            await wa_client.send_text_message(
-                                to_wa_id=msg.sender_wa_id, text=addr_reply.text
-                            )
+                        await reply_to(addr_reply)
                         await remember(addr_reply.text)
                         return {
                             "status": "address_switch_requested",
@@ -845,16 +839,7 @@ async def handle_webhook(
                         addr_reply = await handle_delete_request(
                             decision, turn_client, active_addr_id
                         )
-                        if addr_reply.buttons:
-                            await wa_client.send_quick_reply_buttons(
-                                to_wa_id=msg.sender_wa_id,
-                                body_text=addr_reply.text,
-                                buttons=addr_reply.buttons,
-                            )
-                        else:
-                            await wa_client.send_text_message(
-                                to_wa_id=msg.sender_wa_id, text=addr_reply.text
-                            )
+                        await reply_to(addr_reply)
                         await remember(addr_reply.text)
                         return {
                             "status": "address_delete_requested",
@@ -951,16 +936,7 @@ async def handle_webhook(
                                 "I couldn't read your basket just now. Please try again."
                             )
 
-                        if basket_reply.buttons:
-                            await wa_client.send_quick_reply_buttons(
-                                to_wa_id=msg.sender_wa_id,
-                                body_text=basket_reply.text,
-                                buttons=basket_reply.buttons,
-                            )
-                        else:
-                            await wa_client.send_text_message(
-                                to_wa_id=msg.sender_wa_id, text=basket_reply.text
-                            )
+                        await reply_to(basket_reply)
                         await remember(basket_reply.text)
                         return {
                             "status": (
@@ -993,16 +969,7 @@ async def handle_webhook(
                                 "I couldn't read your past orders just now. Please try again."
                             )
 
-                        if order_reply.buttons:
-                            await wa_client.send_quick_reply_buttons(
-                                to_wa_id=msg.sender_wa_id,
-                                body_text=order_reply.text,
-                                buttons=order_reply.buttons,
-                            )
-                        else:
-                            await wa_client.send_text_message(
-                                to_wa_id=msg.sender_wa_id, text=order_reply.text
-                            )
+                        await reply_to(order_reply)
                         await remember(order_reply.text)
                         return {
                             "status": "reorder_requested",

@@ -809,9 +809,15 @@ async def test_hourly_rate_limit_stops_a_spammer():
         swiggy_client=client,
         wa_client=outbound,
     )
+    second = await handle_webhook(
+        SignedRequest(_message(wa_id, text="hello again")),
+        swiggy_client=client,
+        wa_client=outbound,
+    )
 
     assert result["status"] == "rate_limited"
-    assert any("too fast" in text for _to, text in outbound.texts)
+    assert second["status"] == "rate_limited"
+    assert sum("too fast" in text for _to, text in outbound.texts) == 1
 
 
 @pytest.mark.asyncio

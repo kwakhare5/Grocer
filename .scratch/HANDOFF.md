@@ -1,5 +1,5 @@
-Goal: Phase 9 handoff and a live phone proof session. No paid order. Render env unchanged.
-Shipped: main is the only branch; Render and Vercel deploy it. Product renamed to Grocer; CI green. Landing page live with the WhatsApp CTA. Live eval of 26 signed webhooks ran against Render with the real Swiggy MCP and Groq. Found and fixed the multi-item -> change_item misroute (f285b00, 2 new tests), and added WhatsApp error-body logging (be42740).
-Passing tests: 144 offline + 66 DB (latest full gate), Next build pass. Live reads and cart adds verified; double text produced two approvals. Real cart now holds 27 items, mostly test adds (about ₹3376); no order was placed.
-Next action: run the phone proofs, tap the site CTA once, and confirm a reaction on a real message. Groq's free daily cap (200k tokens) resets roughly every 24h; a heavy test day exhausts it and the bot answers with the honest AI-offline copy.
-Unproven: reaction on a real handset; multi-item completeness (rice omitted, duplicate paneer SKU); live Add-all/Change taps; address add/delete; 24h scrub; Gate 2 cases 7-8. Checkout stays simulated; no order will be placed.
+Goal: finish the size-aware basket pass and keep checkout locked. Render env unchanged.
+Shipped: simplification branch merged and live on main (code 2c63289, docs b821751). Adds always add/increment; sizes exact; missing items named; explicit set applies; remove/clear confirm; 20 msgs/hour, 10 items, qty 1-99; media reply; DPDP scrub at startup; logs masked; deps pinned.
+Passing tests: verify.ps1 -Db exit 0; 146 offline + 73 DB; Next build pass; CI green on 2c63289; Render live with /health 200.
+Next action: run the remaining live route wordings (multi-item, eggs, Hinglish, bare "milk", remove) when the shared Groq TPM clears; then phone taps (Add-all, Change, reaction) and address/OAuth proofs. No order.
+Unproven: live multi-item/Hinglish wording; beta allowlist (needs Render env + numbers); global daily AI cap; real order, bills/tracking; live 24h scrub. Checkout stays simulated.

@@ -239,7 +239,7 @@ sequenceDiagram
 - **The Wallet Champion Promise (ADR 0003):**
   - Tests up to 2 applicable coupons via `list_coupons` and `apply_coupon`.
   - **Net-Savings Guardrail:** If applying a coupon drops the order below free delivery and triggers a delivery fee that increases the net bill, Grocer cancels the coupon, restores baseline prices, and explains why on the receipt.
-  - Target: highlight exact rupee savings on the receipt. Current: the savings message is built but never sent (`backend/agent/customer_advocate.py:251`).
+  - Since 2026-10-28 the receipt shows `🎟️ Coupon (code): -₹X saved`; reorder and address-switch replies name the coupon too. A coupon that changes cart items or quantities is refused, and a coupon is never kept if the payable total does not drop.
   - Current scope: coupon optimization runs on the add-items path only, not reorder or checkout.
 - **Small-Cart Fee Shock Protection (ADR 0009):**
   - Target: when delivery, handling, or small-order fees exceed 35% of the item total, warn the customer and suggest essentials.

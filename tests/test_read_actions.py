@@ -260,3 +260,22 @@ async def test_item_info_names_real_alternatives_when_out_of_stock():
     reply = await build_read_reply(decision, OutOfStockClient(), "addr_01HXYZ")
     assert "couldn't find" in reply.text
     assert "Mother Dairy Table Butter" in reply.text
+
+
+@pytest.mark.asyncio
+async def test_payment_options_say_upi_only():
+    client = FixtureSwiggyClient(FIXTURES_DIR)
+    text = await answer_read_capability(
+        RoutingDecision(
+            capability=Capability.PAYMENT_OPTIONS,
+            safety=SafetyClass.READ,
+            confidence=1.0,
+        ),
+        client,
+        "addr_01",
+    )
+
+    assert "UPI only" in text
+    assert "Google Pay" in text
+    assert "Swiggy Money" in text
+    assert "can't use those yet" in text

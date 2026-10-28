@@ -193,3 +193,35 @@ def test_receipt_caps_long_baskets_with_a_count_not_an_instruction():
     assert "🛒 *Your Basket (12 items)*" in text
     assert "…and 2 more items." in text
     assert "Ask *what's in my basket*" not in text
+
+
+def test_small_basket_names_the_charges_before_pay():
+    cart = CartData(
+        cartId="cart_small",
+        cartTotalAmount="30.00",
+        items=[_item("spin_chips", "Chips", 1, 20.0)],
+        billBreakdown={
+            "lineItems": [{"label": "Item Total", "value": "₹20.00"}],
+            "toPay": {"label": "To Pay", "value": "₹30.00"},
+        },
+    )
+
+    text = format_cart_receipt(cart)
+
+    assert "Charges add ₹10 (50% of your items)" in text
+
+
+def test_normal_basket_does_not_warn_about_charges():
+    cart = CartData(
+        cartId="cart_normal",
+        cartTotalAmount="105.00",
+        items=[_item("spin_atta", "Atta", 1, 100.0)],
+        billBreakdown={
+            "lineItems": [{"label": "Item Total", "value": "₹105.00"}],
+            "toPay": {"label": "To Pay", "value": "₹105.00"},
+        },
+    )
+
+    text = format_cart_receipt(cart)
+
+    assert "Charges add" not in text

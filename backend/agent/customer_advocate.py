@@ -14,7 +14,6 @@ from typing import Any
 
 import httpx
 
-from backend.agent.candidate_evaluator import format_paise_to_rupees
 from backend.integrations.commerce.schemas import CartData
 from backend.integrations.commerce.swiggy_client import SwiggyClient
 
@@ -28,7 +27,6 @@ class CouponOptimizationResult:
     applied_coupon: str | None = None
     savings_paise: int = 0
     final_cart: CartData | None = None
-    savings_message: str | None = None
     trials_conducted: int = 0
 
 
@@ -53,6 +51,13 @@ def extract_cart_to_pay_paise(cart: CartData) -> int:
 
     # Fallback: sum item totals in paise
     return sum(it.discounted_final_price_paise * it.quantity for it in cart.items)
+
+
+def _items_match(cart: CartData, other: CartData) -> bool:
+    """A coupon may change the bill, never the items or their quantities."""
+    mine = {it.spinId: it.quantity for it in cart.items}
+    theirs = {it.spinId: it.quantity for it in other.items}
+    return mine == theirs
 
 
 async def raise_session_budget_cap(
@@ -88,7 +93,10 @@ def optimize_coupons(
     3. Reverts to original cart if no tested coupon produces strictly lower toPay amount.
     """
     initial_to_pay_paise = extract_cart_to_pay_paise(cart)
-    if initial_to_pay_paise <= 0:
+    if initial_to_pay_paise <= 0 or not (
+        hasattr(swiggy_client, "list_coupons")
+        and hasattr(swiggy_client, "apply_coupon")
+    ):
         return CouponOptimizationResult(
             original_to_pay_paise=initial_to_pay_paise,
             final_to_pay_paise=initial_to_pay_paise,
@@ -123,6 +131,11 @@ def optimize_coupons(
         trials_count += 1
         try:
             trial_cart = swiggy_client.apply_coupon(candidate.couponCode)
+            if not _items_match(cart, trial_cart):
+                logger.warning(
+                    "Coupon %s changed basket items; ignored", candidate.couponCode
+                )
+                continue
             trial_to_pay = extract_cart_to_pay_paise(trial_cart)
 
             # Net-savings check: strictly less toPay amount
@@ -141,18 +154,20 @@ def optimize_coupons(
                 best_cart = swiggy_client.apply_coupon(best_coupon)
             except (httpx.HTTPError, ValueError, KeyError, RuntimeError) as exc:
                 logger.warning("Failed to re-apply best coupon %s: %s", best_coupon, exc)
+                best_cart = cart
 
-        savings_paise = initial_to_pay_paise - best_to_pay_paise
-        savings_rs = format_paise_to_rupees(savings_paise)
-        return CouponOptimizationResult(
-            original_to_pay_paise=initial_to_pay_paise,
-            final_to_pay_paise=best_to_pay_paise,
-            applied_coupon=best_coupon,
-            savings_paise=savings_paise,
-            final_cart=best_cart,
-            savings_message=f"🎉 You saved {savings_rs} with coupon {best_coupon}!",
-            trials_conducted=trials_count,
-        )
+        if not _items_match(cart, best_cart):
+            logger.warning("Winning coupon changed basket items; not used")
+        else:
+            savings_paise = initial_to_pay_paise - best_to_pay_paise
+            return CouponOptimizationResult(
+                original_to_pay_paise=initial_to_pay_paise,
+                final_to_pay_paise=best_to_pay_paise,
+                applied_coupon=best_coupon,
+                savings_paise=savings_paise,
+                final_cart=best_cart,
+                trials_conducted=trials_count,
+            )
 
     # Revert to base cart if any coupon was tried but didn't save money
     if trials_count > 0:
@@ -177,6 +192,5 @@ def optimize_coupons(
         applied_coupon=None,
         savings_paise=0,
         final_cart=cart,
-        savings_message=None,
         trials_conducted=trials_count,
     )

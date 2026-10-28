@@ -283,7 +283,25 @@ async def apply_reorder(
         )
 
     added = len(plan.lines)
+    coupon_code = None
+    savings_paise = 0
+    try:
+        from backend.agent.customer_advocate import optimize_coupons
+
+        optimized = await asyncio.to_thread(
+            optimize_coupons, after, client, address_id
+        )
+        coupon_code = optimized.applied_coupon
+        savings_paise = optimized.savings_paise
+    except (httpx.HTTPError, ValueError, KeyError, RuntimeError) as exc:
+        logger.debug("Reorder coupon step skipped: %s", exc)
+
     reply = f"Added {added} item{'s' if added != 1 else ''} from {plan.label} to your basket."
+    if coupon_code and savings_paise > 0:
+        reply += (
+            f"\n🎟️ Coupon {coupon_code}: you save "
+            f"{format_paise_to_rupees(savings_paise)}."
+        )
     if plan.missing:
         reply += " Not available now: " + ", ".join(plan.missing) + "."
     reply += " Say 'checkout' when you're ready to pay."

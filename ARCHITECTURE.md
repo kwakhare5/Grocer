@@ -153,6 +153,7 @@ sequenceDiagram
 - **Durable Deduplication:** Inbound messages are inserted into `inbound_messages` with `ON CONFLICT (wa_message_id) DO NOTHING`. The user and message rows commit before the turn runs, so a later exception cannot roll the dedupe row back. Fixed in Phase 3.
 - **Stale Message Dropping:** Discards any inbound webhook with a timestamp older than 15 minutes. A message that arrives after Render wakes can be dropped with no reply; that is a known UX gap.
 - **Per-User Concurrency Lock:** Serializes operations per user using the session-scoped `pg_try_advisory_lock(hashtext(user_id))`. A quick second message waits up to 12 seconds for the first turn, then runs against the fresh cart and history. If the turn is still running, the message is marked `concurrency_wait_timeout` and the customer gets an honest "send that again" reply (`backend/channels/whatsapp.py`).
+- **Abuse Limits (2026-10-28):** 20 messages per user per hour; the first over the limit gets one warning, the rest are recorded and dropped. A message can carry at most 10 items and each quantity is clamped to 1–99. Photos, voice notes and stickers get one honest "type it" reply instead of silence. One sender cannot exhaust the shared free AI budget or the store calls for everyone.
 - **Presence:** Every accepted inbound message is marked read with a 25-second typing indicator (`POST /messages` with `status=read` and `typing_indicator`). The call runs as a fire-and-forget task after dedupe, so a slow Meta call never delays the turn; failures are logged only. Built 2026-10-27.
 - **Fast Button Dispatcher (`button_router.py`):**
   - If the incoming message is a physical interactive button tap (`pay:<approval_id>`, `addr:<id>`, `cart:clear`), it **bypasses the LLM**.
@@ -165,6 +166,7 @@ sequenceDiagram
 - **Safety Classes:** Every capability is labelled `read`, `basket`, `account` or `money`. A read capability stops before any write path. This is enforced in Python dispatch, not in the prompt.
 - **Safe Path:** Unknown capability, or confidence below the floor, produces read-only options when a concrete product exists, otherwise a clarifying question. Floors: read 0.70, basket 0.80, account 0.85, money 0.95 (`backend/agent/router.py:81`). Nothing is written on a guess.
 - **One adapter, no provider SDKs:** routing and candidate evaluation both call `backend.agent.llm.complete_json`. A basket turn makes one routing call, then one batched candidate-evaluation call for every item with candidates. The legacy second intent call and the direct Gemini calls are gone. Prompts are provider-neutral and use JSON mode.
+- **Basket State & Pack Math (2026-10-28):** The model names add / set / remove from the customer's words; Python reads the live cart and decides whether an add increments or creates a line. Each item carries `amount` and `unit`; Python converts the amount to whole packs and accepts only a pack that meets it exactly. A 200 g request never becomes 400 g, and 500 g never becomes 1 kg; the item is named as "Not added" or becomes a choice. Adds and explicit total sets apply immediately with a receipt; only remove and clear keep a confirm button. Every named item ends added, asked, or refused.
 - **Two-Step Search & Candidate Evaluation (Kills Blind `res[0]`):**
   - Step 1: Python runs `search_products` for each extracted item and collects the top 3–5 in-stock candidates with pack sizes and prices.
   - Step 2: The LLM evaluates candidates against user constraints (brand, dietary, size) and returns the chosen variant plus a confidence score.
@@ -437,7 +439,7 @@ backend/
 │   ├── candidate_search.py     # Live catalog search per extracted item
 │   ├── candidate_evaluator.py  # Product variant selection
 │   ├── read_actions.py         # Read-only capability answers, never writes
-│   ├── basket_actions.py       # Clear, remove, quantity with preview and revert
+│   ├── basket_actions.py       # Clear/remove confirm, explicit set applies, revert on drift
 │   ├── order_actions.py        # Reorder from last order or usual items
 │   ├── address_actions.py      # Switch and two-tap delete with live guards
 │   ├── address_lifecycle.py    # Address list, switch, delete and pin onboarding

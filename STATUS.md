@@ -10,7 +10,7 @@
 
 | Item | Current fact |
 |---|---|
-| Git branch | `main` is the only branch and deploys Render and Vercel |
+| Git branch | `main` is the deploy branch and deploys Render and Vercel. A local `simplify-basket` branch is under test on 2026-10-28; it is not pushed or deployed. |
 | Supabase | One project until launch. App data lives in the `postgres` database, schema `grocer` (8 app tables + `schema_migrations`). Both the app database and `grocer_test` are migrated through 010 (app DB applied 2026-10-28; `schema_migrations` lists 001–010). |
 | LLM | Groq `openai/gpt-oss-120b` is primary for development and tests. Gemini is optional and its free quota is not a dependency. |
 | Swiggy auth | Allowlisted OAuth redirect: `https://grocerr.vercel.app/`. Backend calls `https://mcp.swiggy.com/im` with the customer token. |
@@ -32,12 +32,13 @@
 |---|---|
 | Documentation sync | **DONE 2026-10-27, scope corrected 2026-10-27.** Recipes are in v1 as plan-confirm-add; proactivity is money-and-truth only; replies stay English. Stale "current" notes were removed from PRD, ARCHITECTURE, DESIGN, GLOSSARY and the ADR index. The scope table lives in `TASKS.md`. |
 | Doc truth pass | **DONE 2026-10-28:** corrected pre-Batch-3 claims in ARCHITECTURE Layer 2/4, DESIGN A2/A6/A8/A9, PRD payment, GLOSSARY fee term, ADR index rows 0003–0006/0009, STATUS counts/constraints/next action, and the verify-grocer skill. No code changed. |
-| Landing page (Phase 8) | **DONE (code) 2026-10-28, deploy pending:** rebuilt per `DESIGN.md` Part B in plain language for customers and the Swiggy team. Live/in-testing labels, safety, privacy, Swiggy strip and FAQ; no fake uptime or test numbers. OAuth card only for `?t=` or callback. Missing env disables the CTA with a visible note; the placeholder number is display-only. `npm run build` pass; checked at 1440px and real 360px emulation with no overflow. Vercel deploy not run. |
+| Landing page (Phase 8) | **DONE 2026-10-28, live:** rebuilt per `DESIGN.md` Part B in plain language for customers and the Swiggy team. Live/in-testing labels, safety, privacy, Swiggy strip and FAQ; no fake uptime or test numbers. OAuth card only for `?t=` or callback. `npm run build` pass; checked at 1440px and real 360px emulation with no overflow. Vercel production is live with 3 `wa.me` links and 0 disabled notes. |
 | Lint | **PASS 2026-10-28:** `ruff check backend tests` → `All checks passed!` |
-| Offline tests | **PASS 2026-10-28:** 142 passed, 86 deselected (`pytest -q -m "not db and not live"`). |
-| DB tests | **PASS 2026-10-28:** 66 passed on `grocer_test` (`pytest -q -m "db"`). |
+| Offline tests | **PASS 2026-10-28 on `simplify-basket`:** 146 passed, 92 deselected (`pytest -q -m "not live and not db"`). Main baseline: 144. |
+| DB tests | **PASS 2026-10-28 on `simplify-basket`:** 72 passed on `grocer_test` (`pytest -q -m "db"`). Main baseline: 66. |
+| Basket path | **BRANCH 2026-10-28, not merged:** adds always add and increment an existing line; sizes are exact (200 g never becomes 400 g, 500 g never becomes 1 kg); every missing item is named; explicit set applies with a receipt; remove/clear still confirm. Abuse caps: 20 messages/hour/user, 10 items/message, quantity 1–99, media reply. Proof: 146 offline + 72 DB + Next build; exact paneer/rice regression test. |
 | Live tests | **20 live-only tests collected, not run.** `test_catalog_search.py` calls the live router/model path and is marked `live`. |
-| Full test collection | **228 tests collected 2026-10-28.** |
+| Full test collection | **238 tests collected 2026-10-28.** |
 | Full suite claim | The old "136 passed, 0 skipped" claim is retired. The current verified set is 142 offline + 66 DB (228 collected, 20 of them live-only); live is excluded by default. Scripted tests are marked `scripted` and never counted as live proof. |
 | Live Swiggy smoke | **PASS 2026-10-27:** real token, real MCP. 3 addresses, 20 milk products with live prices, 12-item cart read, 0 orders, 10 payment methods, 0 coupons. Cart add verified then restored (12 items, same spins and quantities). No order placed. Raw: `scripts/live_smoke.py`. |
 | Live Groq pass | **PASS 2026-10-27:** 10 real messages → 10 correct routes (item_info ×3, list_addresses, order_history, list_coupons, payment_options, add_items, chat, track_order) with real read answers. 55s. |

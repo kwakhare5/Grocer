@@ -1173,6 +1173,19 @@ async def handle_webhook(
                     alternative_hints: list[str] = []
                     vague_spins: set[str] = set()
 
+                    def _queue(cand: Any, packs: int) -> None:
+                        items_to_add.append(
+                            TargetCartItem(
+                                spin_id=cand.spin_id,
+                                sku_id=cand.sku_id,
+                                quantity=packs,
+                                item_name=cand.display_name,
+                                price_paise=cand.offer_price_paise,
+                                max_quantity=cand.max_quantity,
+                                max_quantity_message=cand.max_quantity_message,
+                            )
+                        )
+
                     for (target, cands, alternatives), evaluation in zip(
                         search_results, evaluations, strict=True
                     ):
@@ -1198,18 +1211,7 @@ async def handle_webhook(
                                 if plan:
                                     by_spin = {option.spin_id: option for option in cands}
                                     for spin_id, count in plan:
-                                        option = by_spin[spin_id]
-                                        items_to_add.append(
-                                            TargetCartItem(
-                                                spin_id=option.spin_id,
-                                                sku_id=option.sku_id,
-                                                quantity=count,
-                                                item_name=option.display_name,
-                                                price_paise=option.offer_price_paise,
-                                                max_quantity=option.max_quantity,
-                                                max_quantity_message=option.max_quantity_message,
-                                            )
-                                        )
+                                        _queue(by_spin[spin_id], count)
                                 else:
                                     unfound_queries.append(_describe(target))
                                     sizes = _sizes(cands)
@@ -1220,17 +1222,7 @@ async def handle_webhook(
                                 continue
                             if evaluation.is_vague_staple:
                                 vague_spins.add(cand.spin_id)
-                            items_to_add.append(
-                                TargetCartItem(
-                                    spin_id=cand.spin_id,
-                                    sku_id=cand.sku_id,
-                                    quantity=packs,
-                                    item_name=cand.display_name,
-                                    price_paise=cand.offer_price_paise,
-                                    max_quantity=cand.max_quantity,
-                                    max_quantity_message=cand.max_quantity_message,
-                                )
-                            )
+                            _queue(cand, packs)
                         elif evaluation.intent_type == IntentType.DISAMBIGUATION:
                             choice_prompts.append((target, cands))
                         else:

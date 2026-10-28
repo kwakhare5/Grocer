@@ -822,3 +822,11 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: one rule in `backend/agent/candidate_evaluator.py`. Rank by matched letters; a unique best match wins; a tie takes Swiggy's first pick and keeps the Change button; no match with several products shows the choices. Size correction now comes from the amount and `pack_plan`, not from a string table. 85 lines out, 36 in.
 - **Proof**: `tests/test_scorecard.py` 31/31 (100%); `pytest -q -m "not live"` -> 221 passed, 20 deselected; `ruff check backend tests` clean.
 - **Still broken**: live 26-case run capped by Groq; branch `scorecard` unmerged; Phase 1 (one write verb) not started.
+
+### [GROCER — Phase 1 boundary] 2026-10-28
+
+#### Work Card: Phase 1 stopped at the model boundary
+- **Problem**: collapsing add and change into one command changes what the router must output. With Groq capped, that output cannot be measured, so the change would ship unproven on the main shopping path.
+- **Change**: did not touch the router schema. Removed the duplicated cart-line construction my pack_plan change had introduced (`backend/channels/whatsapp.py`, one `_queue` helper). Net −8 lines.
+- **Proof**: `pytest -q -m "not live"` -> 221 passed, 20 deselected; ruff clean; offline scorecard stays 31/31.
+- **Still broken**: Phase 1 needs a live router eval first; the live 26-case run is capped; branch unmerged.

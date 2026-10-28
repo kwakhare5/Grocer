@@ -1,4 +1,4 @@
-"""Grocer v1.0 — Checkout Approval & Cart Fingerprinting Engine.
+"""Grocer — Checkout Approval & Cart Fingerprinting Engine.
 
 Enforces:
 1. Canonical SHA-256 cart fingerprinting over items and destination.

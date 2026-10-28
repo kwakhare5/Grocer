@@ -1,5 +1,5 @@
 -- ==============================================================================
--- Grocer v1.0 — Gate 1.1: Multi-Store Order IDs & Address Coordinates
+-- Grocer — Gate 1.1: Multi-Store Order IDs & Address Coordinates
 -- ==============================================================================
 
 -- 1. Multi-store checkouts return one order per dark store.

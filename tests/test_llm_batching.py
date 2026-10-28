@@ -1,4 +1,4 @@
-"""Grocer v1.0 — One batched item evaluation and one Groq queue.
+"""Grocer — One batched item evaluation and one Groq queue.
 
 Pure parsing and orchestration tests. No network, no database, no live model.
 """

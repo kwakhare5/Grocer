@@ -1,4 +1,4 @@
-# STATUS.md — Grocer v1 Current Truth
+# STATUS.md — Grocer Current Truth
 
 > **Updated:** 2026-10-28  
 > **Authority:** This is the only current status document. `PRD.md` is the v1 target. `ARCHITECTURE.md` is the design plus known gaps. `DESIGN.md` is the WhatsApp UI plus the website landing page. `JOURNAL.md` is append-only history. `docs/adr/` records decisions, amended not rewritten.  
@@ -10,7 +10,7 @@
 
 | Item | Current fact |
 |---|---|
-| Git branch | `grocer-v1`; main branch is `main` |
+| Git branch | `main` is the only branch and deploys Render and Vercel |
 | Supabase | One project until launch. App data lives in the `postgres` database, schema `grocer` (8 app tables + `schema_migrations`). Both the app database and `grocer_test` are migrated through 010 (app DB applied 2026-10-28; `schema_migrations` lists 001–010). |
 | LLM | Groq `openai/gpt-oss-120b` is primary for development and tests. Gemini is optional and its free quota is not a dependency. |
 | Swiggy auth | Allowlisted OAuth redirect: `https://grocerr.vercel.app/`. Backend calls `https://mcp.swiggy.com/im` with the customer token. |
@@ -69,6 +69,7 @@
 | Block 1 hardening | **DONE (code) 2026-10-28:** PKCE state moved from process memory to `grocer.oauth_states` with a 10-minute TTL and one-time consume (migration 008); expired rows are deleted on consume and by the scrub. Startup waits at most 5 seconds for the DB, then serves with `/health` 503 and retries migrations with backoff. Migrations run on a separate owner connection; the app pool refuses to run without `grocer_app`, so there is no owner fallback. Rupee-to-paise conversion uses `Decimal(str(value))` in every schema property and the order bill. Proof: 141 offline, 66 DB, 227 collected; real dead-DB subprocess test, role DDL/ledger-refusal test, PKCE TTL/expiry test, backdated scrub test. |
 | Migration 005 | **APPLIED 2026-10-28:** `python scripts/migrate.py` added `sessions.pending_plan` and `sessions.pending_plan_expires_at` to the app database; `verify_db.py` exits 0. `grocer_test` applied it through the DB suite. Render applies pending migrations at startup on the next deploy. |
 | Migrations 007–010 | **APPLIED 2026-10-28:** `python scripts/migrate.py` applied 007 (grocer_app role, two dropped columns), 008 (`grocer.oauth_states`), 009 (ledger write revoked), and 010 (ledger read restored) to the app database. `verify_db.py` exits 0 with 9 tables, proves app queries run as `grocer_app`, no CREATE on `grocer`, and no INSERT on `schema_migrations`. `grocer_test` applied them through the DB suite. |
+| Live deploy 50fc967 | **PASS 2026-10-28:** pushed `b03573c..50fc967` to `origin/main`; Render deploy `dep-dbgugmi9lscs7394rr80` built that commit and reached `live`. `GET https://grocer-backend-qwk4.onrender.com/health` → HTTP 200 `{"status":"healthy","database":"connected","app":"Grocer","environment":"development"}`. No env var was changed. |
 | Production readiness | **No.** |
 | Current gate | **Gate 2 — Concierge Answers.** 6 of 8 pass; 1 partial (reorder needs a past order); 1 code-complete but not tapped live ("milk" now auto-picks with a working Change button, discretionary items show choices). See §2. |
 
@@ -238,7 +239,7 @@ RuntimeError: Refusing to run tests against database 'postgres'. TEST_DATABASE_U
 
 ## 8. Next Action
 
-**Where we are (2026-10-28).** Phases 0, 1, 3, 4 and 5 are done. Phase 2 is done after the 40/40 live rerun with latency recorded. Phase 6 is done in code: DPDP, `grocer_app`, dead columns, and durable PKCE state. Phase 7 is code-complete. Phase 8 is built in code (Vercel deploy pending); Phase 9 handoff remains. The last full gate is green: 142 offline + 66 DB, 228 collected; live router eval 40/40, avg 1574ms, p95 2265ms. Block 1, Phase 8 and these docs are uncommitted; all commits through `b03573c` are pushed to `origin/grocer-v1`. Render was last verified on `09b5fa2`; later commits are not deploy-verified.
+**Where we are (2026-10-28).** Phases 0, 1, 3, 4 and 5 are done. Phase 2 is done after the 40/40 live rerun with latency recorded. Phase 6 is done in code: DPDP, `grocer_app`, dead columns, and durable PKCE state. Phase 7 is code-complete. Phase 8 is built in code (Vercel deploy pending); Phase 9 handoff remains. The last full gate is green: 142 offline + 66 DB, 228 collected; live router eval 40/40, avg 1574ms, p95 2265ms. `main` replaces the old unrelated history; `50fc967` was live on Render on branch `grocer-v1`, and the switch to `main` is in progress. The old `main` and codex tips are kept as tags `legacy-main-2026-10-28` and `legacy-codex-2026-10-28`.
 
 **Phase 7 backlog — code-complete; live proofs open.**
 
@@ -285,8 +286,8 @@ RuntimeError: Refusing to run tests against database 'postgres'. TEST_DATABASE_U
 
 Run in this order. Do not press Pay; checkout stays locked.
 
-1. Commit and push the current tree after Karan approves.
-2. Render deploy: wait for `/health` 200, then send one live read (`what's in my basket`) and confirm `/health` still reports the schema and `grocer_app` role. No env changes.
+1. ~~Commit and push the current tree after Karan approves.~~ DONE 2026-10-28: `50fc967` on `origin/main`.
+2. ~~Render deploy: wait for `/health` 200.~~ DONE 2026-10-28: deploy `dep-dbgugmi9lscs7394rr80` for `50fc967` is `live`; `/health` is 200 with `database: connected`. Still open: one live read from the bot (`what's in my basket`) and a live reaction/blue-tick check on a real wamid. No env changes.
 3. Vercel: set `NEXT_PUBLIC_WHATSAPP_NUMBER`, deploy, open the page at 360px and desktop, and confirm the CTA opens the real chat.
 4. WhatsApp, non-payment:
    - `1 litre milk` → receipt plus one reaction.

@@ -1,4 +1,4 @@
-"""Grocer v1.0 — Capability Router with Safety Classes (ADR 0012).
+"""Grocer — Capability Router with Safety Classes (ADR 0012).
 
 The LLM names what the customer wants; Python decides whether it is allowed to
 run. A read capability can never reach a write path, and anything unclear takes

@@ -1,4 +1,4 @@
-"""Grocer v1.0 — Read-Only Capability Handlers (ADR 0012).
+"""Grocer — Read-Only Capability Handlers (ADR 0012).
 
 Every function here answers from live Swiggy data and never writes: no cart,
 no address, no money. Anything not implemented yet says so plainly.

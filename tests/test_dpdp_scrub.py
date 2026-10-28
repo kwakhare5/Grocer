@@ -1,4 +1,4 @@
-"""Grocer v1.0 — 24-hour DPDP scrub with backdated rows (real Postgres)."""
+"""Grocer — 24-hour DPDP scrub with backdated rows (real Postgres)."""
 
 from __future__ import annotations
 

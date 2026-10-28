@@ -1,4 +1,4 @@
-"""Grocer v1.0 — Durable AES-256-GCM Token Vault & PKCE Engine.
+"""Grocer — Durable AES-256-GCM Token Vault & PKCE Engine.
 
 Handles:
 1. RFC 7636 PKCE S256 verifier and challenge generation.

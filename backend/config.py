@@ -1,4 +1,4 @@
-"""Grocer v1.0 — Strict Configuration & Safety Caps.
+"""Grocer — Strict Configuration & Safety Caps.
 
 Loads environment variables from .env and enforces hard validation invariants.
 Secrets live strictly in environment variables; zero hardcoding.

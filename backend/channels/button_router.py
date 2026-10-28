@@ -1,4 +1,4 @@
-"""Grocer v1.0 — Fast 50ms Interactive Button Dispatcher (Zero LLM Lag)."""
+"""Grocer — Fast 50ms Interactive Button Dispatcher (Zero LLM Lag)."""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
--- Grocer v1.0 — Phase 6: least-privilege app role and dead columns
+-- Grocer — Phase 6: least-privilege app role and dead columns
 
 DO $$
 BEGIN

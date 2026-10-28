@@ -1,4 +1,4 @@
-"""Grocer v1.0 — Intelligent Candidate Search & Grounding Engine.
+"""Grocer — Intelligent Candidate Search & Grounding Engine.
 
 Fetches candidate items from Swiggy Instamart dark stores via SwiggyClient.
 Extracts variant details, filters in-stock SKUs, and normalizes into CandidateItems

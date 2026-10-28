@@ -1,4 +1,4 @@
-"""Grocer v1.0 — Live Router Evaluation.
+"""Grocer — Live Router Evaluation.
 
 Sends 40 real customer messages to the configured LLM through the real router.
 No fixtures, no mocked completions. Scores the capability it picks and counts

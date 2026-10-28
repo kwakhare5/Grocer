@@ -1,4 +1,4 @@
-"""Grocer v1.0 — Target Cart Assembly & Composite Commerce Engine.
+"""Grocer — Target Cart Assembly & Composite Commerce Engine.
 
 Enforces:
 1. Destructive Overwrite Safety: Reads get_cart(), merges existing items locally, and submits assembled target cart.

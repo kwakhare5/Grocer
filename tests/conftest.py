@@ -1,4 +1,4 @@
-"""Grocer v1.0 — Global Pytest Fixtures.
+"""Grocer — Global Pytest Fixtures.
 
 Database-backed tests are marked `db`. They run only when TEST_DATABASE_URL is
 set, and every user they create is deleted when the session ends.

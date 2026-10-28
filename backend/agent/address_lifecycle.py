@@ -1,4 +1,4 @@
-"""Grocer v1.0 — Address & Account Lifecycle Management.
+"""Grocer — Address & Account Lifecycle Management.
 
 Implements:
 1. Two-Step Pin Geocoding Onboarding (ADR 0008).

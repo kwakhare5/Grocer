@@ -1,6 +1,6 @@
-# Grocer v1.0 Verification Map
+# Grocer Verification Map
 
-This directory is the maintained source for verifying user-facing behavior of Grocer v1.0 on WhatsApp. Read this index before driving the app, then use the matching feature file as the recipe.
+This directory is the maintained source for verifying user-facing behavior of Grocer on WhatsApp. Read this index before driving the app, then use the matching feature file as the recipe.
 
 ## Baseline Preconditions
 

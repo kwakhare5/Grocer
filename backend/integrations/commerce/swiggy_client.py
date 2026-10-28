@@ -1,4 +1,4 @@
-"""Grocer v1.0 — Native Swiggy Instamart Commerce Adapter.
+"""Grocer — Native Swiggy Instamart Commerce Adapter.
 
 Handles JSON-RPC 2.0 communication with Swiggy Instamart dark stores (https://mcp.swiggy.com/im).
 Calls the live authenticated endpoints with strictly typed Pydantic envelopes.

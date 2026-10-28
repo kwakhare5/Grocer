@@ -1,4 +1,4 @@
--- Grocer v1.0 — Phase 6: durable PKCE authorization state
+-- Grocer — Phase 6: durable PKCE authorization state
 
 CREATE TABLE IF NOT EXISTS grocer.oauth_states (
     state text PRIMARY KEY,

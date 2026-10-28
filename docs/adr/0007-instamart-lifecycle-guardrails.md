@@ -3,7 +3,7 @@
 > **Status 2026-10-27:** Active. Address switch warns, clears and rebuilds the basket at the new store and names anything the new store cannot fill. The active-delivery delete guard runs on the real delete path. Split orders poll every order id. See `STATUS.md`.
 
 ## Context
-Expanding Grocer v1.0 from a shopping list bot to a full WhatsApp Instamart concierge introduces four critical lifecycle edge cases:
+Expanding Grocer from a shopping list bot to a full WhatsApp Instamart concierge introduces four critical lifecycle edge cases:
 1. Customers changing delivery addresses while holding an uncommitted basket.
 2. Orders fulfilled across multiple micro-stores or partner nodes.
 3. Accidental or hazardous deletion of addresses tied to active deliveries.

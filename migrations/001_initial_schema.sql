@@ -1,5 +1,5 @@
 -- ==============================================================================
--- Grocer v1.0 — Initial PostgreSQL Schema Migration
+-- Grocer — Initial PostgreSQL Schema Migration
 -- Clean-slate architecture defined in ARCHITECTURE.md Section 5
 -- ==============================================================================
 

@@ -1,4 +1,4 @@
-# PRD.md — Grocer v1.0 Product Requirements Document
+# PRD.md — Grocer Product Requirements Document
 
 > **Product:** Grocer — Instamart on WhatsApp  
 > **Status:** Agreed & Authoritative Product Requirements for v1.  

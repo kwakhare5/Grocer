@@ -1,4 +1,4 @@
-"""Grocer v1.0 — Recipe plan: amounts to packs, stored plan, writes only on a tap."""
+"""Grocer — Recipe plan: amounts to packs, stored plan, writes only on a tap."""
 
 from __future__ import annotations
 

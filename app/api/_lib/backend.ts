@@ -1,5 +1,5 @@
 /**
- * Grocer v1.0 — Backend Service Discovery Helper.
+ * Grocer — Backend Service Discovery Helper.
  * Resolves the private FastAPI backend origin for Next.js API routes.
  */
 export function getBackendUrl(): string {

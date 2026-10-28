@@ -1,5 +1,5 @@
 # ==============================================================================
-# Grocer v1.0 — Universal Verification Script (Lauren Tan Method)
+# Grocer — Universal Verification Script (Lauren Tan Method)
 # Default run is offline: schema check, lint, offline tests, web build.
 # DB and live external calls are opt-in.
 # ==============================================================================
@@ -56,5 +56,5 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 
-Write-Host "`n=== [PASS] Grocer v1.0 verification complete ===" -ForegroundColor Green
+Write-Host "`n=== [PASS] Grocer verification complete ===" -ForegroundColor Green
 exit 0

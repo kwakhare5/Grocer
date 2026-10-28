@@ -1,4 +1,4 @@
-"""Grocer v1.0 — Phase 3 Address & Lifecycle Guardrails Test Suite.
+"""Grocer — Phase 3 Address & Lifecycle Guardrails Test Suite.
 
 Tested against committed real Swiggy MCP staging fixtures. Zero fake mocks.
 """

@@ -1,4 +1,4 @@
-"""Grocer v1.0 — Basket Change and Clear (ADR 0012, basket safety class).
+"""Grocer — Basket Change and Clear (ADR 0012, basket safety class).
 
 Every change is previewed first and applied only from a button tap. Swiggy's
 update_cart replaces the whole basket, so we always rebuild the full list and

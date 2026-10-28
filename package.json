@@ -1,8 +1,8 @@
 {
-  "name": "grocer-v1",
+  "name": "grocer",
   "version": "1.0.0",
   "private": true,
-  "description": "Grocer v1.0 — WhatsApp Instamart Concierge Web Portal & Swiggy OAuth Bridge",
+  "description": "Grocer — WhatsApp Instamart Concierge Web Portal & Swiggy OAuth Bridge",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

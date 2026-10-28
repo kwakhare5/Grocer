@@ -1,4 +1,4 @@
-"""Grocer v1.0 — Channel Ingestion Shield & Deduplication Integration Tests.
+"""Grocer — Channel Ingestion Shield & Deduplication Integration Tests.
 
 Validates:
 1. Meta webhook GET challenge verification.

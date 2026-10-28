@@ -1,4 +1,4 @@
-"""Grocer v1.0 — Phase 2 Candidate Search & Conversational Brain Test Matrix.
+"""Grocer — Phase 2 Candidate Search & Conversational Brain Test Matrix.
 
 Validates the 20 real customer phrases specified in PRD.md:
 1. Exact brand + pack query ("Amul Taaza 1L")

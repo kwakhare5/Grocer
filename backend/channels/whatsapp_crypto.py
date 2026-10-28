@@ -1,4 +1,4 @@
-"""Grocer v1.0 — WhatsApp HMAC-SHA256 Signature & Webhook Challenge Verification."""
+"""Grocer — WhatsApp HMAC-SHA256 Signature & Webhook Challenge Verification."""
 
 from __future__ import annotations
 

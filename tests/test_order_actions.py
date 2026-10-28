@@ -1,4 +1,4 @@
-"""Grocer v1.0 — Reorder Tests (ADR 0012, basket safety class).
+"""Grocer — Reorder Tests (ADR 0012, basket safety class).
 
 Runs against committed real Swiggy fixture shapes. No live cart is touched.
 """

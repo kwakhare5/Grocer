@@ -1,4 +1,4 @@
-"""Grocer v1.0 — Basket Change and Clear Tests (ADR 0012, basket safety class).
+"""Grocer — Basket Change and Clear Tests (ADR 0012, basket safety class).
 
 Runs against committed Swiggy fixtures. No live cart is touched.
 """

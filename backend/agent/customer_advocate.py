@@ -1,4 +1,4 @@
-"""Grocer v1.0 — Customer Advocate Engine (Layer 4).
+"""Grocer — Customer Advocate Engine (Layer 4).
 
 Enforces:
 1. Pure integer paise math discipline; zero floating-point formatting.

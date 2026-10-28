@@ -814,3 +814,11 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: deleted both lists (`backend/agent/candidate_evaluator.py`, `tests/fixture_client.py`). A token now counts only if it is letters and 3+ characters, which already excludes numbers and units. No regex added.
 - **Proof**: `tests/test_scorecard.py` still 31/31 (100%) with no list; `pytest -q -m "not live"` -> 221 passed, 20 deselected; ruff clean.
 - **Still broken**: `staple_terms`, `discretionary_hints` and `size_patterns` in `candidate_evaluator.py` are older keyword lists, still in place; the live run is capped; branch not merged.
+
+### [GROCER — one ranking rule] 2026-10-28
+
+#### Work Card: The candidate picker lost its word lists
+- **Problem**: candidate selection decided "ask or take" with three hardcoded tables (`staple_terms`, `discretionary_hints`, `size_patterns`), so behaviour depended on vocabulary the model already supplies.
+- **Change**: one rule in `backend/agent/candidate_evaluator.py`. Rank by matched letters; a unique best match wins; a tie takes Swiggy's first pick and keeps the Change button; no match with several products shows the choices. Size correction now comes from the amount and `pack_plan`, not from a string table. 85 lines out, 36 in.
+- **Proof**: `tests/test_scorecard.py` 31/31 (100%); `pytest -q -m "not live"` -> 221 passed, 20 deselected; `ruff check backend tests` clean.
+- **Still broken**: live 26-case run capped by Groq; branch `scorecard` unmerged; Phase 1 (one write verb) not started.

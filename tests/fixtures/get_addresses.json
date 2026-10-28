@@ -4,7 +4,7 @@
     "addresses": [
       {
         "id": "addr_01HXYZ",
-        "addressLine": "Flat 402, Green Glen Layout, Bellandur, Bengaluru",
+        "addressLine": "12 Example Street, Bengaluru 560001",
         "phoneNumber": "+919876543210",
         "addressCategory": "HOME",
         "addressTag": "Home"
@@ -21,7 +21,9 @@
       "defaultAddressId": "addr_01HXYZ",
       "resolutionSource": "user_selected_address",
       "needsUserClarification": false,
-      "candidateAddressIds": ["addr_01HXYZ"],
+      "candidateAddressIds": [
+        "addr_01HXYZ"
+      ],
       "scoreUsed": 1.0
     }
   },

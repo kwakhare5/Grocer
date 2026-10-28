@@ -36,7 +36,6 @@ class FixtureSwiggyClient(SwiggyClient):
         self.catalog_data = catalog_data
         self._staging_cart: CartData | None = None
         self._cleared_cart = False
-        self.clear_cart_called = False
         self.last_update_items: list[dict[str, Any]] = []
         self.last_checkout_args: dict[str, Any] = {}
 
@@ -209,7 +208,6 @@ class FixtureSwiggyClient(SwiggyClient):
 
     def clear_cart(self) -> ClearCartData:
         self._cleared_cart = True
-        self.clear_cart_called = True
         self._staging_cart = None
         return self.call_remote_tool("clear_cart", {}, ClearCartData)
 

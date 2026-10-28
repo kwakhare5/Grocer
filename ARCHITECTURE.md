@@ -448,7 +448,7 @@ backend/
 └── (backend ends here)
 
 Repository root:
-├── migrations/                 # 001..004, applied in order and tracked
+├── migrations/                 # 001..006, applied in order and tracked
 ├── tests/                      # Contract fixtures, router tests, invariant checks, DB suites
 ├── app/                        # Next.js landing page + OAuth bridge. Not the product UI.
 ├── scripts/                    # eval_router, verify_db, drive_grocer

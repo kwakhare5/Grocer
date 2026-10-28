@@ -9,6 +9,8 @@ Tests:
 
 from __future__ import annotations
 
+from datetime import UTC
+
 import pytest
 from httpx import ASGITransport, AsyncClient
 
@@ -110,7 +112,7 @@ async def test_swiggy_callback_invalid_state_rejects():
 async def test_pkce_state_is_durable_one_time_and_expiring():
     """The state lives in PostgreSQL, is one-time, and expires in about 10 minutes."""
     import uuid as _uuid
-    from datetime import datetime, timedelta, timezone
+    from datetime import datetime, timedelta
 
     from backend.database import get_db_pool
     from backend.integrations.commerce.token_vault import (
@@ -127,7 +129,7 @@ async def test_pkce_state_is_durable_one_time_and_expiring():
     )
     assert stored["verifier"] == "verifier_123"
     assert stored["wa_id"] == "919876543210"
-    ttl = (stored["expires_at"] - datetime.now(timezone.utc)).total_seconds()
+    ttl = (stored["expires_at"] - datetime.now(UTC)).total_seconds()
     assert 540 <= ttl <= 660
 
     consumed = await consume_pkce_session(state)
@@ -142,7 +144,7 @@ async def test_pkce_state_is_durable_one_time_and_expiring():
         VALUES ($1, 'verifier_expired', '919876543210', $2);
         """,
         expired_state,
-        datetime.now(timezone.utc) - timedelta(seconds=1),
+        datetime.now(UTC) - timedelta(seconds=1),
     )
     assert await consume_pkce_session(expired_state) is None
     assert (

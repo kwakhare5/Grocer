@@ -6,7 +6,7 @@ import asyncio
 import json
 import logging
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import httpx
@@ -64,7 +64,7 @@ def _basket_notice(
     """A new-day reminder for a basket the customer may have forgotten."""
     if last_active_at is None or cart is None or not cart.items:
         return None
-    age = datetime.now(timezone.utc) - last_active_at
+    age = datetime.now(UTC) - last_active_at
     if age.total_seconds() < idle_seconds:
         return None
     count = sum(item.quantity for item in cart.items)

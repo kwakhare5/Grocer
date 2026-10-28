@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -107,9 +107,9 @@ def test_old_basket_is_mentioned_only_after_an_idle_hour():
     cart = FixtureSwiggyClient(Path(__file__).parent / "fixtures").get_cart(
         "addr_01HXYZ"
     )
-    old = datetime.now(timezone.utc) - timedelta(hours=2)
+    old = datetime.now(UTC) - timedelta(hours=2)
     notice = _basket_notice(old, cart)
     assert notice is not None
     assert "still has" in notice[0]
     assert notice[1] == [("cart:keep", "Keep basket"), ("cart:clear", "Clear basket")]
-    assert _basket_notice(datetime.now(timezone.utc), cart) is None
+    assert _basket_notice(datetime.now(UTC), cart) is None

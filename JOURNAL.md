@@ -838,3 +838,11 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: docs only. `STATUS.md` §8 now carries the ordered list of seven items with each blocker; `TASKS.md` points at it.
 - **Proof**: no code changed; the last gate stands at 221 passed / 20 deselected, ruff clean, offline scorecard 31/31.
 - **Still broken**: items 1 and 2 wait on Groq's daily cap; the branch stays unmerged.
+
+### [GROCER — one reply helper] 2026-10-28
+
+#### Work Card: The reply block is sent one way
+- **Problem**: the "buttons or plain text, then remember" block was copied at five call sites in `backend/channels/whatsapp.py`, so a change to how replies go out had to be made five times.
+- **Change**: one `reply_to(customer_reply)` helper inside the turn; the five sites call it and keep their own history handling. 17 lines in, 50 out.
+- **Proof**: `pytest -q -m "not live"` -> 221 passed, 20 deselected; ruff clean; offline scorecard unchanged at 31/31.
+- **Still broken**: `handle_clear_request` was not merged into `handle_change_request` — 8 lines saved against three test files of churn, so it was skipped.

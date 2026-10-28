@@ -20,6 +20,24 @@ from backend.integrations.commerce.swiggy_client import SwiggyClient, normalize_
 
 T = TypeVar("T")
 
+# Stand-in for Swiggy's search: units, numbers and filler must not match a
+# product, or "2 kg atta" would match every 1 kg pack in the catalog.
+_NOISE_TOKENS = frozenset(
+    {
+        "and", "for", "the", "with", "of", "pack", "packet", "packs", "packets",
+        "kg", "gm", "gms", "gram", "grams", "ml", "lt", "ltr", "litre", "litres",
+        "liter", "liters", "pc", "pcs", "piece", "pieces", "dozen", "count",
+    }
+)
+
+
+def _meaningful_tokens(text: str) -> list[str]:
+    return [
+        token
+        for token in text.split()
+        if token.isalpha() and len(token) >= 3 and token not in _NOISE_TOKENS
+    ]
+
 
 class FixtureSwiggyClient(SwiggyClient):
     """Replays committed Swiggy responses and simulates the staging cart."""
@@ -61,7 +79,7 @@ class FixtureSwiggyClient(SwiggyClient):
         if self.catalog_data is None:
             raise ValueError("catalog_data is required for local catalog search")
         norm_q = normalize_query(query)
-        q_tokens = norm_q.split()
+        q_tokens = _meaningful_tokens(norm_q)
 
         matching_products: list[SearchProduct] = []
         for prod in self.catalog_data.products:
@@ -82,7 +100,9 @@ class FixtureSwiggyClient(SwiggyClient):
                     matched = True
                     break
 
-            if not matched:
+            # Fuzzy matching only for real words; "atta" is 0.67 similar to
+            # "tata" and would drag salt into an atta search.
+            if not matched and len(norm_q) >= 6:
                 for candidate_text in [prod_name, prod_brand] + [
                     v.displayName.lower() for v in prod.variations
                 ]:

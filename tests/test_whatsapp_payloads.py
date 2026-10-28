@@ -9,7 +9,7 @@ import pytest
 from fixture_client import FixtureSwiggyClient
 
 from backend.channels.reactions import reaction_for_result
-from backend.channels.whatsapp import _basket_notice
+from backend.channels.turn_read import _basket_notice
 from backend.channels.whatsapp_client import (
     build_buttons_payload,
     build_cta_payload,

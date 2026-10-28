@@ -846,3 +846,11 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: one `reply_to(customer_reply)` helper inside the turn; the five sites call it and keep their own history handling. 17 lines in, 50 out.
 - **Proof**: `pytest -q -m "not live"` -> 221 passed, 20 deselected; ruff clean; offline scorecard unchanged at 31/31.
 - **Still broken**: `handle_clear_request` was not merged into `handle_change_request` — 8 lines saved against three test files of churn, so it was skipped.
+
+### [GROCER — read path extracted] 2026-10-28
+
+#### Work Card: The read path left the webhook closure
+- **Problem**: `backend/channels/whatsapp.py` was 1,434 lines with `run_turn` as one nested function closing over the customer, the client, the connection and the history, so no capability could be read or tested on its own.
+- **Change**: added `turn_context.py` (`TurnContext` with `reply` and `remember`) and `turn_read.py` (`answer_read_capability` plus the basket reminder). The webhook now builds the context and the read capability is a 3-argument call. The `reply_to` and `remember` closures are gone; 14 call sites use the context. No logic changed.
+- **Proof**: `pytest -q -m "not live"` -> 221 passed, 20 deselected (after clearing two stale `wamid.parked.*` rows a crashed run left in `grocer_test`); `ruff check backend tests` clean. `whatsapp.py` 1,434 -> 1,305 lines.
+- **Still broken**: net lines rose by 19 across the three files (imports and docstrings); moves 2-4 of the same refactor are not done; the live run is still capped.

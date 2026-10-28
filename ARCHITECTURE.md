@@ -426,6 +426,8 @@ backend/
 │
 ├── channels/                   # WhatsApp transport and deterministic routing
 │   ├── whatsapp.py             # Webhook, HMAC, dedupe, per-user lock, turn dispatch
+│   ├── turn_context.py         # One turn: connection, customer, client, history
+│   ├── turn_read.py            # Read capabilities: answer, never write
 │   ├── whatsapp_crypto.py      # HMAC-SHA256 verification
 │   ├── whatsapp_parser.py      # Inbound payload to text, location or button
 │   ├── whatsapp_client.py      # Outbound Meta Cloud API messages

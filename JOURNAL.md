@@ -726,3 +726,11 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: pushed `b03573c..50fc967` to `origin/grocer-v1`. No env var was changed. `STATUS.md` and `.scratch/HANDOFF.md` now record the live commit and the remaining handoff steps.
 - **Proof**: `git log -1` → `50fc967`; push accepted by `origin/grocer-v1`; Render deploy `dep-dbgugmi9lscs7394rr80` reached `live` on `50fc967`; `GET /health` → HTTP 200 `{"status":"healthy","database":"connected","app":"Grocer","environment":"development"}`.
 - **Still broken**: no live bot read since the deploy; reactions/blue ticks unproven on a real wamid; Vercel env/deploy and the Phase 9 handset proofs are Karan's; checkout stays locked and no order will be placed.
+
+### [GROCER — main swap, rename, CI] 2026-10-28
+
+#### Work Card: One branch, one name, green CI
+- **Problem**: `main` was the old pre-rewrite project with unrelated history; Render deployed `grocer-v1`; four stale branches existed; the product still said "Grocer v1.0" everywhere; there was no README or CI.
+- **Change**: archived the old tips as tags `legacy-main-2026-10-28` and `legacy-codex-2026-10-28`, force-replaced `main` with the current tree, deleted `codex/full-whatsapp-recovery`, `feat/architecture-v1`, `redesign`, and `grocer-v1`. Renamed the product to "Grocer" in code headers, docs, package name, and env template, leaving JOURNAL history untouched. Switched the Render service to `main` and updated `render.yaml`. Added a README and `quality.yml` (ruff, non-live pytest on throwaway Postgres, Next build) plus `keep_warm.yml`.
+- **Proof**: `git push --force-with-lease` accepted; Render deploy `dep-dbguma942hec739cfba0` live on `42d5b56`; `/health` 200. GitHub Actions first run 40688131830 failed on lint (CI pulled ruff 0.17.3 vs the proven 0.16.6), then the run for `42d5b56` passed backend and frontend. `verify.ps1 -Db` exit 0: schema pass, ruff clean, 142 offline, 66 DB, 228 collected, Next build pass.
+- **Still broken**: Vercel branch and env are still Karan's to set; handset proofs open; live 24h scrub unproven; checkout never live-tested and no order will be placed. Old repo tags `v2.0.0` and `checkpoint-working` still exist.

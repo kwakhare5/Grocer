@@ -724,31 +724,15 @@ async def handle_webhook(
 
                         return await answer_read_capability(ctx, decision, live_cart)
 
-                    if decision.capability is Capability.SWITCH_ADDRESS:
-                        from backend.agent.address_actions import handle_switch_request
-
-                        addr_reply = await handle_switch_request(
-                            decision, turn_client, conn, user_id, active_addr_id
+                    if decision.capability in (
+                        Capability.SWITCH_ADDRESS,
+                        Capability.DELETE_ADDRESS,
+                    ):
+                        from backend.channels.turn_address import (
+                            handle_address_capability,
                         )
-                        await ctx.reply(addr_reply)
-                        await ctx.remember(addr_reply.text)
-                        return {
-                            "status": "address_switch_requested",
-                            "wa_id": msg.sender_wa_id,
-                        }
 
-                    if decision.capability is Capability.DELETE_ADDRESS:
-                        from backend.agent.address_actions import handle_delete_request
-
-                        addr_reply = await handle_delete_request(
-                            decision, turn_client, active_addr_id
-                        )
-                        await ctx.reply(addr_reply)
-                        await ctx.remember(addr_reply.text)
-                        return {
-                            "status": "address_delete_requested",
-                            "wa_id": msg.sender_wa_id,
-                        }
+                        return await handle_address_capability(ctx, decision)
 
                     if decision.capability is Capability.REPORT_ISSUE:
                         from backend.agent.order_actions import handle_report_issue
@@ -764,56 +748,11 @@ async def handle_webhook(
                         }
 
                     if decision.capability is Capability.ADD_ADDRESS:
-                        from backend.agent.address_lifecycle import (
-                            AddressOnboardingFlow,
+                        from backend.channels.turn_address import (
+                            handle_address_capability,
                         )
 
-                        try:
-                            turn = AddressOnboardingFlow(turn_client).start_from_text(
-                                msg.text or ""
-                            )
-                        except (httpx.HTTPError, ValueError, KeyError, RuntimeError) as exc:
-                            logger.warning("Typed address start failed: %s", exc)
-                            turn = None
-
-                        if turn is None:
-                            add_text = (
-                                "I couldn't read that address. Send the full address with "
-                                "the area and PIN, or share a WhatsApp location pin."
-                            )
-                            await wa_client.send_text_message(
-                                to_wa_id=msg.sender_wa_id, text=add_text
-                            )
-                            await ctx.remember(add_text)
-                            return {
-                                "status": "address_add_failed",
-                                "wa_id": msg.sender_wa_id,
-                            }
-
-                        await conn.execute(
-                            """
-                            INSERT INTO grocer.sessions (
-                                user_id, onboarding_state, onboarding_context, last_active_at
-                            )
-                            VALUES ($1, $2, $3::jsonb, now())
-                            ON CONFLICT (user_id) DO UPDATE SET
-                                onboarding_state = $2,
-                                onboarding_context = $3::jsonb,
-                                last_active_at = now();
-                            """,
-                            user_id,
-                            turn.next_step.value,
-                            json.dumps(turn.context),
-                        )
-                        await wa_client.send_text_message(
-                            to_wa_id=msg.sender_wa_id, text=turn.prompt
-                        )
-                        await ctx.remember(turn.prompt)
-                        return {
-                            "status": "address_add_started",
-                            "wa_id": msg.sender_wa_id,
-                            "step": turn.next_step.value,
-                        }
+                        return await handle_address_capability(ctx, decision)
 
                     if decision.capability in (
                         Capability.CLEAR_BASKET,

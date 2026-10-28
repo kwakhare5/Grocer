@@ -854,3 +854,11 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: added `turn_context.py` (`TurnContext` with `reply` and `remember`) and `turn_read.py` (`answer_read_capability` plus the basket reminder). The webhook now builds the context and the read capability is a 3-argument call. The `reply_to` and `remember` closures are gone; 14 call sites use the context. No logic changed.
 - **Proof**: `pytest -q -m "not live"` -> 221 passed, 20 deselected (after clearing two stale `wamid.parked.*` rows a crashed run left in `grocer_test`); `ruff check backend tests` clean. `whatsapp.py` 1,434 -> 1,305 lines.
 - **Still broken**: net lines rose by 19 across the three files (imports and docstrings); moves 2-4 of the same refactor are not done; the live run is still capped.
+
+### [GROCER — address path extracted] 2026-10-28
+
+#### Work Card: Three address branches became one dispatch
+- **Problem**: switch, delete and typed-add were three inline blocks inside `run_turn`, each rebuilding the same reply and history calls.
+- **Change**: `backend/channels/turn_address.py` handles all three through `handle_address_capability(ctx, decision)`. The webhook now has one call per capability group. No logic changed and every error handler moved across intact.
+- **Proof**: `pytest -q -m "not live"` -> 221 passed, 20 deselected; `ruff check backend tests` clean. `whatsapp.py` 1,305 -> 1,244 lines.
+- **Still broken**: moves 3 and 4 are not done. Local test hygiene: `tests/test_channels.py` reuses the fixed number `919876543210`, so repeated runs inside one hour trip the 20/hour cap; three failures this session were stale rows in `grocer_test`, cleared by deleting that user's messages. CI is unaffected because its database is fresh.

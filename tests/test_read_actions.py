@@ -144,7 +144,29 @@ async def test_store_info_is_honest_about_store_and_window():
         _decision(Capability.STORE_INFO), client, "addr_01HXYZ"
     )
     assert "delivery quote" in answer.lower()
+    assert "Items are adding to your basket right now, so the store is taking orders." in answer
     assert "doesn't share the dark store name or a delivery window" in answer
+
+
+@pytest.mark.asyncio
+async def test_order_bill_shows_items_and_line_items():
+    client = FixtureSwiggyClient(FIXTURES_DIR)
+    answer = await answer_read_capability(
+        _decision(Capability.ORDER_BILL, order_ref="last"), client, "addr_01HXYZ"
+    )
+    assert "Bill for order #189456789012" in answer
+    assert "Amul Taaza Homogenised Toned Milk x2 — ₹144" in answer
+    assert "Handling Fee" in answer
+    assert "Total: ₹149.00" in answer
+
+
+@pytest.mark.asyncio
+async def test_placed_order_add_is_truthful_and_offers_a_new_basket():
+    answer = await answer_read_capability(
+        _decision(Capability.PLACED_ORDER_ADD), FixtureSwiggyClient(FIXTURES_DIR), "addr"
+    )
+    assert "locks it" in answer
+    assert "separate order" in answer
 
 
 def test_disambiguation_choices_are_tappable_real_products():

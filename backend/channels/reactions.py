@@ -12,6 +12,7 @@ _READ_REACTIONS: dict[str, str] = {
     "view_basket": "🛒",
     "plan_meal": "🍳",
     "order_history": "📦",
+    "order_bill": "📦",
     "track_order": "🛵",
     "list_coupons": "🎟️",
     "payment_options": "💳",

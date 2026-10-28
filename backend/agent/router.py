@@ -38,6 +38,9 @@ class Capability(str, Enum):
     CANCEL_HELP = "cancel_help"
     VIEW_BASKET = "view_basket"
     PLAN_MEAL = "plan_meal"
+    ORDER_BILL = "order_bill"
+    PLACED_ORDER_ADD = "placed_order_add"
+    REPORT_ISSUE = "report_issue"
     ADD_ITEMS = "add_items"
     CHANGE_ITEM = "change_item"
     CLEAR_BASKET = "clear_basket"
@@ -68,6 +71,9 @@ CAPABILITY_SPECS: tuple[CapabilitySpec, ...] = (
     CapabilitySpec(Capability.CANCEL_HELP, SafetyClass.READ, "Customer wants to cancel. Grocer cannot cancel; it gives Swiggy care details."),
     CapabilitySpec(Capability.VIEW_BASKET, SafetyClass.READ, "Show what is currently in the basket, with quantities and the total."),
     CapabilitySpec(Capability.PLAN_MEAL, SafetyClass.READ, "Plan a dish or recipe for a number of people. Show ingredients, pack counts and a total; add only after a tap."),
+    CapabilitySpec(Capability.ORDER_BILL, SafetyClass.READ, "Show the itemised bill or invoice for one past order."),
+    CapabilitySpec(Capability.PLACED_ORDER_ADD, SafetyClass.READ, "Customer wants to add an item to an order already placed. Placed orders are locked; answer with the truth and offer a separate basket."),
+    CapabilitySpec(Capability.REPORT_ISSUE, SafetyClass.ACCOUNT, "Customer reports a problem with an order: missing, wrong or damaged item, late delivery. Files a report with Swiggy."),
     CapabilitySpec(Capability.ADD_ITEMS, SafetyClass.BASKET, "Add one or more groceries to the basket."),
     CapabilitySpec(Capability.CHANGE_ITEM, SafetyClass.BASKET, "Change quantity, replace or remove an item already in the basket."),
     CapabilitySpec(Capability.CLEAR_BASKET, SafetyClass.BASKET, "Empty the whole basket."),
@@ -113,6 +119,7 @@ class RoutingDecision:
     reply: str | None = None
     dish: str | None = None
     servings: int | None = None
+    issue: str | None = None
     safe_path: bool = False
     provider: str | None = None
     error: str | None = None
@@ -158,6 +165,11 @@ def _system_prompt() -> str:
         "or remove it, use change_item, not add_items.\n"
         "Repeating a past order or the customer's usual list ('same as last time', "
         "'my regular items') is reorder, never add_items.\n"
+        "A bill, invoice or price breakdown for a past order is order_bill.\n"
+        "A complaint about a placed order (missing, wrong, damaged, very late) is "
+        "report_issue: put the problem in issue and the order in order_ref.\n"
+        "Asking to add something to an order that is already placed is "
+        "placed_order_add, never add_items.\n"
         "A message that is only numbers ('1', '1 and 3') refers to a list already "
         "shown. Never add items from it; use chat.\n"
         "Asking to remove or delete a saved address is delete_address, even when the "
@@ -197,6 +209,7 @@ def _system_prompt() -> str:
         '"change_action": "<remove or set_quantity or null>", '
         '"dish": "<dish for plan_meal or null>", '
         '"servings": <people count for plan_meal or null>, '
+        '"issue": "<problem words for report_issue or null>", '
         '"reply": "<short reply, mainly for chat>"}'
     )
 
@@ -279,6 +292,7 @@ def parse_decision(
         change_action = None
 
     dish = str(payload.get("dish") or "").strip() or None
+    issue = str(payload.get("issue") or "").strip() or None
     try:
         servings = int(payload.get("servings") or 0) or None
     except (TypeError, ValueError):
@@ -300,6 +314,7 @@ def parse_decision(
         reply=reply,
         dish=dish,
         servings=servings,
+        issue=issue,
         provider=provider,
     )
 

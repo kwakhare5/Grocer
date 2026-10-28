@@ -306,3 +306,47 @@ async def apply_reorder(
         reply += " Not available now: " + ", ".join(plan.missing) + "."
     reply += " Say 'checkout' when you're ready to pay."
     return OrderReply(reply)
+
+
+async def handle_report_issue(decision: Any, client: SwiggyClient) -> OrderReply:
+    """File a problem report for one order. Never changes the order itself."""
+    order_id = (decision.order_ref or "").strip()
+    if order_id.lower() in {"", "last"}:
+        try:
+            data = await asyncio.to_thread(
+                client.get_orders, count=1, order_type="INSTAMART", active_only=False
+            )
+        except (httpx.HTTPError, ValueError, KeyError, RuntimeError, OSError) as exc:
+            logger.warning("Order list failed for a report: %s", exc)
+            return OrderReply(
+                "I couldn't read your orders just now. Please try again in a moment."
+            )
+        if not data.orders:
+            return OrderReply(
+                "You have no Instamart orders in the last 15 days, so there's "
+                "nothing to report."
+            )
+        order_id = data.orders[0].orderId
+
+    issue = (decision.issue or "Customer reported a problem with this order").strip()
+    try:
+        report = await asyncio.to_thread(
+            client.report_error,
+            "order",
+            issue,
+            f"Customer report for order {order_id}",
+            {"orderId": order_id},
+        )
+    except (httpx.HTTPError, ValueError, KeyError, RuntimeError, OSError) as exc:
+        logger.warning("Report filing failed: %s", exc)
+        return OrderReply(
+            "I couldn't file that report with Swiggy. You can email "
+            "builders@swiggy.in with your order number."
+        )
+
+    text = f"Reported to Swiggy for order #{order_id}."
+    if report.reportLink:
+        text += f"\nReference: {report.reportLink}"
+    if report.supportEmail:
+        text += f"\nYou can also email {report.supportEmail}."
+    return OrderReply(text)

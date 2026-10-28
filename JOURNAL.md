@@ -662,3 +662,11 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: reorder optimizes coupons after its verification and names the saving; address switch optimizes at the new store and names it. The advocate now refuses any coupon that changes items or quantities, and drops the dead `savings_message` field. Receipts warn once when charges reach 35% of item value. Payment answers say UPI is the only usable method and list COD/Swiggy Money as not usable.
 - **Proof**: `powershell -File verify.ps1 -Db` exit 0 on 2026-10-28: schema pass, ruff clean, 137 offline, 61 DB on `grocer_test`, 218 collected, Next build pass. New: coupon kept/refused tests, reorder savings test, two charge-warning tests, payment-truth test; staging coupon test updated off the deleted field.
 - **Still broken**: Batch 3 left: itemized bill (`get_order_details`), support report (`report_error`), store-open truth, post-order add truth. Live coupon savings and a live payment-options read are unproven.
+
+### [GROCER v1 — Batch 3 Tail: Bill, Report, Truth] 2026-10-28
+
+#### Work Card: The last four tools reach chat
+- **Problem**: `get_order_details` and `report_error` were unreachable from chat, "is the store open" got a quote instead of an answer, and "add this to my order" had no honest reply.
+- **Change**: three capabilities: `order_bill` (read) shows items, line items and total for the last or named order; `report_issue` (account) files a Swiggy report with the order id and returns the reference link and support email; `placed_order_add` (read) says a placed order is locked and offers a new basket. `store_info` now answers open/closed honestly from the live cart. Router prompt, schema, `issue` field and 📦 reaction updated; capability count 19 → 22.
+- **Proof**: `powershell -File verify.ps1 -Db` exit 0 on 2026-10-28: schema pass, ruff clean, 142 offline, 61 DB on `grocer_test`, 223 collected, Next build pass. New: bill, report, placed-order and store-open tests plus three router tests.
+- **Still broken**: Live bill (needs a real past order), live report filing and live store-open behavior are unproven. Phase 6 privacy, Phase 8 landing and Phase 9 handoff remain.

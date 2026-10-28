@@ -157,3 +157,36 @@ def test_plan_meal_is_read_only_and_parses_dish_and_servings():
     assert d.servings == 5
     assert d.items[0]["amount"] == 5
     assert d.items[0]["unit"] == "piece"
+
+
+def test_order_bill_and_placed_order_add_are_reads():
+    bill = parse_decision(
+        {"capability": "order_bill", "confidence": 0.95, "order_ref": "last"},
+        "show me the bill for my last order",
+    )
+    assert bill.capability is Capability.ORDER_BILL
+    assert bill.safety is SafetyClass.READ
+    assert bill.order_ref == "last"
+
+    placed = parse_decision(
+        {"capability": "placed_order_add", "confidence": 0.95},
+        "add milk to my order",
+    )
+    assert placed.capability is Capability.PLACED_ORDER_ADD
+    assert placed.safety is SafetyClass.READ
+
+
+def test_report_issue_parses_the_problem_and_is_an_account_action():
+    decision = parse_decision(
+        {
+            "capability": "report_issue",
+            "confidence": 0.95,
+            "order_ref": "189456789012",
+            "issue": "one milk packet was missing",
+        },
+        "one milk packet was missing from my order",
+    )
+    assert decision.capability is Capability.REPORT_ISSUE
+    assert decision.safety is SafetyClass.ACCOUNT
+    assert decision.issue == "one milk packet was missing"
+    assert decision.order_ref == "189456789012"

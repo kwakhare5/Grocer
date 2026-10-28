@@ -802,6 +802,19 @@ async def handle_webhook(
                             "wa_id": msg.sender_wa_id,
                         }
 
+                    if decision.capability is Capability.REPORT_ISSUE:
+                        from backend.agent.order_actions import handle_report_issue
+
+                        report = await handle_report_issue(decision, turn_client)
+                        await wa_client.send_text_message(
+                            to_wa_id=msg.sender_wa_id, text=report.text
+                        )
+                        await remember(report.text)
+                        return {
+                            "status": "issue_reported",
+                            "wa_id": msg.sender_wa_id,
+                        }
+
                     if decision.capability is Capability.ADD_ADDRESS:
                         from backend.agent.address_lifecycle import (
                             AddressOnboardingFlow,

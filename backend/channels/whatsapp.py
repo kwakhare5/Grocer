@@ -32,8 +32,6 @@ CONCURRENCY_WAIT_SECONDS = 12.0
 CONCURRENCY_POLL_SECONDS = 0.2
 
 # Abuse limits: one person cannot burn the free AI or Swiggy calls for everyone.
-MAX_ITEMS_PER_MESSAGE = 10
-MAX_ITEM_QUANTITY = 99
 MAX_MESSAGES_PER_HOUR = 20
 
 
@@ -533,17 +531,10 @@ async def handle_webhook(
 
                 # 9c. Conversational grocery pipeline (refresh-on-401 retry)
                 from backend.agent.approval import create_checkout_approval
-                from backend.agent.candidate_evaluator import (
-                    ExtractedGroceryItem,
-                    IntentType,
-                    evaluate_customer_intents_batch,
-                    format_paise_to_rupees,
-                )
-                from backend.agent.candidate_search import search_catalog_full
+                from backend.agent.candidate_evaluator import format_paise_to_rupees
                 from backend.agent.composite_cart import (
                     MAX_RECEIPT_ITEM_LINES,
                     CompositeCartManager,
-                    TargetCartItem,
                 )
 
                 async def run_turn(
@@ -778,273 +769,17 @@ async def handle_webhook(
                         }
 
                     # 2. Items come from the router. No second classification call.
-                    from backend.agent.meal_planner import (
-                        exact_packs_for,
-                        measure,
-                        measure_from_text,
-                        pack_plan,
-                    )
+                    from backend.channels.turn_add import describe_item, plan_add
 
-                    extracted_items: list[ExtractedGroceryItem] = []
-                    for item in decision.items:
-                        query_text = str(item.get("query") or "").strip()
-                        if not query_text:
-                            continue
-                        try:
-                            quantity = max(
-                                1,
-                                min(MAX_ITEM_QUANTITY, int(item.get("quantity") or 1)),
-                            )
-                        except (TypeError, ValueError):
-                            quantity = 1
+                    add_plan = await plan_add(ctx, decision, address_count)
+                    if isinstance(add_plan, dict):
+                        return add_plan
 
-                        unit = str(item.get("unit") or "").strip().lower() or None
-                        amount: float | None = None
-                        raw_amount = item.get("amount")
-                        if raw_amount is not None:
-                            try:
-                                amount = float(raw_amount)
-                            except (TypeError, ValueError):
-                                amount = None
-
-                        if amount is None:
-                            measured = measure_from_text(query_text)
-                            if measured:
-                                amount, unit = measured[1], measured[0]
-                        elif unit not in {None, "pack", "packs", "packet", "packets"}:
-                            if measure(amount, unit) is None:
-                                measured = measure_from_text(query_text)
-                                if measured:
-                                    amount, unit = measured[1], measured[0]
-                                else:
-                                    amount, unit = None, None
-                        if amount is not None and amount <= 0:
-                            amount = None
-                        if amount is not None and unit is None:
-                            # A bare number ("6 eggs") is a count, not a pack count.
-                            unit = "count"
-
-                        extracted_items.append(
-                            ExtractedGroceryItem(
-                                query=query_text,
-                                quantity=quantity,
-                                amount=amount,
-                                unit=unit,
-                            )
-                        )
-                    if not extracted_items:
-                        extracted_items = [ExtractedGroceryItem(query=msg.text, quantity=1)]
-
-                    if len(extracted_items) > MAX_ITEMS_PER_MESSAGE:
-                        await wa_client.send_text_message(
-                            to_wa_id=msg.sender_wa_id,
-                            text=(
-                                f"I can handle up to {MAX_ITEMS_PER_MESSAGE} items in one "
-                                "message. Please split that into two messages."
-                            ),
-                        )
-                        return {
-                            "status": "too_many_items",
-                            "wa_id": msg.sender_wa_id,
-                        }
-
-                    def _describe(target: ExtractedGroceryItem) -> str:
-                        if target.amount is None:
-                            return target.query
-                        return f"{target.query} {target.amount:g} {target.unit or ''}".strip()
-
-                    def _packs_for(target: ExtractedGroceryItem, cand: Any) -> int | None:
-                        if target.unit in {"pack", "packs", "packet", "packets"}:
-                            packs = int(target.amount or target.quantity)
-                            return max(1, min(MAX_ITEM_QUANTITY, packs))
-                        if target.amount is not None and target.unit:
-                            return exact_packs_for(
-                                target.amount,
-                                target.unit,
-                                cand.quantity_description or cand.display_name,
-                            )
-                        return max(1, min(MAX_ITEM_QUANTITY, target.quantity))
-
-                    def _sizes(cands: list[Any]) -> list[str]:
-                        found: list[str] = []
-                        for cand in cands:
-                            size = (cand.quantity_description or "").strip()
-                            if size and size not in found:
-                                found.append(size)
-                        return found[:3]
-
-                    # 1a. The same words, size and amount share one search and one
-                    # evaluation; the pack counts add up.
-                    from backend.integrations.commerce.swiggy_client import (
-                        normalize_query,
-                    )
-
-                    merged_items: dict[
-                        tuple[str, str | None, float | None], ExtractedGroceryItem
-                    ] = {}
-                    for target in extracted_items:
-                        key = (
-                            normalize_query(target.query).lower(),
-                            target.unit,
-                            target.amount,
-                        )
-                        if key in merged_items:
-                            merged = merged_items[key]
-                            merged.quantity += target.quantity
-                            if merged.amount is not None and target.amount is not None:
-                                merged.amount += target.amount
-                        else:
-                            merged_items[key] = target
-                    extracted_items = list(merged_items.values())
-
-                    async def search_one(
-                        target: ExtractedGroceryItem,
-                        sw_client: SwiggyClient = turn_client,
-                        addr_id: str | None = active_addr_id,
-                    ):
-                        outcome = await asyncio.to_thread(
-                            search_catalog_full,
-                            query=target.query,
-                            swiggy_client=sw_client,
-                            address_id=addr_id,
-                        )
-                        return target, outcome.candidates, outcome.alternatives
-
-                    search_results = await asyncio.gather(
-                        *(search_one(target) for target in extracted_items)
-                    )
-                    evaluations = await asyncio.to_thread(
-                        evaluate_customer_intents_batch,
-                        [
-                            (_describe(target), cands)
-                            for target, cands, _alternatives in search_results
-                        ],
-                        address_count,
-                        msg.text,
-                    )
-
-                    items_to_add: list[TargetCartItem] = []
-                    choice_prompts: list[tuple[Any, list[Any]]] = []
-                    unfound_queries: list[str] = []
-                    alternative_hints: list[str] = []
-                    vague_spins: set[str] = set()
-
-                    def _queue(cand: Any, packs: int) -> None:
-                        items_to_add.append(
-                            TargetCartItem(
-                                spin_id=cand.spin_id,
-                                sku_id=cand.sku_id,
-                                quantity=packs,
-                                item_name=cand.display_name,
-                                price_paise=cand.offer_price_paise,
-                                max_quantity=cand.max_quantity,
-                                max_quantity_message=cand.max_quantity_message,
-                            )
-                        )
-
-                    for (target, cands, alternatives), evaluation in zip(
-                        search_results, evaluations, strict=True
-                    ):
-                        if evaluation.selected_candidate:
-                            cand = evaluation.selected_candidate
-                            packs = _packs_for(target, cand)
-                            if packs is None:
-                                # The picked pack does not fit the amount. Take
-                                # the fewest packs that add up exactly before
-                                # troubling the customer with a question.
-                                plan = pack_plan(
-                                    target.amount,
-                                    target.unit,
-                                    [
-                                        (
-                                            option.spin_id,
-                                            option.quantity_description
-                                            or option.display_name,
-                                        )
-                                        for option in cands
-                                    ],
-                                )
-                                if plan:
-                                    by_spin = {option.spin_id: option for option in cands}
-                                    for spin_id, count in plan:
-                                        _queue(by_spin[spin_id], count)
-                                else:
-                                    unfound_queries.append(_describe(target))
-                                    sizes = _sizes(cands)
-                                    if sizes:
-                                        alternative_hints.append(
-                                            f"{_describe(target)} → {', '.join(sizes)}"
-                                        )
-                                continue
-                            if evaluation.is_vague_staple:
-                                vague_spins.add(cand.spin_id)
-                            _queue(cand, packs)
-                        elif evaluation.intent_type == IntentType.DISAMBIGUATION:
-                            choice_prompts.append((target, cands))
-                        else:
-                            unfound_queries.append(_describe(target))
-                            if alternatives:
-                                alternative_hints.append(
-                                    f"{_describe(target)} → {', '.join(alternatives)}"
-                                )
-
-                    if (
-                        not items_to_add
-                        and not choice_prompts
-                        and len(search_results) == 1
-                        and len(search_results[0][1]) >= 2
-                    ):
-                        target, cands, alternatives = search_results[0]
-                        if target.amount is not None and target.unit:
-                            exact_cands = [
-                                option
-                                for option in cands
-                                if _packs_for(target, option) is not None
-                            ]
-                            cands = exact_cands or cands
-                        choice_text, choice_buttons = format_disambiguation_choices(
-                            _describe(target), cands, target.quantity
-                        )
-                        if alternatives:
-                            choice_text += f"\n\nSimilar: {', '.join(alternatives)}"
-                        await wa_client.send_quick_reply_buttons(
-                            to_wa_id=msg.sender_wa_id,
-                            body_text=choice_text,
-                            buttons=choice_buttons,
-                        )
-                        await ctx.remember(choice_text)
-                        return {
-                            "status": "item_choices",
-                            "wa_id": msg.sender_wa_id,
-                            "candidates": len(cands),
-                        }
-
-                    if not items_to_add and choice_prompts:
-                        asked: list[str] = []
-                        for target, cands in choice_prompts[:2]:
-                            choice_text, choice_buttons = format_disambiguation_choices(
-                                _describe(target), cands, target.quantity
-                            )
-                            await wa_client.send_quick_reply_buttons(
-                                to_wa_id=msg.sender_wa_id,
-                                body_text=choice_text,
-                                buttons=choice_buttons,
-                            )
-                            asked.append(choice_text)
-                        if unfound_queries:
-                            detail = ", ".join(unfound_queries)
-                            if alternative_hints:
-                                detail += "\nSimilar: " + "; ".join(alternative_hints)
-                            await wa_client.send_text_message(
-                                to_wa_id=msg.sender_wa_id,
-                                text=f"I couldn't find at this store: {detail}.",
-                            )
-                        await ctx.remember("\n\n".join(asked))
-                        return {
-                            "status": "item_choices",
-                            "wa_id": msg.sender_wa_id,
-                            "candidates": len(choice_prompts),
-                        }
+                    items_to_add = add_plan.items_to_add
+                    choice_prompts = add_plan.choice_prompts
+                    unfound_queries = add_plan.unfound_queries
+                    alternative_hints = add_plan.alternative_hints
+                    vague_spins = add_plan.vague_spins
 
                     if items_to_add:
                         cart_mgr = CompositeCartManager(turn_client)
@@ -1069,7 +804,7 @@ async def handle_webhook(
                                 detail += "\nSimilar: " + "; ".join(alternative_hints)
                             receipt_body += f"\n\n⚠️ *Not added:* {detail}"
                         pending_names = [
-                            _describe(target) for target, _ in choice_prompts
+                            describe_item(target) for target, _ in choice_prompts
                         ]
                         if pending_names:
                             receipt_body += (
@@ -1113,7 +848,7 @@ async def handle_webhook(
 
                         for target, cands in choice_prompts[:2]:
                             choice_text, choice_buttons = format_disambiguation_choices(
-                                _describe(target), cands, target.quantity
+                                describe_item(target), cands, target.quantity
                             )
                             await wa_client.send_quick_reply_buttons(
                                 to_wa_id=msg.sender_wa_id,

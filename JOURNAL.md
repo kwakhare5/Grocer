@@ -750,3 +750,11 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: added the number to Vercel production only (never written to the repo), redeployed, and removed the temporary local Vercel link files. `.gitignore` now covers `.vercel/`, `.env`, and `.env.local`. STATUS, TASKS, DESIGN, and HANDOFF record the live page.
 - **Proof**: `vercel redeploy` reached Ready in 30s; `https://grocerr.vercel.app` returns HTTP 200 with 3 `wa.me` links, 0 disabled notes, and the In testing labels. The number appears only in the built page and the Vercel env.
 - **Still broken**: no phone tap on the CTA yet; handset proofs and the live 24-hour scrub remain; checkout is still never live-tested and no order will be placed.
+
+### [GROCER — live eval 26 cases] 2026-10-28
+
+#### Work Card: Real traffic found two real holes
+- **Problem**: needed a live pass across reads, writes, recipes, money truth, Hinglish and rapid messages. The pass exposed a multi-item routing bug: when one item was already in the basket, the router sent the whole message to `change_item` and dropped the other items. The WhatsApp send log also hid Meta's error body.
+- **Change**: added the response body to the failed-send warning; tightened the router rule so `change_item` is one item only, added a deterministic guard that turns a multi-item quantity request into `add_items`, and added two router tests. Isolated the webhook timing test from the real WhatsApp API with a no-op client, which removed flaky Meta latency and stray 400s. Deployed both changes.
+- **Proof**: 26 live webhooks at 22s spacing; reads and adds passed; double text produced two approvals; recipe planned 5 items at ₹1014; cash/usual/report answered honestly. The paneer multi-add passed after the fix. A direct reaction to a real wamid returned Meta 200. Groq's daily cap was confirmed: 199,068 of 200,000 tokens used, retry in 8m50s; the bot's AI-offline copy is correct. Final gate: `verify.ps1 -Db` exit 0, 144 offline + 66 DB, Next build pass, no Meta calls from tests.
+- **Still broken**: the fixed multi-add silently omitted the 500g rice and added a second paneer SKU; the Hinglish retest was blocked by the daily cap; reactions still need a real handset; the ₹1,000 cap is a warning, not an add-time block; the real cart now holds test items. No order was placed.

@@ -72,10 +72,36 @@ The durable checklist. Update the status here when an item lands; the checkpoint
 | Store-open truth | 3 | **DONE (code) 2026-10-28** | Answer says there is no open/closed flag and uses the live cart as the honest signal: items adding means the store is taking orders. |
 | Post-order add truth | 3 | **DONE (code) 2026-10-28** | `placed_order_add` says the placed order is locked and offers a new basket. |
 
+## Scorecard and simplification (2026-10-28)
+
+Branch `scorecard` off `db6a297`. **Not merged.** `main` and Render are unchanged.
+
+Two numbers, never mixed:
+
+- **Offline** — `tests/test_scorecard.py`, 31 cases. The plan is handed to the pipeline, so it scores Python with the model out of the loop (the AI-down floor). **28/31 = 90.3%.**
+- **Live** — `scripts/scorecard_live.py`, 26 cases against the deployed webhook with the real model and real Swiggy. **Blocked** by Groq's 200k/day free cap; of the 7 that ran, 3 passed and 4 got the honest AI-offline reply.
+
+Each finding is a broken rule, not a bad test sentence. Any message with the same shape hits it.
+
+| Finding | Scope | Status |
+|---|---|---|
+| A qualifier is dropped when the model is down — "brown bread" buys white bread | Every brand, variant or flavour request on the model-less path | OPEN |
+| A pack that does not fit the amount asks, even when an exact pack was already found — "2 kg atta" | Every "N kg / N g / N L" request whose first candidate is the wrong size | OPEN |
+| No split across pack sizes — "1.5 litres" cannot become 1 L + 500 ml | Every amount that needs two packs | OPEN |
+
+| Work item | Status |
+|---|---|
+| One write verb set: add / set / remove / clear. Delete `change_item`, `change_action`, the patch at `backend/agent/router.py:318` and the branch at `backend/agent/basket_actions.py:148` | QUEUED |
+| One plan object carried router → search → pick → write | QUEUED |
+| Receipt folded from per-item outcomes, so an item cannot vanish | QUEUED |
+| Skip the second model call when brand and size already match exactly | QUEUED |
+| Live A/B on the same 26 cases before any merge | QUEUED |
+
 ## Open proofs
 
 | Proof | Status | Blocker |
 |---|---|---|
+| Full 26-case live scorecard | OPEN | Groq free daily cap, about one honest run per day. |
 | Reaction drawn on a real handset | OPEN | Needs a real inbound wamid after deploy. |
 | Live Groq route for "make pizza for 5" | OPEN | Real message on Render. |
 | Live Add-all tap and receipt | OPEN | Tap after the recipe route works. |

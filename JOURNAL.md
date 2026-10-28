@@ -806,3 +806,11 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: candidates are ranked by matched words in `backend/agent/candidate_evaluator.py`; `pack_plan` in `backend/agent/meal_planner.py` returns the fewest packs that add up exactly (max 12); the add path takes that plan before asking (`backend/channels/whatsapp.py`). No word lists, no per-phrase branches.
 - **Proof**: `tests/test_scorecard.py` 31/31 (100%); new `pack_plan` unit test; `pytest -q -m "not live"` -> 221 passed, 20 deselected; `ruff check backend tests` clean.
 - **Still broken**: the live 26-case run is blocked by Groq's daily cap; branch `scorecard` is still not merged.
+
+### [GROCER — no word lists] 2026-10-28
+
+#### Work Card: The word lists I added are gone
+- **Problem**: the ranking fix shipped with a stop-word list for units and filler, which is the same hardcoded-vocabulary pattern the project is trying to remove.
+- **Change**: deleted both lists (`backend/agent/candidate_evaluator.py`, `tests/fixture_client.py`). A token now counts only if it is letters and 3+ characters, which already excludes numbers and units. No regex added.
+- **Proof**: `tests/test_scorecard.py` still 31/31 (100%) with no list; `pytest -q -m "not live"` -> 221 passed, 20 deselected; ruff clean.
+- **Still broken**: `staple_terms`, `discretionary_hints` and `size_patterns` in `candidate_evaluator.py` are older keyword lists, still in place; the live run is capped; branch not merged.

@@ -215,98 +215,49 @@ def _deterministic_evaluate(
     candidates = candidates or []
     if address_count == 0:
         return CandidateEvaluationResult(intent_type=IntentType.ZERO_ADDRESS_ONBOARDING)
-    lower_query = normalize_query(query.strip()).lower()
-    words = re.findall(r"\b\w+\b", lower_query)
+    if not candidates:
+        return CandidateEvaluationResult(intent_type=IntentType.CONVERSATIONAL_QA)
 
-    if candidates:
-        selected: CandidateItem | None = None
+    # Letters only, 3+ letters: numbers and units ("2", "kg") can never rank
+    # one product above another.
+    words = [
+        word
+        for word in re.findall(r"\b\w+\b", normalize_query(query.strip()).lower())
+        if len(word) >= 3 and word.isalpha()
+    ]
+    ranked: list[tuple[int, CandidateItem]] = []
+    for candidate in candidates:
+        haystack = " ".join(
+            (
+                candidate.display_name or "",
+                candidate.brand_name or "",
+                candidate.quantity_description or "",
+            )
+        ).lower()
+        ranked.append((sum(1 for word in words if word in haystack), candidate))
 
-        # Check size constraints
-        size_patterns = [
-            ("1l", "1 l"),
-            ("1 l", "1 l"),
-            ("1 litre", "1 l"),
-            ("1 liter", "1 l"),
-            ("500ml", "500 ml"),
-            ("500 ml", "500 ml"),
-            ("1kg", "1 kg"),
-            ("1 kg", "1 kg"),
-            ("5kg", "5 kg"),
-            ("5 kg", "5 kg"),
-            ("6 pack", "6"),
-            ("6 pcs", "6"),
-        ]
-        for query_pat, desc_pat in size_patterns:
-            if query_pat in lower_query:
-                selected = next(
-                    (c for c in candidates if desc_pat in c.quantity_description.lower()),
-                    None,
-                )
-                if selected:
-                    break
-
-        # Check brand constraints
-        if not selected:
-            for c in candidates:
-                if c.brand_name and c.brand_name.lower() in lower_query:
-                    selected = c
-                    break
-
-        # Rank by how many of the customer's words the candidate matches, so a
-        # qualifier ("brown bread") outranks a candidate that shares one word.
-        if not selected:
-            ranked: list[tuple[int, int, CandidateItem]] = []
-            for order, candidate in enumerate(candidates):
-                haystack = " ".join(
-                    (
-                        candidate.display_name or "",
-                        candidate.brand_name or "",
-                        candidate.quantity_description or "",
-                    )
-                ).lower()
-                # Letters only, 3+ letters: numbers and units ("2", "kg") can
-                # never rank one product above another.
-                score = sum(
-                    1 for w in words if len(w) >= 3 and w.isalpha() and w in haystack
-                )
-                ranked.append((score, -order, candidate))
-            best = max(ranked, key=lambda row: (row[0], row[1]))
-            if best[0] > 0:
-                selected = best[2]
-
-        # Discretionary items without specific brand/flavor (e.g. chips, biscuits)
-        discretionary_hints = ["chips", "coffee", "biscuits", "biscuit", "namkeen"]
-        is_discretionary = any(h in lower_query for h in discretionary_hints)
-        if is_discretionary and not selected and len(candidates) >= 2:
-            return CandidateEvaluationResult(intent_type=IntentType.DISAMBIGUATION)
-
-        # Unqualified staple check (milk, eggs, bread, pyaz, atta)
-        staple_terms = ["milk", "doodh", "eggs", "egg", "anda", "bread", "pyaz", "onion", "atta"]
-        is_staple = any(st in words for st in staple_terms) and len(words) <= 3
-
-        if not selected and candidates:
-            if is_staple or len(candidates) == 1:
-                selected = candidates[0]
-            else:
-                # A vague request with several distinct products must never
-                # silently take rank 1.
-                return CandidateEvaluationResult(intent_type=IntentType.DISAMBIGUATION)
-
-        if is_staple and selected:
+    best_score = max(score for score, _candidate in ranked)
+    if best_score == 0:
+        if len(candidates) == 1:
             return CandidateEvaluationResult(
                 intent_type=IntentType.ADD_TO_BASKET,
-                selected_candidate=selected,
-                is_vague_staple=True,
+                selected_candidate=candidates[0],
             )
+        return CandidateEvaluationResult(intent_type=IntentType.DISAMBIGUATION)
 
-        if selected:
-            return CandidateEvaluationResult(
-                intent_type=IntentType.ADD_TO_BASKET,
-                selected_candidate=selected,
-                is_vague_staple=False,
-            )
-
-    return CandidateEvaluationResult(intent_type=IntentType.CONVERSATIONAL_QA)
+    winners = [candidate for score, candidate in ranked if score == best_score]
+    if len(winners) == 1:
+        return CandidateEvaluationResult(
+            intent_type=IntentType.ADD_TO_BASKET,
+            selected_candidate=winners[0],
+        )
+    # A tie on the best match: Swiggy's own order decides, and the caller
+    # offers Change so one tap fixes a wrong pick.
+    return CandidateEvaluationResult(
+        intent_type=IntentType.ADD_TO_BASKET,
+        selected_candidate=winners[0],
+        is_vague_staple=True,
+    )
 
 
 def _parse_evaluation(

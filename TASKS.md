@@ -86,7 +86,7 @@ Each finding was a broken rule, not a bad test sentence. Any message with the sa
 | Finding | Scope | Fix |
 |---|---|---|
 | A qualifier was dropped when the model is down — "brown bread" bought white bread | Every brand, variant or flavour request on the model-less path | **FIXED:** candidates are ranked by how many of the customer's words they match (`backend/agent/candidate_evaluator.py`). |
-| A pack that did not fit the amount asked, even when an exact pack was already found — "2 kg atta" | Every "N kg / N g / N L" request whose first candidate is the wrong size | **FIXED:** the fewest exact packs are taken before any question (`backend/channels/whatsapp.py`, `pack_plan`). |
+| A pack that did not fit the amount asked, even when an exact pack was already found — "2 kg atta" | Every "N kg / N g / N L" request whose first candidate is the wrong size | **FIXED:** the fewest exact packs are taken before any question (`backend/channels/turn_add.py`, `pack_plan`). |
 | No split across pack sizes — "1.5 litres" could not become 1 L + 500 ml | Every amount that needs two packs | **FIXED:** `pack_plan` in `backend/agent/meal_planner.py` finds the fewest packs that add up exactly, capped at 12. |
 
 | Work item | Status |

@@ -894,3 +894,11 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: `backend/channels/turn_add.py` now holds `plan_add(ctx, decision, address_count)` and returns either an `AddPlan` (lines to write, items still to ask about, honest not-found details, vague picks) or a finished reply for the choice prompts. `whatsapp.py` keeps the cart write, approval, receipt and buttons. Two abuse caps moved with the code; `describe_item` is shared. No behaviour changed.
 - **Proof**: `ruff check backend tests` clean; `ruff format --check backend/channels/turn_add.py` clean; `pytest -q -m "not live"` run twice -> 222 passed, 20 deselected both times. `whatsapp.py` 1,190 -> 925 lines.
 - **Still broken**: move 4b (receipt and approval write) and the `checkout_executor.py` split were skipped on purpose — money path, cosmetic only. The live scorecard is still capped by Groq's daily quota.
+
+### [GROCER — docs synced to 2026-10-29] 2026-10-29
+
+#### Work Card: Every doc now says the same thing about today
+- **Problem**: `STATUS.md` still called `main` the only branch, quoted 146 offline + 73 DB, and described the live scorecard as blocked after the quota came back.
+- **Change**: no code. `STATUS.md` now names branch `scorecard` and its contents, the real counts (147 offline + 75 DB = 222 passing, 242 collected, 20 live-only), the reopened live status, and the finished webhook split. `TASKS.md` records move 4b and the `checkout_executor.py` split as **Karan's decision to skip**, and points the pack-plan fix at `turn_add.py`. `ARCHITECTURE.md` lists `turn_add.py`. `.scratch/HANDOFF.md` rewritten.
+- **Proof**: `grep` for the old numbers returns only dated history rows; the live eval was still running when this was written, so no score is claimed.
+- **Still broken**: no live number yet; the branch is unmerged and unpushed.

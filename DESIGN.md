@@ -107,7 +107,7 @@ A recipe request is a proposal, never a write.
 
 No plan is added from text alone. A customer who writes "make pizza for 5" must never get one surprise SKU in the basket.
 
-Live in code since 2026-10-28: the model names the dish, people count and ingredient packs (no hardcoded recipe list); Python searches the live store, prices each line and caps at `maxQuantity`. `[Add all]` re-checks stock and writes all ingredients or none. `[Let me pick]` asks for the item numbers and the next message adds only those. The plan card is also stored in dialogue history, so numbers refer to the card the customer just saw.
+Live in code since 2026-10-28: the model names the dish, people count and each ingredient's amount and unit (no hardcoded recipe list); Python searches the live store, turns amounts into whole packs from the store's pack size, prices each line and caps at `maxQuantity`. `[Add all]` re-checks stock and writes all ingredients or none. `[Let me pick]` accepts the item numbers as a tap or a typed reply ("1 and 3"); picks add the chosen in-stock rows and name the rest. The priced plan is stored server-side for 30 minutes, so the numbers always refer to the card the customer just saw.
 
 ### A4.6 Basket view
 

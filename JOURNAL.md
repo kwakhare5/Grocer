@@ -614,3 +614,19 @@ A chronological record of project milestones, architectural decisions, and verif
 
 #### Correction: commit state
 - `0fe6ef0` (Batch 2 code) and `89d95c0` (docs) are local commits; both are not pushed. The previous card and STATUS said "uncommitted"; that is fixed.
+
+### [GROCER v1 — Q3 AI Load: One Queue, One Batch] 2026-10-28
+
+#### Work Card: Stop the burst failures and the per-item call pile-up
+- **Problem**: 7 of 20 live eval messages died on Groq's 8k TPM burst and got the outage copy. A 4-item add made 5 model calls (1 route + 4 evaluations), so a normal list could exhaust the free tier. The existing retry slept 1 second without reading Groq's reset, and a long rate-limit wait could hang past the 8-second turn budget.
+- **Change**: `backend/agent/llm.py` now has one shared Groq gate: calls are spaced, a 429 or a zero-token header parks every thread until the reset, and a wait longer than the turn deadline fails honestly. `candidate_evaluator.py` now evaluates every item in one batch call (`evaluate_customer_intents_batch`); missing or invalid entries use the deterministic rules with no extra model call. `whatsapp.py` searches all items, then evaluates once. A 4-item add is 2 model calls, not 5. ADR 0012 amended.
+- **Proof**: `powershell -File verify.ps1 -Db` exit 0 on 2026-10-28: schema pass, ruff clean, 120 offline, 52 DB on `grocer_test`, 192 collected, Next build pass. New `tests/test_llm_batching.py` (7 tests: duration parsing, retry headers/body, deadline refusal, batch parsing, one-call selection, malformed-batch fallback).
+- **Still broken**: The live burst behavior is not re-tested. Batch evaluation quality is not measured live; a bad batch falls back item by item deterministically. Q1/Q2 (stored plan + amount math) are next. The Q3 changes are uncommitted.
+
+### [GROCER v1 — Q1/Q2: Stored Plan and Real Pack Math] 2026-10-28
+
+#### Work Card: The plan waits in the database, not in a button token
+- **Problem**: The priced recipe plan lived in a base64 button id, so long plans could not fit, the confirmed plan could drift from the card, and "Let me pick" asked for numbers nothing could read. Pack counts were model guesses against free text like "250 g".
+- **Change**: Migration 005 adds `sessions.pending_plan` and a 30-minute expiry; the exact spins, prices and packs are stored when the card is sent and cleared after a write, on expiry, by the 24h privacy scrub, and by "delete my data". The router now returns each ingredient's amount and unit; `meal_planner.packs_for` reads the store pack size (g/kg, ml/l, pieces) and computes whole packs, falling back to the model's count when the text cannot be compared. Add all reads the stored plan and stays all-or-nothing; `Let me pick` and typed "1 and 3" replies read it too — number-only text is picked with no model call, anything with words routes normally, and an expired plan is never hijacked. Missing ingredients no longer skip line numbers.
+- **Proof**: `powershell -File verify.ps1 -Db` exit 0 on 2026-10-28: schema pass, ruff clean, 128 offline, 57 DB on `grocer_test`, 185 collected, Next build pass. New tests: pack math, stored-spin preference, partial picks, expired plan, typed pick, no-hijack, expired-numbers routing.
+- **Still broken**: The live Groq recipe route and a live Add-all or typed pick on a handset are unproven. The Q3 and Q1/Q2 changes are uncommitted. Message merge/queue, grouped search, receipt chunking, coupons/savings/fee warning, support report and Phases 6-9 remain. No live order.

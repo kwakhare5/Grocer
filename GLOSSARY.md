@@ -65,6 +65,11 @@ A conversational proposal listing required dish ingredients before adding to bas
 _Status_: in v1, decided 2026-10-27; live in code 2026-10-28. The bot proposes the checklist and pack counts, then waits for a tap. Nothing is added from text alone.
 _Avoid_: Meal kit, recipe bundle, auto-add recipe
 
+**Pending Plan**:
+The exact priced recipe checklist shown on screen, stored in `grocer.sessions.pending_plan` with a 30-minute expiry. `Add all`, pick taps and typed number replies ("1 and 3") read it. It is cleared after a write, on expiry, by the daily privacy scrub and by "delete my data".
+_Status_: live in code 2026-10-28 (migration 005). Live tap unproven.
+_Avoid_: Plan cart, saved recipe, wishlist
+
 **Small-Cart Fee Threshold**:
 The point where Swiggy delivery, handling, and surge fees exceed 35% of item value, triggering a proactive alert to add essentials and unlock free delivery.
 _Status_: in v1 as a money warning (Phase 7). The helper exists; it has no caller yet.

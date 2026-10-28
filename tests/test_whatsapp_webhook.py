@@ -54,6 +54,61 @@ async def _seed_text_user(pool: Any) -> tuple[str, Any]:
     await store_user_token(user_id=user_id, access_token="swiggy_webhook_token")
     return wa_id, user_id
 
+
+def _plan_row(
+    query: str,
+    packs: int,
+    spin_id: str,
+    name: str,
+    size: str = "1 L",
+    price_paise: int = 0,
+) -> dict[str, Any]:
+    return {
+        "query": query,
+        "amount": None,
+        "unit": None,
+        "packs": packs,
+        "spin_id": spin_id,
+        "sku_id": f"sku_{spin_id}",
+        "name": name,
+        "size": size,
+        "price_paise": price_paise,
+    }
+
+
+async def _seed_plan(
+    pool: Any,
+    user_id: Any,
+    rows: list[dict[str, Any]],
+    minutes: int = 30,
+) -> None:
+    plan = {
+        "dish": "breakfast",
+        "servings": 2,
+        "items": rows,
+        "total_paise": 0,
+        "missing": [],
+    }
+    async with pool.acquire() as conn:
+        await conn.execute(
+            "UPDATE grocer.sessions SET pending_plan = $2::jsonb, "
+            "pending_plan_expires_at = now() + ($3 * interval '1 minute') "
+            "WHERE user_id = $1;",
+            user_id,
+            json.dumps(plan),
+            minutes,
+        )
+
+
+async def _stored_plan(pool: Any, user_id: Any) -> dict[str, Any] | None:
+    async with pool.acquire() as conn:
+        stored = await conn.fetchval(
+            "SELECT pending_plan FROM grocer.sessions WHERE user_id = $1;", user_id
+        )
+    if isinstance(stored, str):
+        return json.loads(stored)
+    return stored
+
 pytestmark = [pytest.mark.db, pytest.mark.scripted]
 
 
@@ -409,19 +464,24 @@ async def test_one_existing_item_asks_add_more_or_make_total(monkeypatch):
 @pytest.mark.asyncio
 async def test_plan_add_tap_writes_every_ingredient_and_reissues_pay(monkeypatch):
     pool = await get_db_pool()
-    wa_id, _user_id = await _seed_text_user(pool)
+    wa_id, user_id = await _seed_text_user(pool)
     client = FixtureSwiggyClient(FIXTURES_DIR, catalog_data=_catalog())
     outbound = RecordingWA()
+    await _seed_plan(
+        pool,
+        user_id,
+        [
+            _plan_row("milk", 1, "spin_amul_1l", "Milk"),
+            _plan_row("bread", 1, "spin_bread_white", "Bread", "400 g"),
+        ],
+    )
 
     from backend.agent import customer_advocate
-    from backend.agent.meal_planner import encode_plan
 
     monkeypatch.setattr(customer_advocate, "optimize_coupons", lambda **kwargs: None)
-    button_id = encode_plan([("milk", 1), ("bread", 1)])
-    assert button_id is not None
 
     result = await handle_webhook(
-        SignedRequest(_message(wa_id, button_id=button_id)),
+        SignedRequest(_message(wa_id, button_id="plan:add")),
         swiggy_client=client,
         wa_client=outbound,
     )
@@ -432,22 +492,26 @@ async def test_plan_add_tap_writes_every_ingredient_and_reissues_pay(monkeypatch
     assert quantities["spin_bread_white"] == 1
     assert outbound.buttons
     assert outbound.buttons[-1][2][0][0].startswith("pay:")
+    assert await _stored_plan(pool, user_id) is None
 
 
 @pytest.mark.asyncio
 async def test_plan_add_tap_writes_nothing_when_an_ingredient_is_missing():
     pool = await get_db_pool()
-    wa_id, _user_id = await _seed_text_user(pool)
+    wa_id, user_id = await _seed_text_user(pool)
     client = FixtureSwiggyClient(FIXTURES_DIR, catalog_data=_catalog())
     outbound = RecordingWA()
-
-    from backend.agent.meal_planner import encode_plan
-
-    button_id = encode_plan([("milk", 1), ("unicorn steak", 1)])
-    assert button_id is not None
+    await _seed_plan(
+        pool,
+        user_id,
+        [
+            _plan_row("milk", 1, "spin_amul_1l", "Milk"),
+            _plan_row("unicorn steak", 1, "spin_unicorn", "Unicorn steak", "1 kg"),
+        ],
+    )
 
     result = await handle_webhook(
-        SignedRequest(_message(wa_id, button_id=button_id)),
+        SignedRequest(_message(wa_id, button_id="plan:add")),
         swiggy_client=client,
         wa_client=outbound,
     )
@@ -459,9 +523,151 @@ async def test_plan_add_tap_writes_nothing_when_an_ingredient_is_missing():
 
 
 @pytest.mark.asyncio
+async def test_expired_plan_tap_writes_nothing():
+    pool = await get_db_pool()
+    wa_id, user_id = await _seed_text_user(pool)
+    client = FixtureSwiggyClient(FIXTURES_DIR, catalog_data=_catalog())
+    outbound = RecordingWA()
+    await _seed_plan(
+        pool, user_id, [_plan_row("milk", 1, "spin_amul_1l", "Milk")], minutes=-1
+    )
+
+    result = await handle_webhook(
+        SignedRequest(_message(wa_id, button_id="plan:add")),
+        swiggy_client=client,
+        wa_client=outbound,
+    )
+
+    assert result["status"] == "plan_unavailable"
+    assert client.last_update_items == []
+    assert "That plan expired" in outbound.texts[-1][1]
+    assert await _stored_plan(pool, user_id) is None
+
+
+@pytest.mark.asyncio
+async def test_plan_pick_tap_asks_for_numbers():
+    pool = await get_db_pool()
+    wa_id, user_id = await _seed_text_user(pool)
+    outbound = RecordingWA()
+    await _seed_plan(
+        pool, user_id, [_plan_row("milk", 1, "spin_amul_1l", "Milk")]
+    )
+
+    result = await handle_webhook(
+        SignedRequest(_message(wa_id, button_id="plan:pick")),
+        swiggy_client=FixtureSwiggyClient(FIXTURES_DIR, catalog_data=_catalog()),
+        wa_client=outbound,
+    )
+
+    assert result["status"] == "plan_pick_requested"
+    assert "like 1 and 3" in outbound.texts[-1][1]
+
+
+@pytest.mark.asyncio
+async def test_typed_numbers_add_only_the_chosen_plan_items():
+    pool = await get_db_pool()
+    wa_id, user_id = await _seed_text_user(pool)
+    wamid = f"wamid.{uuid.uuid4()}"
+    client = FixtureSwiggyClient(FIXTURES_DIR, catalog_data=_catalog())
+    outbound = RecordingWA()
+    await _seed_plan(
+        pool,
+        user_id,
+        [
+            _plan_row("milk", 1, "spin_amul_1l", "Milk"),
+            _plan_row("bread", 1, "spin_bread_white", "Bread", "400 g"),
+        ],
+    )
+
+    result = await handle_webhook(
+        SignedRequest(_message(wa_id, wamid=wamid, text="1")),
+        swiggy_client=client,
+        wa_client=outbound,
+    )
+    await asyncio.sleep(0.05)
+
+    assert result["status"] == "plan_picked"
+    quantities = {item.spinId: item.quantity for item in client.get_cart("addr_01HXYZ").items}
+    assert quantities["spin_amul_1l"] == 3
+    assert "spin_bread_white" not in quantities
+    assert outbound.buttons[-1][2][0][0].startswith("pay:")
+    assert outbound.reactions == [(wa_id, wamid, "🛒")]
+    assert await _stored_plan(pool, user_id) is None
+
+
+@pytest.mark.asyncio
+async def test_typed_numbers_do_not_hijack_normal_text(monkeypatch):
+    pool = await get_db_pool()
+    wa_id, user_id = await _seed_text_user(pool)
+    client = FixtureSwiggyClient(FIXTURES_DIR, catalog_data=_catalog())
+    outbound = RecordingWA()
+    await _seed_plan(
+        pool, user_id, [_plan_row("milk", 1, "spin_amul_1l", "Milk")]
+    )
+
+    from backend.agent import router as router_module
+    from backend.agent.router import Capability, RoutingDecision, SafetyClass
+
+    monkeypatch.setattr(
+        router_module,
+        "route_message",
+        lambda *args, **kwargs: RoutingDecision(
+            capability=Capability.CHAT,
+            safety=SafetyClass.READ,
+            confidence=0.95,
+            reply="Tell me what you need.",
+        ),
+    )
+
+    result = await handle_webhook(
+        SignedRequest(_message(wa_id, text="add bread")),
+        swiggy_client=client,
+        wa_client=outbound,
+    )
+
+    assert result["status"] == "capability_answered"
+    assert client.last_update_items == []
+    assert await _stored_plan(pool, user_id) is not None
+
+
+@pytest.mark.asyncio
+async def test_expired_plan_numbers_route_normally(monkeypatch):
+    pool = await get_db_pool()
+    wa_id, user_id = await _seed_text_user(pool)
+    client = FixtureSwiggyClient(FIXTURES_DIR, catalog_data=_catalog())
+    outbound = RecordingWA()
+    await _seed_plan(
+        pool, user_id, [_plan_row("milk", 1, "spin_amul_1l", "Milk")], minutes=-1
+    )
+
+    from backend.agent import router as router_module
+    from backend.agent.router import Capability, RoutingDecision, SafetyClass
+
+    monkeypatch.setattr(
+        router_module,
+        "route_message",
+        lambda *args, **kwargs: RoutingDecision(
+            capability=Capability.CHAT,
+            safety=SafetyClass.READ,
+            confidence=0.95,
+            reply="Tell me what you need.",
+        ),
+    )
+
+    result = await handle_webhook(
+        SignedRequest(_message(wa_id, text="1")),
+        swiggy_client=client,
+        wa_client=outbound,
+    )
+
+    assert result["status"] == "capability_answered"
+    assert client.last_update_items == []
+
+
+@pytest.mark.asyncio
 async def test_recipe_question_shows_a_plan_and_writes_nothing(monkeypatch):
     pool = await get_db_pool()
-    wa_id, _user_id = await _seed_text_user(pool)
+    wa_id, user_id = await _seed_text_user(pool)
     wamid = f"wamid.{uuid.uuid4()}"
     client = FixtureSwiggyClient(FIXTURES_DIR, catalog_data=_catalog())
     outbound = RecordingWA()
@@ -498,5 +704,11 @@ async def test_recipe_question_shows_a_plan_and_writes_nothing(monkeypatch):
     assert outbound.buttons
     _to, body, buttons = outbound.buttons[-1]
     assert "Breakfast for 2" in body
-    assert buttons[0][1] == "Add all"
+    assert buttons[0] == ("plan:add", "Add all")
     assert outbound.reactions == [(wa_id, wamid, "🍳")]
+
+    stored = await _stored_plan(pool, user_id)
+    assert stored is not None
+    assert [row["query"] for row in stored["items"]] == ["milk", "bread"]
+    assert stored["servings"] == 2
+    assert stored["items"][0]["packs"] == 2

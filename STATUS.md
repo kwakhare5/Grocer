@@ -32,11 +32,11 @@
 |---|---|
 | Documentation sync | **DONE 2026-10-27, scope corrected 2026-10-27.** Recipes are in v1 as plan-confirm-add; proactivity is money-and-truth only; replies stay English. Stale "current" notes were removed from PRD, ARCHITECTURE, DESIGN, GLOSSARY and the ADR index. The scope table lives in `TASKS.md`. |
 | Lint | **PASS 2026-10-27:** `ruff check backend tests` → `All checks passed!` |
-| Offline tests | **PASS 2026-10-28:** 113 passed, 72 deselected (`pytest -q -m "not db and not live"`). |
+| Offline tests | **PASS 2026-10-28:** 120 passed, 72 deselected (`pytest -q -m "not db and not live"`). |
 | DB tests | **PASS 2026-10-28:** 52 passed on `grocer_test` (`pytest -q -m "db"`). |
 | Live tests | **22 collected, not run.** `test_catalog_search.py` calls the live Gemini evaluator and is marked `live`. |
-| Full test collection | **185 tests collected 2026-10-28.** |
-| Full suite claim | The old "136 passed, 0 skipped" claim is retired. The current verified set is 113 offline + 52 DB; live is excluded by default. Scripted tests are marked `scripted` and never counted as live proof. |
+| Full test collection | **192 tests collected 2026-10-28.** |
+| Full suite claim | The old "136 passed, 0 skipped" claim is retired. The current verified set is 128 offline + 57 DB (185 collected); live is excluded by default. Scripted tests are marked `scripted` and never counted as live proof. |
 | Live Swiggy smoke | **PASS 2026-10-27:** real token, real MCP. 3 addresses, 20 milk products with live prices, 12-item cart read, 0 orders, 10 payment methods, 0 coupons. Cart add verified then restored (12 items, same spins and quantities). No order placed. Raw: `scripts/live_smoke.py`. |
 | Live Groq pass | **PASS 2026-10-27:** 10 real messages → 10 correct routes (item_info ×3, list_addresses, order_history, list_coupons, payment_options, add_items, chat, track_order) with real read answers. 55s. |
 | Live checkout lock | **PASS 2026-10-27:** with `LIVE_CHECKOUT_ENABLED=false`, the real path returned "Checkout is locked" and a sentinel client proved no Swiggy method ran. |
@@ -54,12 +54,15 @@
 | Live natural-language eval (20 cases) | **MIXED 2026-10-28:** 20 messy messages against Render, real Groq + real Swiggy, no fixtures. 13/20 answered on the first pass. 7/20 got the honest AI-outage copy from Groq's 8k TPM burst limit; retried with 20s spacing, 5/7 then passed. Genuine failures: `make pizza for 5 people` asked "How many pizza bases?" instead of a recipe plan, and `add milk and bread` only handled the milk. Copy gap: the existing-milk prompt says "Do you want the total to be 1, or 1 more?" which is confusing. `show payment options` lists COD and Swiggy Money even though v1 supports UPI only; `is the store open` gives a quote, not a yes/no. Raw: `.scratch/live_eval_20.json` and `.scratch/live_eval_retry.json`. |
 | Reactions and card emojis | **DONE (code) 2026-10-28:** one reaction per inbound message, chosen by Python from the turn outcome (`backend/channels/reactions.py`), sent off the critical path after the reply (`backend/channels/whatsapp.py`). 🏠 addresses, 🛒 basket, 📦 orders, 🛵 tracking, 🎟️ coupons, 💳 payments, 🍳 meal plan; ❓ when the bot needs a choice; 📍 when it asks for a pin. No reaction on chat, misses, locks, auth or outages. Cards carry at most one header emoji (address, orders, track, coupons, payments, reorder); error and money copy carries none. Payload: `backend/channels/whatsapp_client.py`. Proof: `verify.ps1 -Db` exit 0, 113 offline + 52 DB, including a signed-webhook test that asserts exactly one 🏠 for an address question. Meta's live reaction delivery is unproven until a real inbound wamid is reacted to. |
 | Batch 2 first slice | **DONE (code) 2026-10-28:** multi-item text adds now process every requested item. Root cause of the eval failure `add milk and bread`: the single existing-item branch returned early and dropped bread. That branch now runs only when exactly one item is asked for, and its copy/buttons say "Add 1 more" / "Make total 1". Recipe plans are live in code as plan-confirm-add: a new `plan_meal` read capability carries dish + servings + ingredient packs from the model; `backend/agent/meal_planner.py` searches and prices each line; `[Add all]` re-checks live stock and writes all ingredients or none; `[Let me pick]` asks for item numbers. The plan card is stored in dialogue history. No hardcoded recipe list (ADR 0011). Proof: 5 new offline tests, 5 new webhook tests, 1 router test; full gate 113 offline + 52 DB. The live Groq route for "make pizza for 5" and a live Add-all tap are not tested yet. |
+| Q3 AI load fix | **DONE (code) 2026-10-28:** one Groq call gate shared by routing and item evaluation (`backend/agent/llm.py`). Calls are spaced; a 429 or a zero-token header parks every thread until the reset; a wait longer than the 8-second turn budget fails honestly instead of hanging. Multi-item turns now evaluate all items in one model call (`evaluate_customer_intents_batch`), with per-item deterministic fallback and no extra call (`backend/agent/candidate_evaluator.py`). A 4-item add drops from 5 model calls to 2. Proof: `verify.ps1 -Db` exit 0, 120 offline + 52 DB, 192 collected; 7 new queue/batch tests. Live Groq burst behavior is not re-tested. |
+| Q1/Q2 stored plan and pack math | **DONE (code) 2026-10-28:** the exact priced recipe plan is stored in `grocer.sessions.pending_plan` with a 30-minute expiry (migration 005), replacing the old base64 button token. The model now gives each ingredient an amount and unit (`250 g`, `1 l`, `5 pieces`); Python reads the store pack size (`backend/agent/meal_planner.py:parse_pack_size`) and computes whole packs, falling back to the model's pack count when the store text cannot be compared. Add-all re-checks live stock and writes all or none; picks write only the chosen rows. The plan is cleared after a write, on expiry, by the 24-hour DPDP scrub, and by "delete my data". The numbered reply to `Let me pick` is now real: number-shaped text ("1 and 3") picks items with no model call, and anything with words routes normally. Proof: new pack-math, stored-spin, partial-pick, expired-plan and typed-picker tests; `verify.ps1 -Db` exit 0, 128 offline + 57 DB, 185 collected. Live recipe route and a live tap are still unproven. |
 | Router eval (live Groq) | **PASS with one miss 2026-10-27:** 39/40 exact (97.5%), 0 unsafe writes, 0 under-acted writes, 0 LLM errors. Miss: "how long till my food arrives" → `store_info`, expected `track_order`. Latency was not recorded by the harness. Raw: `.scratch/eval_phase2.json`. |
 | One LLM brain | **DONE 2026-10-27:** routing and candidate evaluation both call `backend/agent/llm.py`. Direct Gemini calls and the second classification call are gone. Gemini key is optional. |
 | Live reads | Recorded live on 2026-10-26: price/stock, addresses, order history, cancel help, payment options, coupons. Not re-run on 2026-10-27. |
 | Live refresh | Recorded 2026-10-26: forced refresh returned a new token pair; new expiry 2026-11-25. Journal also records a fixture-only refresh proof. Treat the live proof as recorded, not re-verified. |
 | Live checkout | **Never tested. No order placed.** |
 | Migration 004 | **VERIFIED 2026-10-27:** `python scripts/migrate.py` applied `004_checkout_milestones.sql` to the app database; `verify_db.py` exits 0 with 8 tables, `notified_milestones` present, and the required indexes. `grocer_test` is also at 004. |
+| Migration 005 | **APPLIED 2026-10-28:** `python scripts/migrate.py` added `sessions.pending_plan` and `sessions.pending_plan_expires_at` to the app database; `verify_db.py` exits 0. `grocer_test` applied it through the DB suite. Render applies pending migrations at startup on the next deploy. |
 | Production readiness | **No.** |
 | Current gate | **Gate 2 — Concierge Answers.** 6 of 8 pass; 1 partial (reorder needs a past order); 1 code-complete but not tapped live ("milk" now auto-picks with a working Change button, discretionary items show choices). See §2. |
 
@@ -88,8 +91,8 @@ Gate 2 is read-only. No checkout, order, payment call, or address write is in sc
 
 | Safety class | Capabilities | Reality |
 |---|---|---|
-| **read** (11) | chat, item_info, store_info, view_basket, list_addresses, order_history, track_order, list_coupons, payment_options, cancel_help, plan_meal | Ten are live-proven. `view_basket` reads the real cart and is fixture-tested; it needs a WhatsApp read. `plan_meal` is built and fixture-proven (2026-10-28); the live Groq route for "make pizza for 5" is not tested. `store_info` gives the live cart quote and says Swiggy does not expose the store or window. `track_order` calls the tracking tool when coordinates are saved, else delivery status. |
-| **basket** (4) | add_items, change_item, clear_basket, reorder | `add_items` works live and now handles multiple items in one message. Change, clear and reorder are fixture-proven only. Reorder's live write is blocked. `add_items` makes one routing call plus one candidate-evaluation call per item; that is the intended design (ADR 0012). |
+| **read** (11) | chat, item_info, store_info, view_basket, list_addresses, order_history, track_order, list_coupons, payment_options, cancel_help, plan_meal | Ten are live-proven. `view_basket` reads the real cart and is fixture-tested; it needs a WhatsApp read. `plan_meal` is built and fixture-proven (2026-10-28), stores its priced plan for 30 minutes, and accepts a typed numbered pick; the live Groq route for "make pizza for 5" is not tested. `store_info` gives the live cart quote and says Swiggy does not expose the store or window. `track_order` calls the tracking tool when coordinates are saved, else delivery status. |
+| **basket** (4) | add_items, change_item, clear_basket, reorder | `add_items` works live and handles multiple items in one message. Change, clear and reorder are fixture-proven only. Reorder's live write is blocked. `add_items` makes one routing call plus one batched evaluation call per turn (changed 2026-10-28; ADR 0012 amended). |
 | **account** (3) | add_address, switch_address, delete_address | Address list works live. Switch warns, clears and rebuilds the basket at the new store. Delete is blocked while a delivery is in flight and guarded again on the final tap. Typed-text add geocodes and reuses the flat/name/city steps. Live add/delete is still unproven (needs the one throwaway address). |
 | **money** (1) | checkout | Button path is wired end to end and no longer holds a DB transaction across the Swiggy call. Text "place the order" returns a not-ready reply by design: Lock 1 requires a physical tap. Never live-tested; no order placed. |
 
@@ -166,22 +169,24 @@ ruff check backend tests
 All checks passed!
 
 pytest -q -m "not db and not live"
-113 passed, 72 deselected in 1.03s
+120 passed, 72 deselected in 0.99s
 
 pytest -q -m "db"
-52 passed, 133 deselected in 30.88s
+52 passed, 140 deselected in 31.09s
 
 pytest --collect-only -q
 185 tests collected
 
 powershell -File verify.ps1 -Db
 === [PASS] Grocer v1.0 verification complete ===
-# 2026-10-28 after reactions + Batch 2 first slice:
-# schema check exit 0, ruff clean, 113 offline pass, 52 DB pass,
+# 2026-10-28 after Q1/Q2 stored plan + pack math:
+# schema check exit 0, ruff clean, 128 offline pass, 57 DB pass,
 # Next.js build pass, script exit 0
 ```
 
-**New in Batch 2 first slice and reactions (2026-10-28):** 5 meal-planner tests (`test_meal_planner.py`: card contents, Add-all rebuild, missing ingredient blocks the whole write, button-length limit), 1 router test (plan fields and read safety), 2 payload/mapping tests (reaction payload, sparse map), 1 webhook reaction test (exactly one 🏠 for an address question), and 5 webhook tests (multi-item merge, clearer existing-item prompt, recipe card with no write, Add-all tap with Pay, missing ingredient with no write). The unsent savings line, coupon paths, typed-number pickers, queue/merge and receipt chunking remain unproven by design.
+**New in Q1/Q2 (2026-10-28):** pack math (`packs_for`: g/kg, ml/l, pieces), stored-plan shape, stored-spin preference, add-all all-or-nothing, partial picks that name the missing rows, numbered-reply parsing, an expired-plan tap that writes nothing, a typed pick that adds only the chosen row, a normal text that is not hijacked, and numbers with an expired plan that route normally. Proof: 12 planner tests, 8 webhook tests, 1 router test.
+
+**New in Batch 2 first slice and reactions (2026-10-28):** 5 meal-planner tests (`test_meal_planner.py`: card contents, Add-all rebuild, missing ingredient blocks the whole write, button-length limit), 1 router test (plan fields and read safety), 2 payload/mapping tests (reaction payload, sparse map), 1 webhook reaction test (exactly one 🏠 for an address question), and 5 webhook tests (multi-item merge, clearer existing-item prompt, recipe card with no write, Add-all tap with Pay, missing ingredient with no write). The unsent savings line, coupon paths, queue/merge and receipt chunking remain unproven by design.
 
 **New in Phase 5:** 12 DB tests in `tests/test_phase5_account.py` (default grounding, switch rebuild, missing-item report, delete guard both ways, typed add with and without PIN, unresolvable text, link-token roundtrip/tamper/expiry, phone-only login rejected, parked replay) and 3 webhook tests in `tests/test_whatsapp_webhook.py` that post the exact Meta JSON for a button tap: duplicate tap, pay tap while locked (spy client never called), and a signed reconnect link. The outbound mock branch was deleted; tests inject a recording client instead.
 
@@ -214,23 +219,25 @@ RuntimeError: Refusing to run tests against database 'postgres'. TEST_DATABASE_U
 | 0006 | Partial | ₹1,000 cap stays. Cap-raise now re-opens the same receipt. DPDP is partial. |
 | 0007 | Active | Switch clears and rebuilds the basket at the new store. Delete guard runs on the real delete path. Split orders poll every id. |
 | 0008 | Partial | Typed-text address add is built. Reorder is fixture-only and needs a past order. |
-| 0009 | Amended | Recipes are in v1 as a plan-confirm-add flow (decided 2026-10-27; built in code 2026-10-28). Fee warning and post-order truth are Phase 7. One-time destination is parked. |
+| 0009 | Amended | Recipes are in v1 as a plan-confirm-add flow (decided 2026-10-27; built in code 2026-10-28). The exact priced plan is stored in `grocer.sessions.pending_plan` for 30 minutes; the model gives amounts and units and Python computes packs. Fee warning and post-order truth are Phase 7. One-time destination is parked. |
 | 0010 | Active | Refresh first, park only on refresh failure. Park status matches replay, and the callback replays in the background. |
 | 0011 | Superseded | Replaced by ADR 0012. No extra classification call; candidate evaluation is one call per item and is intentional. |
-| 0012 | Active | Groq is primary and the only adapter. Direct Gemini calls are gone; the key is optional. |
+| 0012 | Active, amended 2026-10-28 | Groq is primary and the only adapter. Direct Gemini calls are gone; the key is optional. Item evaluation is one batched call per turn, not one per item. |
 
 ---
 
 ## 8. Next Action
 
-**Where we are (2026-10-28).** Phases 0-5 are done. Phase 7 Batch 1 and the first Batch 2 slice are done in code: multi-item adds, clearer existing-item copy, recipe plan-confirm-add, and one outcome reaction per message. The last full gate is green: `verify.ps1 -Db` exit 0, 113 offline + 52 DB, 185 collected, Next build pass. The reaction commits (`36d2ec2`, `0fa0270`) are pushed. The Batch 2 slice is committed locally (`0fe6ef0`, docs `89d95c0`) and **not pushed**. Render is live on `09b5fa2`; the pushed reaction commits are not deploy-verified.
+**Where we are (2026-10-28).** Phases 0-5 are done. Phase 7 Batch 1, the first Batch 2 slice, the AI load fix (Q3), and Q1/Q2 (stored plan, pack math, typed picker) are done in code: multi-item adds, clearer existing-item copy, recipe plan-confirm-add backed by a stored plan, one outcome reaction per message, a shared Groq gate, and one batched evaluation per turn. The last full gate is green: `verify.ps1 -Db` exit 0, 128 offline + 57 DB, 185 collected, Next build pass. The reaction commits (`36d2ec2`, `0fa0270`) are pushed. The Batch 2 slice is committed locally (`0fe6ef0`, docs `89d95c0`, correction `0490266`) and **not pushed**. The Q3 and Q1/Q2 changes are local and uncommitted. Render is live on `09b5fa2`; the pushed reaction commits are not deploy-verified.
 
 **Remaining Phase 7, in order.**
 
 | # | Item | State | Proof needed |
 |---|---|---|---|
-| 1 | LLM queue/backoff for Groq free-tier bursts | OPEN | 20-case live run with 0 first-pass outages |
-| 2 | List pickers that accept a typed number | OPEN | picker test plus a live reply with "2" |
+| 1 | LLM queue/backoff for Groq free-tier bursts | **DONE (code) 2026-10-28** | 20-case live run with 0 first-pass outages |
+| 1b | Batch item evaluation in one call | **DONE (code) 2026-10-28** | Live multi-item turn shows 2 model calls, not 5 |
+| 1c | Stored plan + amount-to-pack math | **DONE (code) 2026-10-28** | Live recipe route; a live Add-all tap that reads the stored plan |
+| 2 | List pickers that accept a typed number | **DONE (code) 2026-10-28** | Live reply "1 and 3" against a real plan card |
 | 3 | Message merge/queue for rapid second text | OPEN | two quick messages both answered, conflicting writes serialized |
 | 4 | Full message in the model prompt | OPEN | evaluator gets the whole text, live check |
 | 5 | Grouped search for related items | OPEN | one search per group, live check |

@@ -76,6 +76,7 @@ def test_reactions_are_sparse_and_match_the_outcome():
         == "🍳"
     )
     assert reaction_for_result({"status": "cart_updated"}) == "🛒"
+    assert reaction_for_result({"status": "plan_picked"}) == "🛒"
     assert reaction_for_result({"status": "item_choices"}) == "❓"
 
     # Nothing to celebrate on chat, misses, locks or outages.

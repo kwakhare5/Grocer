@@ -39,6 +39,7 @@ class ReadReply:
 
     text: str
     buttons: list[tuple[str, str]] = field(default_factory=list)
+    pending_plan: dict[str, Any] | None = None
 
 
 async def _item_info(decision: RoutingDecision, client: SwiggyClient, address_id: str | None) -> str:
@@ -313,8 +314,8 @@ async def build_read_reply(
         if decision.capability is Capability.PLAN_MEAL:
             from backend.agent.meal_planner import build_meal_plan
 
-            text, buttons = await build_meal_plan(decision, client, address_id)
-            return ReadReply(text, buttons)
+            text, buttons, plan = await build_meal_plan(decision, client, address_id)
+            return ReadReply(text, buttons, plan)
         if decision.capability is Capability.ORDER_HISTORY:
             return ReadReply(await _order_history(client))
         if decision.capability is Capability.TRACK_ORDER:

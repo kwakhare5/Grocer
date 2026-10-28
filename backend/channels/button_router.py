@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import uuid
 from typing import Any
@@ -15,7 +16,7 @@ from backend.config import settings
 logger = logging.getLogger("grocer.button_router")
 
 
-async def _send_add_receipt(
+async def send_add_receipt(
     conn: Any,
     wa_client: Any,
     wa_id: str,
@@ -150,7 +151,7 @@ async def dispatch_button_action(
                     if err or not cart.items:
                         reply = BasketReply(err or "Your basket is empty.")
                     else:
-                        special_result = await _send_add_receipt(
+                        special_result = await send_add_receipt(
                             conn,
                             wa_client,
                             wa_id,
@@ -196,10 +197,10 @@ async def dispatch_button_action(
         asyncio.create_task(wa_client.send_text_message(to_wa_id=wa_id, text=reply.text))
         return {"status": "basket_updated", "action": button_id, "message": reply.text}
 
-    # 1b. Meal plan confirmation taps
+    # 1b. Meal plan confirmation taps (ADR 0009). The plan is stored, not encoded.
     if prefix == "plan" and target_arg:
         from backend.agent.composite_cart import CompositeCartManager
-        from backend.agent.meal_planner import resolve_plan_items
+        from backend.agent.meal_planner import plan_items, resolve_plan_items
         from backend.channels.whatsapp_client import WhatsAppClient
         from backend.integrations.commerce.swiggy_client import (
             SwiggyAuthExpiredError,
@@ -209,13 +210,7 @@ async def dispatch_button_action(
 
         wa_client = wa_client or WhatsAppClient()
 
-        if target_arg == "pick":
-            text = "Reply with the numbers you want, like 1 and 3. I'll add only those."
-            asyncio.create_task(wa_client.send_text_message(to_wa_id=wa_id, text=text))
-            return {"status": "plan_pick_requested", "action": button_id, "message": text}
-
-        action_name, _, token = target_arg.partition(":")
-        if action_name != "add" or not token or not pool:
+        if target_arg not in {"add", "pick"} or not pool:
             return {
                 "status": "button_ignored",
                 "action": button_id,
@@ -229,10 +224,46 @@ async def dispatch_button_action(
             if not user_id:
                 return {"status": "unknown_user", "action": button_id}
 
-            active = await conn.fetchval(
-                "SELECT active_address_id FROM grocer.sessions WHERE user_id = $1;",
+            row = await conn.fetchrow(
+                "SELECT active_address_id, pending_plan, "
+                "(pending_plan_expires_at > now()) AS plan_fresh "
+                "FROM grocer.sessions WHERE user_id = $1;",
                 user_id,
             )
+            active = row["active_address_id"] if row else None
+            raw_plan = row["pending_plan"] if row else None
+            fresh = bool(row and row["plan_fresh"])
+            plan = None
+            if raw_plan and fresh:
+                try:
+                    plan = (
+                        json.loads(raw_plan) if isinstance(raw_plan, str) else raw_plan
+                    )
+                except (json.JSONDecodeError, TypeError, ValueError):
+                    plan = None
+            if not plan_items(plan) or not fresh:
+                await conn.execute(
+                    "UPDATE grocer.sessions SET pending_plan = NULL, "
+                    "pending_plan_expires_at = NULL WHERE user_id = $1;",
+                    user_id,
+                )
+                text = "That plan expired. Ask me to plan the meal again."
+                await wa_client.send_text_message(to_wa_id=wa_id, text=text)
+                return {
+                    "status": "plan_unavailable",
+                    "action": button_id,
+                    "message": text,
+                }
+
+            if target_arg == "pick":
+                text = "Reply with the numbers you want, like 1 and 3. I'll add only those."
+                await wa_client.send_text_message(to_wa_id=wa_id, text=text)
+                return {
+                    "status": "plan_pick_requested",
+                    "action": button_id,
+                    "message": text,
+                }
+
             client = swiggy_client
             if client is None:
                 user_token = await resolve_user_token(user_id)
@@ -245,7 +276,7 @@ async def dispatch_button_action(
                 client = SwiggyClient(auth_token=user_token)
 
             try:
-                items, error = await resolve_plan_items(client, active, token)
+                items, _missing, error = await resolve_plan_items(client, active, plan)
                 if error or not items:
                     text = error or "That plan is not available. Nothing was added."
                     await wa_client.send_text_message(to_wa_id=wa_id, text=text)
@@ -261,7 +292,12 @@ async def dispatch_button_action(
                     address_id=active,
                     auto_optimize_coupons=True,
                 )
-                return await _send_add_receipt(
+                await conn.execute(
+                    "UPDATE grocer.sessions SET pending_plan = NULL, "
+                    "pending_plan_expires_at = NULL WHERE user_id = $1;",
+                    user_id,
+                )
+                return await send_add_receipt(
                     conn,
                     wa_client,
                     wa_id,

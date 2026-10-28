@@ -16,6 +16,7 @@ import json
 import logging
 import re
 from enum import Enum
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
@@ -64,6 +65,41 @@ class CandidateEvaluationResult(BaseModel):
     is_vague_staple: bool = False
 
 
+_CANDIDATE_RULES = """Rules:
+1. If address_count == 0, return intent_type="zero_address_onboarding".
+2. If query is a general inquiry (delivery fee, timing, stock inquiry), return intent_type="conversational_qa".
+3. If query is a discretionary snack or drink without a specific brand or flavor (chips, cold coffee, biscuits), NEVER pick rank-1. Return intent_type="disambiguation" with 2-3 options.
+4. If query is an unqualified staple (milk, eggs, bread, pyaz, atta), return intent_type="add_to_basket", is_vague_staple=true, and select the bestseller.
+5. Match brand and size constraints accurately.
+6. Never invent a spin_id. Use only ids from the candidates."""
+
+
+def _single_system_prompt(address_count: int) -> str:
+    return (
+        "You evaluate product candidates for Grocer, a WhatsApp Instamart grocery assistant.\n"
+        f"Saved address count: {address_count}\n"
+        f"{_CANDIDATE_RULES}\n\n"
+        "Return JSON only:\n"
+        '{"intent_type": "add_to_basket" | "disambiguation" | "conversational_qa" | '
+        '"zero_address_onboarding", "selected_spin_id": string | null, '
+        '"is_vague_staple": boolean, "disambiguation_spin_ids": [string], '
+        '"message": string | null}'
+    )
+
+
+def _batch_system_prompt(address_count: int) -> str:
+    return (
+        "You evaluate product candidates for Grocer, a WhatsApp Instamart grocery assistant.\n"
+        f"Saved address count: {address_count}\n"
+        f"{_CANDIDATE_RULES}\n\n"
+        "Evaluate every item in the list. Use its index. Never merge items.\n"
+        "Return JSON only:\n"
+        '{"items": [{"index": <int>, "intent_type": "add_to_basket" | '
+        '"disambiguation" | "conversational_qa" | "zero_address_onboarding", '
+        '"selected_spin_id": string | null, "is_vague_staple": boolean}]}'
+    )
+
+
 def _call_llm_candidate_evaluator(
     query: str,
     candidates: list[CandidateItem],
@@ -71,24 +107,7 @@ def _call_llm_candidate_evaluator(
 ) -> CandidateEvaluationResult | None:
     """Ask the configured LLM to evaluate candidates. Python still owns safety."""
     candidates_json = [c.model_dump() for c in candidates]
-    system_prompt = f"""You evaluate product candidates for Grocer, a WhatsApp Instamart grocery assistant.
-Saved address count: {address_count}
-Rules:
-1. If address_count == 0, return intent_type="zero_address_onboarding".
-2. If query is a general inquiry (delivery fee, timing, stock inquiry), return intent_type="conversational_qa".
-3. If query is a discretionary snack or drink without a specific brand or flavor (chips, cold coffee, biscuits), NEVER pick rank-1. Return intent_type="disambiguation" with 2-3 options.
-4. If query is an unqualified staple (milk, eggs, bread, pyaz, atta), return intent_type="add_to_basket", is_vague_staple=true, and select the bestseller.
-5. Match brand and size constraints accurately.
-6. Never invent a spin_id. Use only ids from the candidates.
-
-Return JSON only:
-{{
-  "intent_type": "add_to_basket" | "disambiguation" | "conversational_qa" | "zero_address_onboarding",
-  "selected_spin_id": string | null,
-  "is_vague_staple": boolean,
-  "disambiguation_spin_ids": [string],
-  "message": string | null
-}}"""
+    system_prompt = _single_system_prompt(address_count)
     user_prompt = json.dumps(
         {"query": query, "address_count": address_count, "candidates": candidates_json}
     )
@@ -160,8 +179,6 @@ def evaluate_customer_intent(
     candidate list.
     """
     candidates = candidates or []
-    raw_query = query.strip()
-    lower_query = normalize_query(raw_query).lower()
 
     # 1. Zero-Address Onboarding Gate (ADR 0010)
     if address_count == 0:
@@ -169,14 +186,26 @@ def evaluate_customer_intent(
 
     # 2. Ask the configured LLM first
     llm_result = _call_llm_candidate_evaluator(
-        query=raw_query,
+        query=query,
         candidates=candidates,
         address_count=address_count,
     )
     if llm_result is not None:
         return llm_result
 
-    # 3. Deterministic fallback when the LLM is unavailable
+    return _deterministic_evaluate(query, candidates, address_count)
+
+
+def _deterministic_evaluate(
+    query: str,
+    candidates: list[CandidateItem] | None = None,
+    address_count: int = 1,
+) -> CandidateEvaluationResult:
+    """Ranking rules when the model is unavailable or a batch entry is bad."""
+    candidates = candidates or []
+    if address_count == 0:
+        return CandidateEvaluationResult(intent_type=IntentType.ZERO_ADDRESS_ONBOARDING)
+    lower_query = normalize_query(query.strip()).lower()
     words = re.findall(r"\b\w+\b", lower_query)
 
     if candidates:
@@ -256,3 +285,118 @@ def evaluate_customer_intent(
             )
 
     return CandidateEvaluationResult(intent_type=IntentType.CONVERSATIONAL_QA)
+
+
+def _parse_evaluation(
+    parsed: dict[str, Any],
+    candidates: list[CandidateItem],
+) -> CandidateEvaluationResult | None:
+    raw_intent = parsed.get("intent_type", "conversational_qa")
+    try:
+        intent = IntentType(raw_intent)
+    except ValueError:
+        return None
+
+    if intent is IntentType.ADD_TO_BASKET:
+        selected_spin = parsed.get("selected_spin_id")
+        selected = next(
+            (c for c in candidates if c.spin_id == selected_spin),
+            None,
+        )
+        if selected is None:
+            return None
+        return CandidateEvaluationResult(
+            intent_type=intent,
+            selected_candidate=selected,
+            is_vague_staple=bool(parsed.get("is_vague_staple", False)),
+        )
+
+    return CandidateEvaluationResult(intent_type=intent)
+
+
+def parse_batch_evaluations(
+    payload: dict[str, Any] | None,
+    targets: list[tuple[str, list[CandidateItem]]],
+) -> list[CandidateEvaluationResult | None]:
+    """Parse a batch answer by index. A missing or bad entry stays None."""
+    results: list[CandidateEvaluationResult | None] = [None] * len(targets)
+    if not isinstance(payload, dict):
+        return results
+
+    entries = payload.get("items")
+    if not isinstance(entries, list):
+        if len(targets) == 1:
+            results[0] = _parse_evaluation(payload, targets[0][1])
+        return results
+
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        try:
+            index = int(entry.get("index"))
+        except (TypeError, ValueError):
+            continue
+        if 0 <= index < len(targets):
+            results[index] = _parse_evaluation(entry, targets[index][1])
+    return results
+
+
+def evaluate_customer_intents_batch(
+    targets: list[tuple[str, list[CandidateItem]]],
+    address_count: int = 1,
+) -> list[CandidateEvaluationResult]:
+    """Evaluate every item in a turn with one model call.
+
+    One call instead of one per item keeps a multi-item add inside the free
+    tier. Any missing or invalid entry falls back to the deterministic rules,
+    with no extra model call.
+    """
+    targets = [(query, candidates or []) for query, candidates in targets]
+    if not targets:
+        return []
+    if len(targets) == 1:
+        return [
+            evaluate_customer_intent(
+                targets[0][0], targets[0][1], address_count=address_count
+            )
+        ]
+
+    items = [
+        {
+            "index": index,
+            "query": query,
+            "candidates": [candidate.model_dump() for candidate in candidates],
+        }
+        for index, (query, candidates) in enumerate(targets)
+    ]
+    result = complete_json(
+        _batch_system_prompt(address_count),
+        json.dumps({"address_count": address_count, "items": items}),
+    )
+    parsed = parse_batch_evaluations(result.data, targets)
+    final: list[CandidateEvaluationResult] = []
+    fallbacks = 0
+    for index, (query, candidates) in enumerate(targets):
+        if parsed[index] is None:
+            fallbacks += 1
+            final.append(_deterministic_evaluate(query, candidates, address_count))
+        else:
+            final.append(parsed[index])
+
+    logger.info(
+        "batch candidate decision %s",
+        json.dumps(
+            {
+                "items": len(targets),
+                "selected": [
+                    item.selected_candidate.spin_id if item.selected_candidate else None
+                    for item in final
+                ],
+                "fallbacks": fallbacks,
+                "latency_ms": result.latency_ms,
+                "error": result.error,
+            },
+            ensure_ascii=True,
+        ),
+    )
+    return final

@@ -774,3 +774,11 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: fast-forwarded `main` from `d61b142` to `2c63289` and pushed. No Render env var was changed. Deleted no data and placed no order.
 - **Proof**: `verify.ps1 -Db` exit 0 (ruff clean, 146 offline, 72 DB, Next build pass); fast-forward `d61b142..2c63289`; Render deploy `dep-dbh0vkavcj2c73e0ghqg` reached `live` on `2c63289`; `GET https://grocer-backend-qwk4.onrender.com/health` -> HTTP 200 `{"status":"healthy","database":"connected","app":"Grocer","environment":"development"}`; GitHub Quality run `40712848895` success on `2c63289`.
 - **Still broken**: the live multi-item, eggs, Hinglish, bare "milk" and remove router wordings were blocked by the shared Groq TPM; the fixture paths pass. The beta allowlist needs Render env + phone numbers, the global daily AI cap is not built, and the real order, phone taps and live 24h scrub remain open.
+
+### [GROCER — count correction] 2026-10-28
+
+#### Work Card: Test count corrected
+- **Problem**: the branch and merge cards said 72 DB tests; the final collection also includes the paneer/rice regression test.
+- **Change**: none in code; `STATUS.md` and `.scratch/HANDOFF.md` now say 73 DB and 239 collected.
+- **Proof**: `pytest --collect-only -q -m "db"` -> `73/239 tests collected (166 deselected)`; `pytest --collect-only -q -m "not live and not db"` -> `146/239 tests collected (93 deselected)`.
+- **Still broken**: unchanged.

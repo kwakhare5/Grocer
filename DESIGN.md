@@ -245,4 +245,4 @@ Done 2026-10-27: the phone form is gone. The page accepts a signed `?t=` link fr
 - Mobile layout works at 360px width.
 - The page does not pretend to be the product UI.
 
-**State 2026-10-28:** built in code. `npm run build` passes; checked at 1440px and real 360px emulation with no horizontal overflow; the `?t=` connect card renders; the CTA disables without the env var. Vercel deploy is pending.
+**State 2026-10-28:** live at `https://grocerr.vercel.app`. `npm run build` passes; checked at 1440px and real 360px emulation with no horizontal overflow; the `?t=` connect card renders. `NEXT_PUBLIC_WHATSAPP_NUMBER` is set in Vercel production; the built page has 3 `wa.me` links and no disabled note. A phone tap on the CTA is still unproven.

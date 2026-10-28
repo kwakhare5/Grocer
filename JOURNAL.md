@@ -742,3 +742,11 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: renamed every remaining old-name mention, including journal headings and old branch refs (now `main`). Deleted the old `v2.0.0` and `checkpoint-working` tags. Reproduced the CI failure with ruff 0.17.3: seven UP017 `datetime.UTC` findings; fixed all seven and pinned `ruff==0.17.3`. Synced `ARCHITECTURE.md`, `AGENTS.md`, `TASKS.md`, `README.md`, `STATUS.md`, and ADR 0009 to the main-only branch, Render deploy path, CI, and the post-order truth reply.
 - **Proof**: ruff 0.17.3 `All checks passed`; `verify.ps1 -Db` exit 0 (schema pass, 142 offline, 66 DB, 228 collected, Next build pass); CI green on `c4ea0a3`; Render live on `c4ea0a3` with `/health` 200.
 - **Still broken**: Vercel branch and `NEXT_PUBLIC_WHATSAPP_NUMBER` are open; handset proofs and the live 24-hour scrub remain unproven; checkout is still never live-tested and no order will be placed. No backdated commits were made for the contribution graph.
+
+### [GROCER — landing page live] 2026-10-28
+
+#### Work Card: The site button now works
+- **Problem**: `grocerr.vercel.app` was already serving the new page, but the WhatsApp CTA was disabled because `NEXT_PUBLIC_WHATSAPP_NUMBER` was missing from Vercel. The docs still called the deploy pending.
+- **Change**: added the number to Vercel production only (never written to the repo), redeployed, and removed the temporary local Vercel link files. `.gitignore` now covers `.vercel/`, `.env`, and `.env.local`. STATUS, TASKS, DESIGN, and HANDOFF record the live page.
+- **Proof**: `vercel redeploy` reached Ready in 30s; `https://grocerr.vercel.app` returns HTTP 200 with 3 `wa.me` links, 0 disabled notes, and the In testing labels. The number appears only in the built page and the Vercel env.
+- **Still broken**: no phone tap on the CTA yet; handset proofs and the live 24-hour scrub remain; checkout is still never live-tested and no order will be placed.

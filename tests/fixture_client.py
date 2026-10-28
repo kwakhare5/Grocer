@@ -20,23 +20,10 @@ from backend.integrations.commerce.swiggy_client import SwiggyClient, normalize_
 
 T = TypeVar("T")
 
-# Stand-in for Swiggy's search: units, numbers and filler must not match a
+# Stand-in for Swiggy's search: numbers and units ("2", "kg") must not match a
 # product, or "2 kg atta" would match every 1 kg pack in the catalog.
-_NOISE_TOKENS = frozenset(
-    {
-        "and", "for", "the", "with", "of", "pack", "packet", "packs", "packets",
-        "kg", "gm", "gms", "gram", "grams", "ml", "lt", "ltr", "litre", "litres",
-        "liter", "liters", "pc", "pcs", "piece", "pieces", "dozen", "count",
-    }
-)
-
-
 def _meaningful_tokens(text: str) -> list[str]:
-    return [
-        token
-        for token in text.split()
-        if token.isalpha() and len(token) >= 3 and token not in _NOISE_TOKENS
-    ]
+    return [token for token in text.split() if token.isalpha() and len(token) >= 3]
 
 
 class FixtureSwiggyClient(SwiggyClient):

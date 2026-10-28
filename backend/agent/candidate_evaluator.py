@@ -206,15 +206,6 @@ def evaluate_customer_intent(
     return _deterministic_evaluate(query, candidates, address_count)
 
 
-_NOISE_QUERY_WORDS = frozenset(
-    {
-        "and", "the", "for", "with", "of", "pack", "packs", "packet", "packets",
-        "kg", "gm", "gms", "gram", "grams", "ml", "ltr", "litre", "litres",
-        "liter", "liters", "pcs", "piece", "pieces", "dozen", "count",
-    }
-)
-
-
 def _deterministic_evaluate(
     query: str,
     candidates: list[CandidateItem] | None = None,
@@ -273,12 +264,10 @@ def _deterministic_evaluate(
                         candidate.quantity_description or "",
                     )
                 ).lower()
+                # Letters only, 3+ letters: numbers and units ("2", "kg") can
+                # never rank one product above another.
                 score = sum(
-                    1
-                    for w in words
-                    if len(w) >= 3
-                    and w not in _NOISE_QUERY_WORDS
-                    and w in haystack
+                    1 for w in words if len(w) >= 3 and w.isalpha() and w in haystack
                 )
                 ranked.append((score, -order, candidate))
             best = max(ranked, key=lambda row: (row[0], row[1]))

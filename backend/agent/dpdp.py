@@ -46,7 +46,8 @@ async def run_24h_dpdp_scrubber(conn_or_pool: Any) -> dict[str, int]:
     )
     approvals_count = int(scrubbed_approvals.split()[-1]) if "UPDATE" in scrubbed_approvals else 0
 
-    # 3. Prune dialogue history and active address from inactive sessions > 24 hours
+    # 3. Prune dialogue history, active address, plan and location from inactive
+    # sessions older than 24 hours
     pruned_sessions = await conn_or_pool.execute(
         """
         UPDATE grocer.sessions
@@ -54,13 +55,28 @@ async def run_24h_dpdp_scrubber(conn_or_pool: Any) -> dict[str, int]:
             active_address_id = NULL,
             one_time_destination_id = NULL,
             pending_plan = NULL,
-            pending_plan_expires_at = NULL
+            pending_plan_expires_at = NULL,
+            onboarding_state = NULL,
+            onboarding_context = NULL,
+            delivery_latitude = NULL,
+            delivery_longitude = NULL
         WHERE (history != '[]'::jsonb OR active_address_id IS NOT NULL OR one_time_destination_id IS NOT NULL
-               OR pending_plan IS NOT NULL)
+               OR pending_plan IS NOT NULL OR onboarding_state IS NOT NULL
+               OR onboarding_context IS NOT NULL OR delivery_latitude IS NOT NULL
+               OR delivery_longitude IS NOT NULL)
           AND last_active_at < now() - interval '24 hours';
         """
     )
     sessions_count = int(pruned_sessions.split()[-1]) if "UPDATE" in pruned_sessions else 0
+
+    # 3b. Geocode cache older than 24 hours is no longer needed for tracking.
+    pruned_coords = await conn_or_pool.execute(
+        """
+        DELETE FROM grocer.address_coords
+        WHERE created_at < now() - interval '24 hours';
+        """
+    )
+    coords_count = int(pruned_coords.split()[-1]) if "DELETE" in pruned_coords else 0
 
     # 4. Scrub customer delivery addresses from 24h approvals and checkouts (DPDP Section 2.10)
     scrubbed_approval_addrs = await conn_or_pool.execute(
@@ -93,10 +109,11 @@ async def run_24h_dpdp_scrubber(conn_or_pool: Any) -> dict[str, int]:
     deleted_count = int(deleted_old.split()[-1]) if "DELETE" in deleted_old else 0
 
     logger.info(
-        "DPDP 24h scrubber complete: inbound=%d, approvals=%d, sessions=%d, approval_addrs=%d, checkout_addrs=%d, old_msgs=%d",
+        "DPDP 24h scrubber complete: inbound=%d, approvals=%d, sessions=%d, coords=%d, approval_addrs=%d, checkout_addrs=%d, old_msgs=%d",
         inbound_count,
         approvals_count,
         sessions_count,
+        coords_count,
         approval_addrs_count,
         checkout_addrs_count,
         deleted_count,
@@ -106,6 +123,7 @@ async def run_24h_dpdp_scrubber(conn_or_pool: Any) -> dict[str, int]:
         "inbound_scrubbed": inbound_count,
         "approvals_scrubbed": approvals_count,
         "sessions_pruned": sessions_count,
+        "coords_pruned": coords_count,
         "approval_addrs_scrubbed": approval_addrs_count,
         "checkout_addrs_scrubbed": checkout_addrs_count,
         "messages_purged_90d": deleted_count,
@@ -123,7 +141,17 @@ async def handle_delete_my_data(
         user_id,
     )
 
-    # 2. Reset customer session
+    # 2. Delete raw inbound payloads and cached geocodes for this customer
+    await conn_or_pool.execute(
+        "DELETE FROM grocer.inbound_messages WHERE user_id = $1;",
+        user_id,
+    )
+    await conn_or_pool.execute(
+        "DELETE FROM grocer.address_coords WHERE user_id = $1;",
+        user_id,
+    )
+
+    # 3. Reset customer session, plan and location
     await conn_or_pool.execute(
         """
         UPDATE grocer.sessions
@@ -132,16 +160,14 @@ async def handle_delete_my_data(
             history = '[]'::jsonb,
             pending_plan = NULL,
             pending_plan_expires_at = NULL,
+            onboarding_state = NULL,
+            onboarding_context = NULL,
+            delivery_latitude = NULL,
+            delivery_longitude = NULL,
             budget_cap_paise = 100000,
             last_active_at = now()
         WHERE user_id = $1;
         """,
-        user_id,
-    )
-
-    # 3. Anonymize inbound message payloads
-    await conn_or_pool.execute(
-        "UPDATE grocer.inbound_messages SET raw_payload = NULL WHERE user_id = $1;",
         user_id,
     )
 
@@ -155,9 +181,17 @@ async def handle_delete_my_data(
         user_id,
     )
 
-    # 5. Clear Swiggy customer link
+    # 5. Remove every personal identifier from the user row. Financial audit
+    # rows keep an anonymous user id; messaging again registers a fresh user.
     await conn_or_pool.execute(
-        "UPDATE grocer.users SET swiggy_customer_id = NULL, updated_at = now() WHERE id = $1;",
+        """
+        UPDATE grocer.users
+        SET wa_id = 'deleted-' || id::text,
+            display_name = NULL,
+            swiggy_customer_id = NULL,
+            updated_at = now()
+        WHERE id = $1;
+        """,
         user_id,
     )
 

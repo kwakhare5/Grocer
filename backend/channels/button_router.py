@@ -145,7 +145,7 @@ async def dispatch_button_action(
 
     Bypasses Gemini LLM completely for instant app-like responsiveness.
     """
-    logger.info("Dispatching fast button action: %s for user: %s", button_id, wa_id)
+    logger.info("Dispatching fast button action: %s", button_id)
 
     prefix, _, target_id = button_id.partition(":")
     target_arg = target_id if target_id else None

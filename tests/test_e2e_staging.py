@@ -302,6 +302,27 @@ async def test_e2e_dpdp_24h_scrubber_prunes_stale_data():
             user_id,
         )
 
+        # Session also carries onboarding, plan-time location and a cached geocode
+        await conn.execute(
+            """
+            UPDATE grocer.sessions
+            SET onboarding_state = 'awaiting_pin',
+                onboarding_context = '{"step": 1}'::jsonb,
+                delivery_latitude = 19.05,
+                delivery_longitude = 72.82
+            WHERE user_id = $1;
+            """,
+            user_id,
+        )
+        await conn.execute(
+            """
+            INSERT INTO grocer.address_coords (address_id, user_id, latitude, longitude, created_at)
+            VALUES ('addr_old', $1, 19.05, 72.82, now() - interval '25 hours')
+            ON CONFLICT (address_id) DO UPDATE SET created_at = now() - interval '25 hours';
+            """,
+            user_id,
+        )
+
         # Run 24h DPDP scrubber
         summary = await run_24h_dpdp_scrubber(conn)
         assert summary["inbound_scrubbed"] >= 1
@@ -333,6 +354,25 @@ async def test_e2e_dpdp_24h_scrubber_prunes_stale_data():
             user_id,
         )
         assert stale_plan is None
+
+        session_row = await conn.fetchrow(
+            """
+            SELECT onboarding_state, onboarding_context, delivery_latitude,
+                   delivery_longitude
+            FROM grocer.sessions WHERE user_id = $1;
+            """,
+            user_id,
+        )
+        assert session_row["onboarding_state"] is None
+        assert session_row["onboarding_context"] is None
+        assert session_row["delivery_latitude"] is None
+        assert session_row["delivery_longitude"] is None
+
+        coord_count = await conn.fetchval(
+            "SELECT count(*) FROM grocer.address_coords WHERE user_id = $1;",
+            user_id,
+        )
+        assert coord_count == 0
 
 
 @pytest.mark.db
@@ -388,11 +428,19 @@ async def test_e2e_dpdp_delete_my_data_command():
         )
         assert token_count == 0
 
-        swiggy_cust = await conn.fetchval(
-            "SELECT swiggy_customer_id FROM grocer.users WHERE id = $1;",
+        user_row = await conn.fetchrow(
+            "SELECT wa_id, swiggy_customer_id, display_name FROM grocer.users WHERE id = $1;",
             user_id,
         )
-        assert swiggy_cust is None
+        assert user_row["swiggy_customer_id"] is None
+        assert user_row["display_name"] is None
+        assert user_row["wa_id"].startswith("deleted-")
+
+        msg_count = await conn.fetchval(
+            "SELECT count(*) FROM grocer.inbound_messages WHERE user_id = $1;",
+            user_id,
+        )
+        assert msg_count == 0
 
 
 # ==============================================================================

@@ -17,7 +17,6 @@ from backend.agent.basket_actions import (
     apply_clear,
     apply_keep_only_new,
     apply_remove,
-    apply_set_quantity,
     apply_swap,
     handle_change_request,
     handle_clear_request,
@@ -72,12 +71,10 @@ async def test_remove_applies_and_verifies(client):
 
 
 @pytest.mark.asyncio
-async def test_set_quantity_preview_and_apply(client):
+async def test_set_quantity_applies_without_a_preview(client):
     decision = FakeDecision(items=[{"query": "milk", "quantity": 5}], change_action="set_quantity")
-    preview = await handle_change_request(decision, client, ADDRESS_ID)
-    assert preview.buttons[0][0] == f"cart:qty:{SPIN}:5"
-
-    reply = await apply_set_quantity(client, ADDRESS_ID, SPIN, 5)
+    reply = await handle_change_request(decision, client, ADDRESS_ID)
+    assert reply.buttons == []
     assert "quantity 5" in reply.text
     updated = next(item for item in client.get_cart().items if item.spinId == SPIN)
     assert updated.quantity == 5

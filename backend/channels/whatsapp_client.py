@@ -7,6 +7,7 @@ to customer phones adhering to DESIGN.md.
 from __future__ import annotations
 
 import logging
+import re
 from typing import Any
 
 import httpx
@@ -14,6 +15,15 @@ import httpx
 from backend.config import settings
 
 logger = logging.getLogger("grocer.channels.whatsapp_client")
+
+
+def _mask_wa_id(wa_id: Any) -> str:
+    digits = re.sub(r"\D", "", str(wa_id or ""))
+    return "***" + digits[-4:] if len(digits) >= 4 else "***"
+
+
+def _redact_numbers(text: str) -> str:
+    return re.sub(r"\d{7,}", lambda match: "***" + match.group(0)[-4:], text)
 
 
 def build_text_payload(to_wa_id: str, text: str) -> dict[str, Any]:
@@ -146,16 +156,20 @@ class WhatsAppClient:
                 )
                 res.raise_for_status()
                 data = res.json()
-                logger.info("WhatsApp message delivered to %s: id=%s", payload.get("to"), data.get("messages", [{}])[0].get("id"))
+                logger.info(
+                    "WhatsApp message delivered to %s: id=%s",
+                    _mask_wa_id(payload.get("to")),
+                    data.get("messages", [{}])[0].get("id"),
+                )
                 return data
         except (httpx.HTTPError, ValueError, KeyError, RuntimeError) as exc:
             detail = ""
             response = getattr(exc, "response", None)
             if response is not None:
-                detail = f" body={response.text[:300]}"
+                detail = f" body={_redact_numbers(response.text[:300])}"
             logger.warning(
                 "WhatsApp message delivery failed to %s: %s%s",
-                payload.get("to"),
+                _mask_wa_id(payload.get("to")),
                 exc,
                 detail,
             )

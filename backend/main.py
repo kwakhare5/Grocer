@@ -111,8 +111,8 @@ async def _run_dpdp_scrubber_loop() -> None:
     from backend.agent.dpdp import run_24h_dpdp_scrubber
 
     while True:
+        pause = 3600.0
         try:
-            await asyncio.sleep(3600)  # Hourly
             pool = await get_db_pool()
             await run_24h_dpdp_scrubber(pool)
         except asyncio.CancelledError:
@@ -127,6 +127,11 @@ async def _run_dpdp_scrubber_loop() -> None:
             SwiggyAuthExpiredError,
         ) as exc:
             logger.warning("Background DPDP scrubber error: %s", exc)
+            pause = 60.0
+        try:
+            await asyncio.sleep(pause)
+        except asyncio.CancelledError:
+            break
 
 
 async def _prepare_database() -> None:

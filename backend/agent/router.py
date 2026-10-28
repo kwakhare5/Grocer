@@ -144,7 +144,13 @@ def _system_prompt() -> str:
         "'how long till my food arrives') is track_order; put 'last' in order_ref "
         "when no order is named. A delivery estimate or fee for a new basket "
         "before ordering is store_info.\n"
-        "If the customer wants a product in their basket, use add_items.\n"
+        "If the customer wants more of a product, use add_items, even if it is "
+        "already in the basket. Add the stated amount; Python reads the basket.\n"
+        "For add_items, fill amount and unit when a size or count is named: "
+        "'1 litre' -> amount 1, unit l; '200 g' -> amount 200, unit g; "
+        "'6 eggs' -> amount 6, unit piece. For 'one more' or 'a packet', leave "
+        "amount and unit null and put the pack count in quantity. When amount is "
+        "set, quantity is only a fallback; Python computes the packs.\n"
         "A request to make, cook or plan a dish for some people ('make pizza for 5') "
         "is plan_meal, never add_items. Put the dish in dish, the people count in "
         "servings, and the need for each ingredient in items as amount and unit: "
@@ -161,12 +167,13 @@ def _system_prompt() -> str:
         "If the customer names an address or label (home, work, mom's, Pune), copy that "
         "word into address_ref. If they refer to an order, put 'last' or the order number "
         "in order_ref.\n"
-        "For change_item only, set change_action to remove or set_quantity, and put the "
-        "target quantity in items[0].quantity when changing quantity. change_item is for "
-        "ONE named item only.\n"
-        "If the customer names two or more items to add, use add_items even when some of "
-        "them are already in the basket. Only use change_item when the message targets a "
-        "single item to remove or change quantity.\n"
+        "Use change_item only when the customer explicitly says remove or sets a total "
+        "('remove milk', 'make milk 3'). Put the target total in items[0].quantity. "
+        "Never choose change_item just because an item is already in the basket.\n"
+        "The basket text is context only. Choose add vs change from the customer's "
+        "words, never from the basket.\n"
+        "If the customer names two or more items to add, use add_items with one item "
+        "per line. change_item is for one item only.\n"
         "Repeating a past order or the customer's usual list ('same as last time', "
         "'my regular items') is reorder, never add_items.\n"
         "A bill, invoice or price breakdown for a past order is order_bill.\n"
@@ -188,16 +195,21 @@ def _system_prompt() -> str:
         'Customer: make milk 3 -> {"capability":"change_item","confidence":0.95,'
         '"items":[{"query":"milk","quantity":3}],"change_action":"set_quantity"}\n'
         'Customer: add 2 eggs -> {"capability":"add_items","confidence":0.95,'
-        '"items":[{"query":"eggs","quantity":2}],"change_action":null}\n'
+        '"items":[{"query":"eggs","quantity":1,"amount":2,"unit":"piece"}],'
+        '"change_action":null}\n'
+        'Customer: add 1 more milk -> {"capability":"add_items","confidence":0.95,'
+        '"items":[{"query":"milk","quantity":1}],"change_action":null}\n'
         'Customer: add milk and bread -> {"capability":"add_items","confidence":0.95,'
         '"items":[{"query":"milk","quantity":1},{"query":"bread","quantity":1}],'
         '"change_action":null}\n'
-        'Customer: add paneer, jamun and rice (paneer is already in basket) -> '
-        '{"capability":"add_items","confidence":0.95,"items":[{"query":"paneer",'
-        '"quantity":1},{"query":"jamun","quantity":1},{"query":"rice","quantity":1}],'
-        '"change_action":null}\n'
+        'Customer: add 200g paneer, 1 packet gulab jamun and 500g rice -> '
+        '{"capability":"add_items","confidence":0.95,"items":['
+        '{"query":"paneer","quantity":1,"amount":200,"unit":"g"},'
+        '{"query":"gulab jamun","quantity":1,"amount":1,"unit":"pack"},'
+        '{"query":"rice","quantity":1,"amount":500,"unit":"g"}],"change_action":null}\n'
         'Customer: get 1 litre milk and 6 eggs -> {"capability":"add_items","confidence":0.95,'
-        '"items":[{"query":"milk 1 litre","quantity":1},{"query":"eggs","quantity":6}],'
+        '"items":[{"query":"milk","quantity":1,"amount":1,"unit":"l"},'
+        '{"query":"eggs","quantity":1,"amount":6,"unit":"piece"}],'
         '"change_action":null}\n'
         'Customer: make pizza for 5 people -> {"capability":"plan_meal","confidence":0.95,'
         '"items":[{"query":"pizza base","amount":5,"unit":"piece"},'
@@ -215,7 +227,7 @@ def _system_prompt() -> str:
         "Return JSON only:\n"
         '{"capability": "<one capability>", "confidence": <0.0-1.0>, '
         '"items": [{"query": "<product words>", "quantity": <int>, '
-        '"amount": <number or null>, "unit": "<g or ml or piece or null>"}], '
+        '"amount": <number or null>, "unit": "<g or ml or piece or pack or null>"}], '
         '"order_ref": "<order id or last or null>", '
         '"address_ref": "<address label or id or null>", '
         '"change_action": "<remove or set_quantity or null>", '
@@ -303,7 +315,7 @@ def parse_decision(
     if change_action not in {"remove", "set_quantity"}:
         change_action = None
 
-    # change_item acts on one item; a multi-item quantity request is really an add.
+    # Contract: change_item carries one item. Several items with quantities is an add.
     if (
         capability is Capability.CHANGE_ITEM
         and change_action != "remove"

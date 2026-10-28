@@ -153,9 +153,8 @@ async def handle_change_request(
         except (TypeError, ValueError):
             quantity = 0
         if quantity >= 1:
-            return BasketReply(
-                f"Set *{target.itemName}* to quantity {quantity}?",
-                [(f"cart:qty:{target.spinId}:{quantity}", f"Set to {quantity}"), ("cart:keep", "Cancel")],
+            return await apply_set_quantity(
+                client, address_id, target.spinId, min(quantity, 99)
             )
         action = "remove"
 
@@ -220,6 +219,7 @@ async def apply_set_quantity(
         return BasketReply("That item isn't in your basket any more.")
     if quantity < 1:
         return BasketReply("Quantity has to be at least 1. Say 'remove it' if you want it gone.")
+    quantity = min(quantity, 99)
 
     await _write(
         client,

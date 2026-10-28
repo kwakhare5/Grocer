@@ -6,7 +6,6 @@ import asyncio
 import json
 import logging
 import time
-from datetime import UTC, datetime
 from typing import Any
 
 import httpx
@@ -59,30 +58,6 @@ def _react_in_background(wa_client: Any, msg: Any, result: dict[str, Any]) -> No
     )
     _REACTION_TASKS.add(task)
     task.add_done_callback(_REACTION_TASKS.discard)
-
-
-def _basket_notice(
-    last_active_at: Any,
-    cart: Any,
-    idle_seconds: int = 3600,
-) -> tuple[str, list[tuple[str, str]]] | None:
-    """A new-day reminder for a basket the customer may have forgotten."""
-    if last_active_at is None or cart is None or not cart.items:
-        return None
-    age = datetime.now(UTC) - last_active_at
-    if age.total_seconds() < idle_seconds:
-        return None
-    count = sum(item.quantity for item in cart.items)
-    to_pay = (
-        cart.billBreakdown.toPay.value
-        if cart.billBreakdown and cart.billBreakdown.toPay
-        else None
-    )
-    total = f" ({to_pay})" if to_pay else ""
-    return (
-        f"Your basket still has {count} items{total}. Keep it, or clear it?",
-        [("cart:keep", "Keep basket"), ("cart:clear", "Clear basket")],
-    )
 
 
 def _fresh_button_id(added_lines: list[Any]) -> str | None:
@@ -601,31 +576,6 @@ async def handle_webhook(
                     else:
                         session_history = []
 
-                    async def reply_to(customer_reply: Any) -> None:
-                        if customer_reply.buttons:
-                            await wa_client.send_quick_reply_buttons(
-                                to_wa_id=msg.sender_wa_id,
-                                body_text=customer_reply.text,
-                                buttons=customer_reply.buttons,
-                            )
-                        else:
-                            await wa_client.send_text_message(
-                                to_wa_id=msg.sender_wa_id, text=customer_reply.text
-                            )
-
-                    async def remember(reply_text: str) -> None:
-                        session_history.append({"role": "user", "text": msg.text})
-                        session_history.append({"role": "assistant", "text": reply_text})
-                        await conn.execute(
-                            """
-                            INSERT INTO grocer.sessions (user_id, history, last_active_at)
-                            VALUES ($1, $2::jsonb, now())
-                            ON CONFLICT (user_id) DO UPDATE SET history = $2::jsonb, last_active_at = now();
-                            """,
-                            user_id,
-                            json.dumps(session_history[-12:]),
-                        )
-
                     from backend.agent.address_actions import ensure_active_address
 
                     address_count = 1
@@ -637,6 +587,20 @@ async def handle_webhook(
                             address_count = 1 if active_addr_id else 0
                         except (httpx.HTTPError, ValueError, KeyError, RuntimeError) as addr_err:
                             logger.warning("Could not fetch user addresses: %s", addr_err)
+
+                    from backend.channels.turn_context import TurnContext
+
+                    ctx = TurnContext(
+                        conn=conn,
+                        user_id=user_id,
+                        wa_id=msg.sender_wa_id,
+                        text=msg.text,
+                        client=turn_client,
+                        wa_client=wa_client,
+                        address_id=active_addr_id,
+                        history=session_history,
+                        session_row=session_row,
+                    )
 
                     # 0. A numbered reply to the plan on screen picks items with
                     # no model call. Only number-shaped text is taken.
@@ -702,7 +666,7 @@ async def handle_webhook(
                                     "wa_id": msg.sender_wa_id,
                                 }
                             if picked["status"] == "plan_picked":
-                                await remember(
+                                await ctx.remember(
                                     "Added the items you picked from the plan."
                                 )
                             return picked
@@ -711,7 +675,6 @@ async def handle_webhook(
                     # here and can never write. Basket requests continue below.
                     from backend.agent.read_actions import (
                         NOT_READY_REPLY,
-                        build_read_reply,
                         format_disambiguation_choices,
                     )
                     from backend.agent.router import (
@@ -755,70 +718,11 @@ async def handle_webhook(
                         }
 
                     if decision.safety is SafetyClass.READ:
-                        coords: tuple[float, float] | None = None
-                        if decision.capability is Capability.TRACK_ORDER:
-                            coord_row = await conn.fetchrow(
-                                "SELECT latitude, longitude FROM grocer.address_coords WHERE address_id = $1;",
-                                active_addr_id,
-                            )
-                            if coord_row:
-                                coords = (coord_row["latitude"], coord_row["longitude"])
-                            else:
-                                session_coords = await conn.fetchrow(
-                                    "SELECT delivery_latitude, delivery_longitude FROM grocer.sessions WHERE user_id = $1;",
-                                    user_id,
-                                )
-                                if (
-                                    session_coords
-                                    and session_coords["delivery_latitude"] is not None
-                                    and session_coords["delivery_longitude"] is not None
-                                ):
-                                    coords = (
-                                        session_coords["delivery_latitude"],
-                                        session_coords["delivery_longitude"],
-                                    )
-                        read_reply = await build_read_reply(
-                            decision, turn_client, active_addr_id, coords
+                        from backend.channels.turn_read import (
+                            answer_read_capability,
                         )
-                        reply_text = read_reply.text
-                        await reply_to(read_reply)
-                        notice = _basket_notice(
-                            session_row["last_active_at"] if session_row else None,
-                            live_cart,
-                        )
-                        if notice:
-                            await wa_client.send_quick_reply_buttons(
-                                to_wa_id=msg.sender_wa_id,
-                                body_text=notice[0],
-                                buttons=notice[1],
-                            )
-                        session_history.append({"role": "user", "text": msg.text})
-                        session_history.append({"role": "assistant", "text": reply_text})
-                        await conn.execute(
-                            """
-                            INSERT INTO grocer.sessions (user_id, history, last_active_at)
-                            VALUES ($1, $2::jsonb, now())
-                            ON CONFLICT (user_id) DO UPDATE SET history = $2::jsonb, last_active_at = now();
-                            """,
-                            user_id,
-                            json.dumps(session_history[-12:]),
-                        )
-                        if read_reply.pending_plan:
-                            from backend.agent.meal_planner import PLAN_TTL_MINUTES
 
-                            await conn.execute(
-                                "UPDATE grocer.sessions SET pending_plan = $2::jsonb, "
-                                "pending_plan_expires_at = now() + ($3 * interval '1 minute') "
-                                "WHERE user_id = $1;",
-                                user_id,
-                                json.dumps(read_reply.pending_plan),
-                                PLAN_TTL_MINUTES,
-                            )
-                        return {
-                            "status": "capability_answered",
-                            "capability": decision.capability.value,
-                            "wa_id": msg.sender_wa_id,
-                        }
+                        return await answer_read_capability(ctx, decision, live_cart)
 
                     if decision.capability is Capability.SWITCH_ADDRESS:
                         from backend.agent.address_actions import handle_switch_request
@@ -826,8 +730,8 @@ async def handle_webhook(
                         addr_reply = await handle_switch_request(
                             decision, turn_client, conn, user_id, active_addr_id
                         )
-                        await reply_to(addr_reply)
-                        await remember(addr_reply.text)
+                        await ctx.reply(addr_reply)
+                        await ctx.remember(addr_reply.text)
                         return {
                             "status": "address_switch_requested",
                             "wa_id": msg.sender_wa_id,
@@ -839,8 +743,8 @@ async def handle_webhook(
                         addr_reply = await handle_delete_request(
                             decision, turn_client, active_addr_id
                         )
-                        await reply_to(addr_reply)
-                        await remember(addr_reply.text)
+                        await ctx.reply(addr_reply)
+                        await ctx.remember(addr_reply.text)
                         return {
                             "status": "address_delete_requested",
                             "wa_id": msg.sender_wa_id,
@@ -853,7 +757,7 @@ async def handle_webhook(
                         await wa_client.send_text_message(
                             to_wa_id=msg.sender_wa_id, text=report.text
                         )
-                        await remember(report.text)
+                        await ctx.remember(report.text)
                         return {
                             "status": "issue_reported",
                             "wa_id": msg.sender_wa_id,
@@ -880,7 +784,7 @@ async def handle_webhook(
                             await wa_client.send_text_message(
                                 to_wa_id=msg.sender_wa_id, text=add_text
                             )
-                            await remember(add_text)
+                            await ctx.remember(add_text)
                             return {
                                 "status": "address_add_failed",
                                 "wa_id": msg.sender_wa_id,
@@ -904,7 +808,7 @@ async def handle_webhook(
                         await wa_client.send_text_message(
                             to_wa_id=msg.sender_wa_id, text=turn.prompt
                         )
-                        await remember(turn.prompt)
+                        await ctx.remember(turn.prompt)
                         return {
                             "status": "address_add_started",
                             "wa_id": msg.sender_wa_id,
@@ -936,8 +840,8 @@ async def handle_webhook(
                                 "I couldn't read your basket just now. Please try again."
                             )
 
-                        await reply_to(basket_reply)
-                        await remember(basket_reply.text)
+                        await ctx.reply(basket_reply)
+                        await ctx.remember(basket_reply.text)
                         return {
                             "status": (
                                 "basket_change_requested"
@@ -969,8 +873,8 @@ async def handle_webhook(
                                 "I couldn't read your past orders just now. Please try again."
                             )
 
-                        await reply_to(order_reply)
-                        await remember(order_reply.text)
+                        await ctx.reply(order_reply)
+                        await ctx.remember(order_reply.text)
                         return {
                             "status": "reorder_requested",
                             "wa_id": msg.sender_wa_id,
@@ -1223,7 +1127,7 @@ async def handle_webhook(
                             body_text=choice_text,
                             buttons=choice_buttons,
                         )
-                        await remember(choice_text)
+                        await ctx.remember(choice_text)
                         return {
                             "status": "item_choices",
                             "wa_id": msg.sender_wa_id,
@@ -1250,7 +1154,7 @@ async def handle_webhook(
                                 to_wa_id=msg.sender_wa_id,
                                 text=f"I couldn't find at this store: {detail}.",
                             )
-                        await remember("\n\n".join(asked))
+                        await ctx.remember("\n\n".join(asked))
                         return {
                             "status": "item_choices",
                             "wa_id": msg.sender_wa_id,

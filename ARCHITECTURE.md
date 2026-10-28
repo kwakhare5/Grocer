@@ -477,4 +477,5 @@ A task or phase is considered complete **ONLY** when:
 2. Production code has no fake Swiggy, WhatsApp, database, or LLM branches.
 3. Contract tests use recorded real Swiggy responses. Gate proof uses live calls. Fixtures prove shape; they never count as live proof.
 4. DB tests use the `grocer_test` database, never the real one.
-5. Git working directory is clean.
+5. The change does not lower the scorecard. `tests/test_scorecard.py` prints a per-category percentage on every run; `scripts/scorecard_live.py` scores the deployed webhook. The offline run hands the plan to the pipeline, so it measures Python with the model out of the loop. The two numbers are reported separately and never averaged.
+6. Git working directory is clean.

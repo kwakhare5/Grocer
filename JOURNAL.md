@@ -790,3 +790,11 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: branch `scorecard` from `db6a297`. Added `tests/scorecard_cases.json` (31 cases, expectations written from customer intent), `tests/test_scorecard.py` (offline runner, prints per-category %), and `scripts/scorecard_live.py` (promoted from the ad-hoc `.scratch/live_eval_25.py`, now scores instead of only capturing). The test-double search no longer matches unit or single-letter tokens. No production code changed.
 - **Proof**: `ruff check backend tests` clean; `pytest -q -m "not live"` -> 220 passed, 20 deselected in 94s; offline scorecard 28/31 (90.3%), recorded in `.scratch/scorecard_offline.json`.
 - **Still broken**: three named findings — the model-less picker drops a qualifier ("brown bread" takes white), it asks instead of taking the exact pack it already found ("2 kg atta"), and 1.5 L has no split across 1 L + 500 ml. Branch is not merged.
+
+### [GROCER — scorecard docs] 2026-10-28
+
+#### Work Card: The score is written down
+- **Problem**: the scorecard result and the three findings lived only in the chat, and the first live run died on Groq's daily cap.
+- **Change**: docs only. `TASKS.md` gains a scorecard section with the three findings and the five queued work items; `STATUS.md` gains three current-truth rows; `ARCHITECTURE.md` §7 makes the scorecard part of the definition of done; `HANDOFF.md` rewritten.
+- **Proof**: offline 28/31 (90.3%) from `.scratch/scorecard_offline.json`; live run stopped at 7 of 26, 3 pass and 4 honest AI-offline replies, raw in `.scratch/scorecard_live_run.log`. Lint and the 220-test suite were green before the doc edit.
+- **Still broken**: no live product score until the cap resets; the three findings are open; branch not merged.

@@ -757,67 +757,13 @@ async def handle_webhook(
                     if decision.capability in (
                         Capability.CLEAR_BASKET,
                         Capability.CHANGE_ITEM,
+                        Capability.REORDER,
                     ):
-                        from backend.agent.basket_actions import (
-                            BasketReply,
-                            handle_change_request,
-                            handle_clear_request,
+                        from backend.channels.turn_basket import (
+                            handle_basket_capability,
                         )
 
-                        try:
-                            if decision.capability is Capability.CLEAR_BASKET:
-                                basket_reply = await handle_clear_request(
-                                    turn_client, active_addr_id
-                                )
-                            else:
-                                basket_reply = await handle_change_request(
-                                    decision, turn_client, active_addr_id
-                                )
-                        except (httpx.HTTPError, ValueError, KeyError, RuntimeError) as exc:
-                            logger.warning("Basket change failed: %s", exc)
-                            basket_reply = BasketReply(
-                                "I couldn't read your basket just now. Please try again."
-                            )
-
-                        await ctx.reply(basket_reply)
-                        await ctx.remember(basket_reply.text)
-                        return {
-                            "status": (
-                                "basket_change_requested"
-                                if basket_reply.buttons
-                                else "basket_changed"
-                            ),
-                            "capability": decision.capability.value,
-                            "wa_id": msg.sender_wa_id,
-                        }
-
-                    if decision.capability is Capability.REORDER:
-                        from backend.agent.order_actions import (
-                            OrderReply,
-                            handle_reorder_request,
-                        )
-
-                        try:
-                            order_reply = await handle_reorder_request(
-                                decision, turn_client, active_addr_id, msg.text
-                            )
-                        except (
-                            httpx.HTTPError,
-                            ValueError,
-                            KeyError,
-                            RuntimeError,
-                        ) as exc:
-                            logger.warning("Reorder preview failed: %s", exc)
-                            order_reply = OrderReply(
-                                "I couldn't read your past orders just now. Please try again."
-                            )
-
-                        await ctx.reply(order_reply)
-                        await ctx.remember(order_reply.text)
-                        return {
-                            "status": "reorder_requested",
-                            "wa_id": msg.sender_wa_id,
-                        }
+                        return await handle_basket_capability(ctx, decision)
 
                     # A request to add is just an add. Python reads the basket and
                     # increments the existing line, so no "add or set?" question.

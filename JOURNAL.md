@@ -862,3 +862,11 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: `backend/channels/turn_address.py` handles all three through `handle_address_capability(ctx, decision)`. The webhook now has one call per capability group. No logic changed and every error handler moved across intact.
 - **Proof**: `pytest -q -m "not live"` -> 221 passed, 20 deselected; `ruff check backend tests` clean. `whatsapp.py` 1,305 -> 1,244 lines.
 - **Still broken**: moves 3 and 4 are not done. Local test hygiene: `tests/test_channels.py` reuses the fixed number `919876543210`, so repeated runs inside one hour trip the 20/hour cap; three failures this session were stale rows in `grocer_test`, cleared by deleting that user's messages. CI is unaffected because its database is fresh.
+
+### [GROCER — basket path extracted] 2026-10-28
+
+#### Work Card: Change, clear and reorder are one dispatch
+- **Problem**: three more capability blocks sat inline in `run_turn`, each repeating the reply, remember and error handling.
+- **Change**: `backend/channels/turn_basket.py` handles change, clear and reorder through `handle_basket_capability(ctx, decision)`. The webhook calls it once. Error handlers moved across unchanged.
+- **Proof**: `pytest -q -m "not live"` -> 221 passed, 20 deselected; ruff clean; scorecard 31/31. `whatsapp.py` 1,434 -> 1,190 lines across the three moves.
+- **Still broken**: move 4 (the add path) is still a closure; the live run is still capped by Groq.

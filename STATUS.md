@@ -249,7 +249,7 @@ RuntimeError: Refusing to run tests against database 'postgres'. TEST_DATABASE_U
 
 ## 8. Next Action
 
-**Where we are (2026-10-28).** All ten phases are code-complete. `main` is `db6a297` (code `2c63289`) and live on Render with `/health` 200. New work sits on branch `scorecard`, **unmerged and unpushed**: the offline scorecard, the live scorer, and the removal of every keyword list from candidate selection. Last gate: `pytest -m "not live"` 221 passed / 20 deselected, ruff clean, offline scorecard 31/31. The only thing holding the remaining work is Groq's 200k-token daily free cap.
+**Where we are (2026-10-28).** All ten phases are code-complete. `main` is `db6a297` (code `2c63289`) and live on Render with `/health` 200. New work sits on branch `scorecard`, **unmerged and unpushed**: the offline scorecard, the live scorer, the removal of every keyword list from candidate selection, and the webhook split into `turn_read`, `turn_address`, `turn_basket` and `turn_add` (2026-10-29, `whatsapp.py` 1,434 → 925 lines, pure moves, no logic change). Last gate: `pytest -m "not live"` 222 passed / 20 deselected, ruff clean, offline scorecard 31/31. The only thing holding the remaining work is Groq's 200k-token daily free cap.
 
 **Remaining, in order:**
 

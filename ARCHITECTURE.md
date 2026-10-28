@@ -430,6 +430,7 @@ backend/
 │   ├── turn_read.py            # Read capabilities: answer, never write
 │   ├── turn_address.py         # Switch, delete and start of a typed address
 │   ├── turn_basket.py          # Change, clear and reorder
+│   ├── turn_add.py             # Search and evaluation for add; no cart writes
 │   ├── whatsapp_crypto.py      # HMAC-SHA256 verification
 │   ├── whatsapp_parser.py      # Inbound payload to text, location or button
 │   ├── whatsapp_client.py      # Outbound Meta Cloud API messages

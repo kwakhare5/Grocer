@@ -94,6 +94,9 @@ Each finding was a broken rule, not a bad test sentence. Any message with the sa
 | Remove the keyword lists from candidate selection (`staple_terms`, `discretionary_hints`, `size_patterns`). One rule: unique best match wins, a tie takes Swiggy's first pick with a Change button, no match with several products shows the choices | **DONE (branch) 2026-10-28** — 85 lines out, 36 in |
 | One write verb set: add / set / remove / clear. Delete `change_item`, `change_action`, the patch at `backend/agent/router.py:318` and the branch at `backend/agent/basket_actions.py:148` | **BLOCKED** — it changes what the model must output, so it needs a live router eval first. Groq's cap makes that impossible today. Doing it blind risks the whole shopping path. |
 | One plan object carried router → search → pick → write | QUEUED |
+| Split the webhook turn into one module per capability group | **DONE (branch) 2026-10-29** — `turn_read.py`, `turn_address.py`, `turn_basket.py`, `turn_add.py`; `whatsapp.py` 1,434 → 925 lines. Pure moves, no logic change; 222 passed twice. |
+| Receipt, buttons and approval write out of `run_turn` (move 4b) | **SKIPPED on purpose** — it is the money path and buys no speed; only the file gets shorter. |
+| Split `checkout_executor.py` (1,146 lines) | **SKIPPED on purpose** — 16 cohesive functions, money path, cosmetic only. |
 | Receipt folded from per-item outcomes, so an item cannot vanish | QUEUED |
 | Skip the second model call when brand and size already match exactly | QUEUED |
 | Live A/B on the same 26 cases before any merge | QUEUED |

@@ -886,3 +886,11 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: none in code. Queried Groq directly with the real router prompt.
 - **Proof**: `429` body `on tokens per day (TPD): Limit 200000, Used 198816, Requested 1998`, `retry-after: 352`; a 72-token probe still returns `200` with `x-ratelimit-remaining-tokens: 7927`. So the key is valid, 1,184 daily tokens remain, and one router call needs ~2,000. The app caps its wait at 60s and its turn budget at 8s, so it fails fast and answers honestly.
 - **Still broken**: no live score until enough of the daily quota rolls off; the branch is unmerged.
+
+### [GROCER — move 4a: the add path split] 2026-10-29
+
+#### Work Card: Search and evaluation left the webhook, the cart write stayed
+- **Problem**: the add path was the last block still inline in `run_turn` — 268 lines of extraction, search, batch evaluation and two disambiguation replies, mixed into the file that also serves the HTTP route.
+- **Change**: `backend/channels/turn_add.py` now holds `plan_add(ctx, decision, address_count)` and returns either an `AddPlan` (lines to write, items still to ask about, honest not-found details, vague picks) or a finished reply for the choice prompts. `whatsapp.py` keeps the cart write, approval, receipt and buttons. Two abuse caps moved with the code; `describe_item` is shared. No behaviour changed.
+- **Proof**: `ruff check backend tests` clean; `ruff format --check backend/channels/turn_add.py` clean; `pytest -q -m "not live"` run twice -> 222 passed, 20 deselected both times. `whatsapp.py` 1,190 -> 925 lines.
+- **Still broken**: move 4b (receipt and approval write) and the `checkout_executor.py` split were skipped on purpose — money path, cosmetic only. The live scorecard is still capped by Groq's daily quota.

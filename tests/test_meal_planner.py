@@ -12,6 +12,7 @@ from backend.agent.meal_planner import (
     build_meal_plan,
     exact_packs_for,
     measure_from_text,
+    pack_plan,
     packs_for,
     parse_pick_indexes,
     plan_items,
@@ -71,6 +72,24 @@ def test_shopping_requires_an_exact_pack_not_a_lookalike():
     assert exact_packs_for(5, "kg", "1 kg") == 5
     assert exact_packs_for(6, "pieces", "pack of 6") == 1
     assert exact_packs_for(1, "packet", "6 pcs") is None
+
+
+def test_pack_plan_uses_the_fewest_packs_that_add_up():
+    milk = [("spin_1l", "1 L"), ("spin_500", "500 ml")]
+    assert pack_plan(1.5, "l", milk) == [("spin_1l", 1), ("spin_500", 1)]
+    assert pack_plan(2, "l", milk) == [("spin_1l", 2)]
+    assert pack_plan(250, "ml", milk) is None
+
+    atta = [("spin_5kg", "5 kg"), ("spin_1kg", "1 kg")]
+    assert pack_plan(2, "kg", atta) == [("spin_1kg", 2)]
+    assert pack_plan(5, "kg", atta) == [("spin_5kg", 1)]
+
+    paneer = [("spin_200", "200 g"), ("spin_400", "400 g")]
+    assert pack_plan(500, "g", paneer) is None
+    assert pack_plan(600, "g", paneer) == [("spin_400", 1), ("spin_200", 1)]
+
+    assert pack_plan(2, "kg", [("spin_1kg", "1 kg")]) == [("spin_1kg", 2)]
+    assert pack_plan(100, "kg", [("spin_1kg", "1 kg")]) is None
 
 
 def test_measure_reads_a_size_out_of_the_words():

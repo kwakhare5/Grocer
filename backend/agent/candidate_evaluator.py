@@ -206,6 +206,15 @@ def evaluate_customer_intent(
     return _deterministic_evaluate(query, candidates, address_count)
 
 
+_NOISE_QUERY_WORDS = frozenset(
+    {
+        "and", "the", "for", "with", "of", "pack", "packs", "packet", "packets",
+        "kg", "gm", "gms", "gram", "grams", "ml", "ltr", "litre", "litres",
+        "liter", "liters", "pcs", "piece", "pieces", "dozen", "count",
+    }
+)
+
+
 def _deterministic_evaluate(
     query: str,
     candidates: list[CandidateItem] | None = None,
@@ -252,15 +261,29 @@ def _deterministic_evaluate(
                     selected = c
                     break
 
-        # Check generic query words against candidate titles (e.g. "maggi", "dahi", "adrak")
+        # Rank by how many of the customer's words the candidate matches, so a
+        # qualifier ("brown bread") outranks a candidate that shares one word.
         if not selected:
-            for c in candidates:
-                for w in words:
-                    if len(w) >= 3 and w in c.display_name.lower():
-                        selected = c
-                        break
-                if selected:
-                    break
+            ranked: list[tuple[int, int, CandidateItem]] = []
+            for order, candidate in enumerate(candidates):
+                haystack = " ".join(
+                    (
+                        candidate.display_name or "",
+                        candidate.brand_name or "",
+                        candidate.quantity_description or "",
+                    )
+                ).lower()
+                score = sum(
+                    1
+                    for w in words
+                    if len(w) >= 3
+                    and w not in _NOISE_QUERY_WORDS
+                    and w in haystack
+                )
+                ranked.append((score, -order, candidate))
+            best = max(ranked, key=lambda row: (row[0], row[1]))
+            if best[0] > 0:
+                selected = best[2]
 
         # Discretionary items without specific brand/flavor (e.g. chips, biscuits)
         discretionary_hints = ["chips", "coffee", "biscuits", "biscuit", "namkeen"]

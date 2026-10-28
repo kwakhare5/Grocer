@@ -162,9 +162,11 @@ def _system_prompt() -> str:
         "word into address_ref. If they refer to an order, put 'last' or the order number "
         "in order_ref.\n"
         "For change_item only, set change_action to remove or set_quantity, and put the "
-        "target quantity in items[0].quantity when changing quantity.\n"
-        "If the item is already in the basket and the customer asks to change how many "
-        "or remove it, use change_item, not add_items.\n"
+        "target quantity in items[0].quantity when changing quantity. change_item is for "
+        "ONE named item only.\n"
+        "If the customer names two or more items to add, use add_items even when some of "
+        "them are already in the basket. Only use change_item when the message targets a "
+        "single item to remove or change quantity.\n"
         "Repeating a past order or the customer's usual list ('same as last time', "
         "'my regular items') is reorder, never add_items.\n"
         "A bill, invoice or price breakdown for a past order is order_bill.\n"
@@ -189,6 +191,10 @@ def _system_prompt() -> str:
         '"items":[{"query":"eggs","quantity":2}],"change_action":null}\n'
         'Customer: add milk and bread -> {"capability":"add_items","confidence":0.95,'
         '"items":[{"query":"milk","quantity":1},{"query":"bread","quantity":1}],'
+        '"change_action":null}\n'
+        'Customer: add paneer, jamun and rice (paneer is already in basket) -> '
+        '{"capability":"add_items","confidence":0.95,"items":[{"query":"paneer",'
+        '"quantity":1},{"query":"jamun","quantity":1},{"query":"rice","quantity":1}],'
         '"change_action":null}\n'
         'Customer: get 1 litre milk and 6 eggs -> {"capability":"add_items","confidence":0.95,'
         '"items":[{"query":"milk 1 litre","quantity":1},{"query":"eggs","quantity":6}],'
@@ -296,6 +302,16 @@ def parse_decision(
     change_action = payload.get("change_action")
     if change_action not in {"remove", "set_quantity"}:
         change_action = None
+
+    # change_item acts on one item; a multi-item quantity request is really an add.
+    if (
+        capability is Capability.CHANGE_ITEM
+        and change_action != "remove"
+        and len(items) > 1
+    ):
+        capability = Capability.ADD_ITEMS
+        change_action = None
+        safety = SAFETY_BY_CAPABILITY[capability]
 
     dish = str(payload.get("dish") or "").strip() or None
     issue = str(payload.get("issue") or "").strip() or None

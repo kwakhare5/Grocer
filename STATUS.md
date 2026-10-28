@@ -249,7 +249,21 @@ RuntimeError: Refusing to run tests against database 'postgres'. TEST_DATABASE_U
 
 ## 8. Next Action
 
-**Where we are (2026-10-28).** Phases 0, 1, 3, 4 and 5 are done. Phase 2 is done after the 40/40 live rerun with latency recorded. Phase 6 is done in code: DPDP, `grocer_app`, dead columns, and durable PKCE state. Phase 7 is code-complete. Phase 8 is live on Vercel with the WhatsApp CTA enabled; Phase 9 handoff remains. The last full gate is green: 142 offline + 66 DB, 228 collected; live router eval 40/40, avg 1574ms, p95 2265ms. `main` is the only branch and Render deploys it; the datetime fix shipped in `f3350f3`, and `/health` was 200 on the docs pushes after it. GitHub Actions is green on `42d5b56`, `da5853a`, and `c4ea0a3`. The old unrelated history is preserved as tags `legacy-main-2026-10-28` and `legacy-codex-2026-10-28`.
+**Where we are (2026-10-28).** All ten phases are code-complete. `main` is `db6a297` (code `2c63289`) and live on Render with `/health` 200. New work sits on branch `scorecard`, **unmerged and unpushed**: the offline scorecard, the live scorer, and the removal of every keyword list from candidate selection. Last gate: `pytest -m "not live"` 221 passed / 20 deselected, ruff clean, offline scorecard 31/31. The only thing holding the remaining work is Groq's 200k-token daily free cap.
+
+**Remaining, in order:**
+
+| # | Item | State | Blocker |
+|---|---|---|---|
+| 1 | 40-case live router eval (`scripts/eval_router.py`) | NEXT | Groq quota |
+| 2 | 26-case live scorecard (`scripts/scorecard_live.py`) | NEXT | Groq quota |
+| 3 | Collapse the write path to four verbs; delete `change_item`, `change_action` and the router patch at `backend/agent/router.py:318` | QUEUED | Changes the model's output shape, so it needs 1 and 2 |
+| 4 | Skip the second model call when brand and size already match | QUEUED | Needs 2 to measure the trade-off |
+| 5 | Phone taps: Add-all, Change item, typed pick | OPEN | Needs a real card on screen, so needs the model up |
+| 6 | Address add/delete, OAuth reconnect, reaction on a real wamid | OPEN | Partly needs the model; the reaction needs a real inbound wamid |
+| 7 | Merge `scorecard` into `main` | BLOCKED | Karan's explicit go, after 1 and 2 |
+
+The session task list mirrors this as #58–#64.
 
 **Phase 7 backlog — code-complete; live proofs open.**
 

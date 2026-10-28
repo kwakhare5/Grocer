@@ -74,7 +74,7 @@ The durable checklist. Update the status here when an item lands; the checkpoint
 
 ## Scorecard and simplification (2026-10-28)
 
-Branch `scorecard` off `db6a297`. **Not merged.** `main` and Render are unchanged.
+Branch `scorecard` off `db6a297`. **Not merged.** `main` and Render are unchanged. The ordered list of what is left lives in `STATUS.md` §8.
 
 Two numbers, never mixed:
 

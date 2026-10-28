@@ -830,3 +830,11 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: did not touch the router schema. Removed the duplicated cart-line construction my pack_plan change had introduced (`backend/channels/whatsapp.py`, one `_queue` helper). Net −8 lines.
 - **Proof**: `pytest -q -m "not live"` -> 221 passed, 20 deselected; ruff clean; offline scorecard stays 31/31.
 - **Still broken**: Phase 1 needs a live router eval first; the live 26-case run is capped; branch unmerged.
+
+### [GROCER — the remaining list] 2026-10-28
+
+#### Work Card: What is left is written down
+- **Problem**: the remaining work lived in the chat and in a session task list that a fresh model cannot read.
+- **Change**: docs only. `STATUS.md` §8 now carries the ordered list of seven items with each blocker; `TASKS.md` points at it.
+- **Proof**: no code changed; the last gate stands at 221 passed / 20 deselected, ruff clean, offline scorecard 31/31.
+- **Still broken**: items 1 and 2 wait on Groq's daily cap; the branch stays unmerged.

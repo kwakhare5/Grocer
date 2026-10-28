@@ -88,7 +88,7 @@ The front-door validation and fast-dispatch gateway that verifies Meta HMAC-SHA2
 _Avoid_: Webhook listener, incoming router, message receiver
 
 **Per-Customer Advisory Lock**:
-The non-blocking PostgreSQL session latch (`pg_try_advisory_lock`) guarding a customer's active turn. A second message that arrives mid-turn is marked dropped and gets no reply; that drop is a known UX gap.
+The non-blocking PostgreSQL session latch (`pg_try_advisory_lock`) guarding a customer's active turn. A second message that arrives mid-turn is marked queued for up to 12 seconds, then answered against the fresh cart; that drop is a known UX gap.
 _Avoid_: Mutex, thread lock, queue barrier
 
 **Stale Message Latch**:

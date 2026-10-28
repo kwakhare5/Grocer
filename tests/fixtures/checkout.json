@@ -13,7 +13,7 @@
     "status": "PENDING_PAYMENT",
     "addressId": "addr_01HXYZ",
     "cartTotal": 149.0,
-    "deliveryAddress": "Flat 402, Green Glen Layout, Bellandur, Bengaluru",
+    "deliveryAddress": "12 Example Street, Bengaluru 560001",
     "deliveryLabel": "Home"
   },
   "message": "Instamart order initiated. Please complete payment in your UPI app."

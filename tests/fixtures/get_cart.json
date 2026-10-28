@@ -6,8 +6,8 @@
     "selectedAddressDetails": {
       "id": "addr_01HXYZ",
       "address": "Flat 402, Green Glen Layout, Bellandur",
-      "area": "Bellandur",
-      "name": "Karan",
+      "area": "Example Area",
+      "name": "Example Customer",
       "mobile": "+919876543210",
       "category": "HOME",
       "city": "Bengaluru"
@@ -30,29 +30,59 @@
     "cartTotalAmount": "144.00",
     "billBreakdown": {
       "lineItems": [
-        { "label": "Item Total", "value": "₹144.00" },
-        { "label": "Delivery Fee", "value": "₹0.00" },
-        { "label": "Handling Charge", "value": "₹5.00" }
+        {
+          "label": "Item Total",
+          "value": "₹144.00"
+        },
+        {
+          "label": "Delivery Fee",
+          "value": "₹0.00"
+        },
+        {
+          "label": "Handling Charge",
+          "value": "₹5.00"
+        }
       ],
       "toPay": {
         "label": "To Pay",
         "value": "₹149.00"
       }
     },
-    "availablePaymentMethods": ["UPI", "Cash", "SwiggyPay"],
+    "availablePaymentMethods": [
+      "UPI",
+      "Cash",
+      "SwiggyPay"
+    ],
     "paymentOptions": {
       "allMethods": [
-        { "id": "SwiggyPay", "displayName": "Swiggy Money", "enabled": true },
-        { "id": "gpay://upi/", "displayName": "Google Pay", "enabled": true }
+        {
+          "id": "SwiggyPay",
+          "displayName": "Swiggy Money",
+          "enabled": true
+        },
+        {
+          "id": "gpay://upi/",
+          "displayName": "Google Pay",
+          "enabled": true
+        }
       ],
       "upiMethods": [
-        { "id": "gpay://upi/", "displayName": "Google Pay", "enabled": true }
+        {
+          "id": "gpay://upi/",
+          "displayName": "Google Pay",
+          "enabled": true
+        }
       ],
       "allGroups": [
         {
           "group_name": "UPI",
           "display_name": "UPI",
-          "methods": [{ "id": "gpay://upi/", "displayName": "Google Pay" }]
+          "methods": [
+            {
+              "id": "gpay://upi/",
+              "displayName": "Google Pay"
+            }
+          ]
         }
       ],
       "paymentAmount": "149.00"

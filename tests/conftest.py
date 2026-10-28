@@ -96,7 +96,3 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
     asyncio.run(_delete_rows_not_in_baseline(_BASELINE_USER_IDS))
 
 
-@pytest.fixture(scope="session")
-def fixtures_dir() -> Path:
-    """Path to committed real staging fixtures."""
-    return Path(__file__).resolve().parent / "fixtures"

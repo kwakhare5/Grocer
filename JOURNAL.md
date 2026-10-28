@@ -678,3 +678,11 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: the scrub now clears onboarding state/context, plan-time coordinates and deletes geocode rows older than 24h. "delete my data" deletes inbound messages and geocodes, clears plan/onboarding/coords, and renames the user row to `deleted-<uuid>` with no name or Swiggy id, so messaging again creates a fresh user. Migration 006 adds `updated_at` triggers on users/oauth_tokens/checkouts and non-negative cap/payable checks. Phone number removed from the button-router log.
 - **Proof**: `powershell -File verify.ps1 -Db` exit 0 on 2026-10-28: 142 offline, 61 DB on `grocer_test`, 223 collected, ruff clean, Next build pass; extended scrub and delete tests.
 - **Still broken**: service-only DB role/RLS needs DB admin credentials and a Render env change; dead schema columns not dropped. Phase 8 landing and Phase 9 handoff remain.
+
+### [GROCER v1 — Phase 7 Cleanup Pass] 2026-10-28
+
+#### Work Card: Delete only what is provably dead
+- **Problem**: two audits were asked to find dead files, junk and stale docs. Nothing structural was dead, but the tracked Swiggy fixtures still carried the owner's name and home address, two write-only test bits existed, and several docs described pre-Batch-3 behaviour.
+- **Change**: fixtures `get_cart`, `get_addresses`, `checkout`, `get_orders` now carry an example name and address. Removed the unused `fixtures_dir` pytest fixture and the write-only `clear_cart_called` flag. ARCHITECTURE migration ranges now say 001..006; GLOSSARY's rapid-message line describes the 12s queue. No production code touched.
+- **Proof**: ruff clean; offline 142 passed; DB suite green. Grep evidence: zero readers for the removed fixture and flag.
+- **Still broken**: remaining stale doc lines listed by the audit (ARCHITECTURE Layer 4, DESIGN A2/A9, PRD COD claim, ADR README) are next; service-only DB role and dead schema columns still need Karan/credentials.

@@ -57,7 +57,7 @@ Grocer is not limited to pasting grocery lists. It is your personal Instamart co
 
 7. **1-Tap Mobile Payment via Swiggy HTTPS `bridgeUrl`:**
    - Swiggy's `checkout` tool returns an authoritative HTTPS `bridgeUrl` in `data.bridgeUrl`.
-   - UPI is the first payment path. The code must read `get_payment_options` and pass the chosen `intentApp` (mobile app) or `generateUPIQR=true` (desktop QR) to `checkout`. Cash on Delivery is the second path. SwiggyPay is later, only when the live response supports it.
+   - UPI is the only payment path in v1. The code reads `get_payment_options` and passes `generateUPIQR=true` (or `intentApp` when supplied) to `checkout`. COD and SwiggyPay are parked; the payment answer says they cannot be used yet.
    - `checkout` is not idempotent. On a 5xx or network failure, call `get_orders` and compare against the pre-checkout order snapshot before retrying. Never blind-retry.
    - Meta WhatsApp CTA buttons only support `https://`. Checkout delivers this link as a `[Pay ₹X (UPI / Card)]` button, rendering Swiggy's secure web payment screen where the customer taps to open GPay, PhonePe, Paytm, or scans a QR code.
 

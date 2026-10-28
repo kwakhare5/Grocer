@@ -141,6 +141,7 @@ async def run_doctor(base_url: str) -> bool:
                 "users",
                 "inbound_messages",
                 "oauth_tokens",
+                "oauth_states",
                 "sessions",
                 "approvals",
                 "checkouts",
@@ -149,7 +150,10 @@ async def run_doctor(base_url: str) -> bool:
             }
             missing = expected - set(names)
             if not missing:
-                print(f"[PASS] Database 8/8 tables verified: {sorted(names)}")
+                print(
+                    f"[PASS] Database {len(expected)}/{len(expected)} tables verified: "
+                    f"{sorted(names)}"
+                )
             else:
                 print(f"[FAIL] Missing database tables: {missing}")
                 all_ok = False

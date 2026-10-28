@@ -43,9 +43,14 @@ def test_pkce_generation():
     assert "=" not in challenge
 
 
+@pytest.mark.db
 @pytest.mark.asyncio
 async def test_swiggy_login_endpoint():
     """POST /api/auth/swiggy/login accepts the bot-issued link token, not a phone."""
+    from urllib.parse import parse_qs, urlparse
+
+    from backend.database import get_db_pool
+
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         resp = await client.post(
@@ -62,6 +67,10 @@ async def test_swiggy_login_endpoint():
         assert "code_challenge_method=S256" in url
         assert "state=" in url
         assert "redirect_uri=" in url
+
+    state = parse_qs(urlparse(url).query)["state"][0]
+    pool = await get_db_pool()
+    await pool.execute("DELETE FROM grocer.oauth_states WHERE state = $1;", state)
 
 
 @pytest.mark.asyncio
@@ -82,6 +91,7 @@ async def test_swiggy_login_rejects_phone_only_and_unsigned_tokens():
         assert forged.status_code == 400
 
 
+@pytest.mark.db
 @pytest.mark.asyncio
 async def test_swiggy_callback_invalid_state_rejects():
     """POST /api/auth/swiggy/callback rejects unknown/tampered states."""
@@ -93,6 +103,55 @@ async def test_swiggy_callback_invalid_state_rejects():
         )
         assert resp.status_code == 400
         assert "Invalid or expired authorization state" in resp.json()["detail"]
+
+
+@pytest.mark.db
+@pytest.mark.asyncio
+async def test_pkce_state_is_durable_one_time_and_expiring():
+    """The state lives in PostgreSQL, is one-time, and expires in about 10 minutes."""
+    import uuid as _uuid
+    from datetime import datetime, timedelta, timezone
+
+    from backend.database import get_db_pool
+    from backend.integrations.commerce.token_vault import (
+        consume_pkce_session,
+        store_pkce_session,
+    )
+
+    pool = await get_db_pool()
+    state = f"state_{_uuid.uuid4().hex}"
+    await store_pkce_session(state, "verifier_123", "919876543210")
+    stored = await pool.fetchrow(
+        "SELECT verifier, wa_id, expires_at FROM grocer.oauth_states WHERE state = $1;",
+        state,
+    )
+    assert stored["verifier"] == "verifier_123"
+    assert stored["wa_id"] == "919876543210"
+    ttl = (stored["expires_at"] - datetime.now(timezone.utc)).total_seconds()
+    assert 540 <= ttl <= 660
+
+    consumed = await consume_pkce_session(state)
+    assert consumed["verifier"] == "verifier_123"
+    assert consumed["phone"] == "919876543210"
+    assert await consume_pkce_session(state) is None
+
+    expired_state = f"state_{_uuid.uuid4().hex}"
+    await pool.execute(
+        """
+        INSERT INTO grocer.oauth_states (state, verifier, wa_id, expires_at)
+        VALUES ($1, 'verifier_expired', '919876543210', $2);
+        """,
+        expired_state,
+        datetime.now(timezone.utc) - timedelta(seconds=1),
+    )
+    assert await consume_pkce_session(expired_state) is None
+    assert (
+        await pool.fetchval(
+            "SELECT count(*) FROM grocer.oauth_states WHERE state = $1;",
+            expired_state,
+        )
+        == 0
+    )
 
 
 @pytest.mark.db

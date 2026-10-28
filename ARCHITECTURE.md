@@ -148,7 +148,7 @@ sequenceDiagram
 
 ### Layer 1: Channel Ingestion & Fast Button Router (`backend/channels/`)
 - **HMAC Verification:** Computes SHA-256 HMAC of raw inbound payload using `WHATSAPP_APP_SECRET`. Compares with `X-Hub-Signature-256` using constant-time string comparison (`hmac.compare_digest`).
-- **Immediate Acknowledgment:** Target is HTTP 200 OK to Meta in under 25ms. Current implementation is synchronous: the webhook holds the request while the LLM and Swiggy calls run. Changing this to an ACK-then-work queue is Phase 7 work.
+- **Immediate Acknowledgment:** Target is HTTP 200 OK to Meta in under 25ms. Current implementation is synchronous: the webhook holds the request while the LLM and Swiggy calls run. Changing this to an ACK-then-work queue remains open; the Phase 7 queue only serializes rapid messages per user.
 - **Durable Deduplication:** Inbound messages are inserted into `inbound_messages` with `ON CONFLICT (wa_message_id) DO NOTHING`. The user and message rows commit before the turn runs, so a later exception cannot roll the dedupe row back. Fixed in Phase 3.
 - **Stale Message Dropping:** Discards any inbound webhook with a timestamp older than 15 minutes. A message that arrives after Render wakes can be dropped with no reply; that is a known UX gap.
 - **Per-User Concurrency Lock:** Serializes operations per user using the session-scoped `pg_try_advisory_lock(hashtext(user_id))`. A quick second message waits up to 12 seconds for the first turn, then runs against the fresh cart and history. If the turn is still running, the message is marked `concurrency_wait_timeout` and the customer gets an honest "send that again" reply (`backend/channels/whatsapp.py`).
@@ -240,10 +240,10 @@ sequenceDiagram
   - Tests up to 2 applicable coupons via `list_coupons` and `apply_coupon`.
   - **Net-Savings Guardrail:** If applying a coupon drops the order below free delivery and triggers a delivery fee that increases the net bill, Grocer cancels the coupon, restores baseline prices, and explains why on the receipt.
   - Since 2026-10-28 the receipt shows `🎟️ Coupon (code): -₹X saved`; reorder and address-switch replies name the coupon too. A coupon that changes cart items or quantities is refused, and a coupon is never kept if the payable total does not drop.
-  - Current scope: coupon optimization runs on the add-items path only, not reorder or checkout.
+  - Current scope: coupon optimization runs on every cart write (text adds, buttons, plan adds, picks, reorder, address switch). Checkout does not retry coupons.
 - **Small-Cart Fee Shock Protection (ADR 0009):**
-  - Target: when delivery, handling, or small-order fees exceed 35% of the item total, warn the customer and suggest essentials.
-  - Current: not built. The dead helper was removed in the 2026-10-27 cleanup; the live flow belongs in Phase 7 Batch 3.
+  - Target: when delivery, handling, or small-order fees exceed 35% of the item total, warn the customer.
+  - Current: the receipt adds one warning line when charges reach 35% of item value (`backend/agent/composite_cart.py`). The Add Essentials buttons are not built.
 - **Pure Integer Paise Math:**
   - All currency calculations use integer paise (`to_pay_paise: int`, ₹1 = 100 paise). Floating-point math is banned.
 
@@ -288,13 +288,13 @@ check.
   - Milestones: 3 (Packed, On the Way with live map, Delivered). Each order id in a checkout is polled, and `notified_milestones` (migration 004) latches every order+milestone so it fires once. `SwiggyAuthExpiredError` is caught per row, and a pending payment made while Render slept is checked on wake before any stale-failure mark.
 - **Post-Payment Session Reset (ADR 0010):**
   - Target: reset the basket and dialogue state after payment confirms.
-  - Current: the poller clears session history and `one_time_destination_id`, but does not clear the Swiggy cart.
+  - Current: the poller clears session history, but does not clear the Swiggy cart.
 
 ---
 
 ## 5. PostgreSQL Database Schema
 
-The migrations are the source of truth: `migrations/001_initial_schema.sql`, `002_oauth_refresh_token.sql`, `003_checkout_orders_and_address_coords.sql`, `004_checkout_milestones.sql`. This is the current shape, not the original 001-only sketch.
+The migrations are the source of truth: `001_initial_schema.sql` through `010_ledger_read_only.sql`. This is the current shape, not the original 001-only sketch. Migration 007 drops two never-read columns and adds the least-privilege `grocer_app` role; 008 adds durable PKCE state; 009/010 make the migration ledger read-only for the app role.
 
 ```sql
 create schema if not exists grocer;
@@ -303,7 +303,6 @@ create schema if not exists grocer;
 create table grocer.users (
   id uuid primary key default gen_random_uuid(),
   wa_id text not null unique,                   -- normalized phone
-  swiggy_customer_id text,
   display_name text,                            -- 002
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -322,6 +321,15 @@ create table grocer.oauth_tokens (
   updated_at timestamptz not null default now()
 );
 
+-- 2b. PKCE authorization state (008; survives a process restart)
+create table grocer.oauth_states (
+  state text primary key,
+  verifier text not null,
+  wa_id text not null,
+  created_at timestamptz not null default now(),
+  expires_at timestamptz not null               -- 10-minute TTL
+);
+
 -- 3. Inbound messages
 create table grocer.inbound_messages (
   id uuid primary key default gen_random_uuid(),
@@ -338,7 +346,6 @@ create index on grocer.inbound_messages (user_id, created_at desc);
 create table grocer.sessions (
   user_id uuid primary key references grocer.users(id) on delete cascade,
   active_address_id text,
-  one_time_destination_id text,
   budget_cap_paise bigint not null default 100000,
   history jsonb not null default '[]',
   delivery_latitude double precision,           -- 002
@@ -402,7 +409,7 @@ create table grocer.schema_migrations (
 );
 ```
 
-**Security state:** no RLS policies, no CHECK constraints, and no `updated_at` triggers exist. PII is plaintext except Swiggy tokens. The frontend does not talk to Supabase directly today; that is the only reason the missing RLS is latent rather than active. Test data must use the separate `grocer_test` database, not this one.
+**Security state:** no RLS policies, on purpose. There is one backend caller, and `anon`/`authenticated` have zero usage or table grants on `grocer` (verified 2026-10-28), so RLS would add no boundary. Every app query runs as the non-superuser `grocer_app` role (migration 007), which has DML on the 8 app tables, SELECT on the migration ledger, and no CREATE; a missing role fails loudly. CHECK constraints and `updated_at` triggers exist since migration 006. PII is plaintext except Swiggy tokens; Supabase encrypts disk at rest. Test data must use the separate `grocer_test` database, not this one.
 
 ---
 
@@ -448,7 +455,7 @@ backend/
 └── (backend ends here)
 
 Repository root:
-├── migrations/                 # 001..006, applied in order and tracked
+├── migrations/                 # 001..010, applied in order and tracked
 ├── tests/                      # Contract fixtures, router tests, invariant checks, DB suites
 ├── app/                        # Next.js landing page + OAuth bridge. Not the product UI.
 ├── scripts/                    # eval_router, verify_db, drive_grocer

@@ -129,13 +129,60 @@ async def _run_dpdp_scrubber_loop() -> None:
             logger.warning("Background DPDP scrubber error: %s", exc)
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-    """Manage application startup and shutdown lifecycle."""
-    await get_db_pool()
+async def _prepare_database() -> None:
+    """Apply migrations first, then open the restricted app pool."""
     applied = await apply_migrations()
     if applied:
         logger.info("Applied migrations: %s", ", ".join(applied))
+    await get_db_pool()
+
+
+async def _retry_schema_when_ready() -> None:
+    """Retry startup migrations with backoff until the database is ready."""
+    delay = 30
+    while True:
+        await asyncio.sleep(delay)
+        try:
+            await _prepare_database()
+            return
+        except asyncio.CancelledError:
+            raise
+        except (
+            asyncpg.PostgresError,
+            OSError,
+            TimeoutError,
+            ValueError,
+            RuntimeError,
+        ) as exc:
+            logger.warning(
+                "Database still not ready for migrations: %s; retrying in %ss",
+                exc,
+                min(delay * 2, 300),
+            )
+            delay = min(delay * 2, 300)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    """Manage application startup and shutdown lifecycle."""
+    schema_task: asyncio.Task[None] | None = None
+    try:
+        await asyncio.wait_for(_prepare_database(), timeout=5.0)
+    except TimeoutError:
+        logger.error(
+            "Database not ready within 5s; serving with /health reporting down."
+        )
+        schema_task = asyncio.create_task(_retry_schema_when_ready())
+    except (
+        asyncpg.PostgresError,
+        OSError,
+        ValueError,
+        RuntimeError,
+    ) as exc:
+        # Serve anyway so /health can report the truth and recover on wake.
+        logger.error("Database unavailable at startup; /health will report down: %s", exc)
+        schema_task = asyncio.create_task(_retry_schema_when_ready())
+
     poller_task = asyncio.create_task(_run_delivery_poller_loop())
     payment_task = asyncio.create_task(_run_payment_poller_loop())
     dpdp_task = asyncio.create_task(_run_dpdp_scrubber_loop())
@@ -143,7 +190,15 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     poller_task.cancel()
     payment_task.cancel()
     dpdp_task.cancel()
-    await asyncio.gather(poller_task, payment_task, dpdp_task, return_exceptions=True)
+    if schema_task is not None:
+        schema_task.cancel()
+    await asyncio.gather(
+        poller_task,
+        payment_task,
+        dpdp_task,
+        *([schema_task] if schema_task is not None else []),
+        return_exceptions=True,
+    )
     await close_db_pool()
 
 

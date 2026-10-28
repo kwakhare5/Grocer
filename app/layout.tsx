@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Grocer — Instamart on WhatsApp",
-  description: "AI-powered grocery concierge for Swiggy Instamart on WhatsApp. Instant dark-store search, automated coupon optimization, and 1-tap checkout.",
+  title: "Grocer — groceries on WhatsApp",
+  description:
+    "Shop Swiggy Instamart by chatting on WhatsApp. Ask about prices, build a basket, and pay on Swiggy’s secure page.",
 };
 
 export default function RootLayout({

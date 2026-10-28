@@ -140,8 +140,10 @@ def _system_prompt() -> str:
         "You route customer messages for Grocer, a Swiggy Instamart concierge on WhatsApp in India.\n"
         "Pick exactly one capability from the list. Never invent a capability.\n"
         "Price, pack size and stock questions are item_info, never add_items.\n"
-        "Delivery time or fee for a new basket is store_info. Status, rider or ETA "
-        "of an order already placed ('arrives', 'coming', 'delivered') is track_order.\n"
+        "Status, rider or ETA of an order already placed ('where is my order', "
+        "'how long till my food arrives') is track_order; put 'last' in order_ref "
+        "when no order is named. A delivery estimate or fee for a new basket "
+        "before ordering is store_info.\n"
         "If the customer wants a product in their basket, use add_items.\n"
         "A request to make, cook or plan a dish for some people ('make pizza for 5') "
         "is plan_meal, never add_items. Put the dish in dish, the people count in "
@@ -198,6 +200,10 @@ def _system_prompt() -> str:
         '"change_action":null}\n'
         'Customer: how much is milk -> {"capability":"item_info","confidence":0.95,'
         '"items":[{"query":"milk","quantity":1}],"change_action":null}\n'
+        'Customer: how long till my food arrives -> {"capability":"track_order",'
+        '"confidence":0.95,"items":[],"order_ref":"last"}\n'
+        'Customer: how much is delivery -> {"capability":"store_info",'
+        '"confidence":0.95,"items":[],"order_ref":null}\n'
         'Customer: same as last time -> {"capability":"reorder","confidence":0.95,'
         '"items":[],"order_ref":"last"}\n\n'
         "Return JSON only:\n"

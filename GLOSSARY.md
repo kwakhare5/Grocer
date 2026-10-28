@@ -72,7 +72,7 @@ _Avoid_: Plan cart, saved recipe, wishlist
 
 **Small-Cart Fee Threshold**:
 The point where Swiggy delivery, handling, and surge fees exceed 35% of item value, triggering a proactive alert to add essentials and unlock free delivery.
-_Status_: in v1 as a money warning (Phase 7). The helper exists; it has no caller yet.
+_Status_: live in code 2026-10-28. When charges reach 35% of item value, the add receipt adds one warning line. The Add Essentials buttons are not built.
 _Avoid_: Delivery fee penalty, minimum order surge, surge warning
 
 **JIT Re-Auth Latch**:

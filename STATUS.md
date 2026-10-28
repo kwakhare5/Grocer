@@ -11,7 +11,7 @@
 | Item | Current fact |
 |---|---|
 | Git branch | `grocer-v1`; main branch is `main` |
-| Supabase | One project until launch. App data lives in the `postgres` database, schema `grocer` (7 app tables + `schema_migrations`). Both the app database and `grocer_test` are migrated through 004 (app DB applied 2026-10-27). |
+| Supabase | One project until launch. App data lives in the `postgres` database, schema `grocer` (8 app tables + `schema_migrations`). Both the app database and `grocer_test` are migrated through 010 (app DB applied 2026-10-28; `schema_migrations` lists 001–010). |
 | LLM | Groq `openai/gpt-oss-120b` is primary for development and tests. Gemini is optional and its free quota is not a dependency. |
 | Swiggy auth | Allowlisted OAuth redirect: `https://grocerr.vercel.app/`. Backend calls `https://mcp.swiggy.com/im` with the customer token. |
 | Checkout | `LIVE_CHECKOUT_ENABLED=false`. The build must stay real-order capable. No live order without Karan's explicit approval. |
@@ -31,12 +31,14 @@
 | Item | State |
 |---|---|
 | Documentation sync | **DONE 2026-10-27, scope corrected 2026-10-27.** Recipes are in v1 as plan-confirm-add; proactivity is money-and-truth only; replies stay English. Stale "current" notes were removed from PRD, ARCHITECTURE, DESIGN, GLOSSARY and the ADR index. The scope table lives in `TASKS.md`. |
-| Lint | **PASS 2026-10-27:** `ruff check backend tests` → `All checks passed!` |
-| Offline tests | **PASS 2026-10-28:** 120 passed, 72 deselected (`pytest -q -m "not db and not live"`). |
-| DB tests | **PASS 2026-10-28:** 52 passed on `grocer_test` (`pytest -q -m "db"`). |
-| Live tests | **22 collected, not run.** `test_catalog_search.py` calls the live Gemini evaluator and is marked `live`. |
-| Full test collection | **192 tests collected 2026-10-28.** |
-| Full suite claim | The old "136 passed, 0 skipped" claim is retired. The current verified set is 142 offline + 61 DB (223 collected, 20 of them live-only); live is excluded by default. Scripted tests are marked `scripted` and never counted as live proof. |
+| Doc truth pass | **DONE 2026-10-28:** corrected pre-Batch-3 claims in ARCHITECTURE Layer 2/4, DESIGN A2/A6/A8/A9, PRD payment, GLOSSARY fee term, ADR index rows 0003–0006/0009, STATUS counts/constraints/next action, and the verify-grocer skill. No code changed. |
+| Landing page (Phase 8) | **DONE (code) 2026-10-28, deploy pending:** rebuilt per `DESIGN.md` Part B in plain language for customers and the Swiggy team. Live/in-testing labels, safety, privacy, Swiggy strip and FAQ; no fake uptime or test numbers. OAuth card only for `?t=` or callback. Missing env disables the CTA with a visible note; the placeholder number is display-only. `npm run build` pass; checked at 1440px and real 360px emulation with no overflow. Vercel deploy not run. |
+| Lint | **PASS 2026-10-28:** `ruff check backend tests` → `All checks passed!` |
+| Offline tests | **PASS 2026-10-28:** 142 passed, 86 deselected (`pytest -q -m "not db and not live"`). |
+| DB tests | **PASS 2026-10-28:** 66 passed on `grocer_test` (`pytest -q -m "db"`). |
+| Live tests | **20 live-only tests collected, not run.** `test_catalog_search.py` calls the live router/model path and is marked `live`. |
+| Full test collection | **228 tests collected 2026-10-28.** |
+| Full suite claim | The old "136 passed, 0 skipped" claim is retired. The current verified set is 142 offline + 66 DB (228 collected, 20 of them live-only); live is excluded by default. Scripted tests are marked `scripted` and never counted as live proof. |
 | Live Swiggy smoke | **PASS 2026-10-27:** real token, real MCP. 3 addresses, 20 milk products with live prices, 12-item cart read, 0 orders, 10 payment methods, 0 coupons. Cart add verified then restored (12 items, same spins and quantities). No order placed. Raw: `scripts/live_smoke.py`. |
 | Live Groq pass | **PASS 2026-10-27:** 10 real messages → 10 correct routes (item_info ×3, list_addresses, order_history, list_coupons, payment_options, add_items, chat, track_order) with real read answers. 55s. |
 | Live checkout lock | **PASS 2026-10-27:** with `LIVE_CHECKOUT_ENABLED=false`, the real path returned "Checkout is locked" and a sentinel client proved no Swiggy method ran. |
@@ -57,13 +59,16 @@
 | Q3 AI load fix | **DONE (code) 2026-10-28:** one Groq call gate shared by routing and item evaluation (`backend/agent/llm.py`). Calls are spaced; a 429 or a zero-token header parks every thread until the reset; a wait longer than an 8-second call budget fails honestly instead of hanging. Multi-item turns now evaluate all items in one model call (`evaluate_customer_intents_batch`), with per-item deterministic fallback and no extra call (`backend/agent/candidate_evaluator.py`). A 4-item add drops from 5 model calls to 2. Proof: `verify.ps1 -Db` exit 0, 120 offline + 52 DB, 192 collected; 7 new queue/batch tests. Live Groq burst behavior is not re-tested. |
 | Q1/Q2 stored plan and pack math | **DONE (code) 2026-10-28:** the exact priced recipe plan is stored in `grocer.sessions.pending_plan` with a 30-minute expiry (migration 005), replacing the old base64 button token. The model now gives each ingredient an amount and unit (`250 g`, `1 l`, `5 pieces`); Python reads the store pack size (`backend/agent/meal_planner.py:parse_pack_size`) and computes whole packs, falling back to the model's pack count when the store text cannot be compared. Add-all re-checks live stock and writes all or none; the confirmed SKU is never swapped for a lookalike — a gone SKU is reported missing. Picks write only the chosen rows. The plan is cleared after a write, on expiry, by the 24-hour DPDP scrub, and by "delete my data". The numbered reply to `Let me pick` is now real: number-shaped text ("1 and 3") picks items with no model call, and anything with words routes normally. Proof: new pack-math, stored-spin, gone-SKU, partial-pick, expired-plan, typed-picker and plan-cap tests; `verify.ps1 -Db` exit 0, 142 offline + 61 DB, 223 collected. Live recipe route and a live tap are still unproven. |
 | Router eval (live Groq) | **PASS with one miss 2026-10-27:** 39/40 exact (97.5%), 0 unsafe writes, 0 under-acted writes, 0 LLM errors. Miss: "how long till my food arrives" → `store_info`, expected `track_order`. Latency was not recorded by the harness. Raw: `.scratch/eval_phase2.json`. |
+| Router eval rerun (live Groq) | **PASS 2026-10-28:** 40/40 exact (100%), 0 unsafe writes, 0 under-acted writes, 0 remaining LLM errors. Latency: avg 1574ms, p95 2265ms, max 3422ms. One 429 on case 11 was retried and passed. Raw: `.scratch/eval_router_20261028_reviewfix.json`. |
 | One LLM brain | **DONE 2026-10-27:** routing and candidate evaluation both call `backend/agent/llm.py`. Direct Gemini calls and the second classification call are gone. Gemini key is optional. |
 | Live reads | Recorded live on 2026-10-26: price/stock, addresses, order history, cancel help, payment options, coupons. Not re-run on 2026-10-27. |
 | Live refresh | Recorded 2026-10-26: forced refresh returned a new token pair; new expiry 2026-11-25. Journal also records a fixture-only refresh proof. Treat the live proof as recorded, not re-verified. |
 | Live checkout | **Never tested. No order placed.** |
 | Migration 004 | **VERIFIED 2026-10-27:** `python scripts/migrate.py` applied `004_checkout_milestones.sql` to the app database; `verify_db.py` exits 0 with 8 tables, `notified_milestones` present, and the required indexes. `grocer_test` is also at 004. |
-| Phase 6 privacy slice | **DONE (code) 2026-10-28:** 24h scrub also clears onboarding state/context, plan-time coordinates, and deletes geocode rows older than 24h. "delete my data" deletes inbound messages and geocodes, clears plan/onboarding/coords, and anonymizes the user row. Migration 006 adds `updated_at` triggers on users/oauth_tokens/checkouts and non-negative money checks. The button-router phone log is removed. Open: service-only DB role/RLS (needs credentials), dead schema columns. |
+| Phase 6 privacy slice | **DONE (code) 2026-10-28:** 24h scrub clears onboarding state/context, plan-time coordinates, geocode rows older than 24h, and expired PKCE states. "delete my data" deletes inbound messages and geocodes, clears plan/onboarding/coords, and anonymizes the user row. Migration 006 adds `updated_at` triggers and non-negative money checks. Migration 007 adds the non-superuser `grocer_app` role (DML on the 8 app tables, no CREATE) and drops the two never-read columns; 009/010 make the migration ledger read-only for that role. App queries run as that role, a DDL attempt is refused, and a missing role fails loudly. `anon`/`authenticated` have zero schema usage and zero table grants, so RLS is skipped by design, not by omission. Migrations 001–010 are applied to the app DB. No Render env change was made. Live 24h scrub after a real TTL is pending. |
+| Block 1 hardening | **DONE (code) 2026-10-28:** PKCE state moved from process memory to `grocer.oauth_states` with a 10-minute TTL and one-time consume (migration 008); expired rows are deleted on consume and by the scrub. Startup waits at most 5 seconds for the DB, then serves with `/health` 503 and retries migrations with backoff. Migrations run on a separate owner connection; the app pool refuses to run without `grocer_app`, so there is no owner fallback. Rupee-to-paise conversion uses `Decimal(str(value))` in every schema property and the order bill. Proof: 141 offline, 66 DB, 227 collected; real dead-DB subprocess test, role DDL/ledger-refusal test, PKCE TTL/expiry test, backdated scrub test. |
 | Migration 005 | **APPLIED 2026-10-28:** `python scripts/migrate.py` added `sessions.pending_plan` and `sessions.pending_plan_expires_at` to the app database; `verify_db.py` exits 0. `grocer_test` applied it through the DB suite. Render applies pending migrations at startup on the next deploy. |
+| Migrations 007–010 | **APPLIED 2026-10-28:** `python scripts/migrate.py` applied 007 (grocer_app role, two dropped columns), 008 (`grocer.oauth_states`), 009 (ledger write revoked), and 010 (ledger read restored) to the app database. `verify_db.py` exits 0 with 9 tables, proves app queries run as `grocer_app`, no CREATE on `grocer`, and no INSERT on `schema_migrations`. `grocer_test` applied them through the DB suite. |
 | Production readiness | **No.** |
 | Current gate | **Gate 2 — Concierge Answers.** 6 of 8 pass; 1 partial (reorder needs a past order); 1 code-complete but not tapped live ("milk" now auto-picks with a working Change button, discretionary items show choices). See §2. |
 
@@ -128,17 +133,17 @@ Gate 2 is read-only. No checkout, order, payment call, or address write is in sc
 
 ## 5. P1 — Real, Lower Blast Radius
 
-- Money math outside checkout still uses floats and `round()` for paise (`backend/integrations/commerce/schemas.py:90`, `backend/agent/composite_cart.py:137`). The checkout path now parses response rupees through `parse_price_to_paise`.
+- Money conversion uses `Decimal(str(value))` in every schema property and the order bill; no float `round()` remains in the paise path. The charge percentage is integer math.
 - Coupons run on every cart write (text, buttons, plans, picks, reorder, address switch). Only the first two applicable coupons are tried, a coupon that changes items or quantities is refused, and savings show on the receipt and in reorder/switch replies.
 - Receipts over the 1024-char button limit are sent whole as a text message, with Pay/Clear in a short follow-up (`send_receipt`). The interactive body limit itself still truncates any other long body; those bodies are short by design.
 - The dead go-to add and post-order add buttons were deleted with their dead code in the 2026-10-27 cleanup. `item:change` works. `report_issue` now files a Swiggy report and returns the reference and support email; itemised bills use `get_order_details`.
 - Rapid messages: the second waits up to 12 seconds for the first turn, then answers against the fresh cart. A turn still running after that gets an honest resend reply (`concurrency_wait_timeout`).
 - Recipes are built in code (2026-10-28) with a stored plan, typed picks, queueing, whole-message evaluation, duplicate grouping and receipt chunking. Batch 3 is code-complete: coupons on every cart path, savings line, 35% charges warning, itemised bill, support report, payment truth, store-open truth and post-order add truth.
-- DPDP: the 24h scrub clears history, plan, onboarding state/context, plan-time coordinates and the geocode cache; "delete my data" deletes inbound messages and cached geocodes and anonymizes the user row (`deleted-<uuid>`, no name, no Swiggy id) while audit rows keep an anonymous id. Open: service-only DB role/RLS (needs DB admin credentials and a Render env change) and dead schema columns.
-- No RLS on any table and PII is plaintext. The caller-supplied-phone hole was closed in Phase 5 with signed bot links; PKCE state is still in process memory (`backend/integrations/commerce/token_vault.py:73`).
-- The landing page footer says "Systems Operational" with no health check, and the page falls back to a fake WhatsApp number (`app/page.tsx:76`, `app/page.tsx:269`).
+- DPDP: the 24h scrub clears history, plan, onboarding state/context, plan-time coordinates, the geocode cache and expired PKCE states; "delete my data" deletes inbound messages and cached geocodes and anonymizes the user row (`deleted-<uuid>`, no name, no Swiggy id) while audit rows keep an anonymous id. App queries run as `grocer_app`, which has DML on the 8 app tables and read-only access to the ledger; the backdated-row scrub is proven on `grocer_test`, while live TTL verification is pending.
+- No RLS policies, by design: `anon` and `authenticated` have zero schema usage and zero table grants (checked 2026-10-28). PII is plaintext except Swiggy tokens; disk encryption is Supabase's. The caller-supplied-phone hole was closed in Phase 5 with signed bot links; PKCE state now lives in `grocer.oauth_states`, not process memory.
+- The landing page was rebuilt on 2026-10-28: no health badge, no fake uptime, no fallback WhatsApp link. Missing `NEXT_PUBLIC_WHATSAPP_NUMBER` disables the button with a visible note; the display number stays the placeholder. The OAuth card appears only for a bot link or callback.
 - Render free plan sleeps, so pollers stop when idle (`render.yaml:6`).
-- The app still fails to boot if the database is unreachable at startup, so `/health` cannot report that first failure. It reports later DB failures.
+- Startup waits at most 5 seconds for the database, then serves with `/health` returning 503 and retries migrations with backoff. A dead DB no longer crashes the process.
 
 **Fixed in Phase 1 (2026-10-27):** `verify_db.py` table/column/index check, `verify.ps1` offline default, `/health` 503 mapping, `ruff` dev requirements, real test database, DSN guard, live-test marker, mock-based "live" test rename.
 
@@ -170,20 +175,24 @@ ruff check backend tests
 All checks passed!
 
 pytest -q -m "not db and not live"
-120 passed, 72 deselected in 0.99s
+142 passed, 86 deselected
 
 pytest -q -m "db"
-52 passed, 140 deselected in 31.09s
+66 passed, 161 deselected
 
 pytest --collect-only -q
-223 tests collected
+228 tests collected
 
-powershell -File verify.ps1 -Db
-=== [PASS] Grocer v1.0 verification complete ===
-# 2026-10-28 after Q1/Q2 stored plan + pack math:
-# schema check exit 0, ruff clean, 142 offline pass, 61 DB pass,
-# Next.js build pass, script exit 0
+python scripts/eval_router.py --provider groq
+Exact capability match: 40/40 (100.0%)
+Latency (last call per case): avg 1574ms, p95 2265ms, max 3422ms
+Unsafe writes: 0, under-acted: 0, errors: 0
+# 2026-10-28 after Block 1 hardening + review fixes:
+# schema check exit 0 (9 tables, grocer_app), ruff clean,
+# 142 offline pass, 66 DB pass, Next.js build pass, script exit 0
 ```
+
+**New in Block 1 (2026-10-28):** restricted-role test (`current_user = grocer_app`, DDL refused), live/expired PKCE state test, backdated 24-hour scrub test, and a subprocess boot test with an unreachable DB. The router eval rerun scored 40/40 with latency.
 
 **New in Q1/Q2 (2026-10-28):** pack math (`packs_for`: g/kg, ml/l, pieces), stored-plan shape, stored-spin preference, add-all all-or-nothing, partial picks that name the missing rows, numbered-reply parsing, an expired-plan tap that writes nothing, a typed pick that adds only the chosen row, a normal text that is not hijacked, and numbers with an expired plan that route normally. Proof: 12 planner tests, 8 webhook tests, 1 router test.
 
@@ -216,11 +225,11 @@ RuntimeError: Refusing to run tests against database 'postgres'. TEST_DATABASE_U
 | 0002 | Active | Grounding now uses Swiggy's default address. Fingerprint includes payable paise, so any paise change fails. |
 | 0003 | Active | Coupon guard works, a coupon that changes cart items is refused, savings are on the receipt, and reorder/switch replies name them. Tracking now calls `track_order` with saved coordinates and falls back to delivery status. |
 | 0004 | Amended | The 5-day/no-refresh claim is obsolete. Refresh token exists. Park and replay are wired. Vague staples auto-pick with a working Change/swap; discretionary items show choices. |
-| 0005 | Partial | Receipt buttons are Pay, Keep only new (when the basket had items), Change item (vague staples) and Clear. COD and Change Address are still target. |
-| 0006 | Partial | ₹1,000 cap stays. Cap-raise now re-opens the same receipt. DPDP is partial. |
+| 0005 | Partial | Receipt buttons are Pay, Keep only new (when the basket had items), Change item (vague staples) and Clear. COD is parked; address change happens from the address card. |
+| 0006 | Partial | ₹1,000 cap stays. Cap-raise now re-opens the same receipt. The DPDP scrub and delete cascade are built; app queries run as `grocer_app` with no DDL. RLS is skipped because public roles have zero schema access. |
 | 0007 | Active | Switch clears and rebuilds the basket at the new store. Delete guard runs on the real delete path. Split orders poll every id. |
 | 0008 | Partial | Typed-text address add is built. Reorder is fixture-only and needs a past order. |
-| 0009 | Amended | Recipes are in v1 as a plan-confirm-add flow (decided 2026-10-27; built in code 2026-10-28). The exact priced plan is stored in `grocer.sessions.pending_plan` for 30 minutes; the model gives amounts and units and Python computes packs. Fee warning and post-order truth are Phase 7. One-time destination is parked. |
+| 0009 | Amended | Recipes are in v1 as a plan-confirm-add flow (decided 2026-10-27; built in code 2026-10-28). The exact priced plan is stored in `grocer.sessions.pending_plan` for 30 minutes; the model gives amounts and units and Python computes packs. The fee warning and post-order truth are built. One-time destination is parked. |
 | 0010 | Active | Refresh first, park only on refresh failure. Park status matches replay, and the callback replays in the background. |
 | 0011 | Superseded | Replaced by ADR 0012. No extra classification call; candidate evaluation is one call per item and is intentional. |
 | 0012 | Active, amended 2026-10-28 | Groq is primary and the only adapter. Direct Gemini calls are gone; the key is optional. Item evaluation is one batched call per turn, not one per item. |
@@ -229,9 +238,9 @@ RuntimeError: Refusing to run tests against database 'postgres'. TEST_DATABASE_U
 
 ## 8. Next Action
 
-**Where we are (2026-10-28).** Phases 0-5 are done. Phase 7 Batch 1, Batch 2 (multi-item adds, recipe plans with a stored plan and pack math, rapid-message queue, whole-message evaluation, duplicate grouping, receipt chunking), the AI load fix (Q3), and Batch 3 (coupons on every cart path, savings line, 35% charges warning, itemised bill, support report, payment/store truth, post-order add truth) are done in code: multi-item adds, clearer existing-item copy, recipe plan-confirm-add backed by a stored plan, one outcome reaction per message, a shared Groq gate, and one batched evaluation per turn. The last full gate is green: `verify.ps1 -Db` exit 0, 142 offline + 61 DB, 223 collected, Next build pass. The reaction commits (`36d2ec2`, `0fa0270`) are pushed. Local commits `0fe6ef0`, `89d95c0`, `0490266`, `d8ebf3e` (Batch 2 + Q3 + Q1/Q2), `6369aef` (review fixes) and the Batch 2 close-out are **not pushed**. Render is live on `09b5fa2`; nothing after the reactions is deploy-verified.
+**Where we are (2026-10-28).** Phases 0, 1, 3, 4 and 5 are done. Phase 2 is done after the 40/40 live rerun with latency recorded. Phase 6 is done in code: DPDP, `grocer_app`, dead columns, and durable PKCE state. Phase 7 is code-complete. Phase 8 is built in code (Vercel deploy pending); Phase 9 handoff remains. The last full gate is green: 142 offline + 66 DB, 228 collected; live router eval 40/40, avg 1574ms, p95 2265ms. Block 1, Phase 8 and these docs are uncommitted; all commits through `b03573c` are pushed to `origin/grocer-v1`. Render was last verified on `09b5fa2`; later commits are not deploy-verified.
 
-**Remaining Phase 7, in order.**
+**Phase 7 backlog — code-complete; live proofs open.**
 
 | # | Item | State | Proof needed |
 |---|---|---|---|
@@ -251,9 +260,9 @@ RuntimeError: Refusing to run tests against database 'postgres'. TEST_DATABASE_U
 | 12 | Store-open truth | **DONE (code) 2026-10-28** | cart quote plus the honest open signal: items adding means the store is taking orders; no invented flag |
 | 13 | Post-order add truth | **DONE (code) 2026-10-28** | `placed_order_add` says the order is locked and offers a new basket |
 
-**After Phase 7:** Phase 6 privacy is partly done (DPDP scrub/delete cascade, log redaction, CHECK constraints, `updated_at` triggers in migration 006). Open: service-only DB role/RLS and dead schema columns. Then Phase 8 landing page, Phase 9 handoff. No live order during the build.
+**After Phase 7:** Phase 6 is done in code (DPDP scrub/delete, `grocer_app` role, dead columns, durable PKCE state, lazy boot, integer paise). Live 24h TTL proof is pending. Phase 8 is built in code; the Vercel deploy is pending. Phase 9 handoff remains. No live order during the build.
 
-**Open proofs:** reactions drawn on a real handset; live Groq route for "make pizza for 5" and a live Add-all tap; live Change-item tap; blue ticks/typing with a real wamid; live address add/delete; Gate 2 case 7 (needs a past order) and case 8 (live tap); the Phase 2 latency miss. Re-run the full gate at launch.
+**Open proofs:** reactions drawn on a real handset; live Groq route for "make pizza for 5" and a live Add-all tap; live Change-item tap; blue ticks/typing with a real wamid; live address add/delete; Gate 2 case 7 (needs a past order) and case 8 (live tap); live 24-hour scrub after real traffic. Re-run the full gate at launch.
 
 ---
 
@@ -269,3 +278,30 @@ RuntimeError: Refusing to run tests against database 'postgres'. TEST_DATABASE_U
 8. Do not weaken a test to pass. If the feature is broken, say so.
 9. Show `git diff`, test output, and database proof.
 10. Update `STATUS.md`, `.scratch/HANDOFF.md`, and `JOURNAL.md` before ending the session.
+
+---
+
+## 10. Handoff Checklist (Phase 9)
+
+Run in this order. Do not press Pay; checkout stays locked.
+
+1. Commit and push the current tree after Karan approves.
+2. Render deploy: wait for `/health` 200, then send one live read (`what's in my basket`) and confirm `/health` still reports the schema and `grocer_app` role. No env changes.
+3. Vercel: set `NEXT_PUBLIC_WHATSAPP_NUMBER`, deploy, open the page at 360px and desktop, and confirm the CTA opens the real chat.
+4. WhatsApp, non-payment:
+   - `1 litre milk` → receipt plus one reaction.
+   - `what's in my basket` → full basket.
+   - `make pizza for 5` → plan card; tap Add all; then try a typed pick on a fresh plan.
+   - tap `Change item` on a vague staple.
+   - send two messages quickly → both answered, no lost write.
+   - long basket → whole receipt, Pay/Clear follow-up.
+   - `show payment options` → UPI only, no COD claim.
+   - `is the store open` → honest cart signal.
+   - `show my addresses` → real addresses; add and delete one throwaway address.
+   - Reconnect Swiggy once from a bot link; confirm the callback returns to WhatsApp.
+   - Check blue ticks/typing on a real inbound message.
+5. Leave `delete my data` off the main account; it is proven on `grocer_test` and would wipe the only real token.
+6. After 24 hours of real traffic, verify the scrub with a read-only query.
+7. Record each result in `STATUS.md`; any failure stays open.
+
+Not included: checkout, reorder, live bill, Gate 2 case 7. They need a real past order, and no order will be placed.

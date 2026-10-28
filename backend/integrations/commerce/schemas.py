@@ -7,11 +7,17 @@ Zero mocks; validated directly against committed staging fixtures.
 
 from __future__ import annotations
 
+from decimal import ROUND_HALF_UP, Decimal
 from typing import Any, Generic, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 T = TypeVar("T")
+
+
+def rupees_to_paise(value: float | str | Decimal) -> int:
+    """Convert a rupee amount to integer paise without binary-float drift."""
+    return int((Decimal(str(value)) * 100).to_integral_value(rounding=ROUND_HALF_UP))
 
 
 class ToolEnvelope(BaseModel, Generic[T]):
@@ -87,12 +93,12 @@ class ProductPrice(BaseModel):
     @property
     def mrp_paise(self) -> int:
         """Integer paise value of MRP (₹1 = 100 paise)."""
-        return round(self.mrp * 100)
+        return rupees_to_paise(self.mrp)
 
     @property
     def offer_price_paise(self) -> int:
         """Integer paise value of offer price (₹1 = 100 paise)."""
-        return round(self.offerPrice * 100)
+        return rupees_to_paise(self.offerPrice)
 
 
 class ProductVariation(BaseModel):
@@ -153,12 +159,12 @@ class CartItem(BaseModel):
     @property
     def mrp_paise(self) -> int:
         """Integer paise value of MRP (₹1 = 100 paise)."""
-        return round(self.mrp * 100)
+        return rupees_to_paise(self.mrp)
 
     @property
     def discounted_final_price_paise(self) -> int:
         """Integer paise value of discounted price (₹1 = 100 paise)."""
-        return round(self.discountedFinalPrice * 100)
+        return rupees_to_paise(self.discountedFinalPrice)
 
 
 class BillLineItem(BaseModel):
@@ -302,7 +308,7 @@ class OrderHistoryItem(BaseModel):
     @property
     def total_amount_paise(self) -> int:
         """Integer paise value of order total (₹1 = 100 paise)."""
-        return round(self.totalAmount * 100)
+        return rupees_to_paise(self.totalAmount)
 
 
 class OrdersListData(BaseModel):
@@ -318,6 +324,11 @@ class OrderDetailsItem(BaseModel):
     finalPrice: float
     removed: bool = False
 
+    @property
+    def final_price_paise(self) -> int:
+        """Integer paise value of the line price (₹1 = 100 paise)."""
+        return rupees_to_paise(self.finalPrice)
+
 
 class OrderDetailsData(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -331,7 +342,7 @@ class OrderDetailsData(BaseModel):
     @property
     def total_bill_paise(self) -> int:
         """Integer paise value of total bill (₹1 = 100 paise)."""
-        return round(self.totalBill * 100)
+        return rupees_to_paise(self.totalBill)
 
 
 class DeliveryStatusData(BaseModel):

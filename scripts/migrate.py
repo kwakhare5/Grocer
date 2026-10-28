@@ -14,12 +14,11 @@ from backend.database import apply_migrations, close_db_pool, get_db_pool
 
 async def run():
     print("Connecting to Supabase PostgreSQL...")
+    print("Applying SQL migrations...")
+    applied = await apply_migrations()
+    print(f"Applied migrations: {applied}")
     pool = await get_db_pool()
     try:
-        print("Applying SQL migrations...")
-        applied = await apply_migrations()
-        print(f"Applied migrations: {applied}")
-
         async with pool.acquire() as conn:
             # Check tables created under 'grocer' schema
             tables = await conn.fetch("""
@@ -37,6 +36,7 @@ async def run():
                 "approvals",
                 "checkouts",
                 "inbound_messages",
+                "oauth_states",
                 "oauth_tokens",
                 "schema_migrations",
                 "sessions",
@@ -49,7 +49,7 @@ async def run():
                 print(f"\nERROR: Missing expected tables: {missing}")
                 sys.exit(1)
             else:
-                print("\nSUCCESS: All 8 Grocer tables present in Supabase!")
+                print(f"\nSUCCESS: All {len(expected)} Grocer tables present in Supabase!")
     finally:
         await close_db_pool()
 

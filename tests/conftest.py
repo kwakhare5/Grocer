@@ -59,8 +59,8 @@ async def _prepare_test_database(request: pytest.FixtureRequest) -> None:
     _DB_TESTS_RAN = True
     from backend.database import apply_migrations, get_db_pool
 
-    pool = await get_db_pool()
     await apply_migrations()
+    pool = await get_db_pool()
     if _BASELINE_USER_IDS is None:
         async with pool.acquire() as conn:
             rows = await conn.fetch("SELECT id::text AS id FROM grocer.users;")

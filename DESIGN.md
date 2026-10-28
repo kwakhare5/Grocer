@@ -51,7 +51,7 @@ Rules for every add receipt:
 
 Live since 2026-10-27: an add receipt shows only the change plus a delta line ("You already had N items (₹X). Basket now: M items."), and any Swiggy stock cap is printed with the capped quantity. A fresh-basket add still prints the whole basket.
 
-Current gaps: the savings line is built but never sent (`backend/agent/customer_advocate.py:251`), coupons still run only on the add path, and long receipts are truncated at 1024 characters (`backend/channels/whatsapp_client.py:46`). Target: split long receipts, never drop a line.
+Live since 2026-10-28: the receipt names the coupon and its rupee saving, coupons run on every cart write, and a receipt over the 1024-character button limit is sent whole as text with Pay/Clear in a short follow-up (`send_receipt`, `backend/channels/button_router.py`). The interactive body limit still truncates non-receipt bodies, which are short by design.
 
 ## A3. Out-of-stock and unserviceable items
 
@@ -136,7 +136,7 @@ Live in code since 2026-10-28: the model names the dish, people count and each i
 - UPI is the first path. The customer taps the CTA, pays on Swiggy's HTTPS page, and Grocer polls `check_payment_status`.
 - `checkout` is not idempotent. On a 5xx or network failure, check `get_orders` before retrying. Never blind-retry.
 - UPI sends `generateUPIQR=true`, or `intentApp` when one is supplied. Fixed in Phase 3.
-- COD is the second path. SwiggyPay is later, only when the live response offers it.
+- UPI is the only path this build can place. COD and SwiggyPay are parked; the payment answer says they cannot be used yet.
 - The ₹1,000 cap is a safety limit, not a product upsell. The customer must explicitly raise it.
 
 ## A7. Post-order messages
@@ -158,14 +158,14 @@ Every error must say what happened and what the customer can do:
 - Price changed: say the price changed, by how much, and ask them to review the new receipt.
 - Cap exceeded: say the cap, show the total, offer the explicit raise button.
 - Swiggy or network failure: say it failed, do not claim the order was placed, and do not retry a non-idempotent checkout blindly.
-- AI or model outage: say the assistant itself is unavailable, confirm nothing was changed, and offer one retry. Never turn an outage into "I didn't catch that". Live since 2026-10-27: `AI_OUTAGE_REPLY` names the outage, says the basket did not change, and asks the customer to resend in a minute. The turn budget is 8 seconds.
+- AI or model outage: say the assistant itself is unavailable, confirm nothing was changed, and offer one retry. Never turn an outage into "I didn't catch that". Live since 2026-10-27: `AI_OUTAGE_REPLY` names the outage, says the basket did not change, and asks the customer to resend in a minute. Each model call has an 8-second budget; a turn with routing plus evaluation can take about 16 seconds.
 - WhatsApp send failure: log it and surface it. Never pretend the message was delivered.
 
 ## A9. Privacy
 
 - `"delete my data"` must list what will be deleted, then delete it after confirmation.
 - Target: delete the user row, onboarding context, display name, coordinates, address coordinates, approvals and checkouts, and revoke the Swiggy token.
-- Current: the handler deletes the token and nulls some payloads, but leaves the user row, onboarding context, display name and coordinates. Do not claim a full purge until that is fixed.
+- Current (2026-10-28): the handler deletes the token, inbound messages and cached geocodes, clears plan/onboarding/coordinates, and anonymizes the user row (`deleted-<uuid>`, no name, no Swiggy id). Live 24h scrub verification is pending. App queries run as the non-superuser `grocer_app` role (migration 007); RLS is intentionally absent because `anon` and `authenticated` have zero access to the schema (verified).
 
 ---
 
@@ -191,7 +191,7 @@ Target:
 2. The link is `https://wa.me/<NEXT_PUBLIC_WHATSAPP_NUMBER>`.
 3. Swiggy OAuth is a hidden bridge. The bot sends the reconnect link only when a customer needs to link or refresh Swiggy. The normal landing page does not ask for a phone number.
 
-Done 2026-10-27: the phone form is gone. The page accepts a signed `?t=` link from the bot, and it never asks for a phone number.
+Done 2026-10-27: the phone form is gone. The page accepts a signed `?t=` link from the bot, and it never asks for a phone number. Rebuilt 2026-10-28: the WhatsApp button is the hero CTA; the OAuth card appears only for `?t=` or a callback; a missing `NEXT_PUBLIC_WHATSAPP_NUMBER` disables the button with a visible note instead of linking to a placeholder.
 
 ## B3. Page sections
 
@@ -233,7 +233,7 @@ Done 2026-10-27: the phone form is gone. The page accepts a signed `?t=` link fr
 - Routes: `/api/auth/swiggy/login` and `/api/auth/swiggy/callback`.
 - Exact redirect: `https://grocerr.vercel.app/`.
 - The bridge stores the phone in PKCE state and links the Swiggy token to that `wa_id`.
-- Current: login requires a signed bot link (HMAC, 1-hour TTL). PKCE state is still in process memory, so a Render restart mid-login forces a retry. Target: DB-backed state with a TTL.
+- Current: login requires a signed bot link (HMAC, 1-hour TTL). PKCE state lives in `grocer.oauth_states` with a 10-minute one-time TTL, so a Render restart mid-login does not break the callback.
 - The landing page must not render customer data after the callback. It only shows a success or failure state.
 
 ## B8. Landing page done condition
@@ -244,3 +244,5 @@ Done 2026-10-27: the phone form is gone. The page accepts a signed `?t=` link fr
 - No fake number, fake uptime, or invented statistic.
 - Mobile layout works at 360px width.
 - The page does not pretend to be the product UI.
+
+**State 2026-10-28:** built in code. `npm run build` passes; checked at 1440px and real 360px emulation with no horizontal overflow; the `?t=` connect card renders; the CTA disables without the env var. Vercel deploy is pending.

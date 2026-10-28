@@ -1,5 +1,5 @@
-Goal: Phase 7 remaining (merge, chunks, coupons/fees/bill/support), then Phase 6 privacy, 8 landing, 9 handoff. No live order.
-Shipped: pushed through 0d26cca (reactions, Batch 2, Q3, Q1/Q2, review fixes, coupons slice). Batch 3 tail (bill, report, store-open, post-order truth) in code, uncommitted.
-Passing tests: verify.ps1 -Db exit 0 — 142 offline, 61 DB, 223 collected, ruff clean, Next build pass.
-Next action: Phase 6 privacy (DPDP cascade, service-only DB role, log redaction, CHECK constraints + updated_at triggers, dead schema), then Phase 8 landing, Phase 9 handoff. Pushed through 0d26cca.
-Unproven: live reaction draw, live recipe route/tap/typed pick, live multi-item turn and burst behavior, Change-item tap, blue ticks with a real wamid. Backlog in TASKS.md.
+Goal: Phase 9 handoff; Vercel deploy; live phone proof session. No paid order. Render env unchanged.
+Shipped: Block 1 + review fixes + Phase 8 are code-complete but uncommitted. Last push is b03573c; Render last verified on 09b5fa2.
+Passing tests: verify.ps1 -Db exit 0 — schema pass (9 tables, grocer_app, ledger read-only), ruff clean, 142 offline, 66 DB, 228 collected, Next build pass. Live router eval 40/40, avg 1574ms, p95 2265ms, max 3422ms.
+Next action: commit when Karan asks, set NEXT_PUBLIC_WHATSAPP_NUMBER in Vercel, deploy, run Phase 9 handoff and the phone proof session.
+Unproven: live 24h TTL, OAuth reconnect after PKCE move, reaction draw, recipe route/tap/typed pick, double-text, long basket, coupon savings, bill (needs a past order), report filing, store-open, blue ticks, address add/delete, Gate 2 cases 7–8. Checkout stays simulated; no order will be placed.

@@ -6,62 +6,204 @@
       "id": "add-1l-milk",
       "category": "single_add",
       "text": "add 1 litre milk",
-      "plan": {"capability": "add_items", "items": [{"query": "milk", "quantity": 1, "amount": 1, "unit": "l"}]},
-      "expect_cart": [{"any": ["spin_amul_1l"], "qty": 1}],
-      "forbid": ["spin_amul_500ml", "spin_nandini_500ml"]
+      "plan": {
+        "capability": "add_items",
+        "items": [
+          {
+            "query": "milk",
+            "quantity": 1,
+            "amount": 1,
+            "unit": "l"
+          }
+        ]
+      },
+      "expect_cart": [
+        {
+          "any": [
+            "spin_amul_1l"
+          ],
+          "qty": 1
+        }
+      ],
+      "forbid": [
+        "spin_amul_500ml",
+        "spin_nandini_500ml"
+      ]
     },
     {
       "id": "add-500ml-milk",
       "category": "single_add",
       "text": "add 500 ml milk",
-      "plan": {"capability": "add_items", "items": [{"query": "milk", "quantity": 1, "amount": 500, "unit": "ml"}]},
-      "expect_cart": [{"any": ["spin_amul_500ml", "spin_nandini_500ml"], "qty": 1}],
-      "forbid": ["spin_amul_1l"]
+      "plan": {
+        "capability": "add_items",
+        "items": [
+          {
+            "query": "milk",
+            "quantity": 1,
+            "amount": 500,
+            "unit": "ml"
+          }
+        ]
+      },
+      "expect_cart": [
+        {
+          "any": [
+            "spin_amul_500ml",
+            "spin_nandini_500ml"
+          ],
+          "qty": 1
+        }
+      ],
+      "forbid": [
+        "spin_amul_1l"
+      ]
     },
     {
       "id": "add-brown-bread",
       "category": "single_add",
       "text": "add brown bread",
-      "known_failure": "The model-less picker takes the first candidate that matches any word, so a qualifier like 'brown' is dropped.",
-      "plan": {"capability": "add_items", "items": [{"query": "brown bread", "quantity": 1}]},
-      "expect_cart": [{"any": ["spin_bread_brown"], "qty": 1}],
-      "forbid": ["spin_bread_white"]
+      "plan": {
+        "capability": "add_items",
+        "items": [
+          {
+            "query": "brown bread",
+            "quantity": 1
+          }
+        ]
+      },
+      "expect_cart": [
+        {
+          "any": [
+            "spin_bread_brown"
+          ],
+          "qty": 1
+        }
+      ],
+      "forbid": [
+        "spin_bread_white"
+      ]
     },
     {
       "id": "add-maggi",
       "category": "single_add",
       "text": "add maggi",
-      "plan": {"capability": "add_items", "items": [{"query": "maggi", "quantity": 1}]},
-      "expect_cart": [{"any": ["spin_maggi_4pack"], "qty": 1}]
+      "plan": {
+        "capability": "add_items",
+        "items": [
+          {
+            "query": "maggi",
+            "quantity": 1
+          }
+        ]
+      },
+      "expect_cart": [
+        {
+          "any": [
+            "spin_maggi_4pack"
+          ],
+          "qty": 1
+        }
+      ]
     },
     {
       "id": "add-curd",
       "category": "single_add",
       "text": "add curd",
-      "plan": {"capability": "add_items", "items": [{"query": "curd", "quantity": 1}]},
-      "expect_cart": [{"any": ["spin_curd_400g"], "qty": 1}]
+      "plan": {
+        "capability": "add_items",
+        "items": [
+          {
+            "query": "curd",
+            "quantity": 1
+          }
+        ]
+      },
+      "expect_cart": [
+        {
+          "any": [
+            "spin_curd_400g"
+          ],
+          "qty": 1
+        }
+      ]
     },
     {
       "id": "add-1kg-sugar",
       "category": "single_add",
       "text": "add 1 kg sugar",
-      "plan": {"capability": "add_items", "items": [{"query": "sugar", "quantity": 1, "amount": 1, "unit": "kg"}]},
-      "expect_cart": [{"any": ["spin_sugar_1kg"], "qty": 1}]
+      "plan": {
+        "capability": "add_items",
+        "items": [
+          {
+            "query": "sugar",
+            "quantity": 1,
+            "amount": 1,
+            "unit": "kg"
+          }
+        ]
+      },
+      "expect_cart": [
+        {
+          "any": [
+            "spin_sugar_1kg"
+          ],
+          "qty": 1
+        }
+      ]
     },
     {
       "id": "add-pasta",
       "category": "single_add",
       "text": "add pasta",
-      "plan": {"capability": "add_items", "items": [{"query": "pasta", "quantity": 1}]},
-      "expect_cart": [{"any": ["spin_spaghetti_500g"], "qty": 1}]
+      "plan": {
+        "capability": "add_items",
+        "items": [
+          {
+            "query": "pasta",
+            "quantity": 1
+          }
+        ]
+      },
+      "expect_cart": [
+        {
+          "any": [
+            "spin_spaghetti_500g"
+          ],
+          "qty": 1
+        }
+      ]
     },
     {
       "id": "add-milk-that-is-already-in-the-basket",
       "category": "single_add",
       "text": "add 1 litre milk",
-      "plan": {"capability": "add_items", "items": [{"query": "milk", "quantity": 1, "amount": 1, "unit": "l"}]},
-      "basket": [{"spinId": "spin_amul_1l", "quantity": 1, "itemName": "Amul Taaza Toned Milk 1 L", "price": 72}],
-      "expect_cart": [{"any": ["spin_amul_1l"], "qty": 2}]
+      "plan": {
+        "capability": "add_items",
+        "items": [
+          {
+            "query": "milk",
+            "quantity": 1,
+            "amount": 1,
+            "unit": "l"
+          }
+        ]
+      },
+      "basket": [
+        {
+          "spinId": "spin_amul_1l",
+          "quantity": 1,
+          "itemName": "Amul Taaza Toned Milk 1 L",
+          "price": 72
+        }
+      ],
+      "expect_cart": [
+        {
+          "any": [
+            "spin_amul_1l"
+          ],
+          "qty": 2
+        }
+      ]
     },
     {
       "id": "multi-paneer-jamun-rice",
@@ -70,17 +212,46 @@
       "plan": {
         "capability": "add_items",
         "items": [
-          {"query": "paneer", "quantity": 1, "amount": 200, "unit": "g"},
-          {"query": "gulab jamun", "quantity": 1},
-          {"query": "rice", "quantity": 1, "amount": 500, "unit": "g"}
+          {
+            "query": "paneer",
+            "quantity": 1,
+            "amount": 200,
+            "unit": "g"
+          },
+          {
+            "query": "gulab jamun",
+            "quantity": 1
+          },
+          {
+            "query": "rice",
+            "quantity": 1,
+            "amount": 500,
+            "unit": "g"
+          }
         ]
       },
       "expect_cart": [
-        {"any": ["spin_paneer_200g"], "qty": 1},
-        {"any": ["spin_jamun_500g"], "qty": 1}
+        {
+          "any": [
+            "spin_paneer_200g"
+          ],
+          "qty": 1
+        },
+        {
+          "any": [
+            "spin_jamun_500g"
+          ],
+          "qty": 1
+        }
       ],
-      "forbid": ["spin_paneer_400g", "spin_rice_1kg"],
-      "reply_has": ["Not added", "rice"]
+      "forbid": [
+        "spin_paneer_400g",
+        "spin_rice_1kg"
+      ],
+      "reply_has": [
+        "Not added",
+        "rice"
+      ]
     },
     {
       "id": "multi-maggi-and-parle-g",
@@ -89,15 +260,33 @@
       "plan": {
         "capability": "add_items",
         "items": [
-          {"query": "maggi", "quantity": 2},
-          {"query": "parle-g", "quantity": 1}
+          {
+            "query": "maggi",
+            "quantity": 2
+          },
+          {
+            "query": "parle-g",
+            "quantity": 1
+          }
         ]
       },
       "expect_cart": [
-        {"any": ["spin_maggi_4pack"], "qty": 2},
-        {"any": ["spin_parle_g"], "qty": 1}
+        {
+          "any": [
+            "spin_maggi_4pack"
+          ],
+          "qty": 2
+        },
+        {
+          "any": [
+            "spin_parle_g"
+          ],
+          "qty": 1
+        }
       ],
-      "reply_lacks": ["Not added"]
+      "reply_lacks": [
+        "Not added"
+      ]
     },
     {
       "id": "multi-milk-and-bread",
@@ -106,15 +295,36 @@
       "plan": {
         "capability": "add_items",
         "items": [
-          {"query": "milk", "quantity": 1},
-          {"query": "bread", "quantity": 1}
+          {
+            "query": "milk",
+            "quantity": 1
+          },
+          {
+            "query": "bread",
+            "quantity": 1
+          }
         ]
       },
       "expect_cart": [
-        {"any": ["spin_amul_1l", "spin_amul_500ml", "spin_nandini_500ml"], "qty": 1},
-        {"any": ["spin_bread_white", "spin_bread_brown"], "qty": 1}
+        {
+          "any": [
+            "spin_amul_1l",
+            "spin_amul_500ml",
+            "spin_nandini_500ml"
+          ],
+          "qty": 1
+        },
+        {
+          "any": [
+            "spin_bread_white",
+            "spin_bread_brown"
+          ],
+          "qty": 1
+        }
       ],
-      "reply_lacks": ["Not added"]
+      "reply_lacks": [
+        "Not added"
+      ]
     },
     {
       "id": "multi-onion-sugar-ginger",
@@ -123,17 +333,49 @@
       "plan": {
         "capability": "add_items",
         "items": [
-          {"query": "onion", "quantity": 1, "amount": 1, "unit": "kg"},
-          {"query": "sugar", "quantity": 1, "amount": 1, "unit": "kg"},
-          {"query": "ginger", "quantity": 1, "amount": 100, "unit": "g"}
+          {
+            "query": "onion",
+            "quantity": 1,
+            "amount": 1,
+            "unit": "kg"
+          },
+          {
+            "query": "sugar",
+            "quantity": 1,
+            "amount": 1,
+            "unit": "kg"
+          },
+          {
+            "query": "ginger",
+            "quantity": 1,
+            "amount": 100,
+            "unit": "g"
+          }
         ]
       },
       "expect_cart": [
-        {"any": ["spin_onion_1kg"], "qty": 1},
-        {"any": ["spin_sugar_1kg"], "qty": 1},
-        {"any": ["spin_ginger_100g"], "qty": 1}
+        {
+          "any": [
+            "spin_onion_1kg"
+          ],
+          "qty": 1
+        },
+        {
+          "any": [
+            "spin_sugar_1kg"
+          ],
+          "qty": 1
+        },
+        {
+          "any": [
+            "spin_ginger_100g"
+          ],
+          "qty": 1
+        }
       ],
-      "reply_lacks": ["Not added"]
+      "reply_lacks": [
+        "Not added"
+      ]
     },
     {
       "id": "multi-milk-and-unknown-item",
@@ -142,166 +384,469 @@
       "plan": {
         "capability": "add_items",
         "items": [
-          {"query": "milk", "quantity": 1},
-          {"query": "dragon fruit", "quantity": 1}
+          {
+            "query": "milk",
+            "quantity": 1
+          },
+          {
+            "query": "dragon fruit",
+            "quantity": 1
+          }
         ]
       },
-      "expect_cart": [{"any": ["spin_amul_1l", "spin_amul_500ml", "spin_nandini_500ml"], "qty": 1}],
-      "reply_has": ["dragon"]
+      "expect_cart": [
+        {
+          "any": [
+            "spin_amul_1l",
+            "spin_amul_500ml",
+            "spin_nandini_500ml"
+          ],
+          "qty": 1
+        }
+      ],
+      "reply_has": [
+        "dragon"
+      ]
     },
     {
       "id": "pack-2kg-atta",
       "category": "pack_math",
       "text": "add 2 kg atta",
-      "known_failure": "When the picked pack does not fit the amount, the code asks instead of taking the exact option it already found.",
-      "plan": {"capability": "add_items", "items": [{"query": "atta", "quantity": 1, "amount": 2, "unit": "kg"}]},
-      "expect_cart": [{"any": ["spin_atta_1kg"], "qty": 2}],
-      "forbid": ["spin_atta_5kg"]
+      "plan": {
+        "capability": "add_items",
+        "items": [
+          {
+            "query": "atta",
+            "quantity": 1,
+            "amount": 2,
+            "unit": "kg"
+          }
+        ]
+      },
+      "expect_cart": [
+        {
+          "any": [
+            "spin_atta_1kg"
+          ],
+          "qty": 2
+        }
+      ],
+      "forbid": [
+        "spin_atta_5kg"
+      ]
     },
     {
       "id": "pack-5kg-atta",
       "category": "pack_math",
       "text": "add 5 kg atta",
-      "plan": {"capability": "add_items", "items": [{"query": "atta", "quantity": 1, "amount": 5, "unit": "kg"}]},
-      "expect_cart": [{"any": ["spin_atta_5kg"], "qty": 1}]
+      "plan": {
+        "capability": "add_items",
+        "items": [
+          {
+            "query": "atta",
+            "quantity": 1,
+            "amount": 5,
+            "unit": "kg"
+          }
+        ]
+      },
+      "expect_cart": [
+        {
+          "any": [
+            "spin_atta_5kg"
+          ],
+          "qty": 1
+        }
+      ]
     },
     {
       "id": "pack-500g-paneer-has-no-exact-pack",
       "category": "pack_math",
       "text": "add 500 g paneer",
-      "plan": {"capability": "add_items", "items": [{"query": "paneer", "quantity": 1, "amount": 500, "unit": "g"}]},
+      "plan": {
+        "capability": "add_items",
+        "items": [
+          {
+            "query": "paneer",
+            "quantity": 1,
+            "amount": 500,
+            "unit": "g"
+          }
+        ]
+      },
       "expect_cart": [],
-      "forbid": ["spin_paneer_200g", "spin_paneer_400g"],
-      "reply_has": ["400"]
+      "forbid": [
+        "spin_paneer_200g",
+        "spin_paneer_400g"
+      ],
+      "reply_has": [
+        "400"
+      ]
     },
     {
       "id": "pack-6-bananas",
       "category": "pack_math",
       "text": "add 6 bananas",
-      "plan": {"capability": "add_items", "items": [{"query": "bananas", "quantity": 1, "amount": 6, "unit": "piece"}]},
-      "expect_cart": [{"any": ["spin_banana_6"], "qty": 1}]
+      "plan": {
+        "capability": "add_items",
+        "items": [
+          {
+            "query": "bananas",
+            "quantity": 1,
+            "amount": 6,
+            "unit": "piece"
+          }
+        ]
+      },
+      "expect_cart": [
+        {
+          "any": [
+            "spin_banana_6"
+          ],
+          "qty": 1
+        }
+      ]
     },
     {
       "id": "pack-2-bananas-never-buys-a-six-pack",
       "category": "pack_math",
       "text": "add 2 bananas",
-      "plan": {"capability": "add_items", "items": [{"query": "bananas", "quantity": 1, "amount": 2, "unit": "piece"}]},
+      "plan": {
+        "capability": "add_items",
+        "items": [
+          {
+            "query": "bananas",
+            "quantity": 1,
+            "amount": 2,
+            "unit": "piece"
+          }
+        ]
+      },
       "expect_cart": [],
-      "forbid": ["spin_banana_6"]
+      "forbid": [
+        "spin_banana_6"
+      ]
     },
     {
       "id": "pack-12-bananas",
       "category": "pack_math",
       "text": "add 12 bananas",
-      "plan": {"capability": "add_items", "items": [{"query": "bananas", "quantity": 1, "amount": 12, "unit": "piece"}]},
-      "expect_cart": [{"any": ["spin_banana_6"], "qty": 2}]
+      "plan": {
+        "capability": "add_items",
+        "items": [
+          {
+            "query": "bananas",
+            "quantity": 1,
+            "amount": 12,
+            "unit": "piece"
+          }
+        ]
+      },
+      "expect_cart": [
+        {
+          "any": [
+            "spin_banana_6"
+          ],
+          "qty": 2
+        }
+      ]
     },
     {
       "id": "pack-1-5-litres-milk",
       "category": "pack_math",
       "text": "add 1.5 litres milk",
-      "known_failure": "No split across pack sizes: 1.5 L should be one 1 L plus one 500 ml pack.",
-      "plan": {"capability": "add_items", "items": [{"query": "milk", "quantity": 1, "amount": 1.5, "unit": "l"}]},
+      "plan": {
+        "capability": "add_items",
+        "items": [
+          {
+            "query": "milk",
+            "quantity": 1,
+            "amount": 1.5,
+            "unit": "l"
+          }
+        ]
+      },
       "expect_cart": [
-        {"any": ["spin_amul_1l"], "qty": 1},
-        {"any": ["spin_amul_500ml", "spin_nandini_500ml"], "qty": 1}
+        {
+          "any": [
+            "spin_amul_1l"
+          ],
+          "qty": 1
+        },
+        {
+          "any": [
+            "spin_amul_500ml",
+            "spin_nandini_500ml"
+          ],
+          "qty": 1
+        }
       ]
     },
     {
       "id": "pack-100kg-atta-is-refused-honestly",
       "category": "pack_math",
       "text": "add 100 kg atta",
-      "plan": {"capability": "add_items", "items": [{"query": "atta", "quantity": 1, "amount": 100, "unit": "kg"}]},
-      "max_cart_qty": {"spin_atta_1kg": 4, "spin_atta_5kg": 4},
-      "reply_has": ["atta"]
+      "plan": {
+        "capability": "add_items",
+        "items": [
+          {
+            "query": "atta",
+            "quantity": 1,
+            "amount": 100,
+            "unit": "kg"
+          }
+        ]
+      },
+      "max_cart_qty": {
+        "spin_atta_1kg": 4,
+        "spin_atta_5kg": 4
+      },
+      "reply_has": [
+        "atta"
+      ]
     },
     {
       "id": "change-remove-milk",
       "category": "change",
       "text": "remove the milk",
-      "plan": {"capability": "change_item", "change_action": "remove", "items": [{"query": "milk", "quantity": 1}]},
+      "plan": {
+        "capability": "change_item",
+        "change_action": "remove",
+        "items": [
+          {
+            "query": "milk",
+            "quantity": 1
+          }
+        ]
+      },
       "basket": [
-        {"spinId": "spin_amul_1l", "quantity": 1, "itemName": "Amul Taaza Toned Milk 1 L", "price": 72},
-        {"spinId": "spin_bread_white", "quantity": 1, "itemName": "Modern Bread White", "price": 45}
+        {
+          "spinId": "spin_amul_1l",
+          "quantity": 1,
+          "itemName": "Amul Taaza Toned Milk 1 L",
+          "price": 72
+        },
+        {
+          "spinId": "spin_bread_white",
+          "quantity": 1,
+          "itemName": "Modern Bread White",
+          "price": 45
+        }
       ],
       "expect_cart": [
-        {"any": ["spin_bread_white"], "qty": 1},
-        {"any": ["spin_amul_1l"], "qty": 1}
+        {
+          "any": [
+            "spin_bread_white"
+          ],
+          "qty": 1
+        },
+        {
+          "any": [
+            "spin_amul_1l"
+          ],
+          "qty": 1
+        }
       ],
-      "reply_has": ["Remove"]
+      "reply_has": [
+        "Remove"
+      ]
     },
     {
       "id": "change-make-milk-3",
       "category": "change",
       "text": "make milk 3",
-      "plan": {"capability": "change_item", "change_action": "set_quantity", "items": [{"query": "milk", "quantity": 3}]},
-      "basket": [{"spinId": "spin_amul_1l", "quantity": 1, "itemName": "Amul Taaza Toned Milk 1 L", "price": 72}],
-      "expect_cart": [{"any": ["spin_amul_1l"], "qty": 3}]
+      "plan": {
+        "capability": "change_item",
+        "change_action": "set_quantity",
+        "items": [
+          {
+            "query": "milk",
+            "quantity": 3
+          }
+        ]
+      },
+      "basket": [
+        {
+          "spinId": "spin_amul_1l",
+          "quantity": 1,
+          "itemName": "Amul Taaza Toned Milk 1 L",
+          "price": 72
+        }
+      ],
+      "expect_cart": [
+        {
+          "any": [
+            "spin_amul_1l"
+          ],
+          "qty": 3
+        }
+      ]
     },
     {
       "id": "change-clear-cart",
       "category": "change",
       "text": "clear my cart",
-      "plan": {"capability": "clear_basket", "items": []},
-      "basket": [{"spinId": "spin_amul_1l", "quantity": 1, "itemName": "Amul Taaza Toned Milk 1 L", "price": 72}],
+      "plan": {
+        "capability": "clear_basket",
+        "items": []
+      },
+      "basket": [
+        {
+          "spinId": "spin_amul_1l",
+          "quantity": 1,
+          "itemName": "Amul Taaza Toned Milk 1 L",
+          "price": 72
+        }
+      ],
       "expect_cart": []
     },
     {
       "id": "change-remove-item-not-in-basket",
       "category": "change",
       "text": "remove the milk",
-      "plan": {"capability": "change_item", "change_action": "remove", "items": [{"query": "milk", "quantity": 1}]},
-      "basket": [{"spinId": "spin_bread_white", "quantity": 1, "itemName": "Modern Bread White", "price": 45}],
-      "expect_cart": [{"any": ["spin_bread_white"], "qty": 1}],
-      "reply_has": ["couldn't match"]
+      "plan": {
+        "capability": "change_item",
+        "change_action": "remove",
+        "items": [
+          {
+            "query": "milk",
+            "quantity": 1
+          }
+        ]
+      },
+      "basket": [
+        {
+          "spinId": "spin_bread_white",
+          "quantity": 1,
+          "itemName": "Modern Bread White",
+          "price": 45
+        }
+      ],
+      "expect_cart": [
+        {
+          "any": [
+            "spin_bread_white"
+          ],
+          "qty": 1
+        }
+      ],
+      "reply_has": [
+        "couldn't match"
+      ]
     },
     {
       "id": "truth-eggs-out-of-stock",
       "category": "truth",
       "text": "add 6 eggs",
-      "plan": {"capability": "add_items", "items": [{"query": "eggs", "quantity": 1, "amount": 6, "unit": "piece"}]},
+      "plan": {
+        "capability": "add_items",
+        "items": [
+          {
+            "query": "eggs",
+            "quantity": 1,
+            "amount": 6,
+            "unit": "piece"
+          }
+        ]
+      },
       "expect_cart": [],
-      "reply_has": ["egg"]
+      "reply_has": [
+        "egg"
+      ]
     },
     {
       "id": "truth-unknown-item",
       "category": "truth",
       "text": "add dragon fruit",
-      "plan": {"capability": "add_items", "items": [{"query": "dragon fruit", "quantity": 1}]},
+      "plan": {
+        "capability": "add_items",
+        "items": [
+          {
+            "query": "dragon fruit",
+            "quantity": 1
+          }
+        ]
+      },
       "expect_cart": [],
-      "reply_has": ["dragon"]
+      "reply_has": [
+        "dragon"
+      ]
     },
     {
       "id": "truth-5kg-almonds-warns-about-the-cap",
       "category": "truth",
       "text": "add 5 kg almonds",
-      "plan": {"capability": "add_items", "items": [{"query": "almonds", "quantity": 1, "amount": 5, "unit": "kg"}]},
-      "expect_cart": [{"any": ["spin_almonds_1kg"], "qty": 4}],
-      "reply_has": ["allows 4", "safety cap"]
+      "plan": {
+        "capability": "add_items",
+        "items": [
+          {
+            "query": "almonds",
+            "quantity": 1,
+            "amount": 5,
+            "unit": "kg"
+          }
+        ]
+      },
+      "expect_cart": [
+        {
+          "any": [
+            "spin_almonds_1kg"
+          ],
+          "qty": 4
+        }
+      ],
+      "reply_has": [
+        "allows 4",
+        "safety cap"
+      ]
     },
     {
       "id": "read-view-basket",
       "category": "read",
       "text": "what's in my basket?",
-      "plan": {"capability": "view_basket", "items": []},
+      "plan": {
+        "capability": "view_basket",
+        "items": []
+      },
       "basket": [
-        {"spinId": "spin_amul_1l", "quantity": 2, "itemName": "Amul Taaza Toned Milk 1 L", "price": 72},
-        {"spinId": "spin_bread_white", "quantity": 1, "itemName": "Modern Bread White", "price": 45}
+        {
+          "spinId": "spin_amul_1l",
+          "quantity": 2,
+          "itemName": "Amul Taaza Toned Milk 1 L",
+          "price": 72
+        },
+        {
+          "spinId": "spin_bread_white",
+          "quantity": 1,
+          "itemName": "Modern Bread White",
+          "price": 45
+        }
       ],
-      "reply_has": ["Milk", "Bread"]
+      "reply_has": [
+        "Milk",
+        "Bread"
+      ]
     },
     {
       "id": "read-list-addresses",
       "category": "read",
       "text": "show my addresses",
-      "plan": {"capability": "list_addresses", "items": []},
-      "reply_has": ["address"]
+      "plan": {
+        "capability": "list_addresses",
+        "items": []
+      },
+      "reply_has": [
+        "address"
+      ]
     },
     {
       "id": "read-list-coupons",
       "category": "read",
       "text": "what coupons do i have?",
-      "plan": {"capability": "list_coupons", "items": []}
+      "plan": {
+        "capability": "list_coupons",
+        "items": []
+      }
     }
   ]
 }

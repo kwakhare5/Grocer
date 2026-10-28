@@ -798,3 +798,11 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: docs only. `TASKS.md` gains a scorecard section with the three findings and the five queued work items; `STATUS.md` gains three current-truth rows; `ARCHITECTURE.md` §7 makes the scorecard part of the definition of done; `HANDOFF.md` rewritten.
 - **Proof**: offline 28/31 (90.3%) from `.scratch/scorecard_offline.json`; live run stopped at 7 of 26, 3 pass and 4 honest AI-offline replies, raw in `.scratch/scorecard_live_run.log`. Lint and the 220-test suite were green before the doc edit.
 - **Still broken**: no live product score until the cap resets; the three findings are open; branch not merged.
+
+### [GROCER — scorecard fixes] 2026-10-28
+
+#### Work Card: The three scorecard findings are fixed
+- **Problem**: the offline scorecard scored 28/31. A qualifier was dropped ("brown bread" bought white), a wrong-size first pick asked instead of taking the exact pack ("2 kg atta"), and no amount could split across pack sizes ("1.5 litres").
+- **Change**: candidates are ranked by matched words in `backend/agent/candidate_evaluator.py`; `pack_plan` in `backend/agent/meal_planner.py` returns the fewest packs that add up exactly (max 12); the add path takes that plan before asking (`backend/channels/whatsapp.py`). No word lists, no per-phrase branches.
+- **Proof**: `tests/test_scorecard.py` 31/31 (100%); new `pack_plan` unit test; `pytest -q -m "not live"` -> 221 passed, 20 deselected; `ruff check backend tests` clean.
+- **Still broken**: the live 26-case run is blocked by Groq's daily cap; branch `scorecard` is still not merged.

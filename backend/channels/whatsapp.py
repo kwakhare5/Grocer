@@ -1026,6 +1026,7 @@ async def handle_webhook(
                         exact_packs_for,
                         measure,
                         measure_from_text,
+                        pack_plan,
                     )
 
                     extracted_items: list[ExtractedGroceryItem] = []
@@ -1179,16 +1180,36 @@ async def handle_webhook(
                             cand = evaluation.selected_candidate
                             packs = _packs_for(target, cand)
                             if packs is None:
-                                exact = [
-                                    (option, option_packs)
-                                    for option in cands
-                                    if (option_packs := _packs_for(target, option))
-                                    is not None
-                                ]
-                                if exact:
-                                    choice_prompts.append(
-                                        (target, [option for option, _ in exact])
-                                    )
+                                # The picked pack does not fit the amount. Take
+                                # the fewest packs that add up exactly before
+                                # troubling the customer with a question.
+                                plan = pack_plan(
+                                    target.amount,
+                                    target.unit,
+                                    [
+                                        (
+                                            option.spin_id,
+                                            option.quantity_description
+                                            or option.display_name,
+                                        )
+                                        for option in cands
+                                    ],
+                                )
+                                if plan:
+                                    by_spin = {option.spin_id: option for option in cands}
+                                    for spin_id, count in plan:
+                                        option = by_spin[spin_id]
+                                        items_to_add.append(
+                                            TargetCartItem(
+                                                spin_id=option.spin_id,
+                                                sku_id=option.sku_id,
+                                                quantity=count,
+                                                item_name=option.display_name,
+                                                price_paise=option.offer_price_paise,
+                                                max_quantity=option.max_quantity,
+                                                max_quantity_message=option.max_quantity_message,
+                                            )
+                                        )
                                 else:
                                     unfound_queries.append(_describe(target))
                                     sizes = _sizes(cands)

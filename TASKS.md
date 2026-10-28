@@ -78,16 +78,16 @@ Branch `scorecard` off `db6a297`. **Not merged.** `main` and Render are unchange
 
 Two numbers, never mixed:
 
-- **Offline** — `tests/test_scorecard.py`, 31 cases. The plan is handed to the pipeline, so it scores Python with the model out of the loop (the AI-down floor). **28/31 = 90.3%.**
+- **Offline** — `tests/test_scorecard.py`, 31 cases. The plan is handed to the pipeline, so it scores Python with the model out of the loop (the AI-down floor). **31/31 = 100%**, up from 28/31 before the three fixes below.
 - **Live** — `scripts/scorecard_live.py`, 26 cases against the deployed webhook with the real model and real Swiggy. **Blocked** by Groq's 200k/day free cap; of the 7 that ran, 3 passed and 4 got the honest AI-offline reply.
 
-Each finding is a broken rule, not a bad test sentence. Any message with the same shape hits it.
+Each finding was a broken rule, not a bad test sentence. Any message with the same shape hit it.
 
-| Finding | Scope | Status |
+| Finding | Scope | Fix |
 |---|---|---|
-| A qualifier is dropped when the model is down — "brown bread" buys white bread | Every brand, variant or flavour request on the model-less path | OPEN |
-| A pack that does not fit the amount asks, even when an exact pack was already found — "2 kg atta" | Every "N kg / N g / N L" request whose first candidate is the wrong size | OPEN |
-| No split across pack sizes — "1.5 litres" cannot become 1 L + 500 ml | Every amount that needs two packs | OPEN |
+| A qualifier was dropped when the model is down — "brown bread" bought white bread | Every brand, variant or flavour request on the model-less path | **FIXED:** candidates are ranked by how many of the customer's words they match (`backend/agent/candidate_evaluator.py`). |
+| A pack that did not fit the amount asked, even when an exact pack was already found — "2 kg atta" | Every "N kg / N g / N L" request whose first candidate is the wrong size | **FIXED:** the fewest exact packs are taken before any question (`backend/channels/whatsapp.py`, `pack_plan`). |
+| No split across pack sizes — "1.5 litres" could not become 1 L + 500 ml | Every amount that needs two packs | **FIXED:** `pack_plan` in `backend/agent/meal_planner.py` finds the fewest packs that add up exactly, capped at 12. |
 
 | Work item | Status |
 |---|---|

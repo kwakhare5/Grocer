@@ -138,6 +138,63 @@ def exact_packs_for(
     return packs
 
 
+MAX_PACKS_IN_PLAN = 12
+
+
+def pack_plan(
+    amount: Any,
+    unit: str | None,
+    sizes: list[tuple[str, str | None]],
+) -> list[tuple[str, int]] | None:
+    """Packs that add up exactly to the amount, using the fewest packs.
+
+    `sizes` is (key, quantity description). One 1 L plus one 500 ml beats three
+    500 ml. Returns None when no exact plan fits inside MAX_PACKS_IN_PLAN.
+    """
+    needed = measure(amount, unit)
+    if not needed:
+        return None
+    family, target = needed
+
+    parsed: list[tuple[str, float]] = []
+    seen: set[tuple[str, float]] = set()
+    for key, description in sizes:
+        pack = parse_pack_size(description)
+        if not pack or pack[0] != family or pack[1] <= 0 or pack[1] > target:
+            continue
+        if (key, pack[1]) in seen:
+            continue
+        seen.add((key, pack[1]))
+        parsed.append((key, pack[1]))
+    if not parsed:
+        return None
+    parsed.sort(key=lambda row: row[1], reverse=True)
+
+    best: dict[str, Any] = {"packs": MAX_PACKS_IN_PLAN + 1, "plan": []}
+
+    def walk(index: int, remaining: float, chosen: list[tuple[str, int]], packs: int) -> None:
+        if math.isclose(remaining, 0.0, abs_tol=1e-6):
+            if packs < best["packs"]:
+                best["packs"] = packs
+                best["plan"] = list(chosen)
+            return
+        if index >= len(parsed) or packs >= best["packs"] or packs >= MAX_PACKS_IN_PLAN:
+            return
+        key, size = parsed[index]
+        highest = min(int(remaining // size), MAX_PACKS_IN_PLAN - packs)
+        for count in range(highest, -1, -1):
+            if count:
+                chosen.append((key, count))
+            walk(index + 1, remaining - count * size, chosen, packs + count)
+            if count:
+                chosen.pop()
+
+    walk(0, target, [], 0)
+    if best["packs"] > MAX_PACKS_IN_PLAN:
+        return None
+    return best["plan"]
+
+
 def parse_pick_indexes(text: str, item_count: int) -> list[int] | None:
     """Read a numbered reply like '1 and 3' against the plan on screen."""
     if item_count <= 0 or not text:

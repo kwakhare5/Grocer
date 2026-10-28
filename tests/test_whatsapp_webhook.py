@@ -1198,3 +1198,43 @@ async def test_short_receipt_stays_one_buttons_message():
 
     assert outbound.texts == []
     assert outbound.buttons[-1][1] == "short receipt"
+
+
+@pytest.mark.asyncio
+async def test_a_read_turn_stores_exactly_one_user_and_one_assistant_entry(monkeypatch):
+    """Guards the read path after it moved into its own module."""
+    pool = await get_db_pool()
+    wa_id, user_id = await _seed_text_user(pool)
+    client = FixtureSwiggyClient(FIXTURES_DIR, catalog_data=_catalog())
+    outbound = RecordingWA()
+
+    from backend.agent import router as router_module
+    from backend.agent.router import Capability, RoutingDecision, SafetyClass
+
+    monkeypatch.setattr(settings, "LLM_PROVIDER", "scripted")
+    monkeypatch.setattr(
+        router_module,
+        "route_message",
+        lambda *args, **kwargs: RoutingDecision(
+            capability=Capability.VIEW_BASKET,
+            safety=SafetyClass.READ,
+            confidence=0.95,
+        ),
+    )
+
+    await handle_webhook(
+        SignedRequest(_message(wa_id, text="what's in my basket?")),
+        swiggy_client=client,
+        wa_client=outbound,
+    )
+
+    row = await pool.fetchrow(
+        "SELECT history FROM grocer.sessions WHERE user_id = $1;", user_id
+    )
+    history = row["history"]
+    if isinstance(history, str):
+        history = json.loads(history)
+
+    assert [entry["role"] for entry in history] == ["user", "assistant"]
+    assert history[0]["text"] == "what's in my basket?"
+    assert history[1]["text"] in _all_bodies(outbound)

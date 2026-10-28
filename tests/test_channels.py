@@ -32,9 +32,20 @@ def _compute_signature(payload_bytes: bytes, secret: str) -> str:
     return f"sha256={sig}"
 
 
+_WA_SEQUENCE = 0
+
+
+def _fresh_wa_id() -> str:
+    """A new number per payload: the 20/hour cap is per user, so a fixed test
+    number makes this file fail on a second run inside the same hour."""
+    global _WA_SEQUENCE
+    _WA_SEQUENCE += 1
+    return f"9198{int(time.time()) % 100000:05d}{_WA_SEQUENCE:03d}"
+
+
 def _make_whatsapp_message_payload(
     message_id: str,
-    wa_id: str = "919876543210",
+    wa_id: str | None = None,
     text: str | None = "milk and eggs",
     button_id: str | None = None,
     button_title: str | None = None,
@@ -42,6 +53,9 @@ def _make_whatsapp_message_payload(
 ) -> dict:
     if timestamp is None:
         timestamp = int(time.time())
+
+    if wa_id is None:
+        wa_id = _fresh_wa_id()
 
     msg: dict = {
         "from": wa_id,
@@ -120,8 +134,10 @@ def _make_whatsapp_location_payload(
     message_id: str,
     latitude: float = 19.0596,
     longitude: float = 72.8295,
-    wa_id: str = "919876543210",
+    wa_id: str | None = None,
 ) -> dict:
+    if wa_id is None:
+        wa_id = _fresh_wa_id()
     return {
         "object": "whatsapp_business_account",
         "entry": [

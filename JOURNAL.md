@@ -870,3 +870,11 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: `backend/channels/turn_basket.py` handles change, clear and reorder through `handle_basket_capability(ctx, decision)`. The webhook calls it once. Error handlers moved across unchanged.
 - **Proof**: `pytest -q -m "not live"` -> 221 passed, 20 deselected; ruff clean; scorecard 31/31. `whatsapp.py` 1,434 -> 1,190 lines across the three moves.
 - **Still broken**: move 4 (the add path) is still a closure; the live run is still capped by Groq.
+
+### [GROCER — move 1 rechecked] 2026-10-29
+
+#### Work Card: The read move checked line by line, and the flaky test fixed
+- **Problem**: move 1 needed a second look, and `tests/test_channels.py` reused the fixed number `919876543210`, so a second run inside an hour tripped the 20/hour cap and failed three tests.
+- **Change**: no production code changed. Added `test_a_read_turn_stores_exactly_one_user_and_one_assistant_entry` to guard the extracted read path, and made both webhook payload helpers mint a fresh number per call.
+- **Proof**: focused files 66 passed; full suite run twice back to back on the same database -> 222 passed, 20 deselected both times; ruff clean.
+- **Still broken**: move 4 (the add path) is still a closure; no live run yet.

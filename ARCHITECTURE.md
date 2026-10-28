@@ -1,8 +1,9 @@
-# ARCHITECTURE.md — Grocer Technical Architecture (Clean-Slate v1.0)
+# ARCHITECTURE.md — Grocer Technical Architecture
 
 > **Status:** Agreed technical design. Current state and known gaps live in `STATUS.md`.  
 > **Product Goal:** Swiggy Instamart grocery concierge and account manager on WhatsApp.  
 > **Stack:** Python 3.12 + FastAPI • Groq `openai/gpt-oss-120b` primary for development and tests; Gemini optional (ADR 0012) • Swiggy Instamart MCP (20 tools) • Meta WhatsApp Cloud API • PostgreSQL (one Supabase project; `grocer` schema in `postgres`, separate `grocer_test` database for tests) • Render backend • Vercel landing page
+> **Deploy:** `main` is the only branch. Render and Vercel deploy it; GitHub Actions on every push to `main` runs ruff, all non-live tests against a throwaway Postgres, and the Next build.
 > **Live checkout:** `LIVE_CHECKOUT_ENABLED=false` until Karan approves a specific order.  
 
 ---

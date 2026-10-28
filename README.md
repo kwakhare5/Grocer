@@ -96,6 +96,9 @@ Without it the page shows the placeholder number and disables the button.
 Database tests refuse to run unless `TEST_DATABASE_URL` names the separate
 `grocer_test` database. Tests never write production data.
 
+GitHub Actions runs ruff, every non-live test on a throwaway Postgres, and the
+Next build on each push to `main`.
+
 ## Layout
 
 ```

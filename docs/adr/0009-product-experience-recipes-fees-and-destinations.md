@@ -5,6 +5,7 @@
 > **Amendment 2026-10-28:** Recipe plan-confirm-add is built in code (`plan_meal`, `backend/agent/meal_planner.py`): model-named dish/servings/packs, live pricing, Add all or Let me pick, no write before a tap. Its live route and Add-all tap are still unproven. Fee warning and post-order add remain unbuilt; do not describe them as live.
 > **Amendment 2026-10-28 (charges line):** when charges reach 35% of item value the receipt adds one honest line with the amount and percent. The full fee-shock flow with Add Essentials / Proceed with Fees buttons is still unbuilt; do not describe it as live.
 > **Amendment 2026-10-28 (stored plan):** The priced plan is no longer encoded into the button id. It is stored in `grocer.sessions.pending_plan` with a 30-minute expiry (migration 005); Add all, pick taps and number-shaped text replies read it. The model gives each ingredient an amount and unit and Python computes whole packs from the store's pack size, falling back to the model's pack count when the store text cannot be compared. Picks write only the chosen in-stock rows and name the rest; Add all stays all-or-nothing. Live tap still unproven.
+> **Amendment 2026-10-28 (post-order truth):** The post-order add truth is built as an honest refusal: a placed Swiggy order is locked, so the bot says nothing can be added (`backend/agent/read_actions.py`). An Add Essentials flow is neither built nor needed.
 
 ## Context
 Real-world WhatsApp grocery shopping introduces critical behavioral edge cases where standard commerce bots fail user trust:

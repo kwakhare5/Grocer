@@ -72,19 +72,19 @@ If Swiggy does not provide an alternative, say so. Do not invent one.
 Live since 2026-10-27: the add receipt sends up to three quick replies, `[Pay ₹X]`, `[Keep only new]` (only when the basket already had items) and either `[Change item]` (one vague item) or `[Clear basket]`. After the pay tap, the bot sends a CTA URL button, `[Pay on Swiggy]`, using the HTTPS `bridgeUrl`.
 
 Target: one CTA URL button `[Pay ₹X (UPI / Card)]`, plus up to two secondary actions:
-1. `[Cash on Delivery]` when Swiggy offers it.
+1. `[Cash on Delivery]` when Swiggy offers it (parked for v1; UPI only).
 2. `[Change Address]` or `[Change Items]`.
 
 A CTA URL button opens Swiggy's payment page. A quick reply only sends a button ID back to Grocer. Do not mix them up.
 
 ### A4.2 Clear basket
 
-Preview first, then two buttons, `[Clear Cart]` (`cart:clear`) and `[Keep Cart]` (`cart:keep`). Never clear on a text guess. A clear is permanent by decision 2026-10-27: no undo. The confirm copy must say that plainly.
+Preview first, then two buttons, `[Clear basket]` (`cart:clear`) and `[Keep basket]` (`cart:keep`). Never clear on a text guess. A clear is permanent by decision 2026-10-27: no undo. The confirm copy must say that plainly.
 
 ### A4.3 Address switch and delete
 
 - Switch: show the saved addresses, then confirm. Live since 2026-10-27: a short numbered card keeps the first and last segments of each address and offers up to 3 `[Use: <Label>]` buttons. The switch warns, clears and rebuilds the basket at the new store and names anything it could not move. A 10-row list picker is still the target for more than 3 addresses.
-- Delete: `[Confirm Delete: <Label>]` and `[Keep Address]`. The guard refuses deletion when an active delivery uses that address, and it runs again on the final tap.
+- Delete: `[Yes, delete]` and `[Cancel]`. The guard refuses deletion when an active delivery uses that address, and it runs again on the final tap.
 
 ### A4.4 Token expiry
 

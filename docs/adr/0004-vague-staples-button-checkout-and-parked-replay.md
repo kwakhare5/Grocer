@@ -1,6 +1,7 @@
 # ADR 0004: Smart Kirana Defaults, Physical Button Checkout Authority, and Parked Replay
 
 > **Status 2026-10-27:** Amended. The 5-day/no-refresh claim is obsolete: Grocer stores a 30-day refresh token and refreshes first. Park and replay are wired. Vague-item behavior is still model-dependent. See `STATUS.md`.
+> **Amendment 2026-10-29:** the pay button id is `pay:<approval_id>`; Lock 1 rejects anything else.
 
 ## Context
 Real-world customer behavior on WhatsApp diverges into high-frequency edge cases:

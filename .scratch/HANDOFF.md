@@ -1,5 +1,5 @@
-Goal: give the project a score, then simplify the write path. Branch `scorecard` only; `main` and Render unchanged. No order.
-Shipped on the branch: offline scorecard (31 cases, 31/31) and a live scorer (26 cases), no keyword lists in candidate selection, and the webhook split into `turn_read`, `turn_address`, `turn_basket`, `turn_add`. `whatsapp.py` 1,434 -> 925 lines.
-Passing tests: ruff clean; `pytest -m "not live"` -> 222 passed, 20 deselected, twice back to back. `main` is still `db6a297`.
-Next action: rerun the live 26 when Groq's daily cap resets, then the 40-case router eval, then Phase 1 (one write verb set). Merge only on Karan's go.
-Unproven: full live scorecard (cap), Add-all/Change taps, address add/delete, OAuth reconnect, reaction on a real handset, live 24h scrub. Checkout stays locked.
+Goal: score the project, then shrink the write path without losing behaviour. Branch `scorecard` only; `main` and Render unchanged. No order.
+Shipped: offline scorecard 31/31; live router eval 40/40 exact (avg 1535ms); write verbs collapsed to add/set/remove/clear; webhook split into turn_read/turn_address/turn_basket/turn_add (whatsapp.py 1,434 -> 926 lines).
+Passing: verify.ps1 -Db exit 0 on 2026-10-29 (schema, ruff, 223 tests, Next build); live verb cases 10/10 after three quota retries; `main` is db6a297, branch has 12 commits, nothing pushed.
+Next action: the 26-case live scorecard when Groq's token window frees (needs ~100k); then item 4, skipping the second model call. Merge only on Karan's go.
+Unproven: scorecard, Add-all/Change taps, address add/delete, OAuth reconnect, reaction on a real handset, live 24h scrub. Checkout stays locked.

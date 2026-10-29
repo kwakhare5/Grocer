@@ -1,6 +1,7 @@
 # ADR 0006: Family Account Safety Cap, Milestone Hygiene, and DPDP Data Erasure
 
 > **Status 2026-10-27:** Partial. ₹1,000 cap stays. Cap-raise reopens the same receipt. DPDP scrubbing leaves onboarding PII, coordinates, the user row, and audit rows. See `STATUS.md` §5.
+> **Amendment 2026-10-29:** the 24-hour scrub also clears onboarding fields and deletes `address_coords`; the cap-raise button title is "Raise Limit to ₹X".
 
 ## Context
 1. **Shared Devices & Rogue Orders:** In Indian households, phones are frequently shared with children, family members, or left unlocked on work desks. Unrestricted conversational bots risk accidental multi-thousand-rupee orders from joke texts or toddler taps.

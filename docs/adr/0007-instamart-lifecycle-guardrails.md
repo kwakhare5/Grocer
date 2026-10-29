@@ -1,6 +1,7 @@
 # ADR 0007: Instamart Lifecycle Guardrails: Address Switching, Split Orders, Deletion, and Cancellation
 
 > **Status 2026-10-27:** Active. Address switch warns, clears and rebuilds the basket at the new store and names anything the new store cannot fill. The active-delivery delete guard runs on the real delete path. Split orders poll every order id. See `STATUS.md`.
+> **Amendment 2026-10-29:** the delete confirmation buttons are "Yes, delete" and "Cancel".
 
 ## Context
 Expanding Grocer from a shopping list bot to a full WhatsApp Instamart concierge introduces four critical lifecycle edge cases:

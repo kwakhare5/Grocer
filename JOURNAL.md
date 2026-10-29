@@ -910,3 +910,11 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: `Capability.CHANGE_ITEM` split into `SET_ITEM` and `REMOVE_ITEM`. `change_action` is deleted from `RoutingDecision`, the prompt schema, the parser and the decision log. The multi-item patch is gone; `handle_change_request` now refuses several items with "one item at a time" instead of silently adding. Prompt examples rebuilt; 7,514 chars, 161 shorter.
 - **Proof**: live router eval 40/40 exact, 0 unsafe writes, 0 under-acted, 0 errors, avg 1535ms, p95 2187ms (`.scratch/eval_b1.json`, `.scratch/eval_rest.json`). After the change: `ruff check backend tests` clean; `pytest -m "not live"` 223 passed / 20 deselected, twice. Live verb cases: 22–26 add pass, 28 remove pass, 29 set pass; 27 and 30 returned the honest AI-offline copy because Groq's cap cut in again.
 - **Still broken**: cases 27 and 30 await quota; the 26-case scorecard has not run; the branch is unmerged and unpushed.
+
+### [GROCER — full gate after the four verbs] 2026-10-29
+
+#### Work Card: The whole gate, not just pytest
+- **Problem**: the four-verb change had only been proven with `pytest` and ruff, not with the schema check and the Next build the project calls its done condition.
+- **Change**: none in code. Ran `verify.ps1 -Db` end to end.
+- **Proof**: `=== [PASS] Grocer verification complete ===` — schema check, ruff, 223 offline+DB tests on `grocer_test`, Next production build with all three routes compiled.
+- **Still broken**: three live verb cases wait on quota; the scorecard has not run; branch unmerged.

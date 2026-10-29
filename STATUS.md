@@ -34,14 +34,14 @@
 | Doc truth pass | **DONE 2026-10-28:** corrected pre-Batch-3 claims in ARCHITECTURE Layer 2/4, DESIGN A2/A6/A8/A9, PRD payment, GLOSSARY fee term, ADR index rows 0003–0006/0009, STATUS counts/constraints/next action, and the verify-grocer skill. No code changed. |
 | Landing page (Phase 8) | **DONE 2026-10-28, live:** rebuilt per `DESIGN.md` Part B in plain language for customers and the Swiggy team. Live/in-testing labels, safety, privacy, Swiggy strip and FAQ; no fake uptime or test numbers. OAuth card only for `?t=` or callback. `npm run build` pass; checked at 1440px and real 360px emulation with no overflow. Vercel production is live with 3 `wa.me` links and 0 disabled notes. |
 | Lint | **PASS 2026-10-28:** `ruff check backend tests` → `All checks passed!` |
-| Offline tests | **PASS 2026-10-29:** 147 offline + 75 DB = 222 passed, 20 live deselected, run twice back to back on the same database with the same result (`pytest -q -m "not live"`). |
+| Offline tests | **PASS 2026-10-29:** 148 offline + 75 DB = 223 passed, 20 live deselected, run twice back to back on the same database with the same result (`pytest -q -m "not live"`). |
 | DB tests | **PASS 2026-10-29:** 75 passed inside that same 222 run, on `grocer_test`. |
 | Basket path | **DONE 2026-10-28, merged in `2c63289`:** adds always add and increment an existing line; sizes are exact (200 g never becomes 400 g, 500 g never becomes 1 kg); every missing item is named; explicit set applies with a receipt; remove/clear still confirm. Abuse caps: 20 messages/hour/user, 10 items/message, quantity 1–99, media reply. Proof: 146 offline + 73 DB + Next build; exact paneer/rice regression test. Live route check: 3 cases pass; multi-item, eggs, Hinglish, bare "milk" and remove were blocked by the shared Groq TPM. |
 | Live route check | **PARTIAL 2026-10-28:** on the branch, "add 1 litre milk" → add 1 L; "add 1 more milk" → add 1; "make milk 3" → set 3. The remaining five live wordings were blocked by the shared Groq TPM, not by an error; the fixture tests for those paths pass. |
 | Live deploy 2c63289 | **PASS 2026-10-28:** push `d61b142..2c63289` accepted; Render deploy `dep-dbh0vkavcj2c73e0ghqg` reached `live` on `2c63289`; `GET https://grocer-backend-qwk4.onrender.com/health` → HTTP 200 `{"status":"healthy","database":"connected","app":"Grocer","environment":"development"}`. GitHub Quality run `40712848895` succeeded on `2c63289`. |
 | Live tests | **20 live-only tests collected, not run.** `test_catalog_search.py` calls the live router/model path and is marked `live`. |
 | Full test collection | **239 tests collected 2026-10-28.** |
-| Full suite claim | The old "136 passed, 0 skipped" claim is retired. The current verified set is 147 offline + 75 DB (242 collected, 20 of them live-only); live is excluded by default. Scripted tests are marked `scripted` and never counted as live proof. |
+| Full suite claim | The old "136 passed, 0 skipped" claim is retired. The current verified set is 148 offline + 75 DB (243 collected, 20 of them live-only); live is excluded by default. Scripted tests are marked `scripted` and never counted as live proof. |
 | Live Swiggy smoke | **PASS 2026-10-27:** real token, real MCP. 3 addresses, 20 milk products with live prices, 12-item cart read, 0 orders, 10 payment methods, 0 coupons. Cart add verified then restored (12 items, same spins and quantities). No order placed. Raw: `scripts/live_smoke.py`. |
 | Live Groq pass | **PASS 2026-10-27:** 10 real messages → 10 correct routes (item_info ×3, list_addresses, order_history, list_coupons, payment_options, add_items, chat, track_order) with real read answers. 55s. |
 | Live checkout lock | **PASS 2026-10-27:** with `LIVE_CHECKOUT_ENABLED=false`, the real path returned "Checkout is locked" and a sentinel client proved no Swiggy method ran. |
@@ -255,9 +255,9 @@ RuntimeError: Refusing to run tests against database 'postgres'. TEST_DATABASE_U
 
 | # | Item | State | Blocker |
 |---|---|---|---|
-| 1 | 40-case live router eval (`scripts/eval_router.py`) | NEXT | Groq quota |
-| 2 | 26-case live scorecard (`scripts/scorecard_live.py`) | NEXT | Groq quota |
-| 3 | Collapse the write path to four verbs; delete `change_item`, `change_action` and the router patch at `backend/agent/router.py:318` | QUEUED | Changes the model's output shape, so it needs 1 and 2 |
+| 1 | 40-case live router eval (`scripts/eval_router.py`) | **DONE 2026-10-29:** 40/40 exact, 0 unsafe writes, 0 under-acted, 0 errors; avg 1535ms, p95 2187ms, max 2719ms. Raw: `.scratch/eval_b1.json`, `.scratch/eval_rest.json`. | — |
+| 2 | 26-case live scorecard (`scripts/scorecard_live.py`) | NEXT | Groq daily quota left today |
+| 3 | Collapse the write path to four verbs; delete `change_item`, `change_action` and the router patch at `backend/agent/router.py:318` | **DONE (code) 2026-10-29:** `set_item` and `remove_item` carry the action; the field and the patch are gone; a change naming several items is refused instead of silently added. 223 passed twice, ruff clean. Live proof of cases 22–31 partly done — 7 of 10 passed, 2 were quota errors and are re-running. | — |
 | 4 | Skip the second model call when brand and size already match | QUEUED | Needs 2 to measure the trade-off |
 | 5 | Phone taps: Add-all, Change item, typed pick | OPEN | Needs a real card on screen, so needs the model up |
 | 6 | Address add/delete, OAuth reconnect, reaction on a real wamid | OPEN | Partly needs the model; the reaction needs a real inbound wamid |

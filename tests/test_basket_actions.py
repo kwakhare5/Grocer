@@ -22,6 +22,7 @@ from backend.agent.basket_actions import (
     handle_clear_request,
     parse_fresh_items,
 )
+from backend.agent.router import Capability
 from backend.integrations.commerce.swiggy_client import SwiggyClient
 
 FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures"
@@ -32,7 +33,7 @@ SPIN = "spin_amul_1l"
 @dataclass
 class FakeDecision:
     items: list[dict[str, Any]] = field(default_factory=list)
-    change_action: str | None = None
+    capability: Any = Capability.REMOVE_ITEM
 
 
 @pytest.fixture
@@ -57,7 +58,10 @@ async def test_clear_applies_and_verifies(client):
 
 @pytest.mark.asyncio
 async def test_remove_preview_names_the_item(client):
-    decision = FakeDecision(items=[{"query": "amul", "quantity": 1}], change_action="remove")
+    decision = FakeDecision(
+        capability=Capability.REMOVE_ITEM,
+        items=[{"query": "amul", "quantity": 1}],
+    )
     reply = await handle_change_request(decision, client, ADDRESS_ID)
     assert "Remove" in reply.text
     assert reply.buttons[0][0] == f"cart:rm:{SPIN}"
@@ -72,7 +76,9 @@ async def test_remove_applies_and_verifies(client):
 
 @pytest.mark.asyncio
 async def test_set_quantity_applies_without_a_preview(client):
-    decision = FakeDecision(items=[{"query": "milk", "quantity": 5}], change_action="set_quantity")
+    decision = FakeDecision(
+        capability=Capability.SET_ITEM, items=[{"query": "milk", "quantity": 5}]
+    )
     reply = await handle_change_request(decision, client, ADDRESS_ID)
     assert reply.buttons == []
     assert "quantity 5" in reply.text
@@ -89,15 +95,28 @@ async def test_add_quantity_increments_the_existing_item(client):
 
 
 @pytest.mark.asyncio
-async def test_change_without_an_action_asks_instead_of_guessing(client):
-    decision = FakeDecision(items=[{"query": "milk"}], change_action=None)
+async def test_set_without_a_number_asks_instead_of_guessing(client):
+    decision = FakeDecision(capability=Capability.SET_ITEM, items=[{"query": "milk"}])
     reply = await handle_change_request(decision, client, ADDRESS_ID)
     assert "remove" in reply.text.lower()
 
 
 @pytest.mark.asyncio
+async def test_two_items_in_one_change_is_refused_without_writing(client):
+    decision = FakeDecision(
+        capability=Capability.SET_ITEM,
+        items=[{"query": "milk", "quantity": 3}, {"query": "bread", "quantity": 2}],
+    )
+    reply = await handle_change_request(decision, client, ADDRESS_ID)
+    assert "one item at a time" in reply.text
+    assert len(client.get_cart().items) == 1
+
+
+@pytest.mark.asyncio
 async def test_unknown_item_does_not_write(client):
-    decision = FakeDecision(items=[{"query": "chocolate"}], change_action="remove")
+    decision = FakeDecision(
+        capability=Capability.REMOVE_ITEM, items=[{"query": "chocolate"}]
+    )
     reply = await handle_change_request(decision, client, ADDRESS_ID)
     assert "couldn't match" in reply.text
     assert len(client.get_cart().items) == 1

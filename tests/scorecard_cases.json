@@ -610,8 +610,7 @@
       "category": "change",
       "text": "remove the milk",
       "plan": {
-        "capability": "change_item",
-        "change_action": "remove",
+        "capability": "remove_item",
         "items": [
           {
             "query": "milk",
@@ -656,8 +655,7 @@
       "category": "change",
       "text": "make milk 3",
       "plan": {
-        "capability": "change_item",
-        "change_action": "set_quantity",
+        "capability": "set_item",
         "items": [
           {
             "query": "milk",
@@ -705,8 +703,7 @@
       "category": "change",
       "text": "remove the milk",
       "plan": {
-        "capability": "change_item",
-        "change_action": "remove",
+        "capability": "remove_item",
         "items": [
           {
             "query": "milk",

@@ -12,6 +12,7 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any
 
+from backend.agent.router import Capability
 from backend.integrations.commerce.schemas import CartData
 from backend.integrations.commerce.swiggy_client import SwiggyClient
 
@@ -133,6 +134,9 @@ async def handle_change_request(
     if not cart.items:
         return BasketReply("Your basket is empty, so there's nothing to change.")
 
+    if len(decision.items) > 1:
+        return BasketReply("I can change one item at a time. Tell me which one.")
+
     query = decision.items[0].get("query") if decision.items else ""
     matches = _find_items(cart, query)
     if not matches:
@@ -145,9 +149,14 @@ async def handle_change_request(
         return BasketReply(f"Which one do you mean: {names}?")
 
     target = matches[0]
-    action = decision.change_action
 
-    if action == "set_quantity":
+    if decision.capability is Capability.REMOVE_ITEM:
+        return BasketReply(
+            f"Remove *{target.itemName}* from your basket?",
+            [(f"cart:rm:{target.spinId}", "Yes, remove"), ("cart:keep", "Cancel")],
+        )
+
+    if decision.capability is Capability.SET_ITEM:
         try:
             quantity = int(decision.items[0].get("quantity") or 0)
         except (TypeError, ValueError):
@@ -156,13 +165,6 @@ async def handle_change_request(
             return await apply_set_quantity(
                 client, address_id, target.spinId, min(quantity, 99)
             )
-        action = "remove"
-
-    if action == "remove":
-        return BasketReply(
-            f"Remove *{target.itemName}* from your basket?",
-            [(f"cart:rm:{target.spinId}", "Yes, remove"), ("cart:keep", "Cancel")],
-        )
 
     return BasketReply(
         f"Do you want to remove *{target.itemName}*, or change its quantity? "

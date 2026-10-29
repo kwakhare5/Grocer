@@ -902,3 +902,11 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: no code. `STATUS.md` now names branch `scorecard` and its contents, the real counts (147 offline + 75 DB = 222 passing, 242 collected, 20 live-only), the reopened live status, and the finished webhook split. `TASKS.md` records move 4b and the `checkout_executor.py` split as **Karan's decision to skip**, and points the pack-plan fix at `turn_add.py`. `ARCHITECTURE.md` lists `turn_add.py`. `.scratch/HANDOFF.md` rewritten.
 - **Proof**: `grep` for the old numbers returns only dated history rows; the live eval was still running when this was written, so no score is claimed.
 - **Still broken**: no live number yet; the branch is unmerged and unpushed.
+
+### [GROCER — item 1 baseline and the four write verbs] 2026-10-29
+
+#### Work Card: 40/40 live on the router, then the write verbs collapsed to four
+- **Problem**: the router carried a second field (`change_action`) beside the capability, and a patch that guessed "several items means add". Both were extra rules the model could trip over — the exact path that lost items in earlier multi-item tests.
+- **Change**: `Capability.CHANGE_ITEM` split into `SET_ITEM` and `REMOVE_ITEM`. `change_action` is deleted from `RoutingDecision`, the prompt schema, the parser and the decision log. The multi-item patch is gone; `handle_change_request` now refuses several items with "one item at a time" instead of silently adding. Prompt examples rebuilt; 7,514 chars, 161 shorter.
+- **Proof**: live router eval 40/40 exact, 0 unsafe writes, 0 under-acted, 0 errors, avg 1535ms, p95 2187ms (`.scratch/eval_b1.json`, `.scratch/eval_rest.json`). After the change: `ruff check backend tests` clean; `pytest -m "not live"` 223 passed / 20 deselected, twice. Live verb cases: 22–26 add pass, 28 remove pass, 29 set pass; 27 and 30 returned the honest AI-offline copy because Groq's cap cut in again.
+- **Still broken**: cases 27 and 30 await quota; the 26-case scorecard has not run; the branch is unmerged and unpushed.

@@ -100,7 +100,6 @@ def _decision(plan: dict[str, Any]) -> RoutingDecision:
         safety=SAFETY_BY_CAPABILITY[capability],
         confidence=0.95,
         items=plan.get("items", []),
-        change_action=plan.get("change_action"),
         order_ref=plan.get("order_ref"),
         address_ref=plan.get("address_ref"),
     )

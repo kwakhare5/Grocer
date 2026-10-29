@@ -42,7 +42,8 @@ class Capability(str, Enum):
     PLACED_ORDER_ADD = "placed_order_add"
     REPORT_ISSUE = "report_issue"
     ADD_ITEMS = "add_items"
-    CHANGE_ITEM = "change_item"
+    SET_ITEM = "set_item"
+    REMOVE_ITEM = "remove_item"
     CLEAR_BASKET = "clear_basket"
     REORDER = "reorder"
     ADD_ADDRESS = "add_address"
@@ -75,7 +76,8 @@ CAPABILITY_SPECS: tuple[CapabilitySpec, ...] = (
     CapabilitySpec(Capability.PLACED_ORDER_ADD, SafetyClass.READ, "Customer wants to add an item to an order already placed. Placed orders are locked; answer with the truth and offer a separate basket."),
     CapabilitySpec(Capability.REPORT_ISSUE, SafetyClass.ACCOUNT, "Customer reports a problem with an order: missing, wrong or damaged item, late delivery. Files a report with Swiggy."),
     CapabilitySpec(Capability.ADD_ITEMS, SafetyClass.BASKET, "Add one or more groceries to the basket."),
-    CapabilitySpec(Capability.CHANGE_ITEM, SafetyClass.BASKET, "Change quantity, replace or remove an item already in the basket."),
+    CapabilitySpec(Capability.SET_ITEM, SafetyClass.BASKET, "Set a new total quantity for an item already in the basket ('make milk 3')."),
+    CapabilitySpec(Capability.REMOVE_ITEM, SafetyClass.BASKET, "Take an item out of the basket."),
     CapabilitySpec(Capability.CLEAR_BASKET, SafetyClass.BASKET, "Empty the whole basket."),
     CapabilitySpec(Capability.REORDER, SafetyClass.BASKET, "Rebuild a basket from a past order or the customer's usual items."),
     CapabilitySpec(Capability.ADD_ADDRESS, SafetyClass.ACCOUNT, "Save a new delivery address."),
@@ -115,7 +117,6 @@ class RoutingDecision:
     items: list[dict[str, Any]] = field(default_factory=list)
     order_ref: str | None = None
     address_ref: str | None = None
-    change_action: str | None = None
     reply: str | None = None
     dish: str | None = None
     servings: int | None = None
@@ -167,13 +168,14 @@ def _system_prompt() -> str:
         "If the customer names an address or label (home, work, mom's, Pune), copy that "
         "word into address_ref. If they refer to an order, put 'last' or the order number "
         "in order_ref.\n"
-        "Use change_item only when the customer explicitly says remove or sets a total "
-        "('remove milk', 'make milk 3'). Put the target total in items[0].quantity. "
-        "Never choose change_item just because an item is already in the basket.\n"
-        "The basket text is context only. Choose add vs change from the customer's "
+        "Use remove_item when the customer wants an item taken out ('remove milk', "
+        "'I don't want curd'). Use set_item when they set a new total ('make milk 3'); "
+        "put the target total in items[0].quantity. Never choose either just because "
+        "an item is already in the basket.\n"
+        "The basket text is context only. Choose the write verb from the customer's "
         "words, never from the basket.\n"
         "If the customer names two or more items to add, use add_items with one item "
-        "per line. change_item is for one item only.\n"
+        "per line. set_item and remove_item take one item.\n"
         "Repeating a past order or the customer's usual list ('same as last time', "
         "'my regular items') is reorder, never add_items.\n"
         "A bill, invoice or price breakdown for a past order is order_bill.\n"
@@ -190,34 +192,25 @@ def _system_prompt() -> str:
         "Friendly and professional, at most two short sentences, no slang.\n\n"
         "Capabilities:\n" + _capability_list_for_prompt() + "\n\n"
         "Examples:\n"
-        'Customer: remove milk -> {"capability":"change_item","confidence":0.95,'
-        '"items":[{"query":"milk","quantity":1}],"change_action":"remove"}\n'
-        'Customer: make milk 3 -> {"capability":"change_item","confidence":0.95,'
-        '"items":[{"query":"milk","quantity":3}],"change_action":"set_quantity"}\n'
-        'Customer: add 2 eggs -> {"capability":"add_items","confidence":0.95,'
-        '"items":[{"query":"eggs","quantity":1,"amount":2,"unit":"piece"}],'
-        '"change_action":null}\n'
-        'Customer: add 1 more milk -> {"capability":"add_items","confidence":0.95,'
-        '"items":[{"query":"milk","quantity":1}],"change_action":null}\n'
-        'Customer: add milk and bread -> {"capability":"add_items","confidence":0.95,'
-        '"items":[{"query":"milk","quantity":1},{"query":"bread","quantity":1}],'
-        '"change_action":null}\n'
+        'Customer: remove milk -> {"capability":"remove_item","confidence":0.95,"items":[{"query":"milk","quantity":1}]}\n'
+        'Customer: make milk 3 -> {"capability":"set_item","confidence":0.95,"items":[{"query":"milk","quantity":3}]}\n'
+        'Customer: add 2 eggs -> {"capability":"add_items","confidence":0.95,"items":[{"query":"eggs","quantity":1,"amount":2,"unit":"piece"}]}\n'
+        'Customer: add 1 more milk -> {"capability":"add_items","confidence":0.95,"items":[{"query":"milk","quantity":1}]}\n'
+        'Customer: add milk and bread -> {"capability":"add_items","confidence":0.95,"items":[{"query":"milk","quantity":1},{"query":"bread","quantity":1}]}\n'
         'Customer: add 200g paneer, 1 packet gulab jamun and 500g rice -> '
         '{"capability":"add_items","confidence":0.95,"items":['
         '{"query":"paneer","quantity":1,"amount":200,"unit":"g"},'
         '{"query":"gulab jamun","quantity":1,"amount":1,"unit":"pack"},'
-        '{"query":"rice","quantity":1,"amount":500,"unit":"g"}],"change_action":null}\n'
+        '{"query":"rice","quantity":1,"amount":500,"unit":"g"}]}\n'
         'Customer: get 1 litre milk and 6 eggs -> {"capability":"add_items","confidence":0.95,'
         '"items":[{"query":"milk","quantity":1,"amount":1,"unit":"l"},'
-        '{"query":"eggs","quantity":1,"amount":6,"unit":"piece"}],'
-        '"change_action":null}\n'
+        '{"query":"eggs","quantity":1,"amount":6,"unit":"piece"}]}\n'
         'Customer: make pizza for 5 people -> {"capability":"plan_meal","confidence":0.95,'
         '"items":[{"query":"pizza base","amount":5,"unit":"piece"},'
         '{"query":"mozzarella cheese","amount":250,"unit":"g"},'
-        '{"query":"pizza sauce","amount":200,"unit":"g"}],"dish":"pizza","servings":5,'
-        '"change_action":null}\n'
+        '{"query":"pizza sauce","amount":200,"unit":"g"}],"dish":"pizza","servings":5}\n'
         'Customer: how much is milk -> {"capability":"item_info","confidence":0.95,'
-        '"items":[{"query":"milk","quantity":1}],"change_action":null}\n'
+        '"items":[{"query":"milk","quantity":1}]}\n'
         'Customer: how long till my food arrives -> {"capability":"track_order",'
         '"confidence":0.95,"items":[],"order_ref":"last"}\n'
         'Customer: how much is delivery -> {"capability":"store_info",'
@@ -230,7 +223,6 @@ def _system_prompt() -> str:
         '"amount": <number or null>, "unit": "<g or ml or piece or pack or null>"}], '
         '"order_ref": "<order id or last or null>", '
         '"address_ref": "<address label or id or null>", '
-        '"change_action": "<remove or set_quantity or null>", '
         '"dish": "<dish for plan_meal or null>", '
         '"servings": <people count for plan_meal or null>, '
         '"issue": "<problem words for report_issue or null>", '
@@ -311,20 +303,6 @@ def parse_decision(
             provider=provider,
         )
 
-    change_action = payload.get("change_action")
-    if change_action not in {"remove", "set_quantity"}:
-        change_action = None
-
-    # Contract: change_item carries one item. Several items with quantities is an add.
-    if (
-        capability is Capability.CHANGE_ITEM
-        and change_action != "remove"
-        and len(items) > 1
-    ):
-        capability = Capability.ADD_ITEMS
-        change_action = None
-        safety = SAFETY_BY_CAPABILITY[capability]
-
     dish = str(payload.get("dish") or "").strip() or None
     issue = str(payload.get("issue") or "").strip() or None
     try:
@@ -344,7 +322,6 @@ def parse_decision(
         items=items,
         order_ref=payload.get("order_ref"),
         address_ref=payload.get("address_ref"),
-        change_action=change_action,
         reply=reply,
         dish=dish,
         servings=servings,
@@ -397,7 +374,6 @@ def route_message(
                 "items": decision.items,
                 "order_ref": decision.order_ref,
                 "address_ref": decision.address_ref,
-                "change_action": decision.change_action,
                 "safe_path": decision.safe_path,
                 "provider": decision.provider,
                 "latency_ms": result.latency_ms,

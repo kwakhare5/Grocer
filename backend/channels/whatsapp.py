@@ -747,7 +747,8 @@ async def handle_webhook(
 
                     if decision.capability in (
                         Capability.CLEAR_BASKET,
-                        Capability.CHANGE_ITEM,
+                        Capability.SET_ITEM,
+                        Capability.REMOVE_ITEM,
                         Capability.REORDER,
                     ):
                         from backend.channels.turn_basket import (

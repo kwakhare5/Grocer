@@ -132,32 +132,29 @@ def test_view_basket_is_a_read_capability():
     assert d.safety is SafetyClass.READ
 
 
-def test_multi_item_quantity_request_is_an_add_not_a_single_change():
+def test_set_item_keeps_every_item_the_model_named():
     d = parse_decision(
         {
-            "capability": "change_item",
+            "capability": "set_item",
             "confidence": 0.95,
-            "change_action": "set_quantity",
             "items": [{"query": "paneer"}, {"query": "jamun"}, {"query": "rice"}],
         },
         "add paneer, jamun and rice",
     )
-    assert d.capability is Capability.ADD_ITEMS
-    assert d.change_action is None
+    assert d.capability is Capability.SET_ITEM
+    assert len(d.items) == 3
 
 
-def test_single_item_quantity_change_stays_change_item():
+def test_single_item_quantity_change_is_set_item():
     d = parse_decision(
         {
-            "capability": "change_item",
+            "capability": "set_item",
             "confidence": 0.95,
-            "change_action": "set_quantity",
             "items": [{"query": "milk", "quantity": 3}],
         },
         "make milk 3",
     )
-    assert d.capability is Capability.CHANGE_ITEM
-    assert d.change_action == "set_quantity"
+    assert d.capability is Capability.SET_ITEM
 
 
 def test_llm_outage_is_not_reported_as_customer_confusion():

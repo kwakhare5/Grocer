@@ -1,6 +1,7 @@
 # ADR 0010: Session Lifecycle, JIT Checkout Re-Auth, Partial Stock Reorders, and Cold-Start Onboarding
 
 > **Status 2026-10-27:** Active. Refresh first; park only if refresh fails. The webhook parks as `awaiting_link`, and the callback replays the stored message in the background. The link is a signed token tied to the WhatsApp number. See `STATUS.md`.
+> **Amendment 2026-10-29:** there is no basket table; on PLACED the session history and stored plan are cleared and Swiggy's cart is the only basket.
 
 ## Context
 Production grocery commerce introduces four failure points across user lifecycle boundaries:

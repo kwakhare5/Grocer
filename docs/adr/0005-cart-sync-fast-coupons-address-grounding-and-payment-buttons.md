@@ -1,6 +1,7 @@
 # ADR 0005: Cart Sync, Fast Coupons, Address Grounding, and WhatsApp Payment Buttons
 
 > **Status 2026-10-27:** Partial. Current checkout buttons are Pay + Clear only. COD, Change Address and Change Items are target. Coupon trials are capped at 2, but savings is not displayed. See `STATUS.md`.
+> **Amendment 2026-10-29:** add receipts carry Pay, View basket, Keep only new and Change item (max 3 buttons); the savings line is displayed; the clear button reads "Clear basket".
 
 ## Context
 1. In high-velocity dark-store grocery commerce, product inventory fluctuates in real-time. Items in a customer's active basket can sell out between conversational turns.

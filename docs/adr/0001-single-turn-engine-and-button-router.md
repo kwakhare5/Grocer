@@ -1,6 +1,7 @@
 # ADR 0001: Customer Experience Speed: Snappy Button Action vs Warm Conversational Concierge
 
 > **Status 2026-10-27:** Amended. The webhook is synchronous today; 25ms ACK, 50ms button and under-3.5s turn are targets, not measured guarantees. See `docs/adr/README.md` and `STATUS.md`.
+> **Amendment 2026-10-29:** Groq `openai/gpt-oss-120b` is the only LLM adapter (ADR 0012); the Gemini reference above is historical.
 
 ## Context
 When someone shops for groceries on WhatsApp, there are two distinct user interactions:

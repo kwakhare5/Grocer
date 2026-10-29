@@ -918,3 +918,11 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: none in code. Ran `verify.ps1 -Db` end to end.
 - **Proof**: `=== [PASS] Grocer verification complete ===` — schema check, ruff, 223 offline+DB tests on `grocer_test`, Next production build with all three routes compiled.
 - **Still broken**: three live verb cases wait on quota; the scorecard has not run; branch unmerged.
+
+### [GROCER — full doc audit and sync] 2026-10-29
+
+#### Work Card: Three auditors, then the truth written down
+- **Problem**: after the four-verb change and today's live runs, several current-truth docs were wrong — a capability count, the basket verb list, test counts, a "still running" live row, a "Vercel pending" claim — and nine ADRs described behaviour the code no longer has.
+- **Change**: no production code. Three read-only auditors swept STATUS/TASKS/HANDOFF, ARCHITECTURE/GLOSSARY/ADRs, and PRD/DESIGN/README/AGENTS. Every high finding was checked against the code before editing. STATUS, TASKS, HANDOFF, README, ARCHITECTURE, GLOSSARY, PRD and DESIGN corrected; eight ADRs gained a dated `Amendment 2026-10-29` line and ADR 0012 was amended for the four write verbs; the ADR index stopped saying "one call per item".
+- **Proof**: `grep` for `change_item` across `docs/`, `README.md`, `PRD.md`, `DESIGN.md`, `AGENTS.md` returns nothing; capability count re-counted from the enum (23); button ids and labels re-read from `button_router.py` and `address_actions.py`.
+- **Still broken**: `AGENTS.md` still states "one branch, one deploy path", which the working branch contradicts — that is Karan's rule to change, not mine. Scorecard unrun; branch unmerged.

@@ -14,7 +14,7 @@ ADRs record decisions at a point in time. They are amended with status notes, no
 | 0008 | Pin onboarding, reorder, bridge payments | Partial | Typed-text address add is built. Reorder is fixture-only until the account has a past order. |
 | 0009 | Recipes, fees, destinations, post-order additions | Amended | Recipes are in v1 as a plan-confirm-add flow with a stored 30-minute plan. The fee warning and post-order truth are built (2026-10-28). One-time destination is parked. |
 | 0010 | Session lifecycle, JIT auth, onboarding | Active | Refresh first, park only if refresh fails. The callback replays the saved message. |
-| 0011 | Single-pass intent and multi-item orchestration | Superseded | Replaced by ADR 0012. No extra classification call; candidate evaluation is one call per item and is intentional. |
-| 0012 | Capability routing, safety classes, LLM selection | Active | Groq is primary and the only adapter. Direct Gemini calls are gone. |
+| 0011 | Single-pass intent and multi-item orchestration | Superseded | Replaced by ADR 0012. No extra classification call; candidate evaluation is one batched call per turn. |
+| 0012 | Capability routing, safety classes, LLM selection | Active | Groq is primary and the only adapter. Direct Gemini calls are gone. Amended 2026-10-29: four write verbs. |
 
 The full blocker list is in `STATUS.md` §4–§5.

@@ -55,7 +55,7 @@ WhatsApp Cloud API -> FastAPI webhook -> Python capability router
 
 | Area | State |
 |---|---|
-| Chat, basket, addresses, coupons, orders, tracking, privacy | Live (non-payment) |
+| Chat, basket adds/sets/removes, addresses, coupons, orders, tracking, privacy | Live, except reorder, live address add/delete and the 24h scrub proof (see `STATUS.md`) |
 | Recipe plans, reactions, support reports | Code-complete; handset proofs open |
 | Checkout and payment | Never live-tested; no order has been placed |
 
@@ -88,11 +88,11 @@ Without it the page shows the placeholder number and disables the button.
 ## Tests
 
 ```powershell
-.\verify.ps1        # offline: schema, lint, unit tests, web build
+.\verify.ps1        # schema (needs DATABASE_URL), lint, offline tests, web build
 .\verify.ps1 -Db    # adds the database suite on grocer_test
 ```
 
-`pytest -m live` calls real external services and is excluded by default.
+`pytest -m live` calls real external services; the gate and CI pass `-m "not live"`, so a bare `pytest` would run them too.
 Database tests refuse to run unless `TEST_DATABASE_URL` names the separate
 `grocer_test` database. Tests never write production data.
 

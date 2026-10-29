@@ -28,7 +28,7 @@ Instead, Grocer operates on a clean, decoupled **Brain vs. Muscle** architecture
 * **Python (The Muscle, Accountant & Security Guard):**
   - Manages deterministic state machines, full-cart target assembly, and read-after-write verification.
   - Computes all math in **strict integer paise** (`100 paise = ₹1.00`). Floating-point math is banned.
-  - Intercepts physical button taps (`pay:<id>`, `addr:<id>`, `cart:clear`) without the LLM. Target: under 50ms. Current: the checkout button still calls Swiggy synchronously before replying, so the target is not met (see `STATUS.md` §4).
+  - Intercepts physical button taps (`pay:<id>`, `addr:set:<id>` / `addr:del:<id>`, `cart:clear`) without the LLM. Target: under 50ms. Current: the checkout button still calls Swiggy synchronously before replying, so the target is not met (see `STATUS.md` §4).
   - Enforces the **3-Lock Checkout Gate**—an order can ONLY be paid for if the user physically taps a WhatsApp button. Text "yes" never spends money.
 * **Swiggy Instamart MCP (The Source of Truth):**
   - All 20 native Instamart MCP tools run live over HTTPS JSON-RPC (`https://mcp.swiggy.com/im`). Production code must not contain fake Swiggy branches; current fixture/catalog branches are listed in `STATUS.md` P1.
@@ -156,7 +156,7 @@ sequenceDiagram
 - **Abuse Limits (2026-10-28):** 20 messages per user per hour; the first over the limit gets one warning, the rest are recorded and dropped. A message can carry at most 10 items and each quantity is clamped to 1–99. Photos, voice notes and stickers get one honest "type it" reply instead of silence. One sender cannot exhaust the shared free AI budget or the store calls for everyone.
 - **Presence:** Every accepted inbound message is marked read with a 25-second typing indicator (`POST /messages` with `status=read` and `typing_indicator`). The call runs as a fire-and-forget task after dedupe, so a slow Meta call never delays the turn; failures are logged only. Built 2026-10-27.
 - **Fast Button Dispatcher (`button_router.py`):**
-  - If the incoming message is a physical interactive button tap (`pay:<approval_id>`, `addr:<id>`, `cart:clear`), it **bypasses the LLM**.
+  - If the incoming message is a physical interactive button tap (`pay:<approval_id>`, `addr:set:<id>` / `addr:del:<id>`, `cart:clear`), it **bypasses the LLM**.
   - Target: respond in under 50ms. Current: address and cart buttons are fast; the pay button calls Swiggy checkout synchronously, so it is not fast yet.
 
 ---
@@ -164,7 +164,7 @@ sequenceDiagram
 ### Layer 2: Conversational Brain (`backend/agent/`)
 - **Capability Router (ADR 0012):** The LLM returns one routing decision per message — a capability from the fixed list, the extracted arguments, and a confidence score. Python validates the capability and makes every Swiggy call.
 - **Safety Classes:** Every capability is labelled `read`, `basket`, `account` or `money`. A read capability stops before any write path. This is enforced in Python dispatch, not in the prompt.
-- **Safe Path:** Unknown capability, or confidence below the floor, produces read-only options when a concrete product exists, otherwise a clarifying question. Floors: read 0.70, basket 0.80, account 0.85, money 0.95 (`backend/agent/router.py:81`). Nothing is written on a guess.
+- **Safe Path:** Unknown capability, or confidence below the floor, produces read-only options when a concrete product exists, otherwise a clarifying question. Floors: read 0.70, basket 0.80, account 0.85, money 0.95 (`backend/agent/router.py:92`). Nothing is written on a guess.
 - **One adapter, no provider SDKs:** routing and candidate evaluation both call `backend.agent.llm.complete_json`. A basket turn makes one routing call, then one batched candidate-evaluation call for every item with candidates. The legacy second intent call and the direct Gemini calls are gone. Prompts are provider-neutral and use JSON mode.
 - **Basket State & Pack Math (2026-10-28):** The model names add / set / remove from the customer's words; Python reads the live cart and decides whether an add increments or creates a line. Each item carries `amount` and `unit`; Python converts the amount to whole packs and accepts only a pack that meets it exactly. A 200 g request never becomes 400 g, and 500 g never becomes 1 kg; the item is named as "Not added" or becomes a choice. Adds and explicit total sets apply immediately with a receipt; only remove and clear keep a confirm button. Every named item ends added, asked, or refused.
 - **Two-Step Search & Candidate Evaluation (Kills Blind `res[0]`):**
@@ -431,6 +431,8 @@ backend/
 │   ├── turn_address.py         # Switch, delete and start of a typed address
 │   ├── turn_basket.py          # Change, clear and reorder
 │   ├── turn_add.py             # Search and evaluation for add; no cart writes
+│   ├── link_tokens.py          # Signed links for the OAuth bridge
+│   ├── reactions.py            # One reaction per turn, chosen from the outcome
 │   ├── whatsapp_crypto.py      # HMAC-SHA256 verification
 │   ├── whatsapp_parser.py      # Inbound payload to text, location or button
 │   ├── whatsapp_client.py      # Outbound Meta Cloud API messages
@@ -443,6 +445,7 @@ backend/
 │   ├── llm.py                  # Provider adapter: Groq or Gemini, JSON mode
 │   ├── candidate_search.py     # Live catalog search per extracted item
 │   ├── candidate_evaluator.py  # Product variant selection
+│   ├── meal_planner.py         # Recipe plans, pack math and the stored plan
 │   ├── read_actions.py         # Read-only capability answers, never writes
 │   ├── basket_actions.py       # Clear/remove confirm, explicit set applies, revert on drift
 │   ├── order_actions.py        # Reorder from last order or usual items

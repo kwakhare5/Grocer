@@ -71,7 +71,7 @@ _Status_: live in code 2026-10-28 (migration 005). Live tap unproven.
 _Avoid_: Plan cart, saved recipe, wishlist
 
 **Small-Cart Fee Threshold**:
-The point where Swiggy delivery, handling, and surge fees exceed 35% of item value, triggering a proactive alert to add essentials and unlock free delivery.
+The point where Swiggy delivery, handling, and surge fees exceed 35% of item value. The add receipt carries one honest warning line; no add-essentials buttons exist.
 _Status_: live in code 2026-10-28. When charges reach 35% of item value, the add receipt adds one warning line. The Add Essentials buttons are not built.
 _Avoid_: Delivery fee penalty, minimum order surge, surge warning
 
@@ -88,7 +88,7 @@ The front-door validation and fast-dispatch gateway that verifies Meta HMAC-SHA2
 _Avoid_: Webhook listener, incoming router, message receiver
 
 **Per-Customer Advisory Lock**:
-The non-blocking PostgreSQL session latch (`pg_try_advisory_lock`) guarding a customer's active turn. A second message that arrives mid-turn is marked queued for up to 12 seconds, then answered against the fresh cart; that drop is a known UX gap.
+The non-blocking PostgreSQL session latch (`pg_try_advisory_lock`) guarding a customer's active turn. A second message that arrives mid-turn waits up to 12 seconds for the first turn, then runs against the fresh cart; if the first turn is still going the customer is told to send it again.
 _Avoid_: Mutex, thread lock, queue barrier
 
 **Stale Message Latch**:

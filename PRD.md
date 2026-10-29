@@ -45,13 +45,13 @@ Grocer is not limited to pasting grocery lists. It is your personal Instamart co
    - Display verified rupee savings clearly on every receipt card (*"🎉 You saved ₹X on this order!"*).
 
 5. **Sensible Defaults on Vague Items & 1-Tap Reorders:**
-   - When a request is completely unqualified (e.g. *"milk"*, *"bread"*, *"eggs"*), pick the active dark store's #1 standard staple (e.g. 500ml toned milk) and provide a 1-tap `[Change Items]` button.
+   - When a request is completely unqualified (e.g. *"milk"*, *"bread"*, *"eggs"*), pick the active dark store's #1 standard staple (e.g. 500ml toned milk) and provide a 1-tap `[Change item]` button.
    - When a customer asks to reorder (*"reorder my usuals"*, *"buy what I got last time"*), call `your_go_to_items` and `get_orders` to surface frequently ordered SKUs for 1-tap re-addition.
    - When a request involves high-variety snacks or drinks (*"chips"*, *"cold coffee"*), present 2–3 in-stock options conversationally rather than guessing a random flavor.
 
 6. **The 3-Lock Checkout Safety Gate:**
    - The LLM interprets natural language and evaluates candidates. It never calls Swiggy itself. Python deterministically enforces math, budget caps, cart SHA-256 fingerprints, safety classes, and checkout gates.
-   - **Lock 1 (Authority):** An order can ONLY be placed if the customer physically taps a WhatsApp button (`pay:<approval_id>:<option>`). Typing text ("yes", "confirm", "proceed") is strictly rejected from spending money.
+   - **Lock 1 (Authority):** An order can ONLY be placed if the customer physically taps a WhatsApp button (`pay:<approval_id>`). Typing text ("yes", "confirm", "proceed") is strictly rejected from spending money.
    - **Lock 2 (Truth):** Live cart re-verification confirms 100% stock, zero unserviceable items, and exact integer paise math matching the approved receipt before checkout.
    - **Lock 3 (Exactly-Once):** Atomic PostgreSQL CAS prevents double-debiting on mobile retries or double taps.
 
@@ -73,7 +73,7 @@ Grocer is not limited to pasting grocery lists. It is your personal Instamart co
 
 10. **DPDP Compliance & 24-Hour Data Minimization:**
     - Personal customer delivery addresses and basket snapshots are permanently deleted from database storage 24 hours post-order. Minimal transaction audit metadata (transaction ID, paise total, timestamp) is retained for 90 days.
-    - An explicit inbound message `"delete my data"` instantly purges all customer records and revokes active Swiggy OAuth tokens.
+    - An explicit inbound message `"delete my data"` deletes the encrypted Swiggy tokens, inbound messages and address coordinates, and anonymizes the customer row; the audit ledger keeps its rows.
 
 ---
 
@@ -105,7 +105,7 @@ These show the kind of thing a person can ask for. They are not a build checklis
 ### Journey 5: Safe 1-Tap Payment & Milestone Tracking
 - **Customer:** Taps `[Pay ₹240 via UPI]`.  
 - **Grocer:** Runs the 3-Lock gate and delivers Swiggy's secure `bridgeUrl`.  
-- **Post-Payment:** A persistent background poller monitors `check_payment_status` (~19s intervals, up to 5 min) and sends 3 milestone updates:  
+- **Post-Payment:** A persistent background poller monitors `check_payment_status` (15–30s intervals, reconciling for up to 2 hours) and sends 3 milestone updates:  
   1. *Order confirmed & dark store packing*  
   2. *Rider picked up & out for delivery (with live GPS map link)*  
   3. *Order delivered*
@@ -119,7 +119,7 @@ These show the kind of thing a person can ask for. They are not a build checklis
 **In scope for v1, decided 2026-10-27.** The checklist is a proposal built from `search_products`. Nothing reaches the basket until the customer taps. Pack counts respect Swiggy's `maxQuantity`.
 
 - **Customer:** *"I want to make Aglio Olio pasta for 2 people tonight."*  
-- **Grocer:** Proposes the recipe checklist conversationally (*"For Aglio Olio (2): Spaghetti 500g, Olive Oil 250ml, Garlic 100g, Parmesan 100g. Assuming you have salt & chili flakes!"*) and presents buttons: `[Add All 4 Items]` and `[Let Me Pick]`.
+- **Grocer:** Proposes the recipe checklist conversationally (*"For Aglio Olio (2): Spaghetti 500g, Olive Oil 250ml, Garlic 100g, Parmesan 100g. Assuming you have salt & chili flakes!"*) and presents buttons: `[Add all]` and `[Let me pick]`.
 
 ### Journey 8: Post-Order Modification Honesty & 1-Tap Add-On
 - **Customer:** (2 mins post-payment) *"Wait, I forgot eggs! Can you add 6 eggs to my order?"*  

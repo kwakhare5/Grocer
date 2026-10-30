@@ -63,6 +63,7 @@ These are facts, not preferences. Do not re-ask or silently change them.
 - Do not weaken a test to make it pass. If a feature is broken, say so.
 - Two-Fail Circuit Breaker: If a test fails twice on the same fix attempt, stop immediately, state the conflict plainly, and ask for direction.
 - Doc sync: `STATUS.md` is the only current truth. `PRD.md` and `DESIGN.md` may describe targets, but must say so. `JOURNAL.md` is append-only; corrections are new entries, never rewrites.
+- Live LLM budget: the Groq free tier allows 8k tokens/minute and 200k/day, and one router call is ~2.3k tokens. Pace any live run at 25s or more between calls. After a change to routing, prompts or the add path, run a 5-case smoke (`python scripts/eval_router.py --start <n> --limit 5 --pause 25`); run the full 40 only before a merge; run `scripts/scorecard_live.py` at most once per token window, because a 26-case run costs about half the day's budget.
 
 ---
 

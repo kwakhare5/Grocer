@@ -26,7 +26,7 @@ These are facts, not preferences. Do not re-ask or silently change them.
 9. **Address writes for testing are allowed.** One throwaway address on Karan's account may be created and deleted. Nothing else in his account is touched.
 10. **No paid hosting.** Render stays on the free plan. Pollers reconcile from the database on wake; no always-on instance.
 11. **No phone-entry form on the landing page.** OAuth is a bot-sent bridge. The page never asks a visitor for a phone number.
-12. **One branch, one deploy path.** `main` is the only branch; Render and Vercel deploy it. GitHub Actions runs ruff, non-live tests, and the Next build on every push. Old unrelated history is preserved only in the tags `legacy-main-2026-10-28` and `legacy-codex-2026-10-28`.
+12. **One deploy path.** `main` deploys Render and Vercel, and GitHub Actions runs ruff, non-live tests and the Next build on every push to it. One short-lived working branch (currently `scorecard`) may exist for work Karan asked to test before merging; it is never deployed and merges only on his explicit go. Old unrelated history is preserved only in the tags `legacy-main-2026-10-28` and `legacy-codex-2026-10-28`.
 
 ---
 

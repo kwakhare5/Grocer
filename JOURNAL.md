@@ -934,3 +934,11 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: rule 12 now says `main` is the only deploy path, and one short-lived working branch may exist for work Karan asked to test before merging — never deployed, merged only on his explicit go.
 - **Proof**: `sed -n '29p' AGENTS.md` shows the new text; no code touched.
 - **Still broken**: the branch is still unmerged; the scorecard is running against production, which is `main`, so it does not measure the branch.
+
+### [GROCER — live scorecard against production] 2026-10-29
+
+#### Work Card: 95% of the cases that actually ran
+- **Problem**: the 26-case scorecard posted 26 messages from one number, and the bot's own abuse cap drops anything past 20 an hour, so cases 21–26 never got a reply. The harness also let a "no reply" case pass when its must-have list was empty.
+- **Change**: `scripts/scorecard_live.py` now fails any case with no reply, and refuses a run longer than 20 cases with the two-run instructions. No product code changed.
+- **Proof**: run scored **21/26 = 80.8%** raw; of the 20 cases that were actually answered, **19 passed = 95%**. Raw: `.scratch/scorecard_live.json`. The single real miss is case 16, "add 5 kg almonds", answered with a pack-choice question.
+- **Still broken**: cases 21–26 re-run on a scheduled retry after the hour; the scorecard measures `main`, not the branch; the 5 kg almonds behaviour needs a decision.

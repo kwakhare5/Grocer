@@ -147,6 +147,8 @@ async def _history(pool: asyncpg.Pool, user_id: str) -> list[dict]:
 
 
 def _score(case: LiveCase, reply: str) -> list[str]:
+    if not reply.strip() or reply.startswith("("):
+        return ["no reply found"]
     said = reply.lower()
     problems: list[str] = []
     if OUTAGE_COPY in said:
@@ -169,6 +171,13 @@ async def main() -> int:
     args = parser.parse_args()
 
     selected = CASES[args.start - 1 : args.end]
+    if len(selected) > 20:
+        print(
+            "One number is capped at 20 messages an hour by the bot itself, so a longer "
+            "run is dropped after case 20. Run --start 1 --end 20, then --start 21 "
+            "an hour later."
+        )
+        return 2
     pool = await asyncpg.create_pool(
         settings.DATABASE_URL, min_size=1, max_size=1, ssl="require", timeout=15
     )

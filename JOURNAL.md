@@ -974,3 +974,20 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: fast-forwarded `db6a297..a8e530c`, PR #3 merged, Render auto-deployed; no product code changed in this step.
 - **Proof**: Render deploy `dep-dbiupgivcj2c73edh5t0` live on `a8e530c`; `/health` HTTP 200; live smoke on the merged code: basket + addresses 2/2, add milk 1/1; `make milk 3` and `remove the milk` each returned a 200 disambiguation prompt.
 - **Still broken**: two milk lines show identical picker labels (pre-existing), so set/remove needs a handset tap; post-merge scorecard and handset proofs pending.
+
+### [GROCER — docs resynced after the merge] 2026-10-31
+
+#### Work Card: The last pre-merge claims removed
+- **Problem**: six current-truth spots still said the scorecard branch was unmerged, and the handoff named the wrong main commit.
+- **Change**: no code; STATUS scorecard rows now say merged in `a8e530c` and live, TASKS says merged, AGENTS drops "(currently `scorecard`)", HANDOFF names main `256f711`, and the Phase 9 checklist marks the live basket and address reads.
+- **Proof**: `grep` for pre-merge claims returns only dated history; commit `7514369` pushed; Render live on `7514369` with `/health` 200.
+- **Still broken**: post-merge scorecard, duplicate-name picker, handset taps, reaction on a real wamid, live 24h scrub. Checkout stays locked.
+
+
+### [GROCER — Landing Page Redesign (MailCheap Inspiration)] 2026-10-31
+
+#### Work Card: Elevated Landing Page with Interactive WhatsApp Simulator & Bento Grid
+- **Problem**: The existing landing page was basic and text-heavy, lacking the polished aesthetic and interactive product demonstration seen in modern reference sites like MailCheap.
+- **Change**: Rebuilt `app/page.tsx` with a 6-section structure inspired by MailCheap: interactive 4-tab WhatsApp demo simulator, 3-metric proof strip (0 App Hops, 3-Lock Gate, 24h Auto-Scrub), asymmetric bento grid with live micro-UI cards, "Python Muscle vs LLM Brain" engine breakdown, 3-lock security cards, sticky 2-column FAQ, and glowing closing CTA, strictly preserving all invariants (`+91 98765 43210` display, no phone inputs, OAuth token handling).
+- **Proof**: `powershell -ExecutionPolicy Bypass -File .\verify.ps1` exit code 0 (schema check passed, ruff lint passed, 148 offline pytest tests passed, Next.js production build passed in 2.5s).
+- **Still broken**: None.

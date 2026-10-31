@@ -942,3 +942,11 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: `scripts/scorecard_live.py` now fails any case with no reply, and refuses a run longer than 20 cases with the two-run instructions. No product code changed.
 - **Proof**: run scored **21/26 = 80.8%** raw; of the 20 cases that were actually answered, **19 passed = 95%**. Raw: `.scratch/scorecard_live.json`. The single real miss is case 16, "add 5 kg almonds", answered with a pack-choice question.
 - **Still broken**: cases 21–26 re-run on a scheduled retry after the hour; the scorecard measures `main`, not the branch; the 5 kg almonds behaviour needs a decision.
+
+### [GROCER — session handoff, 2026-10-29] 2026-10-29
+
+#### Work Card: Everything a fresh chat needs
+- **Problem**: a new chat needs one place that says what is done, what is left, and the exact next command without re-reading the day.
+- **Change**: no code. `STATUS.md` §8 rebuilt: items 1 and 3 done, item 2 partial with the real 19/20 number, item 4 (full 40 on the branch) named as the next live job and the merge gate, items 5–8 renumbered. `.scratch/HANDOFF.md` rewritten with the next command and the unproven list.
+- **Proof**: `git status` clean apart from `.commandcode/`; branch 26 commits ahead of `main`; numbers copied from `.scratch/eval_*.json` and `.scratch/scorecard_live.json`.
+- **Still broken**: item 4 unrun, scorecard tail unrun, handset proofs open, branch unmerged.

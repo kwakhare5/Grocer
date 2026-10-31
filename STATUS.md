@@ -249,21 +249,23 @@ RuntimeError: Refusing to run tests against database 'postgres'. TEST_DATABASE_U
 
 ## 8. Next Action
 
-**Where we are (2026-10-29).** All ten phases are code-complete. `main` is `db6a297` (code `2c63289`) and live on Render with `/health` 200. New work sits on branch `scorecard`, **unmerged and unpushed**: the offline scorecard, the live scorer, the removal of every keyword list from candidate selection, the webhook split into `turn_read`, `turn_address`, `turn_basket` and `turn_add` (`whatsapp.py` 1,434 → 926 lines, pure moves), and the four write verbs `add_items` / `set_item` / `remove_item` / `clear_basket`. Items 1 and 3 are done; item 2 waits on a fresh token window. Last gate: `verify.ps1 -Db` exit 0 on 2026-10-29 after the four-verb change — schema, ruff, 223 offline+DB tests, Next build; offline scorecard 31/31.
+**Where we are (2026-10-29).** All ten phases are code-complete. `main` is `db6a297` (code `2c63289`) and live on Render with `/health` 200. New work sits on branch `scorecard`, **unmerged and unpushed**: the offline scorecard, the live scorer, the removal of every keyword list from candidate selection, the webhook split into `turn_read`, `turn_address`, `turn_basket` and `turn_add` (`whatsapp.py` 1,434 → 926 lines, pure moves), and the four write verbs `add_items` / `set_item` / `remove_item` / `clear_basket`. Items 1 and 3 are done, item 2 is partly done (95% of the cases that ran), and item 4 — the full 40 on this branch after the four-verb change — is the next live job and the gate before any merge. Last gate: `verify.ps1 -Db` exit 0 on 2026-10-29 after the four-verb change — schema, ruff, 223 offline+DB tests, Next build; offline scorecard 31/31.
 
 **Remaining, in order:**
 
 | # | Item | State | Blocker |
 |---|---|---|---|
 | 1 | 40-case live router eval (`scripts/eval_router.py`) | **DONE 2026-10-29:** 40/40 exact, 0 unsafe writes, 0 under-acted, 0 errors; avg 1535ms, p95 2187ms, max 2719ms. Raw: `.scratch/eval_b1.json`, `.scratch/eval_rest.json`. | — |
-| 2 | 26-case live scorecard (`scripts/scorecard_live.py`) | NEXT | Needs ~100k tokens; today's free budget is spent |
-| 3 | Collapse the write path to four verbs; delete `change_item`, `change_action` and the router patch at `backend/agent/router.py:318` | **DONE (code) 2026-10-29:** `set_item` and `remove_item` carry the action; the field and the patch are gone; a change naming several items is refused instead of silently added. 223 passed twice, ruff clean. Live verb cases 22–31: **10/10** after three quota retries, 0 unsafe writes. `set_item` and `remove_item` are live-proven for the first time. | — |
-| 4 | Skip the second model call when brand and size already match | QUEUED | Needs 2 to measure the trade-off |
-| 5 | Phone taps: Add-all, Change item, typed pick | OPEN | Needs a real card on screen, so needs the model up |
-| 6 | Address add/delete, OAuth reconnect, reaction on a real wamid | OPEN | Partly needs the model; the reaction needs a real inbound wamid |
-| 7 | Merge `scorecard` into `main` | BLOCKED | Karan's explicit go, after 1 and 2 |
+| 2 | 26-case live scorecard (`scripts/scorecard_live.py`) | **PARTIAL 2026-10-29:** ran against production. Raw 21/26; 6 cases never answered because the harness reused one number and hit the bot's 20/hour cap. Of the 20 answered, **19 passed = 95%**. One real miss: case 16, "5 kg almonds", asked a pack question. Harness fixed (`14648a0`). | Cases 21–26 need `--start 21 --end 26` at least an hour after that traffic |
+| 3 | Collapse the write path to four verbs | **DONE (code) 2026-10-29:** `set_item` and `remove_item` carry the action; `change_action` and the router patch are gone; a change naming several items is refused. 223 passed twice, ruff clean. Live verb cases 22–31: **10/10**, 0 unsafe. | — |
+| 4 | Full 40-case live run **on the branch after the four-verb change** | NEXT — the branch has only been scored on the 10 verb cases since the change; this is the gate before a merge | ~95k tokens; run when the window is free |
+| 5 | Skip the second model call when brand and size already match | QUEUED | Needs 4 as the before-number |
+| 6 | Phone taps: Add-all, Change item, typed pick | OPEN | Needs a real card on screen, so needs the model up |
+| 7 | Address add/delete, OAuth reconnect, reaction on a real wamid | OPEN | Partly needs the model; the reaction needs a real inbound wamid |
+| 8 | Merge `scorecard` into `main` | BLOCKED | Karan's explicit go, after 4 |
 
-The session task list mirrors this as #58–#64.
+
+The session task list mirrors this as #58–#64, with #60 finished.
 
 **Phase 7 backlog — code-complete; live proofs open.**
 

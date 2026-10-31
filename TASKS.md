@@ -72,14 +72,14 @@ The durable checklist. Update the status here when an item lands; the checkpoint
 | Store-open truth | 3 | **DONE (code) 2026-10-28** | Answer says there is no open/closed flag and uses the live cart as the honest signal: items adding means the store is taking orders. |
 | Post-order add truth | 3 | **DONE (code) 2026-10-28** | `placed_order_add` says the placed order is locked and offers a new basket. |
 
-## Scorecard and simplification (2026-10-28)
+## Scorecard and simplification (2026-10-28, merged 2026-10-31)
 
-Branch `scorecard` off `db6a297`. **Not merged.** `main` and Render are unchanged. The ordered list of what is left lives in `STATUS.md` §8.
+Merged 2026-10-31 in `a8e530c` (PR #3); Render is live on it. The ordered list of what is left lives in `STATUS.md` §8.
 
 Two numbers, never mixed:
 
 - **Offline** — `tests/test_scorecard.py`, 31 cases. The plan is handed to the pipeline, so it scores Python with the model out of the loop (the AI-down floor). **31/31 = 100%**, up from 28/31 before the three fixes below.
-- **Live** — `scripts/scorecard_live.py`, 26 cases against the deployed webhook with the real model and real Swiggy. **Production baseline 2026-10-31: 25/26 = 96.2% correct by intent** (24/26 strict). The one real miss, "5 kg almonds", is fixed on the branch. Case 21 was a checker false negative; the harness now requires UPI plus any of cash/delivery/cod. The branch is not live-scored until it deploys.
+- **Live** — `scripts/scorecard_live.py`, 26 cases against the deployed webhook with the real model and real Swiggy. **Production baseline 2026-10-31: 25/26 = 96.2% correct by intent** (24/26 strict). The one real miss, "5 kg almonds", is fixed in production since the 2026-10-31 merge. Case 21 was a checker false negative; the harness now requires UPI plus any of cash/delivery/cod. The post-merge 26-case run is the first live score of this code.
 
 Each finding was a broken rule, not a bad test sentence. Any message with the same shape hit it.
 

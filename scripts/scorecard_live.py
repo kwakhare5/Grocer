@@ -44,6 +44,7 @@ class LiveCase:
     text: str
     must: tuple[str, ...] = ()
     must_not: tuple[str, ...] = ()
+    any_of: tuple[str, ...] = ()
     category: str = "general"
     note: str = ""
 
@@ -80,7 +81,13 @@ CASES: tuple[LiveCase, ...] = (
         note="either order is fine if the reply is clear",
     ),
     LiveCase("usual", "get my usual", category="reorder", note="honest empty is a pass"),
-    LiveCase("cash", "can i pay cash on delivery?", ("cash",), category="truth"),
+    LiveCase(
+        "cash",
+        "can i pay cash on delivery?",
+        ("upi",),
+        any_of=("cash", "delivery", "cod"),
+        category="truth",
+    ),
     LiveCase("cheap item", "add a single banana", ("banana",), category="add"),
     LiveCase("report", "report a problem with my last order", category="support"),
     LiveCase("remove paneer", "remove the paneer", category="change"),
@@ -156,6 +163,8 @@ def _score(case: LiveCase, reply: str) -> list[str]:
     for phrase in case.must:
         if phrase.lower() not in said:
             problems.append(f"reply never said {phrase!r}")
+    if case.any_of and not any(phrase.lower() in said for phrase in case.any_of):
+        problems.append(f"reply never said any of {case.any_of!r}")
     for phrase in case.must_not:
         if phrase.lower() in said:
             problems.append(f"reply wrongly said {phrase!r}")

@@ -950,3 +950,11 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: no code. `STATUS.md` §8 rebuilt: items 1 and 3 done, item 2 partial with the real 19/20 number, item 4 (full 40 on the branch) named as the next live job and the merge gate, items 5–8 renumbered. `.scratch/HANDOFF.md` rewritten with the next command and the unproven list.
 - **Proof**: `git status` clean apart from `.commandcode/`; branch 26 commits ahead of `main`; numbers copied from `.scratch/eval_*.json` and `.scratch/scorecard_live.json`.
 - **Still broken**: item 4 unrun, scorecard tail unrun, handset proofs open, branch unmerged.
+
+### [GROCER — merge gate, baseline, and Stage 0] 2026-10-31
+
+#### Work Card: The branch matched accuracy, won on speed, and the gate is green
+- **Problem**: the full 40 after the four-verb change had not run; the production scorecard had six unanswered cases plus a checker that demanded the literal word "cash"; and the PKCE expiry test compared the local clock with the database clock, so it failed under ~1s skew.
+- **Change**: no product code. The 40-case eval ran on the branch; the scorecard tail ran against production; the cash case now requires UPI plus any of cash/delivery/cod; the expired PKCE row now uses `now() - interval '1 minute'`.
+- **Proof**: router 40/40 exact, 0 unsafe/under-acted/errors, avg 1312ms, p95 1735ms (`.scratch/eval_after_verbs.json`); scorecard tail 5/6 strict, case 21 a checker false negative; full baseline 25/26 = 96.2% by intent; offline scorecard 31/31; `verify.ps1 -Db` exit 0 on 2026-10-31 — schema, ruff, 148 offline + 75 DB, Next build (`.scratch/verify_20261031b.log`).
+- **Still broken**: branch not live-scored until deploy; "5 kg almonds" stays wrong on production until merge; handset taps, reactions and the live 24h scrub unproven.

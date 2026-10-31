@@ -1,6 +1,6 @@
 # STATUS.md — Grocer Current Truth
 
-> **Updated:** 2026-10-29  
+> **Updated:** 2026-10-31  
 > **Authority:** This is the only current status document. `PRD.md` is the v1 target. `ARCHITECTURE.md` is the design plus known gaps. `DESIGN.md` is the WhatsApp UI plus the website landing page. `JOURNAL.md` is append-only history. `docs/adr/` records decisions, amended not rewritten.  
 > **Rule:** DONE needs a proof command, date, and raw output. Everything else is PARTIAL, BROKEN, or NOT VERIFIED. A green test is not proof that the live product works.
 
@@ -10,7 +10,7 @@
 
 | Item | Current fact |
 |---|---|
-| Git branch | `main` (`db6a297`, code `2c63289`) deploys Render and Vercel. Branch `scorecard` holds the merged-in-progress work for 2026-10-29 — the scorecard, no keyword lists, and the webhook split — **unpushed and unmerged**. |
+| Git branch | `main` (`db6a297`, code `2c63289`) deploys Render and Vercel. Branch `scorecard` holds all the 2026-10-29–31 work — scorecard, no keyword lists, four write verbs, webhook split — **27 commits ahead, unpushed and unmerged**. The merge gate passed 2026-10-31. |
 | Supabase | One project until launch. App data lives in the `postgres` database, schema `grocer` (8 app tables + `schema_migrations`). Both the app database and `grocer_test` are migrated through 010 (app DB applied 2026-10-28; `schema_migrations` lists 001–010). |
 | LLM | Groq `openai/gpt-oss-120b` is primary for development and tests. Gemini is optional and its free quota is not a dependency. |
 | Swiggy auth | Allowlisted OAuth redirect: `https://grocerr.vercel.app/`. Backend calls `https://mcp.swiggy.com/im` with the customer token. |
@@ -79,7 +79,8 @@
 | Live eval 2026-10-28 (26 cases) | **MIXED:** 26 signed webhooks against Render with the real Swiggy MCP and Groq. Reads passed: basket, addresses (3 saved), payment (UPI only), coupons, store quote, orders/bill/tracking (none, honest). Writes passed: single add, multi add, banana, sugar, salt; a double text produced two separate approvals with no lost write. Honest limits passed: usual, last bill, report, cash. Recipe plan priced 5 items at ₹1014. Failures: "add 200g paneer, 1 packet gulab jamun and 500g rice" and the Hinglish milk+eggs message were routed to `change_item` and lost the other items; the router prompt and a multi-item guard were fixed (`f285b00`, 2 new tests). The paneer case passed after the fix but silently omitted the rice and added a second paneer SKU; the Hinglish retest was blocked by Groq's daily cap. "5 kg almonds" added one ₹1398 pack and only warned about the ₹1,000 cap. Reactions/read receipts cannot be tested with simulated wamids (Meta 400 "Invalid message_id"); a direct reaction to a real wamid returned 200. Groq hit its 200k tokens/day free cap (199,068 used; retry 8m50s) and the bot answered with the honest AI-offline copy. The webhook timing test was isolated from the real WhatsApp API after it failed on Meta latency. Full gate after the fixes: `verify.ps1 -Db` exit 0, 144 offline + 66 DB, build pass. Raw: `.scratch/live_eval_25.json`. |
 | Scorecard (branch, not merged) | **BUILT 2026-10-28 on `scorecard`:** `tests/test_scorecard.py` + `tests/scorecard_cases.json` (31 cases, expectations written from customer intent) and `scripts/scorecard_live.py` (26 cases against the deployed webhook). The offline run hands the plan to the pipeline, so it scores Python with the model out of the loop: **31/31 = 100%**, up from 28/31 before the three fixes below. `main` and Render are unchanged; nothing is merged. |
 | Offline scorecard findings | **FIXED 2026-10-28 on `scorecard`, not merged:** candidates are now ranked by how many of the customer's words they match, so a qualifier like "brown" wins; when the picked pack does not fit the amount, the fewest exact packs are taken instead of asking ("2 kg atta" → 2 × 1 kg); and `pack_plan` splits across sizes ("1.5 litres" → 1 L + 500 ml), capped at 12 packs per line. Proof: `tests/test_scorecard.py` 31/31, `pytest -m "not live"` 221 passed, ruff clean. Candidate selection no longer uses keyword lists: the older `staple_terms`, `discretionary_hints` and `size_patterns` tables are deleted, leaving one ranking rule (unique best match wins, a tie takes Swiggy's first pick and offers Change). Net −49 lines in `backend/agent/candidate_evaluator.py`. |
-| Live scorecard | **PARTLY DONE 2026-10-29:** the 40-case router eval finished **40/40 exact**, 0 unsafe writes, 0 under-acted, 0 errors, avg 1535ms, p95 2187ms (`scripts/eval_router.py`, raw in `.scratch/eval_b1.json` and `.scratch/eval_rest.json`). The 10 write-verb cases scored **10/10** after three quota retries. The 26-case scorecard ran against **production** (which is `main`, not this branch): **19/20 answered correctly = 95%**. Cases 21–26 were never answered because the harness reused one number and hit the bot's own 20-messages/hour cap; that is a harness bug, now fixed, and those six re-run on a scheduled retry. The one real miss is case 16, "add 5 kg almonds", which asked a pack question instead of adding. |
+| Live scorecard | **BASELINE COMPLETE 2026-10-31:** the 26-case scorecard ran against **production** (`main`, not this branch). Full baseline: **25/26 = 96.2% correct by intent** (24/26 strict). Case 16, "5 kg almonds", is the only real miss and is fixed on the branch (offline case `truth-5kg-almonds-warns-about-the-cap` passes). The 2026-10-29 run answered 19/20 = 95%; the 2026-10-31 tail ran cases 21–26 and scored 5/6 strict, where case 21 was a checker false negative: the bot answered COD correctly but the checker demanded the literal word "cash". The harness now requires UPI plus any of cash/delivery/cod, and the recorded reply scores clean. Raw: `.scratch/scorecard_live.json`, `.scratch/scorecard_tail.log`, `.scratch/scorecard_live_20261030.json`. |
+| Router eval (branch, post four-verbs) | **PASS 2026-10-31:** 40/40 exact, 0 unsafe writes, 0 under-acted, 0 safe-path fallbacks, 0 errors; avg 1312ms, p95 1735ms, max 1889ms. Equal accuracy to the pre-change 40/40, faster latency. The 10 write-verb cases were 10/10 on 2026-10-29. Raw: `.scratch/eval_after_verbs.json`. |
 | Production readiness | **No.** |
 | Current gate | **Gate 2 — Concierge Answers.** 6 of 8 pass; 1 partial (reorder needs a past order); 1 code-complete but not tapped live ("milk" now auto-picks with a working Change button, discretionary items show choices). See §2. |
 
@@ -168,7 +169,7 @@ Gate 2 is read-only. No checkout, order, payment call, or address write is in sc
 
 ---
 
-## 6. Test Truth (2026-10-28)
+## 6. Test Truth (2026-10-31)
 
 **What each kind of test proves.**
 
@@ -186,21 +187,21 @@ ruff check backend tests
 All checks passed!
 
 pytest -q -m "not db and not live"
-142 passed, 86 deselected
+148 passed, 95 deselected
 
 pytest -q -m "db"
-66 passed, 161 deselected
+75 passed, 168 deselected
 
 pytest --collect-only -q
-228 tests collected
+243 tests collected
 
 python scripts/eval_router.py --provider groq
 Exact capability match: 40/40 (100.0%)
-Latency (last call per case): avg 1574ms, p95 2265ms, max 3422ms
+Latency (last call per case): avg 1312ms, p95 1735ms, max 1889ms
 Unsafe writes: 0, under-acted: 0, errors: 0
-# 2026-10-28 after Block 1 hardening + review fixes:
-# schema check exit 0 (9 tables, grocer_app), ruff clean,
-# 142 offline pass, 66 DB pass, Next.js build pass, script exit 0
+# 2026-10-31: schema check exit 0 (9 tables, grocer_app), ruff clean,
+# 148 offline pass, 75 DB pass, Next.js build pass, verify.ps1 exit 0
+# (.scratch/verify_20261031b.log)
 ```
 
 **New in Block 1 (2026-10-28):** restricted-role test (`current_user = grocer_app`, DDL refused), live/expired PKCE state test, backdated 24-hour scrub test, and a subprocess boot test with an unreachable DB. The router eval rerun scored 40/40 with latency.
@@ -249,20 +250,20 @@ RuntimeError: Refusing to run tests against database 'postgres'. TEST_DATABASE_U
 
 ## 8. Next Action
 
-**Where we are (2026-10-29).** All ten phases are code-complete. `main` is `db6a297` (code `2c63289`) and live on Render with `/health` 200. New work sits on branch `scorecard`, **unmerged and unpushed**: the offline scorecard, the live scorer, the removal of every keyword list from candidate selection, the webhook split into `turn_read`, `turn_address`, `turn_basket` and `turn_add` (`whatsapp.py` 1,434 → 926 lines, pure moves), and the four write verbs `add_items` / `set_item` / `remove_item` / `clear_basket`. Items 1 and 3 are done, item 2 is partly done (95% of the cases that ran), and item 4 — the full 40 on this branch after the four-verb change — is the next live job and the gate before any merge. Last gate: `verify.ps1 -Db` exit 0 on 2026-10-29 after the four-verb change — schema, ruff, 223 offline+DB tests, Next build; offline scorecard 31/31.
+**Where we are (2026-10-31).** All ten phases are code-complete. `main` is `db6a297` (code `2c63289`) and live on Render with `/health` 200. New work sits on branch `scorecard`, **unmerged and unpushed, 27 commits ahead**: the offline scorecard, the live scorer, the removal of every keyword list from candidate selection, the webhook split into `turn_read`, `turn_address`, `turn_basket` and `turn_add` (`whatsapp.py` 1,434 → 926 lines, pure moves), and the four write verbs `add_items` / `set_item` / `remove_item` / `clear_basket`. Items 1–4 are done: router 40/40, the production scorecard baseline is 25/26, and the full 40 after the four-verb change is 40/40 at avg 1312ms. Merge is ready and waits on Karan's go. Last gate: `verify.ps1 -Db` exit 0 on 2026-10-31 — schema, ruff, 148 offline + 75 DB tests, Next build; offline scorecard 31/31.
 
 **Remaining, in order:**
 
 | # | Item | State | Blocker |
 |---|---|---|---|
 | 1 | 40-case live router eval (`scripts/eval_router.py`) | **DONE 2026-10-29:** 40/40 exact, 0 unsafe writes, 0 under-acted, 0 errors; avg 1535ms, p95 2187ms, max 2719ms. Raw: `.scratch/eval_b1.json`, `.scratch/eval_rest.json`. | — |
-| 2 | 26-case live scorecard (`scripts/scorecard_live.py`) | **PARTIAL 2026-10-29:** ran against production. Raw 21/26; 6 cases never answered because the harness reused one number and hit the bot's 20/hour cap. Of the 20 answered, **19 passed = 95%**. One real miss: case 16, "5 kg almonds", asked a pack question. Harness fixed (`14648a0`). | Cases 21–26 need `--start 21 --end 26` at least an hour after that traffic |
+| 2 | 26-case live scorecard (`scripts/scorecard_live.py`) | **DONE 2026-10-31 (baseline):** production `main` scores **25/26 = 96.2% correct by intent** (24/26 strict). Case 16 ("5 kg almonds") is the only real miss and is fixed on the branch. Case 21 was a checker false negative; the harness now accepts cash/delivery/cod and still rejects a wrong answer. Raw: `.scratch/scorecard_live.json`, `.scratch/scorecard_tail.log`. | — |
 | 3 | Collapse the write path to four verbs | **DONE (code) 2026-10-29:** `set_item` and `remove_item` carry the action; `change_action` and the router patch are gone; a change naming several items is refused. 223 passed twice, ruff clean. Live verb cases 22–31: **10/10**, 0 unsafe. | — |
-| 4 | Full 40-case live run **on the branch after the four-verb change** | NEXT — the branch has only been scored on the 10 verb cases since the change; this is the gate before a merge | ~95k tokens; run when the window is free |
+| 4 | Full 40-case live run **on the branch after the four-verb change** | **DONE 2026-10-31:** 40/40 exact, 0 unsafe, 0 under-acted, 0 errors; avg 1312ms, p95 1735ms, max 1889ms. Raw: `.scratch/eval_after_verbs.json`. Merge gate passed. | — |
 | 5 | Skip the second model call when brand and size already match | QUEUED | Needs 4 as the before-number |
 | 6 | Phone taps: Add-all, Change item, typed pick | OPEN | Needs a real card on screen, so needs the model up |
 | 7 | Address add/delete, OAuth reconnect, reaction on a real wamid | OPEN | Partly needs the model; the reaction needs a real inbound wamid |
-| 8 | Merge `scorecard` into `main` | BLOCKED | Karan's explicit go, after 4 |
+| 8 | Merge `scorecard` into `main` | **READY — gate passed 2026-10-31** | Karan's explicit go; fast-forward from `db6a297`, no migrations, rollback = redeploy `db6a297` |
 
 
 The session task list mirrors this as #58–#64, with #60 finished.

@@ -79,7 +79,7 @@ Branch `scorecard` off `db6a297`. **Not merged.** `main` and Render are unchange
 Two numbers, never mixed:
 
 - **Offline** — `tests/test_scorecard.py`, 31 cases. The plan is handed to the pipeline, so it scores Python with the model out of the loop (the AI-down floor). **31/31 = 100%**, up from 28/31 before the three fixes below.
-- **Live** — `scripts/scorecard_live.py`, 26 cases against the deployed webhook with the real model and real Swiggy. **Blocked** by Groq's 200k/day free cap; of the 7 that ran, 3 passed and 4 got the honest AI-offline reply.
+- **Live** — `scripts/scorecard_live.py`, 26 cases against the deployed webhook with the real model and real Swiggy. **Production baseline 2026-10-31: 25/26 = 96.2% correct by intent** (24/26 strict). The one real miss, "5 kg almonds", is fixed on the branch. Case 21 was a checker false negative; the harness now requires UPI plus any of cash/delivery/cod. The branch is not live-scored until it deploys.
 
 Each finding was a broken rule, not a bad test sentence. Any message with the same shape hit it.
 
@@ -99,13 +99,15 @@ Each finding was a broken rule, not a bad test sentence. Any message with the sa
 | Split `checkout_executor.py` (1,146 lines) | **SKIPPED, Karan's call 2026-10-29** — 16 cohesive functions, money path, cosmetic only. |
 | Receipt folded from per-item outcomes, so an item cannot vanish | QUEUED |
 | Skip the second model call when brand and size already match exactly | QUEUED |
-| Live A/B on the same 26 cases before any merge | QUEUED |
+| Full 40-case router eval after the four verbs | **DONE (branch) 2026-10-31** — 40/40 exact, 0 unsafe, 0 under-acted, 0 errors, avg 1312ms, p95 1735ms; raw `.scratch/eval_after_verbs.json`. |
+| Production scorecard baseline and harness fix | **DONE 2026-10-31** — 25/26 by intent; the cash case now accepts cash/delivery/cod while still requiring UPI; raw `.scratch/scorecard_live.json`. |
+| Live A/B on the same 26 cases before any merge | **BASELINE DONE 2026-10-31** — production 25/26 by intent; the post-merge run will score the branch code |
 
 ## Open proofs
 
 | Proof | Status | Blocker |
 |---|---|---|
-| Full 26-case live scorecard | OPEN | Groq free daily cap, about one honest run per day. |
+| Full 26-case live scorecard | **DONE 2026-10-31** | Production 25/26 by intent; rerun after merge to score the branch. |
 | Reaction drawn on a real handset | OPEN | Needs a real inbound wamid after deploy. |
 | Live Groq route for "make pizza for 5" | OPEN | Real message on Render. |
 | Live Add-all tap and receipt | OPEN | Tap after the recipe route works. |

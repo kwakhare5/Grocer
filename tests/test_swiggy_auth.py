@@ -112,7 +112,7 @@ async def test_swiggy_callback_invalid_state_rejects():
 async def test_pkce_state_is_durable_one_time_and_expiring():
     """The state lives in PostgreSQL, is one-time, and expires in about 10 minutes."""
     import uuid as _uuid
-    from datetime import datetime, timedelta
+    from datetime import datetime
 
     from backend.database import get_db_pool
     from backend.integrations.commerce.token_vault import (
@@ -141,10 +141,9 @@ async def test_pkce_state_is_durable_one_time_and_expiring():
     await pool.execute(
         """
         INSERT INTO grocer.oauth_states (state, verifier, wa_id, expires_at)
-        VALUES ($1, 'verifier_expired', '919876543210', $2);
+        VALUES ($1, 'verifier_expired', '919876543210', now() - interval '1 minute');
         """,
         expired_state,
-        datetime.now(UTC) - timedelta(seconds=1),
     )
     assert await consume_pkce_session(expired_state) is None
     assert (

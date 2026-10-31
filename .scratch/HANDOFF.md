@@ -1,5 +1,5 @@
 Goal: merge the scorecard branch safely, then measure it live. Branch `scorecard` only (27 commits ahead); `main` db6a297 and Render are unchanged. No order.
 Shipped: full 40-case router eval after the four verbs -> 40/40, 0 unsafe, avg 1312ms; production scorecard baseline 25/26 = 96.2% by intent; cash checker accepts cash/delivery/cod; PKCE expiry test uses the DB clock.
-Passing: verify.ps1 -Db exit 0 on 2026-10-31 -- schema, ruff, 148 offline + 75 DB, Next build (.scratch/verify_20261031b.log); offline scorecard 31/31; branch unpushed, so branch CI has not run.
+Passing: verify.ps1 -Db exit 0 on 2026-10-31 -- schema, ruff, 148 offline + 75 DB, Next build (.scratch/verify_20261031b.log); PR #3 CI green on Linux + Postgres (run 41205403206, tip d536636); offline scorecard 31/31.
 Next action: Stage 1 -- push the branch, open a PR, wait for CI (Linux + Postgres), merge fast-forward, watch Render deploy to the exact commit, /health 200, then a live smoke under 20 messages (basket, addresses, add, set, remove, recipe). Rollback = redeploy db6a297. Stage 2 next day: scorecard 13 + 13 against the merged code.
 Unproven: branch runtime on Render; post-merge scorecard; handset taps; reaction on a real wamid; live 24h scrub; cold start (51s seen). Checkout stays locked.

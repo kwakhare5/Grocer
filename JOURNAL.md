@@ -958,3 +958,11 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: no product code. The 40-case eval ran on the branch; the scorecard tail ran against production; the cash case now requires UPI plus any of cash/delivery/cod; the expired PKCE row now uses `now() - interval '1 minute'`.
 - **Proof**: router 40/40 exact, 0 unsafe/under-acted/errors, avg 1312ms, p95 1735ms (`.scratch/eval_after_verbs.json`); scorecard tail 5/6 strict, case 21 a checker false negative; full baseline 25/26 = 96.2% by intent; offline scorecard 31/31; `verify.ps1 -Db` exit 0 on 2026-10-31 — schema, ruff, 148 offline + 75 DB, Next build (`.scratch/verify_20261031b.log`).
 - **Still broken**: branch not live-scored until deploy; "5 kg almonds" stays wrong on production until merge; handset taps, reactions and the live 24h scrub unproven.
+
+### [GROCER — Stage 0 landed] 2026-10-31
+
+#### Work Card: Branch pushed, PR #3 open, Linux CI green
+- **Problem**: the branch had never run on Linux with a real Postgres, and the merge gate needed a reviewable diff.
+- **Change**: no product code; pushed `scorecard`, opened PR #3 against `main`, fixed the two test false negatives, and synced STATUS/TASKS/HANDOFF.
+- **Proof**: `verify.ps1 -Db` exit 0 (schema, ruff, 148 offline + 75 DB, Next build); PR CI run 41205403206: backend success, frontend success on `d536636`; https://github.com/kwakhare5/Grocer/pull/3.
+- **Still broken**: unmerged; production still runs `main` `db6a297`; no post-merge scorecard or handset proofs yet.

@@ -966,3 +966,11 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: no product code; pushed `scorecard`, opened PR #3 against `main`, fixed the two test false negatives, and synced STATUS/TASKS/HANDOFF.
 - **Proof**: `verify.ps1 -Db` exit 0 (schema, ruff, 148 offline + 75 DB, Next build); PR CI run 41205403206: backend success, frontend success on `d536636`; https://github.com/kwakhare5/Grocer/pull/3.
 - **Still broken**: unmerged; production still runs `main` `db6a297`; no post-merge scorecard or handset proofs yet.
+
+### [GROCER — merged and live] 2026-10-31
+
+#### Work Card: Fast-forward to main, live on a8e530c, smoke green on reads and add
+- **Problem**: the branch had to reach production without a staging environment, and the merged runtime needed a live check.
+- **Change**: fast-forwarded `db6a297..a8e530c`, PR #3 merged, Render auto-deployed; no product code changed in this step.
+- **Proof**: Render deploy `dep-dbiupgivcj2c73edh5t0` live on `a8e530c`; `/health` HTTP 200; live smoke on the merged code: basket + addresses 2/2, add milk 1/1; `make milk 3` and `remove the milk` each returned a 200 disambiguation prompt.
+- **Still broken**: two milk lines show identical picker labels (pre-existing), so set/remove needs a handset tap; post-merge scorecard and handset proofs pending.

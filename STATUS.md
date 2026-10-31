@@ -10,7 +10,7 @@
 
 | Item | Current fact |
 |---|---|
-| Git branch | `main` (`db6a297`, code `2c63289`) deploys Render and Vercel. Branch `scorecard` holds all the 2026-10-29–31 work — scorecard, no keyword lists, four write verbs, webhook split — **27 commits ahead, unpushed and unmerged**. The merge gate passed 2026-10-31. |
+| Git branch | `main` (`a8e530c`, fast-forward from `db6a297`) deploys Render and Vercel; PR #3 merged 2026-10-31. The `scorecard` branch is merged and kept as history. Rollback target: `db6a297`. |
 | Supabase | One project until launch. App data lives in the `postgres` database, schema `grocer` (8 app tables + `schema_migrations`). Both the app database and `grocer_test` are migrated through 010 (app DB applied 2026-10-28; `schema_migrations` lists 001–010). |
 | LLM | Groq `openai/gpt-oss-120b` is primary for development and tests. Gemini is optional and its free quota is not a dependency. |
 | Swiggy auth | Allowlisted OAuth redirect: `https://grocerr.vercel.app/`. Backend calls `https://mcp.swiggy.com/im` with the customer token. |
@@ -81,6 +81,8 @@
 | Offline scorecard findings | **FIXED 2026-10-28 on `scorecard`, not merged:** candidates are now ranked by how many of the customer's words they match, so a qualifier like "brown" wins; when the picked pack does not fit the amount, the fewest exact packs are taken instead of asking ("2 kg atta" → 2 × 1 kg); and `pack_plan` splits across sizes ("1.5 litres" → 1 L + 500 ml), capped at 12 packs per line. Proof: `tests/test_scorecard.py` 31/31, `pytest -m "not live"` 221 passed, ruff clean. Candidate selection no longer uses keyword lists: the older `staple_terms`, `discretionary_hints` and `size_patterns` tables are deleted, leaving one ranking rule (unique best match wins, a tie takes Swiggy's first pick and offers Change). Net −49 lines in `backend/agent/candidate_evaluator.py`. |
 | Live scorecard | **BASELINE COMPLETE 2026-10-31:** the 26-case scorecard ran against **production** (`main`, not this branch). Full baseline: **25/26 = 96.2% correct by intent** (24/26 strict). Case 16, "5 kg almonds", is the only real miss and is fixed on the branch (offline case `truth-5kg-almonds-warns-about-the-cap` passes). The 2026-10-29 run answered 19/20 = 95%; the 2026-10-31 tail ran cases 21–26 and scored 5/6 strict, where case 21 was a checker false negative: the bot answered COD correctly but the checker demanded the literal word "cash". The harness now requires UPI plus any of cash/delivery/cod, and the recorded reply scores clean. Raw: `.scratch/scorecard_live.json`, `.scratch/scorecard_tail.log`, `.scratch/scorecard_live_20261030.json`. |
 | Router eval (branch, post four-verbs) | **PASS 2026-10-31:** 40/40 exact, 0 unsafe writes, 0 under-acted, 0 safe-path fallbacks, 0 errors; avg 1312ms, p95 1735ms, max 1889ms. Equal accuracy to the pre-change 40/40, faster latency. The 10 write-verb cases were 10/10 on 2026-10-29. Raw: `.scratch/eval_after_verbs.json`. |
+| Live deploy a8e530c | **PASS 2026-10-31:** PR #3 CI green (backend + frontend on Linux + Postgres); fast-forward merge `db6a297..a8e530c`; Render deploy `dep-dbiupgivcj2c73edh5t0` reached `live` on `a8e530c`; `/health` → HTTP 200 `{"status":"healthy","database":"connected","app":"Grocer"}`. No migrations, no config or env changes. |
+| Post-merge live smoke | **PARTIAL 2026-10-31:** on `a8e530c`, basket and addresses 2/2, add 1 litre milk 1/1, all HTTP 200. `make milk 3` and `remove the milk` both returned a 200 disambiguation prompt because the basket holds two milk lines with the same display name; the picker shows two identical labels. Pre-existing, not a deploy break; the tap needs a real handset. Raw: `.scratch/scorecard_live.json` (overwritten per run), `.scratch/smoke_custom.py`. |
 | Production readiness | **No.** |
 | Current gate | **Gate 2 — Concierge Answers.** 6 of 8 pass; 1 partial (reorder needs a past order); 1 code-complete but not tapped live ("milk" now auto-picks with a working Change button, discretionary items show choices). See §2. |
 
@@ -250,7 +252,7 @@ RuntimeError: Refusing to run tests against database 'postgres'. TEST_DATABASE_U
 
 ## 8. Next Action
 
-**Where we are (2026-10-31).** All ten phases are code-complete. `main` is `db6a297` (code `2c63289`) and live on Render with `/health` 200. New work sits on branch `scorecard`, **unmerged and unpushed, 27 commits ahead**: the offline scorecard, the live scorer, the removal of every keyword list from candidate selection, the webhook split into `turn_read`, `turn_address`, `turn_basket` and `turn_add` (`whatsapp.py` 1,434 → 926 lines, pure moves), and the four write verbs `add_items` / `set_item` / `remove_item` / `clear_basket`. Items 1–4 are done: router 40/40, the production scorecard baseline is 25/26, and the full 40 after the four-verb change is 40/40 at avg 1312ms. Merge is ready and waits on Karan's go. Last gate: `verify.ps1 -Db` exit 0 on 2026-10-31 — schema, ruff, 148 offline + 75 DB tests, Next build; offline scorecard 31/31.
+**Where we are (2026-10-31, after merge).** All ten phases are code-complete. `main` is `a8e530c` (fast-forward from `db6a297`), PR #3 is merged, and Render deploy `dep-dbiupgivcj2c73edh5t0` is live with `/health` 200. The `scorecard` work is in production: offline scorecard, live scorer, no keyword lists, the webhook split into `turn_read` / `turn_address` / `turn_basket` / `turn_add` (`whatsapp.py` 1,434 → 926 lines), and the four write verbs. Items 1–4 and 8 are done. Post-merge smoke passed reads 2/2 and add 1/1; set/remove hit a pre-existing duplicate-name picker. Last gate: `verify.ps1 -Db` exit 0 on 2026-10-31 — schema, ruff, 148 offline + 75 DB tests, Next build; offline scorecard 31/31.
 
 **Remaining, in order:**
 
@@ -263,7 +265,9 @@ RuntimeError: Refusing to run tests against database 'postgres'. TEST_DATABASE_U
 | 5 | Skip the second model call when brand and size already match | QUEUED | Needs 4 as the before-number |
 | 6 | Phone taps: Add-all, Change item, typed pick | OPEN | Needs a real card on screen, so needs the model up |
 | 7 | Address add/delete, OAuth reconnect, reaction on a real wamid | OPEN | Partly needs the model; the reaction needs a real inbound wamid |
-| 8 | Merge `scorecard` into `main` | **READY — gate passed 2026-10-31** | Karan's explicit go; fast-forward from `db6a297`, no migrations, rollback = redeploy `db6a297` |
+| 8 | Merge `scorecard` into `main` | **DONE 2026-10-31:** fast-forward `db6a297..a8e530c`; PR #3 merged; Render `dep-dbiupgivcj2c73edh5t0` live on `a8e530c`; `/health` 200. | — |
+| 9 | Post-merge 26-case scorecard on `a8e530c` | NEXT — run cases 1–13, wait an hour, then 14–26. This is the first live score of the branch code. | ~100k tokens; one day |
+| 10 | Handset taps: Add-all, Change item, typed pick, set/remove picker | OPEN | Real handset; the duplicate-name picker needs a decision |
 
 
 The session task list mirrors this as #58–#64, with #60 finished.

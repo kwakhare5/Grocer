@@ -102,6 +102,7 @@ Each finding was a broken rule, not a bad test sentence. Any message with the sa
 | Full 40-case router eval after the four verbs | **DONE (branch) 2026-10-31** — 40/40 exact, 0 unsafe, 0 under-acted, 0 errors, avg 1312ms, p95 1735ms; raw `.scratch/eval_after_verbs.json`. |
 | Production scorecard baseline and harness fix | **DONE 2026-10-31** — 25/26 by intent; the cash case now accepts cash/delivery/cod while still requiring UPI; raw `.scratch/scorecard_live.json`. |
 | Live A/B on the same 26 cases before any merge | **BASELINE DONE 2026-10-31** — production 25/26 by intent; the post-merge run will score the branch code |
+| Merge and deploy to production | **DONE 2026-10-31** — PR #3 merged fast-forward, Render live on `a8e530c`, `/health` 200; smoke reads 2/2 and add 1/1; set/remove hit a duplicate-name picker. |
 
 ## Open proofs
 
@@ -115,6 +116,7 @@ Each finding was a broken rule, not a bad test sentence. Any message with the sa
 | Live Change-item tap | OPEN | Handset tap. |
 | Blue ticks and typing indicator | OPEN | Needs a real wamid, not a simulated one. |
 | Live address add and delete | OPEN | One throwaway address on Karan's account. |
+| Set/remove picker with duplicate item names | OPEN | Two milk lines show identical labels; needs a handset tap or a distinct-name rule. |
 | Gate 2 case 7 (reorder) | OPEN | Needs a past order. |
 | Gate 2 case 8 (vague item tap) | OPEN | Live tap. |
 | Phase 2 latency | **CLOSED 2026-10-28** | 40/40 live eval; avg 1574ms, p95 2265ms, max 3422ms. |

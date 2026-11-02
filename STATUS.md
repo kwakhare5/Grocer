@@ -10,7 +10,7 @@
 
 | Item | Current fact |
 |---|---|
-| Git branch | `main` (`a8e530c`, fast-forward from `db6a297`) deploys Render and Vercel; PR #3 merged 2026-10-31. The `scorecard` branch is merged and kept as history. Rollback target: `db6a297`. |
+| Git branch | `main` (`b0d3ee8`, docs sync on top of `38dc084`) deploys Render and Vercel; PR #3 merged 2026-10-31. The merged `scorecard` and `fix/amount-pack` branches were deleted 2026-11-02; `main` is the only branch. Rollback target: `db6a297`. |
 | Supabase | One project until launch. App data lives in the `postgres` database, schema `grocer` (8 app tables + `schema_migrations`). Both the app database and `grocer_test` are migrated through 010 (app DB applied 2026-10-28; `schema_migrations` lists 001–010). |
 | LLM | Groq `openai/gpt-oss-120b` is primary for development and tests. Gemini is optional and its free quota is not a dependency. |
 | Swiggy auth | Allowlisted OAuth redirect: `https://grocerr.vercel.app/`. Backend calls `https://mcp.swiggy.com/im` with the customer token. |
@@ -255,7 +255,7 @@ RuntimeError: Refusing to run tests against database 'postgres'. TEST_DATABASE_U
 
 ## 8. Next Action
 
-**Where we are (2026-11-02).** The scorecard work and the landing page are live. `main` is `38dc084` (fast-forward from `0fcafdb`, which carries the light landing page); Render is live on `38dc084` with `/health` 200 and Vercel serves the new page. The post-merge scorecard scored 25/26; its only miss, "5 kg almonds", was fixed the same day and the live case now passes 1/1 (the store stocked 400 g, and the reply now says so instead of asking). Remaining work is the handset proofs, the duplicate-name picker, item 5, and a full 26-case re-run. Last gate: `verify.ps1 -Db` exit 0 on 2026-11-02 — schema, ruff, 149 offline + 75 DB tests, Next build; offline scorecard 31/31.
+**Where we are (2026-11-02).** The scorecard work and the landing page are live. `main` is `b0d3ee8` (docs sync on top of `38dc084`, which carries the amount fix); Render has `/health` 200 and Vercel serves the new page and the 224-test proof. The post-merge scorecard scored 25/26; its only miss, "5 kg almonds", was fixed the same day and the live case now passes 1/1 (the store stocked 400 g, and the reply now says so instead of asking). Remaining work is the handset proofs, the duplicate-name picker, item 5, and a full 26-case re-run. Last gate: `verify.ps1 -Db` exit 0 on 2026-11-02 — schema, ruff, 149 offline + 75 DB tests, Next build; offline scorecard 31/31.
 
 **Remaining, in order:**
 

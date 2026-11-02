@@ -20,7 +20,7 @@ These are facts, not preferences. Do not re-ask or silently change them.
 3. **Swiggy OAuth redirect is allowlisted.** `https://grocerr.vercel.app/` is the exact redirect URI. The backend calls `https://mcp.swiggy.com/im` with the customer's token.
 4. **Real-order capable, live order locked.** The code must be able to place a real order. `LIVE_CHECKOUT_ENABLED=false` by default. No live checkout or order during the build. Karan tests on WhatsApp and places the first real order himself after handoff.
 5. **₹1,000 default cap.** Keep the launch cap unless Karan changes it.
-6. **Landing page number policy.** The website displays the placeholder `+91 98765 43210`. The real WhatsApp link comes only from `NEXT_PUBLIC_WHATSAPP_NUMBER`. Never commit or publish Karan's real number.
+6. **Landing page number policy.** The website renders no phone number. The WhatsApp link comes only from `NEXT_PUBLIC_WHATSAPP_NUMBER`. Never commit or publish Karan's real number.
 7. **No fake claims.** A feature is DONE only with a proof command, date, and raw output in `STATUS.md`. Everything else is PARTIAL, BROKEN, or NOT VERIFIED.
 8. **Full tool coverage is the bar.** Every one of the 20 Instamart MCP tools is reachable by chat or gets an honest "not supported" reply. `PRD.md` §3 journeys are examples, not scope.
 9. **Address writes for testing are allowed.** One throwaway address on Karan's account may be created and deleted. Nothing else in his account is touched.

@@ -1,10 +1,52 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
+import { Fraunces, Golos_Text } from "next/font/google";
 import "./globals.css";
+import { Motion } from "./components/motion";
+
+const fraunces = Fraunces({
+  subsets: ["latin"],
+  variable: "--font-fraunces",
+  display: "swap",
+});
+
+const golosText = Golos_Text({
+  subsets: ["latin"],
+  variable: "--font-golos",
+  display: "swap",
+});
+
+const title = "Grocer: Swiggy Instamart on WhatsApp";
+const description =
+  "Text a list to Grocer on WhatsApp. It builds a live Swiggy Instamart basket with real prices and stock. Payment opens soon on Swiggy’s page.";
 
 export const metadata: Metadata = {
-  title: "Grocer — groceries on WhatsApp",
-  description:
-    "Shop Swiggy Instamart by chatting on WhatsApp. Ask about prices, build a basket, and pay on Swiggy’s secure page.",
+  metadataBase: new URL("https://grocerr.vercel.app"),
+  title,
+  description,
+  applicationName: "Grocer",
+  authors: [{ name: "Karan Wakhare" }],
+  creator: "Karan Wakhare",
+  icons: { icon: "/logo-mark.svg" },
+  openGraph: {
+    title,
+    description,
+    url: "/",
+    siteName: "Grocer",
+    locale: "en_IN",
+    type: "website",
+  },
+  twitter: {
+    card: "summary",
+    title,
+    description,
+  },
+  robots: { index: true, follow: true },
+  alternates: { canonical: "/" },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#f4f2ed",
+  colorScheme: "light",
 };
 
 export default function RootLayout({
@@ -13,9 +55,21 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
-      <body className="min-h-screen bg-[#0A0A0B] text-[#F4F4F5] antialiased selection:bg-[#FC8019]/20 selection:text-[#FC8019]">
+    <html
+      lang="en"
+      className={`${fraunces.variable} ${golosText.variable}`}
+      suppressHydrationWarning
+    >
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: "document.documentElement.classList.add('js-motion')",
+          }}
+        />
+      </head>
+      <body>
         {children}
+        <Motion />
       </body>
     </html>
   );

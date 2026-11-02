@@ -1,6 +1,6 @@
 # STATUS.md — Grocer Current Truth
 
-> **Updated:** 2026-10-31  
+> **Updated:** 2026-11-01  
 > **Authority:** This is the only current status document. `PRD.md` is the v1 target. `ARCHITECTURE.md` is the design plus known gaps. `DESIGN.md` is the WhatsApp UI plus the website landing page. `JOURNAL.md` is append-only history. `docs/adr/` records decisions, amended not rewritten.  
 > **Rule:** DONE needs a proof command, date, and raw output. Everything else is PARTIAL, BROKEN, or NOT VERIFIED. A green test is not proof that the live product works.
 
@@ -17,12 +17,15 @@
 | Checkout | `LIVE_CHECKOUT_ENABLED=false`. The build must stay real-order capable. No live order without Karan's explicit approval. |
 | Order cap | ₹1,000 default (`100000` paise). |
 | Hosting | Backend on Render free plan (sleeps when idle). Landing page on Vercel. |
-| Landing page number | Display placeholder `+91 98765 43210`. Real WhatsApp link comes only from `NEXT_PUBLIC_WHATSAPP_NUMBER`. Karan's real number is never committed or published. |
+| Landing page number | The page renders no phone number. The WhatsApp link comes only from `NEXT_PUBLIC_WHATSAPP_NUMBER`; Karan's real number is never committed or published. |
 | Product goal | Chat is the front door to all 20 Instamart tools. `PRD.md` §3 journeys are examples, not a checklist. |
 | Build-time order policy | No live order during the build. Checkout proof is simulated plus recorded responses. Karan places the first real order after handoff. |
 | Address test writes | One throwaway address on Karan's account may be created and deleted. |
 | Hosting | Render free plan; pollers reconcile from the DB on wake. No paid instance. |
-| Landing OAuth | Phone-entry form is removed. OAuth is a bot-sent bridge only. |
+| Landing OAuth | No phone-entry form. OAuth is a bot-sent bridge only; the card renders only for `?t=` or a callback. The login route sets a 10-minute `grocer_oauth_state` cookie and the callback refuses a state from another browser. |
+| Landing page (Phase 8) | **DONE locally 2026-11-01; deploy pending.** Redesign: printed sample receipt plus a 9:16 demo slot in the hero, six job rows with Live / In testing / Opening next, a dark three-step safety band with a sample checkout and cap meter, six backend facts led by 20 tools, a small 223-tests line, six FAQs, and a compact footer. Every sample is stamped. No founder section, proof-stat band, chat demo, phone form or separate privacy section. The demo slot is hidden in production until `public/demo.mp4` exists. The old page is still what Vercel serves. |
+| Landing audit fixes | **DONE 2026-11-01:** removed all three skip links and dead chat/lock CSS; parked `hero-chat.tsx` and `lock-demo.tsx` in `.scratch/removed-components/` (not deleted yet); fixed invisible focus targets, full-bleed section edges (removed `scrollbar-gutter`), the 1024px hero squeeze, stamp overflow, and the sample Pay button. Added security headers, an OAuth state cookie with a browser check, an allowlisted authorize origin/path, and stopped upstream error detail leaking to the browser. Copy corrected: reorder/past-order claims, sample-only coupon, “no order leaves the chat”, delete-my-data wording, basket vs cart. |
+| Recent Next advisories | **OPEN 2026-11-01:** `npm audit --omit=dev` reports 3 production advisories in Next 16.2.6 (1 critical); the fix is Next 16.4.3, outside the pinned version. Needs Karan's approval before upgrading. |
 
 ---
 
@@ -32,8 +35,8 @@
 |---|---|
 | Documentation sync | **DONE 2026-10-27, scope corrected 2026-10-27.** Recipes are in v1 as plan-confirm-add; proactivity is money-and-truth only; replies stay English. Stale "current" notes were removed from PRD, ARCHITECTURE, DESIGN, GLOSSARY and the ADR index. The scope table lives in `TASKS.md`. |
 | Doc truth pass | **DONE 2026-10-28:** corrected pre-Batch-3 claims in ARCHITECTURE Layer 2/4, DESIGN A2/A6/A8/A9, PRD payment, GLOSSARY fee term, ADR index rows 0003–0006/0009, STATUS counts/constraints/next action, and the verify-grocer skill. No code changed. |
-| Landing page (Phase 8) | **DONE 2026-10-28, live:** rebuilt per `DESIGN.md` Part B in plain language for customers and the Swiggy team. Live/in-testing labels, safety, privacy, Swiggy strip and FAQ; no fake uptime or test numbers. OAuth card only for `?t=` or callback. `npm run build` pass; checked at 1440px and real 360px emulation with no overflow. Vercel production is live with 3 `wa.me` links and 0 disabled notes. |
-| Lint | **PASS 2026-10-28:** `ruff check backend tests` → `All checks passed!` |
+| Lint | **PASS 2026-10-28:** `ruff check backend tests` → `All checks passed!` The `npm run lint` script was removed 2026-11-01; Next 16 no longer ships `next lint` and no ESLint is installed. |
+| Verify 2026-11-01 | **PASS:** `verify.ps1 -Db` exit 0 (schema, ruff, 148 offline + 75 database tests, Next build). Browser: 0 horizontal overflow at 1440/1024/768/390/360; first Tab lands on the brand; no skip link; `/privacy` and `/proof` render. Production output contains no demo placeholder and no phone number. Security headers present; a callback without the state cookie returns 400. |
 | Offline tests | **PASS 2026-10-29:** 148 offline + 75 DB = 223 passed, 20 live deselected, run twice back to back on the same database with the same result (`pytest -q -m "not live"`). |
 | DB tests | **PASS 2026-10-29:** 75 passed on `grocer_test`, and `verify.ps1 -Db` exits 0 end to end (schema check, ruff, offline + DB tests, Next production build) after the four-verb change. |
 | Basket path | **DONE 2026-10-28, merged in `2c63289`:** adds always add and increment an existing line; sizes are exact (200 g never becomes 400 g, 500 g never becomes 1 kg); every missing item is named; explicit set applies with a receipt; remove/clear still confirm. Abuse caps: 20 messages/hour/user, 10 items/message, quantity 1–99, media reply. Proof: 146 offline + 73 DB + Next build; exact paneer/rice regression test. Live route check: 3 cases pass; multi-item, eggs, Hinglish, bare "milk" and remove were blocked by the shared Groq TPM. |
@@ -155,7 +158,7 @@ Gate 2 is read-only. No checkout, order, payment call, or address write is in sc
 - Recipes are built in code (2026-10-28) with a stored plan, typed picks, queueing, whole-message evaluation, duplicate grouping and receipt chunking. Batch 3 is code-complete: coupons on every cart path, savings line, 35% charges warning, itemised bill, support report, payment truth, store-open truth and post-order add truth.
 - DPDP: the 24h scrub clears history, plan, onboarding state/context, plan-time coordinates, the geocode cache and expired PKCE states; "delete my data" deletes inbound messages and cached geocodes and anonymizes the user row (`deleted-<uuid>`, no name, no Swiggy id) while audit rows keep an anonymous id. App queries run as `grocer_app`, which has DML on the 8 app tables and read-only access to the ledger; the backdated-row scrub is proven on `grocer_test`, while live TTL verification is pending.
 - No RLS policies, by design: `anon` and `authenticated` have zero schema usage and zero table grants (checked 2026-10-28). PII is plaintext except Swiggy tokens; disk encryption is Supabase's. The caller-supplied-phone hole was closed in Phase 5 with signed bot links; PKCE state now lives in `grocer.oauth_states`, not process memory.
-- The landing page was rebuilt on 2026-10-28: no health badge, no fake uptime, no fallback WhatsApp link. Missing `NEXT_PUBLIC_WHATSAPP_NUMBER` disables the button with a visible note; the display number stays the placeholder. The OAuth card appears only for a bot link or callback.
+- The landing page was rebuilt on 2026-11-01: no health badge, no fake uptime, no fallback WhatsApp link, and no phone number on the page. Missing `NEXT_PUBLIC_WHATSAPP_NUMBER` disables the button with a visible note. The OAuth card appears only for a bot link or callback.
 - Render free plan sleeps, so pollers stop when idle (`render.yaml:6`).
 - Startup waits at most 5 seconds for the database, then serves with `/health` returning 503 and retries migrations with backoff. A dead DB no longer crashes the process.
 

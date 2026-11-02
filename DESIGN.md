@@ -176,7 +176,7 @@ Every error must say what happened and what the customer can do:
 The website is the advertisement. A stranger should understand three things in under 30 seconds:
 
 1. What Grocer is: a WhatsApp concierge for Swiggy Instamart.
-2. What it can do for them: shop, ask, reorder, manage addresses, track, save money.
+2. What it can do for them: shop, ask, plan, manage addresses, track, pay.
 3. How to try it: one tap to WhatsApp.
 
 It is also the project showcase for reviewers: what is built, how the safety works, and what is proven.
@@ -191,58 +191,59 @@ Target:
 2. The link is `https://wa.me/<NEXT_PUBLIC_WHATSAPP_NUMBER>`.
 3. Swiggy OAuth is a hidden bridge. The bot sends the reconnect link only when a customer needs to link or refresh Swiggy. The normal landing page does not ask for a phone number.
 
-Done 2026-10-27: the phone form is gone. The page accepts a signed `?t=` link from the bot, and it never asks for a phone number. Rebuilt 2026-10-28: the WhatsApp button is the hero CTA; the OAuth card appears only for `?t=` or a callback; a missing `NEXT_PUBLIC_WHATSAPP_NUMBER` disables the button with a visible note instead of linking to a placeholder.
+Done 2026-10-27: the phone form is gone. The page accepts a signed `?t=` link from the bot, and it never asks for a phone number. Rebuilt 2026-10-28: the WhatsApp button is the hero CTA; the OAuth card appears only for `?t=` or a callback; a missing `NEXT_PUBLIC_WHATSAPP_NUMBER` disables the button with a visible note instead of linking to a placeholder. Final rebuild 2026-11-01: printed sample receipt and a 9:16 demo slot in the hero, no PC window and no fake order.
 
 ## B3. Page sections
 
-1. **Hero.** "Groceries on WhatsApp. Real Swiggy Instamart." One sentence: chat naturally, see live prices, tap once to pay. Primary CTA.
-2. **Problem.** Grocery apps are heavy. People already live in WhatsApp. Grocer removes the app hop.
-3. **What Grocer does.** Shopping lists, price/stock questions, saved addresses, order history, tracking, coupons, reorders, and recipe plans. Mark which are live today and which are coming next. Recipes are in v1 as a plan-confirm-add flow and built in code (2026-10-28); do not mark them live until the handset route and Add-all tap pass.
-4. **The 3-lock safety story.** Physical tap only; live cart re-check; exactly-once lock. Explain in plain words, not internal names.
-5. **What is live today.** Pull from `STATUS.md`. Do not list a feature as live if it is partial or fixture-only. Current live: read answers, basket add, address list, switch with rebuild, coupon discovery, signed OAuth link, park and replay. Checkout is locked. Live add and delete of a real address is still unproven.
-6. **How it works.** Three steps: open WhatsApp, connect Swiggy, chat and tap to pay.
-7. **Privacy.** 24-hour data minimization, encrypted Swiggy tokens, "delete my data". Only claim what the code does.
-8. **Proof.** Real tests, real Swiggy reads, Groq router eval. No invented percentages, no fake uptime.
-9. **FAQ.** Is this official Swiggy? What happens if an item is out of stock? Can I cancel? How do I delete my data?
-10. **Footer CTA.** One WhatsApp button. No fake status badge.
+1. **Hero.** "Text the list. We’ll handle the rest." One sentence, the WhatsApp CTA, an early-access line, and a printed sample receipt beside a 9:16 demo slot. The receipt shows six sample products, a sample coupon and ₹312 to pay, stamped **Sample**. The demo slot appears only when `public/demo.mp4` exists in production; development shows a labelled placeholder. A missing WhatsApp env var disables the CTA with a visible note.
+2. **What it does.** Six plain rows: Build the basket, Ask about prices, Plan dinner, Keep your addresses, Follow the rider, Pay once. Each row carries a small status: Live, In testing or Opening next. No internal tool names.
+3. **Before you pay.** One dark band. Left: a three-step vertical timeline (you tap, we re-read the basket, it runs once) and the ₹1,000 cap note. Right: a sample checkout card with the bill, sample coupon, cap meter, a disabled Pay button and "Sample checkout · no payment taken".
+4. **Built.** Six backend facts, led by "20 tools", plus a small "223 automated tests pass" line and a link to `/proof`. No test statistics as a headline section.
+5. **Questions.** Six short FAQs: official Swiggy, connecting an account, paying, Grocer’s fee, out of stock, data.
+6. **Footer.** Compact: brand, "Instamart, in your chats.", WhatsApp button, Privacy, Run log, Questions, trademark line and copyright.
+
+Privacy lives at `/privacy`; the run log lives at `/proof`. There is no founder section, no separate privacy section, no proof-stat band and no phone form.
 
 ## B4. Claims policy
 
-- Every claim is either **live today** or labeled **coming next**.
-- No invented numbers, no "100%", no "best coupon" unless it is true. Current code tries the first two applicable coupons and only keeps one that lowers the total.
+- Every claim is either **live today**, labeled **in testing**, or labeled **opening next**.
+- Sample baskets, coupons and checkout cards are stamped **Sample** and say no order or payment happened.
+- No invented numbers, no "100%", no "best coupon" unless it is true. Current code tries up to two applicable coupons and only keeps one that lowers the total.
 - No "Systems Operational" badge unless it is wired to a real health check and can show degraded.
 - No real customer data, order IDs, addresses or phone numbers.
-- No fake screenshots. If a WhatsApp mockup is shown, it must match the current copy or be labeled as a concept.
+- No fake screenshots. The hero receipt is sample data, not a past order.
+- Payment is never described as available. "Payments open soon. The chat is live today." is the current status line.
 
 ## B5. Number policy
 
-- Display: placeholder `+91 98765 43210`.
-- Link: `NEXT_PUBLIC_WHATSAPP_NUMBER`, which is read from the environment.
+- The page shows no phone number.
+- Link: `NEXT_PUBLIC_WHATSAPP_NUMBER`, read from the environment.
 - Never commit or publish Karan's real number.
-- If the env var is missing, the CTA must fail loudly in development, not silently point to a stranger.
+- If the env var is missing, the CTA becomes a disabled button with a visible note; it never points to a stranger.
 
 ## B6. Visual direction
 
-- Keep the current dark charcoal background with Swiggy orange (`#FC8019`) as the accent. It fits the product and already exists.
-- Clean, warm, mobile-first. Generous spacing. Large type. One idea per section.
-- No video-editor aesthetic, no dense creative-tool chrome. `docs/archive/design-reference.md` was a Cardboard.ai video-editor system and is archived; do not use it as the landing-page spec.
-- Show the product with real WhatsApp-style receipts and buttons, not a fake dashboard.
+- Light paper (`#f4f2ed`) with a darker paper section, ink green, and Swiggy orange (`#FC8019`) as the only accent. One dark safety band and a dark footer.
+- Clean, warm, mobile-first. Generous spacing. Large Fraunces headings, Golos Text body, one idea per section.
+- **Typography:** Fraunces (`--font-fraunces`) and Golos Text (`--font-golos`) via `next/font/google`.
+- Interface surfaces: 12px buttons, 16px cards, 24px panels. The printed receipt is a paper prop with an 8px edge and a perforated bottom; the demo frame is 30px. No glass, no gradient glows, no nested cards.
+- Show the product as a printed receipt and a phone-shaped demo slot, not a fake dashboard. No stock photography. No video-editor aesthetic.
 
 ## B7. OAuth bridge
 
 - Routes: `/api/auth/swiggy/login` and `/api/auth/swiggy/callback`.
 - Exact redirect: `https://grocerr.vercel.app/`.
 - The bridge stores the phone in PKCE state and links the Swiggy token to that `wa_id`.
-- Current: login requires a signed bot link (HMAC, 1-hour TTL). PKCE state lives in `grocer.oauth_states` with a 10-minute one-time TTL, so a Render restart mid-login does not break the callback.
+- Current: login requires a signed bot link (HMAC, 1-hour TTL). PKCE state lives in `grocer.oauth_states` with a 10-minute one-time TTL. The login route sets a 10-minute `grocer_oauth_state` cookie; the callback refuses a state that does not match this browser, so a copied callback link cannot link the wrong session.
 - The landing page must not render customer data after the callback. It only shows a success or failure state.
 
 ## B8. Landing page done condition
 
 - A stranger understands the product in under 30 seconds.
 - One primary CTA to WhatsApp.
-- Every claim is live or labeled coming next.
-- No fake number, fake uptime, or invented statistic.
+- Every claim is live, in testing, or opening next.
+- No fake number, fake uptime, or invented statistic. Sample data is labeled.
 - Mobile layout works at 360px width.
 - The page does not pretend to be the product UI.
 
-**State 2026-10-28:** live at `https://grocerr.vercel.app`. `npm run build` passes; checked at 1440px and real 360px emulation with no horizontal overflow; the `?t=` connect card renders. `NEXT_PUBLIC_WHATSAPP_NUMBER` is set in Vercel production; the built page has 3 `wa.me` links and no disabled note. A phone tap on the CTA is still unproven.
+**State 2026-11-01:** redesigned locally; not deployed. `verify.ps1 -Db` passes (148 offline + 75 database tests, ruff, build). Checked at 1440/1024/768/390/360 with zero horizontal overflow; the skip link is removed; the first Tab lands on the brand; both subpages render. Production output contains no demo placeholder and no phone number; the demo slot stays hidden until `public/demo.mp4` exists. Security headers are set and the OAuth callback is bound to a browser cookie, but no live Swiggy sign-in has been run since that change. `npm audit` still reports Next 16.2.6 advisories; the fix is 16.4.3 and needs approval. A phone tap on the CTA is still unproven.

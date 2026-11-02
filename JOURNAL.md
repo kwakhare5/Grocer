@@ -983,6 +983,14 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: `grep` for pre-merge claims returns only dated history; commit `7514369` pushed; Render live on `7514369` with `/health` 200.
 - **Still broken**: post-merge scorecard, duplicate-name picker, handset taps, reaction on a real wamid, live 24h scrub. Checkout stays locked.
 
+### [GROCER — post-merge scorecard and landing ship] 2026-11-01
+
+#### Work Card: 25/26 live, the light page staged, the almonds miss still open
+- **Problem**: the merged code had to be scored live, and the landing rewrite had to ship without its unproven OAuth cookie change.
+- **Change**: no backend code; restored the proven OAuth routes (the state-cookie patch is parked in `.scratch/parked/oauth-state-cookie.patch`), corrected `/proof` (25/26, almonds still open), staged the light page, `/privacy` and `/proof`.
+- **Proof**: post-merge scorecard 13/13 + 12/13 = 25/26, only case 16 fails; `verify.ps1 -Db` exit 0 (148 offline + 75 DB, ruff, Next build); `npm ci` restored missing deps; `npm audit` reports 3 advisories.
+- **Still broken**: live 5 kg almonds asks a pack question; OAuth cookie hardening unproven; Next 16.2.6 advisories; handset proofs. Checkout stays locked.
+
 
 ### [GROCER — Landing Page Redesign (MailCheap Inspiration)] 2026-10-31
 
@@ -991,3 +999,69 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: Rebuilt `app/page.tsx` with a 6-section structure inspired by MailCheap: interactive 4-tab WhatsApp demo simulator, 3-metric proof strip (0 App Hops, 3-Lock Gate, 24h Auto-Scrub), asymmetric bento grid with live micro-UI cards, "Python Muscle vs LLM Brain" engine breakdown, 3-lock security cards, sticky 2-column FAQ, and glowing closing CTA, strictly preserving all invariants (`+91 98765 43210` display, no phone inputs, OAuth token handling).
 - **Proof**: `powershell -ExecutionPolicy Bypass -File .\verify.ps1` exit code 0 (schema check passed, ruff lint passed, 148 offline pytest tests passed, Next.js production build passed in 2.5s).
 - **Still broken**: None.
+
+
+### [GROCER — UI Polish & Craft Engineering] 2026-10-31
+
+#### Work Card: Emil Kowalski Micro-Interactions, Ambient Radiance, and Authentic Chat Physics
+- **Problem**: The landing page required subtle design engineering polish (tactile button responses, WhatsApp bubble physics, smooth tab cross-fades, and tight typography tracking) to look crafted rather than generic.
+- **Change**: Updated `app/globals.css` with spring physics (`.btn-press`), ambient radial lighting, and frosted glass cards (`.glass-panel`); refined `app/page.tsx` with tight tracking (`tracking-[-0.035em]`), text-balancing, WhatsApp asymmetric bubble geometry with double read receipts (`CheckCheck`), and smooth tab cross-fade state transitions.
+- **Proof**: `powershell -ExecutionPolicy Bypass -File .\verify.ps1` exit code 0 (schema check passed, ruff check passed, 148 offline pytest tests passed, Next.js build passed in 2.5s).
+- **Still broken**: None.
+
+
+### [GROCER — Anti-Slop Landing Page Refactor] 2026-10-31
+
+#### Work Card: Purge AI Buzzwords & Glow Blobs for Editorial MailCheap Craft
+- **Problem**: The landing page was polluted with AI slop (blurred neon glow orbs, colored icon squares, and developer flex jargon like "Python Muscle" and "Atomic CAS").
+- **Change**: Replaced all buzzwords with plain 8th-grade human copy; added Karan's builder story ("Why I built Grocer"); replaced blurred glow divs with hairline inset rings (`card-tile`) and subtle dot textures; added editorial serif contrast (`Newsreader` paired with `Plus Jakarta Sans`); answered real consumer questions in the FAQ.
+- **Proof**: `npm run build` compiled successfully in 1.8s with 0 warnings; `powershell -ExecutionPolicy Bypass -File .\verify.ps1` exit code 0 (schema check, ruff check, 148 offline pytest tests passed).
+- **Still broken**: None.
+
+### [GROCER — Typography Pairing Upgrade: Fraunces & Golos Text] 2026-11-01
+
+#### Work Card: Switch Landing Page Typography to Fraunces Display & Golos Text Body
+- **Problem**: Landing page used Google Fonts URL import with Newsreader/Plus Jakarta Sans, lacking optimal food/quick-commerce warmth and self-hosted Next.js performance.
+- **Change**: Configured `Fraunces` and `Golos_Text` via `next/font/google` in `app/layout.tsx`; wired `--font-fraunces` and `--font-golos` in `app/globals.css` with Fraunces on all `h1`, `h2`, and serif accents, and Golos Text on body, cards, and UI; updated `DESIGN.md` §B6.
+- **Proof**: `npm run build` compiled successfully in 2.8s (TypeScript passed, 5/5 static pages generated); zero layout shift or external runtime font stylesheets.
+- **Still broken**: None.
+
+### [GROCER — Dev Environment Fix: Port 3000 & WhatsApp Env Var] 2026-11-01
+
+#### Work Card: Terminate Zombie Next Dev Server & Set Local WhatsApp Number
+- **Problem**: Next dev server was hung on PID 7892 locking port 3000 in `FIN_WAIT_1`, and browser console logged missing `NEXT_PUBLIC_WHATSAPP_NUMBER`.
+- **Change**: Terminated hung process PID 7892 via `taskkill /F`; added `NEXT_PUBLIC_WHATSAPP_NUMBER=919876543210` to local `.env` for local dev CTA testing.
+- **Proof**: Port 3000 verified free; Next.js dev server starts with 0 port collisions or env warnings.
+- **Still broken**: None.
+
+### [GROCER — Light SaaS Fold] 2026-11-01
+
+#### Work Card: Rebuild the Hero as a Centered Product Window
+- **Problem**: The landing hero was an editorial split; Karan wants the light paper site to use a MailCheap-like SaaS composition without copying its dark skin, fonts, or fake pricing.
+- **Change**: Rebuilt the hero as a centered Fraunces promise, one CTA, testing status, and a full-width WhatsApp-style product window (chat list, conversation, real 31 Oct ₹531 test receipt) in `app/components/product-demo.tsx` and `app/components/receipt.tsx`; kept the paper palette, header, OAuth flow, and honest copy. Sections below are unchanged.
+- **Proof**: `npm run build` exit 0; inspector 0 FAIL / 4 WARN; 360px headline 2 lines with no overflow; motion measured 8 animations at load and 36 moving elements after scroll; `?t=test` OAuth card still renders at 390px.
+- **Still broken**: The capabilities, locks, privacy, proof, founder and FAQ sections still use the old split rhythm; DESIGN/STATUS/TASKS/HANDOFF not yet synced; fold awaiting Karan's review.
+
+### [GROCER — Final Landing Pass] 2026-11-01
+
+#### Work Card: Open WhatsApp Hero, Rounded Surface, and Cut Copy
+- **Problem**: The hero read as a copied PC window, every panel had 2px edges, and the landing carried a privacy section, a technical proof sheet, three extra FAQs, and duplicate footer lines that a customer does not need.
+- **Change**: Replaced `product-demo.tsx` with `hero-chat.tsx` (one open thread, real 31 Oct receipt); added a real-replies chat beside six status rows; cut privacy into one footer line plus `/privacy`; replaced the proof sheet with three numbers; trimmed FAQ to six, founder to one paragraph, and footer copy; added 12/16/24/14px radius tokens; removed the retired PC-window markup and CSS.
+- **Proof**: `npm run build` exit 0 (TypeScript clean, 7/7 pages); inspector 0 FAIL except still-page (OS has reduced motion on; forced no-preference shows 7 running animations at load and 22 moving elements on scroll); 0 horizontal overflow at 1440/768/390/360; all four anchors clear the 64px header; `?t=test` OAuth card and both subpages render.
+- **Still broken**: Cleanup and the DESIGN/STATUS/TASKS/HANDOFF sync wait for Karan's look at the rebuilt page; `npm run lint` is stale (`next lint` no longer exists in Next 16); the page is interface-led with no stock photography by design.
+
+### [GROCER — UI Audit Cleanup] 2026-11-01
+
+#### Work Card: Strip Test Hooks, Tailwind, Dead Files and Layout Glitches
+- **Problem**: The live audit found inspector-only `data-ui` hooks, two motion systems, an unused Tailwind setup and `lucide-react`, an unused `large` button prop, a one-use `receipt.tsx`, four divider lines, a duplicated footer privacy link, tablet chat misalignment, full-bleed mobile cards, and stale privacy/proof wording.
+- **Change**: Merged `receipt.tsx` into `hero-chat.tsx`; deleted all `data-ui` hooks, `data-rise`/`rise` and the bubble/print keyframes; removed the header and receipt divider lines; simplified `WhatsAppButton`; removed Tailwind, `lucide-react`, `postcss.config.mjs`, `logo.svg`, the dead lint script, the MailCheap scrape, the wrong Cardboard.ai archive, 21 MB of design iterations and old UI screenshots/logs; fixed the mobile card gutters, tablet chat centring, row alignment, footer duplicate, brand size, theme colour, plain privacy words, plan Add-all copy and API error copy.
+- **Proof**: `verify.ps1` exit 0 on 2026-11-01 (schema, ruff, 148 offline tests, Next build); 0 horizontal overflow at 1440/768/390/360; all four anchors clear the 64px header; `?t=test`, `/privacy` and `/proof` render; forced no-preference motion shows 10 running animations at load and 27 moving elements; inspector 3 FAIL are tool artifacts (0 `data-ui` pictures, headline focal heuristic, reduced-motion still-page) and 4 WARN.
+- **Still broken**: Not deployed; `npm audit` reports 3 production advisories in Next 16.2.6 (1 critical), fix is Next 16.4.3 and needs approval; no real order, live tracking, address add/delete, plan Add-all or phone CTA tap.
+
+### [GROCER — Landing Redesign & Audit] 2026-11-01
+
+#### Work Card: Sample Receipt Hero, Built Section and Three-Agent Audit
+- **Problem**: The page read as a test report, not a product: a chat demo, a proof-number band, a thin safety layout and a long footer. Karan asked for an optimistic page, a printed-receipt hero, a demo-video slot, a rebuilt safety block, backend features instead of test stats, shorter copy and new nav names. He also caught the skip-link pill and asked for a full audit.
+- **Change**: Rebuilt the home page around a stamped sample receipt and a 9:16 `public/demo.mp4` slot; six job rows with Live / In testing / Opening next; a dark three-step safety band with a sample checkout and cap meter; six backend facts led by 20 tools; six short FAQs; compact footer. Removed all skip links and the old chat/lock components and CSS. Fixed the invisible-focus target, full-bleed edges, 1024px hero squeeze, stamp overflow and dead sample Pay button. Added security headers, an OAuth state cookie bound to the browser, an allowlisted authorize origin/path, and stopped upstream error detail leaking. Corrected claims: reorder/past orders, sample coupon, "no order leaves the chat", delete-my-data wording, basket vs cart.
+- **Proof**: `verify.ps1 -Db` exit 0 on 2026-11-01 (148 offline + 75 database tests, ruff, Next build). 0 horizontal overflow at 1440/1024/768/390/360; first Tab lands on the brand; `/privacy` and `/proof` render; production HTML has no demo placeholder and no phone number; callback without the state cookie returns 400; headers present on the response.
+- **Still broken**: Not deployed. Next 16.2.6 has 3 production advisories (1 critical); the 16.4.3 fix needs approval. No live Swiggy sign-in has run since the cookie binding. `public/demo.mp4` is missing, so the slot is hidden in production. `hero-chat.tsx` and `lock-demo.tsx` are parked in `.scratch/removed-components/`, not deleted. Real order, live tracking, address add/delete, plan Add-all and a phone CTA tap remain unproven.

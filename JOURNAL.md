@@ -983,12 +983,12 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Proof**: `grep` for pre-merge claims returns only dated history; commit `7514369` pushed; Render live on `7514369` with `/health` 200.
 - **Still broken**: post-merge scorecard, duplicate-name picker, handset taps, reaction on a real wamid, live 24h scrub. Checkout stays locked.
 
-### [GROCER — post-merge scorecard and landing ship] 2026-11-01
+### [GROCER — post-merge scorecard and landing ship] 2026-11-02
 
-#### Work Card: 25/26 live, the light page staged, the almonds miss still open
+#### Work Card: 25/26 live, the light page shipped, the almonds miss still open
 - **Problem**: the merged code had to be scored live, and the landing rewrite had to ship without its unproven OAuth cookie change.
-- **Change**: no backend code; restored the proven OAuth routes (the state-cookie patch is parked in `.scratch/parked/oauth-state-cookie.patch`), corrected `/proof` (25/26, almonds still open), staged the light page, `/privacy` and `/proof`.
-- **Proof**: post-merge scorecard 13/13 + 12/13 = 25/26, only case 16 fails; `verify.ps1 -Db` exit 0 (148 offline + 75 DB, ruff, Next build); `npm ci` restored missing deps; `npm audit` reports 3 advisories.
+- **Change**: no backend code; restored the proven OAuth routes (the state-cookie patch is parked in `.scratch/parked/oauth-state-cookie.patch`), corrected `/proof` (25/26, almonds still open), and shipped the light page, `/privacy` and `/proof` in `0fcafdb`.
+- **Proof**: post-merge scorecard 13/13 + 12/13 = 25/26, only case 16 fails; `verify.ps1 -Db` exit 0 (148 offline + 75 DB, ruff, Next build); `npm ci` restored missing deps; Vercel `/`, `/privacy`, `/proof` return 200 with 1 unique `wa.me` and 0 placeholders; Render live on `0fcafdb` with `/health` 200; `npm audit` reports 3 advisories.
 - **Still broken**: live 5 kg almonds asks a pack question; OAuth cookie hardening unproven; Next 16.2.6 advisories; handset proofs. Checkout stays locked.
 
 
@@ -1065,3 +1065,11 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: Rebuilt the home page around a stamped sample receipt and a 9:16 `public/demo.mp4` slot; six job rows with Live / In testing / Opening next; a dark three-step safety band with a sample checkout and cap meter; six backend facts led by 20 tools; six short FAQs; compact footer. Removed all skip links and the old chat/lock components and CSS. Fixed the invisible-focus target, full-bleed edges, 1024px hero squeeze, stamp overflow and dead sample Pay button. Added security headers, an OAuth state cookie bound to the browser, an allowlisted authorize origin/path, and stopped upstream error detail leaking. Corrected claims: reorder/past orders, sample coupon, "no order leaves the chat", delete-my-data wording, basket vs cart.
 - **Proof**: `verify.ps1 -Db` exit 0 on 2026-11-01 (148 offline + 75 database tests, ruff, Next build). 0 horizontal overflow at 1440/1024/768/390/360; first Tab lands on the brand; `/privacy` and `/proof` render; production HTML has no demo placeholder and no phone number; callback without the state cookie returns 400; headers present on the response.
 - **Still broken**: Not deployed. Next 16.2.6 has 3 production advisories (1 critical); the 16.4.3 fix needs approval. No live Swiggy sign-in has run since the cookie binding. `public/demo.mp4` is missing, so the slot is hidden in production. `hero-chat.tsx` and `lock-demo.tsx` are parked in `.scratch/removed-components/`, not deleted. Real order, live tracking, address add/delete, plan Add-all and a phone CTA tap remain unproven.
+
+### [GROCER — Amount Fill, Doc Truth and Cleanup] 2026-11-02
+
+#### Work Card: Explicit amounts fill exact packs; counts and claims synced
+- **Problem**: live "add 5 kg almonds" asked which pack instead of filling the amount, and the docs still said 223 tests, 243 collected, 148 offline, and that case 16 was open.
+- **Change**: `parse_pack_size` folds an "N unit x M" multiplier; `_exact_plan` fills an explicit amount with the fewest exact packs across candidates, and when stock cannot reach it the reply adds what exists and names the shortfall. Synced STATUS/TASKS/DESIGN/proof/landing counts to 149 offline + 75 DB = 224 and 244 collected; deleted the parked dead components, one-off scripts, old response dumps and caches.
+- **Proof**: `verify.ps1 -Db` exit 0 on 2026-11-02 — 149 offline, 75 DB, ruff, Next build (`.scratch/verify_docs_20261102.log`); live case 16 re-run PASS 1/1, reply "I asked for 5, so I added 2" with the ₹1,000 cap warning (`.scratch/scorecard_live.json`); the new multipack test is inside the passing 149.
+- **Still broken**: full 26-case re-run pending; duplicate-name picker; handset taps; live OAuth reconnect; address add/delete; 24h scrub. Checkout stays locked.

@@ -1,6 +1,6 @@
 # STATUS.md — Grocer Current Truth
 
-> **Updated:** 2026-11-01  
+> **Updated:** 2026-11-02  
 > **Authority:** This is the only current status document. `PRD.md` is the v1 target. `ARCHITECTURE.md` is the design plus known gaps. `DESIGN.md` is the WhatsApp UI plus the website landing page. `JOURNAL.md` is append-only history. `docs/adr/` records decisions, amended not rewritten.  
 > **Rule:** DONE needs a proof command, date, and raw output. Everything else is PARTIAL, BROKEN, or NOT VERIFIED. A green test is not proof that the live product works.
 
@@ -22,9 +22,9 @@
 | Build-time order policy | No live order during the build. Checkout proof is simulated plus recorded responses. Karan places the first real order after handoff. |
 | Address test writes | One throwaway address on Karan's account may be created and deleted. |
 | Hosting | Render free plan; pollers reconcile from the DB on wake. No paid instance. |
-| Landing OAuth | No phone-entry form. OAuth is a bot-sent bridge only; the card renders only for `?t=` or a callback. The login route sets a 10-minute `grocer_oauth_state` cookie and the callback refuses a state from another browser. |
-| Landing page (Phase 8) | **DONE locally 2026-11-01; deploy pending.** Redesign: printed sample receipt plus a 9:16 demo slot in the hero, six job rows with Live / In testing / Opening next, a dark three-step safety band with a sample checkout and cap meter, six backend facts led by 20 tools, a small 223-tests line, six FAQs, and a compact footer. Every sample is stamped. No founder section, proof-stat band, chat demo, phone form or separate privacy section. The demo slot is hidden in production until `public/demo.mp4` exists. The old page is still what Vercel serves. |
-| Landing audit fixes | **DONE 2026-11-01:** removed all three skip links and dead chat/lock CSS; parked `hero-chat.tsx` and `lock-demo.tsx` in `.scratch/removed-components/` (not deleted yet); fixed invisible focus targets, full-bleed section edges (removed `scrollbar-gutter`), the 1024px hero squeeze, stamp overflow, and the sample Pay button. Added security headers, an OAuth state cookie with a browser check, an allowlisted authorize origin/path, and stopped upstream error detail leaking to the browser. Copy corrected: reorder/past-order claims, sample-only coupon, “no order leaves the chat”, delete-my-data wording, basket vs cart. |
+| Landing OAuth | No phone-entry form. OAuth is a bot-sent bridge only; the card renders only for `?t=` or a callback. The proven login/callback routes are live; the state-cookie and origin-check hardening is parked in `.scratch/parked/oauth-state-cookie.patch` until a handset test. |
+| Landing page (Phase 8) | **LIVE 2026-11-02.** Redesign: printed sample receipt plus a 9:16 demo slot in the hero, six job rows with Live / In testing / Opening next, a dark three-step safety band with a sample checkout and cap meter, six backend facts led by 20 tools, a small 224-tests line, six FAQs, and a compact footer. Every sample is stamped. No founder section, proof-stat band, chat demo, phone form or separate privacy section. The demo slot is hidden in production until `public/demo.mp4` exists. Proof: page commit `0fcafdb`; `https://grocerr.vercel.app/`, `/privacy` and `/proof` return 200; 1 unique `wa.me` link; 0 placeholders; Render live on `38dc084` with `/health` 200. |
+| Landing audit fixes | **DONE 2026-11-01, shipped 2026-11-02:** removed all three skip links and dead chat/lock CSS; deleted the dead `hero-chat.tsx` and `lock-demo.tsx`; fixed invisible focus targets, full-bleed section edges (removed `scrollbar-gutter`), the 1024px hero squeeze, stamp overflow, and the sample Pay button. Security headers are live; the OAuth state cookie and origin check are parked for a handset test. Copy corrected: reorder/past-order claims, sample-only coupon, “no order leaves the chat”, delete-my-data wording, basket vs cart. |
 | Recent Next advisories | **OPEN 2026-11-01:** `npm audit --omit=dev` reports 3 production advisories in Next 16.2.6 (1 critical); the fix is Next 16.4.3, outside the pinned version. Needs Karan's approval before upgrading. |
 
 ---
@@ -36,15 +36,15 @@
 | Documentation sync | **DONE 2026-10-27, scope corrected 2026-10-27.** Recipes are in v1 as plan-confirm-add; proactivity is money-and-truth only; replies stay English. Stale "current" notes were removed from PRD, ARCHITECTURE, DESIGN, GLOSSARY and the ADR index. The scope table lives in `TASKS.md`. |
 | Doc truth pass | **DONE 2026-10-28:** corrected pre-Batch-3 claims in ARCHITECTURE Layer 2/4, DESIGN A2/A6/A8/A9, PRD payment, GLOSSARY fee term, ADR index rows 0003–0006/0009, STATUS counts/constraints/next action, and the verify-grocer skill. No code changed. |
 | Lint | **PASS 2026-10-28:** `ruff check backend tests` → `All checks passed!` The `npm run lint` script was removed 2026-11-01; Next 16 no longer ships `next lint` and no ESLint is installed. |
-| Verify 2026-11-01 | **PASS:** `verify.ps1 -Db` exit 0 (schema, ruff, 148 offline + 75 database tests, Next build). Browser: 0 horizontal overflow at 1440/1024/768/390/360; first Tab lands on the brand; no skip link; `/privacy` and `/proof` render. Production output contains no demo placeholder and no phone number. Security headers present; a callback without the state cookie returns 400. |
-| Offline tests | **PASS 2026-10-29:** 148 offline + 75 DB = 223 passed, 20 live deselected, run twice back to back on the same database with the same result (`pytest -q -m "not live"`). |
-| DB tests | **PASS 2026-10-29:** 75 passed on `grocer_test`, and `verify.ps1 -Db` exits 0 end to end (schema check, ruff, offline + DB tests, Next production build) after the four-verb change. |
+| Verify 2026-11-02 | **PASS:** `verify.ps1 -Db` exit 0 (schema, ruff, 149 offline + 75 database tests, Next build). Browser checks from 2026-11-01: 0 horizontal overflow at 1440/1024/768/390/360; first Tab lands on the brand; no skip link; `/privacy` and `/proof` render. Security headers are live; the OAuth state-cookie patch is parked. `npm audit` reports 3 advisories in Next 16.2.6. |
+| Offline tests | **PASS 2026-11-02:** 149 offline + 75 DB = 224 passed, 20 live deselected (`pytest -q -m "not live"`). |
+| DB tests | **PASS 2026-11-02:** 75 passed on `grocer_test`, and `verify.ps1 -Db` exits 0 end to end (schema check, ruff, offline + DB tests, Next production build) after the amount-pack fix. |
 | Basket path | **DONE 2026-10-28, merged in `2c63289`:** adds always add and increment an existing line; sizes are exact (200 g never becomes 400 g, 500 g never becomes 1 kg); every missing item is named; explicit set applies with a receipt; remove/clear still confirm. Abuse caps: 20 messages/hour/user, 10 items/message, quantity 1–99, media reply. Proof: 146 offline + 73 DB + Next build; exact paneer/rice regression test. Live route check: 3 cases pass; multi-item, eggs, Hinglish, bare "milk" and remove were blocked by the shared Groq TPM. |
 | Live route check | **PARTIAL 2026-10-28:** on the branch, "add 1 litre milk" → add 1 L; "add 1 more milk" → add 1; "make milk 3" → set 3. The remaining five live wordings were blocked by the shared Groq TPM, not by an error; the fixture tests for those paths pass. |
 | Live deploy 2c63289 | **PASS 2026-10-28:** push `d61b142..2c63289` accepted; Render deploy `dep-dbh0vkavcj2c73e0ghqg` reached `live` on `2c63289`; `GET https://grocer-backend-qwk4.onrender.com/health` → HTTP 200 `{"status":"healthy","database":"connected","app":"Grocer","environment":"development"}`. GitHub Quality run `40712848895` succeeded on `2c63289`. |
 | Live tests | **20 live-only tests collected, not run.** `test_catalog_search.py` calls the live router/model path and is marked `live`. |
-| Full test collection | **243 tests collected 2026-10-29** (148 offline, 75 DB, 20 live). |
-| Full suite claim | The old "136 passed, 0 skipped" claim is retired. The current verified set is 148 offline + 75 DB (243 collected, 20 of them live-only); live is excluded by default. Scripted tests are marked `scripted` and never counted as live proof. |
+| Full test collection | **244 tests collected 2026-11-02** (149 offline, 75 DB, 20 live). |
+| Full suite claim | The old "136 passed, 0 skipped" claim is retired. The current verified set is 149 offline + 75 DB (244 collected, 20 of them live-only); live is excluded by default. Scripted tests are marked `scripted` and never counted as live proof. |
 | Live Swiggy smoke | **PASS 2026-10-27:** real token, real MCP. 3 addresses, 20 milk products with live prices, 12-item cart read, 0 orders, 10 payment methods, 0 coupons. Cart add verified then restored (12 items, same spins and quantities). No order placed. Raw: `scripts/live_smoke.py`. |
 | Live Groq pass | **PASS 2026-10-27:** 10 real messages → 10 correct routes (item_info ×3, list_addresses, order_history, list_coupons, payment_options, add_items, chat, track_order) with real read answers. 55s. |
 | Live checkout lock | **PASS 2026-10-27:** with `LIVE_CHECKOUT_ENABLED=false`, the real path returned "Checkout is locked" and a sentinel client proved no Swiggy method ran. |
@@ -158,7 +158,7 @@ Gate 2 is read-only. No checkout, order, payment call, or address write is in sc
 - Recipes are built in code (2026-10-28) with a stored plan, typed picks, queueing, whole-message evaluation, duplicate grouping and receipt chunking. Batch 3 is code-complete: coupons on every cart path, savings line, 35% charges warning, itemised bill, support report, payment truth, store-open truth and post-order add truth.
 - DPDP: the 24h scrub clears history, plan, onboarding state/context, plan-time coordinates, the geocode cache and expired PKCE states; "delete my data" deletes inbound messages and cached geocodes and anonymizes the user row (`deleted-<uuid>`, no name, no Swiggy id) while audit rows keep an anonymous id. App queries run as `grocer_app`, which has DML on the 8 app tables and read-only access to the ledger; the backdated-row scrub is proven on `grocer_test`, while live TTL verification is pending.
 - No RLS policies, by design: `anon` and `authenticated` have zero schema usage and zero table grants (checked 2026-10-28). PII is plaintext except Swiggy tokens; disk encryption is Supabase's. The caller-supplied-phone hole was closed in Phase 5 with signed bot links; PKCE state now lives in `grocer.oauth_states`, not process memory.
-- The landing page was rebuilt on 2026-11-01: no health badge, no fake uptime, no fallback WhatsApp link, and no phone number on the page. Missing `NEXT_PUBLIC_WHATSAPP_NUMBER` disables the button with a visible note. The OAuth card appears only for a bot link or callback.
+- The landing page was rebuilt on 2026-11-01 and went live on 2026-11-02: no health badge, no fake uptime, no fallback WhatsApp link, and no phone number on the page. Missing `NEXT_PUBLIC_WHATSAPP_NUMBER` disables the button with a visible note. The OAuth card appears only for a bot link or callback.
 - Render free plan sleeps, so pollers stop when idle (`render.yaml:6`).
 - Startup waits at most 5 seconds for the database, then serves with `/health` returning 503 and retries migrations with backoff. A dead DB no longer crashes the process.
 
@@ -192,21 +192,21 @@ ruff check backend tests
 All checks passed!
 
 pytest -q -m "not db and not live"
-148 passed, 95 deselected
+149 passed, 95 deselected
 
 pytest -q -m "db"
-75 passed, 168 deselected
+75 passed, 169 deselected
 
 pytest --collect-only -q
-243 tests collected
+244 tests collected
 
 python scripts/eval_router.py --provider groq
 Exact capability match: 40/40 (100.0%)
 Latency (last call per case): avg 1312ms, p95 1735ms, max 1889ms
 Unsafe writes: 0, under-acted: 0, errors: 0
-# 2026-10-31: schema check exit 0 (9 tables, grocer_app), ruff clean,
-# 148 offline pass, 75 DB pass, Next.js build pass, verify.ps1 exit 0
-# (.scratch/verify_20261031b.log)
+# 2026-11-02: schema check exit 0 (9 tables, grocer_app), ruff clean,
+# 149 offline pass, 75 DB pass, Next.js build pass, verify.ps1 exit 0
+# (.scratch/verify_amount_fix.log)
 ```
 
 **New in Block 1 (2026-10-28):** restricted-role test (`current_user = grocer_app`, DDL refused), live/expired PKCE state test, backdated 24-hour scrub test, and a subprocess boot test with an unreachable DB. The router eval rerun scored 40/40 with latency.
@@ -255,22 +255,23 @@ RuntimeError: Refusing to run tests against database 'postgres'. TEST_DATABASE_U
 
 ## 8. Next Action
 
-**Where we are (2026-10-31, after merge).** All ten phases are code-complete. `main` is `a8e530c` (fast-forward from `db6a297`), PR #3 is merged, and Render deploy `dep-dbiupgivcj2c73edh5t0` is live with `/health` 200. The `scorecard` work is in production: offline scorecard, live scorer, no keyword lists, the webhook split into `turn_read` / `turn_address` / `turn_basket` / `turn_add` (`whatsapp.py` 1,434 → 926 lines), and the four write verbs. Items 1–4 and 8 are done. Post-merge smoke passed reads 2/2 and add 1/1; set/remove hit a pre-existing duplicate-name picker. Last gate: `verify.ps1 -Db` exit 0 on 2026-10-31 — schema, ruff, 148 offline + 75 DB tests, Next build; offline scorecard 31/31.
+**Where we are (2026-11-02).** The scorecard work and the landing page are live. `main` is `38dc084` (fast-forward from `0fcafdb`, which carries the light landing page); Render is live on `38dc084` with `/health` 200 and Vercel serves the new page. The post-merge scorecard scored 25/26; its only miss, "5 kg almonds", was fixed the same day and the live case now passes 1/1 (the store stocked 400 g, and the reply now says so instead of asking). Remaining work is the handset proofs, the duplicate-name picker, item 5, and a full 26-case re-run. Last gate: `verify.ps1 -Db` exit 0 on 2026-11-02 — schema, ruff, 149 offline + 75 DB tests, Next build; offline scorecard 31/31.
 
 **Remaining, in order:**
 
 | # | Item | State | Blocker |
 |---|---|---|---|
 | 1 | 40-case live router eval (`scripts/eval_router.py`) | **DONE 2026-10-29:** 40/40 exact, 0 unsafe writes, 0 under-acted, 0 errors; avg 1535ms, p95 2187ms, max 2719ms. Raw: `.scratch/eval_b1.json`, `.scratch/eval_rest.json`. | — |
-| 2 | 26-case live scorecard (`scripts/scorecard_live.py`) | **DONE 2026-10-31 (baseline):** production `main` scores **25/26 = 96.2% correct by intent** (24/26 strict). Case 16 ("5 kg almonds") is the only real miss and is fixed on the branch. Case 21 was a checker false negative; the harness now accepts cash/delivery/cod and still rejects a wrong answer. Raw: `.scratch/scorecard_live.json`, `.scratch/scorecard_tail.log`. | — |
+| 2 | 26-case live scorecard (`scripts/scorecard_live.py`) | **POST-MERGE 2026-11-02:** 13/13 + 12/13 = **25/26 = 96.2%**. The only miss was case 16 ("5 kg almonds"), fixed the same day in `38dc084`; the single live case now passes 1/1. Case 21 is clean with the COD checker fix. A full 26-case re-run is pending. Raw: `.scratch/scorecard_post_merge_1_13.log`, `.scratch/scorecard_post_merge_14_26.log`, `.scratch/scorecard_live.json`. | — |
 | 3 | Collapse the write path to four verbs | **DONE (code) 2026-10-29:** `set_item` and `remove_item` carry the action; `change_action` and the router patch are gone; a change naming several items is refused. 223 passed twice, ruff clean. Live verb cases 22–31: **10/10**, 0 unsafe. | — |
 | 4 | Full 40-case live run **on the branch after the four-verb change** | **DONE 2026-10-31:** 40/40 exact, 0 unsafe, 0 under-acted, 0 errors; avg 1312ms, p95 1735ms, max 1889ms. Raw: `.scratch/eval_after_verbs.json`. Merge gate passed. | — |
-| 5 | Skip the second model call when brand and size already match | QUEUED | Needs 4 as the before-number |
+| 5 | Skip the second model call when brand and size already match | QUEUED | Row 4 is the before-number (40/40, avg 1312ms); needs approval to change the call path |
 | 6 | Phone taps: Add-all, Change item, typed pick | OPEN | Needs a real card on screen, so needs the model up |
 | 7 | Address add/delete, OAuth reconnect, reaction on a real wamid | OPEN | Partly needs the model; the reaction needs a real inbound wamid |
 | 8 | Merge `scorecard` into `main` | **DONE 2026-10-31:** fast-forward `db6a297..a8e530c`; PR #3 merged; Render `dep-dbiupgivcj2c73edh5t0` live on `a8e530c`; `/health` 200. | — |
-| 9 | Post-merge 26-case scorecard on `a8e530c` | NEXT — run cases 1–13, wait an hour, then 14–26. This is the first live score of the branch code. | ~100k tokens; one day |
+| 9 | Post-merge 26-case scorecard on `a8e530c` | **DONE 2026-11-02:** 13/13 + 12/13 = 25/26; only case 16 failed (see row 11). Full 26-case re-run after the fix is pending. | ~100k tokens; one day |
 | 10 | Handset taps: Add-all, Change item, typed pick, set/remove picker | OPEN | Real handset; the duplicate-name picker needs a decision |
+| 11 | Case 16, "5 kg almonds" | **DONE (honest) 2026-11-02 in `38dc084`:** a multi-pack size ("100 g x 2") now folds its multiplier, and an explicit amount is filled with the fewest exact packs across candidates instead of a pick prompt; when stock cannot reach the amount, the reply adds what exists and names the shortfall. Offline test fails first without the fix; live case 16 re-run passes 1/1 — the store had only 2 × (100 g × 2), so it added 400 g and said "I asked for 5, so I added 2" instead of asking. Full 26-case re-run still pending. | — |
 
 **Phase 7 backlog — code-complete; live proofs open.**
 

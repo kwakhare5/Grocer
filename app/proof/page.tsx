@@ -32,25 +32,25 @@ const RUNS = [
   {
     label: "Live scorecard",
     result: "25/26 by intent (96.2%)",
-    date: "1 Nov 2026",
-    note: "Post-merge run. One miss still open: 5 kg almonds.",
+    date: "2 Nov 2026",
+    note: "Post-merge run. The one miss, 5 kg almonds, no longer asks; the store had 400 g and the reply names the shortfall.",
   },
   {
     label: "Automated tests",
-    result: "223",
-    date: "1 Nov 2026",
-    note: "148 offline and 75 database tests.",
+    result: "224",
+    date: "2 Nov 2026",
+    note: "149 offline and 75 database tests.",
   },
   {
     label: "Production code",
     result: "Backend live on Render; /health returned 200",
-    date: "1 Nov 2026",
+    date: "2 Nov 2026",
     note: "No real order placed.",
   },
   {
     label: "Landing build",
     result: "npm run build passed",
-    date: "1 Nov 2026",
+    date: "2 Nov 2026",
     note: "Types and static pages are clean.",
   },
 ] as const;
@@ -79,7 +79,7 @@ export default function ProofPage() {
             <h1 className="page__title">What is proven.</h1>
             <p className="page__lead">The recorded runs behind the site.</p>
             <p className="page__updated">
-              Last updated 1 November 2026. No real order has been placed.
+              Last updated 2 November 2026. No real order has been placed.
             </p>
           </div>
 

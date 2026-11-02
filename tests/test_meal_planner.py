@@ -14,6 +14,7 @@ from backend.agent.meal_planner import (
     measure_from_text,
     pack_plan,
     packs_for,
+    parse_pack_size,
     parse_pick_indexes,
     plan_items,
     resolve_plan_items,
@@ -72,6 +73,14 @@ def test_shopping_requires_an_exact_pack_not_a_lookalike():
     assert exact_packs_for(5, "kg", "1 kg") == 5
     assert exact_packs_for(6, "pieces", "pack of 6") == 1
     assert exact_packs_for(1, "packet", "6 pcs") is None
+
+
+def test_multipack_sizes_fold_the_multiplier():
+    assert parse_pack_size("Supreme Harvest Almond (500 g x 2)") == ("g", 1000)
+    assert parse_pack_size("Supreme Harvest Almond (100 g x 2)") == ("g", 200)
+    assert pack_plan(
+        5, "kg", [("a", "100 g x 2"), ("b", "100 g"), ("c", "500 g x 2")]
+    ) == [("c", 5)]
 
 
 def test_pack_plan_uses_the_fewest_packs_that_add_up():

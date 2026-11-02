@@ -68,6 +68,9 @@ _UNIT_SCALES: dict[str, tuple[str, float]] = {
 }
 
 _PACK_OF = re.compile(r"pack\s+of\s+(\d+)", re.IGNORECASE)
+_PACK_MULTIPLIER = re.compile(
+    r"(\d+(?:\.\d+)?)\s*([a-zA-Z]+)\s*[x×]\s*(\d+)", re.IGNORECASE
+)
 _NUMBER_UNIT = re.compile(r"(\d+(?:\.\d+)?)\s*([a-zA-Z]+)")
 _PICK_WORDS = re.compile(r"\band\b", re.IGNORECASE)
 _PICK_SHAPE = re.compile(r"[\d\s,&]+")
@@ -94,6 +97,9 @@ def parse_pack_size(description: str | None) -> tuple[str, float] | None:
     pack_of = _PACK_OF.search(text)
     if pack_of:
         return "count", float(pack_of.group(1))
+    multi = _PACK_MULTIPLIER.search(text)
+    if multi:
+        return measure(float(multi.group(1)) * float(multi.group(3)), multi.group(2))
     match = _NUMBER_UNIT.search(text)
     if not match:
         return None

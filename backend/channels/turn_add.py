@@ -60,6 +60,20 @@ def _packs_for(target: ExtractedGroceryItem, cand: Any) -> int | None:
     return max(1, min(MAX_ITEM_QUANTITY, target.quantity))
 
 
+def _exact_plan(target: ExtractedGroceryItem, cands: list[Any]) -> list[tuple[str, int]] | None:
+    """The fewest packs that add up to an explicit amount, across candidates."""
+    if target.amount is None or not target.unit:
+        return None
+    return pack_plan(
+        target.amount,
+        target.unit,
+        [
+            (option.spin_id, option.quantity_description or option.display_name)
+            for option in cands
+        ],
+    )
+
+
 def _sizes(cands: list[Any]) -> list[str]:
     found: list[str] = []
     for cand in cands:
@@ -209,17 +223,7 @@ async def plan_add(
                 # The picked pack does not fit the amount. Take the fewest
                 # packs that add up exactly before troubling the customer
                 # with a question.
-                exact_plan = pack_plan(
-                    target.amount,
-                    target.unit,
-                    [
-                        (
-                            option.spin_id,
-                            option.quantity_description or option.display_name,
-                        )
-                        for option in cands
-                    ],
-                )
+                exact_plan = _exact_plan(target, cands)
                 if exact_plan:
                     by_spin = {option.spin_id: option for option in cands}
                     for spin_id, count in exact_plan:
@@ -236,7 +240,13 @@ async def plan_add(
                 plan.vague_spins.add(cand.spin_id)
             _queue(cand, packs)
         elif evaluation.intent_type == IntentType.DISAMBIGUATION:
-            plan.choice_prompts.append((target, cands))
+            exact_plan = _exact_plan(target, cands)
+            if exact_plan:
+                by_spin = {option.spin_id: option for option in cands}
+                for spin_id, count in exact_plan:
+                    _queue(by_spin[spin_id], count)
+            else:
+                plan.choice_prompts.append((target, cands))
         else:
             plan.unfound_queries.append(describe_item(target))
             if alternatives:

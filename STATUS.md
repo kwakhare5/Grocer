@@ -300,15 +300,14 @@ RuntimeError: Refusing to run tests against database 'postgres'. TEST_DATABASE_U
 
 ## 8. Next Action
 
-**Where we are (2026-11-04).** `origin/main` is `8d2243c`; local `main` is `d6da560` (truth/trace + batch 2), one commit ahead and not pushed; the batch-3 and batch-4 work is uncommitted on top. Render is live on the latest pushed commit with `/health` 200; Vercel `/` and `/proof` return 200. The live scorecard is deferred: Karan has no mobile or Swiggy app access, the cart is frozen, and every live cart read/add fails at Swiggy. The bot now reports that reason honestly and gives the exact recovery steps. Batch 4 is done: one paise conversion, one stored-plan decoder, one token-to-client builder; stale proof folders are deleted. Last gate: `verify.ps1 -Db` exit 0 on 2026-11-04 — schema, ruff, 169 offline + 78 DB tests, Next 16.4.3 build; offline scorecard 31/31; a real signed cart-lock turn returned the recovery copy.
+**Where we are (2026-11-04).** `origin/main` and local `main` are `70a19f6`; the truth/trace, batch-2, batch-3 and batch-4 work is pushed. Render deploy on `70a19f6` is live and `/health` returned `{"status":"healthy","database":"connected"}`; Vercel `/` and `/proof` return 200. The live scorecard is deferred: Karan has no mobile or Swiggy app access, the cart is frozen, and every live cart read/add fails at Swiggy. The bot now reports that reason honestly and gives the exact recovery steps. Batch 4 is done: one paise conversion, one stored-plan decoder, one token-to-client builder; stale proof folders are deleted. Last gate: `verify.ps1 -Db` exit 0 on 2026-11-04 — schema, ruff, 169 offline + 78 DB tests, Next 16.4.3 build; offline scorecard 31/31; a real signed cart-lock turn returned the recovery copy.
 
 **Blocked by environment:** no Swiggy app or handset access. Do not ask Karan to clear the cart and do not fake a live scorecard. Keep the live scorecard deferred and labeled. Continue with in-repo proofs and the core path.
 
 **Do next, in order:**
-1. On Karan's word: commit the three batches and push `main`; then check Render `/health` and a short live read smoke.
-2. When Swiggy access returns: clear the cart, run the live scorecard 1–13, wait an hour, run 14–26; handset taps; live OAuth; address add/delete; 24h scrub.
-3. Item 5 (skip the second model call) only after the add path works, with a fresh Groq token window.
-4. The first real order is Karan's, after handoff. Checkout stays locked.
+1. When Swiggy access returns: clear the cart, run the live scorecard 1–13, wait an hour, run 14–26; handset taps; live OAuth; address add/delete; 24h scrub.
+2. Item 5 (skip the second model call) only after the add path works, with a fresh Groq token window.
+3. The first real order is Karan's, after handoff. Checkout stays locked.
 
 **Remaining, in order:**
 

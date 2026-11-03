@@ -52,10 +52,9 @@ Local `main` and `origin/main` match after the cleanup push; item 5 and the clea
 
 **Blocked by environment:** no Swiggy app or handset access. The cart is frozen and every cart read/add fails with "Some items have limited stock and their quantities were adjusted. Please review your cart." Do not ask Karan to clear it and do not fake a live scorecard.
 
-1. Name `backend/channels/command_router.py` verbatim for deletion; the safety hook blocks an unnamed delete.
-2. Commit and push the retest; confirm Render `/health` and the 255-test line on Vercel.
-3. When Swiggy access returns: clear the cart, run the live scorecard 1–13, wait an hour, run 14–26; measure item 5 before/after on the same add; handset taps; live OAuth; address add/delete; 24h scrub.
-4. First real order is Karan's, after handoff. Checkout stays locked.
+1. Confirm Render `/health` and the 255-test line on Vercel after the deletion push.
+2. When Swiggy access returns: clear the cart, run the live scorecard 1–13, wait an hour, run 14–26; measure item 5 before/after on the same add; handset taps; live OAuth; address add/delete; 24h scrub.
+3. First real order is Karan's, after handoff. Checkout stays locked.
 
 **What is already done (2026-11-04):** Swiggy `success:false` raises `SwiggyToolError` and gets an honest HTTP 200 reply instead of a 500; set/remove picker labels name pack + quantity; Next 16.4.3 has 0 production advisories. The truth batch adds honest pay/unknown-button replies, a per-turn JSON trace (wamid, capability, safety, latency, Swiggy/model counts), and `source: llm | fallback | rule` on the evaluator. Batch 2 adds exact cart-review recovery steps on both paths, first-connect parking/replay, and one 429/-32000 retry with `Retry-After`. Batch 3 makes every write button honest and folds the session-cap queries into `get_session_budget_cap`. Batch 4 leaves one paise conversion, one stored-plan decoder and one token-to-client builder; stale proof folders are deleted. Item 5 skips the evaluator for a unique exact brand+size add. The cleanup removes invented tracking links, a default ETA, dead code and duplicated helpers; tracking now shows only Swiggy's real status, ETA and rider. The retest proves the skip with three other products and a real live tracking turn with no invented link. Proof: `verify.ps1 -Db` exit 0 (177 offline + 78 DB); `.scratch/verify_retest_20261104.log`; `.scratch/live_retest_tracking.log`; `.scratch/verify_cleanup_20261104.log`; `.scratch/verify_item5_20261104.log`; `.scratch/verify_batch4_20261104.log`; `.scratch/verify_batch3_20261103.log`; `.scratch/trace_turn_20261103.log`; `.scratch/trace_cart_lock_20261103.log`.
 

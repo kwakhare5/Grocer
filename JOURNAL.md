@@ -1153,3 +1153,11 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: added Nandini milk 500 ml, Aashirvaad atta 5 kg and Maggi noodles 280 g as skip cases, plus ambiguous Lay's 50 g and size-less "Amul milk" as must-call-the-model cases. Added a confirmed-milestone assertion that rejects the default "10-15 mins" and any link.
 - **Proof**: 5 new tests; `verify.ps1 -Db` exit 0 — 177 offline + 78 DB, ruff, Next build (`.scratch/verify_retest_20261104.log`). A real signed "where is my order?" turn on the deployed build returned HTTP 200 with "You have no active order right now." and no invented link (`.scratch/live_retest_tracking.log`).
 - **Still broken**: `command_router.py` deletion still blocked; live scorecard, handset taps, live OAuth, address add/delete, 24h scrub and checkout remain unproven.
+
+### [GROCER — Delete the Last Dead Module] 2026-11-04
+
+#### Work Card: One File Removed, Nothing Else Dead
+- **Problem**: `backend/channels/command_router.py` held a single `delete my data` branch that was inlined earlier, leaving an unused module.
+- **Change**: deleted the file after Karan named it; the webhook handles the command directly. Re-audited backend modules, frontend components and fixtures — all remaining files are imported or loaded by tool name; no dependency is unused.
+- **Proof**: `verify.ps1 -Db` exit 0 — 177 offline + 78 DB, ruff, Next build (`.scratch/verify_lean_20261104.log`).
+- **Still broken**: live scorecard, handset taps, live OAuth, address add/delete, 24h scrub and checkout remain unproven. This deletion ships with this card.

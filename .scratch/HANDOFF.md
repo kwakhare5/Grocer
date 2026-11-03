@@ -1,5 +1,5 @@
-Goal: close the remaining handset proofs; the live 5 kg almonds bug is fixed. Production main b0d3ee8 (38dc084 code + docs); rollback db6a297. No order.
-Shipped: light landing page live (Vercel /, /privacy, /proof 200); post-merge scorecard 25/26, then case 16 fixed and live 1/1; OAuth cookie patch parked.
-Passing: verify.ps1 -Db exit 0 on 2026-11-02 (149 offline + 75 DB, ruff, Next build).
-Next action: full 26-case scorecard re-run (two halves an hour apart) on 38dc084, then duplicate-name picker, item 5, and handset taps.
-Unproven: full 26/26 run; live OAuth reconnect; Add-all/Change taps; reactions; address add/delete; 24h scrub. Checkout stays locked.
+Goal: close the remaining handset proofs and the live scorecard. Production main carries the 2026-11-03 error/picker/Next fix; rollback db6a297. No order.
+Shipped: Swiggy business errors now answer honestly with 200 (no 500); set/remove picker labels include pack + qty; Next 16.4.3 with 0 advisories; landing/proof say 229 tests.
+Passing: verify.ps1 -Db exit 0 on 2026-11-03 (153 offline + 76 DB, ruff, Next build).
+Next action: wait for Swiggy's cart to be reviewed, then run scorecard cases 14–26 an hour after the first half; handset taps for Add-all/Change/pick; item 5 only with a fresh token window.
+Unproven: full 26/26 run; live OAuth reconnect; address add/delete; reactions/blue ticks; 24h scrub. Checkout stays locked.

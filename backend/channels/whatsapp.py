@@ -78,6 +78,14 @@ def _login_url(wa_id: str) -> str:
     return f"https://grocerr.vercel.app?t={issue_link_token(wa_id)}"
 
 
+def _swiggy_tool_error_reply(exc: Exception) -> str:
+    detail = str(exc).strip().rstrip(".")
+    text = "Swiggy couldn't complete that just now"
+    if detail:
+        text += f": {detail}"
+    return text + ". Check your basket before trying again."
+
+
 async def _park_and_prompt(
     conn: Any,
     inbound_id: Any,
@@ -350,6 +358,7 @@ async def handle_webhook(
                 from backend.integrations.commerce.swiggy_client import (
                     SwiggyAuthExpiredError,
                     SwiggyClient,
+                    SwiggyToolError,
                 )
                 from backend.integrations.commerce.token_vault import (
                     refresh_user_token,
@@ -892,6 +901,14 @@ async def handle_webhook(
                     turn_result = await run_turn(client, msg, user_id, conn, wa_client)
                     _react_in_background(wa_client, msg, turn_result)
                     results.append(turn_result)
+                except SwiggyToolError as exc:
+                    await wa_client.send_text_message(
+                        to_wa_id=msg.sender_wa_id,
+                        text=_swiggy_tool_error_reply(exc),
+                    )
+                    results.append(
+                        {"status": "swiggy_error", "error_message": str(exc)}
+                    )
                 except SwiggyAuthExpiredError:
                     # Try a silent refresh before parking (Gate 1). Park only if it fails.
                     new_token = await refresh_user_token(user_id, force=True)
@@ -910,6 +927,15 @@ async def handle_webhook(
                             retried = True
                         except SwiggyAuthExpiredError:
                             retried = False
+                        except SwiggyToolError as exc:
+                            await wa_client.send_text_message(
+                                to_wa_id=msg.sender_wa_id,
+                                text=_swiggy_tool_error_reply(exc),
+                            )
+                            results.append(
+                                {"status": "swiggy_error", "error_message": str(exc)}
+                            )
+                            retried = True
                     if not retried:
                         await _park_and_prompt(
                             conn, inbound_id, msg.sender_wa_id, wa_client

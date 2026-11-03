@@ -53,7 +53,20 @@ def _find_items(cart: CartData, query: str | None) -> list[Any]:
     needle = (query or "").strip().lower()
     if not needle:
         return []
-    return [item for item in cart.items if needle in item.itemName.lower()]
+    return [
+        item
+        for item in cart.items
+        if needle in item.itemName.lower()
+        or (item.itemVariant and needle in item.itemVariant.lower())
+    ]
+
+
+def _line_label(item: Any) -> str:
+    """Name a cart line so two packs of the same product never look identical."""
+    label = item.itemName
+    if item.itemVariant and item.itemVariant.lower() not in label.lower():
+        label = f"{label} ({item.itemVariant})"
+    return f"{label}, qty {item.quantity}"
 
 
 async def _cart(client: SwiggyClient, address_id: str | None) -> CartData:
@@ -140,12 +153,12 @@ async def handle_change_request(
     query = decision.items[0].get("query") if decision.items else ""
     matches = _find_items(cart, query)
     if not matches:
-        names = ", ".join(item.itemName for item in cart.items[:3])
+        names = "; ".join(_line_label(item) for item in cart.items[:3])
         return BasketReply(
             f"I couldn't match that to an item in your basket. You have: {names}."
         )
     if len(matches) > 1:
-        names = ", ".join(item.itemName for item in matches[:3])
+        names = "; ".join(_line_label(item) for item in matches[:3])
         return BasketReply(f"Which one do you mean: {names}?")
 
     target = matches[0]

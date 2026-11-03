@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -128,6 +129,50 @@ def test_fresh_button_parser_accepts_real_lines_and_rejects_bad_ones():
         {"spinId": "spin_b", "skuId": "sku_b", "quantity": 1},
     ]
     assert parse_fresh_items("cart:fresh:bad") is None
+
+
+class TwoMilkClient:
+    def __init__(self, items: list[Any]) -> None:
+        self._items = items
+
+    def get_cart(self, address_id: str | None = None) -> Any:
+        return SimpleNamespace(items=self._items)
+
+
+def _milk_line(spin_id: str, variant: str, quantity: int) -> Any:
+    return SimpleNamespace(
+        itemName="Amul Slim n Trim UHT Skimmed Milk",
+        itemVariant=variant,
+        quantity=quantity,
+        spinId=spin_id,
+    )
+
+
+def _two_milks() -> TwoMilkClient:
+    return TwoMilkClient(
+        [_milk_line("spin_1l", "1 L", 2), _milk_line("spin_500", "500 ml", 1)]
+    )
+
+
+@pytest.mark.asyncio
+async def test_ambiguous_remove_names_each_pack_and_quantity():
+    reply = await handle_change_request(
+        FakeDecision(capability=Capability.REMOVE_ITEM, items=[{"query": "milk"}]),
+        _two_milks(),
+        ADDRESS_ID,
+    )
+    assert "Amul Slim n Trim UHT Skimmed Milk (1 L), qty 2" in reply.text
+    assert "Amul Slim n Trim UHT Skimmed Milk (500 ml), qty 1" in reply.text
+
+
+@pytest.mark.asyncio
+async def test_change_can_match_the_pack_variant():
+    reply = await handle_change_request(
+        FakeDecision(capability=Capability.REMOVE_ITEM, items=[{"query": "500 ml"}]),
+        _two_milks(),
+        ADDRESS_ID,
+    )
+    assert reply.buttons[0][0] == "cart:rm:spin_500"
     assert parse_fresh_items("cart:fresh:spin_a:sku_a:0") is None
 
 

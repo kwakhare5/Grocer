@@ -1105,3 +1105,19 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: `swiggy_failure_reply` in `read_actions.py` returns "Open Swiggy → Instamart → Cart, accept the adjusted quantities, then send your request again" and is used by both the read path and the webhook. The first-connect text path parks the row as `awaiting_link` with a welcome CTA and replays it after login. `swiggy_client` retries a 429/-32000 once, parses seconds or HTTP-date `Retry-After`, caps the wait at 5s, logs `swiggy_retry`, and raises an honest "Swiggy is busy" tool error on a second cap.
 - **Proof**: `verify.ps1 -Db` exit 0 on 2026-11-03 — 160 offline + 77 DB, ruff, Next build (`.scratch/verify_batch2_20261103.log`); live signed "what's in my basket" turn under the frozen cart returned the exact recovery copy, with two failed `get_cart` calls and a 3561ms turn (`.scratch/trace_cart_lock_20261103.log`); 5 new tests (read copy, webhook copy, first-connect parking, 429 and -32000 retries).
 - **Still broken**: cart/plan/reorder no-pool and unknown-user button branches still return silently; a first-time location pin is not parked for replay; live scorecard deferred (no Swiggy app access); handset taps, live OAuth, address add/delete, 24h scrub and checkout remain unproven.
+
+### [GROCER — Honest Write Buttons, One Cap Helper] 2026-11-04
+
+#### Work Card: No Silent Button Tap, One Session-Cap Query
+- **Problem**: cart, plan, reorder, address, item-change and budget button taps still returned a silent no-op when the database or the customer's account was missing; three copies of the session-cap query could drift.
+- **Change**: one `_reply_and_return` helper now sends "I couldn't complete that just now. Nothing changed. Please try again." for a missing database and "I couldn't find your account for that button…" for an unknown number, with matching statuses; the fallback says the button is stale. `get_session_budget_cap` in `customer_advocate.py` replaces the three duplicated cap queries in the button router, the webhook and the checkout executor; missing or zero still means ₹1,000.
+- **Proof**: 7 new tests (6 parametrized no-database write taps, 1 DB unknown-user tap); `verify.ps1 -Db` exit 0 — 166 offline + 78 DB, ruff, Next 16.4.3 build (`.scratch/verify_batch3_20261103.log`).
+- **Still broken**: live scorecard deferred (no Swiggy app access); first-time location pins are not parked for replay; handset taps, live OAuth, address add/delete, 24h scrub and checkout remain unproven. Batch 4 (money parser, plan-expiry SQL, token-to-client helper) is next.
+
+### [GROCER — One Math, One Plan Decoder, One Client Builder] 2026-11-04
+
+#### Work Card: Dedupe the Money, Plan and Client Paths, Delete Stale Proofs
+- **Problem**: rupee-to-paise math lived in two functions with different rounding, both stored-plan readers decoded the same JSON twice, and seven places rebuilt a Swiggy client from a stored token by hand; `.scratch` also held superseded proof folders and uncited logs.
+- **Change**: `parse_price_to_paise` now delegates the decimal math to `rupees_to_paise` while keeping int input as paise; `decode_pending_plan` owns the fresh/well-formed check for both button and text plan paths; `resolve_user_client` builds the client for five button branches, the checkout pollers and parked replay. `send_add_receipt` was already the single receipt builder, so no new one was added. Deleted five uncited logs and the `proof-final/` and `proof-redesign/` folders.
+- **Proof**: 3 new tests (plan decoder cases, client-from-token, ₹1.005 rounding); `verify.ps1 -Db` exit 0 — 169 offline + 78 DB, ruff, Next 16.4.3 build (`.scratch/verify_batch4_20261104.log`).
+- **Still broken**: live scorecard deferred (no Swiggy app access); handset taps, live OAuth, address add/delete, location-pin replay, 24h scrub and checkout remain unproven. The three batches are still unpushed.

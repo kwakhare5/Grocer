@@ -31,6 +31,7 @@ from backend.agent.approval import (
 from backend.agent.candidate_evaluator import format_paise_to_rupees
 from backend.agent.customer_advocate import (
     extract_cart_to_pay_paise,
+    get_session_budget_cap,
     parse_price_to_paise,
 )
 from backend.agent.read_actions import SWIGGY_CARE_PHONE
@@ -45,6 +46,7 @@ from backend.integrations.commerce.swiggy_client import (
     SwiggyAuthExpiredError,
     SwiggyClient,
 )
+from backend.integrations.commerce.token_vault import resolve_user_client
 
 logger = logging.getLogger("grocer.checkout_executor")
 
@@ -467,15 +469,7 @@ async def execute_3_lock_checkout(
         )
 
     async with pool.acquire() as conn:
-        session_row = await conn.fetchrow(
-            "SELECT budget_cap_paise FROM grocer.sessions WHERE user_id = $1;",
-            user_uuid,
-        )
-    budget_cap = (
-        int(session_row["budget_cap_paise"])
-        if session_row and session_row["budget_cap_paise"]
-        else DEFAULT_LAUNCH_CAP_PAISE
-    )
+        budget_cap = await get_session_budget_cap(conn, user_uuid)
     l2 = verify_lock_2_truth(approval, live_cart, max_launch_cap_paise=budget_cap)
     if not l2.passed:
         if "launch safety limit" in l2.reason:
@@ -830,14 +824,6 @@ async def check_and_settle_payment(
     )
 
 
-async def _client_for_user(user_id: str) -> SwiggyClient | None:
-    """Build a Swiggy client with this user's token, refreshing it once if expired."""
-    from backend.integrations.commerce.token_vault import resolve_user_token
-
-    token = await resolve_user_token(uuid.UUID(user_id))
-    return SwiggyClient(auth_token=token) if token else None
-
-
 async def reconcile_attempting_checkouts(
     pool: asyncpg.Pool,
     swiggy_client: SwiggyClient | None = None,
@@ -869,7 +855,7 @@ async def reconcile_attempting_checkouts(
             json.loads(raw_known) if isinstance(raw_known, str) else list(raw_known or [])
         )
         user_id = str(row["user_id"])
-        client = swiggy_client or await _client_for_user(user_id)
+        client = swiggy_client or await resolve_user_client(user_id)
         if client is None:
             logger.warning("Cannot reconcile checkout %s: no usable Swiggy token", row["id"])
             continue
@@ -965,7 +951,7 @@ async def poll_pending_checkouts_batch(
             if not order_ids:
                 continue
 
-            client = swiggy_client or await _client_for_user(user_id)
+            client = swiggy_client or await resolve_user_client(user_id)
             if client is None:
                 logger.warning("Skipping checkout %s: no usable Swiggy token", approval_id)
                 continue
@@ -1080,7 +1066,7 @@ async def poll_in_flight_deliveries_batch(
             raw_sent = row["notified_milestones"]
             sent = json.loads(raw_sent) if isinstance(raw_sent, str) else list(raw_sent or [])
 
-            client = swiggy_client or await _client_for_user(str(row["user_id"]))
+            client = swiggy_client or await resolve_user_client(str(row["user_id"]))
             if client is None:
                 logger.warning("Skipping delivery poll for %s: no usable Swiggy token", order_ids[0])
                 continue

@@ -1039,6 +1039,7 @@ def test_parse_price_to_paise_zero_float_loss():
     assert parse_price_to_paise("149.00") == 14900
     assert parse_price_to_paise("₹74.50") == 7450
     assert parse_price_to_paise("₹199") == 19900
+    assert parse_price_to_paise("₹1.005") == 101
     assert parse_price_to_paise(14900) == 14900
     assert parse_price_to_paise(None) == 0
 

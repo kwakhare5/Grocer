@@ -571,6 +571,7 @@ async def handle_webhook(
                     MAX_RECEIPT_ITEM_LINES,
                     CompositeCartManager,
                 )
+                from backend.agent.customer_advocate import get_session_budget_cap
 
                 async def run_turn(
                     turn_client: SwiggyClient,
@@ -634,21 +635,15 @@ async def handle_webhook(
                     plan_fresh = bool(session_row and session_row["plan_fresh"])
                     from backend.agent.meal_planner import (
                         clear_pending_plan,
+                        decode_pending_plan,
                         parse_pick_indexes,
                         plan_items,
                     )
 
                     if pending_plan and not plan_fresh:
                         await clear_pending_plan(conn, user_id)
-                    if pending_plan and plan_fresh:
-                        try:
-                            plan = (
-                                json.loads(pending_plan)
-                                if isinstance(pending_plan, str)
-                                else pending_plan
-                            )
-                        except (json.JSONDecodeError, TypeError, ValueError):
-                            plan = None
+                    plan = decode_pending_plan(pending_plan, plan_fresh)
+                    if plan is not None:
                         indexes = parse_pick_indexes(msg.text, len(plan_items(plan)))
                         if indexes and not active_addr_id:
                             await wa_client.send_text_message(
@@ -851,10 +846,7 @@ async def handle_webhook(
                                 "\n\n⚠️ *Waiting for your pick:* "
                                 + ", ".join(pending_names)
                             )
-                        cap_paise = await conn.fetchval(
-                            "SELECT budget_cap_paise FROM grocer.sessions WHERE user_id = $1;",
-                            user_id,
-                        ) or settings.DEFAULT_BUDGET_CAP_PAISE
+                        cap_paise = await get_session_budget_cap(conn, user_id)
                         if approval.to_pay_paise > int(cap_paise):
                             receipt_body += (
                                 f"\n\n⚠️ This is above your "

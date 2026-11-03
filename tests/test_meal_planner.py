@@ -10,6 +10,7 @@ from fixture_client import FixtureSwiggyClient
 
 from backend.agent.meal_planner import (
     build_meal_plan,
+    decode_pending_plan,
     exact_packs_for,
     measure_from_text,
     pack_plan,
@@ -358,3 +359,12 @@ async def test_empty_plan_never_writes(swiggy_client):
 
     assert items == []
     assert "Ask me to plan the meal again" in error
+
+
+def test_decode_pending_plan_accepts_only_fresh_well_formed_plans():
+    assert decode_pending_plan('{"items": []}', True) == {"items": []}
+    assert decode_pending_plan({"items": []}, True) == {"items": []}
+    assert decode_pending_plan('{"items": []}', False) is None
+    assert decode_pending_plan("{not json", True) is None
+    assert decode_pending_plan("[]", True) is None
+    assert decode_pending_plan(None, True) is None

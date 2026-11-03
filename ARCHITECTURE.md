@@ -446,7 +446,6 @@ backend/
 │   ├── whatsapp_crypto.py      # HMAC-SHA256 verification
 │   ├── whatsapp_parser.py      # Inbound payload to text, location or button
 │   ├── whatsapp_client.py      # Outbound Meta Cloud API messages
-│   ├── command_router.py       # Deterministic admin commands (delete my data)
 │   ├── button_router.py        # Fast path for pay, cart and address buttons
 │   └── swiggy_auth.py          # OAuth PKCE login and callback
 │

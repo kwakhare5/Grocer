@@ -3,12 +3,12 @@
 Goal: make every turn visible, recover from the frozen cart honestly, park first-time text for replay, and never lie on a button tap; live scorecard deferred until Swiggy access returns. No order.
 Changes: cart-review errors get exact recovery steps on both paths; first-time text is parked and replayed; Swiggy 429/-32000 retries once with Retry-After; per-turn JSON trace; evaluator reports `llm | fallback | rule`; every write button answers honestly with no database or unknown account; one paise conversion, one stored-plan decoder and one token-to-client builder now back every path; stale proof folders deleted; 19 new tests across four batches; dead `hasattr` test, loose dev ruff pin and the offline-scorecard `.scratch` write removed.
 Passing: `verify.ps1 -Db` exit 0 — 177 offline + 78 DB, ruff, Next 16.4.3 build; real signed address, cart-lock and tracking turns traced.
-Next action: commit and push the retest; then confirm `/health` and the 255-test line. Deleting `backend/channels/command_router.py` needs Karan to name the file verbatim.
+Next action: confirm `/health` and the 255-test line after the deletion push; live scorecard waits for Swiggy access.
 Unproven: live scorecard (no Swiggy app access), handset taps, live OAuth reconnect, address add/delete, location-pin replay, reactions/blue ticks, 24h scrub. Checkout stays locked.
 
 ## Current truth
 
-- Branch: `main` only. Local `main` and `origin/main` match after the cleanup push; item 5 and cleanup are pushed; the retest additions are uncommitted. Render serves the latest pushed `main`. Rollback target: `db6a297`.
+- Branch: `main` only. Local `main` and `origin/main` match after the retest push; the deletion ships with this commit. Render serves the latest pushed `main`. Rollback target: `db6a297`.
 - Vercel: `/`, `/privacy`, `/proof` 200; the 255-test build deploys with the retest push.
 - Tests: 177 offline + 78 DB = 255; 20 live-only deselected; 275 collected. `npm audit --omit=dev` → 0 vulnerabilities.
 - Offline scorecard: 31/31. Live scorecard: deferred; the 2026-11-02 post-merge run scored 25/26, and the 2026-11-03 first half scored 7/13 on pre-fix code because Swiggy refused the cart.
@@ -31,7 +31,7 @@ Unproven: live scorecard (no Swiggy app access), handset taps, live OAuth reconn
 13. **One cap helper** — `get_session_budget_cap` in `customer_advocate.py` replaces the three duplicated session-cap queries in the button router, the webhook and the checkout executor; missing or zero still means ₹1,000.
 14. **Dedupe money, plans, clients** — `parse_price_to_paise` delegates the decimal math to `rupees_to_paise` and keeps int input as paise; `decode_pending_plan` replaces both stored-plan JSON decoders; `resolve_user_client` builds the Swiggy client from the stored token and replaces seven inline builders (five button branches, checkout pollers, parked replay). `send_add_receipt` was already the one receipt builder. Deleted five uncited logs and the `proof-final/` and `proof-redesign/` folders.
 15. **Exact brand+size skip** — `_exact_brand_size_match` in `turn_add.py` resolves an add when the query names a full brand and an exact pack size that match exactly one in-stock candidate; the evaluator is not called. Vague, ambiguous, missing-size and zero-address turns keep the model call. Proof: 3 tests, including a sentinel that fails if the evaluator runs for "Amul milk 500 ml".
-16. **Cleanup** — removed the invented `swiggy.com/track` links and the default "10-15 mins" ETA; tracking shows only Swiggy's real status, ETA and rider. Deleted `CheckoutLockError`, `VALID_MILESTONES`, `map_url`, stale `__all__`, the dead `answer_read_capability` wrapper and `AddressLifecycleManager` (now a function). Inlined the single `delete my data` command, added `MAX_BUDGET_CAP_PAISE`, made `migrate.py` reuse `verify_db.py`, merged the pack-ratio math, and corrected the site's test claim. `command_router.py` is now unused but deletion needs Karan to name it verbatim.
+16. **Cleanup** — removed the invented `swiggy.com/track` links and the default "10-15 mins" ETA; tracking shows only Swiggy's real status, ETA and rider. Deleted `CheckoutLockError`, `VALID_MILESTONES`, `map_url`, stale `__all__`, the dead `answer_read_capability` wrapper, `AddressLifecycleManager` (now a function) and the unused `command_router.py`. Inlined the single `delete my data` command, added `MAX_BUDGET_CAP_PAISE`, made `migrate.py` reuse `verify_db.py`, merged the pack-ratio math, and corrected the site's test claim.
 17. **Retest with different examples** — exact-match skip proven with Nandini milk 500 ml, Aashirvaad atta 5 kg and Maggi noodles 280 g; ambiguous Lay's 50 g and size-less "Amul milk" still call the evaluator; confirmed-milestone copy has no default ETA or link; a real signed "where is my order?" turn returned HTTP 200, "You have no active order right now." and no invented link.
 
 Files: `backend/observability.py`, `backend/agent/candidate_evaluator.py`, `backend/agent/customer_advocate.py`, `backend/agent/meal_planner.py`, `backend/agent/llm.py`, `backend/agent/read_actions.py`, `backend/agent/checkout_executor.py`, `backend/agent/delivery_tracker.py`, `backend/agent/dpdp.py`, `backend/agent/address_lifecycle.py`, `backend/agent/address_actions.py`, `backend/channels/button_router.py`, `backend/channels/turn_add.py`, `backend/channels/whatsapp.py`, `backend/channels/swiggy_auth.py`, `backend/config.py`, `backend/integrations/commerce/swiggy_client.py`, `backend/integrations/commerce/token_vault.py`, `scripts/migrate.py`, `scripts/live_smoke.py`, `tests/test_add_matching.py`, `tests/test_button_truth.py`, `tests/test_read_actions.py`, `tests/test_checkout_locks.py`, `tests/test_e2e_staging.py`, `tests/test_address_lifecycle.py`, `tests/test_meal_planner.py`, `tests/test_swiggy_auth.py`, `app/page.tsx`, `app/proof/page.tsx`, docs.
@@ -44,20 +44,20 @@ Files: `backend/observability.py`, `backend/agent/candidate_evaluator.py`, `back
 
 ## Decisions needed from Karan
 
-1. Name `backend/channels/command_router.py` verbatim for deletion; the cleanup hook blocks an unnamed delete.
-2. Commit and push the retest; then confirm Vercel shows 255 tests and Render `/health` is healthy.
-3. Handset proofs wait for phone access; no action now.
-4. Decide when the first real order happens; checkout stays locked until then.
+1. Confirm `/health` and the 255-test line after the deletion push.
+2. Handset proofs wait for phone access; no action now.
+3. Decide when the first real order happens; checkout stays locked until then.
 
 ## Do next, in order
 
-1. Commit the retest and push; then confirm Vercel shows 255 tests and Render `/health` is healthy.
+1. Confirm `/health` and the 255-test line after the deletion push.
 2. Live scorecard when Swiggy access returns: clear the cart, run 1–13, wait an hour, run 14–26; measure item 5 before/after on the same add. Then handset proofs, live OAuth, address add/delete and the 24h scrub.
 3. Phase 9 handoff, then Karan's first real order. The build must stay real-order capable; checkout stays locked until he decides.
 
 ## Proof files
 
-- `.scratch/verify_retest_20261104.log` — last full gate (177 offline + 78 DB, Next build).
+- `.scratch/verify_lean_20261104.log` — last full gate (177 offline + 78 DB, Next build) after deleting `command_router.py`.
+- `.scratch/verify_retest_20261104.log` — prior gate (177 offline + 78 DB, Next build).
 - `.scratch/live_retest_tracking.log` — real signed "where is my order?" turn, honest empty reply, no invented link.
 - `.scratch/verify_cleanup_20261104.log` — prior gate (172 offline + 78 DB, Next build).
 - `.scratch/verify_item5_20261104.log` — prior gate (172 offline + 78 DB, Next build).

@@ -1121,3 +1121,11 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: `parse_price_to_paise` now delegates the decimal math to `rupees_to_paise` while keeping int input as paise; `decode_pending_plan` owns the fresh/well-formed check for both button and text plan paths; `resolve_user_client` builds the client for five button branches, the checkout pollers and parked replay. `send_add_receipt` was already the single receipt builder, so no new one was added. Deleted five uncited logs and the `proof-final/` and `proof-redesign/` folders.
 - **Proof**: 3 new tests (plan decoder cases, client-from-token, ₹1.005 rounding); `verify.ps1 -Db` exit 0 — 169 offline + 78 DB, ruff, Next 16.4.3 build (`.scratch/verify_batch4_20261104.log`).
 - **Still broken**: live scorecard deferred (no Swiggy app access); handset taps, live OAuth, address add/delete, location-pin replay, 24h scrub and checkout remain unproven. The three batches are still unpushed.
+
+### [GROCER — Push and Deploy] 2026-11-04
+
+#### Work Card: Four Batches Pushed, Render Live
+- **Problem**: the truth/trace, batch-2, batch-3 and batch-4 work was local only; nothing new was serving traffic.
+- **Change**: pushed `8d2243c..70a19f6`, then two docs commits (`97f9de1`, `62de47d`) to record the deploy and stop pinning a hash that every docs commit would change.
+- **Proof**: `git push` accepted; Render deploy on `62de47d` reached `live`; `/health` returned `{"status":"healthy","database":"connected","app":"Grocer","environment":"development"}`; Vercel `/` returned 200.
+- **Still broken**: live scorecard, handset taps, live OAuth, address add/delete, location-pin replay, 24h scrub and the first real order remain unproven. Checkout stays locked.

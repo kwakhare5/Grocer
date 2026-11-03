@@ -466,7 +466,8 @@ def test_e2e_delivery_milestone_resolution_and_antispam():
         eta_text="8 mins",
     )
     assert "🛵" in note_picked_up.message
-    assert "https://swiggy.com/track/189456789012" in note_picked_up.message
+    assert "ETA: 8 mins" in note_picked_up.message
+    assert "swiggy.com/track" not in note_picked_up.message
 
 
 # ==============================================================================

@@ -13,6 +13,8 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from backend.config import settings
+
 logger = logging.getLogger("grocer.dpdp")
 
 
@@ -173,11 +175,12 @@ async def handle_delete_my_data(
             onboarding_context = NULL,
             delivery_latitude = NULL,
             delivery_longitude = NULL,
-            budget_cap_paise = 100000,
+            budget_cap_paise = $2,
             last_active_at = now()
         WHERE user_id = $1;
         """,
         user_id,
+        settings.DEFAULT_BUDGET_CAP_PAISE,
     )
 
     # 4. Anonymize approval receipt snapshots and redact delivery addresses

@@ -16,7 +16,7 @@ Grocer brings the entire Swiggy Instamart quick-commerce service and account lif
 Grocer is not limited to pasting grocery lists. It is your personal Instamart concierge on WhatsApp:
 - **Shop & Discover:** Send grocery lists in natural language (English, Hindi, Hinglish), ask what is in stock, find snacks, or say *"Reorder my usual groceries"*.
 - **Full Address Management:** Ask *"What addresses do I have saved?"*, say *"Delete my old office address"*, or drop a WhatsApp location pin to add a new home.
-- **Order History & Live GPS Tracking:** Ask *"Where is my order?"* for a live rider map, check past orders from the last 15 days, or view an itemized bill.
+- **Order History & Rider Status:** Ask *"Where is my order?"* for the rider, ETA and status, check past orders from the last 15 days, or view an itemized bill.
 - **Champion the Wallet:** Automatically find and apply the best valid Swiggy coupon without ever increasing your final payable total.
 - **Check Store Status & Availability:** Inquire about delivery fees, store operating hours, item stock, or available alternatives.
 
@@ -63,8 +63,8 @@ Grocer is not limited to pasting grocery lists. It is your personal Instamart co
 
 8. **Live GPS Rider Tracking & Order History:**
    - `get_orders` surfaces order history from the last 15 days, with `activeOnly=true` for ongoing deliveries.
-   - For in-flight deliveries, `track_order` delivers real-time rider name, ETA, and live GPS map tracking links.
-   - Notifications are sent at 3 discrete milestones: Confirmed & Packing, Out for Delivery with Live Map, and Delivered.
+   - For in-flight deliveries, `track_order` delivers the real-time rider name, ETA and status. Swiggy returns rider coordinates, not a map URL, so no map link is invented.
+   - Notifications are sent at 3 discrete milestones: Confirmed & Packing, Out for Delivery with the live ETA, and Delivered.
 
 9. **Swiggy MCP Real-World Boundaries:**
    - **Order Cancellation:** Swiggy MCP does not support automated order cancellation. When a customer asks to cancel, Grocer instructs: *"To cancel your Instamart order, please call Swiggy customer care directly at 080-67466729."*

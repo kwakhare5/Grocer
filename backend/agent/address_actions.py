@@ -274,11 +274,9 @@ async def apply_delete(
     if target is None:
         return ReadReply("That address is already gone.")
 
-    from backend.agent.address_lifecycle import AddressLifecycleManager
+    from backend.agent.address_lifecycle import can_delete_address
 
-    guard = await asyncio.to_thread(
-        AddressLifecycleManager(client).can_delete_address, address_id
-    )
+    guard = await asyncio.to_thread(can_delete_address, client, address_id)
     if not guard.can_delete:
         return ReadReply(guard.block_reason or "That address has an active delivery.")
 

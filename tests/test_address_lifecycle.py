@@ -13,10 +13,10 @@ import pytest
 from fixture_client import FixtureSwiggyClient
 
 from backend.agent.address_lifecycle import (
-    AddressLifecycleManager,
     AddressOnboardingFlow,
     OnboardingStep,
     TokenParkedRequestManager,
+    can_delete_address,
     parse_city_pin,
 )
 from backend.integrations.commerce.swiggy_client import SwiggyClient
@@ -74,9 +74,7 @@ def test_pin_onboarding_flow_captures_name_city_pin(swiggy_client):
 
 def test_address_deletion_guard_allows_a_free_address(swiggy_client):
     """ADR 0007: An address with no active delivery passes the delete guard."""
-    manager = AddressLifecycleManager(swiggy_client)
-
-    check = manager.can_delete_address("addr_01HXYZ")
+    check = can_delete_address(swiggy_client, "addr_01HXYZ")
     assert check.can_delete is True
     assert check.block_reason == ""
 
@@ -154,8 +152,7 @@ def test_address_deletion_blocked_when_active_delivery_in_transit(
         swiggy_client, "get_orders", lambda count=20, order_type="INSTAMART", active_only=True: active_orders
     )
 
-    manager = AddressLifecycleManager(swiggy_client)
-    check = manager.can_delete_address("addr_01HXYZ")
+    check = can_delete_address(swiggy_client, "addr_01HXYZ")
     assert check.can_delete is False
     assert check.active_order_id == "order_live_999"
     assert "Cannot delete address" in check.block_reason

@@ -282,7 +282,6 @@ async def _track_order(
             store = (tracking.storeInfo or {}).get("name")
             if store:
                 lines.append(f"Store: {store}")
-            lines.append(f"Live map: https://swiggy.com/track/{order.orderId}")
             if len(active) > 1:
                 lines.append(
                     f"\nYou have {len(active)} active orders. Ask about a specific order number for details."
@@ -422,13 +421,3 @@ async def build_read_reply(
         return ReadReply(swiggy_failure_reply(exc))
 
     return ReadReply(NOT_READY_REPLY)
-
-
-async def answer_read_capability(
-    decision: RoutingDecision,
-    client: SwiggyClient,
-    address_id: str | None,
-    coords: tuple[float, float] | None = None,
-) -> str:
-    """Text-only wrapper kept for tests and simple callers."""
-    return (await build_read_reply(decision, client, address_id, coords)).text

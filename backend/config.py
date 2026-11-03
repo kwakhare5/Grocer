@@ -67,6 +67,7 @@ class Settings(BaseSettings):
     # Safety Caps (Integer Paise strictly: ₹1 = 100 paise)
     LIVE_CHECKOUT_ENABLED: bool = False  # Deploy lock: no real order unless explicitly enabled
     DEFAULT_BUDGET_CAP_PAISE: int = 100000  # ₹1,000 launch safety cap
+    MAX_BUDGET_CAP_PAISE: int = 10000000  # ₹1,00,000 ceiling for a customer raise
 
     # Deployment
     CORS_ALLOWED_ORIGINS: str = "https://grocerr.vercel.app"

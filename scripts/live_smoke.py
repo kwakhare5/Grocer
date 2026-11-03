@@ -27,7 +27,7 @@ sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 from backend.agent.candidate_evaluator import format_paise_to_rupees
 from backend.agent.checkout_executor import execute_3_lock_checkout
-from backend.agent.read_actions import answer_read_capability
+from backend.agent.read_actions import build_read_reply
 from backend.agent.router import SafetyClass, route_message
 from backend.config import settings
 from backend.database import close_db_pool, get_db_pool
@@ -176,7 +176,9 @@ async def stage_chat(client: SwiggyClient, address_id: str | None) -> None:
             f"({decision.safety.value}, conf {decision.confidence:.2f})"
         )
         if decision.safety is SafetyClass.READ:
-            answer = await answer_read_capability(decision, client, address_id)
+            answer = (
+                await build_read_reply(decision, client, address_id)
+            ).text
             for line in answer.splitlines():
                 print(f"    {line}")
         elif decision.items:

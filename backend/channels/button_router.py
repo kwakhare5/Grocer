@@ -660,8 +660,8 @@ async def dispatch_button_action(
     # 4. Budget Cap Raise Action (ADR 0006)
     if prefix == "budget" and target_arg and target_arg.startswith("raise"):
         from backend.agent.candidate_evaluator import format_paise_to_rupees
-        from backend.agent.checkout_executor import DEFAULT_LAUNCH_CAP_PAISE
         from backend.channels.whatsapp_client import WhatsAppClient
+        from backend.config import settings
 
         wa_client = wa_client or WhatsAppClient()
         parts = target_arg.split(":")
@@ -676,7 +676,11 @@ async def dispatch_button_action(
         approval_id, limit_text = parts[1], parts[2]
 
         new_limit = int(limit_text) if limit_text.isdigit() else None
-        if new_limit is None or not (DEFAULT_LAUNCH_CAP_PAISE < new_limit <= 10000000):
+        if new_limit is None or not (
+            settings.DEFAULT_BUDGET_CAP_PAISE
+            < new_limit
+            <= settings.MAX_BUDGET_CAP_PAISE
+        ):
             return await _reply_and_return(
                 wa_client,
                 wa_id,

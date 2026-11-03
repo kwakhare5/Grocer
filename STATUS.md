@@ -211,6 +211,8 @@ Unsafe writes: 0, under-acted: 0, errors: 0
 # (.scratch/verify_errorfix_20261103.log)
 ```
 
+**New in the Swiggy-error fix (2026-11-03):** `tests/test_swiggy_client_errors.py` proves a structured `success:false` payload raises `SwiggyToolError` and that string and dict error messages are read; `tests/test_whatsapp_webhook.py` proves a Swiggy tool error gets an honest reply and a `swiggy_error` status instead of a 500; `tests/test_basket_actions.py` proves two same-name lines get distinct labels and that a variant query matches the right line. The picker labels are code-proven; the handset tap is not.
+
 **New in Block 1 (2026-10-28):** restricted-role test (`current_user = grocer_app`, DDL refused), live/expired PKCE state test, backdated 24-hour scrub test, and a subprocess boot test with an unreachable DB. The router eval rerun scored 40/40 with latency.
 
 **New in Q1/Q2 (2026-10-28):** pack math (`packs_for`: g/kg, ml/l, pieces), stored-plan shape, stored-spin preference, add-all all-or-nothing, partial picks that name the missing rows, numbered-reply parsing, an expired-plan tap that writes nothing, a typed pick that adds only the chosen row, a normal text that is not hijacked, and numbers with an expired plan that route normally. Proof: 12 planner tests, 8 webhook tests, 1 router test.
@@ -257,7 +259,17 @@ RuntimeError: Refusing to run tests against database 'postgres'. TEST_DATABASE_U
 
 ## 8. Next Action
 
-**Where we are (2026-11-03).** `main` is `1468b16`; Render is live on it with `/health` 200 and Vercel serves the 229-test proof. The 26-case re-run's first half scored 7/13 because Swiggy refused cart reads and adds: "Some items have limited stock and their quantities were adjusted. Please review your cart." A live add after the fix returned HTTP 200 with that reason instead of a 500. The cart review is Karan's to clear in Swiggy; the full 26-case run waits on it. The earlier post-merge run scored 25/26. Remaining work is the live handset taps, the full 26-case run, item 5, and the first real order. Last gate: `verify.ps1 -Db` exit 0 on 2026-11-03 — schema, ruff, 153 offline + 76 DB tests, Next 16.4.3 build; offline scorecard 31/31.
+**Where we are (2026-11-03).** `main` holds the `1468b16` code fix; docs-only commits sit on top. Render is live on the latest commit with `/health` 200; Vercel `/` and `/proof` return 200 and the page says 229 tests. The 2026-11-03 live half-run scored 7/13 on pre-fix code: Swiggy refused every cart read/add with "Some items have limited stock and their quantities were adjusted. Please review your cart." After the fix, a live add returns HTTP 200 with that reason instead of a 500. The earlier post-merge scorecard was 25/26. Last gate: `verify.ps1 -Db` exit 0 on 2026-11-03 — schema, ruff, 153 offline + 76 DB tests, Next 16.4.3 build; offline scorecard 31/31.
+
+**Blocked on Karan:** open Swiggy and accept the adjusted cart. Until that is done, every add and every cart read fails at Swiggy, so the full 26-case scorecard cannot pass.
+
+**Do next, in order:**
+1. Karan reviews and accepts the adjusted cart in Swiggy.
+2. Run the remaining live scorecard: `python scripts/scorecard_live.py --start 14 --end 26` (the bot caps one number at 20 messages an hour).
+3. For a full 26 on fixed code: run `--start 1 --end 13`, wait at least an hour, then run 14–26. Do not run both halves inside the same hour.
+4. Handset taps (Karan): Add-all, Change item, typed pick, set/remove picker; then reactions/blue ticks, address add/delete, OAuth reconnect, and the live 24h scrub.
+5. Item 5 (skip the second model call) only after the add path works, with a fresh Groq token window; it needs Karan's approval.
+6. The first real order is Karan's, after handoff. Checkout stays locked.
 
 **Remaining, in order:**
 
@@ -314,6 +326,7 @@ RuntimeError: Refusing to run tests against database 'postgres'. TEST_DATABASE_U
 8. Do not weaken a test to pass. If the feature is broken, say so.
 9. Show `git diff`, test output, and database proof.
 10. Update `STATUS.md`, `.scratch/HANDOFF.md`, and `JOURNAL.md` before ending the session.
+11. A Swiggy `success:false` answer is an error, not data. Raise `SwiggyToolError` with Swiggy's reason; never parse it as `CartData` or another success model. The customer gets the reason with HTTP 200, never a 500.
 
 ---
 

@@ -1081,3 +1081,11 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: `SwiggyToolError` plus `tool_error_message` turn business errors into a normal error path; the webhook answers "Swiggy couldn't complete that just now: … Check your basket before trying again." with HTTP 200. Set/remove pickers name each line with its pack variant and quantity, and a follow-up can match the variant. Next upgraded to 16.4.3 with `--save-exact`.
 - **Proof**: 5 new tests (2 client error-envelope, 2 picker, 1 webhook no-500); `verify.ps1 -Db` exit 0 on 2026-11-03 — 153 offline + 76 DB, ruff, Next build (`.scratch/verify_errorfix_20261103.log`); `npm audit --omit=dev` → 0 vulnerabilities; live half-run 7/13 was blocked by Swiggy's cart refusal, and Render logs show the business error, not a code regression (`.scratch/scorecard_final_1_13.log`).
 - **Still broken**: full 26-case run waits on Swiggy's cart review; handset taps; OAuth reconnect; address add/delete; 24h scrub. Checkout stays locked.
+
+### [GROCER — Session Handoff] 2026-11-03
+
+#### Work Card: Live Error Proof, Cart Blocker, Fresh-Chat Handoff
+- **Problem**: a fresh chat needs the exact live state after the error fix, and the live scorecard was blocked mid-run.
+- **Change**: no code beyond `1468b16`; synced STATUS, TASKS, DESIGN, ARCHITECTURE, AGENTS and HANDOFF with the deployed state, the Swiggy cart blocker, and the ordered next actions.
+- **Proof**: Render live on the latest commit with `/health` 200; Vercel `/`, `/privacy` and `/proof` 200 with 229 tests; `verify.ps1 -Db` exit 0 (153 offline + 76 DB, ruff, Next build); the post-fix live add returned HTTP 200 with Swiggy's "please review your cart" reason.
+- **Still broken**: Swiggy's cart review blocks every cart read/add, so the full 26-case run is pending; handset taps, item 5, and the first real order remain open. Checkout stays locked.

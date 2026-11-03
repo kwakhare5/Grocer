@@ -209,6 +209,7 @@ sequenceDiagram
 | `report_error` | Build a Swiggy support report |
 
 - **Tool coverage rule:** every tool above maps to a chat capability with a safety class (`read`, `basket`, `account`, `money`). An unmapped tool is a gap, not a feature. If no tool exists for a request, Grocer says it cannot do that instead of inventing one. The `PRD.md` §3 journeys are examples; this table is the scope. The build never places a live order: checkout proof uses simulated failures and recorded real responses.
+- **Business errors are errors, not data (2026-11-03):** Swiggy can answer HTTP 200 with `{"success": false, "error": "..."}`. `call_remote_tool` reads that reason and raises `SwiggyToolError`; it never validates the error payload as `CartData` or another success model. The webhook catches it and replies with the reason and HTTP 200, never a 500. Live example: "Some items have limited stock and their quantities were adjusted. Please review your cart."
 - **Instamart checkout contract (authoritative):**
   - `checkout` is **not idempotent**. Before the call, snapshot active order IDs with `get_orders`. On a 5xx or network failure, wait 2–5 seconds, call `get_orders` again, and compare. If a new order exists, treat the original call as success. If not, retry once. Never blind-retry.
   - UPI requires `paymentMethod="UPI"` plus either `intentApp` (the method ID from `get_payment_options`) or `generateUPIQR=true`. Sending UPI without one of those is not a valid real-order request.
@@ -225,6 +226,7 @@ sequenceDiagram
   - Since 2026-10-27 the merge is cap-aware: each requested quantity is clamped to Swiggy's `maxQuantity`, the cap and its message are printed on the receipt, and an add to a non-empty basket returns a delta line (old count and total, new count) instead of dumping the whole basket as if it were new. Identical queries in one message share one search and one evaluation and their quantities add. A receipt longer than the 1024-char button limit is sent whole as a text message, with Pay/Clear in a short follow-up.
   - `[Keep only new]` clears the old basket, re-adds the items from this turn, and verifies the result. `[Change item]` swaps one vague pick for a real alternative, keeping the quantity and restoring the old item if the verify fails.
   - An idle basket is noticed after 1 hour: the add receipt adds a Keep / Clear prompt. The server-side cart still expires on Swiggy's undocumented TTL; Grocer does not yet answer `CART_EXPIRED` with a specific message.
+  - Ambiguous cart lines (2026-11-03): when two lines share a name, the set/remove picker labels each one with its pack variant and current quantity (`Milk (1 L), qty 2`), and a follow-up can match the variant (`500 ml`). The handset tap is still unproven.
 - **Read-After-Write Verification:**
   - Following `update_cart`, Grocer calls `get_cart` and diffs requested items against actual items. Dropped items are explicitly flagged under **"⚠️ Not added (Out of stock)"**.
 - **Address Switching Mid-Basket (ADR 0007):**

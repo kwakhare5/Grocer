@@ -53,6 +53,7 @@ These are facts, not preferences. Do not re-ask or silently change them.
 9. **Living Status:** `STATUS.md` is the single source of truth. Update it, `.scratch/HANDOFF.md`, and `JOURNAL.md` before ending any session.
 10. **Unknown Never Writes:** Every message routes to a capability with a safety class (`read`, `basket`, `account`, `money`). A read capability can never reach a write path. Unknown or low-confidence messages answer read-only or ask.
 11. **No Live Order During The Build:** The build must remain capable of a real order, but checkout stays locked. `LIVE_CHECKOUT_ENABLED=false` is the default and must be enforced in code, not only in docs. Checkout is proven with simulated failures and recorded responses. Karan's own post-handoff test is the first real order.
+12. **Swiggy Errors Are Not Data:** A Swiggy tool answer with `success: false` raises `SwiggyToolError` with Swiggy's reason. Never validate it as `CartData`, search results, or any success model. The customer gets the reason with HTTP 200; an add failure must never return a 500. Fixed 2026-11-03.
 
 ---
 

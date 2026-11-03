@@ -1044,16 +1044,6 @@ def test_parse_price_to_paise_zero_float_loss():
 
 
 # ==============================================================================
-# 13. Module Placement & Architectural Boundaries
-# ==============================================================================
-def test_customer_advocate_module_placement():
-    """Verify Layer 4 Customer Advocate lives in its dedicated module."""
-    import backend.agent.customer_advocate as advocate
-
-    assert hasattr(advocate, "extract_cart_to_pay_paise")
-
-
-# ==============================================================================
 # 14. Delivery Milestones & Poller Recovery (Phase 4)
 # ==============================================================================
 class ScriptedDeliveryClient:

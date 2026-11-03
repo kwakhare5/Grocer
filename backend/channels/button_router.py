@@ -411,13 +411,13 @@ async def dispatch_button_action(
 
     # 3. Checkout Payment Authorization (Lock 1 Authority -> 3-Lock Execution)
     if prefix == "pay":
+        from backend.channels.whatsapp_client import WhatsAppClient
+
+        wa_client = wa_client or WhatsAppClient()
         if pool and target_arg:
             from backend.agent.checkout_executor import execute_3_lock_checkout
-            from backend.channels.whatsapp_client import WhatsAppClient
             from backend.integrations.commerce.swiggy_client import SwiggyClient
             from backend.integrations.commerce.token_vault import resolve_user_token
-
-            wa_client = wa_client or WhatsAppClient()
 
             async with pool.acquire() as conn:
                 user_id = await conn.fetchval(
@@ -497,11 +497,16 @@ async def dispatch_button_action(
                     "message": "Payment lock authorized and checkout executed.",
                 }
 
+        text = (
+            "I couldn't start the payment just now. Nothing was charged. "
+            "Please try again."
+        )
+        await wa_client.send_text_message(to_wa_id=wa_id, text=text)
         return {
-            "status": "button_dispatched",
+            "status": "checkout_unavailable",
             "action": button_id,
             "approval_id": target_arg,
-            "message": "Payment lock authorized.",
+            "message": text,
         }
 
     # 3. Delivery Address Switch / Delete confirmation tap
@@ -747,9 +752,10 @@ async def dispatch_button_action(
             "message": f"Spending limit raised to {format_paise_to_rupees(new_limit)}. You can now proceed to pay.",
         }
 
-    # Default fallback for recognized button action
-    return {
-        "status": "button_dispatched",
-        "action": button_id,
-        "message": "Action processed.",
-    }
+    # Default fallback for a button id this build no longer knows.
+    from backend.channels.whatsapp_client import WhatsAppClient
+
+    wa_client = wa_client or WhatsAppClient()
+    text = "That button is out of date. Send your request again and I'll rebuild it."
+    await wa_client.send_text_message(to_wa_id=wa_id, text=text)
+    return {"status": "unknown_action", "action": button_id, "message": text}

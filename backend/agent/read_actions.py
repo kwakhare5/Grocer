@@ -32,6 +32,23 @@ NOT_READY_REPLY = (
     "show coupons and show payment options."
 )
 
+CART_REVIEW_REPLY = (
+    "Swiggy needs you to review the basket first. "
+    "Open Swiggy → Instamart → Cart, accept the adjusted quantities, "
+    "then send your request again."
+)
+
+
+def swiggy_failure_reply(exc: Exception) -> str:
+    detail = str(exc).strip().rstrip(".")
+    lowered = detail.lower()
+    if "review your cart" in lowered or "quantities were adjusted" in lowered:
+        return CART_REVIEW_REPLY
+    text = "Swiggy couldn't complete that just now"
+    if detail:
+        text += f": {detail}"
+    return text + ". Check your basket before trying again."
+
 
 @dataclass
 class ReadReply:
@@ -402,7 +419,7 @@ async def build_read_reply(
         SwiggyAuthExpiredError,
     ) as exc:
         logger.warning("Read capability %s failed: %s", decision.capability.value, exc)
-        return ReadReply("I couldn't fetch that from Swiggy just now. Please try again in a moment.")
+        return ReadReply(swiggy_failure_reply(exc))
 
     return ReadReply(NOT_READY_REPLY)
 

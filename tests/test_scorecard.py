@@ -33,7 +33,6 @@ from backend.integrations.commerce.schemas import SearchProductsData, ToolEnvelo
 
 FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures"
 CASES_PATH = Path(__file__).resolve().parent / "scorecard_cases.json"
-OUT_PATH = Path(__file__).resolve().parents[1] / ".scratch" / "scorecard_offline.json"
 
 pytestmark = [pytest.mark.db, pytest.mark.scripted]
 
@@ -214,26 +213,5 @@ async def test_scorecard(monkeypatch):
             for problem in row["problems"]:
                 print(f"      {problem}")
     print("=================================================================\n")
-
-    OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
-    OUT_PATH.write_text(
-        json.dumps(
-            {
-                "mode": "offline",
-                "total": total,
-                "passed": passed_total,
-                "percent": round(passed_total / total * 100, 1),
-                "categories": {
-                    category: {"passed": sum(results), "total": len(results)}
-                    for category, results in per_category.items()
-                },
-                "known_failures": known,
-                "rows": rows,
-            },
-            indent=2,
-            ensure_ascii=False,
-        ),
-        encoding="utf-8",
-    )
 
     assert not unexpected, f"{len(unexpected)} new scorecard failures"

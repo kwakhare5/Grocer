@@ -1,17 +1,17 @@
 # HANDOFF — Grocer — 2026-11-03
 
-Goal: close the handset proofs and the live scorecard; the error/picker/Next work is live. No order.
-Changes: Swiggy `success:false` errors now get an honest 200 reply (never a 500); set/remove picker labels include pack + qty; Next 16.4.3 with 0 advisories; 5 new tests; docs synced.
-Passing: `verify.ps1 -Db` exit 0 — 153 offline + 76 DB, ruff, Next 16.4.3 build.
-Next action: Karan accepts the adjusted cart in Swiggy, then run live scorecard cases 14–26 (an hour after the first half).
-Unproven: full 26/26 run, handset taps, live OAuth reconnect, address add/delete, reactions/blue ticks, 24h scrub. Checkout stays locked.
+Goal: make every turn visible, recover from the frozen cart honestly, and park first-time text for replay; live scorecard deferred until Swiggy access returns. No order.
+Changes: cart-review errors get exact recovery steps on both paths; first-time text is parked and replayed; Swiggy 429/-32000 retries once with Retry-After; per-turn JSON trace; evaluator reports `llm | fallback | rule`; 9 new tests across two batches; dead `hasattr` test, loose dev ruff pin and the offline-scorecard `.scratch` write removed.
+Passing: `verify.ps1 -Db` exit 0 — 160 offline + 77 DB, ruff, Next 16.4.3 build; real signed address and cart-lock turns traced.
+Next action: batch 3 — fix the remaining silent cart/plan/reorder button no-ops, then deduplicate the SQL and money parsers.
+Unproven: live scorecard (no Swiggy app access), handset taps, live OAuth reconnect, address add/delete, reactions/blue ticks, 24h scrub. Checkout stays locked.
 
 ## Current truth
 
-- Branch: `main` only. Code fix `1468b16`; docs-only commits sit on top. Rollback target: `db6a297`.
-- Render: live on the latest commit, `/health` 200. Vercel: `/`, `/privacy`, `/proof` 200; the page and proof say 229 tests.
-- Tests: 153 offline + 76 DB = 229; 20 live-only deselected; 249 collected. `npm audit --omit=dev` → 0 vulnerabilities.
-- Offline scorecard: 31/31. Live scorecard: 25/26 on 2026-11-02; the 2026-11-03 first half scored 7/13 on pre-fix code because Swiggy refused the cart.
+- Branch: `main` only. Pushed code fix `1468b16`; the truth/observability batch is uncommitted on top. Rollback target: `db6a297`.
+- Render: live on `1468b16`, `/health` 200. Vercel: `/`, `/privacy`, `/proof` 200; the page still says 229 tests (backend is 237; the page was not redeployed in this batch).
+- Tests: 160 offline + 77 DB = 237; 20 live-only deselected; 257 collected. `npm audit --omit=dev` → 0 vulnerabilities.
+- Offline scorecard: 31/31. Live scorecard: deferred; the 2026-11-02 post-merge run scored 25/26, and the 2026-11-03 first half scored 7/13 on pre-fix code because Swiggy refused the cart.
 - Checkout: `LIVE_CHECKOUT_ENABLED=false`. No real order has ever been placed. Karan places the first one after handoff.
 
 ## Completed 2026-11-03
@@ -20,36 +20,45 @@ Unproven: full 26/26 run, handset taps, live OAuth reconnect, address add/delete
 2. **Duplicate-name picker** — two cart lines with the same name now render as `Name (variant), qty N`; a follow-up can match the variant (`500 ml`). Code-proven; handset tap open.
 3. **Next upgrade** — 16.2.6 → 16.4.3 (`--save-exact`), 0 production advisories, build passes.
 4. **Docs/cleanup** — counts synced to 229; merged branches `scorecard` and `fix/amount-pack` deleted; parked dead components, one-off scripts, old response dumps and caches removed. Every raw proof file cited in the docs was kept.
+5. **Truth fallbacks** — a `pay` tap with no pool, approval or user now sends "I couldn't start the payment just now. Nothing was charged. Please try again." and returns `checkout_unavailable`; an unknown button sends a resend message and returns `unknown_action`. Proof: `tests/test_button_truth.py`.
+6. **Per-turn trace** — `backend/observability.py` emits one JSON payload per turn and per Swiggy/model call, keyed by the wamid: capability, safety, status, latency, call counts, fallbacks. No text, phone or address. A real signed "show my addresses" turn proves it (`.scratch/trace_turn_20261103.log`).
+7. **Evaluator source** — `CandidateEvaluationResult.source` is `llm`, `fallback` or `rule`; the live catalog file fails if a case skipped the model; `tests/test_evaluator_truth.py` forces the fallback.
+8. **Test cleanup** — deleted the `hasattr` placement test; changed the offline scorecard so it no longer writes `.scratch`; removed the loose dev ruff pin.
+9. **Cart-lock recovery** — a Swiggy cart-review error now returns "Open Swiggy → Instamart → Cart, accept the adjusted quantities, then send your request again" on both the read path and the webhook path. The live cart-lock turn returned it (`.scratch/trace_cart_lock_20261103.log`).
+10. **First-connect replay** — a first-time texter's message is parked as `awaiting_link` with a welcome CTA and replayed after login instead of being lost. Proof: DB test.
+11. **Swiggy 429/Retry-After** — HTTP 429 and JSON-RPC -32000 retry once, honor `Retry-After` capped at 5s, log `swiggy_retry`, and a second cap becomes an honest "Swiggy is busy" tool error. Proof: 3 new tests.
 
-Files: `backend/integrations/commerce/swiggy_client.py`, `backend/channels/whatsapp.py`, `backend/agent/basket_actions.py`, `tests/test_swiggy_client_errors.py`, `tests/test_whatsapp_webhook.py`, `tests/test_basket_actions.py`, `package.json`, `package-lock.json`, docs.
+Files: `backend/observability.py`, `backend/agent/candidate_evaluator.py`, `backend/agent/llm.py`, `backend/agent/read_actions.py`, `backend/channels/button_router.py`, `backend/channels/whatsapp.py`, `backend/integrations/commerce/swiggy_client.py`, `tests/test_button_truth.py`, `tests/test_evaluator_truth.py`, `tests/test_read_actions.py`, `tests/test_swiggy_client_errors.py`, `tests/test_whatsapp_webhook.py`, `tests/test_catalog_search.py`, `tests/test_checkout_locks.py`, `tests/test_scorecard.py`, `requirements-dev.txt`, docs.
 
-## Blocked on Karan
+## Blocked by environment
 
-**Swiggy cart review.** Swiggy returns: “Some items have limited stock and their quantities were adjusted. Please review your cart.” Every `get_cart` and every add is refused until this is cleared. Open Swiggy, accept the adjusted cart, then tell the agent.
+**No Swiggy app or handset access.** The cart is frozen and cannot be cleared from here. Every `get_cart` and every add is refused with “Some items have limited stock and their quantities were adjusted. Please review your cart.” Do not ask Karan to clear it and do not fake a live scorecard. Keep it deferred and labeled.
 
 **Handset taps** cannot be simulated: Add-all, Change item, typed pick, set/remove picker, reactions/blue ticks, address add/delete, OAuth reconnect, live 24h scrub.
 
 ## Decisions needed from Karan
 
-1. Accept the adjusted quantities in Swiggy so the cart works again.
+1. Confirm batch 3: fix the remaining silent cart/plan/reorder button no-ops, then dedupe the SQL and money parsers.
 2. Approve item 5 (skip the second model call) or leave it queued.
-3. Pick a time for the handset proofs (Add-all, Change item, typed pick, set/remove, reactions, address add/delete, OAuth reconnect).
+3. Handset proofs wait for phone access; no action now.
 4. Decide when the first real order happens; checkout stays locked until then.
 
 ## Do next, in order
 
-1. Karan accepts the adjusted cart in Swiggy.
-2. Run the remaining live scorecard:
-   `python scripts/scorecard_live.py --start 14 --end 26`
-   The bot caps one number at 20 messages an hour.
-3. For a full 26 on fixed code: run `--start 1 --end 13`, wait at least an hour, then 14–26. Never both halves in one hour.
-4. Handset proofs with Karan. Check each reply and the orders/basket on screen, not just HTTP 200.
+1. Batch 3 code: fix the remaining silent cart/plan/reorder button no-ops.
+2. Deduplicate the two money parsers, the three cap SQL blocks, the two plan-expiry SQL blocks, and the nine inline token-to-client builders.
+3. Run the full gate.
+4. When Swiggy access returns: clear the cart, run the live scorecard 1–13, wait an hour, run 14–26. Then handset proofs, live OAuth, address add/delete and the 24h scrub.
 5. Item 5 (skip the second model call when brand and size match) — only after adds work, with Karan's approval and a fresh Groq token window. Row 4 is the before-number: 40/40, avg 1312ms.
 6. Phase 9 handoff, then Karan's first real order. The build must stay real-order capable; checkout stays locked until he decides.
 
 ## Proof files
 
-- `.scratch/verify_errorfix_20261103.log` — last full gate (153 offline + 76 DB, Next build).
+- `.scratch/verify_batch2_20261103.log` — last full gate (160 offline + 77 DB, Next build).
+- `.scratch/trace_cart_lock_20261103.log` — real cart-lock turn with the recovery copy.
+- `.scratch/verify_truth_20261103.log` — prior gate (156 offline + 76 DB, Next build).
+- `.scratch/trace_turn_20261103.log` — real signed "show my addresses" turn with the JSON trace.
+- `.scratch/verify_errorfix_20261103.log` — earlier gate (153 offline + 76 DB, Next build).
 - `.scratch/scorecard_final_1_13.log` — 2026-11-03 half-run (7/13, pre-fix code, Swiggy cart refusal).
 - `.scratch/scorecard_live.json` — last single live add after the fix (HTTP 200, reason in the reply; the harness shows “(no reply found)” because a failed add turn is not written to session history).
 - `.scratch/scorecard_live_20261030.json`, `.scratch/scorecard_post_merge_*.log` — earlier 25/26 evidence.
@@ -72,3 +81,4 @@ Files: `backend/integrations/commerce/swiggy_client.py`, `backend/channels/whats
 - Do not weaken or delete a test to make the score look better.
 - Do not run live Swiggy writes beyond the allowed throwaway address.
 - Do not claim the full 26-case score on fixed code until it is actually run.
+- Do not ask Karan to clear the Swiggy cart; he has no app access. Do not fake a live scorecard.

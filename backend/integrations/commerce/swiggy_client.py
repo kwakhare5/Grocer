@@ -8,7 +8,11 @@ Fixture playback lives in the test suite, never in production code.
 from __future__ import annotations
 
 import json
+import logging
 import re
+import time
+from datetime import UTC, datetime
+from email.utils import parsedate_to_datetime
 from typing import Any, TypeVar
 
 import httpx
@@ -34,8 +38,15 @@ from backend.integrations.commerce.schemas import (
     ToolEnvelope,
     TrackOrderData,
 )
+from backend.observability import record_swiggy_call, record_swiggy_retry
 
 T = TypeVar("T")
+
+MAX_TOOL_ATTEMPTS = 2
+MAX_RETRY_WAIT_SECONDS = 5.0
+DEFAULT_RETRY_WAIT_SECONDS = 1.0
+
+logger = logging.getLogger("grocer.swiggy_client")
 
 
 class SwiggyAuthExpiredError(Exception):
@@ -56,6 +67,54 @@ def tool_error_message(payload: dict[str, Any]) -> str | None:
     if not error:
         error = payload.get("message")
     return str(error or "Swiggy refused the request")
+
+
+def _retry_after_seconds(value: str | None) -> float:
+    if not value:
+        return DEFAULT_RETRY_WAIT_SECONDS
+    try:
+        seconds = float(value)
+    except ValueError:
+        try:
+            when = parsedate_to_datetime(value)
+            if when.tzinfo is None:
+                when = when.replace(tzinfo=UTC)
+            seconds = (when - datetime.now(UTC)).total_seconds()
+        except (TypeError, ValueError, OverflowError):
+            seconds = DEFAULT_RETRY_WAIT_SECONDS
+    return max(0.0, min(seconds, MAX_RETRY_WAIT_SECONDS))
+
+
+def _post_with_retry(
+    client: httpx.Client,
+    url: str,
+    headers: dict[str, str],
+    payload: dict[str, Any],
+    tool_name: str,
+) -> httpx.Response:
+    response = client.post(url, headers=headers, json=payload)
+    for _ in range(MAX_TOOL_ATTEMPTS - 1):
+        retryable = response.status_code == 429
+        if not retryable and response.status_code == 200:
+            try:
+                body = response.json()
+            except ValueError:
+                body = None
+            error = body.get("error") if isinstance(body, dict) else None
+            retryable = isinstance(error, dict) and error.get("code") == -32000
+        if not retryable:
+            return response
+        wait = _retry_after_seconds(response.headers.get("retry-after"))
+        record_swiggy_retry(tool_name, wait)
+        logger.warning(
+            "Swiggy cap on %s (HTTP %s); retrying in %.1fs",
+            tool_name,
+            response.status_code,
+            wait,
+        )
+        time.sleep(wait)
+        response = client.post(url, headers=headers, json=payload)
+    return response
 
 
 # Canonical Hinglish to English grocery translation dictionary
@@ -142,6 +201,23 @@ class SwiggyClient:
         arguments: dict[str, Any],
         model_cls: type[T],
     ) -> T:
+        started = time.monotonic()
+        ok = False
+        try:
+            result = self._call_remote_tool(tool_name, arguments, model_cls)
+            ok = True
+            return result
+        finally:
+            record_swiggy_call(
+                tool_name, int((time.monotonic() - started) * 1000), ok
+            )
+
+    def _call_remote_tool(
+        self,
+        tool_name: str,
+        arguments: dict[str, Any],
+        model_cls: type[T],
+    ) -> T:
         """Execute a live MCP tool call."""
         headers = {
             "Content-Type": "application/json",
@@ -161,9 +237,15 @@ class SwiggyClient:
         }
 
         with httpx.Client(timeout=10.0) as client:
-            resp = client.post(f"{self.base_url}/im", headers=headers, json=payload)
+            resp = _post_with_retry(
+                client, f"{self.base_url}/im", headers, payload, tool_name
+            )
             if resp.status_code == 401:
                 raise SwiggyAuthExpiredError("Swiggy OAuth token has expired (401)")
+            if resp.status_code == 429:
+                raise SwiggyToolError(
+                    "Swiggy is busy right now. Please try again in a moment."
+                )
             resp.raise_for_status()
             data = resp.json()
 
@@ -171,6 +253,13 @@ class SwiggyClient:
             rpc_error = data.get("error") if isinstance(data, dict) else None
             if isinstance(rpc_error, dict) and rpc_error.get("code") == -32001:
                 raise SwiggyAuthExpiredError("Swiggy OAuth session expired (JSON-RPC -32001)")
+            if isinstance(rpc_error, dict) and rpc_error.get("code") == -32000:
+                raise SwiggyToolError(
+                    str(
+                        rpc_error.get("message")
+                        or "Swiggy is busy right now. Please try again in a moment."
+                    )
+                )
 
             # Swiggy can answer HTTP 200 with a business error instead of tool data.
             if isinstance(data, dict):

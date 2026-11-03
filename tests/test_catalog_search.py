@@ -28,6 +28,7 @@ Also validates:
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 
 import pytest
@@ -63,6 +64,24 @@ def catalog_fixture() -> SearchProductsData:
 @pytest.fixture
 def swiggy_client(catalog_fixture) -> SwiggyClient:
     return FixtureSwiggyClient(catalog_data=catalog_fixture)
+
+
+@pytest.fixture(autouse=True)
+def require_live_model(monkeypatch):
+    """A live-marked test fails if the model was skipped."""
+    real = evaluate_customer_intent
+
+    def wrapped(*args, **kwargs):
+        result = real(*args, **kwargs)
+        if result.intent_type is IntentType.ZERO_ADDRESS_ONBOARDING:
+            assert result.source == "rule"
+        else:
+            assert result.source == "llm", (
+                f"{result.intent_type} came from {result.source}, not the model"
+            )
+        return result
+
+    monkeypatch.setattr(sys.modules[__name__], "evaluate_customer_intent", wrapped)
 
 
 # ---------------------------------------------------------------------------

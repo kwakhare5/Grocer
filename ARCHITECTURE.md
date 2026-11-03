@@ -295,6 +295,14 @@ check.
   - Target: reset the basket and dialogue state after payment confirms.
   - Current: the poller clears session history, but does not clear the Swiggy cart.
 
+### Cross-cutting: Turn Trace (`backend/observability.py`)
+- Every processed text or button turn begins with the inbound `wamid` as its request id and closes with one JSON payload: `status`, `capability`, `safety`, `latency_ms`, `swiggy_calls`, `model_calls`, `fallbacks`.
+- Every Swiggy tool call emits `swiggy_call` with tool, latency and ok; every LLM call emits `model_call` with provider, latency and ok.
+- A Swiggy 429 or JSON-RPC -32000 retries once, honors `Retry-After` (seconds or HTTP date) capped at 5s, and emits `swiggy_retry`. A second cap becomes an honest "Swiggy is busy" tool error.
+- No message text, phone number or address is logged. The trace logger owns a stderr handler because Uvicorn leaves the root logger at WARNING.
+- The evaluator reports `source: llm | fallback | rule`, so a model outage is visible instead of hidden behind a deterministic pick.
+- This measures; it does not grade. Accuracy claims still come from the scorecard and router eval.
+
 ---
 
 ## 5. PostgreSQL Database Schema

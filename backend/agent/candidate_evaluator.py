@@ -23,6 +23,7 @@ from pydantic import BaseModel, ConfigDict
 from backend.agent.candidate_search import CandidateItem
 from backend.agent.llm import complete_json
 from backend.integrations.commerce.swiggy_client import normalize_query
+from backend.observability import record_fallback
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +66,7 @@ class CandidateEvaluationResult(BaseModel):
     intent_type: IntentType
     selected_candidate: CandidateItem | None = None
     is_vague_staple: bool = False
+    source: str = "llm"
 
 
 _CANDIDATE_RULES = """Rules:
@@ -149,13 +151,19 @@ def _call_llm_candidate_evaluator(
     )
 
     if intent == IntentType.ZERO_ADDRESS_ONBOARDING:
-        return CandidateEvaluationResult(intent_type=IntentType.ZERO_ADDRESS_ONBOARDING)
+        return CandidateEvaluationResult(
+            intent_type=IntentType.ZERO_ADDRESS_ONBOARDING, source="llm"
+        )
 
     if intent == IntentType.CONVERSATIONAL_QA:
-        return CandidateEvaluationResult(intent_type=IntentType.CONVERSATIONAL_QA)
+        return CandidateEvaluationResult(
+            intent_type=IntentType.CONVERSATIONAL_QA, source="llm"
+        )
 
     if intent == IntentType.DISAMBIGUATION:
-        return CandidateEvaluationResult(intent_type=IntentType.DISAMBIGUATION)
+        return CandidateEvaluationResult(
+            intent_type=IntentType.DISAMBIGUATION, source="llm"
+        )
 
     if intent == IntentType.ADD_TO_BASKET:
         selected_spin = parsed.get("selected_spin_id")
@@ -164,12 +172,15 @@ def _call_llm_candidate_evaluator(
             None,
         )
         if not selected and candidates:
-            return CandidateEvaluationResult(intent_type=IntentType.DISAMBIGUATION)
+            return CandidateEvaluationResult(
+                intent_type=IntentType.DISAMBIGUATION, source="llm"
+            )
 
         return CandidateEvaluationResult(
             intent_type=IntentType.ADD_TO_BASKET,
             selected_candidate=selected,
             is_vague_staple=bool(parsed.get("is_vague_staple", False)),
+            source="llm",
         )
 
     return None
@@ -191,7 +202,9 @@ def evaluate_customer_intent(
 
     # 1. Zero-Address Onboarding Gate (ADR 0010)
     if address_count == 0:
-        return CandidateEvaluationResult(intent_type=IntentType.ZERO_ADDRESS_ONBOARDING)
+        return CandidateEvaluationResult(
+            intent_type=IntentType.ZERO_ADDRESS_ONBOARDING, source="rule"
+        )
 
     # 2. Ask the configured LLM first
     llm_result = _call_llm_candidate_evaluator(
@@ -212,11 +225,16 @@ def _deterministic_evaluate(
     address_count: int = 1,
 ) -> CandidateEvaluationResult:
     """Ranking rules when the model is unavailable or a batch entry is bad."""
+    record_fallback()
     candidates = candidates or []
     if address_count == 0:
-        return CandidateEvaluationResult(intent_type=IntentType.ZERO_ADDRESS_ONBOARDING)
+        return CandidateEvaluationResult(
+            intent_type=IntentType.ZERO_ADDRESS_ONBOARDING, source="fallback"
+        )
     if not candidates:
-        return CandidateEvaluationResult(intent_type=IntentType.CONVERSATIONAL_QA)
+        return CandidateEvaluationResult(
+            intent_type=IntentType.CONVERSATIONAL_QA, source="fallback"
+        )
 
     # Letters only, 3+ letters: numbers and units ("2", "kg") can never rank
     # one product above another.
@@ -242,14 +260,18 @@ def _deterministic_evaluate(
             return CandidateEvaluationResult(
                 intent_type=IntentType.ADD_TO_BASKET,
                 selected_candidate=candidates[0],
+                source="fallback",
             )
-        return CandidateEvaluationResult(intent_type=IntentType.DISAMBIGUATION)
+        return CandidateEvaluationResult(
+            intent_type=IntentType.DISAMBIGUATION, source="fallback"
+        )
 
     winners = [candidate for score, candidate in ranked if score == best_score]
     if len(winners) == 1:
         return CandidateEvaluationResult(
             intent_type=IntentType.ADD_TO_BASKET,
             selected_candidate=winners[0],
+            source="fallback",
         )
     # A tie on the best match: Swiggy's own order decides, and the caller
     # offers Change so one tap fixes a wrong pick.
@@ -257,6 +279,7 @@ def _deterministic_evaluate(
         intent_type=IntentType.ADD_TO_BASKET,
         selected_candidate=winners[0],
         is_vague_staple=True,
+        source="fallback",
     )
 
 
@@ -282,9 +305,10 @@ def _parse_evaluation(
             intent_type=intent,
             selected_candidate=selected,
             is_vague_staple=bool(parsed.get("is_vague_staple", False)),
+            source="llm",
         )
 
-    return CandidateEvaluationResult(intent_type=intent)
+    return CandidateEvaluationResult(intent_type=intent, source="llm")
 
 
 def parse_batch_evaluations(

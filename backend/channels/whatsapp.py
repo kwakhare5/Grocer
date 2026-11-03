@@ -17,6 +17,7 @@ from backend.channels.whatsapp_crypto import verify_signature, verify_webhook_ch
 from backend.channels.whatsapp_parser import parse_webhook_payload
 from backend.config import settings
 from backend.database import get_db_pool
+from backend.observability import begin_turn, end_turn, set_turn_context
 
 logger = logging.getLogger("grocer.channels.whatsapp")
 
@@ -79,11 +80,9 @@ def _login_url(wa_id: str) -> str:
 
 
 def _swiggy_tool_error_reply(exc: Exception) -> str:
-    detail = str(exc).strip().rstrip(".")
-    text = "Swiggy couldn't complete that just now"
-    if detail:
-        text += f": {detail}"
-    return text + ". Check your basket before trying again."
+    from backend.agent.read_actions import swiggy_failure_reply
+
+    return swiggy_failure_reply(exc)
 
 
 async def _park_and_prompt(
@@ -91,20 +90,32 @@ async def _park_and_prompt(
     inbound_id: Any,
     wa_id: str,
     wa_client: Any,
+    *,
+    first_connect: bool = False,
 ) -> None:
-    """Mark the inbound row replayable and send the signed reconnect link."""
+    """Mark the inbound row replayable and send the signed connect link."""
     await conn.execute(
         "UPDATE grocer.inbound_messages SET status = 'awaiting_link' WHERE id = $1;",
         inbound_id,
     )
-    await wa_client.send_cta_url_button(
-        to_wa_id=wa_id,
-        body_text=(
+    if first_connect:
+        body_text = (
+            "👋 *Welcome to Grocer!*\n\n"
+            "Connect your Swiggy account to shop Instamart. Tap below, sign in, "
+            "and I'll run your message automatically when you're back."
+        )
+        button_text = "Connect Swiggy"
+    else:
+        body_text = (
             "⚠️ *Your Swiggy login needs a security refresh.*\n\n"
             "Tap below to reconnect your account. Your grocery list has been saved "
             "and will resume automatically:"
-        ),
-        button_text="Reconnect Swiggy",
+        )
+        button_text = "Reconnect Swiggy"
+    await wa_client.send_cta_url_button(
+        to_wa_id=wa_id,
+        body_text=body_text,
+        button_text=button_text,
         url=_login_url(wa_id),
     )
 
@@ -270,14 +281,20 @@ async def handle_webhook(
 
             # 7. Fast 50ms Button Dispatcher for interactive replies
             if msg.button_id:
-                action_res = await dispatch_button_action(
-                    msg.button_id,
-                    msg.sender_wa_id,
-                    pool,
-                    swiggy_client=swiggy_client,
-                    message_type=msg.message_type,
-                    wa_client=wa_client,
-                )
+                begin_turn(msg.wa_message_id)
+                set_turn_context(capability="button")
+                action_res: dict[str, Any] = {}
+                try:
+                    action_res = await dispatch_button_action(
+                        msg.button_id,
+                        msg.sender_wa_id,
+                        pool,
+                        swiggy_client=swiggy_client,
+                        message_type=msg.message_type,
+                        wa_client=wa_client,
+                    )
+                finally:
+                    end_turn(action_res.get("status", "error"))
                 results.append(action_res)
                 continue
 
@@ -369,16 +386,25 @@ async def handle_webhook(
 
                 user_token = await resolve_user_token(user_id)
                 if not user_token:
-                    login_url = _login_url(msg.sender_wa_id)
-                    await wa_client.send_cta_url_button(
-                        to_wa_id=msg.sender_wa_id,
-                        body_text=(
-                            "👋 *Welcome to Grocer!*\n\n"
-                            "Connect your Swiggy account to shop Instamart in 10-15 minutes:"
-                        ),
-                        button_text="Connect Swiggy",
-                        url=login_url,
-                    )
+                    if msg.text:
+                        await _park_and_prompt(
+                            conn,
+                            inbound_id,
+                            msg.sender_wa_id,
+                            wa_client,
+                            first_connect=True,
+                        )
+                    else:
+                        login_url = _login_url(msg.sender_wa_id)
+                        await wa_client.send_cta_url_button(
+                            to_wa_id=msg.sender_wa_id,
+                            body_text=(
+                                "👋 *Welcome to Grocer!*\n\n"
+                                "Connect your Swiggy account to shop Instamart in 10-15 minutes:"
+                            ),
+                            button_text="Connect Swiggy",
+                            url=login_url,
+                        )
                     results.append({"status": "auth_required", "wa_id": msg.sender_wa_id})
                     continue
 
@@ -699,6 +725,10 @@ async def handle_webhook(
                     decision = await asyncio.to_thread(
                         route_message, msg.text, session_history, None, basket_summary
                     )
+                    set_turn_context(
+                        capability=decision.capability.value,
+                        safety=decision.safety.value,
+                    )
 
                     if address_count == 0:
                         prompt_text = (
@@ -897,11 +927,15 @@ async def handle_webhook(
                     )
                     return {"status": "no_match", "query": msg.text}
 
+                begin_turn(msg.wa_message_id)
+                trace_status = "error"
                 try:
                     turn_result = await run_turn(client, msg, user_id, conn, wa_client)
+                    trace_status = turn_result.get("status", "ok")
                     _react_in_background(wa_client, msg, turn_result)
                     results.append(turn_result)
                 except SwiggyToolError as exc:
+                    trace_status = "swiggy_error"
                     await wa_client.send_text_message(
                         to_wa_id=msg.sender_wa_id,
                         text=_swiggy_tool_error_reply(exc),
@@ -922,12 +956,14 @@ async def handle_webhook(
                                 conn,
                                 wa_client,
                             )
+                            trace_status = turn_result.get("status", "ok")
                             _react_in_background(wa_client, msg, turn_result)
                             results.append(turn_result)
                             retried = True
                         except SwiggyAuthExpiredError:
                             retried = False
                         except SwiggyToolError as exc:
+                            trace_status = "swiggy_error"
                             await wa_client.send_text_message(
                                 to_wa_id=msg.sender_wa_id,
                                 text=_swiggy_tool_error_reply(exc),
@@ -941,6 +977,9 @@ async def handle_webhook(
                             conn, inbound_id, msg.sender_wa_id, wa_client
                         )
                         results.append({"status": "auth_expired", "wa_id": msg.sender_wa_id})
+                        trace_status = "auth_expired"
+                finally:
+                    end_turn(trace_status)
                 continue
 
             results.append({"status": "processed", "wa_message_id": msg.wa_message_id})

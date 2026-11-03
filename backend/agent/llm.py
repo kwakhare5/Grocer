@@ -17,6 +17,7 @@ from typing import Any
 import httpx
 
 from backend.config import settings
+from backend.observability import record_model_call
 
 logger = logging.getLogger("grocer.llm")
 
@@ -228,7 +229,10 @@ def complete_json(
     """
     chosen = (provider or settings.LLM_PROVIDER or "groq").strip().lower()
     if chosen == "gemini":
-        return _gemini_json(system_prompt, user_prompt)
-    if chosen == "groq":
-        return _groq_json(system_prompt, user_prompt)
-    return LLMResult(None, chosen, f"unknown LLM provider: {chosen}")
+        result = _gemini_json(system_prompt, user_prompt)
+    elif chosen == "groq":
+        result = _groq_json(system_prompt, user_prompt)
+    else:
+        result = LLMResult(None, chosen, f"unknown LLM provider: {chosen}")
+    record_model_call(result.provider, result.latency_ms, result.ok)
+    return result

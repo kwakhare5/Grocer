@@ -32,6 +32,7 @@ from backend.integrations.commerce.schemas import (
     TrackOrderData,
     TrackOrderStatus,
 )
+from backend.integrations.commerce.swiggy_client import SwiggyToolError
 
 FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures"
 
@@ -258,6 +259,24 @@ async def test_view_basket_reads_the_live_cart():
     assert "Amul" in reply.text
     assert "To Pay" in reply.text
     assert reply.buttons == []
+
+
+class CartReviewClient(FixtureSwiggyClient):
+    def get_cart(self, address_id: str | None = None):
+        raise SwiggyToolError(
+            "Some items have limited stock and their quantities were adjusted. "
+            "Please review your cart."
+        )
+
+
+@pytest.mark.asyncio
+async def test_view_basket_cart_review_returns_recovery_steps():
+    client = CartReviewClient(FIXTURES_DIR)
+    reply = await build_read_reply(
+        _decision(Capability.VIEW_BASKET), client, "addr_01HXYZ"
+    )
+    assert "open swiggy" in reply.text.lower()
+    assert "accept the adjusted quantities" in reply.text.lower()
 
 
 @pytest.mark.asyncio

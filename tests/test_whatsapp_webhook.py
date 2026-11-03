@@ -345,7 +345,10 @@ async def test_swiggy_business_error_gets_an_honest_reply_not_a_500(monkeypatch)
 
     class RefusingClient(FixtureSwiggyClient):
         def get_cart(self, address_id: str | None = None):
-            raise SwiggyToolError("Please review your cart.")
+            raise SwiggyToolError(
+                "Some items have limited stock and their quantities were adjusted. "
+                "Please review your cart."
+            )
 
     from backend.agent import router as router_module
     from backend.agent.router import Capability, RoutingDecision, SafetyClass
@@ -371,7 +374,8 @@ async def test_swiggy_business_error_gets_an_honest_reply_not_a_500(monkeypatch)
 
     assert result["status"] == "swiggy_error"
     assert outbound.texts
-    assert "review your cart" in outbound.texts[0][1].lower()
+    assert "open swiggy" in outbound.texts[0][1].lower()
+    assert "accept the adjusted quantities" in outbound.texts[0][1].lower()
 
 
 @pytest.mark.asyncio
@@ -431,6 +435,33 @@ async def test_park_sends_a_signed_reconnect_link():
     token = url.split("?t=", 1)[1]
     assert url.startswith("https://grocerr.vercel.app?t=")
     assert verify_link_token(token) == wa_id
+
+
+@pytest.mark.asyncio
+async def test_first_connect_parks_the_text_for_replay():
+    pool = await get_db_pool()
+    wa_id = _new_wa_id()
+    outbound = RecordingWA()
+
+    result = await handle_webhook(
+        SignedRequest(_message(wa_id, text="add milk")),
+        wa_client=outbound,
+    )
+    await asyncio.sleep(0.05)
+
+    assert result["status"] == "auth_required"
+    assert outbound.ctas
+    assert "Welcome to Grocer" in outbound.ctas[-1][1]
+    async with pool.acquire() as conn:
+        status = await conn.fetchval(
+            """
+            SELECT m.status FROM grocer.inbound_messages m
+            JOIN grocer.users u ON u.id = m.user_id
+            WHERE u.wa_id = $1 ORDER BY m.created_at DESC LIMIT 1;
+            """,
+            wa_id,
+        )
+    assert status == "awaiting_link"
 
 
 @pytest.mark.asyncio

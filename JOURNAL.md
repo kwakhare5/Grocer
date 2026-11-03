@@ -1073,3 +1073,11 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: `parse_pack_size` folds an "N unit x M" multiplier; `_exact_plan` fills an explicit amount with the fewest exact packs across candidates, and when stock cannot reach it the reply adds what exists and names the shortfall. Synced STATUS/TASKS/DESIGN/proof/landing counts to 149 offline + 75 DB = 224 and 244 collected; deleted the parked dead components, one-off scripts, old response dumps and caches.
 - **Proof**: `verify.ps1 -Db` exit 0 on 2026-11-02 — 149 offline, 75 DB, ruff, Next build (`.scratch/verify_docs_20261102.log`); live case 16 re-run PASS 1/1, reply "I asked for 5, so I added 2" with the ₹1,000 cap warning (`.scratch/scorecard_live.json`); the new multipack test is inside the passing 149.
 - **Still broken**: full 26-case re-run pending; duplicate-name picker; handset taps; live OAuth reconnect; address add/delete; 24h scrub. Checkout stays locked.
+
+### [GROCER — Swiggy Error Envelope, Picker Labels and Next Upgrade] 2026-11-03
+
+#### Work Card: Honest Swiggy Errors, Distinct Picker Labels, Zero Advisories
+- **Problem**: the live scorecard's add cases returned HTTP 500 because Swiggy answered `success: false` ("please review your cart") and the client parsed that error as cart data; two cart lines with the same name rendered identical picker labels; Next 16.2.6 carried 3 production advisories.
+- **Change**: `SwiggyToolError` plus `tool_error_message` turn business errors into a normal error path; the webhook answers "Swiggy couldn't complete that just now: … Check your basket before trying again." with HTTP 200. Set/remove pickers name each line with its pack variant and quantity, and a follow-up can match the variant. Next upgraded to 16.4.3 with `--save-exact`.
+- **Proof**: 5 new tests (2 client error-envelope, 2 picker, 1 webhook no-500); `verify.ps1 -Db` exit 0 on 2026-11-03 — 153 offline + 76 DB, ruff, Next build (`.scratch/verify_errorfix_20261103.log`); `npm audit --omit=dev` → 0 vulnerabilities; live half-run 7/13 was blocked by Swiggy's cart refusal, and Render logs show the business error, not a code regression (`.scratch/scorecard_final_1_13.log`).
+- **Still broken**: full 26-case run waits on Swiggy's cart review; handset taps; OAuth reconnect; address add/delete; 24h scrub. Checkout stays locked.

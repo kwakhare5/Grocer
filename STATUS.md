@@ -1,6 +1,6 @@
 # STATUS.md — Grocer Current Truth
 
-> **Updated:** 2026-11-02  
+> **Updated:** 2026-11-03  
 > **Authority:** This is the only current status document. `PRD.md` is the v1 target. `ARCHITECTURE.md` is the design plus known gaps. `DESIGN.md` is the WhatsApp UI plus the website landing page. `JOURNAL.md` is append-only history. `docs/adr/` records decisions, amended not rewritten.  
 > **Rule:** DONE needs a proof command, date, and raw output. Everything else is PARTIAL, BROKEN, or NOT VERIFIED. A green test is not proof that the live product works.
 
@@ -23,9 +23,9 @@
 | Address test writes | One throwaway address on Karan's account may be created and deleted. |
 | Hosting | Render free plan; pollers reconcile from the DB on wake. No paid instance. |
 | Landing OAuth | No phone-entry form. OAuth is a bot-sent bridge only; the card renders only for `?t=` or a callback. The proven login/callback routes are live; the state-cookie and origin-check hardening is parked in `.scratch/parked/oauth-state-cookie.patch` until a handset test. |
-| Landing page (Phase 8) | **LIVE 2026-11-02.** Redesign: printed sample receipt plus a 9:16 demo slot in the hero, six job rows with Live / In testing / Opening next, a dark three-step safety band with a sample checkout and cap meter, six backend facts led by 20 tools, a small 224-tests line, six FAQs, and a compact footer. Every sample is stamped. No founder section, proof-stat band, chat demo, phone form or separate privacy section. The demo slot is hidden in production until `public/demo.mp4` exists. Proof: page commit `0fcafdb`; `https://grocerr.vercel.app/`, `/privacy` and `/proof` return 200; 1 unique `wa.me` link; 0 placeholders; Render live on `38dc084` with `/health` 200. |
+| Landing page (Phase 8) | **LIVE 2026-11-02, updated 2026-11-03.** Redesign: printed sample receipt plus a 9:16 demo slot in the hero, six job rows with Live / In testing / Opening next, a dark three-step safety band with a sample checkout and cap meter, six backend facts led by 20 tools, a small 229-tests line, six FAQs, and a compact footer. Every sample is stamped. No founder section, proof-stat band, chat demo, phone form or separate privacy section. The demo slot is hidden in production until `public/demo.mp4` exists. Proof: page commit `0fcafdb`; `https://grocerr.vercel.app/`, `/privacy` and `/proof` return 200; 1 unique `wa.me` link; 0 placeholders; Render live on `38dc084` with `/health` 200. |
 | Landing audit fixes | **DONE 2026-11-01, shipped 2026-11-02:** removed all three skip links and dead chat/lock CSS; deleted the dead `hero-chat.tsx` and `lock-demo.tsx`; fixed invisible focus targets, full-bleed section edges (removed `scrollbar-gutter`), the 1024px hero squeeze, stamp overflow, and the sample Pay button. Security headers are live; the OAuth state cookie and origin check are parked for a handset test. Copy corrected: reorder/past-order claims, sample-only coupon, “no order leaves the chat”, delete-my-data wording, basket vs cart. |
-| Recent Next advisories | **OPEN 2026-11-01:** `npm audit --omit=dev` reports 3 production advisories in Next 16.2.6 (1 critical); the fix is Next 16.4.3, outside the pinned version. Needs Karan's approval before upgrading. |
+| Recent Next advisories | **FIXED 2026-11-03:** upgraded Next 16.2.6 → 16.4.3 (`--save-exact`). `npm audit --omit=dev` → 0 vulnerabilities; `npm run build` passes all 7 routes. |
 
 ---
 
@@ -36,15 +36,17 @@
 | Documentation sync | **DONE 2026-10-27, scope corrected 2026-10-27.** Recipes are in v1 as plan-confirm-add; proactivity is money-and-truth only; replies stay English. Stale "current" notes were removed from PRD, ARCHITECTURE, DESIGN, GLOSSARY and the ADR index. The scope table lives in `TASKS.md`. |
 | Doc truth pass | **DONE 2026-10-28:** corrected pre-Batch-3 claims in ARCHITECTURE Layer 2/4, DESIGN A2/A6/A8/A9, PRD payment, GLOSSARY fee term, ADR index rows 0003–0006/0009, STATUS counts/constraints/next action, and the verify-grocer skill. No code changed. |
 | Lint | **PASS 2026-10-28:** `ruff check backend tests` → `All checks passed!` The `npm run lint` script was removed 2026-11-01; Next 16 no longer ships `next lint` and no ESLint is installed. |
-| Verify 2026-11-02 | **PASS:** `verify.ps1 -Db` exit 0 (schema, ruff, 149 offline + 75 database tests, Next build). Browser checks from 2026-11-01: 0 horizontal overflow at 1440/1024/768/390/360; first Tab lands on the brand; no skip link; `/privacy` and `/proof` render. Security headers are live; the OAuth state-cookie patch is parked. `npm audit` reports 3 advisories in Next 16.2.6. |
-| Offline tests | **PASS 2026-11-02:** 149 offline + 75 DB = 224 passed, 20 live deselected (`pytest -q -m "not live"`). |
-| DB tests | **PASS 2026-11-02:** 75 passed on `grocer_test`, and `verify.ps1 -Db` exits 0 end to end (schema check, ruff, offline + DB tests, Next production build) after the amount-pack fix. |
+| Verify 2026-11-03 | **PASS:** `verify.ps1 -Db` exit 0 (schema, ruff, 153 offline + 76 database tests, Next 16.4.3 build). Browser checks from 2026-11-01 still stand: 0 horizontal overflow at 1440/1024/768/390/360; first Tab lands on the brand; no skip link; `/privacy` and `/proof` render. Security headers are live; the OAuth state-cookie patch is parked. `npm audit --omit=dev` → 0 vulnerabilities. |
+| Offline tests | **PASS 2026-11-03:** 153 offline + 76 DB = 229 passed, 20 live deselected (`pytest -q -m "not live"`). |
+| DB tests | **PASS 2026-11-03:** 76 passed on `grocer_test`, and `verify.ps1 -Db` exits 0 end to end (schema check, ruff, offline + DB tests, Next production build) after the Swiggy-error fix. |
 | Basket path | **DONE 2026-10-28, merged in `2c63289`:** adds always add and increment an existing line; sizes are exact (200 g never becomes 400 g, 500 g never becomes 1 kg); every missing item is named; explicit set applies with a receipt; remove/clear still confirm. Abuse caps: 20 messages/hour/user, 10 items/message, quantity 1–99, media reply. Proof: 146 offline + 73 DB + Next build; exact paneer/rice regression test. Live route check: 3 cases pass; multi-item, eggs, Hinglish, bare "milk" and remove were blocked by the shared Groq TPM. |
+| Swiggy error envelope | **DONE 2026-11-03:** a Swiggy tool answer with `success: false` now raises `SwiggyToolError` instead of being parsed as cart data, and the webhook replies "Swiggy couldn't complete that just now: <reason>. Check your basket before trying again." A live cart refusal that returned HTTP 500 on 2026-11-03 now returns 200 with that honest text. Proof: 5 new tests (2 client error-envelope, 2 picker labels, 1 webhook no-500) and `verify.ps1 -Db` exit 0. |
+| Duplicate-name picker | **DONE (code) 2026-11-03:** "Which one do you mean" now names each line with its pack variant and current quantity, and a follow-up can match the variant ("500 ml"). Two same-name milk lines no longer render identical labels. Proof: 2 new offline tests; live handset tap still pending. |
 | Live route check | **PARTIAL 2026-10-28:** on the branch, "add 1 litre milk" → add 1 L; "add 1 more milk" → add 1; "make milk 3" → set 3. The remaining five live wordings were blocked by the shared Groq TPM, not by an error; the fixture tests for those paths pass. |
 | Live deploy 2c63289 | **PASS 2026-10-28:** push `d61b142..2c63289` accepted; Render deploy `dep-dbh0vkavcj2c73e0ghqg` reached `live` on `2c63289`; `GET https://grocer-backend-qwk4.onrender.com/health` → HTTP 200 `{"status":"healthy","database":"connected","app":"Grocer","environment":"development"}`. GitHub Quality run `40712848895` succeeded on `2c63289`. |
 | Live tests | **20 live-only tests collected, not run.** `test_catalog_search.py` calls the live router/model path and is marked `live`. |
-| Full test collection | **244 tests collected 2026-11-02** (149 offline, 75 DB, 20 live). |
-| Full suite claim | The old "136 passed, 0 skipped" claim is retired. The current verified set is 149 offline + 75 DB (244 collected, 20 of them live-only); live is excluded by default. Scripted tests are marked `scripted` and never counted as live proof. |
+| Full test collection | **249 tests collected 2026-11-03** (153 offline, 76 DB, 20 live). |
+| Full suite claim | The old "136 passed, 0 skipped" claim is retired. The current verified set is 153 offline + 76 DB (249 collected, 20 of them live-only); live is excluded by default. Scripted tests are marked `scripted` and never counted as live proof. |
 | Live Swiggy smoke | **PASS 2026-10-27:** real token, real MCP. 3 addresses, 20 milk products with live prices, 12-item cart read, 0 orders, 10 payment methods, 0 coupons. Cart add verified then restored (12 items, same spins and quantities). No order placed. Raw: `scripts/live_smoke.py`. |
 | Live Groq pass | **PASS 2026-10-27:** 10 real messages → 10 correct routes (item_info ×3, list_addresses, order_history, list_coupons, payment_options, add_items, chat, track_order) with real read answers. 55s. |
 | Live checkout lock | **PASS 2026-10-27:** with `LIVE_CHECKOUT_ENABLED=false`, the real path returned "Checkout is locked" and a sentinel client proved no Swiggy method ran. |
@@ -82,10 +84,10 @@
 | Live eval 2026-10-28 (26 cases) | **MIXED:** 26 signed webhooks against Render with the real Swiggy MCP and Groq. Reads passed: basket, addresses (3 saved), payment (UPI only), coupons, store quote, orders/bill/tracking (none, honest). Writes passed: single add, multi add, banana, sugar, salt; a double text produced two separate approvals with no lost write. Honest limits passed: usual, last bill, report, cash. Recipe plan priced 5 items at ₹1014. Failures: "add 200g paneer, 1 packet gulab jamun and 500g rice" and the Hinglish milk+eggs message were routed to `change_item` and lost the other items; the router prompt and a multi-item guard were fixed (`f285b00`, 2 new tests). The paneer case passed after the fix but silently omitted the rice and added a second paneer SKU; the Hinglish retest was blocked by Groq's daily cap. "5 kg almonds" added one ₹1398 pack and only warned about the ₹1,000 cap. Reactions/read receipts cannot be tested with simulated wamids (Meta 400 "Invalid message_id"); a direct reaction to a real wamid returned 200. Groq hit its 200k tokens/day free cap (199,068 used; retry 8m50s) and the bot answered with the honest AI-offline copy. The webhook timing test was isolated from the real WhatsApp API after it failed on Meta latency. Full gate after the fixes: `verify.ps1 -Db` exit 0, 144 offline + 66 DB, build pass. Raw: `.scratch/live_eval_25.json`. |
 | Scorecard (merged) | **BUILT 2026-10-28 on `scorecard`, merged 2026-10-31 in `a8e530c`:** `tests/test_scorecard.py` + `tests/scorecard_cases.json` (31 cases, expectations written from customer intent) and `scripts/scorecard_live.py` (26 cases against the deployed webhook). The offline run hands the plan to the pipeline, so it scores Python with the model out of the loop: **31/31 = 100%**, up from 28/31 before the three fixes below. Live on Render since 2026-10-31. |
 | Offline scorecard findings | **FIXED 2026-10-28 on `scorecard`, merged 2026-10-31 in `a8e530c`:** candidates are now ranked by how many of the customer's words they match, so a qualifier like "brown" wins; when the picked pack does not fit the amount, the fewest exact packs are taken instead of asking ("2 kg atta" → 2 × 1 kg); and `pack_plan` splits across sizes ("1.5 litres" → 1 L + 500 ml), capped at 12 packs per line. Proof: `tests/test_scorecard.py` 31/31, `pytest -m "not live"` 221 passed, ruff clean. Candidate selection no longer uses keyword lists: the older `staple_terms`, `discretionary_hints` and `size_patterns` tables are deleted, leaving one ranking rule (unique best match wins, a tie takes Swiggy's first pick and offers Change). Net −49 lines in `backend/agent/candidate_evaluator.py`. |
-| Live scorecard | **BASELINE COMPLETE 2026-10-31:** the 26-case scorecard ran against production `main` before the merge. Full baseline: **25/26 = 96.2% correct by intent** (24/26 strict). Case 16, "5 kg almonds", is the only real miss; it is fixed in production since the 2026-10-31 merge (offline case `truth-5kg-almonds-warns-about-the-cap` passes). The 2026-10-29 run answered 19/20 = 95%; the 2026-10-31 tail ran cases 21–26 and scored 5/6 strict, where case 21 was a checker false negative: the bot answered COD correctly but the checker demanded the literal word "cash". The harness now requires UPI plus any of cash/delivery/cod, and the recorded reply scores clean. Raw: `.scratch/scorecard_live.json`, `.scratch/scorecard_tail.log`, `.scratch/scorecard_live_20261030.json`. |
+| Live scorecard | **PARTIAL 2026-11-03:** the first half of a full re-run scored 7/13 because Swiggy refused every cart read/add with a business error ("please review your cart"). Reads that do not use the cart passed. Render logs proved the error envelope, not a code regression; the app now returns an honest 200 reply instead of HTTP 500. Earlier: **25/26 = 96.2% correct by intent** on 2026-11-02 (24/26 strict on the 2026-10-31 baseline). Case 21 was a checker false negative; the harness now requires UPI plus any of cash/delivery/cod. Raw: `.scratch/scorecard_final_1_13.log`, `.scratch/scorecard_post_merge_1_13.log`, `.scratch/scorecard_live_20261030.json`. |
 | Router eval (branch, post four-verbs) | **PASS 2026-10-31:** 40/40 exact, 0 unsafe writes, 0 under-acted, 0 safe-path fallbacks, 0 errors; avg 1312ms, p95 1735ms, max 1889ms. Equal accuracy to the pre-change 40/40, faster latency. The 10 write-verb cases were 10/10 on 2026-10-29. Raw: `.scratch/eval_after_verbs.json`. |
 | Live deploy a8e530c | **PASS 2026-10-31:** PR #3 CI green (backend + frontend on Linux + Postgres); fast-forward merge `db6a297..a8e530c`; Render deploy `dep-dbiupgivcj2c73edh5t0` reached `live` on `a8e530c`; `/health` → HTTP 200 `{"status":"healthy","database":"connected","app":"Grocer"}`. No migrations, no config or env changes. |
-| Post-merge live smoke | **PARTIAL 2026-10-31:** on `a8e530c`, basket and addresses 2/2, add 1 litre milk 1/1, all HTTP 200. `make milk 3` and `remove the milk` both returned a 200 disambiguation prompt because the basket holds two milk lines with the same display name; the picker shows two identical labels. Pre-existing, not a deploy break; the tap needs a real handset. Raw: `.scratch/scorecard_live.json` (overwritten per run), `.scratch/smoke_custom.py`. |
+| Post-merge live smoke | **PARTIAL 2026-10-31:** on `a8e530c`, basket and addresses 2/2, add 1 litre milk 1/1, all HTTP 200. `make milk 3` and `remove the milk` both returned a 200 disambiguation prompt because the basket holds two milk lines with the same display name; the picker showed two identical labels. The labels are fixed in code on 2026-11-03 (variant + qty); the tap still needs a real handset. Raw: `.scratch/smoke_custom.py`. |
 | Production readiness | **No.** |
 | Current gate | **Gate 2 — Concierge Answers.** 6 of 8 pass; 1 partial (reorder needs a past order); 1 code-complete but not tapped live ("milk" now auto-picks with a working Change button, discretionary items show choices). See §2. |
 
@@ -174,7 +176,7 @@ Gate 2 is read-only. No checkout, order, payment call, or address write is in sc
 
 ---
 
-## 6. Test Truth (2026-10-31)
+## 6. Test Truth (2026-11-03)
 
 **What each kind of test proves.**
 
@@ -192,21 +194,21 @@ ruff check backend tests
 All checks passed!
 
 pytest -q -m "not db and not live"
-149 passed, 95 deselected
+153 passed, 96 deselected
 
 pytest -q -m "db"
-75 passed, 169 deselected
+76 passed, 173 deselected
 
 pytest --collect-only -q
-244 tests collected
+249 tests collected
 
 python scripts/eval_router.py --provider groq
 Exact capability match: 40/40 (100.0%)
 Latency (last call per case): avg 1312ms, p95 1735ms, max 1889ms
 Unsafe writes: 0, under-acted: 0, errors: 0
-# 2026-11-02: schema check exit 0 (9 tables, grocer_app), ruff clean,
-# 149 offline pass, 75 DB pass, Next.js build pass, verify.ps1 exit 0
-# (.scratch/verify_amount_fix.log)
+# 2026-11-03: schema check exit 0 (9 tables, grocer_app), ruff clean,
+# 153 offline pass, 76 DB pass, Next.js build pass, verify.ps1 exit 0
+# (.scratch/verify_errorfix_20261103.log)
 ```
 
 **New in Block 1 (2026-10-28):** restricted-role test (`current_user = grocer_app`, DDL refused), live/expired PKCE state test, backdated 24-hour scrub test, and a subprocess boot test with an unreachable DB. The router eval rerun scored 40/40 with latency.
@@ -255,23 +257,24 @@ RuntimeError: Refusing to run tests against database 'postgres'. TEST_DATABASE_U
 
 ## 8. Next Action
 
-**Where we are (2026-11-02).** The scorecard work and the landing page are live. `main` is `b0d3ee8` (docs sync on top of `38dc084`, which carries the amount fix); Render has `/health` 200 and Vercel serves the new page and the 224-test proof. The post-merge scorecard scored 25/26; its only miss, "5 kg almonds", was fixed the same day and the live case now passes 1/1 (the store stocked 400 g, and the reply now says so instead of asking). Remaining work is the handset proofs, the duplicate-name picker, item 5, and a full 26-case re-run. Last gate: `verify.ps1 -Db` exit 0 on 2026-11-02 — schema, ruff, 149 offline + 75 DB tests, Next build; offline scorecard 31/31.
+**Where we are (2026-11-03).** `main` carries the 2026-11-03 error-handling, picker and Next 16.4.3 commit; Render has `/health` 200 and Vercel serves the 229-test proof. The 26-case re-run's first half scored 7/13 because Swiggy refused cart reads and adds with "please review your cart"; the app now replies honestly with HTTP 200 instead of a 500. The earlier post-merge run scored 25/26. Remaining work is the live handset taps, a full 26-case run once Swiggy's cart is reviewed, item 5, and the first real order. Last gate: `verify.ps1 -Db` exit 0 on 2026-11-03 — schema, ruff, 153 offline + 76 DB tests, Next 16.4.3 build; offline scorecard 31/31.
 
 **Remaining, in order:**
 
 | # | Item | State | Blocker |
 |---|---|---|---|
 | 1 | 40-case live router eval (`scripts/eval_router.py`) | **DONE 2026-10-29:** 40/40 exact, 0 unsafe writes, 0 under-acted, 0 errors; avg 1535ms, p95 2187ms, max 2719ms. Raw: `.scratch/eval_b1.json`, `.scratch/eval_rest.json`. | — |
-| 2 | 26-case live scorecard (`scripts/scorecard_live.py`) | **POST-MERGE 2026-11-02:** 13/13 + 12/13 = **25/26 = 96.2%**. The only miss was case 16 ("5 kg almonds"), fixed the same day in `38dc084`; the single live case now passes 1/1. Case 21 is clean with the COD checker fix. A full 26-case re-run is pending. Raw: `.scratch/scorecard_post_merge_1_13.log`, `.scratch/scorecard_post_merge_14_26.log`, `.scratch/scorecard_live.json`. | — |
+| 2 | 26-case live scorecard (`scripts/scorecard_live.py`) | **PARTIAL 2026-11-03:** the re-run's first half scored 7/13 because Swiggy refused every cart read/add with "please review your cart" (HTTP 200 business error, now handled). The earlier 2026-11-02 post-merge run scored 25/26. Full 26 on fixed code is still pending. Raw: `.scratch/scorecard_final_1_13.log`. | Live Swiggy cart state needs a review; ~100k tokens |
 | 3 | Collapse the write path to four verbs | **DONE (code) 2026-10-29:** `set_item` and `remove_item` carry the action; `change_action` and the router patch are gone; a change naming several items is refused. 223 passed twice, ruff clean. Live verb cases 22–31: **10/10**, 0 unsafe. | — |
 | 4 | Full 40-case live run **on the branch after the four-verb change** | **DONE 2026-10-31:** 40/40 exact, 0 unsafe, 0 under-acted, 0 errors; avg 1312ms, p95 1735ms, max 1889ms. Raw: `.scratch/eval_after_verbs.json`. Merge gate passed. | — |
-| 5 | Skip the second model call when brand and size already match | QUEUED | Row 4 is the before-number (40/40, avg 1312ms); needs approval to change the call path |
+| 5 | Skip the second model call when brand and size already match | QUEUED | Row 4 is the before-number (40/40, avg 1312ms); needs approval and a token window |
 | 6 | Phone taps: Add-all, Change item, typed pick | OPEN | Needs a real card on screen, so needs the model up |
 | 7 | Address add/delete, OAuth reconnect, reaction on a real wamid | OPEN | Partly needs the model; the reaction needs a real inbound wamid |
 | 8 | Merge `scorecard` into `main` | **DONE 2026-10-31:** fast-forward `db6a297..a8e530c`; PR #3 merged; Render `dep-dbiupgivcj2c73edh5t0` live on `a8e530c`; `/health` 200. | — |
 | 9 | Post-merge 26-case scorecard on `a8e530c` | **DONE 2026-11-02:** 13/13 + 12/13 = 25/26; only case 16 failed (see row 11). Full 26-case re-run after the fix is pending. | ~100k tokens; one day |
-| 10 | Handset taps: Add-all, Change item, typed pick, set/remove picker | OPEN | Real handset; the duplicate-name picker needs a decision |
+| 10 | Handset taps: Add-all, Change item, typed pick, set/remove picker | OPEN | Real handset; the picker labels are fixed in code |
 | 11 | Case 16, "5 kg almonds" | **DONE (honest) 2026-11-02 in `38dc084`:** a multi-pack size ("100 g x 2") now folds its multiplier, and an explicit amount is filled with the fewest exact packs across candidates instead of a pick prompt; when stock cannot reach the amount, the reply adds what exists and names the shortfall. Offline test fails first without the fix; live case 16 re-run passes 1/1 — the store had only 2 × (100 g × 2), so it added 400 g and said "I asked for 5, so I added 2" instead of asking. Full 26-case re-run still pending. | — |
+| 12 | Swiggy business errors, duplicate-name picker, Next advisories | **DONE (code) 2026-11-03:** business errors raise `SwiggyToolError` and get an honest 200 reply instead of a 500; set/remove pickers name the pack and quantity and accept a variant match; Next 16.4.3 has 0 production advisories. Proof: 5 new tests, full gate exit 0. Live handset tap on the picker is still pending. | — |
 
 **Phase 7 backlog — code-complete; live proofs open.**
 

@@ -42,6 +42,22 @@ class SwiggyAuthExpiredError(Exception):
     """Raised when Swiggy returns 401 Unauthorized (5-day token expired, ADR 0010)."""
 
 
+class SwiggyToolError(RuntimeError):
+    """Raised when Swiggy answers a tool call with a business error instead of data."""
+
+
+def tool_error_message(payload: dict[str, Any]) -> str | None:
+    """Read Swiggy's own error text from a failed tool payload, if there is one."""
+    if payload.get("success") is not False:
+        return None
+    error = payload.get("error")
+    if isinstance(error, dict):
+        error = error.get("message") or error.get("error")
+    if not error:
+        error = payload.get("message")
+    return str(error or "Swiggy refused the request")
+
+
 # Canonical Hinglish to English grocery translation dictionary
 HINGLISH_TRANSLATIONS: dict[str, str] = {
     "doodh": "milk",
@@ -156,10 +172,19 @@ class SwiggyClient:
             if isinstance(rpc_error, dict) and rpc_error.get("code") == -32001:
                 raise SwiggyAuthExpiredError("Swiggy OAuth session expired (JSON-RPC -32001)")
 
+            # Swiggy can answer HTTP 200 with a business error instead of tool data.
+            if isinstance(data, dict):
+                message = tool_error_message(data)
+                if message:
+                    raise SwiggyToolError(message)
+
             # Handle native Swiggy MCP structuredContent
             if "result" in data and "structuredContent" in data["result"]:
                 sc = data["result"]["structuredContent"]
                 if sc:
+                    message = tool_error_message(sc) if isinstance(sc, dict) else None
+                    if message:
+                        raise SwiggyToolError(message)
                     return model_cls.model_validate(sc)
 
             # Handle JSON-RPC envelope with embedded JSON text
@@ -167,15 +192,39 @@ class SwiggyClient:
                 content = data["result"]["content"]
                 if content and "text" in content[0]:
                     try:
-                        envelope = ToolEnvelope[model_cls].model_validate(
-                            json.loads(content[0]["text"])
-                        )
+                        raw = json.loads(content[0]["text"])
+                        message = tool_error_message(raw) if isinstance(raw, dict) else None
+                        if message:
+                            raise SwiggyToolError(message)
+                        envelope = ToolEnvelope[model_cls].model_validate(raw)
+                        if envelope.success is False:
+                            raise SwiggyToolError(
+                                tool_error_message(
+                                    {
+                                        "success": False,
+                                        "error": envelope.error,
+                                        "message": envelope.message,
+                                    }
+                                )
+                                or "Swiggy refused the request"
+                            )
                         if envelope.data is not None:
                             return envelope.data
                     except (json.JSONDecodeError, ValueError):
                         pass
 
             envelope = ToolEnvelope[model_cls].model_validate(data)
+            if envelope.success is False:
+                raise SwiggyToolError(
+                    tool_error_message(
+                        {
+                            "success": False,
+                            "error": envelope.error,
+                            "message": envelope.message,
+                        }
+                    )
+                    or "Swiggy refused the request"
+                )
             if envelope.data is not None:
                 return envelope.data
             raise ValueError(f"Empty data payload returned for tool {tool_name}")

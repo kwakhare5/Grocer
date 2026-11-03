@@ -25,6 +25,7 @@ from backend.channels.whatsapp import _park_and_prompt, handle_webhook
 from backend.config import settings
 from backend.database import get_db_pool
 from backend.integrations.commerce.schemas import SearchProductsData, ToolEnvelope
+from backend.integrations.commerce.swiggy_client import SwiggyToolError
 from backend.integrations.commerce.token_vault import store_user_token
 
 FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures"
@@ -334,6 +335,43 @@ async def test_duplicate_tap_is_dropped_before_it_runs_twice():
     spins = [item.spinId for item in client.get_cart("addr_01HXYZ").items]
     assert spins.count("spin_test_cookie") == 1
     assert any("Added" in text for _, text in outbound.texts)
+
+
+@pytest.mark.asyncio
+async def test_swiggy_business_error_gets_an_honest_reply_not_a_500(monkeypatch):
+    pool = await get_db_pool()
+    wa_id, _user_id = await _seed_text_user(pool)
+    outbound = RecordingWA()
+
+    class RefusingClient(FixtureSwiggyClient):
+        def get_cart(self, address_id: str | None = None):
+            raise SwiggyToolError("Please review your cart.")
+
+    from backend.agent import router as router_module
+    from backend.agent.router import Capability, RoutingDecision, SafetyClass
+
+    monkeypatch.setattr(settings, "LLM_PROVIDER", "scripted")
+    monkeypatch.setattr(
+        router_module,
+        "route_message",
+        lambda *args, **kwargs: RoutingDecision(
+            capability=Capability.ADD_ITEMS,
+            safety=SafetyClass.BASKET,
+            confidence=0.95,
+            items=[{"query": "milk", "quantity": 1}],
+        ),
+    )
+
+    result = await handle_webhook(
+        SignedRequest(_message(wa_id, text="add milk")),
+        swiggy_client=RefusingClient(FIXTURES_DIR, catalog_data=_catalog()),
+        wa_client=outbound,
+    )
+    await asyncio.sleep(0.05)
+
+    assert result["status"] == "swiggy_error"
+    assert outbound.texts
+    assert "review your cart" in outbound.texts[0][1].lower()
 
 
 @pytest.mark.asyncio

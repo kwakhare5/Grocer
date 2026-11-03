@@ -3,13 +3,13 @@
 Goal: make every turn visible, recover from the frozen cart honestly, park first-time text for replay, and never lie on a button tap; live scorecard deferred until Swiggy access returns. No order.
 Changes: cart-review errors get exact recovery steps on both paths; first-time text is parked and replayed; Swiggy 429/-32000 retries once with Retry-After; per-turn JSON trace; evaluator reports `llm | fallback | rule`; every write button answers honestly with no database or unknown account; one paise conversion, one stored-plan decoder and one token-to-client builder now back every path; stale proof folders deleted; 19 new tests across four batches; dead `hasattr` test, loose dev ruff pin and the offline-scorecard `.scratch` write removed.
 Passing: `verify.ps1 -Db` exit 0 — 169 offline + 78 DB, ruff, Next 16.4.3 build; real signed address and cart-lock turns traced.
-Next action: on Karan's word, commit the three batches and push `main`; then check Render `/health` and a short live read smoke. Live scorecard waits for Swiggy access.
+Next action: live scorecard when Swiggy access returns; item 5 only after adds work; first real order stays Karan's.
 Unproven: live scorecard (no Swiggy app access), handset taps, live OAuth reconnect, address add/delete, location-pin replay, reactions/blue ticks, 24h scrub. Checkout stays locked.
 
 ## Current truth
 
-- Branch: `main` only. `origin/main` is `8d2243c`; local `main` is `d6da560` (truth/trace + batch 2), one commit ahead and not pushed; batch 3 and batch 4 are uncommitted on top. Rollback target: `db6a297`.
-- Render: live on the latest pushed commit, `/health` 200. Vercel: `/`, `/privacy`, `/proof` 200; the page still says 229 tests (backend is 247; the page was not redeployed).
+- Branch: `main` only. `origin/main` and local `main` are `70a19f6`; Render is live on it with a healthy database. Rollback target: `db6a297`.
+- Vercel: `/`, `/privacy`, `/proof` 200; the page still says 229 tests (backend is 247; the page was not redeployed).
 - Tests: 169 offline + 78 DB = 247; 20 live-only deselected; 267 collected. `npm audit --omit=dev` → 0 vulnerabilities.
 - Offline scorecard: 31/31. Live scorecard: deferred; the 2026-11-02 post-merge run scored 25/26, and the 2026-11-03 first half scored 7/13 on pre-fix code because Swiggy refused the cart.
 - Checkout: `LIVE_CHECKOUT_ENABLED=false`. No real order has ever been placed. Karan places the first one after handoff.
@@ -48,10 +48,9 @@ Files: `backend/observability.py`, `backend/agent/candidate_evaluator.py`, `back
 
 ## Do next, in order
 
-1. On Karan's word: commit the three batches and push `main`; then check Render `/health` and a short live read smoke.
-2. When Swiggy access returns: clear the cart, run the live scorecard 1–13, wait an hour, run 14–26. Then handset proofs, live OAuth, address add/delete and the 24h scrub.
-3. Item 5 (skip the second model call when brand and size match) — only after adds work, with Karan's approval and a fresh Groq token window. Row 4 is the before-number: 40/40, avg 1312ms.
-4. Phase 9 handoff, then Karan's first real order. The build must stay real-order capable; checkout stays locked until he decides.
+1. Live scorecard when Swiggy access returns: clear the cart, run 1–13, wait an hour, run 14–26. Then handset proofs, live OAuth, address add/delete and the 24h scrub.
+2. Item 5 (skip the second model call when brand and size match) — only after adds work, with Karan's approval and a fresh Groq token window. Row 4 is the before-number: 40/40, avg 1312ms.
+3. Phase 9 handoff, then Karan's first real order. The build must stay real-order capable; checkout stays locked until he decides.
 
 ## Proof files
 

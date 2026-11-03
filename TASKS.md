@@ -48,14 +48,13 @@ The bar is still full tool coverage. These experiences use existing tools, so th
 
 ## Current next actions (2026-11-03)
 
-`origin/main` is `8d2243c`; local `main` is `d6da560` (truth/trace + batch 2), one commit ahead and not pushed; the batch-3 and batch-4 work is uncommitted on top. Render live on the latest pushed commit, `/health` 200. Vercel `/` and `/proof` 200; the page still says 229 tests (backend is 247; the page was not redeployed). Last gate: `verify.ps1 -Db` exit 0 — 169 offline + 78 DB, ruff, Next 16.4.3 build. Offline scorecard 31/31. Live scorecard deferred.
+`origin/main` and local `main` are `70a19f6`; Render is live on it with a healthy database. Vercel `/` and `/proof` 200; the page still says 229 tests (backend is 247; the page was not redeployed). Last gate: `verify.ps1 -Db` exit 0 — 169 offline + 78 DB, ruff, Next 16.4.3 build. Offline scorecard 31/31. Live scorecard deferred.
 
 **Blocked by environment:** no Swiggy app or handset access. The cart is frozen and every cart read/add fails with "Some items have limited stock and their quantities were adjusted. Please review your cart." Do not ask Karan to clear it and do not fake a live scorecard.
 
-1. On Karan's word: commit the three batches and push `main`; then check Render `/health` and a short live read smoke.
-2. When Swiggy access returns: clear the cart, run the live scorecard 1–13, wait an hour, run 14–26; handset taps; live OAuth; address add/delete; 24h scrub.
-3. Item 5 only after adds work, with Karan's approval and a fresh Groq window.
-4. First real order is Karan's, after handoff. Checkout stays locked.
+1. When Swiggy access returns: clear the cart, run the live scorecard 1–13, wait an hour, run 14–26; handset taps; live OAuth; address add/delete; 24h scrub.
+2. Item 5 only after adds work, with Karan's approval and a fresh Groq window.
+3. First real order is Karan's, after handoff. Checkout stays locked.
 
 **What is already done (2026-11-04):** Swiggy `success:false` raises `SwiggyToolError` and gets an honest HTTP 200 reply instead of a 500; set/remove picker labels name pack + quantity; Next 16.4.3 has 0 production advisories. The truth batch adds honest pay/unknown-button replies, a per-turn JSON trace (wamid, capability, safety, latency, Swiggy/model counts), and `source: llm | fallback | rule` on the evaluator. Batch 2 adds exact cart-review recovery steps on both paths, first-connect parking/replay, and one 429/-32000 retry with `Retry-After`. Batch 3 makes every write button honest with no database or unknown account and folds the three session-cap queries into `get_session_budget_cap`. Batch 4 leaves one paise conversion, one stored-plan decoder and one token-to-client builder; stale proof folders are deleted. Proof: `verify.ps1 -Db` exit 0 (169 offline + 78 DB); `.scratch/verify_batch4_20261104.log`; `.scratch/verify_batch3_20261103.log`; `.scratch/verify_batch2_20261103.log`; `.scratch/trace_cart_lock_20261103.log`; `.scratch/trace_turn_20261103.log`; `.scratch/scorecard_final_1_13.log`.
 

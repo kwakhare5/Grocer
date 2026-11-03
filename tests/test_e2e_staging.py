@@ -459,7 +459,7 @@ def test_e2e_delivery_milestone_resolution_and_antispam():
     m3 = resolve_delivery_milestone(delivered=True)
     assert m3 == MILESTONE_DELIVERED
 
-    # 5. Formatter produces clean WhatsApp copy with live GPS link on Picked Up
+    # 5. Formatter uses only Swiggy's own ETA; no invented link or default time
     note_picked_up = format_milestone_notification(
         order_id="189456789012",
         milestone=MILESTONE_PICKED_UP,
@@ -468,6 +468,13 @@ def test_e2e_delivery_milestone_resolution_and_antispam():
     assert "🛵" in note_picked_up.message
     assert "ETA: 8 mins" in note_picked_up.message
     assert "swiggy.com/track" not in note_picked_up.message
+
+    note_confirmed = format_milestone_notification(
+        order_id="189456789012",
+        milestone=MILESTONE_CONFIRMED,
+    )
+    assert "10-15" not in note_confirmed.message
+    assert "swiggy.com/track" not in note_confirmed.message
 
 
 # ==============================================================================

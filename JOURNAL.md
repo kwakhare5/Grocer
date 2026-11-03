@@ -1145,3 +1145,11 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: tracking now shows only Swiggy's real status, ETA and rider, and the tests reject any invented link. Deleted `CheckoutLockError`, `VALID_MILESTONES`, `map_url`, the stale `__all__`, the dead `answer_read_capability` wrapper and `AddressLifecycleManager` (now `can_delete_address`). Inlined the single `delete my data` command, added `MAX_BUDGET_CAP_PAISE`, made `migrate.py` reuse `verify_db.py`, merged the pack-ratio math, and corrected the site's test claim to 250. Item 5 was committed first as `321ce77`.
 - **Proof**: `verify.ps1 -Db` exit 0 — 172 offline + 78 DB, ruff, Next 16.4.3 build (`.scratch/verify_cleanup_20261104.log`); tracking tests assert `swiggy.com/track` is absent.
 - **Still broken**: `backend/channels/command_router.py` is unused but the deletion hook needs Karan to name it; the cleanup is pushed with this card and the deploy is checked after the push; live scorecard, handset taps, live OAuth, address add/delete, 24h scrub and checkout remain unproven.
+
+### [GROCER — Retest With Other Products and a Live Turn] 2026-11-04
+
+#### Work Card: Five More Examples, One Real Tracking Question
+- **Problem**: the exact-match skip and the tracking truth fixes were proven with one product (Amul) and fixture-only messages; a single example can hide a rule that only fits one name.
+- **Change**: added Nandini milk 500 ml, Aashirvaad atta 5 kg and Maggi noodles 280 g as skip cases, plus ambiguous Lay's 50 g and size-less "Amul milk" as must-call-the-model cases. Added a confirmed-milestone assertion that rejects the default "10-15 mins" and any link.
+- **Proof**: 5 new tests; `verify.ps1 -Db` exit 0 — 177 offline + 78 DB, ruff, Next build (`.scratch/verify_retest_20261104.log`). A real signed "where is my order?" turn on the deployed build returned HTTP 200 with "You have no active order right now." and no invented link (`.scratch/live_retest_tracking.log`).
+- **Still broken**: `command_router.py` deletion still blocked; live scorecard, handset taps, live OAuth, address add/delete, 24h scrub and checkout remain unproven.

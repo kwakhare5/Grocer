@@ -8,6 +8,7 @@ and stores it until the customer taps. Nothing is written before the tap.
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import math
 import re
@@ -269,6 +270,17 @@ def _pick(
             None,
         )
     return candidates[0] if candidates else None
+
+
+def decode_pending_plan(raw_plan: Any, fresh: bool) -> dict[str, Any] | None:
+    """A stored plan is usable only while fresh and well-formed."""
+    if not raw_plan or not fresh:
+        return None
+    try:
+        plan = json.loads(raw_plan) if isinstance(raw_plan, str) else raw_plan
+    except (json.JSONDecodeError, TypeError, ValueError):
+        return None
+    return plan if isinstance(plan, dict) else None
 
 
 async def clear_pending_plan(conn: Any, user_id: Any) -> None:

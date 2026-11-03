@@ -14,7 +14,8 @@ from typing import Any
 
 import httpx
 
-from backend.integrations.commerce.schemas import CartData
+from backend.config import settings
+from backend.integrations.commerce.schemas import CartData, rupees_to_paise
 from backend.integrations.commerce.swiggy_client import SwiggyClient
 
 logger = logging.getLogger("grocer.customer_advocate")
@@ -31,17 +32,12 @@ class CouponOptimizationResult:
 
 
 def parse_price_to_paise(val: object) -> int:
-    """Parse integer paise from int, str or number representation without float loss."""
+    """Paise from an int already in paise, or a rupee amount as text."""
     if isinstance(val, int):
         return val
     if not val:
         return 0
-    raw = str(val).replace("₹", "").strip()
-    if "." in raw:
-        r, p = raw.split(".", 1)
-        p = (p + "00")[:2]
-        return int(r) * 100 + int(p)
-    return int(raw) * 100
+    return rupees_to_paise(str(val).replace("₹", "").strip())
 
 
 def extract_cart_to_pay_paise(cart: CartData) -> int:
@@ -51,6 +47,14 @@ def extract_cart_to_pay_paise(cart: CartData) -> int:
 
     # Fallback: sum item totals in paise
     return sum(it.discounted_final_price_paise * it.quantity for it in cart.items)
+
+
+async def get_session_budget_cap(conn_or_pool: Any, user_id: Any) -> int:
+    cap = await conn_or_pool.fetchval(
+        "SELECT budget_cap_paise FROM grocer.sessions WHERE user_id = $1;",
+        user_id,
+    )
+    return int(cap) if cap else settings.DEFAULT_BUDGET_CAP_PAISE
 
 
 def _items_match(cart: CartData, other: CartData) -> bool:

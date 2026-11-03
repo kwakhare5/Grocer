@@ -45,6 +45,40 @@ def test_pkce_generation():
     assert "=" not in challenge
 
 
+async def test_resolve_user_client_builds_from_stored_token(monkeypatch):
+    import uuid
+
+    from backend.integrations.commerce.token_vault import resolve_user_client
+
+    async def fake_token(user_id):
+        assert isinstance(user_id, uuid.UUID)
+        return "live-token"
+
+    monkeypatch.setattr(
+        "backend.integrations.commerce.token_vault.resolve_user_token", fake_token
+    )
+
+    client = await resolve_user_client("00000000-0000-0000-0000-000000000001")
+
+    assert client is not None
+    assert client.auth_token == "live-token"
+
+
+async def test_resolve_user_client_returns_none_without_token(monkeypatch):
+    import uuid
+
+    from backend.integrations.commerce.token_vault import resolve_user_client
+
+    async def no_token(_user_id):
+        return None
+
+    monkeypatch.setattr(
+        "backend.integrations.commerce.token_vault.resolve_user_token", no_token
+    )
+
+    assert await resolve_user_client(uuid.uuid4()) is None
+
+
 @pytest.mark.db
 @pytest.mark.asyncio
 async def test_swiggy_login_endpoint():

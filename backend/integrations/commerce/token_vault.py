@@ -200,6 +200,15 @@ async def resolve_user_token(
     return await refresh_user_token(user_id, key_b64)
 
 
+async def resolve_user_client(user_id: str | uuid.UUID) -> Any | None:
+    """Build a Swiggy client from the stored token; None means reconnect."""
+    from backend.integrations.commerce.swiggy_client import SwiggyClient
+
+    user_uuid = user_id if isinstance(user_id, uuid.UUID) else uuid.UUID(user_id)
+    token = await resolve_user_token(user_uuid)
+    return SwiggyClient(auth_token=token) if token else None
+
+
 async def refresh_user_token(
     user_id: uuid.UUID,
     key_b64: str = settings.DATA_ENCRYPTION_KEY,

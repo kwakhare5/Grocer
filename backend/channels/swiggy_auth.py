@@ -29,7 +29,6 @@ from backend.database import get_db_pool
 from backend.integrations.commerce.token_vault import (
     consume_pkce_session,
     generate_pkce_pair,
-    resolve_user_token,
     store_pkce_session,
     store_user_token,
 )
@@ -100,13 +99,13 @@ def _signed_replay_request(message: dict[str, Any]) -> _SignedWebhookRequest:
 
 
 async def _replay_cart_action(user_id: Any, payload: dict[str, Any]) -> dict[str, Any]:
-    from backend.integrations.commerce.swiggy_client import SwiggyClient
+    from backend.integrations.commerce.token_vault import resolve_user_client
 
-    token = await resolve_user_token(user_id)
-    if not token:
+    client = await resolve_user_client(user_id)
+    if client is None:
         raise RuntimeError("No Swiggy token for parked replay")
     items = (payload.get("payload") or {}).get("items") or []
-    await asyncio.to_thread(SwiggyClient(auth_token=token).update_cart, items)
+    await asyncio.to_thread(client.update_cart, items)
     return {"status": "replayed", "action": payload.get("action"), "items": len(items)}
 
 

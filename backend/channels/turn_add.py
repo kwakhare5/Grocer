@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import asyncio
+import math
+import re
 from dataclasses import dataclass, field
 from typing import Any
 
 from backend.agent.candidate_evaluator import (
+    CandidateEvaluationResult,
     ExtractedGroceryItem,
     IntentType,
     evaluate_customer_intents_batch,
@@ -18,6 +21,7 @@ from backend.agent.meal_planner import (
     measure,
     measure_from_text,
     pack_plan,
+    parse_pack_size,
 )
 from backend.agent.read_actions import format_disambiguation_choices
 from backend.channels.turn_context import TurnContext
@@ -45,6 +49,31 @@ def describe_item(target: ExtractedGroceryItem) -> str:
     if target.amount is None:
         return target.query
     return f"{target.query} {target.amount:g} {target.unit or ''}".strip()
+
+
+def _exact_brand_size_match(
+    target: ExtractedGroceryItem, candidates: list[Any]
+) -> Any | None:
+    """One candidate whose full brand and exact stated size both appear in the query."""
+    text = describe_item(target)
+    normalized = normalize_query(text)
+    needed = measure_from_text(text)
+    if not needed:
+        return None
+    matches = []
+    for candidate in candidates:
+        brand = normalize_query(candidate.brand_name or "")
+        if not brand or not re.search(rf"\b{re.escape(brand)}\b", normalized):
+            continue
+        pack = parse_pack_size(candidate.quantity_description)
+        if (
+            not pack
+            or pack[0] != needed[0]
+            or not math.isclose(pack[1], needed[1], rel_tol=1e-9, abs_tol=1e-9)
+        ):
+            continue
+        matches.append(candidate)
+    return matches[0] if len(matches) == 1 else None
 
 
 def _packs_for(target: ExtractedGroceryItem, cand: Any) -> int | None:
@@ -188,15 +217,29 @@ async def plan_add(
     search_results = await asyncio.gather(
         *(search_one(target) for target in extracted_items)
     )
-    evaluations = await asyncio.to_thread(
-        evaluate_customer_intents_batch,
-        [
-            (describe_item(target), cands)
-            for target, cands, _alternatives in search_results
-        ],
-        address_count,
-        ctx.text,
-    )
+    exact = [
+        _exact_brand_size_match(target, cands)
+        for target, cands, _alternatives in search_results
+    ]
+    if address_count > 0 and exact and all(match is not None for match in exact):
+        evaluations = [
+            CandidateEvaluationResult(
+                intent_type=IntentType.ADD_TO_BASKET,
+                selected_candidate=match,
+                source="rule",
+            )
+            for match in exact
+        ]
+    else:
+        evaluations = await asyncio.to_thread(
+            evaluate_customer_intents_batch,
+            [
+                (describe_item(target), cands)
+                for target, cands, _alternatives in search_results
+            ],
+            address_count,
+            ctx.text,
+        )
 
     plan = AddPlan()
 

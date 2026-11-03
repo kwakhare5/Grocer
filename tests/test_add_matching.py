@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
 from fixture_client import FixtureSwiggyClient
 
 from backend.agent.candidate_evaluator import (
@@ -83,6 +84,60 @@ async def test_exact_brand_and_size_skips_the_second_model_call(monkeypatch):
     )
 
     assert [item.spin_id for item in plan.items_to_add] == ["spin_amul_500ml"]
+
+
+@pytest.mark.parametrize(
+    ("query", "amount", "unit", "spin_id"),
+    [
+        ("Nandini milk 500 ml", 500, "ml", "spin_nandini_500ml"),
+        ("Aashirvaad atta 5 kg", 5, "kg", "spin_atta_5kg"),
+        ("Maggi noodles 280 g", 280, "g", "spin_maggi_4pack"),
+    ],
+)
+async def test_other_exact_products_also_skip(
+    monkeypatch, query, amount, unit, spin_id
+):
+    def must_not_run(*args, **kwargs):
+        raise AssertionError("the evaluator must not run for an exact brand+size match")
+
+    monkeypatch.setattr(turn_add, "evaluate_customer_intents_batch", must_not_run)
+
+    plan = await plan_add(
+        _ctx(_client(), f"add {query}"),
+        SimpleNamespace(items=[{"query": query, "amount": amount, "unit": unit}]),
+        address_count=1,
+    )
+
+    assert [item.spin_id for item in plan.items_to_add] == [spin_id]
+
+
+@pytest.mark.parametrize(
+    "query",
+    ["Lay's chips 50 g", "Amul milk"],
+)
+async def test_ambiguous_or_sizeless_queries_still_use_the_model(monkeypatch, query):
+    calls = []
+
+    def fake_evaluate(targets, address_count=1, message=None):
+        calls.append(targets)
+        return [
+            CandidateEvaluationResult(
+                intent_type=IntentType.ADD_TO_BASKET,
+                selected_candidate=_candidate("spin_amul_1l"),
+                source="llm",
+            )
+            for _target in targets
+        ]
+
+    monkeypatch.setattr(turn_add, "evaluate_customer_intents_batch", fake_evaluate)
+
+    await plan_add(
+        _ctx(_client(), f"add {query}"),
+        SimpleNamespace(items=[{"query": query}]),
+        address_count=1,
+    )
+
+    assert len(calls) == 1
 
 
 async def test_vague_query_still_uses_the_model(monkeypatch):

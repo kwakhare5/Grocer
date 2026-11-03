@@ -23,7 +23,7 @@
 | Address test writes | One throwaway address on Karan's account may be created and deleted. |
 | Hosting | Render free plan; pollers reconcile from the DB on wake. No paid instance. |
 | Landing OAuth | No phone-entry form. OAuth is a bot-sent bridge only; the card renders only for `?t=` or a callback. The proven login/callback routes are live; the state-cookie and origin-check hardening is parked in `.scratch/parked/oauth-state-cookie.patch` until a handset test. |
-| Landing page (Phase 8) | **LIVE 2026-11-02, updated 2026-11-04.** Redesign: printed sample receipt plus a 9:16 demo slot in the hero, six job rows with Live / In testing / Opening next, a dark three-step safety band with a sample checkout and cap meter, six backend facts led by 20 tools, a small 250-tests line (deployed with the cleanup push), six FAQs, and a compact footer. Every sample is stamped. No founder section, proof-stat band, chat demo, phone form or separate privacy section. The demo slot is hidden in production until `public/demo.mp4` exists. Proof: `https://grocerr.vercel.app/`, `/privacy` and `/proof` return 200; 1 unique `wa.me` link; 0 placeholders; `/health` 200. |
+| Landing page (Phase 8) | **LIVE 2026-11-02, updated 2026-11-04.** Redesign: printed sample receipt plus a 9:16 demo slot in the hero, six job rows with Live / In testing / Opening next, a dark three-step safety band with a sample checkout and cap meter, six backend facts led by 20 tools, a small 255-tests line (deployed with the retest push), six FAQs, and a compact footer. Every sample is stamped. No founder section, proof-stat band, chat demo, phone form or separate privacy section. The demo slot is hidden in production until `public/demo.mp4` exists. Proof: `https://grocerr.vercel.app/`, `/privacy` and `/proof` return 200; 1 unique `wa.me` link; 0 placeholders; `/health` 200. |
 | Landing audit fixes | **DONE 2026-11-01, shipped 2026-11-02:** removed all three skip links and dead chat/lock CSS; deleted the dead `hero-chat.tsx` and `lock-demo.tsx`; fixed invisible focus targets, full-bleed section edges (removed `scrollbar-gutter`), the 1024px hero squeeze, stamp overflow, and the sample Pay button. Security headers are live; the OAuth state cookie and origin check are parked for a handset test. Copy corrected: reorder/past-order claims, sample-only coupon, “no order leaves the chat”, delete-my-data wording, basket vs cart. |
 | Recent Next advisories | **FIXED 2026-11-03:** upgraded Next 16.2.6 → 16.4.3 (`--save-exact`). `npm audit --omit=dev` → 0 vulnerabilities; `npm run build` passes all 7 routes. |
 
@@ -36,8 +36,8 @@
 | Documentation sync | **DONE 2026-10-27, scope corrected 2026-10-27.** Recipes are in v1 as plan-confirm-add; proactivity is money-and-truth only; replies stay English. Stale "current" notes were removed from PRD, ARCHITECTURE, DESIGN, GLOSSARY and the ADR index. The scope table lives in `TASKS.md`. |
 | Doc truth pass | **DONE 2026-10-28:** corrected pre-Batch-3 claims in ARCHITECTURE Layer 2/4, DESIGN A2/A6/A8/A9, PRD payment, GLOSSARY fee term, ADR index rows 0003–0006/0009, STATUS counts/constraints/next action, and the verify-grocer skill. No code changed. |
 | Lint | **PASS 2026-10-28:** `ruff check backend tests` → `All checks passed!` The `npm run lint` script was removed 2026-11-01; Next 16 no longer ships `next lint` and no ESLint is installed. |
-| Verify 2026-11-04 | **PASS:** `verify.ps1 -Db` exit 0 (schema, ruff, 172 offline + 78 database tests, Next 16.4.3 build). Browser checks from 2026-11-01 still stand: 0 horizontal overflow at 1440/1024/768/390/360; first Tab lands on the brand; no skip link; `/privacy` and `/proof` render. Security headers are live; the OAuth state-cookie patch is parked. `npm audit --omit=dev` → 0 vulnerabilities. A real signed "show my addresses" turn proved the new trace (`.scratch/trace_turn_20261103.log`), and a real cart-lock turn returned the recovery copy (`.scratch/trace_cart_lock_20261103.log`). Cleanup proof: `.scratch/verify_cleanup_20261104.log`. |
-| Offline tests | **PASS 2026-11-04:** 172 offline + 78 DB = 250 passed, 20 live deselected (`pytest -q -m "not live"`). |
+| Verify 2026-11-04 | **PASS:** `verify.ps1 -Db` exit 0 (schema, ruff, 177 offline + 78 database tests, Next 16.4.3 build). Browser checks from 2026-11-01 still stand: 0 horizontal overflow at 1440/1024/768/390/360; first Tab lands on the brand; no skip link; `/privacy` and `/proof` render. Security headers are live; the OAuth state-cookie patch is parked. `npm audit --omit=dev` → 0 vulnerabilities. A real signed "show my addresses" turn proved the new trace (`.scratch/trace_turn_20261103.log`), a real cart-lock turn returned the recovery copy (`.scratch/trace_cart_lock_20261103.log`), and a real tracking turn returned "You have no active order right now." with no invented link (`.scratch/live_retest_tracking.log`). Retest proof: `.scratch/verify_retest_20261104.log`. |
+| Offline tests | **PASS 2026-11-04:** 177 offline + 78 DB = 255 passed, 20 live deselected (`pytest -q -m "not live"`). |
 | DB tests | **PASS 2026-11-04:** 78 passed on `grocer_test`, and `verify.ps1 -Db` exits 0 end to end (schema check, ruff, offline + DB tests, Next production build) after the batch-4 dedupe. |
 | Basket path | **DONE 2026-10-28, merged in `2c63289`:** adds always add and increment an existing line; sizes are exact (200 g never becomes 400 g, 500 g never becomes 1 kg); every missing item is named; explicit set applies with a receipt; remove/clear still confirm. Abuse caps: 20 messages/hour/user, 10 items/message, quantity 1–99, media reply. Proof: 146 offline + 73 DB + Next build; exact paneer/rice regression test. Live route check: 3 cases pass; multi-item, eggs, Hinglish, bare "milk" and remove were blocked by the shared Groq TPM. |
 | Swiggy error envelope | **DONE 2026-11-03:** a Swiggy tool answer with `success: false` now raises `SwiggyToolError` instead of being parsed as cart data, and the webhook replies "Swiggy couldn't complete that just now: <reason>. Check your basket before trying again." A live cart refusal that returned HTTP 500 on 2026-11-03 now returns 200 with that honest text. Proof: 5 new tests (2 client error-envelope, 2 picker labels, 1 webhook no-500) and `verify.ps1 -Db` exit 0. |
@@ -46,13 +46,14 @@
 | Batch 3 — honest button taps + one cap helper | **DONE (code) 2026-11-03:** every write button (cart, plan, reorder, address, item change, budget raise) now tells the customer "Nothing changed. Please try again." when the database or their account is missing, and the default fallback names a stale button. No branch returns silently or claims a change that did not happen. The three duplicated session-cap queries now go through `get_session_budget_cap`; a missing or zero cap still falls back to ₹1,000. Proof: 7 new tests; `verify.ps1 -Db` exit 0 (166 offline + 78 DB); `.scratch/verify_batch3_20261103.log`. |
 | Batch 4 — dedupe money, plans, client building | **DONE (code) 2026-11-04:** one paise conversion (`rupees_to_paise`) now backs `parse_price_to_paise`; one `decode_pending_plan` replaces both stored-plan JSON decoders; one `resolve_user_client` builds a Swiggy client from the stored token for five button branches, the checkout pollers and parked replay. `send_add_receipt` was already the single receipt builder, so no new one was added. Deleted five uncited `.scratch` logs and the superseded `proof-final/` and `proof-redesign/` folders. Proof: 3 new tests; `verify.ps1 -Db` exit 0 (169 offline + 78 DB); `.scratch/verify_batch4_20261104.log`. |
 | Item 5 — exact brand+size skips the evaluator | **DONE (code) 2026-11-04:** when the router extracted an add and every item names a brand and size that match exactly one in-stock candidate (with an address), the add path builds the result itself and makes no evaluator model call. Vague, ambiguous, missing-size or zero-address turns still use the model. Proof: 3 new tests, including a sentinel that fails if the evaluator runs for "Amul milk 500 ml" and a call-count check for "milk"; `verify.ps1 -Db` exit 0 (172 offline + 78 DB); `.scratch/verify_item5_20261104.log`. Live before/after timing still waits for adds. |
-| Cleanup — truth, dead code, over-engineering | **DONE (code) 2026-11-04:** removed the invented `swiggy.com/track/...` links and the default "10-15 mins" ETA; tracking shows only Swiggy's real status, ETA and rider. Deleted `CheckoutLockError`, `VALID_MILESTONES`, the `map_url` field, the stale `__all__`, the dead `answer_read_capability` wrapper and the one-method `AddressLifecycleManager` class. Inlined the single `delete my data` command, added one `MAX_BUDGET_CAP_PAISE`, made `migrate.py` reuse `verify_db.py`, and merged the duplicated pack-ratio math. Site now says 250 tests locally. Proof: `verify.ps1 -Db` exit 0 (172 offline + 78 DB); `.scratch/verify_cleanup_20261104.log`. Still blocked: deleting `backend/channels/command_router.py` needs Karan to name the file. |
+| Cleanup — truth, dead code, over-engineering | **DONE (code) 2026-11-04:** removed the invented `swiggy.com/track/...` links and the default "10-15 mins" ETA; tracking shows only Swiggy's real status, ETA and rider. Deleted `CheckoutLockError`, `VALID_MILESTONES`, the `map_url` field, the stale `__all__`, the dead `answer_read_capability` wrapper and the one-method `AddressLifecycleManager` class. Inlined the single `delete my data` command, added one `MAX_BUDGET_CAP_PAISE`, made `migrate.py` reuse `verify_db.py`, and merged the duplicated pack-ratio math. Site now says 255 tests locally. Proof: `verify.ps1 -Db` exit 0 (172 offline + 78 DB); `.scratch/verify_cleanup_20261104.log`. Still blocked: deleting `backend/channels/command_router.py` needs Karan to name the file. |
+| Retest — different examples | **DONE 2026-11-04:** exact-match skip now also proven with Nandini milk 500 ml, Aashirvaad atta 5 kg and Maggi noodles 280 g; ambiguous Lay's 50 g and size-less "Amul milk" still call the evaluator; the confirmed milestone no longer says "10-15 mins" or carries a link. Live signed "where is my order?" returned HTTP 200 with "You have no active order right now." and no invented link. Proof: 5 new tests; `verify.ps1 -Db` exit 0 (177 offline + 78 DB); `.scratch/verify_retest_20261104.log`; `.scratch/live_retest_tracking.log`. | — |
 | Duplicate-name picker | **DONE (code) 2026-11-03:** "Which one do you mean" now names each line with its pack variant and current quantity, and a follow-up can match the variant ("500 ml"). Two same-name milk lines no longer render identical labels. Proof: 2 new offline tests; live handset tap still pending. |
 | Live route check | **PARTIAL 2026-10-28:** on the branch, "add 1 litre milk" → add 1 L; "add 1 more milk" → add 1; "make milk 3" → set 3. The remaining five live wordings were blocked by the shared Groq TPM, not by an error; the fixture tests for those paths pass. |
 | Live deploy 2c63289 | **PASS 2026-10-28:** push `d61b142..2c63289` accepted; Render deploy `dep-dbh0vkavcj2c73e0ghqg` reached `live` on `2c63289`; `GET https://grocer-backend-qwk4.onrender.com/health` → HTTP 200 `{"status":"healthy","database":"connected","app":"Grocer","environment":"development"}`. GitHub Quality run `40712848895` succeeded on `2c63289`. |
 | Live tests | **20 live-only tests collected, not run.** `test_catalog_search.py` calls the live router/model path and is marked `live`. |
-| Full test collection | **270 tests collected 2026-11-04** (172 offline, 78 DB, 20 live). |
-| Full suite claim | The old "136 passed, 0 skipped" claim is retired. The current verified set is 172 offline + 78 DB (270 collected, 20 of them live-only); live is excluded by default. Scripted tests are marked `scripted` and never counted as live proof. |
+| Full test collection | **275 tests collected 2026-11-04** (177 offline, 78 DB, 20 live). |
+| Full suite claim | The old "136 passed, 0 skipped" claim is retired. The current verified set is 177 offline + 78 DB (275 collected, 20 of them live-only); live is excluded by default. Scripted tests are marked `scripted` and never counted as live proof. |
 | Live Swiggy smoke | **PASS 2026-10-27:** real token, real MCP. 3 addresses, 20 milk products with live prices, 12-item cart read, 0 orders, 10 payment methods, 0 coupons. Cart add verified then restored (12 items, same spins and quantities). No order placed. Raw: `scripts/live_smoke.py`. |
 | Live Groq pass | **PASS 2026-10-27:** 10 real messages → 10 correct routes (item_info ×3, list_addresses, order_history, list_coupons, payment_options, add_items, chat, track_order) with real read answers. 55s. |
 | Live checkout lock | **PASS 2026-10-27:** with `LIVE_CHECKOUT_ENABLED=false`, the real path returned "Checkout is locked" and a sentinel client proved no Swiggy method ran. |
@@ -203,13 +204,13 @@ ruff check backend tests
 All checks passed!
 
 pytest -q -m "not db and not live"
-172 passed, 98 deselected
+177 passed, 98 deselected
 
 pytest -q -m "db"
-78 passed, 192 deselected
+78 passed, 197 deselected
 
 pytest --collect-only -q
-270 tests collected
+275 tests collected
 
 python scripts/eval_router.py --provider groq
 Exact capability match: 40/40 (100.0%)
@@ -234,6 +235,14 @@ Unsafe writes: 0, under-acted: 0, errors: 0
 # exit 0 (9 tables, grocer_app), ruff clean, 172 offline + 78 DB,
 # Next build, verify.ps1 exit 0
 # (.scratch/verify_item5_20261104.log)
+
+# 2026-11-04 retest (other brands, ambiguous cases, live tracking turn):
+# schema check exit 0 (9 tables, grocer_app), ruff clean, 177 offline + 78 DB,
+# Next build, verify.ps1 exit 0
+# (.scratch/verify_retest_20261104.log)
+# live signed "where is my order?" -> HTTP 200
+# REPLY "You have no active order right now." (no invented link)
+# (.scratch/live_retest_tracking.log)
 
 # real signed "show my addresses" turn, one payload per event
 {"event":"swiggy_call","request_id":"wamid.traceproof.…","tool":"get_cart","latency_ms":1047,"ok":false}
@@ -261,7 +270,9 @@ Unsafe writes: 0, under-acted: 0, errors: 0
 
 **New for item 5 (2026-11-04):** `tests/test_add_matching.py` uses the recorded catalog fixture. "Amul milk 500 ml" resolves to the one exact Amul 500 ml candidate with a sentinel that fails if the evaluator runs; "milk" calls the evaluator exactly once; two same-brand, same-size candidates refuse the skip. Proof: 3 new tests; `verify.ps1 -Db` exit 0 (172 offline + 78 DB); `.scratch/verify_item5_20261104.log`.
 
-**Cleanup (2026-11-04):** the tracking tests now require Swiggy's real ETA and reject any `swiggy.com/track` link (`tests/test_read_actions.py`, `tests/test_checkout_locks.py`, `tests/test_e2e_staging.py`). No test was deleted or weakened; the read wrapper and one-method class were replaced by the functions they wrapped. The site's 229-test claim is corrected to 250 in source. Proof: `verify.ps1 -Db` exit 0; `.scratch/verify_cleanup_20261104.log`.
+**Cleanup (2026-11-04):** the tracking tests now require Swiggy's real ETA and reject any `swiggy.com/track` link (`tests/test_read_actions.py`, `tests/test_checkout_locks.py`, `tests/test_e2e_staging.py`). No test was deleted or weakened; the read wrapper and one-method class were replaced by the functions they wrapped. The site's 229-test claim is corrected to 255 in source. Proof: `verify.ps1 -Db` exit 0; `.scratch/verify_cleanup_20261104.log`.
+
+**Retest (2026-11-04):** `tests/test_add_matching.py` adds three more exact-skip products (Nandini, Aashirvaad, Maggi), two ambiguous/size-less cases that must call the evaluator, and the confirmed-milestone copy test rejects the default ETA and any link. A real signed "where is my order?" turn on the deployed build returned HTTP 200 with the honest empty reply and no invented URL. Proof: `verify.ps1 -Db` exit 0 (177 offline + 78 DB); `.scratch/verify_retest_20261104.log`; `.scratch/live_retest_tracking.log`.
 
 **New in batch 2 (2026-11-03):** `tests/test_read_actions.py` proves a cart-review error returns the recovery steps; `tests/test_whatsapp_webhook.py` proves the same copy on the webhook path and proves a first-time text row is parked as `awaiting_link`; `tests/test_swiggy_client_errors.py` proves a 429 and a JSON-RPC -32000 retry once with `Retry-After`, and a second 429 becomes an honest busy tool error. The live cart-lock turn returned the exact recovery copy, with both `get_cart` calls failing and the turn closing at 3561ms (`.scratch/trace_cart_lock_20261103.log`).
 
@@ -311,13 +322,13 @@ RuntimeError: Refusing to run tests against database 'postgres'. TEST_DATABASE_U
 
 ## 8. Next Action
 
-**Where we are (2026-11-04).** Local `main` and `origin/main` match after the cleanup push; item 5 and the cleanup are pushed. Render serves the latest pushed `main`; Vercel `/` and `/proof` return 200 and are checked for the 250-test build after the push. The live scorecard is deferred: Karan has no mobile or Swiggy app access, the cart is frozen, and every live cart read/add fails at Swiggy. The cleanup removed fabricated tracking links, a default ETA, dead code and duplicate helpers; the bot now shows only Swiggy's real status, ETA and rider. Last gate: `verify.ps1 -Db` exit 0 on 2026-11-04 — schema, ruff, 172 offline + 78 DB tests, Next 16.4.3 build; offline scorecard 31/31; a real signed cart-lock turn returned the recovery copy.
+**Where we are (2026-11-04).** Local `main` and `origin/main` match after the cleanup push; item 5 and the cleanup are pushed, and the retest additions are uncommitted. Render serves the latest pushed `main`; Vercel `/` and `/proof` return 200 and show the 250-test build until the retest push. The live scorecard is deferred: Karan has no mobile or Swiggy app access, the cart is frozen, and every live cart read/add fails at Swiggy. The cleanup removed fabricated tracking links, a default ETA, dead code and duplicate helpers; a real tracking turn now returns the honest empty reply with no invented link. Last gate: `verify.ps1 -Db` exit 0 on 2026-11-04 — schema, ruff, 177 offline + 78 DB tests, Next 16.4.3 build; offline scorecard 31/31; a real signed cart-lock turn returned the recovery copy.
 
 **Blocked by environment:** no Swiggy app or handset access. Do not ask Karan to clear the cart and do not fake a live scorecard. Keep the live scorecard deferred and labeled. Continue with in-repo proofs and the core path.
 
 **Do next, in order:**
-1. Delete `backend/channels/command_router.py` once Karan names it; it is now unused.
-2. Confirm Render `/health` and the 250-test line on Vercel after the push.
+1. Name `backend/channels/command_router.py` verbatim for deletion; it is unused but the safety hook blocks an unnamed delete.
+2. Commit and push the retest; confirm Render `/health` and the 255-test line on Vercel.
 3. When Swiggy access returns: clear the cart, run the live scorecard 1–13, wait an hour, run 14–26; measure item 5 before/after on the same add; handset taps; live OAuth; address add/delete; 24h scrub.
 4. The first real order is Karan's, after handoff. Checkout stays locked.
 

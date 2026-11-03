@@ -312,33 +312,27 @@ class TokenParkedRequestManager:
             logger.warning("Could not mark parked request %s replayed: %s", row_id, exc)
 
 
-class AddressLifecycleManager:
-    """Handles address discovery, pin geocoding, and deletion safety checks."""
+def can_delete_address(swiggy_client: Any, address_id: str) -> DeletionCheckResult:
+    """Check if an address can be safely deleted or is locked by an active delivery (ADR 0007)."""
+    orders_data = swiggy_client.get_orders(count=20, order_type="INSTAMART", active_only=True)
+    active_statuses = {"CONFIRMED", "PACKING", "OUT_FOR_DELIVERY", "IN_TRANSIT"}
 
-    def __init__(self, swiggy_client: Any) -> None:
-        self.client = swiggy_client
+    for order in orders_data.orders:
+        is_active = getattr(order, "isActive", False) or (
+            order.status.upper() in active_statuses
+        )
+        deliv_addr = getattr(order, "deliveryAddress", None) or {}
+        target_addr_id = (
+            deliv_addr.get("id")
+            if isinstance(deliv_addr, dict)
+            else getattr(deliv_addr, "id", None)
+        )
 
-    def can_delete_address(self, address_id: str) -> DeletionCheckResult:
-        """Check if an address can be safely deleted or is locked by an active delivery (ADR 0007)."""
-        orders_data = self.client.get_orders(count=20, order_type="INSTAMART", active_only=True)
-        active_statuses = {"CONFIRMED", "PACKING", "OUT_FOR_DELIVERY", "IN_TRANSIT"}
-
-        for order in orders_data.orders:
-            is_active = getattr(order, "isActive", False) or (
-                order.status.upper() in active_statuses
+        if is_active and target_addr_id == address_id:
+            return DeletionCheckResult(
+                can_delete=False,
+                active_order_id=order.orderId,
+                block_reason=f"Cannot delete address while an active delivery (#{order.orderId}) is in transit to it.",
             )
-            deliv_addr = getattr(order, "deliveryAddress", None) or {}
-            target_addr_id = (
-                deliv_addr.get("id")
-                if isinstance(deliv_addr, dict)
-                else getattr(deliv_addr, "id", None)
-            )
 
-            if is_active and target_addr_id == address_id:
-                return DeletionCheckResult(
-                    can_delete=False,
-                    active_order_id=order.orderId,
-                    block_reason=f"Cannot delete address while an active delivery (#{order.orderId}) is in transit to it.",
-                )
-
-        return DeletionCheckResult(can_delete=True)
+    return DeletionCheckResult(can_delete=True)

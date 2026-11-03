@@ -353,10 +353,10 @@ async def handle_webhook(
                 continue
 
             # 8. Deterministic admin/privacy commands (DPDP) take priority over commerce
-            if msg.text:
-                from backend.channels.command_router import dispatch_text_command
+            if msg.text and msg.text.strip().lower() == "delete my data":
+                from backend.agent.dpdp import handle_delete_my_data
 
-                cmd_res = await dispatch_text_command(msg.text, str(user_id), conn)
+                cmd_res = await handle_delete_my_data(conn, str(user_id))
                 if cmd_res is not None:
                     from backend.channels.whatsapp_client import WhatsAppClient
 

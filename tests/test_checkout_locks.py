@@ -33,8 +33,6 @@ from backend.agent.approval import (
     create_checkout_approval,
 )
 from backend.agent.checkout_executor import (
-    DEFAULT_LAUNCH_CAP_PAISE,
-    SWIGGY_CARE_PHONE,
     check_and_settle_payment,
     execute_3_lock_checkout,
     format_whatsapp_cta_url_button,
@@ -48,6 +46,7 @@ from backend.agent.customer_advocate import (
     parse_price_to_paise,
     raise_session_budget_cap,
 )
+from backend.agent.read_actions import SWIGGY_CARE_PHONE
 from backend.config import settings
 from backend.database import get_db_pool
 from backend.integrations.commerce.schemas import (
@@ -310,7 +309,9 @@ def test_lock_2_launch_safety_cap_enforced(swiggy_client):
         expires_at=None,
     )
 
-    res = verify_lock_2_truth(approval, expensive_cart, max_launch_cap_paise=DEFAULT_LAUNCH_CAP_PAISE)
+    res = verify_lock_2_truth(
+        approval, expensive_cart, max_launch_cap_paise=settings.DEFAULT_BUDGET_CAP_PAISE
+    )
     assert res.passed is False
     assert "launch safety limit" in res.reason.lower()
 
@@ -939,7 +940,8 @@ async def test_check_payment_status_poller_and_session_reset(swiggy_client, monk
         assert settle_res.confirmed is True
         assert settle_res.order_id == "189456789012"
         assert "Payment Confirmed" in settle_res.message
-        assert "swiggy.com/track/189456789012" in settle_res.message
+        assert "Status:" in settle_res.message
+        assert "swiggy.com/track" not in settle_res.message
 
         # Verify session history was purged to '[]' (ADR 0010 Post-Payment Reset)
         session_hist = await conn.fetchval(

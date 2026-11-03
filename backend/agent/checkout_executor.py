@@ -34,7 +34,6 @@ from backend.agent.customer_advocate import (
     get_session_budget_cap,
     parse_price_to_paise,
 )
-from backend.agent.read_actions import SWIGGY_CARE_PHONE
 from backend.config import settings
 from backend.integrations.commerce.schemas import (
     CartData,
@@ -50,30 +49,8 @@ from backend.integrations.commerce.token_vault import resolve_user_client
 
 logger = logging.getLogger("grocer.checkout_executor")
 
-DEFAULT_LAUNCH_CAP_PAISE = 100000  # ₹1,000 launch safety cap
 CHECKOUT_RECONCILE_WAIT_SECONDS = 3.0
 CHECKOUT_ATTEMPT_STALE_SECONDS = 60
-
-__all__ = [
-    "DEFAULT_LAUNCH_CAP_PAISE",
-    "SWIGGY_CARE_PHONE",
-    "CheckoutExecutionResult",
-    "CheckoutLockError",
-    "LockValidationResult",
-    "SettlementResult",
-    "check_and_settle_payment",
-    "execute_3_lock_checkout",
-    "format_whatsapp_cta_url_button",
-    "poll_in_flight_deliveries_batch",
-    "poll_pending_checkouts_batch",
-    "reconcile_attempting_checkouts",
-    "verify_lock_1_authority",
-    "verify_lock_2_truth",
-]
-
-
-class CheckoutLockError(Exception):
-    """Raised when any of the 3 checkout locks fail."""
 
 
 @dataclass
@@ -142,7 +119,7 @@ def verify_lock_1_authority(
 def verify_lock_2_truth(
     approval: ApprovalRecord,
     live_cart: CartData,
-    max_launch_cap_paise: int = DEFAULT_LAUNCH_CAP_PAISE,
+    max_launch_cap_paise: int = settings.DEFAULT_BUDGET_CAP_PAISE,
 ) -> LockValidationResult:
     """Lock 2: Live cart re-verification against approved receipt.
 
@@ -803,12 +780,13 @@ async def check_and_settle_payment(
         if not eta_desc and tracking and tracking.status.etaMinutes:
             eta_desc = f"{tracking.status.etaMinutes} mins"
         if tracking:
-            map_url = f"https://swiggy.com/track/{primary_order_id}"
+            status = tracking.status.statusMessage
             msg = (
                 f"🎉 *Payment Confirmed!* Swiggy dark store is packing {order_label}.\n"
-                f"🛵 Status: {tracking.status.statusMessage} ({eta_desc or '10-15 mins'})\n"
-                f"Live Map: {map_url}"
+                f"🛵 Status: {status}"
             )
+            if eta_desc:
+                msg += f" (ETA {eta_desc})"
         else:
             msg = f"🎉 *Payment Confirmed!* Swiggy dark store is packing {order_label}."
     except (httpx.HTTPError, ValueError, KeyError, RuntimeError):

@@ -83,11 +83,11 @@ flowchart TD
         LOCK2 --> LOCK3["Lock 3: Exactly-Once\n(Atomic DB CAS prevents double charges)"]
         LOCK3 --> SWIGGY_PAY["Swiggy HTTPS bridgeUrl\n(Customer pays via UPI/Card in mobile browser)"]
         SWIGGY_PAY --> POLLER["5-Minute Background Poller\n(~19s long-poll on check_payment_status)"]
-        POLLER -- "On Success" --> TRACK["Live GPS Rider Tracking\n(track_order live map link)"]
+        POLLER -- "On Success" --> TRACK["Rider + ETA Tracking\n(track_order; no map URL in the tool answer)"]
     end
 ```
 
-Layer 2 is provider-agnostic since ADR 0012. The LLM never calls Swiggy; Python does. Every model call goes through `backend/agent/llm.py`. A basket turn makes one routing call, then one batched candidate-evaluation call for every item with candidates. No provider SDK is imported outside the adapter.
+Layer 2 is provider-agnostic since ADR 0012. The LLM never calls Swiggy; Python does. Every model call goes through `backend/agent/llm.py`. A basket turn makes one routing call, then one batched candidate-evaluation call for every item with candidates; an item whose full brand and exact size already match one candidate skips that second call. No provider SDK is imported outside the adapter.
 
 ---
 
@@ -139,8 +139,8 @@ sequenceDiagram
     User->>Swiggy: Completes UPI payment in GPay/PhonePe
     Gate-->>User: "🎉 Payment confirmed! Swiggy dark store is packing order #IM-982."
     Gate->>Swiggy: track_order(orderId, lat, lng)
-    Swiggy-->>Gate: Rider Ramesh assigned, ETA 11 mins, live map URL
-    Gate-->>User: "🛵 Rider Ramesh is on the way! Live Map: https://swiggy.com/track/IM-982"
+    Swiggy-->>Gate: Rider Ramesh assigned, ETA 11 mins, rider coordinates
+    Gate-->>User: "🛵 Rider Ramesh is on the way! ETA: 11 mins."
 ```
 
 ---
@@ -165,7 +165,7 @@ sequenceDiagram
 - **Capability Router (ADR 0012):** The LLM returns one routing decision per message — a capability from the fixed list, the extracted arguments, and a confidence score. Python validates the capability and makes every Swiggy call.
 - **Safety Classes:** Every capability is labelled `read`, `basket`, `account` or `money`. A read capability stops before any write path. This is enforced in Python dispatch, not in the prompt.
 - **Safe Path:** Unknown capability, or confidence below the floor, produces read-only options when a concrete product exists, otherwise a clarifying question. Floors: read 0.70, basket 0.80, account 0.85, money 0.95 (`backend/agent/router.py:92`). Nothing is written on a guess.
-- **One adapter, no provider SDKs:** routing and candidate evaluation both call `backend.agent.llm.complete_json`. A basket turn makes one routing call, then one batched candidate-evaluation call for every item with candidates. The legacy second intent call and the direct Gemini calls are gone. Prompts are provider-neutral and use JSON mode.
+- **One adapter, no provider SDKs:** routing and candidate evaluation both call `backend.agent.llm.complete_json`. A basket turn makes one routing call, then one batched candidate-evaluation call for every item with candidates; a unique exact brand+size match skips the second call. The legacy second intent call and the direct Gemini calls are gone. Prompts are provider-neutral and use JSON mode.
 - **Basket State & Pack Math (2026-10-28):** The model names add / set / remove from the customer's words; Python reads the live cart and decides whether an add increments or creates a line. Each item carries `amount` and `unit`; Python converts the amount to whole packs and accepts only a pack that meets it exactly. A 200 g request never becomes 400 g, and 500 g never becomes 1 kg; the item is named as "Not added" or becomes a choice. Adds and explicit total sets apply immediately with a receipt; only remove and clear keep a confirm button. Every named item ends added, asked, or refused.
 - **Two-Step Search & Candidate Evaluation (Kills Blind `res[0]`):**
   - Step 1: Python runs `search_products` for each extracted item and collects the top 3–5 in-stock candidates with pack sizes and prices.
@@ -204,7 +204,7 @@ sequenceDiagram
 | `confirm_order` | Finalize a paid Instamart order |
 | `get_orders` | Order history and active orders |
 | `get_order_details` | Itemized bill and order detail |
-| `track_order` | Rider, ETA and live map |
+| `track_order` | Rider, ETA and status; rider coordinates, no map URL |
 | `get_delivery_status` | Structured delivery polling |
 | `report_error` | Build a Swiggy support report |
 
@@ -290,7 +290,7 @@ check.
 - **Payment Lifecycle & Polling:**
   - Target: honor Swiggy's `pollingIntervalInMs` and `maxTimeToPollForInMs` from the checkout response. Use `check_payment_status`; call `confirm_order` once after a successful terminal payment if Swiggy has not auto-confirmed.
   - Current: the payment loop sleeps 15 seconds and the delivery loop sleeps 30 seconds. It does not read Swiggy's interval fields.
-  - Milestones: 3 (Packed, On the Way with live map, Delivered). Each order id in a checkout is polled, and `notified_milestones` (migration 004) latches every order+milestone so it fires once. `SwiggyAuthExpiredError` is caught per row, and a pending payment made while Render slept is checked on wake before any stale-failure mark.
+  - Milestones: 3 (Packed, On the Way with Swiggy's ETA, Delivered). Each order id in a checkout is polled, and `notified_milestones` (migration 004) latches every order+milestone so it fires once. `SwiggyAuthExpiredError` is caught per row, and a pending payment made while Render slept is checked on wake before any stale-failure mark.
 - **Post-Payment Session Reset (ADR 0010):**
   - Target: reset the basket and dialogue state after payment confirms.
   - Current: the poller clears session history, but does not clear the Swiggy cart.

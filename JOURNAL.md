@@ -1137,3 +1137,11 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: `turn_add._exact_brand_size_match` resolves the candidate in Python when the query names a candidate's full brand and the exact stated pack size, and the match is unique; the add path then skips `evaluate_customer_intents_batch`. Vague, ambiguous, missing-size and zero-address turns still call the model.
 - **Proof**: 3 new tests with the recorded catalog fixture — a sentinel fails if the evaluator runs for "Amul milk 500 ml", "milk" calls it once, and two same-brand/same-size candidates refuse the skip; `verify.ps1 -Db` exit 0 — 172 offline + 78 DB, ruff, Next 16.4.3 build (`.scratch/verify_item5_20261104.log`).
 - **Still broken**: live before/after timing waits for the cart to accept adds; live scorecard, handset taps, live OAuth, address add/delete, 24h scrub and checkout remain unproven. This change is uncommitted.
+
+### [GROCER — Truth Cleanup, Dead Code, One Helper Each] 2026-11-04
+
+#### Work Card: No Invented Tracking, No Dead Paths, One Source per Rule
+- **Problem**: tracking messages invented a `swiggy.com/track/...` link and a "10-15 mins" ETA that Swiggy never sent; dead exceptions, constants and a one-method class lingered; the cap limit, pack math and schema verification each had two sources; the site claimed 229 tests while the suite had 250.
+- **Change**: tracking now shows only Swiggy's real status, ETA and rider, and the tests reject any invented link. Deleted `CheckoutLockError`, `VALID_MILESTONES`, `map_url`, the stale `__all__`, the dead `answer_read_capability` wrapper and `AddressLifecycleManager` (now `can_delete_address`). Inlined the single `delete my data` command, added `MAX_BUDGET_CAP_PAISE`, made `migrate.py` reuse `verify_db.py`, merged the pack-ratio math, and corrected the site's test claim to 250. Item 5 was committed first as `321ce77`.
+- **Proof**: `verify.ps1 -Db` exit 0 — 172 offline + 78 DB, ruff, Next 16.4.3 build (`.scratch/verify_cleanup_20261104.log`); tracking tests assert `swiggy.com/track` is absent.
+- **Still broken**: `backend/channels/command_router.py` is unused but the deletion hook needs Karan to name it; the cleanup is pushed with this card and the deploy is checked after the push; live scorecard, handset taps, live OAuth, address add/delete, 24h scrub and checkout remain unproven.

@@ -107,17 +107,26 @@ def parse_pack_size(description: str | None) -> tuple[str, float] | None:
     return measure(match.group(1), match.group(2))
 
 
+def _pack_ratio(
+    amount: Any,
+    unit: str | None,
+    quantity_description: str | None,
+) -> float | None:
+    needed = measure(amount, unit)
+    pack = parse_pack_size(quantity_description)
+    if not needed or not pack or needed[0] != pack[0] or pack[1] <= 0:
+        return None
+    return needed[1] / pack[1]
+
+
 def packs_for(
     amount: Any,
     unit: str | None,
     quantity_description: str | None,
 ) -> int | None:
     """Whole packs needed for an amount, or None when the sizes cannot be compared."""
-    needed = measure(amount, unit)
-    pack = parse_pack_size(quantity_description)
-    if not needed or not pack or needed[0] != pack[0] or pack[1] <= 0:
-        return None
-    return max(1, math.ceil(needed[1] / pack[1]))
+    ratio = _pack_ratio(amount, unit, quantity_description)
+    return None if ratio is None else max(1, math.ceil(ratio))
 
 
 def measure_from_text(text: str | None) -> tuple[str, float] | None:
@@ -134,11 +143,9 @@ def exact_packs_for(
     quantity_description: str | None,
 ) -> int | None:
     """Packs that meet the amount exactly. A larger or smaller pack is not a match."""
-    needed = measure(amount, unit)
-    pack = parse_pack_size(quantity_description)
-    if not needed or not pack or needed[0] != pack[0] or pack[1] <= 0:
+    ratio = _pack_ratio(amount, unit, quantity_description)
+    if ratio is None:
         return None
-    ratio = needed[1] / pack[1]
     packs = round(ratio)
     if packs < 1 or not math.isclose(ratio, packs, rel_tol=1e-9, abs_tol=1e-9):
         return None

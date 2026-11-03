@@ -14,7 +14,6 @@ from fixture_client import FixtureSwiggyClient
 
 from backend.agent.candidate_search import CandidateItem
 from backend.agent.read_actions import (
-    answer_read_capability,
     build_read_reply,
     format_disambiguation_choices,
 )
@@ -105,25 +104,29 @@ class EmptyTrackingClient(TrackingClient):
 @pytest.mark.asyncio
 async def test_track_order_uses_real_tracking_tool_with_coords():
     client = TrackingClient()
-    answer = await answer_read_capability(
-        _decision(Capability.TRACK_ORDER),
-        client,
-        "addr_01HXYZ",
-        coords=(12.9352, 77.6245),
-    )
+    answer = (
+        await build_read_reply(
+            _decision(Capability.TRACK_ORDER),
+            client,
+            "addr_01HXYZ",
+            coords=(12.9352, 77.6245),
+        )
+    ).text
     assert client.track_calls == [("189456789012", 12.9352, 77.6245)]
     assert "On the way" in answer
     assert "ETA 8 mins" in answer
     assert "Swiggy Instamart Pod - Bellandur" in answer
-    assert "swiggy.com/track/189456789012" in answer
+    assert "swiggy.com/track" not in answer
 
 
 @pytest.mark.asyncio
 async def test_track_order_without_coords_uses_delivery_status():
     client = TrackingClient()
-    answer = await answer_read_capability(
-        _decision(Capability.TRACK_ORDER), client, "addr_01HXYZ"
-    )
+    answer = (
+        await build_read_reply(
+            _decision(Capability.TRACK_ORDER), client, "addr_01HXYZ"
+        )
+    ).text
     assert client.track_calls == []
     assert "Packed" in answer
     assert "ETA: 12 mins" in answer
@@ -132,18 +135,22 @@ async def test_track_order_without_coords_uses_delivery_status():
 
 @pytest.mark.asyncio
 async def test_track_order_with_no_active_order_says_so():
-    answer = await answer_read_capability(
-        _decision(Capability.TRACK_ORDER), EmptyTrackingClient(), "addr_01HXYZ"
-    )
+    answer = (
+        await build_read_reply(
+            _decision(Capability.TRACK_ORDER), EmptyTrackingClient(), "addr_01HXYZ"
+        )
+    ).text
     assert answer == "You have no active order right now."
 
 
 @pytest.mark.asyncio
 async def test_store_info_is_honest_about_store_and_window():
     client = FixtureSwiggyClient(FIXTURES_DIR)
-    answer = await answer_read_capability(
-        _decision(Capability.STORE_INFO), client, "addr_01HXYZ"
-    )
+    answer = (
+        await build_read_reply(
+            _decision(Capability.STORE_INFO), client, "addr_01HXYZ"
+        )
+    ).text
     assert "delivery quote" in answer.lower()
     assert "Items are adding to your basket right now, so the store is taking orders." in answer
     assert "doesn't share the dark store name or a delivery window" in answer
@@ -152,9 +159,11 @@ async def test_store_info_is_honest_about_store_and_window():
 @pytest.mark.asyncio
 async def test_order_bill_shows_items_and_line_items():
     client = FixtureSwiggyClient(FIXTURES_DIR)
-    answer = await answer_read_capability(
-        _decision(Capability.ORDER_BILL, order_ref="last"), client, "addr_01HXYZ"
-    )
+    answer = (
+        await build_read_reply(
+            _decision(Capability.ORDER_BILL, order_ref="last"), client, "addr_01HXYZ"
+        )
+    ).text
     assert "Bill for order #189456789012" in answer
     assert "Amul Taaza Homogenised Toned Milk x2 — ₹144" in answer
     assert "Handling Fee" in answer
@@ -163,9 +172,13 @@ async def test_order_bill_shows_items_and_line_items():
 
 @pytest.mark.asyncio
 async def test_placed_order_add_is_truthful_and_offers_a_new_basket():
-    answer = await answer_read_capability(
-        _decision(Capability.PLACED_ORDER_ADD), FixtureSwiggyClient(FIXTURES_DIR), "addr"
-    )
+    answer = (
+        await build_read_reply(
+            _decision(Capability.PLACED_ORDER_ADD),
+            FixtureSwiggyClient(FIXTURES_DIR),
+            "addr",
+        )
+    ).text
     assert "locks it" in answer
     assert "separate order" in answer
 
@@ -306,15 +319,17 @@ async def test_item_info_names_real_alternatives_when_out_of_stock():
 @pytest.mark.asyncio
 async def test_payment_options_say_upi_only():
     client = FixtureSwiggyClient(FIXTURES_DIR)
-    text = await answer_read_capability(
-        RoutingDecision(
-            capability=Capability.PAYMENT_OPTIONS,
-            safety=SafetyClass.READ,
-            confidence=1.0,
-        ),
-        client,
-        "addr_01",
-    )
+    text = (
+        await build_read_reply(
+            RoutingDecision(
+                capability=Capability.PAYMENT_OPTIONS,
+                safety=SafetyClass.READ,
+                confidence=1.0,
+            ),
+            client,
+            "addr_01",
+        )
+    ).text
 
     assert "UPI only" in text
     assert "Google Pay" in text

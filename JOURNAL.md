@@ -1129,3 +1129,11 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: pushed `8d2243c..70a19f6`, then two docs commits (`97f9de1`, `62de47d`) to record the deploy and stop pinning a hash that every docs commit would change.
 - **Proof**: `git push` accepted; Render deploy on `62de47d` reached `live`; `/health` returned `{"status":"healthy","database":"connected","app":"Grocer","environment":"development"}`; Vercel `/` returned 200.
 - **Still broken**: live scorecard, handset taps, live OAuth, address add/delete, location-pin replay, 24h scrub and the first real order remain unproven. Checkout stays locked.
+
+### [GROCER — Exact Match, One Less Model Call] 2026-11-04
+
+#### Work Card: Skip the Evaluator When Brand and Size Are Exact
+- **Problem**: every add paid for a second model call even when the customer named a full brand and exact pack size that matched one product, which is the common "add Amul milk 500 ml" turn.
+- **Change**: `turn_add._exact_brand_size_match` resolves the candidate in Python when the query names a candidate's full brand and the exact stated pack size, and the match is unique; the add path then skips `evaluate_customer_intents_batch`. Vague, ambiguous, missing-size and zero-address turns still call the model.
+- **Proof**: 3 new tests with the recorded catalog fixture — a sentinel fails if the evaluator runs for "Amul milk 500 ml", "milk" calls it once, and two same-brand/same-size candidates refuse the skip; `verify.ps1 -Db` exit 0 — 172 offline + 78 DB, ruff, Next 16.4.3 build (`.scratch/verify_item5_20261104.log`).
+- **Still broken**: live before/after timing waits for the cart to accept adds; live scorecard, handset taps, live OAuth, address add/delete, 24h scrub and checkout remain unproven. This change is uncommitted.

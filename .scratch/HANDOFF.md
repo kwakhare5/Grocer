@@ -8,7 +8,7 @@ Unproven: live scorecard (no Swiggy app access), handset taps, live OAuth reconn
 
 ## Current truth
 
-- Branch: `main` only. `origin/main` and local `main` are `70a19f6`; Render is live on it with a healthy database. Rollback target: `db6a297`.
+- Branch: `main` only. Local `main` and `origin/main` match; Render is live on the latest pushed `main` with a healthy database. Rollback target: `db6a297`.
 - Vercel: `/`, `/privacy`, `/proof` 200; the page still says 229 tests (backend is 247; the page was not redeployed).
 - Tests: 169 offline + 78 DB = 247; 20 live-only deselected; 267 collected. `npm audit --omit=dev` → 0 vulnerabilities.
 - Offline scorecard: 31/31. Live scorecard: deferred; the 2026-11-02 post-merge run scored 25/26, and the 2026-11-03 first half scored 7/13 on pre-fix code because Swiggy refused the cart.

@@ -48,7 +48,7 @@ The bar is still full tool coverage. These experiences use existing tools, so th
 
 ## Current next actions (2026-11-03)
 
-`origin/main` and local `main` are `70a19f6`; Render is live on it with a healthy database. Vercel `/` and `/proof` 200; the page still says 229 tests (backend is 247; the page was not redeployed). Last gate: `verify.ps1 -Db` exit 0 — 169 offline + 78 DB, ruff, Next 16.4.3 build. Offline scorecard 31/31. Live scorecard deferred.
+Local `main` and `origin/main` match; Render is live on the latest pushed `main` with a healthy database. Vercel `/` and `/proof` 200; the page still says 229 tests (backend is 247; the page was not redeployed). Last gate: `verify.ps1 -Db` exit 0 — 169 offline + 78 DB, ruff, Next 16.4.3 build. Offline scorecard 31/31. Live scorecard deferred.
 
 **Blocked by environment:** no Swiggy app or handset access. The cart is frozen and every cart read/add fails with "Some items have limited stock and their quantities were adjusted. Please review your cart." Do not ask Karan to clear it and do not fake a live scorecard.
 

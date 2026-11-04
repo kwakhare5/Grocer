@@ -1,130 +1,154 @@
 export const NAV = [
-  { label: "What it does", href: "/#what" },
+  { label: "Features", href: "/#what" },
   { label: "How it works", href: "/#how" },
-  { label: "Connect", href: "/#connect" },
+  { label: "Demo", href: "/#demo" },
   { label: "Safety", href: "/#safety" },
   { label: "FAQ", href: "/#faq" },
 ] as const;
 
-export const SAMPLE = {
-  count: "6 products",
-  itemTotal: "₹343.00",
-  couponLabel: "Sample coupon",
-  couponAmount: "− ₹40.00",
-  handling: "₹9.00",
-  delivery: "FREE",
-  toPay: "₹312",
-  capLabel: "₹312 of ₹1,000",
-  capWidth: "31%",
+export const HERO = {
+  badge: "Independent · Swiggy Instamart tools",
+  title: "Your Swiggy Instamart, on WhatsApp.",
+  support:
+    "Connect your Swiggy account, send a list, and get a live basket with real prices.",
+  micro: ["No new app", "Live store prices", "Payments open next"],
 } as const;
 
-export const CHAT = {
-  hello: "Hi. What do you need from Instamart?",
-  list: "milk, eggs, bread, paneer",
-  found: "Found 4 items. Your basket is ₹312 with delivery.",
-  ready: "Tap Pay when you are ready.",
-  basket: [
-    { name: "Milk 500 ml", qty: "×2", price: "₹64" },
-    { name: "Eggs (6)", qty: "×1", price: "₹60" },
-    { name: "Brown bread", qty: "×1", price: "₹45" },
-    { name: "Paneer 200 g", qty: "×1", price: "₹89" },
+export const CONNECT_STEPS = [
+  "Enter your WhatsApp number.",
+  "Send the prepared code from that number.",
+  "Sign in on Swiggy’s page.",
+] as const;
+
+export const LIVE_RECEIPT = {
+  user: "milk, 6 eggs and brown bread",
+  items: [
+    {
+      name: "Amul Slim n Trim UHT Skimmed Milk (1 ltr)",
+      qty: 1,
+      price: "₹85",
+    },
+    { name: "Yolkers Classic Eggs (6 Pieces)", qty: 1, price: "₹51" },
+    { name: "Bakers World Brown Bread (400 g)", qty: 1, price: "₹41" },
   ],
-  toPay: "₹312",
+  itemTotal: "₹177.00",
+  handling: "₹10.01",
+  delivery: "FREE",
+  toPay: "₹187",
+  buttons: ["Pay ₹187", "Clear basket"],
 } as const;
 
 export const FEATURES = [
   {
-    name: "Build your basket",
-    line: "Say the list. Grocer finds the right pack, checks stock, and adds it.",
+    title: "Say it in plain words",
+    body: "Add, change, remove or clear items in one message. No catalogue to click through.",
     tone: "blue",
-    wide: true,
   },
   {
-    name: "See live prices",
-    line: "Items, fees and coupons before you pay. Read from Swiggy at that moment.",
-    tone: "purple",
-  },
-  {
-    name: "Plan a meal",
-    line: "A recipe turns into a priced list you can add in one tap.",
+    title: "See the real price",
+    body: "Live prices, pack sizes, stock and fees from your Instamart store.",
     tone: "green",
   },
   {
-    name: "Switch addresses",
-    line: "List, add, or remove a saved Swiggy address, then pick the one you mean.",
-    tone: "yellow",
+    title: "Use your saved address",
+    body: "See your saved addresses and switch stores. Grocer rebuilds the basket for the new store.",
+    tone: "orange",
   },
   {
-    name: "Follow the order",
-    line: "See where it is and when it lands, in the same chat.",
-    tone: "brown",
+    title: "Know what you ordered",
+    body: "Order history, itemised bills and delivery status. If there is no order, Grocer says so.",
+    tone: "pink",
   },
   {
-    name: "Get help",
-    line: "Bills, missing items, refunds, or “delete my data”.",
-    tone: "muted",
+    title: "Let coupons be checked",
+    body: "Valid coupons are checked on every basket change, and the savings show on the receipt.",
+    tone: "red",
+  },
+  {
+    title: "Plan a meal",
+    body: "Name a dish. Grocer prices the ingredients and builds the basket.",
+    tone: "blue",
+  },
+  {
+    title: "Report a problem",
+    body: "Send an order problem to Swiggy support from the chat.",
+    tone: "green",
+  },
+  {
+    title: "Delete your data",
+    body: "Remove the Swiggy link and the chat copy Grocer stores.",
+    tone: "orange",
   },
 ] as const;
 
-export const HOW = [
+export const PROMPTS = [
   {
-    title: "Connect once",
-    body: "Enter your number here. Send the code on WhatsApp, then sign in on Swiggy’s page.",
-    tone: "blue",
+    id: "basket",
+    label: "Build a basket",
+    user: "add 6 eggs and brown bread",
+    reply: "✅ Added to your basket · 3 items · To Pay ₹187",
   },
   {
-    title: "Send your list",
-    body: "Type it the way you would text a friend. Grocer builds a real Instamart basket.",
-    tone: "purple",
+    id: "check",
+    label: "Check the basket",
+    user: "what’s in my basket?",
+    reply: "🛒 Your Basket (6 items) · To Pay ₹272",
   },
   {
-    title: "Tap Pay",
-    body: "Check every item and fee. Only the Pay button can place the order.",
-    tone: "green",
+    id: "addresses",
+    label: "Show my addresses",
+    user: "show my addresses",
+    reply: "🏠 Your saved addresses · Tap a button to switch, or tell me the label.",
+  },
+  {
+    id: "order",
+    label: "Where is my order?",
+    user: "where is my order?",
+    reply: "You have no active order right now.",
+  },
+  {
+    id: "privacy",
+    label: "Delete my data",
+    user: "delete my data",
+    reply: "Your personal data and Swiggy connection have been permanently deleted.",
   },
 ] as const;
+
 
 export const STEPS = [
   {
-    title: "You tap Pay.",
-    body: "A text cannot order. Only the Pay button can.",
+    title: "Text your list",
+    body: "Type it the way you would text a friend. Grocer checks the live store and replies with a basket receipt.",
   },
   {
-    title: "Grocer checks again.",
-    body: "Live prices, live stock. If something moved or sold out, you see it before paying.",
+    title: "Read the basket",
+    body: "Prices, fees and the total come back in the chat. Nothing is ordered yet.",
   },
   {
-    title: "It runs once.",
-    body: "One approval, one order. A double tap bounces off.",
+    title: "Check the bill",
+    body: "The total is clear before anything else. Payments open next.",
   },
 ] as const;
 
-export const FACTS = [
+export const SAFETY = [
   {
-    value: "20",
-    label: "Swiggy tools",
-    note: "Catalog, cart, addresses, orders, payments and support.",
-    tone: "blue",
+    title: "Only the button can order",
+    body: "A text message can never place an order. The Pay button is the only key.",
   },
   {
-    value: "4",
-    label: "safety levels",
-    note: "Every message is read, basket, account or money.",
-    tone: "purple",
+    title: "Prices are read again",
+    body: "Stock and prices are checked at tap time. If anything moved, the order stops before money.",
   },
   {
-    value: "1",
-    label: "AI model",
-    note: "One brain for language. Python holds the rules.",
-    tone: "green",
-  },
-  {
-    value: "₹1,000",
-    label: "safety cap",
-    note: "Go over it and Grocer waits for your say-so.",
-    tone: "yellow",
+    title: "One approval, one order",
+    body: "A double tap or an old approval bounces off. Nothing runs twice.",
   },
 ] as const;
+
+export const CAP_NOTE = {
+  title: "₹1,000 safety cap",
+  body: "Go over it and Grocer waits. You raise the cap yourself, on purpose.",
+} as const;
 
 export const FAQS = [
   {
@@ -132,23 +156,31 @@ export const FAQS = [
     a: "No. Grocer is an independent app built on Swiggy’s official Instamart tools. Your order and payment stay with Swiggy.",
   },
   {
+    q: "Do I need the Swiggy app?",
+    a: "No. You need a Swiggy account. The sign-in link opens Swiggy’s page once; after that, everything happens in WhatsApp.",
+  },
+  {
     q: "How do I connect my Swiggy account?",
-    a: "Enter your WhatsApp number on this page. We open WhatsApp with a short code. Send it from that number, and the bot replies with a private Swiggy sign-in link. Grocer never asks for your password or UPI PIN.",
+    a: "Enter your WhatsApp number on this page. The page opens WhatsApp with a short code. Send it from that number, and the bot replies with a private Swiggy sign-in link. Grocer never asks for your password or UPI PIN.",
   },
   {
     q: "Can I pay yet?",
-    a: "Not yet. The chat, live prices and basket work today. Payments open next.",
+    a: "Not yet. The chat, live prices, basket, addresses and order answers work today. Payments open next, and checkout stays locked until then.",
   },
   {
     q: "Does Grocer charge me?",
     a: "No fee and no markup. You pay Swiggy’s prices and fees.",
   },
   {
+    q: "Where does it work?",
+    a: "Anywhere Instamart delivers. Grocer uses the store for your saved address.",
+  },
+  {
     q: "What if something is out of stock?",
-    a: "Grocer tells you and shows a real alternative if there is one. It never swaps anything without asking.",
+    a: "Grocer tells you and never swaps anything without asking.",
   },
   {
     q: "Where does my data go?",
-    a: "Address and basket copies are deleted after 24 hours. The number you type on this page is not stored. Your Swiggy login is protected, and “delete my data” removes what Grocer stores.",
+    a: "Address and basket copies are deleted after 24 hours. The number you type on this page is not stored. Your Swiggy login is encrypted, and “delete my data” removes what Grocer stores.",
   },
 ] as const;

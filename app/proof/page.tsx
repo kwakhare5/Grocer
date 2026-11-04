@@ -82,7 +82,7 @@ export default function ProofPage() {
 
   return (
     <>
-      <SiteHeader />
+      <SiteHeader href={href} />
 
       <main className="page" id="main">
         <div className="wrap doc">

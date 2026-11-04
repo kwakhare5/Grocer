@@ -1,18 +1,18 @@
 import Link from "next/link";
 import { NAV } from "../content";
+import { LogoMark } from "./logo";
+import { MobileMenu } from "./mobile-menu";
 
-export function SiteHeader() {
+type SiteHeaderProps = {
+  href: string | null;
+};
+
+export function SiteHeader({ href }: SiteHeaderProps) {
   return (
     <header className="site-header">
       <div className="wrap site-header__inner">
         <Link className="brand" href="/" aria-label="Grocer home">
-          <img
-            className="brand__mark"
-            src="/logo-mark.svg"
-            alt=""
-            width={24}
-            height={24}
-          />
+          <LogoMark className="brand__mark" />
           <span className="brand__name">Grocer</span>
         </Link>
 
@@ -24,9 +24,13 @@ export function SiteHeader() {
           ))}
         </nav>
 
-        <Link className="button button--primary site-header__cta" href="/#connect">
-          Connect
-        </Link>
+        <div className="site-header__actions">
+          <Link className="btn btn--primary" href="/#connect">
+            Connect Swiggy
+          </Link>
+        </div>
+
+        <MobileMenu href={href} />
       </div>
     </header>
   );

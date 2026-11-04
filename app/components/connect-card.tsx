@@ -113,7 +113,7 @@ export function ConnectCard({ whatsappHref }: ConnectCardProps) {
           {oauthStatus === "idle" ? (
             <button
               type="button"
-              className="button button--primary"
+              className="btn btn--primary"
               onClick={handleConnect}
               disabled={isConnecting}
             >
@@ -135,7 +135,7 @@ export function ConnectCard({ whatsappHref }: ConnectCardProps) {
               </p>
               {whatsappHref ? (
                 <a
-                  className="button"
+                  className="btn btn--ghost"
                   href={whatsappHref}
                   target="_blank"
                   rel="noopener noreferrer"
@@ -143,7 +143,7 @@ export function ConnectCard({ whatsappHref }: ConnectCardProps) {
                   Chat on WhatsApp
                 </a>
               ) : (
-                <span className="button button--disabled" aria-disabled="true">
+                <span className="btn btn--ghost btn--disabled" aria-disabled="true">
                   Chat on WhatsApp
                 </span>
               )}

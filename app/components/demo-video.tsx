@@ -21,8 +21,8 @@ export function DemoVideo() {
           </div>
           <p className="lead" data-reveal style={d(80)}>
             {hasVideo
-              ? "A short walkthrough from a real chat: send a list, read the basket, stop before payment."
-              : "A short walkthrough is on the way: send a list, read the basket, stop before payment."}
+              ? "A short walkthrough from a real chat: send a list, read the basket."
+              : "A short walkthrough is on the way: send a list, read the basket."}
           </p>
         </div>
 
@@ -38,15 +38,17 @@ export function DemoVideo() {
                 <source src="/demo.mp4" type="video/mp4" />
                 Your browser cannot play this video.
               </video>
-              <figcaption className="demo-caption">
-                A real chat. No order is placed.
-              </figcaption>
+              <figcaption className="demo-caption">A real chat.</figcaption>
             </>
           ) : (
             <div className="demo-stage">
+              <span className="demo-stage__rec">
+                <i aria-hidden="true" />
+                Recording
+              </span>
               <p className="demo-stage__title">The demo is being recorded.</p>
               <p className="demo-stage__body">
-                A real chat, from list to basket. No order is placed.
+                A real chat, from list to basket.
               </p>
             </div>
           )}

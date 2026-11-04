@@ -151,14 +151,6 @@ export function ConnectForm({ whatsappNumber }: ConnectFormProps) {
       >
         {busy ? "Creating your code…" : "Continue"}
       </button>
-
-      <div className="connect-form__meta">
-        <p>Payments are not open yet. You can build and check baskets today.</p>
-        <p>
-          Independent app, built on Swiggy’s official Instamart tools. No
-          password. No card.
-        </p>
-      </div>
     </form>
   );
 }

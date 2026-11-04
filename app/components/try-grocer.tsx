@@ -80,7 +80,7 @@ export function TryGrocer() {
             </p>
           </div>
         </div>
-        <p className="chat-demo__caption">Example reply. No order is placed.</p>
+        <p className="chat-demo__caption">Sample reply.</p>
       </div>
     </div>
   );

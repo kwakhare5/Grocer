@@ -1273,3 +1273,11 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: rebuilt the hero right side as a phone-style WhatsApp sample with a status bar and Grocer header; removed the connect form's meta block, the demo's payment lines and the Try order line; kept four honesty anchors (footer legal line, FAQ payment answer, Safety no-order sentence, one Sample label per mock). Added a four-fact strip (20 tools, ₹1,000 cap, 3 locks, 24h deletion), a sample cap meter at ₹187 of ₹1,000, and a black demo slate with a REC chip. Deleted the old chat-button, receipt-fee, form-meta and bill-caption CSS.
 - **Proof**: `verify.ps1 -Db` exit 0 — ruff, 182 offline + 81 DB, 9 routes (`.scratch/verify_cleanup_20261104.log`); 0 overflow, 0 console errors and 0 hidden reveals at 1440/1024/768/390/360; phone bubbles settle at opacity 1 and the cap meter at scaleX 0.187; reduced-motion and no-JS keep all content visible; no repeated disclaimer strings; screenshots `.scratch/final_*`.
 - **Still broken**: the pass is local and not pushed, so Vercel still serves the palette build without the phone mock, graphics, fact strip or cap meter; demo video absent; live reconnect, address writes, 24h scrub, typed plan, same-name picker, reactions/ticks and location pin remain open.
+
+### [GROCER — Landing Deployment] 2026-11-04
+
+#### Work Card: Copy/Phone Pass Pushed and Verified in Production
+- **Problem**: the phone mock, graphics, fact strip and cap meter were local only, so Karan's live site still showed the older palette build.
+- **Change**: pushed `61022f6..c16b924` to `main`, deploying Vercel and redeploying Render. Confirmed the live page serves the phone mock, facts strip, cap meter, REC slate and "Sample reply." caption; the old form meta and bill caption CSS are gone.
+- **Proof**: Vercel served the new build 30s after push; production has 0 overflow, 0 console errors and 0 hidden reveals at 1440/1024/768/390/360; reduced-motion and no-JS keep all content visible; phone bubbles opacity 1, cap fill scaleX 0.187; zero violet in markup; Render `/health` 200; production screenshots `.scratch/final_*`; `.scratch/verify_cleanup_20261104.log` exit 0.
+- **Still broken**: demo video absent; live reconnect, address add/delete, 24h scrub, typed plan, same-name picker, reactions/ticks and location pin remain open.

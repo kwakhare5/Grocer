@@ -11,7 +11,7 @@ export const HERO = {
   title: "Your Swiggy Instamart, on WhatsApp.",
   support:
     "Connect your Swiggy account, send a list, and get a live basket with real prices.",
-  micro: ["No new app", "Live store prices", "Payments open next"],
+  micro: ["No new app", "Live store prices", "No markup"],
 } as const;
 
 export const CONNECT_STEPS = [
@@ -35,7 +35,6 @@ export const LIVE_RECEIPT = {
   handling: "₹10.01",
   delivery: "FREE",
   toPay: "₹187",
-  buttons: ["Pay ₹187", "Clear basket"],
 } as const;
 
 export const FEATURES = [
@@ -130,11 +129,11 @@ export const STEPS = [
   },
   {
     title: "Read the basket",
-    body: "Prices, fees and the total come back in the chat. Nothing is ordered yet.",
+    body: "Prices, fees and the total come back in the chat.",
   },
   {
     title: "Check the bill",
-    body: "The total is clear before anything else. Payments open next.",
+    body: "The total is clear before anything else.",
   },
 ] as const;
 
@@ -157,6 +156,13 @@ export const CAP_NOTE = {
   title: "₹1,000 safety cap",
   body: "Go over it and Grocer waits. You raise the cap yourself, on purpose.",
 } as const;
+
+export const FACTS = [
+  { value: "20", label: "Instamart tools" },
+  { value: "₹1,000", label: "Default cap" },
+  { value: "3", label: "Checkout locks" },
+  { value: "24h", label: "Data deletion" },
+] as const;
 
 export const FAQS = [
   {

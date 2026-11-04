@@ -2,6 +2,7 @@ import type { CSSProperties } from "react";
 import {
   CAP_NOTE,
   CONNECT_STEPS,
+  FACTS,
   FAQS,
   FEATURES,
   HERO,
@@ -135,6 +136,22 @@ export default function Home() {
           </div>
         </section>
 
+        <section className="facts" aria-label="Grocer in numbers">
+          <div className="wrap facts__in">
+            {FACTS.map((fact, index) => (
+              <div
+                className="fact"
+                key={fact.label}
+                data-reveal
+                style={d(index * 60)}
+              >
+                <strong>{fact.value}</strong>
+                <span>{fact.label}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+
         <section className="section" id="what">
           <div className="wrap">
             <div className="section-head">
@@ -238,12 +255,24 @@ export default function Home() {
                 ))}
               </div>
 
-              <p className="cap-note" data-reveal>
-                <strong>{CAP_NOTE.title}.</strong> {CAP_NOTE.body}
-              </p>
+              <div className="cap-note" data-reveal>
+                <div className="cap-note__head">
+                  <strong>{CAP_NOTE.title}.</strong>
+                  <span>Sample · ₹187 of ₹1,000</span>
+                </div>
+                <div className="cap-meter" aria-hidden="true">
+                  <span className="cap-meter__fill" />
+                </div>
+                <p>{CAP_NOTE.body}</p>
+              </div>
             </div>
 
-            <figure className="bill-figure" data-reveal style={d(120)}>
+            <figure
+              className="bill-figure"
+              data-reveal
+              style={d(120)}
+              aria-label="Sample bill"
+            >
               <div className="bill" aria-hidden="true">
                 <span className="bill__stamp">Sample</span>
                 <p className="bill__kicker">Swiggy Instamart</p>
@@ -280,11 +309,7 @@ export default function Home() {
                 </div>
 
                 <span className="bill__pay">Pay {LIVE_RECEIPT.toPay}</span>
-                <p className="bill__note">No payment taken.</p>
               </div>
-              <figcaption className="bill__caption">
-                Sample bill. No payment taken.
-              </figcaption>
             </figure>
           </div>
         </section>

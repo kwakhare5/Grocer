@@ -1,11 +1,11 @@
 import type { CSSProperties } from "react";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import Link from "next/link";
-import { BUILT, CAPABILITIES, FAQS, SAMPLE, STEPS } from "./content";
-import { getWhatsAppHref } from "./lib/whatsapp";
+import { FAQS, FACTS, FEATURES, HOW, SAMPLE, STEPS } from "./content";
+import { getWhatsAppHref, getWhatsAppNumber } from "./lib/whatsapp";
 import { ConnectCard } from "./components/connect-card";
-import { HeroReceipt } from "./components/hero-receipt";
+import { ConnectForm } from "./components/connect-form";
+import { HeroPhone } from "./components/hero-phone";
 import { SiteFooter } from "./components/site-footer";
 import { SiteHeader } from "./components/site-header";
 import { WhatsAppButton } from "./components/whatsapp-button";
@@ -14,12 +14,12 @@ const d = (ms: number) => ({ "--d": `${ms}ms` }) as CSSProperties;
 
 export default function Home() {
   const href = getWhatsAppHref();
+  const whatsappNumber = getWhatsAppNumber();
   const hasVideo = existsSync(join(process.cwd(), "public", "demo.mp4"));
-  const showVideoSlot = hasVideo || process.env.NODE_ENV !== "production";
 
   return (
     <>
-      <SiteHeader href={href} />
+      <SiteHeader />
       <ConnectCard whatsappHref={href} />
 
       <main id="main">
@@ -27,48 +27,50 @@ export default function Home() {
           <div className="wrap hero__in">
             <div className="hero__copy">
               <p className="eyebrow" data-reveal>
-                Swiggy Instamart · inside WhatsApp
+                Swiggy Instamart on WhatsApp
               </p>
               <h1 className="hero__title" data-reveal style={d(60)}>
-                Text the list. <em>We’ll handle the rest.</em>
+                Your Swiggy Instamart, on WhatsApp.
               </h1>
               <p className="hero__support" data-reveal style={d(120)}>
-                Grocer turns a message into a live Instamart basket: real prices,
-                real stock, no new app.
+                Type what you need. Grocer builds a real basket with live prices
+                and stock at your store. No new app.
               </p>
 
               <div className="hero__actions" data-reveal style={d(180)}>
-                <WhatsAppButton href={href} />
-                {hasVideo ? (
-                  <a className="hero__demo-link" href="#demo">
-                    Watch the 40-second demo
-                  </a>
-                ) : null}
+                <a className="button button--primary" href="#connect">
+                  Connect your number
+                </a>
+                <a className="text-link" href="#how">
+                  See how it works
+                </a>
               </div>
 
-              {!href ? (
-                <p className="button-note">
-                  The WhatsApp link is not configured on this deployment.
-                </p>
-              ) : null}
-
               <p className="hero__micro" data-reveal style={d(240)}>
-                <span>Early access</span>
                 <span>No new app</span>
-                <span>No Grocer fee</span>
-              </p>
-              <p className="hero__status" data-reveal style={d(280)}>
-                Payments open soon. The chat is live today.
+                <span>No extra fee</span>
+                <span>Pay in Swiggy</span>
               </p>
             </div>
 
-            <div data-reveal style={d(200)}>
-              <HeroReceipt hasVideo={hasVideo} showVideoSlot={showVideoSlot} />
+            <div className="hero__media" data-reveal style={d(200)}>
+              <HeroPhone />
             </div>
+          </div>
+
+          <div className="wrap built-on" data-reveal style={d(280)}>
+            <span className="built-on__label">Built on</span>
+            <span>Swiggy Instamart tools</span>
+            <span>WhatsApp Cloud API</span>
+            <span>Groq</span>
+            <span>PostgreSQL</span>
+            <span className="built-on__note">
+              Independent app. Not an official Swiggy product.
+            </span>
           </div>
         </section>
 
-        <section className="section section--surface" id="what">
+        <section className="section" id="what">
           <div className="wrap">
             <div className="section-head">
               <div>
@@ -80,48 +82,157 @@ export default function Home() {
                 </h2>
               </div>
               <p className="lead" data-reveal style={d(120)}>
-                Every row tells you where it stands: live today, in testing, or
-                opening next.
+                One thread for the list, the basket, the address and the order.
               </p>
             </div>
 
-            <ol className="jobs" data-reveal style={d(160)}>
-              {CAPABILITIES.map((item, index) => (
-                <li className="job" key={item.name}>
-                  <span className="job__idx">
-                    {String(index + 1).padStart(2, "0")}
-                  </span>
-                  <h3 className="job__name">{item.name}</h3>
-                  <p className="job__line">{item.line}</p>
-                  <span className="pill" data-tone={item.tone}>
-                    {item.status}
-                  </span>
+            <div className="features" data-reveal style={d(160)}>
+              {FEATURES.map((item) => (
+                <article
+                  className={`feature feature--${item.tone}${"wide" in item && item.wide ? " feature--wide" : ""}`}
+                  key={item.name}
+                >
+                  <span className="feature__rule" aria-hidden="true" />
+                  <h3 className="feature__name">{item.name}</h3>
+                  <p className="feature__line">{item.line}</p>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="section section--surface" id="how">
+          <div className="wrap">
+            <div className="section-head">
+              <div>
+                <p className="kicker" data-reveal>
+                  How it works
+                </p>
+                <h2 className="section-title" data-reveal style={d(60)}>
+                  Three steps, one chat.
+                </h2>
+              </div>
+              <p className="lead" data-reveal style={d(120)}>
+                Connect once. After that, every grocery run starts in WhatsApp.
+              </p>
+            </div>
+
+            <ol className="how" data-reveal style={d(160)}>
+              {HOW.map((step, index) => (
+                <li className={`how__item how__item--${step.tone}`} key={step.title}>
+                  <span className="how__label">Step {index + 1}</span>
+                  <h3 className="how__title">{step.title}</h3>
+                  <p className="how__body">{step.body}</p>
                 </li>
               ))}
             </ol>
           </div>
         </section>
 
-        <section className="section section--dark" id="safety">
+        <section className="section" id="connect">
+          <div className="wrap connect-section">
+            <div className="connect-section__copy">
+              <p className="kicker" data-reveal>
+                Connect
+              </p>
+              <h2 className="section-title" data-reveal style={d(60)}>
+                Start here, then sign in to Swiggy.
+              </h2>
+              <p className="lead" data-reveal style={d(120)}>
+                This page starts the handshake. WhatsApp proves the number, and
+                Swiggy handles the sign-in.
+              </p>
+
+              <ul className="connect-points" data-reveal style={d(160)}>
+                <li>
+                  <span className="connect-points__dot connect-points__dot--blue" />
+                  The number you type here is not stored.
+                </li>
+                <li>
+                  <span className="connect-points__dot connect-points__dot--purple" />
+                  The code expires in 10 minutes.
+                </li>
+                <li>
+                  <span className="connect-points__dot connect-points__dot--green" />
+                  Grocer never sees your Swiggy password.
+                </li>
+              </ul>
+            </div>
+
+            <div data-reveal style={d(120)}>
+              <ConnectForm whatsappNumber={whatsappNumber} />
+            </div>
+          </div>
+        </section>
+
+        {hasVideo ? (
+          <section className="section section--surface" id="demo">
+            <div className="wrap demo">
+              <div className="demo__media" data-reveal>
+                <video
+                  className="demo__video"
+                  controls
+                  playsInline
+                  preload="metadata"
+                  aria-label="Grocer demo video"
+                >
+                  <source src="/demo.mp4" type="video/mp4" />
+                </video>
+              </div>
+
+              <div className="demo__copy">
+                <p className="kicker" data-reveal>
+                  Demo
+                </p>
+                <h2 className="section-title" data-reveal style={d(60)}>
+                  From hello to basket, in one chat.
+                </h2>
+                <p className="lead" data-reveal style={d(120)}>
+                  One real chat, recorded on a real account. No mockups.
+                </p>
+
+                <ol className="demo__steps" data-reveal style={d(160)}>
+                  <li>
+                    <div>
+                      <h3>Say what you need</h3>
+                      <p>Type it like you would text a friend.</p>
+                    </div>
+                  </li>
+                  <li>
+                    <div>
+                      <h3>Check your basket</h3>
+                      <p>Every item, pack and fee before you pay.</p>
+                    </div>
+                  </li>
+                  <li>
+                    <div>
+                      <h3>Tap to pay</h3>
+                      <p>Only a button can start checkout.</p>
+                    </div>
+                  </li>
+                </ol>
+              </div>
+            </div>
+          </section>
+        ) : null}
+
+        <section className="section section--surface" id="safety">
           <div className="wrap safety">
             <div className="safety__copy">
               <p className="kicker" data-reveal>
                 Safety
               </p>
-              <h2 className="safety__title" data-reveal style={d(60)}>
+              <h2 className="section-title" data-reveal style={d(60)}>
                 One tap. Three checks.
               </h2>
-              <p className="safety__lead" data-reveal style={d(120)}>
-                No order leaves the chat until you press Pay. Even then, Grocer
-                looks twice before a rupee moves.
+              <p className="lead" data-reveal style={d(120)}>
+                Grocer can fill your basket. It cannot place an order. You tap
+                Pay, then Grocer checks the basket twice before any money moves.
               </p>
 
               <ol className="steps" data-reveal style={d(160)}>
-                {STEPS.map((step, index) => (
+                {STEPS.map((step) => (
                   <li className="step" key={step.title}>
-                    <span className="step__n">
-                      {String(index + 1).padStart(2, "0")}
-                    </span>
                     <div>
                       <h3 className="step__title">{step.title}</h3>
                       <p className="step__body">{step.body}</p>
@@ -131,8 +242,8 @@ export default function Home() {
               </ol>
 
               <p className="cap-note" data-reveal>
-                <strong>₹1,000 safety cap.</strong> Baskets over ₹1,000 wait for
-                you to raise the cap.
+                <strong>₹1,000 safety cap.</strong> Raise it yourself when you
+                mean it.
               </p>
             </div>
 
@@ -195,53 +306,74 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="section" id="built">
+        <section className="section" id="tools">
           <div className="wrap">
             <div className="section-head">
               <div>
                 <p className="kicker" data-reveal>
-                  Built
+                  Under the hood
                 </p>
                 <h2 className="section-title" data-reveal style={d(60)}>
-                  Wired to the real shelf.
+                  Twenty tools, one chat.
                 </h2>
               </div>
               <p className="lead" data-reveal style={d(120)}>
-                Live answers come from Swiggy’s official Instamart tools, not a
-                saved script.
+                Grocer uses Swiggy’s official Instamart tools. Python holds the
+                money rules. The AI only understands what you type.
               </p>
             </div>
 
-            <div className="built-grid" data-reveal style={d(160)}>
-              {BUILT.map((item, index) => (
-                <article className="built" key={item.title}>
-                  <div className="built__top">
-                    <span className="built__idx">
-                      {String(index + 1).padStart(2, "0")}
-                    </span>
-                    {"big" in item ? (
-                      <span className="built__big">
-                        {item.big}{" "}
-                        <span className="built__unit">tools</span>
-                      </span>
-                    ) : null}
-                  </div>
-                  <h3 className="built__title">{item.title}</h3>
-                  <p className="built__body">{item.body}</p>
-                </article>
+            <div className="facts" data-reveal style={d(160)}>
+              {FACTS.map((fact) => (
+                <div className={`fact fact--${fact.tone}`} key={fact.label}>
+                  <span className="fact__value">{fact.value}</span>
+                  <span className="fact__label">{fact.label}</span>
+                  <p className="fact__note">{fact.note}</p>
+                </div>
               ))}
             </div>
 
-            <p className="built-note" data-reveal>
-              <span>257 automated tests pass.</span>
-              <Link className="text-link" href="/proof">
-                Read the run log
-              </Link>
+            <p className="tools__note" data-reveal>
+              Every tool is reachable from chat, or gets a clear “not
+              supported”.
             </p>
           </div>
         </section>
 
-        <section className="section section--surface" id="faq">
+        <section className="section section--surface" id="privacy">
+          <div className="wrap privacy">
+            <div className="privacy__copy">
+              <p className="kicker" data-reveal>
+                Privacy
+              </p>
+              <h2 className="section-title" data-reveal style={d(60)}>
+                Your address is not our inventory.
+              </h2>
+              <p className="lead" data-reveal style={d(120)}>
+                Grocer needs your address to show the right store. It keeps a
+                copy for 24 hours, then deletes it. Send “delete my data” and
+                the rest goes too.
+              </p>
+            </div>
+
+            <ul className="privacy__list" data-reveal style={d(160)}>
+              <li>
+                <strong>Deleted in 24 hours.</strong>
+                <span>Address and basket copies do not stay.</span>
+              </li>
+              <li>
+                <strong>Your Swiggy login is protected.</strong>
+                <span>The token is encrypted, never shown.</span>
+              </li>
+              <li>
+                <strong>The number you type is not saved.</strong>
+                <span>It is only used to open the WhatsApp message.</span>
+              </li>
+            </ul>
+          </div>
+        </section>
+
+        <section className="section" id="faq">
           <div className="wrap faq">
             <div>
               <p className="kicker" data-reveal>
@@ -267,6 +399,28 @@ export default function Home() {
                   <p className="faq-answer">{item.a}</p>
                 </details>
               ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="cta">
+          <div className="wrap">
+            <div className="cta__card" data-reveal>
+              <div>
+                <h2 className="cta__title">
+                  Your next grocery run is a message away.
+                </h2>
+                <p className="cta__body">
+                  Connect your number, send your list, and watch the basket fill
+                  up.
+                </p>
+              </div>
+              <div className="cta__actions">
+                <a className="button button--inverse" href="#connect">
+                  Connect your number
+                </a>
+                <WhatsAppButton href={href} />
+              </div>
             </div>
           </div>
         </section>

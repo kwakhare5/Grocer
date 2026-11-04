@@ -31,27 +31,39 @@ const RUNS = [
   },
   {
     label: "Live scorecard",
-    result: "7/13 live half-run",
-    date: "3 Nov 2026",
-    note: "Swiggy refused cart reads and adds, asking to review the cart; the app now replies honestly instead of failing.",
+    result: "25/26 live turns",
+    date: "4 Nov 2026",
+    note: "Half one 12/13, half two 13/13. The one miss was an empty-cart payment expectation, not a bot error.",
   },
   {
     label: "Automated tests",
-    result: "257",
+    result: "263",
     date: "4 Nov 2026",
-    note: "179 offline and 78 database tests.",
+    note: "182 offline and 81 database tests.",
   },
   {
     label: "Production code",
     result: "Backend live on Render; /health returned 200",
-    date: "3 Nov 2026",
+    date: "4 Nov 2026",
     note: "No real order placed.",
   },
   {
     label: "Landing build",
     result: "npm run build passed",
-    date: "3 Nov 2026",
+    date: "4 Nov 2026",
     note: "Types and static pages are clean.",
+  },
+  {
+    label: "Website connect",
+    result: "6 tests pass",
+    date: "4 Nov 2026",
+    note: "The page mints a 10-minute signed code; only the matching WhatsApp number gets the OAuth link. Checked from form to backend locally, not on a handset.",
+  },
+  {
+    label: "Handset taps",
+    result: "10 button taps received",
+    date: "4 Nov 2026",
+    note: "Clear, keep-only-new, change item, switch address, plan Add all and Pay all reached the bot. Checkout stayed locked; no order was placed.",
   },
 ] as const;
 
@@ -60,9 +72,8 @@ const NOT_PROVEN = [
   "Live tracking after a real order.",
   "Live address add and delete.",
   "The real 24-hour deletion after a full day.",
-  "A live plan Add-all tap.",
-  "A real phone tap on the chat button.",
   "A live Swiggy reconnect from a bot link.",
+  "The website connect code on a real handset.",
   "Choosing between two cart lines with the same name, on a handset.",
 ] as const;
 
@@ -71,7 +82,7 @@ export default function ProofPage() {
 
   return (
     <>
-      <SiteHeader href={href} />
+      <SiteHeader />
 
       <main className="page" id="main">
         <div className="wrap doc">
@@ -79,7 +90,7 @@ export default function ProofPage() {
             <h1 className="page__title">What is proven.</h1>
             <p className="page__lead">The recorded runs behind the site.</p>
             <p className="page__updated">
-              Last updated 3 November 2026. No real order has been placed.
+              Last updated 4 November 2026. No real order has been placed.
             </p>
           </div>
 

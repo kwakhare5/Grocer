@@ -352,6 +352,61 @@ async def handle_webhook(
                 )
                 continue
 
+            # 7c. Website connect code. The typed number must send its own code
+            # before any login link leaves the bot.
+            if msg.text and msg.text.strip().lower().startswith("connect "):
+                from backend.channels.link_tokens import verify_link_token
+
+                code = msg.text.strip().split(None, 1)[1].strip()
+                typed_wa_id = verify_link_token(code)
+                if typed_wa_id is None:
+                    await conn.execute(
+                        "UPDATE grocer.inbound_messages SET status = 'connect_invalid' "
+                        "WHERE id = $1;",
+                        inbound_id,
+                    )
+                    await wa_client.send_text_message(
+                        to_wa_id=msg.sender_wa_id,
+                        text=(
+                            "That connect code is invalid or expired. "
+                            "Enter your number on the website again for a fresh one."
+                        ),
+                    )
+                    results.append({"status": "connect_invalid"})
+                    continue
+                if typed_wa_id != msg.sender_wa_id:
+                    await conn.execute(
+                        "UPDATE grocer.inbound_messages SET status = 'connect_mismatch' "
+                        "WHERE id = $1;",
+                        inbound_id,
+                    )
+                    await wa_client.send_text_message(
+                        to_wa_id=msg.sender_wa_id,
+                        text=(
+                            "That code belongs to a different number. "
+                            "Message me from the number you entered on the website."
+                        ),
+                    )
+                    results.append({"status": "connect_mismatch"})
+                    continue
+
+                await conn.execute(
+                    "UPDATE grocer.inbound_messages SET status = 'connect_confirmed' "
+                    "WHERE id = $1;",
+                    inbound_id,
+                )
+                await wa_client.send_cta_url_button(
+                    to_wa_id=msg.sender_wa_id,
+                    body_text=(
+                        "*Number confirmed.* Tap below to sign in to Swiggy. "
+                        "I'll be ready in your chat when you're back."
+                    ),
+                    button_text="Connect Swiggy",
+                    url=_login_url(msg.sender_wa_id),
+                )
+                results.append({"status": "connect_confirmed"})
+                continue
+
             # 8. Deterministic admin/privacy commands (DPDP) take priority over commerce
             if msg.text and msg.text.strip().lower() == "delete my data":
                 from backend.agent.dpdp import handle_delete_my_data

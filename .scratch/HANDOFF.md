@@ -1,57 +1,24 @@
 # HANDOFF — Grocer — 2026-11-04
 
-Goal: finish the lean cleanup, run the full live scorecard, and fix what it finds. No order.
-Changes: Gemini adapter and `google-genai` deleted; cart cleared through the stored token; both scorecard halves run for 25/26. Pass 2 fixed the remove-miss truncation (now says "and N more") and corrected two live cases; site counts moved to 257. Scorecard redacts saved address lines.
-Passing: `verify.ps1 -Db` exit 0 — 179 offline + 78 DB, ruff, Next 16.4.3 build; live scorecard 25/26 (12/13 + 13/13).
-Next action: handset taps, live OAuth reconnect, address add/delete, the 24h scrub, then the demo video and Karan's first real order.
-Unproven: handset taps, live OAuth reconnect, address add/delete, location-pin replay, reactions/blue ticks, 24h scrub, demo video. Checkout stays locked.
+**Goal:** launch-ready v1, white Gumloop landing, website connect flow. No order.
+**Changes:** landing rebuilt on white with Gumloop tokens and multi-colour accents (no italics, smaller type, new navbar); number-first website connect added (`/api/auth/whatsapp/start`, `connect <code>` webhook, Connect form); docs updated to the new ownership rule.
+**Passing:** `verify.ps1 -Db` exit 0 — 182 offline + 81 DB, ruff, Next build with 8 routes (`.scratch/verify_final_20261104.log`); browser form test through the local backend returned a real signed code; five widths show zero overflow and no console errors.
+**Next action:** Karan approves commit/push; then handset test of the connect code, live OAuth reconnect, address add/delete, the 24h scrub, the demo video, and his first real order.
 
 ## Current truth
 
-- Branch: `main` only, tip `effcb83`. Pass 2 (basket fix, tests, scorecard cases, site counts) is uncommitted. Not pushed.
-- Render: `/health` 200, `{"status":"healthy","database":"connected"}`. Vercel: 255-test build live.
-- Tests: 179 offline + 78 DB = 257; 20 live-only deselected; 277 collected.
-- Live scorecard: 25/26 (96.2%). The miss was case 3's empty-cart payment expectation; case 21 proved UPI with items. Case 17 was replaced because dragon fruit is now in stock.
-- Cart: cleared before the run, then the live adds left 14 items (~₹3.4k), including the pasta plan items from a handset session. No order placed.
-- Checkout: `LIVE_CHECKOUT_ENABLED=false`. No real order has ever been placed.
+- Branch `main`, tip `effcb83` pushed. Pass 2, the connect flow and the landing rebuild are uncommitted. Vercel still serves the old page.
+- Checkout locked (`LIVE_CHECKOUT_ENABLED=false`). No real order has ever been placed.
+- Cart still holds the live test adds from the 25/26 scorecard. Clear it through the stored token when testing ends.
+- `gumloopDESIGN.md` stays at the repo root as the design source; it is untracked.
 
-## Decisions needed from Karan
+## Unproven
 
-1. Approve committing and pushing pass 2.
-2. Handset taps: Add all, Let me pick → typed pick, Change item, same-name picker, quantity picker.
-3. Handset taps: Add-all, Change item, typed pick, set/remove picker, OAuth reconnect, address add/delete, 24h scrub.
-4. Decide when the first real order happens; checkout stays locked until then.
-
-## Do next, in order
-
-1. Handset taps, live OAuth reconnect, address add/delete and the 24h scrub.
-2. Clear the test cart through the stored token when Karan is done testing.
-3. Demo video, then Phase 9 handoff and Karan's first real order.
+Handset connect code, live OAuth reconnect, address add/delete, the 24h scrub, location-pin replay, reactions/blue ticks, typed plan pick, same-name picker on a handset, demo video.
 
 ## Proof files
 
-- `.scratch/verify_gemini_removal_20261104.log` — gate after one provider (177 offline + 78 DB, Next build).
-- `.scratch/scorecard_live_20261104_1_13.json` — raw half-one rows, address lines redacted.
-- `.scratch/scorecard_20261104_1_13_transcript.log` — readable half-one transcript, address lines redacted.
-- `.scratch/scorecard_live_20261104_14_26.json` — raw half-two rows (13/13).
-- `.scratch/verify_pass2_20261104.log` — gate after the basket fix (179 offline + 78 DB).
-- `.scratch/live_clear_cart.py` — one-off clear through the stored token; result 0 items before and after.
-- `.scratch/verify_lean_20261104.log`, `.scratch/verify_retest_20261104.log` — prior gates.
-- `.scratch/live_retest_tracking.log` — real tracking turn, honest empty reply.
-- `.scratch/trace_cart_lock_20261103.log`, `.scratch/trace_turn_20261103.log` — real signed turns.
-- `.scratch/eval_after_verbs.json` — last 40/40 router eval.
-- `.scratch/parked/oauth-state-cookie.patch` — unproven OAuth hardening.
-
-## Operational notes
-
-- **Message cap:** 20 per user per rolling hour, counted from `grocer.inbound_messages`; the 21st is warned, later ones dropped silently.
-- **Groq:** free tier; do not run a router eval in the same window as the scorecard.
-- **Render deploys:** `GET /v1/services/srv-dagm3fijnfac73e5iod0/deploys?limit=3`; wait for `live` on the exact tip.
-- **Secrets:** environment only; never print keys, phone numbers, addresses, or tokens. Proof logs must not contain a saved address.
-
-## Do not
-
-- Do not place an order; checkout stays locked.
-- Do not weaken or delete a test to improve the score.
-- Do not bypass the 20-per-hour cap by editing production rows.
-- Do not claim a perfect 26/26; the recorded live score is 25/26.
+- `.scratch/verify_final_20261104.log` — final gate after the white rebuild and connect flow.
+- `.scratch/landing_1440.png`, `landing_1024.png`, `landing_768.png`, `landing_390.png`, `landing_360.png` — final screenshots.
+- `.scratch/connect_ready_390.png` — form success state with the real `wa.me` link.
+- `.scratch/uvicorn_8011.log` — local backend 200 for the form request.

@@ -1,12 +1,7 @@
 import Link from "next/link";
 import { NAV } from "../content";
-import { WhatsAppButton } from "./whatsapp-button";
 
-type SiteHeaderProps = {
-  href: string | null;
-};
-
-export function SiteHeader({ href }: SiteHeaderProps) {
+export function SiteHeader() {
   return (
     <header className="site-header">
       <div className="wrap site-header__inner">
@@ -29,7 +24,9 @@ export function SiteHeader({ href }: SiteHeaderProps) {
           ))}
         </nav>
 
-        <WhatsAppButton href={href} />
+        <Link className="button button--primary site-header__cta" href="/#connect">
+          Connect
+        </Link>
       </div>
     </header>
   );

@@ -187,63 +187,69 @@ It is **not** a dashboard. It does not show a customer's basket, addresses, orde
 
 Target:
 
-1. The landing page has one primary CTA: **Chat on WhatsApp**.
+1. The landing page has two primary actions: **Connect your number** (website handshake) and **Open WhatsApp** (direct chat).
 2. The link is `https://wa.me/<NEXT_PUBLIC_WHATSAPP_NUMBER>`.
-3. Swiggy OAuth is a hidden bridge. The bot sends the reconnect link only when a customer needs to link or refresh Swiggy. The normal landing page does not ask for a phone number.
+3. Website connect is number-first, ownership-proven. The visitor types a +91 mobile number; `POST /api/auth/whatsapp/start` validates it, rate-limits per IP and returns a signed 10-minute code. The page opens `wa.me` with `connect <code>`. The bot sends the Swiggy login link only when the sender's `wa_id` matches the code. No typed number is stored.
+4. Swiggy OAuth remains a bot-sent bridge. The `?t=` link still works for reconnect.
 
-Done 2026-10-27: the phone form is gone. The page accepts a signed `?t=` link from the bot, and it never asks for a phone number. Rebuilt 2026-10-28: the WhatsApp button is the hero CTA; the OAuth card appears only for `?t=` or a callback; a missing `NEXT_PUBLIC_WHATSAPP_NUMBER` disables the button with a visible note instead of linking to a placeholder. Final rebuild 2026-11-01: printed sample receipt and a 9:16 demo slot in the hero, no PC window and no fake order.
+Done 2026-11-04: the page now has a Connect section with the number-first form, backed by `/api/auth/whatsapp/start` and a `connect <code>` webhook branch. The signed `?t=` card still appears only for a bot link or a callback. A missing `NEXT_PUBLIC_WHATSAPP_NUMBER` disables the form with a visible note instead of linking to a placeholder.
 
 ## B3. Page sections
 
-1. **Hero.** "Text the list. We’ll handle the rest." One sentence, the WhatsApp CTA, an early-access line, and a printed sample receipt beside a 9:16 demo slot. The receipt shows six sample products, a sample coupon and ₹312 to pay, stamped **Sample**. The demo slot appears only when `public/demo.mp4` exists in production; development shows a labelled placeholder. A missing WhatsApp env var disables the CTA with a visible note.
-2. **What it does.** Six plain rows: Build the basket, Ask about prices, Plan dinner, Keep your addresses, Follow the rider, Pay once. Each row carries a small status: Live, In testing or Opening next. No internal tool names.
-3. **Before you pay.** One dark band. Left: a three-step vertical timeline (you tap, we re-read the basket, it runs once) and the ₹1,000 cap note. Right: a sample checkout card with the bill, sample coupon, cap meter, a disabled Pay button and "Sample checkout · no payment taken".
-4. **Built.** Six backend facts, led by "20 tools", plus a small "255 automated tests pass" line and a link to `/proof`. No test statistics as a headline section.
-5. **Questions.** Six short FAQs: official Swiggy, connecting an account, paying, Grocer’s fee, out of stock, data.
-6. **Footer.** Compact: brand, "Instamart, in your chats.", WhatsApp button, Privacy, Run log, Questions, trademark line and copyright.
+1. **Hero.** "Your Swiggy Instamart, on WhatsApp." Eyebrow, one line of support, **Connect your number** as the primary button, a "See how it works" anchor, three micro-facts, and a phone chat mockup stamped **Sample**. A "Built on" strip lists Swiggy Instamart tools, WhatsApp Cloud API, Groq and PostgreSQL, with the independent-app note.
+2. **What it does.** Six plain cards with one coloured rule each: Build your basket, See live prices, Plan a meal, Switch addresses, Follow the order, Get help. The first card is tinted with the primary blue.
+3. **How it works.** Three steps: Connect once, Send your list, Tap Pay. Each has a coloured top rule, no index numbers.
+4. **Connect.** Left: the ownership explanation and three points (number not stored, 10-minute code, no password shared). Right: the number-first form. Success state shows an **Open WhatsApp** button carrying `connect <code>`.
+5. **Demo.** Video section with three steps. Renders only when `public/demo.mp4` exists.
+6. **Safety.** Surface band. Left: three checks (you tap, Grocer re-reads the basket, it runs once) and the ₹1,000 cap note. Right: a sample checkout with the bill, sample coupon, cap meter, a disabled Pay button and "Sample checkout · no payment taken".
+7. **Under the hood.** Four facts: 20 Swiggy tools, 4 safety levels, 1 AI model, ₹1,000 cap, each with a coloured number. One line says every tool is reachable from chat or gets a clear "not supported".
+8. **Privacy.** "Your address is not our inventory." Three points: deleted in 24 hours, protected Swiggy login, the typed number is not saved.
+9. **Questions.** Six short FAQs: official Swiggy, connecting an account, paying, Grocer's fee, out of stock, data.
+10. **Final CTA and footer.** A blue card with "Your next grocery run is a message away.", **Connect your number** and **Open WhatsApp**. Footer: brand, "Instamart, in your chats.", WhatsApp button, Privacy, Questions, trademark line and copyright.
 
-Privacy lives at `/privacy`; the run log lives at `/proof`. There is no founder section, no separate privacy section, no proof-stat band and no phone form.
+Privacy lives at `/privacy`. `/proof` is kept as an internal evidence page and is not linked from the landing.
 
 ## B4. Claims policy
 
-- Every claim is either **live today**, labeled **in testing**, or labeled **opening next**.
+- No status badges on the landing. A capability is either described without a live claim, or the FAQ states its real status. Payment stays "not yet" until checkout opens.
 - Sample baskets, coupons and checkout cards are stamped **Sample** and say no order or payment happened.
-- No invented numbers, no "100%", no "best coupon" unless it is true. Current code tries up to two applicable coupons and only keeps one that lowers the total.
-- No "Systems Operational" badge unless it is wired to a real health check and can show degraded.
+- No invented numbers, no "100%", no "best coupon" unless it is true.
+- No "trusted by" logos, customer quotes or case studies. There are no customers to quote.
+- No test counts, run dates or build statistics on the landing. The internal `/proof` page carries the evidence.
 - No real customer data, order IDs, addresses or phone numbers.
-- No fake screenshots. The hero receipt is sample data, not a past order.
-- Payment is never described as available. "Payments open soon. The chat is live today." is the current status line.
+- No fake screenshots. The hero phone is sample data, not a past order.
+- Payment is never described as available. The FAQ says the chat, live prices and basket work today and payments open next.
 
 ## B5. Number policy
 
-- The page shows no phone number.
+- The page renders no real phone number. The connect form's placeholder is the documented dummy.
 - Link: `NEXT_PUBLIC_WHATSAPP_NUMBER`, read from the environment.
 - Never commit or publish Karan's real number.
-- If the env var is missing, the CTA becomes a disabled button with a visible note; it never points to a stranger.
+- If the env var is missing, the form and CTA show a visible note; they never point to a stranger.
 
 ## B6. Visual direction
 
-- Light paper (`#f4f2ed`) with a darker paper section, ink green, and Swiggy orange (`#FC8019`) as the only accent. One dark safety band and a dark footer.
-- Clean, warm, mobile-first. Generous spacing. Large Fraunces headings, Golos Text body, one idea per section.
-- **Typography:** Fraunces (`--font-fraunces`) and Golos Text (`--font-golos`) via `next/font/google`.
-- Interface surfaces: 12px buttons, 16px cards, 24px panels. The printed receipt is a paper prop with an 8px edge and a perforated bottom; the demo frame is 30px. No glass, no gradient glows, no nested cards.
-- Show the product as a printed receipt and a phone-shaped demo slot, not a fake dashboard. No stock photography. No video-editor aesthetic.
+- Gumloop tokens on a white canvas: `#FFFFFF` canvas, `#F7F7F7` surface, `#EEEEEE` raised, `#111111` ink, `#646464` muted, `#E2E2E2` border. Primary blue `#1E8CFF`; decorative purple `#8922EE`, mid blue `#147BD1`, green `#95BF47`, yellow `#F5C542`, brown `#522A10`.
+- Multi-colour accents are used in rules, numbers and dots, never as a second call-to-action colour. Primary buttons are always blue.
+- **Typography:** Fraunces (`--font-fraunces`) and Golos Text (`--font-golos`) via `next/font/google`. No italics anywhere. Display 40–48px, section headings 28–36px, body 16px, small 14px.
+- Flat white surfaces with 1px borders; radii 8/10/12; no gradients, glass, glow or nested boxes.
+- The hero shows a phone chat with sample bubbles and a basket card, not a dashboard. No stock photography. The logo mark is blue with a purple handle.
 
 ## B7. OAuth bridge
 
-- Routes: `/api/auth/swiggy/login` and `/api/auth/swiggy/callback`.
+- Routes: `/api/auth/swiggy/login` and `/api/auth/swiggy/callback`; the website start route is `/api/auth/whatsapp/start`.
 - Exact redirect: `https://grocerr.vercel.app/`.
 - The bridge stores the phone in PKCE state and links the Swiggy token to that `wa_id`.
-- Current: login requires a signed bot link (HMAC, 1-hour TTL). PKCE state lives in `grocer.oauth_states` with a 10-minute one-time TTL. The login route sets a 10-minute `grocer_oauth_state` cookie; the callback refuses a state that does not match this browser, so a copied callback link cannot link the wrong session.
+- Current: login requires a signed link token (HMAC, 1-hour TTL). The website start route mints a signed token with a 10-minute TTL and a per-IP rate limit; the webhook `connect <code>` branch compares the sender's `wa_id` before sending the OAuth link. PKCE state lives in `grocer.oauth_states` with a 10-minute one-time TTL. The state-cookie and origin-check hardening remain parked in `.scratch/parked/oauth-state-cookie.patch`; the current routes do not set a browser state cookie.
 - The landing page must not render customer data after the callback. It only shows a success or failure state.
 
 ## B8. Landing page done condition
 
 - A stranger understands the product in under 30 seconds.
-- One primary CTA to WhatsApp.
+- One primary button style (blue): connect on the page or open WhatsApp.
 - Every claim is live, in testing, or opening next.
 - No fake number, fake uptime, or invented statistic. Sample data is labeled.
 - Mobile layout works at 360px width.
 - The page does not pretend to be the product UI.
 
-**State 2026-11-04:** the page says 255 tests (177 offline + 78 database) after the retest deploy. `verify.ps1 -Db` passes (177 offline + 78 database tests, ruff, Next 16.4.3 build). Checked at 1440/1024/768/390/360 with zero horizontal overflow; the skip link is removed; the first Tab lands on the brand; both subpages render. Production output contains no demo placeholder and no phone number; the demo slot stays hidden until `public/demo.mp4` exists. Security headers are live. The OAuth state-cookie hardening is parked in `.scratch/parked/oauth-state-cookie.patch`; the proven routes are live. `npm audit --omit=dev` reports 0 vulnerabilities. A phone tap on the CTA is still unproven.
+**State 2026-11-04 (white rebuild):** rebuilt on a white canvas with Gumloop tokens and blue/purple/green/yellow/brown accents. Order: phone-chat hero, six feature cards, three steps, Connect form, safety band, four coloured facts, privacy, FAQ, blue CTA. No italics; display type tops out at 48px. `npm run build` passes 8 routes; 1440/1024/768/390/360 have zero horizontal overflow; `/privacy` and `/proof` render; no console errors. The connect form ran in a browser through the Next proxy to the local FastAPI backend and received a real signed code; the WhatsApp `wa.me` URL carried `connect <token>`. Handset run still pending. The demo section stays hidden until `public/demo.mp4` exists. The OAuth state-cookie hardening is parked in `.scratch/parked/oauth-state-cookie.patch`.

@@ -27,12 +27,12 @@ export function SiteFooter({ href }: SiteFooterProps) {
         <div className="footer-bottom">
           <nav className="footer-links" aria-label="Footer">
             <Link href="/privacy">Privacy</Link>
-            <Link href="/proof">Run log</Link>
             <Link href="/#faq">Questions</Link>
           </nav>
           <p className="footer-legal">
-            Independent project. Not affiliated with Swiggy. Swiggy and
-            Instamart are trademarks of Swiggy.
+            Independent app, built on Swiggy’s official Instamart tools. Not
+            affiliated with Swiggy. Swiggy and Instamart are trademarks of
+            Swiggy.
           </p>
           <p className="footer-copy">© {new Date().getFullYear()} Grocer</p>
         </div>

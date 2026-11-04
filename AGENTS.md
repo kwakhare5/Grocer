@@ -16,7 +16,7 @@
 These are facts, not preferences. Do not re-ask or silently change them.
 
 1. **One Supabase project until launch.** The app uses the `grocer` schema in the `postgres` database. Tests use a separate `grocer_test` database in the same project; its schema is also `grocer`. Tests never write the real database.
-2. **Groq is the development and test LLM.** Use `openai/gpt-oss-120b` through the provider adapter. Gemini is optional and its free quota is not a dependency. A provider that cannot serve normal traffic cannot be the primary.
+2. **Groq is the only LLM.** Use `openai/gpt-oss-120b` through the adapter in `backend/agent/llm.py`. No second provider, no provider SDK outside the adapter.
 3. **Swiggy OAuth redirect is allowlisted.** `https://grocerr.vercel.app/` is the exact redirect URI. The backend calls `https://mcp.swiggy.com/im` with the customer's token.
 4. **Real-order capable, live order locked.** The code must be able to place a real order. `LIVE_CHECKOUT_ENABLED=false` by default. No live checkout or order during the build. Karan tests on WhatsApp and places the first real order himself after handoff.
 5. **₹1,000 default cap.** Keep the launch cap unless Karan changes it.

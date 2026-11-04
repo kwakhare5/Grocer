@@ -117,7 +117,7 @@ What Grocer does when the capability is unknown or confidence is low: read-only 
 _Avoid_: Fallback, default action, catch-all
 
 **LLM Adapter**:
-The single module allowed to call a model: `backend/agent/llm.py`. It returns one JSON object, validates that the answer is an object, retries once on a transient failure, and reports the provider. Groq `openai/gpt-oss-120b` is primary; Gemini is optional. Routing and candidate evaluation both use it. No provider SDK is imported anywhere else.
+The single module allowed to call a model: `backend/agent/llm.py`. It returns one JSON object, validates that the answer is an object, retries once on a transient failure, and reports the provider. Groq `openai/gpt-oss-120b` is the only provider. Routing and candidate evaluation both use it. No provider SDK is imported anywhere else.
 _Avoid_: Intent router, LLM pipeline, chat classifier, conversational orchestrator
 
 **Extracted Item**:

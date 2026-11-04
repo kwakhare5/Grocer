@@ -148,7 +148,7 @@ These are v1 acceptance bars, not current results. Current results live in `STAT
 These are fixed for this build. They override any conflicting assumption elsewhere.
 
 1. **One Supabase project until launch.** The app uses the `grocer` schema in the `postgres` database. Tests use a separate `grocer_test` database in the same project and never write the real database.
-2. **Groq is the development and test LLM.** Use `openai/gpt-oss-120b`. Gemini is optional, and its free quota is not a dependency.
+2. **Groq is the only LLM.** Use `openai/gpt-oss-120b` through one adapter.
 3. **Swiggy OAuth redirect is allowlisted.** `https://grocerr.vercel.app/` is the exact redirect URI. The backend calls `https://mcp.swiggy.com/im` with the customer token.
 4. **Real-order capable, live order locked.** `LIVE_CHECKOUT_ENABLED=false` by default. No live order during the build. Karan tests on WhatsApp and places the first real order himself after handoff.
 5. **₹1,000 default cap.** Keep it unless Karan changes it.

@@ -1177,3 +1177,11 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: cleared the cart through the stored token (`clear_cart` verified, 0 items before and after), then ran cases 1–13 against the deployed app. Added a redaction rule to `scripts/scorecard_live.py` that replaces indented address lines before printing or storing, and scrubbed the already-written log and JSON with the same rule.
 - **Proof**: 12/13 live (reads 7/8, adds 5/5). Real adds: milk, 6 eggs + brown bread, one more milk, the vague "milk" follow-up, and a 3-item batch all returned 200 with live receipts. Raw: `.scratch/scorecard_live_20261104_1_13.json`; transcript: `.scratch/scorecard_20261104_1_13_transcript.log`.
 - **Still broken**: case 3 (payment options) returned "No payment methods are available" because the live account answered with an empty list on an empty cart; the reply was truthful but the case expects `upi`. The second half waits for the bot's 20-per-hour window (earliest 12:25 IST). No saved address remains in any proof file.
+
+### [GROCER — Commit Landed] 2026-11-04
+
+#### Work Card: Cleanup and Redaction Committed
+- **Problem**: the one-provider cleanup and the scorecard redaction were in the working tree; the prior card called them uncommitted.
+- **Change**: committed 15 files as `baba30c` ("chore: drop Gemini and redact addresses in scorecard proofs") and synced HANDOFF/STATUS to the hash. Nothing pushed.
+- **Proof**: `git log --oneline -3` shows `baba30c` on top; `git status --short` is clear.
+- **Still broken**: not pushed; live scorecard second half, handset taps, live OAuth, address add/delete and the 24h scrub remain open. Checkout stays locked.

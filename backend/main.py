@@ -13,6 +13,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from backend.channels.connect_flow import router as connect_flow_router
 from backend.channels.swiggy_auth import router as swiggy_auth_router
 from backend.channels.whatsapp import router as whatsapp_router
 from backend.config import settings
@@ -228,6 +229,7 @@ app.add_middleware(
 # Route Mounts
 app.include_router(whatsapp_router)
 app.include_router(swiggy_auth_router)
+app.include_router(connect_flow_router)
 
 
 def health_response(db_ok: bool) -> JSONResponse:

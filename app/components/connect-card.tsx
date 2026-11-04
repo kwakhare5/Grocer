@@ -113,7 +113,7 @@ export function ConnectCard({ whatsappHref }: ConnectCardProps) {
           {oauthStatus === "idle" ? (
             <button
               type="button"
-              className="button"
+              className="button button--primary"
               onClick={handleConnect}
               disabled={isConnecting}
             >

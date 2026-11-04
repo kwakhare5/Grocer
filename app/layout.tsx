@@ -17,7 +17,7 @@ const golosText = Golos_Text({
 
 const title = "Grocer: Swiggy Instamart on WhatsApp";
 const description =
-  "Text a list to Grocer on WhatsApp. It builds a live Swiggy Instamart basket with real prices and stock. Payment opens soon on Swiggy’s page.";
+  "Type what you need on WhatsApp. Grocer builds a live Swiggy Instamart basket with real prices and stock. No new app. Payments open next.";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://grocerr.vercel.app"),
@@ -45,7 +45,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#f4f2ed",
+  themeColor: "#ffffff",
   colorScheme: "light",
 };
 

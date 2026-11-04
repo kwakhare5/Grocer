@@ -152,8 +152,8 @@ These are fixed for this build. They override any conflicting assumption elsewhe
 3. **Swiggy OAuth redirect is allowlisted.** `https://grocerr.vercel.app/` is the exact redirect URI. The backend calls `https://mcp.swiggy.com/im` with the customer token.
 4. **Real-order capable, live order locked.** `LIVE_CHECKOUT_ENABLED=false` by default. No live order during the build. Karan tests on WhatsApp and places the first real order himself after handoff.
 5. **₹1,000 default cap.** Keep it unless Karan changes it.
-6. **Landing page number.** The website displays the placeholder `+91 98765 43210`. The real WhatsApp link comes only from `NEXT_PUBLIC_WHATSAPP_NUMBER`. Karan's real number is never committed or published.
+6. **Landing page number.** The page never renders a real phone number. The WhatsApp link comes only from `NEXT_PUBLIC_WHATSAPP_NUMBER`; the connect form uses the documented dummy placeholder. Karan's real number is never committed or published.
 7. **Full tool coverage is the product bar.** Every one of the 20 Instamart MCP tools is reachable by chat or gets an honest "not supported" reply. The §3 journeys are examples, not scope.
 8. **Address writes are testable.** One throwaway address on Karan's account may be created and deleted during testing. No other customer data is touched.
 9. **No paid hosting.** Render stays on the free plan. Pollers reconcile from the database when the service wakes; no always-on instance.
-10. **No phone-entry form on the landing page.** OAuth is a bot-sent bridge only. The page never asks a visitor for a phone number.
+10. **Website connect is number-first, ownership-proven.** The page may ask for a WhatsApp number only to mint a signed 10-minute code. The bot sends the Swiggy login link only after the same number messages `connect <code>`. The site stores no number.

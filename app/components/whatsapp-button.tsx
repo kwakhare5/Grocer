@@ -10,14 +10,14 @@ export function WhatsAppButton({ href }: WhatsAppButtonProps) {
         aria-disabled="true"
         title="The WhatsApp link is not configured on this deployment."
       >
-        Chat on WhatsApp
+        Open WhatsApp
       </span>
     );
   }
 
   return (
     <a className="button" href={href} target="_blank" rel="noopener noreferrer">
-      Chat on WhatsApp
+      Open WhatsApp
     </a>
   );
 }

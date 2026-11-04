@@ -22,7 +22,7 @@ export default function PrivacyPage() {
 
   return (
     <>
-      <SiteHeader href={href} />
+      <SiteHeader />
 
       <main className="page" id="main">
         <div className="wrap doc">

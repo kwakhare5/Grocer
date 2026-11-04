@@ -237,6 +237,7 @@ sequenceDiagram
 - **Token Renewal & JIT Re-Auth Latch (ADR 0010):**
   - Target: when the access token expires, refresh silently with the stored refresh token, retry once, then continue. Only if refresh fails, park the active basket or checkout, send a 1-tap `[Reconnect Swiggy]` button, and replay after the OAuth callback.
   - Current: the webhook parks as `awaiting_link`; the OAuth callback stores the token and schedules a replay that re-runs the stored message through the normal pipeline under a fresh `wamid.replay.*` id. A failed replay restores the row instead of losing the list.
+  - Website connect: `POST /api/auth/whatsapp/start` accepts a +91 mobile number, rate-limits per IP (5 per 10 minutes) and returns a signed 10-minute link token. The website opens `wa.me` with `connect <token>`. The webhook verifies the token, requires the sender's `wa_id` to match, then sends the normal OAuth link. The typed number is not stored.
 
 ---
 
@@ -442,6 +443,7 @@ backend/
 │   ├── turn_basket.py          # Change, clear and reorder
 │   ├── turn_add.py             # Search and evaluation for add; no cart writes
 │   ├── link_tokens.py          # Signed links for the OAuth bridge
+│   ├── connect_flow.py         # Website number-first code, rate limit, no number stored
 │   ├── reactions.py            # One reaction per turn, chosen from the outcome
 │   ├── whatsapp_crypto.py      # HMAC-SHA256 verification
 │   ├── whatsapp_parser.py      # Inbound payload to text, location or button

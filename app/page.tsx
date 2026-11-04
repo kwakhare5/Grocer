@@ -13,6 +13,9 @@ import { getWhatsAppHref, getWhatsAppNumber } from "./lib/whatsapp";
 import { ConnectCard } from "./components/connect-card";
 import { ConnectForm } from "./components/connect-form";
 import { DemoVideo } from "./components/demo-video";
+import { FeatureMark, LockMark } from "./components/feature-mark";
+import { GroceryCluster } from "./components/grocery-cluster";
+import { HowRoute } from "./components/how-route";
 import { Mascot } from "./components/logo";
 import { ProductDemo } from "./components/product-demo";
 import { SiteFooter } from "./components/site-footer";
@@ -80,6 +83,7 @@ export default function Home() {
 
             <div className="hero__media" data-reveal style={d(120)}>
               <ProductDemo />
+              <GroceryCluster />
             </div>
           </div>
         </section>
@@ -147,11 +151,16 @@ export default function Home() {
               </p>
             </div>
 
-            <ol className="features" data-reveal style={d(120)}>
+            <ol className="features">
               {FEATURES.map((item, index) => (
-                <li className={`feature feature--${item.tone}`} key={item.title}>
-                  <span className="feature__n" aria-hidden="true">
-                    {String(index + 1).padStart(2, "0")}
+                <li
+                  className={`feature feature--${item.tone}`}
+                  key={item.title}
+                  data-reveal
+                  style={d(index * 45)}
+                >
+                  <span className="feature__mark" aria-hidden="true">
+                    <FeatureMark name={item.mark} className="feature__svg" />
                   </span>
                   <div>
                     <h3 className="feature__title">{item.title}</h3>
@@ -183,9 +192,16 @@ export default function Home() {
               </p>
             </div>
 
-            <ol className="steps" data-reveal style={d(120)}>
+            <HowRoute />
+
+            <ol className="steps">
               {STEPS.map((step, index) => (
-                <li className="step" key={step.title}>
+                <li
+                  className="step"
+                  key={step.title}
+                  data-reveal
+                  style={d(index * 70)}
+                >
                   <span className="step__n">{index + 1}</span>
                   <h3 className="step__title">{step.title}</h3>
                   <p className="step__body">{step.body}</p>
@@ -201,6 +217,7 @@ export default function Home() {
           <div className="wrap safety">
             <div>
               <p className="dark-kicker" data-reveal>
+                <LockMark className="dark-kicker__lock" />
                 Safety
               </p>
               <h2 className="dark-title" data-reveal style={d(40)}>

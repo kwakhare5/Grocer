@@ -69,6 +69,13 @@ def _line_label(item: Any) -> str:
     return f"{label}, qty {item.quantity}"
 
 
+def _labelled_lines(items: list[Any], limit: int = 3) -> str:
+    """Name up to `limit` lines and account for the rest instead of dropping them."""
+    labels = "; ".join(_line_label(item) for item in items[:limit])
+    extra = len(items) - limit
+    return f"{labels}, and {extra} more" if extra > 0 else labels
+
+
 async def _cart(client: SwiggyClient, address_id: str | None) -> CartData:
     return await asyncio.to_thread(client.get_cart, address_id)
 
@@ -153,12 +160,12 @@ async def handle_change_request(
     query = decision.items[0].get("query") if decision.items else ""
     matches = _find_items(cart, query)
     if not matches:
-        names = "; ".join(_line_label(item) for item in cart.items[:3])
+        names = _labelled_lines(cart.items)
         return BasketReply(
             f"I couldn't match that to an item in your basket. You have: {names}."
         )
     if len(matches) > 1:
-        names = "; ".join(_line_label(item) for item in matches[:3])
+        names = _labelled_lines(matches)
         return BasketReply(f"Which one do you mean: {names}?")
 
     target = matches[0]

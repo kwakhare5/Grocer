@@ -233,7 +233,7 @@ export default function Home() {
             </div>
 
             <p className="built-note" data-reveal>
-              <span>255 automated tests pass.</span>
+              <span>257 automated tests pass.</span>
               <Link className="text-link" href="/proof">
                 Read the run log
               </Link>

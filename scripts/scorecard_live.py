@@ -53,7 +53,13 @@ class LiveCase:
 CASES: tuple[LiveCase, ...] = (
     LiveCase("basket read", "what's in my basket?", ("basket",), category="read"),
     LiveCase("addresses", "show my addresses", ("address",), category="read"),
-    LiveCase("payment options", "show payment options", ("upi",), category="read"),
+    LiveCase(
+        "payment options",
+        "show payment options",
+        any_of=("upi", "no payment methods"),
+        category="read",
+        note="an empty cart has no methods; a truthful empty answer is a pass",
+    ),
     LiveCase("coupons", "what coupons do i have?", ("coupon",), category="read"),
     LiveCase("store open", "is the store open right now?", category="read"),
     LiveCase("order history", "show my orders", category="read", note="honest empty is a pass"),
@@ -73,7 +79,14 @@ CASES: tuple[LiveCase, ...] = (
     LiveCase("recipe plan", "make pasta for 3 people", ("pasta",), category="recipe"),
     LiveCase("coupon apply", "apply the best coupon", ("coupon",), category="coupon"),
     LiveCase("cap", "add 5 kg almonds", ("cap",), category="truth"),
-    LiveCase("no match", "add dragon fruit", ("dragon",), category="truth"),
+    LiveCase(
+        "no match",
+        "add a unicorn steak",
+        ("unicorn",),
+        must_not=("added to your basket",),
+        category="truth",
+        note="Swiggy does not sell it; the bot must say so and write nothing",
+    ),
     LiveCase("hinglish", "bhai 1 litre doodh aur 6 ande bhejo", ("milk",), category="add"),
     LiveCase(
         "contradiction",

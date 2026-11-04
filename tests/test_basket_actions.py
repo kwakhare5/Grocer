@@ -123,6 +123,47 @@ async def test_unknown_item_does_not_write(client):
     assert len(client.get_cart().items) == 1
 
 
+class ListedCart:
+    def __init__(self, items: list[Any]) -> None:
+        self._items = items
+
+    def get_cart(self, address_id: str | None = None) -> Any:
+        return SimpleNamespace(items=self._items)
+
+
+def _named_line(index: int) -> Any:
+    return SimpleNamespace(
+        itemName=f"Item {index}",
+        itemVariant=None,
+        quantity=1,
+        spinId=f"spin_{index}",
+    )
+
+
+@pytest.mark.asyncio
+async def test_unknown_item_says_how_many_basket_lines_it_omits():
+    client = ListedCart([_named_line(index) for index in range(5)])
+    decision = FakeDecision(
+        capability=Capability.REMOVE_ITEM, items=[{"query": "chocolate"}]
+    )
+    reply = await handle_change_request(decision, client, ADDRESS_ID)
+    assert "Item 2" in reply.text
+    assert "and 2 more" in reply.text
+
+
+@pytest.mark.asyncio
+async def test_more_than_three_matches_says_how_many_more():
+    client = ListedCart(
+        [_milk_line(f"spin_{index}", "1 L", 1) for index in range(4)]
+    )
+    decision = FakeDecision(
+        capability=Capability.REMOVE_ITEM, items=[{"query": "milk"}]
+    )
+    reply = await handle_change_request(decision, client, ADDRESS_ID)
+    assert "Which one do you mean" in reply.text
+    assert "and 1 more" in reply.text
+
+
 def test_fresh_button_parser_accepts_real_lines_and_rejects_bad_ones():
     assert parse_fresh_items("cart:fresh:spin_a:sku_a:2|spin_b:sku_b:1") == [
         {"spinId": "spin_a", "skuId": "sku_a", "quantity": 2},

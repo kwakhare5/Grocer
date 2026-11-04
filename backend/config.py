@@ -34,12 +34,7 @@ class Settings(BaseSettings):
         ..., description="Meta Webhook Verification Token"
     )
 
-    # Google Gemini AI (optional; Groq is primary)
-    GEMINI_API_KEY: str | None = None
-    GEMINI_MODEL: str = "gemini-3.5-flash"
-    GEMINI_FALLBACK_MODEL: str = "gemini-3.5-flash-lite"
-
-    # LLM Adapter (ADR 0012). The provider never calls Swiggy.
+    # LLM Adapter (ADR 0012). The model never calls Swiggy.
     LLM_PROVIDER: str = "groq"
     GROQ_API_KEY: str | None = None
     GROQ_MODEL: str = "openai/gpt-oss-120b"

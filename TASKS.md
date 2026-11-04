@@ -48,9 +48,9 @@ The bar is still full tool coverage. These experiences use existing tools, so th
 
 ## Current next actions (2026-11-03)
 
-Local `main` and `origin/main` match after the cleanup push; item 5 and the cleanup are pushed; the retest additions are uncommitted. Render serves the latest pushed `main`. Vercel `/` and `/proof` 200 and show the 250-test build until the retest push. Last gate: `verify.ps1 -Db` exit 0 — 177 offline + 78 DB, ruff, Next 16.4.3 build. Offline scorecard 31/31. Live scorecard deferred.
+Local `main` and `origin/main` match through `a5c1ea9`; the one-provider cleanup and the scorecard redaction are in the working tree. Render serves the latest pushed `main`; Vercel `/` and `/proof` show the 255-test build. Last gate: `verify.ps1 -Db` exit 0 — 177 offline + 78 DB, ruff, Next 16.4.3 build. Offline scorecard 31/31.
 
-**Blocked by environment:** no Swiggy app or handset access. The cart is frozen and every cart read/add fails with "Some items have limited stock and their quantities were adjusted. Please review your cart." Do not ask Karan to clear it and do not fake a live scorecard.
+**Live scorecard (2026-11-04):** Karan authorized the stored token to read the real cart and add items, no order. The cart was cleared (`clear_cart` verified, 0 items), then cases 1–13 ran against the deployed app: 12/13 (reads 7/8, adds 5/5). Case 3 (payment options) got a truthful empty list on an empty cart. Second half `--start 14 --end 26` earliest 12:25 IST because the bot allows 20 messages per rolling hour; the scorecard now redacts saved address lines from proof output.
 
 1. Confirm Render `/health` and the 255-test line on Vercel after the deletion push.
 2. When Swiggy access returns: clear the cart, run the live scorecard 1–13, wait an hour, run 14–26; measure item 5 before/after on the same add; handset taps; live OAuth; address add/delete; 24h scrub.
@@ -123,6 +123,7 @@ Each finding was a broken rule, not a bad test sentence. Any message with the sa
 | Exact brand+size skips the evaluator | **DONE (code) 2026-11-04** — one unique exact brand+size match in an add is resolved before the evaluator; vague, ambiguous, missing-size and zero-address turns still call it. Proof: 3 new tests including a sentinel; `verify.ps1 -Db` exit 0 (172 offline + 78 DB); `.scratch/verify_item5_20261104.log`. |
 | Cleanup — truth, dead code, over-engineering | **DONE (code) 2026-11-04** — invented tracking links and the default ETA removed; dead exception, constants, fields, wrapper and one-method class deleted; `delete my data` inlined; one max-cap setting; `migrate.py` reuses `verify_db.py`; pack math merged; site says 255 tests locally. Proof: `verify.ps1 -Db` exit 0 (172 offline + 78 DB); `.scratch/verify_cleanup_20261104.log`. |
 | Retest with different examples | **DONE 2026-11-04** — skip proven with Nandini, Aashirvaad and Maggi; ambiguous Lay's and size-less Amul still call the evaluator; confirmed copy has no default ETA or link; a real signed "where is my order?" turn returned the honest empty reply with no invented link. Proof: 5 new tests; `verify.ps1 -Db` exit 0 (177 offline + 78 DB); `.scratch/verify_retest_20261104.log`; `.scratch/live_retest_tracking.log`. |
+| One provider — Gemini removed | **DONE 2026-11-04** — `_gemini_json`, the `GEMINI_*` settings, `google-genai` and the `gemini` eval choice are deleted; `complete_json` answers only through Groq; ADR 0012 amended and docs synced. Proof: `verify.ps1 -Db` exit 0 (177 offline + 78 DB); `.scratch/verify_gemini_removal_20261104.log`. |
 
 ## Open proofs
 

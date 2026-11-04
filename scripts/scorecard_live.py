@@ -19,6 +19,7 @@ import asyncio
 import hashlib
 import hmac
 import json
+import re
 import sys
 import time
 from dataclasses import dataclass
@@ -171,6 +172,17 @@ def _score(case: LiveCase, reply: str) -> list[str]:
     return problems
 
 
+_ADDRESS_DETAIL = re.compile(r"^ {3}\S.*$", re.MULTILINE)
+_ADDRESS_LABEL = re.compile(r"^\d+\. \*.*\*.*$", re.MULTILINE)
+
+
+def _redact(text: str) -> str:
+    """Proof files never carry a saved address or its label."""
+    return _ADDRESS_LABEL.sub(
+        "[address label redacted]", _ADDRESS_DETAIL.sub("   [address line redacted]", text)
+    )
+
+
 async def main() -> int:
     parser = argparse.ArgumentParser(description="Live scorecard")
     parser.add_argument("--base-url", default="https://grocer-backend-qwk4.onrender.com")
@@ -245,6 +257,7 @@ async def main() -> int:
                 problems.insert(0, error)
 
             passed = not problems
+            shown = _redact(reply)
             rows.append(
                 {
                     "index": index,
@@ -254,7 +267,7 @@ async def main() -> int:
                     "sent": case.text,
                     "http": status,
                     "latency_ms": latency_ms,
-                    "reply": reply,
+                    "reply": shown,
                     "passed": passed,
                     "problems": problems,
                     "msg_id": msg_id,
@@ -266,7 +279,7 @@ async def main() -> int:
                 flush=True,
             )
             print(f"   > {case.text}", flush=True)
-            print(f"   < {reply[:400]}", flush=True)
+            print(f"   < {shown[:400]}", flush=True)
             if problems:
                 for problem in problems:
                     print(f"   ! {problem}", flush=True)

@@ -1,7 +1,7 @@
-"""Grocer — Provider-Agnostic LLM Adapter (ADR 0012).
+"""Grocer — Groq LLM Adapter (ADR 0012).
 
-One JSON-mode completion call. Callers never talk to a provider directly, and
-no provider is allowed to call Swiggy. Swapping the brain is an env change.
+One JSON-mode completion call. Callers never talk to the provider directly, and
+the model is never allowed to call Swiggy.
 """
 
 from __future__ import annotations
@@ -186,51 +186,18 @@ def _groq_json(system_prompt: str, user_prompt: str) -> LLMResult:
     return LLMResult(None, "groq", last_error, latency_ms=latency_ms)
 
 
-def _gemini_json(system_prompt: str, user_prompt: str) -> LLMResult:
-    if not settings.GEMINI_API_KEY:
-        return LLMResult(None, "gemini", "GEMINI_API_KEY is not set")
-    try:
-        from google import genai
-        from google.genai import types
-        from google.genai.errors import APIError
-    except ImportError as exc:
-        return LLMResult(None, "gemini", str(exc))
-
-    client = genai.Client(api_key=settings.GEMINI_API_KEY)
-    for model_name in (settings.GEMINI_MODEL, settings.GEMINI_FALLBACK_MODEL):
-        try:
-            response = client.models.generate_content(
-                model=model_name,
-                contents=f"{system_prompt}\n\n{user_prompt}",
-                config=types.GenerateContentConfig(
-                    temperature=0.0,
-                    response_mime_type="application/json",
-                ),
-            )
-            if response.text:
-                parsed = json.loads(response.text)
-                if not isinstance(parsed, dict):
-                    raise TypeError("Gemini returned JSON that is not an object")
-                return LLMResult(parsed, "gemini")
-        except (APIError, OSError, KeyError, TypeError, ValueError) as exc:
-            logger.warning("Gemini completion failed on %s: %s", model_name, exc)
-    return LLMResult(None, "gemini", "gemini unavailable")
-
-
 def complete_json(
     system_prompt: str,
     user_prompt: str,
     provider: str | None = None,
 ) -> LLMResult:
-    """Return one JSON completion from the configured provider.
+    """Return one JSON completion from Groq.
 
-    No silent cross-provider fallback: a failed call is reported as failed so
-    tests and evaluation can attribute results to the model that produced them.
+    A failed call is reported as failed; nothing silently answers with another
+    provider so tests and evaluation can attribute results to the model used.
     """
     chosen = (provider or settings.LLM_PROVIDER or "groq").strip().lower()
-    if chosen == "gemini":
-        result = _gemini_json(system_prompt, user_prompt)
-    elif chosen == "groq":
+    if chosen == "groq":
         result = _groq_json(system_prompt, user_prompt)
     else:
         result = LLMResult(None, chosen, f"unknown LLM provider: {chosen}")

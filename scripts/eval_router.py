@@ -7,7 +7,6 @@ unsafe writes (a read request that reached a basket or money capability).
 Usage:
     python scripts/eval_router.py --provider groq
     python scripts/eval_router.py --provider groq --limit 5
-    python scripts/eval_router.py --provider gemini --pause 0
 """
 
 from __future__ import annotations
@@ -116,7 +115,7 @@ def _run_case(case: Case, provider: str) -> tuple[Any, int, int]:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Live router evaluation")
-    parser.add_argument("--provider", default="groq", choices=("groq", "gemini"))
+    parser.add_argument("--provider", default="groq", choices=("groq",))
     parser.add_argument("--start", type=int, default=1)
     parser.add_argument("--limit", type=int, default=len(CASES))
     parser.add_argument(

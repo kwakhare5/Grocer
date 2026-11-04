@@ -1161,3 +1161,19 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: deleted the file after Karan named it; the webhook handles the command directly. Re-audited backend modules, frontend components and fixtures — all remaining files are imported or loaded by tool name; no dependency is unused.
 - **Proof**: `verify.ps1 -Db` exit 0 — 177 offline + 78 DB, ruff, Next build (`.scratch/verify_lean_20261104.log`).
 - **Still broken**: live scorecard, handset taps, live OAuth, address add/delete, 24h scrub and checkout remain unproven. This deletion ships with this card.
+
+### [GROCER — One Provider, One Less Dependency] 2026-11-04
+
+#### Work Card: Gemini Adapter Deleted, Groq Only
+- **Problem**: the adapter carried a second provider (Gemini), three settings, an optional SDK dependency and a CLI choice, but every measurement and every live run used Groq. Two paths meant dead code and a dependency that could drift or break installs for no measured benefit.
+- **Change**: deleted `_gemini_json`, `GEMINI_API_KEY`, `GEMINI_MODEL`, `GEMINI_FALLBACK_MODEL`, `google-genai` and the `gemini` choice in `eval_router.py`. `complete_json` now answers through Groq; any other provider name fails as unknown. Amended ADR 0012 and synced AGENTS, PRD, ARCHITECTURE, GLOSSARY and STATUS.
+- **Proof**: `verify.ps1 -Db` exit 0 — 177 offline + 78 DB, ruff clean, Next 16.4.3 build (`.scratch/verify_gemini_removal_20261104.log`).
+- **Still broken**: the change is uncommitted until Karan approves the push.
+
+### [GROCER — Live Scorecard Half One and a Privacy Fix] 2026-11-04
+
+#### Work Card: Frozen Cart Cleared, 12 of 13 Live, Addresses Redacted
+- **Problem**: the live cart had stayed frozen since 2026-11-03, so the scorecard could not run; Karan cannot sign in to the Swiggy app and authorized the stored token to read and add. The scorecard printed the saved-address reply into its proof log, which put a real address in a file the docs cite.
+- **Change**: cleared the cart through the stored token (`clear_cart` verified, 0 items before and after), then ran cases 1–13 against the deployed app. Added a redaction rule to `scripts/scorecard_live.py` that replaces indented address lines before printing or storing, and scrubbed the already-written log and JSON with the same rule.
+- **Proof**: 12/13 live (reads 7/8, adds 5/5). Real adds: milk, 6 eggs + brown bread, one more milk, the vague "milk" follow-up, and a 3-item batch all returned 200 with live receipts. Raw: `.scratch/scorecard_live_20261104_1_13.json`; transcript: `.scratch/scorecard_20261104_1_13_transcript.log`.
+- **Still broken**: case 3 (payment options) returned "No payment methods are available" because the live account answered with an empty list on an empty cart; the reply was truthful but the case expects `upi`. The second half waits for the bot's 20-per-hour window (earliest 12:25 IST). No saved address remains in any proof file.

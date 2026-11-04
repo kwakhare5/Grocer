@@ -2,7 +2,7 @@
 
 > **Status:** Agreed technical design. Current state and known gaps live in `STATUS.md`.  
 > **Product Goal:** Swiggy Instamart grocery concierge and account manager on WhatsApp.  
-> **Stack:** Python 3.12 + FastAPI • Groq `openai/gpt-oss-120b` primary for development and tests; Gemini optional (ADR 0012) • Swiggy Instamart MCP (20 tools) • Meta WhatsApp Cloud API • PostgreSQL (one Supabase project; `grocer` schema in `postgres`, separate `grocer_test` database for tests) • Render backend • Vercel landing page
+> **Stack:** Python 3.12 + FastAPI • Groq `openai/gpt-oss-120b`, the only LLM (ADR 0012) • Swiggy Instamart MCP (20 tools) • Meta WhatsApp Cloud API • PostgreSQL (one Supabase project; `grocer` schema in `postgres`, separate `grocer_test` database for tests) • Render backend • Vercel landing page
 > **Deploy:** `main` is the only branch. Render and Vercel deploy it; GitHub Actions on every push to `main` runs ruff, all non-live tests against a throwaway Postgres, and the Next build.
 > **Live checkout:** `LIVE_CHECKOUT_ENABLED=false` until Karan approves a specific order.  
 
@@ -19,7 +19,7 @@ It rejects two fatal quick-commerce software traps:
 Instead, Grocer operates on a clean, decoupled **Brain vs. Muscle** architecture:
 
 * **The LLM (The Conversational Brain):**
-  - Sits behind one provider adapter (ADR 0012). Groq `openai/gpt-oss-120b` is primary for development and tests. Gemini stays optional. A provider that cannot serve normal traffic cannot be the primary.
+  - Sits behind one adapter (ADR 0012). Groq `openai/gpt-oss-120b` is the only LLM.
   - Reads full multi-turn conversation context (up to 12 turns).
   - Understands customer intent across natural language, typos, Hinglish (*doodh, atta, pyaz, cheeni*), and brand requests.
   - Searches the live Swiggy dark store and **evaluates candidates intelligently** (matching variants against user constraints instead of blindly picking rank #1).
@@ -50,7 +50,7 @@ flowchart TD
         ROUTER -- "Yes (Pay / Address / Clear)" --> FAST_PATH["Button dispatcher\n(no LLM; pay still calls Swiggy)"]
     end
 
-    subgraph L2["Layer 2: Conversational Brain (provider adapter: Groq primary, Gemini optional)"]
+    subgraph L2["Layer 2: Conversational Brain (Groq adapter)"]
         direction TB
         ROUTER -- "No (Text / List / Recipe / Pin)" --> BRAIN["LLM routing decision\n(capability + arguments + confidence)"]
         BRAIN --> INTENT{"Capability chosen"}
@@ -87,7 +87,7 @@ flowchart TD
     end
 ```
 
-Layer 2 is provider-agnostic since ADR 0012. The LLM never calls Swiggy; Python does. Every model call goes through `backend/agent/llm.py`. A basket turn makes one routing call, then one batched candidate-evaluation call for every item with candidates; an item whose full brand and exact size already match one candidate skips that second call. No provider SDK is imported outside the adapter.
+Layer 2 uses one Groq adapter (ADR 0012). The LLM never calls Swiggy; Python does. Every model call goes through `backend/agent/llm.py`. A basket turn makes one routing call, then one batched candidate-evaluation call for every item with candidates; an item whose full brand and exact size already match one candidate skips that second call. No provider SDK is imported outside the adapter.
 
 ---
 
@@ -165,7 +165,7 @@ sequenceDiagram
 - **Capability Router (ADR 0012):** The LLM returns one routing decision per message — a capability from the fixed list, the extracted arguments, and a confidence score. Python validates the capability and makes every Swiggy call.
 - **Safety Classes:** Every capability is labelled `read`, `basket`, `account` or `money`. A read capability stops before any write path. This is enforced in Python dispatch, not in the prompt.
 - **Safe Path:** Unknown capability, or confidence below the floor, produces read-only options when a concrete product exists, otherwise a clarifying question. Floors: read 0.70, basket 0.80, account 0.85, money 0.95 (`backend/agent/router.py:92`). Nothing is written on a guess.
-- **One adapter, no provider SDKs:** routing and candidate evaluation both call `backend.agent.llm.complete_json`. A basket turn makes one routing call, then one batched candidate-evaluation call for every item with candidates; a unique exact brand+size match skips the second call. The legacy second intent call and the direct Gemini calls are gone. Prompts are provider-neutral and use JSON mode.
+- **One adapter, no provider SDKs:** routing and candidate evaluation both call `backend.agent.llm.complete_json`, backed by Groq only. A basket turn makes one routing call, then one batched candidate-evaluation call for every item with candidates; a unique exact brand+size match skips the second call. The legacy second intent call and the direct Gemini calls are gone. Prompts use JSON mode.
 - **Basket State & Pack Math (2026-10-28):** The model names add / set / remove from the customer's words; Python reads the live cart and decides whether an add increments or creates a line. Each item carries `amount` and `unit`; Python converts the amount to whole packs and accepts only a pack that meets it exactly. A 200 g request never becomes 400 g, and 500 g never becomes 1 kg; the item is named as "Not added" or becomes a choice. Adds and explicit total sets apply immediately with a receipt; only remove and clear keep a confirm button. Every named item ends added, asked, or refused.
 - **Two-Step Search & Candidate Evaluation (Kills Blind `res[0]`):**
   - Step 1: Python runs `search_products` for each extracted item and collects the top 3–5 in-stock candidates with pack sizes and prices.
@@ -451,7 +451,7 @@ backend/
 │
 ├── agent/                      # Concierge brain, safety and money
 │   ├── router.py               # Capabilities, safety classes, safe path (ADR 0012)
-│   ├── llm.py                  # Provider adapter: Groq or Gemini, JSON mode
+│   ├── llm.py                  # Groq adapter, JSON mode
 │   ├── candidate_search.py     # Live catalog search per extracted item
 │   ├── candidate_evaluator.py  # Product variant selection
 │   ├── meal_planner.py         # Recipe plans, pack math and the stored plan

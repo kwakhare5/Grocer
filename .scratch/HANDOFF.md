@@ -1,17 +1,17 @@
 # HANDOFF — Grocer — 2026-11-04
 
 **Goal:** launch-ready v1. Checkout stays locked.
-**Changes:** exact Gumloop palette (five accents, no violet/yellow), black Connect submit, wide frame, centered nav, blue bag logo in both sample chats. Commits `2af66d4` and `61022f6` are pushed; Vercel and Render are live.
-**Passing:** handset connect + Swiggy OAuth completed on Karan's phone (DB token updated 13:41 UTC, inbound messages through 13:43 UTC). `verify.ps1 -Db` exit 0 — 182 offline + 81 DB; production 0 overflow/0 console errors at five widths; production connect route returns a real 600s token; Render `/health` 200; local connect form, 429, forged-link rejection, Try, FAQ, menu, anchors and contrast pass.
-**Next action:** record `public/demo.mp4`; then live reconnect, address add/delete, 24h scrub, typed plan, same-name picker, reactions/ticks and location pin. After that, Gate 2 case 7/8 and the Builders Club 48h observation.
-**Still broken:** demo video, live reconnect, address writes, 24h live scrub, typed plan, same-name picker, reactions/ticks, location pin. Checkout locked.
+**Changes:** graphics + motion pass — eight ink feature marks, hero grocery cluster, four-node How route, safety lock, route draw, receipt print/stamp, button press, nav/feature underlines, Try reply crossfade, mascot hover. Palette and handset connect are already pushed; this pass is local only.
+**Passing:** gate v7 — 182 offline + 81 DB, ruff, 9 routes; 0 overflow and 0 console errors at 1440/1024/768/390/360; route line 0 → 0.34 at 120ms → 1, nodes 0 → 1, bill item 0.96 at 150ms, stamp 0 → 1; reduced-motion and no-JS keep all content visible; no new dependencies.
+**Next action:** review `http://localhost:3229`; say push to put the graphics on Vercel; add `public/demo.mp4`; then the remaining live journeys.
+**Still broken:** graphics are not on Vercel until a push; demo video absent; live reconnect, address add/delete, 24h live scrub, typed plan, same-name picker, reactions/ticks and location pin remain open.
 
 ## Current truth
 
-- Branch `main`, remote at `61022f6`; local docs now include the handset proof and are uncommitted.
+- Remote `main` is at `61022f6`; local commits `016374c` (docs) and the graphics commit are not pushed.
+- Vercel serves the exact-palette landing without the new graphics.
 - Checkout locked (`LIVE_CHECKOUT_ENABLED=false`). No real order has ever been placed.
 - Cart still holds the live test adds from the 25/26 scorecard. Clear it through the stored token when testing ends.
-- Render `/health` reports `environment: development`; it only labels the health payload, but set it before Builders Club.
 - Local `.env` uses the documented dummy WhatsApp number; use production for handset tests.
 
 ## Unproven
@@ -20,10 +20,8 @@ Live OAuth reconnect, address add/delete, the 24h live scrub, location-pin repla
 
 ## Proof files
 
-- `.scratch/verify_landing_v6_20261104.log` — final local gate.
-- `.scratch/test_full_3224.mjs` — connect, try, FAQ, menu, purple and contrast checks.
-- `.scratch/test_typing_3224.mjs` — typing timing and Try-avatar check.
-- `.scratch/test_prod_ui.mjs` — production five-width check.
-- `.scratch/connect_success_390_v5.png` — real signed-code success state (local dummy number).
-- `.scratch/landing_*_v4.png`, `landing_full_v4.png` — production screenshots.
-- `.scratch/og_v5.png` — OG image with the new accent colors.
+- `.scratch/verify_landing_v7_20261104.log` — gate after graphics and motion.
+- `.scratch/test_motion_3228.mjs` — route, bill, stamp, reduced-motion measurements.
+- `.scratch/how_1440_v7.png`, `features_1440_v7.png`, `safety_1440_v7.png`, `how_390_v7.png` — latest section screenshots.
+- `.scratch/test_graphics_3227.mjs` — no-JS and reduced-motion checks.
+- `.scratch/test_ui_3219.mjs` — five-width overflow, console and screenshots.

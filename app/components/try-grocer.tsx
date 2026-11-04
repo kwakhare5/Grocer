@@ -59,17 +59,24 @@ export function TryGrocer() {
             </div>
           </div>
           <div className="chat-demo__body">
-            <p className="wa-bubble wa-bubble--user">{prompt.user}</p>
+            <p className="wa-bubble wa-bubble--user" key={`user-${active}`}>
+              {prompt.user}
+            </p>
             <p className="wa-bubble wa-bubble--bot" aria-live="polite">
-              {typing ? (
-                <span className="try__typing" aria-label="Grocer is typing">
-                  <i />
-                  <i />
-                  <i />
-                </span>
-              ) : (
-                prompt.reply
-              )}
+              <span
+                className="try__reply"
+                key={`bot-${typing ? "typing" : active}`}
+              >
+                {typing ? (
+                  <span className="try__typing" aria-label="Grocer is typing">
+                    <i />
+                    <i />
+                    <i />
+                  </span>
+                ) : (
+                  prompt.reply
+                )}
+              </span>
             </p>
           </div>
         </div>

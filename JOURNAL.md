@@ -1257,3 +1257,11 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: recorded the handset pass in STATUS/TASKS/DESIGN/HANDOFF after confirming a fresh Swiggy token. Updated the handoff to the remaining live journeys. Removed 10 inactive Chrome test profiles; left the one profile another session is using untouched.
 - **Proof**: DB aggregate only, no number or token printed — one `oauth_tokens` row updated 2026-11-04 13:41 UTC and inbound messages through 13:43 UTC; `.scratch` went from 352 MB to 88 MB (257.5 MB freed).
 - **Still broken**: demo video, live reconnect, address add/delete, the 24h live scrub, typed plan, same-name picker, reactions/ticks and location pin remain open. The docs commit is local and not pushed.
+
+### [GROCER — Illustration and Motion Pass] 2026-11-04
+
+#### Work Card: Feature Marks, Grocery Cluster, How Route, Receipt Motion
+- **Problem**: the landing was type and UI frames only; Karan asked for graphics tied to the project's features plus premium micro-interactions without stock photos or slop.
+- **Change**: replaced the eight feature numbers with hand-drawn ink marks (chat, tag, house, receipt, coupon, pot, lifebuoy, bin) in the five accents; added a grocery cluster beside the hero chat at ≥1280px, a four-node illustrated How route that draws on scroll, and a red lock beside Safety. Added motion: hero scale-in, route draw with staggered nodes, receipt line print and Sample stamp press, button press, nav/feature underline, Try reply crossfade, FAQ plus and mascot hover. SVG only; no new dependencies.
+- **Proof**: gate v7 passes 9 routes, 182 offline + 81 DB, ruff. Route measured 0 → 0.34 at 120ms → 1, nodes 0 → 1, bill item 0.96 at 150ms, stamp 0 → 1 at -7°. Reduced motion and no-JS show all content. 0 overflow and 0 console errors at 1440/1024/768/390/360; screenshots `.scratch/how_1440_v7.png`, `features_1440_v7.png`, `safety_1440_v7.png`, `how_390_v7.png`.
+- **Still broken**: graphics are local and not pushed, so Vercel serves the palette version without them; demo video absent; live reconnect, address writes, 24h scrub, typed plan, same-name picker, reactions/ticks and location pin remain open.

@@ -43,41 +43,49 @@ export const FEATURES = [
     title: "Say it in plain words",
     body: "Add, change, remove or clear items in one message. No catalogue to click through.",
     tone: "blue",
+    mark: "chat",
   },
   {
     title: "See the real price",
     body: "Live prices, pack sizes, stock and fees from your Instamart store.",
     tone: "green",
+    mark: "tag",
   },
   {
     title: "Use your saved address",
     body: "See your saved addresses and switch stores. Grocer rebuilds the basket for the new store.",
     tone: "orange",
+    mark: "house",
   },
   {
     title: "Know what you ordered",
     body: "Order history, itemised bills and delivery status. If there is no order, Grocer says so.",
     tone: "pink",
+    mark: "receipt",
   },
   {
     title: "Let coupons be checked",
     body: "Valid coupons are checked on every basket change, and the savings show on the receipt.",
     tone: "red",
+    mark: "coupon",
   },
   {
     title: "Plan a meal",
     body: "Name a dish. Grocer prices the ingredients and builds the basket.",
     tone: "blue",
+    mark: "pot",
   },
   {
     title: "Report a problem",
     body: "Send an order problem to Swiggy support from the chat.",
     tone: "green",
+    mark: "support",
   },
   {
     title: "Delete your data",
     body: "Remove the Swiggy link and the chat copy Grocer stores.",
     tone: "orange",
+    mark: "bin",
   },
 ] as const;
 

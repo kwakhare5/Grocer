@@ -1185,3 +1185,11 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: committed 15 files as `baba30c` ("chore: drop Gemini and redact addresses in scorecard proofs") and synced HANDOFF/STATUS to the hash. Nothing pushed.
 - **Proof**: `git log --oneline -3` shows `baba30c` on top; `git status --short` is clear.
 - **Still broken**: not pushed; live scorecard second half, handset taps, live OAuth, address add/delete and the 24h scrub remain open. Checkout stays locked.
+
+### [GROCER — Live Scorecard 25/26 and Pass 2] 2026-11-04
+
+#### Work Card: Two Halves Run, Two Cases Corrected, One Truncation Fixed
+- **Problem**: the full live scorecard had never run on the fixed code. The run exposed two dishonest cases (payment options on an empty cart, "dragon fruit" which is now in stock) and a real bug: the remove-miss reply named only 3 basket lines and silently dropped the rest.
+- **Change**: ran both halves against the deployed app — 12/13 and 13/13, **25/26 (96.2%)**. Case 3 now accepts a truthful empty-basket payment answer; case 17 now asks for an item Swiggy does not sell and must not claim an add. `_labelled_lines` now appends "and N more" in both the remove-miss and ambiguity replies. Site counts moved 255 → 257.
+- **Proof**: two tests written red then green (`test_unknown_item_says_how_many_basket_lines_it_omits`, `test_more_than_three_matches_says_how_many_more`); `verify.ps1 -Db` exit 0 — 179 offline + 78 DB, ruff, Next build (`.scratch/verify_pass2_20261104.log`); raw scorecard `.scratch/scorecard_live_20261104_14_26.json`, `.scratch/scorecard_live_20261104_1_13.json`.
+- **Still broken**: handset taps, live OAuth reconnect, address add/delete, the 24h scrub and the demo video remain open. Pass 2 is uncommitted. Checkout stays locked.

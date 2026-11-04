@@ -8,7 +8,7 @@ Unproven: live scorecard second half, handset taps, live OAuth reconnect, addres
 
 ## Current truth
 
-- Branch: `main` only, tip `a5c1ea9`. The one-provider cleanup and the scorecard redaction are in the working tree, not committed.
+- Branch: `main` only, tip `a5c1ea9`. The one-provider cleanup and the scorecard redaction are committed as `baba30c`; not pushed.
 - Render: `/health` 200, `{"status":"healthy","database":"connected"}`. Vercel: 255-test build live.
 - Tests: 177 offline + 78 DB = 255; 20 live-only deselected; 275 collected.
 - Live scorecard first half: 12/13. Case 3 (payment options) returned "No payment methods are available" on an empty cart; the reply was truthful, the case expects `upi`.
@@ -17,7 +17,7 @@ Unproven: live scorecard second half, handset taps, live OAuth reconnect, addres
 
 ## Decisions needed from Karan
 
-1. Approve committing and pushing the one-provider cleanup plus scorecard redaction.
+1. Approve pushing `baba30c`.
 2. Run the second scorecard half at or after 12:25 IST (20-per-hour cap).
 3. Handset taps: Add-all, Change item, typed pick, set/remove picker, OAuth reconnect, address add/delete, 24h scrub.
 4. Decide when the first real order happens; checkout stays locked until then.

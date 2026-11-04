@@ -55,9 +55,22 @@ export function ConnectForm({ whatsappNumber }: ConnectFormProps) {
       ? `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(`connect ${token}`)}`
       : null;
 
-  if (waHref) {
+  if (!whatsappNumber) {
     return (
       <div className="connect-form">
+        <p className="connect-form__step">Connect</p>
+        <h3 className="connect-form__title">Connecting is off.</h3>
+        <p className="connect-form__body">
+          This deployment has no WhatsApp number set, so the form cannot
+          create a code.
+        </p>
+      </div>
+    );
+  }
+
+  if (waHref) {
+    return (
+      <div className="connect-form" role="status">
         <p className="connect-form__step">Code ready</p>
         <h3 className="connect-form__title">Send it on WhatsApp.</h3>
         <p className="connect-form__body">
@@ -65,7 +78,7 @@ export function ConnectForm({ whatsappNumber }: ConnectFormProps) {
           bot replies with your Swiggy sign-in button.
         </p>
         <a
-          className="button button--primary connect-form__submit"
+          className="btn btn--primary btn--lg connect-form__submit"
           href={waHref}
           target="_blank"
           rel="noopener noreferrer"
@@ -92,11 +105,10 @@ export function ConnectForm({ whatsappNumber }: ConnectFormProps) {
 
   return (
     <form className="connect-form" onSubmit={handleSubmit} noValidate>
-      <p className="connect-form__step">Step one</p>
       <h3 className="connect-form__title">Enter your number.</h3>
       <p className="connect-form__body">
-        We open WhatsApp with a short code. Send it from this number, and the
-        bot sends your Swiggy sign-in link.
+        We send a one-time Swiggy sign-in link to this WhatsApp number. We do
+        not store it.
       </p>
 
       <label className="connect-form__label" htmlFor="connect-phone">
@@ -128,17 +140,25 @@ export function ConnectForm({ whatsappNumber }: ConnectFormProps) {
         </p>
       ) : (
         <p className="connect-form__note" id="connect-note">
-          We do not store the number you type here.
+          Indian numbers only.
         </p>
       )}
 
       <button
-        className="button button--primary connect-form__submit"
+        className="btn btn--primary btn--lg connect-form__submit"
         type="submit"
         disabled={busy}
       >
         {busy ? "Creating your code…" : "Continue"}
       </button>
+
+      <div className="connect-form__meta">
+        <p>Payments are not open yet. You can build and check baskets today.</p>
+        <p>
+          Independent app, built on Swiggy’s official Instamart tools. No
+          password. No card.
+        </p>
+      </div>
     </form>
   );
 }

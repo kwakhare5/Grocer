@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { getWhatsAppHref } from "../lib/whatsapp";
 import { SiteFooter } from "../components/site-footer";
 import { SiteHeader } from "../components/site-header";
-import { WhatsAppButton } from "../components/whatsapp-button";
 
 export const metadata: Metadata = {
   title: "Privacy — Grocer",
@@ -22,7 +21,7 @@ export default function PrivacyPage() {
 
   return (
     <>
-      <SiteHeader />
+      <SiteHeader href={href} />
 
       <main className="page" id="main">
         <div className="wrap doc">
@@ -32,7 +31,7 @@ export default function PrivacyPage() {
               Grocer is a small independent project. It keeps as little as it
               can.
             </p>
-            <p className="page__updated">Last updated 1 November 2026.</p>
+            <p className="page__updated">Last updated 4 November 2026.</p>
           </div>
 
           <div className="prose doc__body">
@@ -43,14 +42,14 @@ export default function PrivacyPage() {
               <li>A Swiggy OAuth token, encrypted with AES-256-GCM.</li>
               <li>A short-lived basket, plan and address copy.</li>
               <li>The map location for an address you add.</li>
-              <li>Anonymous records for payments and safety.</li>
+              <li>Anonymous records for safety checks.</li>
             </ul>
 
             <h2>How long Grocer keeps it</h2>
             <p>
               Basket and address copies are set to expire after 24 hours. Old
-              sign-in links stop working and are removed. Anonymous payment
-              records stay so a payment can be traced.
+              sign-in links stop working and are removed. Anonymous safety
+              records stay so a checkout attempt can be traced.
             </p>
 
             <h2>Delete it</h2>
@@ -89,7 +88,24 @@ export default function PrivacyPage() {
               Grocer keeps what it needs to answer you. Basket and address copies
               are set to expire after 24 hours.
             </p>
-            <WhatsAppButton href={href} />
+            {href ? (
+              <a
+                className="btn btn--ghost"
+                href={href}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Open chat
+              </a>
+            ) : (
+              <span
+                className="btn btn--ghost btn--disabled"
+                aria-disabled="true"
+                title="The WhatsApp link is not configured on this deployment."
+              >
+                Open chat
+              </span>
+            )}
             <p className="doc-aside__note">
               Send “delete my data” in the chat to revoke the Swiggy link and
               delete Grocer’s copy of the conversation.

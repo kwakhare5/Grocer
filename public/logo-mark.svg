@@ -1,16 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%" role="img" aria-label="Grocer">
-  <defs>
-    <linearGradient id="grocerBlue" x1="20%" y1="0%" x2="80%" y2="100%">
-      <stop offset="0%" stop-color="#5AA9FF" />
-      <stop offset="45%" stop-color="#1E8CFF" />
-      <stop offset="100%" stop-color="#147BD1" />
-    </linearGradient>
-  </defs>
-
   <g transform="translate(256, 240) rotate(-4.5) scale(1.26)">
-    <path d="M -50 -45 C -50 -130 50 -130 50 -45" fill="none" stroke="#8922EE" stroke-width="28" stroke-linecap="round" />
-    <path d="M -95 -45 L 95 -45 C 115 -45 130 -25 125 0 L 105 145 C 100 168 82 180 58 180 L -58 180 C -82 180 -100 168 -105 145 L -125 0 C -130 -25 -115 -45 -95 -45 Z" fill="url(#grocerBlue)" />
-
+    <path d="M -50 -45 C -50 -130 50 -130 50 -45" fill="none" stroke="#1E8CFF" stroke-width="28" stroke-linecap="round" />
+    <path d="M -95 -45 L 95 -45 C 115 -45 130 -25 125 0 L 105 145 C 100 168 82 180 58 180 L -58 180 C -82 180 -100 168 -105 145 L -125 0 C -130 -25 -115 -45 -95 -45 Z" fill="#1E8CFF" />
     <g transform="translate(0, 35)">
       <ellipse cx="-44" cy="0" rx="11" ry="17" fill="#FFFFFF" />
       <ellipse cx="44" cy="0" rx="11" ry="17" fill="#FFFFFF" />

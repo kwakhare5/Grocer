@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { PROMPTS } from "../content";
+import { LogoMark } from "./logo";
 
 export function TryGrocer() {
   const [active, setActive] = useState(0);
@@ -48,7 +49,7 @@ export function TryGrocer() {
         <div className="chat-demo__frame">
           <div className="chat-demo__head">
             <span className="chat-demo__avatar" aria-hidden="true">
-              G
+              <LogoMark />
             </span>
             <div>
               <p className="chat-demo__name">Grocer</p>

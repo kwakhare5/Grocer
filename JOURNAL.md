@@ -1241,3 +1241,19 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: replaced the Try-panel monogram with the blue bag logo. Tested the connect form in a real browser against the local FastAPI backend through the Next proxy: invalid number blocks with `aria-invalid`, a valid dummy number returns a signed 10-minute token and a `wa.me` link carrying `connect <token>`, and neither storage nor visible text holds the number. The sixth request from one IP returned 429 through the proxy. Tested the Try reply, typing indicator, FAQ, mobile menu, all routes and every anchor.
 - **Proof**: `verify.ps1 -Db` exit 0 — 182 offline + 81 DB, ruff, 9 routes (`.scratch/verify_landing_v6_20261104.log`); zero overflow and zero console errors at 1440/1024/768/390/360; typing appeared at 26ms and the reply at 440ms; min tested text contrast 4.95:1; zero violet computed colors; all 31 anchors valid; `/proof` not linked; OG image contains only the five new accents plus brand blue.
 - **Still broken**: handset code entry and OAuth, live reconnect, address add/delete, the 24h live scrub, typed plan and same-name picker, reactions/ticks and location pin need Karan's phone or account. Demo video absent; commit is local and not pushed.
+
+### [GROCER — Landing Push and Production Check] 2026-11-04
+
+#### Work Card: Pushed Palette, Verified Vercel, Prepared Handset Test
+- **Problem**: the new landing and Try-avatar fix were local only, so Karan's phone could not run the real connect flow against the production bot number.
+- **Change**: pushed `2af66d4` and `61022f6` to `main`. Vercel deployed the exact-palette page; Render stayed healthy. Verified production serves the new CSS (`#03A2FE`, `#FB3C98`, `#00A63E`, `#FE9A00`, `#F54900`, no violet/yellow), the form is enabled, and `/api/auth/whatsapp/start` returns a real signed 600s token.
+- **Proof**: `git push` `a5c1ea9..61022f6`; Vercel marker live after 30s; production `/health` 200; production 0 overflow and 0 console errors at 1440/1024/768/390/360 (`test_prod_ui.mjs`); production start 200 with token and `expiresIn: 600`; screenshots `.scratch/landing_*_v4.png`.
+- **Still broken**: handset OAuth, live reconnect, address add/delete, 24h live scrub, typed plan, same-name picker, reactions/ticks, location pin, demo video. Local docs are updated but not pushed so Render does not redeploy during the handset test.
+
+### [GROCER — Handset Connect Pass and Scratch Cleanup] 2026-11-04
+
+#### Work Card: OAuth Confirmed, Disposable Browser Profiles Removed
+- **Problem**: the website connect and handset OAuth had only local proof, and `.scratch` had grown to 352 MB of disposable Chrome profiles.
+- **Change**: recorded the handset pass in STATUS/TASKS/DESIGN/HANDOFF after confirming a fresh Swiggy token. Updated the handoff to the remaining live journeys. Removed 10 inactive Chrome test profiles; left the one profile another session is using untouched.
+- **Proof**: DB aggregate only, no number or token printed — one `oauth_tokens` row updated 2026-11-04 13:41 UTC and inbound messages through 13:43 UTC; `.scratch` went from 352 MB to 88 MB (257.5 MB freed).
+- **Still broken**: demo video, live reconnect, address add/delete, the 24h live scrub, typed plan, same-name picker, reactions/ticks and location pin remain open. The docs commit is local and not pushed.

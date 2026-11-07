@@ -152,7 +152,7 @@ Live tests are excluded by default (`-m live` opts in). Scripted tests are never
 
 ## 8. Next Action
 
-**Where we are (2026-11-07).** `main` at `aa395f0` is live on Render and Vercel; `/health` is 200 and the new webhook signature is live. The structure branch is seven commits ahead, unmerged and unpushed. The gate is green at 185 offline + 82 DB, ruff and 9 routes.
+**Where we are (2026-11-07).** `main` at `aa395f0` is live on Render and Vercel; `/health` is 200 and the new webhook signature is live. The structure branch is unmerged and unpushed. The gate is green at 185 offline + 82 DB, ruff and 9 routes.
 
 **Do next, in order:**
 1. Live handset proofs: OAuth reconnect, address add/delete, typed plan pick, same-name picker, reactions/blue ticks.

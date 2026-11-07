@@ -1,16 +1,17 @@
 # HANDOFF — Grocer — 2026-11-07
 
-**Goal:** finish the audit leftovers without behavior changes. Checkout stays locked.
-**Changes:** `chore/structure-cleanup` (unmerged, unpushed): webhook 1,042 → 436 lines; turn, commands and onboarding split into their own modules; both add paths share one pay-receipt builder; checkout placement and settlement split into `checkout_executor.py` + `checkout_settlement.py`; both pollers settle one row per transaction; unused `intent_app` and one duplicate CSS rule removed. `main` at `aa395f0` is deployed.
-**Passing:** `verify.ps1 -Db` exit 0 — 185 offline + 82 DB, ruff, 9 routes; 287 collected; landing screenshots byte-identical at five widths.
-**Next action:** live handset proofs (reconnect first), then the router prompt trim after the token budget resets, then merge on Karan's explicit go.
+**Goal:** run the live handset proofs on the deployed build. Checkout stays locked.
+**Changes:** structure cleanup merged to `main` and live at `a557c3a`: webhook 1,042 → 436 lines; turn, commands and onboarding split into their own modules; both add paths share one pay-receipt builder; checkout placement and settlement split; both pollers settle one row per transaction; unused `intent_app` and one duplicate CSS rule removed.
+**Passing:** `verify.ps1 -Db` exit 0 — 185 offline + 82 DB, ruff, 9 routes; 287 collected; landing screenshots byte-identical at five widths; Render deploy `live` on `a557c3a`; Vercel `/proof` 287.
+**Next action:** live handset proofs; send `connect` and finish OAuth first.
 **Still broken:** live checkout, reconnect, address add/delete, 24h scrub, demo video; demo video needs Karan's recording.
 
 ## Current truth
 
-- Local `main` is `aa395f0`, deployed on Render and Vercel. The structure branch is local only.
+- `main` at `a557c3a` is deployed on Render and Vercel.
 - Checkout locked (`LIVE_CHECKOUT_ENABLED=false`). No real order has ever been placed.
 - Local `.env` uses the documented dummy WhatsApp number; use production for handset tests.
+- `/health` reports `environment: development` on Render; the flag is display-only, but the dashboard should say `production`.
 
 ## Unproven
 

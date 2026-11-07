@@ -1353,3 +1353,12 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: moved reconciliation, settlement and both pollers to `checkout_settlement.py`; each row is now claimed with `FOR UPDATE SKIP LOCKED` and settled in its own transaction; removed the unused `intent_app` checkout option and one exact duplicate landing rule.
 - **Proof**: the new test failed first with `pending_payment` on the settled row, then passed after the fix; 27 checkout tests pass; `verify.ps1 -Db` exit 0 — 185 offline + 82 DB, ruff, 9 routes (`.scratch/verify_all_20261107.log`); landing screenshots identical at 1440/1024/768/390/360 (`.scratch/css_before`, `.scratch/css_after`).
 - **Still broken**: live handset proofs, the 24h scrub, the demo video and the LLM prompt trim remain open. The branch is not merged or pushed. No real order has been placed.
+
+### [GROCER — Structure Cleanup Deploy] 2026-11-07
+
+#### Work Card: Merged and Live
+
+- **Problem**: the structure cleanup, checkout split, per-row poller fix and landing dedupe were green locally but not serving customers.
+- **Change**: fast-forwarded `main` from `aa395f0` to `a557c3a` and pushed; Render and Vercel auto-deployed.
+- **Proof**: Render deploy `dep-dbnhbjm8bjmc73a800ng` is `live` on `a557c3a`; `/health` returned 200 with `database: connected`; Vercel `/proof` shows 287; the webhook OpenAPI exposes no test hooks.
+- **Still broken**: live handset proofs, the 24h scrub, the demo video and the LLM prompt trim remain open. Checkout stays locked; no real order has been placed.

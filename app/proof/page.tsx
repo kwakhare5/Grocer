@@ -37,9 +37,9 @@ const RUNS = [
   },
   {
     label: "Automated tests",
-    result: "263",
-    date: "4 Nov 2026",
-    note: "182 offline and 81 database tests.",
+    result: "286",
+    date: "7 Nov 2026",
+    note: "185 offline and 81 database tests; 20 live-only tests are excluded.",
   },
   {
     label: "Production code",
@@ -57,7 +57,7 @@ const RUNS = [
     label: "Website connect",
     result: "6 tests pass",
     date: "4 Nov 2026",
-    note: "The page mints a 10-minute signed code; only the matching WhatsApp number gets the OAuth link. Checked from form to backend locally, not on a handset.",
+    note: "The page mints a 10-minute signed code; only the matching WhatsApp number gets the OAuth link. Form checked locally; handset connect and OAuth passed 4 Nov 2026.",
   },
   {
     label: "Handset taps",
@@ -73,7 +73,6 @@ const NOT_PROVEN = [
   "Live address add and delete.",
   "The real 24-hour deletion after a full day.",
   "A live Swiggy reconnect from a bot link.",
-  "The website connect code on a real handset.",
   "Choosing between two cart lines with the same name, on a handset.",
 ] as const;
 
@@ -90,7 +89,7 @@ export default function ProofPage() {
             <h1 className="page__title">What is proven.</h1>
             <p className="page__lead">The recorded runs behind the site.</p>
             <p className="page__updated">
-              Last updated 4 November 2026. No real order has been placed.
+              Last updated 7 November 2026. No real order has been placed.
             </p>
           </div>
 

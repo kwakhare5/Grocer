@@ -59,7 +59,7 @@ Grocer is not limited to pasting grocery lists. It is your personal Instamart co
    - Swiggy's `checkout` tool returns an authoritative HTTPS `bridgeUrl` in `data.bridgeUrl`.
    - UPI is the only payment path in v1. The code reads `get_payment_options` and passes `generateUPIQR=true` (or `intentApp` when supplied) to `checkout`. COD and SwiggyPay are parked; the payment answer says they cannot be used yet.
    - `checkout` is not idempotent. On a 5xx or network failure, call `get_orders` and compare against the pre-checkout order snapshot before retrying. Never blind-retry.
-   - Meta WhatsApp CTA buttons only support `https://`. Checkout delivers this link as a `[Pay ₹X (UPI / Card)]` button, rendering Swiggy's secure web payment screen where the customer taps to open GPay, PhonePe, Paytm, or scans a QR code.
+   - Meta WhatsApp CTA buttons only support `https://`. Checkout delivers this link as a `[Pay ₹X via UPI]` button, rendering Swiggy's secure web payment screen where the customer taps to open GPay, PhonePe, Paytm, or scans a QR code.
 
 8. **Live GPS Rider Tracking & Order History:**
    - `get_orders` surfaces order history from the last 15 days, with `activeOnly=true` for ongoing deliveries.
@@ -107,10 +107,10 @@ These show the kind of thing a person can ask for. They are not a build checklis
 - **Grocer:** Runs the 3-Lock gate and delivers Swiggy's secure `bridgeUrl`.  
 - **Post-Payment:** A persistent background poller monitors `check_payment_status` (15–30s intervals, reconciling for up to 2 hours) and sends 3 milestone updates:  
   1. *Order confirmed & dark store packing*  
-  2. *Rider picked up & out for delivery (with live GPS map link)*  
+  2. *Rider picked up & out for delivery (Swiggy's real status and ETA; no map link is invented)*
   3. *Order delivered*
 
-### Journey 6: One-Time Destination Orders ("Send to Mom")
+### Journey 6: One-Time Destination Orders ("Send to Mom") — PARKED, not v1
 - **Customer:** *"Send 2L milk and brown bread to Mom's house in Delhi."*  
 - **Grocer:** Selects the Delhi address, queries Delhi dark store stock, and outputs: `📍 Delivering to: Mom's House (Delhi)`. Once completed, automatically retains the customer's primary Bangalore address as active for subsequent turns.
 

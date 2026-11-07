@@ -9,9 +9,9 @@ Independent project. Not affiliated with or endorsed by Swiggy.
 
 ## What you can ask
 
-- Shopping: "1 litre milk and 6 eggs", "make pizza for 5 people" (plan first, then add)
+- Shopping: "1 litre milk and 6 eggs", "make pizza for 5 people" (plan first, then add; the live recipe route is code-complete but not yet recorded)
 - Price, stock, coupons, store and delivery questions
-- Saved addresses: list, add by text or GPS pin, switch, delete
+- Saved addresses: list, add by text or GPS pin, switch, delete (live add/delete not yet recorded)
 - Orders: history, live status, bills, reorder, support reports
 - Basket: view, change, clear, keep
 - Payments: UPI only; the bot never charges anything by itself
@@ -65,7 +65,7 @@ WhatsApp UI is in [DESIGN.md](DESIGN.md); decisions are in `docs/adr/`.
 
 ## Run it
 
-Python 3.12 and Node.js 20+.
+Python 3.12 and Node.js 24.
 
 ```bash
 pip install -r requirements-dev.txt
@@ -83,7 +83,7 @@ TEST_DATABASE_URL, GROQ_API_KEY
 ```
 
 For the landing page, `NEXT_PUBLIC_WHATSAPP_NUMBER` supplies the real chat link.
-Without it the page shows the placeholder number and disables the button.
+Without it the page renders no number and disables the button with a visible note.
 
 ## Tests
 
@@ -92,12 +92,21 @@ Without it the page shows the placeholder number and disables the button.
 .\verify.ps1 -Db    # adds the database suite on grocer_test
 ```
 
+On macOS or Linux, run the same steps directly: `python scripts/verify_db.py`,
+`ruff check backend tests`, `pytest -q -m "not db and not live"`, then
+`npm run build`.
+
 `pytest -m live` calls real external services; the gate and CI pass `-m "not live"`, so a bare `pytest` would run them too.
 Database tests refuse to run unless `TEST_DATABASE_URL` names the separate
 `grocer_test` database. Tests never write production data.
 
+Current collection: **286 tests** — 185 offline, 81 database, 20 live-only;
+92 of the offline tests inject a scripted external client on purpose.
+`verify.ps1 -Db` runs the 185 offline and 81 database tests.
+
 GitHub Actions runs ruff, every non-live test on a throwaway Postgres, and the
-Next build on each push to `main`.
+Next build on each push to `main`. It runs after the push, alongside Render's
+auto-deploy; it reports failures, it does not gate the deploy.
 
 ## Layout
 

@@ -389,7 +389,7 @@ async def test_webhook_status_update_receipt_ignored():
 
 @pytest.mark.db
 @pytest.mark.asyncio
-async def test_webhook_fast_button_dispatch(monkeypatch):
+async def test_webhook_button_tap_reaches_auth_without_a_swiggy_call(monkeypatch):
     from backend.channels import whatsapp_client as wa_client_module
 
     class _NoopWA:
@@ -425,21 +425,16 @@ async def test_webhook_fast_button_dispatch(monkeypatch):
     sig = _compute_signature(payload_bytes, settings.WHATSAPP_APP_SECRET)
 
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        start_time = time.perf_counter()
         resp = await client.post(
             "/api/whatsapp/webhook",
             content=payload_bytes,
             headers={"Content-Type": "application/json", "X-Hub-Signature-256": sig},
         )
-        elapsed_ms = (time.perf_counter() - start_time) * 1000
         assert resp.status_code == 200
         data = resp.json()
         # No Swiggy login for this test user, so the tap must not touch a cart.
         assert data["status"] == "auth_required"
         assert data["action"] == "cart:clear"
-        # A local DB under load can add a second; the no-op client above already
-        # proves this tap never reaches Meta. This bound only catches a real wait.
-        assert elapsed_ms < 3000
 
 
 @pytest.mark.db

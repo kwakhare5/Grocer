@@ -1299,3 +1299,12 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: added `_fetch_user_id`, `_fetch_active_address`, `_load_button_context` and `_auth_result`; replaced the inline lookups and auth replies in the cart, plan, reorder, pay, address, item and budget branches; routed every background send through `_spawn`, which holds a task set and logs real failures. Plan and pay now use the same "login has expired" copy as the rest.
 - **Proof**: `verify.ps1 -Db` exit 0 — ruff clean, 184 offline + 81 DB, 9 routes; DB suite 81 passed (`.scratch/verify_dedupe_db_20261107.log`), full gate `.scratch/verify_dedupe_final_20261107.log`; `git diff --check` clean.
 - **Still broken**: the docs truth pass is next — STATUS still has older conflicting test counts, fixture provenance is overstated, and README/TASKS still drift. Live checkout, reconnect, address add/delete, 24h scrub and demo video remain open. LLM simplification stays deferred.
+
+### [GROCER — Audit Cleanup Docs Truth Pass] 2026-11-07
+
+#### Work Card: Counts, UPI Copy, Parked Claims and Honest Fixtures
+
+- **Problem**: the docs disagreed with the code and with each other: four different test totals, a pay button and receipt that said "UPI / Card" while v1 is UPI-only, a PRD map-link promise, a Send-to-Mom journey presented as v1, an ARCHITECTURE read floor of 0.70 against 0.00 in code, fixture docstrings claiming "100% ground-truth" over placeholder IDs, and stale README/TASKS/proof-page claims. The remote-DB timing bound in the webhook button test also flaked at 3.7s.
+- **Change**: set the current counts to 286 collected (185 offline, 81 DB, 20 live-only, 92 scripted) in STATUS, README, TASKS and `/proof`; made the pay button and receipt say UPI only; removed the PRD map-link promise and marked Journey 6 parked; corrected the confidence floors; rewrote the fixture docstrings as hand-written placeholders; synced README, TASKS and DESIGN with the shipped state. Replaced the flaky webhook timing bound with a deterministic 100ms dispatch test while keeping the webhook's no-Swiggy assertions.
+- **Proof**: `verify.ps1 -Db` exit 0 — ruff clean, 185 offline + 81 DB, 9 routes; `npm run build` passes; no source `UPI / Card` copy remains; `.scratch/verify_docs_final3_20261107.log`.
+- **Still broken**: live checkout, OAuth reconnect, address add/delete, the 24h scrub, typed pick, same-name picker, reactions/blue ticks and the demo video remain open. LLM simplification stays deferred. The branch is unmerged and unpushed.

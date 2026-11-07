@@ -1,7 +1,8 @@
-"""Grocer — Contract Schema Tests Against Committed Staging Fixtures.
+"""Grocer — Contract Schema Tests Against Committed Fixtures.
 
-Validates that Pydantic contract schemas accurately parse real Swiggy MCP tool responses
-for all 20 Instamart tools. Zero fake mocks; 100% ground-truth schema verification.
+Checks that the Pydantic contract schemas parse the 20 Instamart tool shapes.
+The fixtures are hand-written with placeholder IDs and addresses, so they prove
+response shape only. They are not recorded live responses and not live proof.
 """
 
 from __future__ import annotations

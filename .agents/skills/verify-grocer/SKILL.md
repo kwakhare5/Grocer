@@ -71,7 +71,7 @@ Proof standards:
 1. Webhook returns HTTP 200 with status payload.
 2. Inbound message is recorded in `grocer.inbound_messages` with status `'received'`.
 3. Valid shopping requests create approval records in `grocer.approvals` with integer `to_pay_paise` and SHA-256 cart fingerprints.
-4. Fast button taps (`cart:clear`, `pay:`) respond in <50ms without LLM lag.
+4. Fast button taps (`cart:clear`, `pay:`) reach the handler without an LLM call; the deterministic dispatch test covers this.
 
 ## Cleanup
 
@@ -81,4 +81,4 @@ Proof standards:
 ## Helpers
 
 - `scripts/drive_grocer.py`: Command-line driver for HMAC signing, webhook dispatch, and DB inspection.
-- `verify.ps1`: Universal project test runner (Ruff lint, 104 contract tests, Next.js production build).
+- `verify.ps1`: Universal project test runner (Ruff lint, the full offline and DB pytest suites, Next.js production build).

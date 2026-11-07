@@ -187,14 +187,6 @@ async def _list_coupons(client: SwiggyClient, address_id: str | None) -> str:
     return "\n".join(lines)
 
 
-def _short_address(line: str, max_segments: int = 4) -> str:
-    """Keep the two useful ends of a long geocoded line, not the whole wall."""
-    parts = [part.strip() for part in line.split(",") if part.strip()]
-    if len(parts) <= max_segments:
-        return ", ".join(parts)
-    return ", ".join(parts[:2] + ["…"] + parts[-2:])
-
-
 async def _list_addresses(client: SwiggyClient) -> ReadReply:
     data = await asyncio.to_thread(client.get_addresses)
     if not data.addresses:
@@ -209,11 +201,14 @@ async def _list_addresses(client: SwiggyClient) -> ReadReply:
         label = addr.addressTag or addr.addressCategory or "Address"
         marker = " · default" if addr.id == default_id else ""
         lines.append(f"{index}. *{label}*{marker}")
-        lines.append(f"   {_short_address(addr.addressLine)}")
+        lines.append(f"   {addr.addressLine}")
         lines.append("")
         if addr.id != default_id and len(buttons) < 3:
             buttons.append((f"addr:set:{addr.id}", f"Switch to {label}"[:20]))
 
+    if data.pagination.total > 10:
+        lines.append(f"Showing 10 of {data.pagination.total} saved addresses.")
+        lines.append("")
     if buttons:
         lines.append("Tap a button to switch, or tell me the label.")
     return ReadReply("\n".join(lines).strip(), buttons)
@@ -223,7 +218,7 @@ async def _view_basket(client: SwiggyClient, address_id: str | None) -> ReadRepl
     cart = await asyncio.to_thread(client.get_cart, address_id)
     if not cart.items:
         return ReadReply("Your basket is empty. Tell me what you need and I'll add it.")
-    return ReadReply(format_cart_receipt(cart))
+    return ReadReply(format_cart_receipt(cart, max_item_lines=60))
 
 
 async def _order_history(client: SwiggyClient) -> str:

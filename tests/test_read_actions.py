@@ -19,9 +19,12 @@ from backend.agent.read_actions import (
     format_disambiguation_choices,
 )
 from backend.agent.router import Capability, RoutingDecision, SafetyClass
+from backend.channels.turn_context import TurnContext
 from backend.integrations.commerce.schemas import (
     AddressPagination,
     AddressResolution,
+    CartData,
+    CartItem,
     DeliveryStatusData,
     GetAddressesData,
     OrderHistoryItem,
@@ -294,13 +297,14 @@ async def test_view_basket_cart_review_returns_recovery_steps():
 
 
 @pytest.mark.asyncio
-async def test_address_list_is_short_and_switchable():
+async def test_address_list_shows_full_lines_and_is_switchable():
     reply = await build_read_reply(
         _decision(Capability.LIST_ADDRESSES), AddressClient(), None
     )
     assert "1. *Home* · default" in reply.text
     assert "Kingsbury" in reply.text
-    assert "Spicer College Road" not in reply.text
+    assert "Spicer College Road" in reply.text
+    assert "Charholi" in reply.text
     assert reply.buttons == [("addr:set:a2", "Switch to Work")]
 
 
@@ -378,3 +382,94 @@ async def test_coupons_disabled_is_honest_without_internal_error():
 
     assert "aren't available" in reply.text
     assert "not enabled" not in reply.text.lower()
+
+
+class _ManyItemsClient:
+    def __init__(self, count: int) -> None:
+        items = [
+            CartItem(
+                spinId=f"spin_{index}",
+                skuId=f"sku_{index}",
+                productId=f"prod_{index}",
+                itemName=f"Item {index}",
+                quantity=1,
+                isInStockAndAvailable=True,
+                mrp=10.0,
+                discountedFinalPrice=10.0,
+            )
+            for index in range(1, count + 1)
+        ]
+        total = f"{count * 10}.00"
+        self._cart = CartData(
+            cartId="cart_many",
+            cartTotalAmount=total,
+            items=items,
+            billBreakdown={
+                "lineItems": [{"label": "Item Total", "value": f"₹{total}"}],
+                "toPay": {"label": "To Pay", "value": f"₹{total}"},
+            },
+        )
+
+    def get_cart(self, address_id: str | None = None) -> CartData:
+        return self._cart
+
+
+@pytest.mark.asyncio
+async def test_view_basket_shows_every_item_beyond_twenty():
+    reply = await build_read_reply(
+        _decision(Capability.VIEW_BASKET), _ManyItemsClient(25), "addr_01"
+    )
+
+    for index in range(1, 26):
+        assert f"Item {index}" in reply.text
+    assert "more items" not in reply.text
+
+
+class _RecordingWA:
+    def __init__(self) -> None:
+        self.texts: list[str] = []
+        self.button_calls: list[tuple[str, list[tuple[str, str]]]] = []
+
+    async def send_text_message(self, to_wa_id: str, text: str) -> None:
+        self.texts.append(text)
+
+    async def send_quick_reply_buttons(
+        self, to_wa_id: str, body_text: str, buttons: list[tuple[str, str]]
+    ) -> None:
+        self.button_calls.append((body_text, buttons))
+
+
+def _turn_context(wa: _RecordingWA) -> TurnContext:
+    return TurnContext(
+        conn=None,
+        user_id=None,
+        wa_id="919999999999",
+        text="",
+        client=None,
+        wa_client=wa,
+        address_id=None,
+        history=[],
+    )
+
+
+@pytest.mark.asyncio
+async def test_long_reply_with_buttons_splits_into_text_then_buttons():
+    wa = _RecordingWA()
+    text = "x" * 1200
+    buttons = [("addr:set:a2", "Switch to Work")]
+
+    await _turn_context(wa).reply(SimpleNamespace(text=text, buttons=buttons))
+
+    assert wa.texts == [text]
+    assert wa.button_calls == [("Tap a button:", buttons)]
+
+
+@pytest.mark.asyncio
+async def test_short_reply_with_buttons_stays_one_message():
+    wa = _RecordingWA()
+    buttons = [("addr:set:a2", "Switch to Work")]
+
+    await _turn_context(wa).reply(SimpleNamespace(text="short", buttons=buttons))
+
+    assert wa.texts == []
+    assert wa.button_calls == [("short", buttons)]

@@ -1,12 +1,11 @@
 # Address Management & Onboarding
 
-Address Management lets a customer onboard with a WhatsApp GPS location pin, select delivery locations from saved addresses, send one-time orders to friends or relatives, and prevents accidental address deletion while a delivery is en route.
+Address Management lets a customer onboard with a WhatsApp GPS location pin, select delivery locations from saved addresses, and prevents accidental address deletion while a delivery is en route.
 
 ## Sub-features
 
 - `address-pin-onboarding`: converts cold-start WhatsApp GPS pin into a verified address using Swiggy's two-step `recommend_address` geocoding.
 - `address-switch`: clears the active basket when switching delivery locations to prevent dark-store inventory mismatches.
-- `address-one-time`: sends groceries to a temporary address and automatically reverts the user session to their home primary address.
 - `address-deletion-guard`: blocks address deletion if an active delivery is currently in transit to that address.
 
 ## How to get to it (user POV)

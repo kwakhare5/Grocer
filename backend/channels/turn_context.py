@@ -24,15 +24,25 @@ class TurnContext:
 
     async def reply(self, customer_reply: Any) -> None:
         if customer_reply.buttons:
-            await self.wa_client.send_quick_reply_buttons(
-                to_wa_id=self.wa_id,
-                body_text=customer_reply.text,
-                buttons=customer_reply.buttons,
-            )
-        else:
+            if len(customer_reply.text) <= 1000:
+                await self.wa_client.send_quick_reply_buttons(
+                    to_wa_id=self.wa_id,
+                    body_text=customer_reply.text,
+                    buttons=customer_reply.buttons,
+                )
+                return
             await self.wa_client.send_text_message(
                 to_wa_id=self.wa_id, text=customer_reply.text
             )
+            await self.wa_client.send_quick_reply_buttons(
+                to_wa_id=self.wa_id,
+                body_text="Tap a button:",
+                buttons=customer_reply.buttons,
+            )
+            return
+        await self.wa_client.send_text_message(
+            to_wa_id=self.wa_id, text=customer_reply.text
+        )
 
     async def remember(self, reply_text: str) -> None:
         self.history.append({"role": "user", "text": self.text})

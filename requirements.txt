@@ -1,4 +1,4 @@
-# Grocer Production & Test Dependencies (pinned for reproducible CI)
+# Grocer Runtime Dependencies (pinned for reproducible deploys)
 fastapi==0.115.6
 uvicorn[standard]==0.32.1
 pydantic==2.13.3
@@ -7,8 +7,3 @@ asyncpg==0.31.0
 cryptography==46.0.7
 httpx==0.28.1
 python-dotenv==1.2.2
-
-# Testing
-pytest==9.1.1
-pytest-asyncio==1.4.0
-ruff==0.17.3

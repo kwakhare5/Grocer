@@ -25,6 +25,17 @@ BUTTON_UNKNOWN_USER = (
 BUTTON_STALE = "That button is out of date. Send your request again and I'll rebuild it."
 
 
+def format_cap_warning(cap_paise: int) -> str:
+    """The one cap warning used by every receipt path."""
+    from backend.agent.candidate_evaluator import format_paise_to_rupees
+
+    return (
+        f"\n\n⚠️ This is above your "
+        f"{format_paise_to_rupees(int(cap_paise))} safety cap. "
+        "You'll be asked to raise it when you tap Pay."
+    )
+
+
 async def _reply_and_return(
     wa_client: Any,
     wa_id: str,
@@ -79,11 +90,7 @@ async def send_add_receipt(
     body = format_cart_receipt(cart)
     cap_paise = await get_session_budget_cap(conn, user_id)
     if approval.to_pay_paise > int(cap_paise):
-        body += (
-            f"\n\n⚠️ This is above your "
-            f"{format_paise_to_rupees(int(cap_paise))} safety cap. "
-            "You'll be asked to raise it when you tap Pay."
-        )
+        body += format_cap_warning(cap_paise)
     pay_label = format_paise_to_rupees(approval.to_pay_paise)
     await send_receipt(
         wa_client,

@@ -11,7 +11,11 @@ from typing import Any
 import httpx
 from fastapi import APIRouter, HTTPException, Request, Response
 
-from backend.channels.button_router import dispatch_button_action, send_receipt
+from backend.channels.button_router import (
+    dispatch_button_action,
+    format_cap_warning,
+    send_receipt,
+)
 from backend.channels.reactions import reaction_for_result
 from backend.channels.whatsapp_crypto import verify_signature, verify_webhook_challenge
 from backend.channels.whatsapp_parser import parse_webhook_payload
@@ -141,6 +145,10 @@ async def verify_webhook(request: Request) -> Response:
 
 
 @router.post("/webhook")
+async def webhook_route(request: Request) -> dict[str, Any]:
+    return await handle_webhook(request)
+
+
 async def handle_webhook(
     request: Request,
     swiggy_client: Any | None = None,
@@ -903,11 +911,7 @@ async def handle_webhook(
                             )
                         cap_paise = await get_session_budget_cap(conn, user_id)
                         if approval.to_pay_paise > int(cap_paise):
-                            receipt_body += (
-                                f"\n\n⚠️ This is above your "
-                                f"{format_paise_to_rupees(int(cap_paise))} safety cap. "
-                                "You'll be asked to raise it when you tap Pay."
-                            )
+                            receipt_body += format_cap_warning(cap_paise)
 
                         buttons: list[tuple[str, str]] = [
                             (f"pay:{approval.id}", f"Pay {to_pay_formatted}")

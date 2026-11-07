@@ -1,6 +1,6 @@
 # STATUS.md — Grocer Current Truth
 
-> **Updated:** 2026-11-04  
+> **Updated:** 2026-11-07  
 > **Authority:** This is the only current status document. `PRD.md` is the v1 target. `ARCHITECTURE.md` is the design plus known gaps. `DESIGN.md` is the WhatsApp UI plus the website landing page. `JOURNAL.md` is append-only history. `docs/adr/` records decisions, amended not rewritten.  
 > **Rule:** DONE needs a proof command, date, and raw output. Everything else is PARTIAL, BROKEN, or NOT VERIFIED. A green test is not proof that the live product works.
 
@@ -10,7 +10,7 @@
 
 | Item | Current fact |
 |---|---|
-| Git branch | `main` only. Remote and local `main` are at `c16b924`, which carries the handset docs, graphics/motion and copy/phone passes. This proof sync is one local docs commit on top. It deploys Render and Vercel. Rollback target: `db6a297`. |
+| Git branch | `main` is at `3aadf93` locally, one docs commit over origin `c16b924`. Work branch `chore/audit-cleanup` holds the audit fixes; it is not pushed and not merged. |
 | Supabase | One project until launch. App data lives in the `postgres` database, schema `grocer` (8 app tables + `schema_migrations`). Both the app database and `grocer_test` are migrated through 010 (app DB applied 2026-10-28; `schema_migrations` lists 001–010). |
 | LLM | Groq `openai/gpt-oss-120b` is the only LLM (ADR 0012 amendment 2026-11-04). |
 | Swiggy auth | Allowlisted OAuth redirect: `https://grocerr.vercel.app/`. Backend calls `https://mcp.swiggy.com/im` with the customer token. |
@@ -37,6 +37,7 @@
 | Doc truth pass | **DONE 2026-10-28:** corrected pre-Batch-3 claims in ARCHITECTURE Layer 2/4, DESIGN A2/A6/A8/A9, PRD payment, GLOSSARY fee term, ADR index rows 0003–0006/0009, STATUS counts/constraints/next action, and the verify-grocer skill. No code changed. |
 | Lint | **PASS 2026-10-28:** `ruff check backend tests` → `All checks passed!` The `npm run lint` script was removed 2026-11-01; Next 16 no longer ships `next lint` and no ESLint is installed. |
 | Verify 2026-11-04 | **PASS:** `verify.ps1 -Db` exit 0 (schema, ruff, 177 offline + 78 database tests, Next 16.4.3 build). Browser checks from 2026-11-01 still stand: 0 horizontal overflow at 1440/1024/768/390/360; first Tab lands on the brand; no skip link; `/privacy` and `/proof` render. Security headers are live; the OAuth state-cookie patch is parked. `npm audit --omit=dev` → 0 vulnerabilities. A real signed "show my addresses" turn proved the new trace (`.scratch/trace_turn_20261103.log`), a real cart-lock turn returned the recovery copy (`.scratch/trace_cart_lock_20261103.log`), and a real tracking turn returned "You have no active order right now." with no invented link (`.scratch/live_retest_tracking.log`). Retest proof: `.scratch/verify_retest_20261104.log`. Deletion proof: `.scratch/verify_lean_20261104.log`. |
+| Audit cleanup branch (UNMERGED) | **IN PROGRESS 2026-11-07 on `chore/audit-cleanup`.** Fixed three sync Swiggy calls in `check_and_settle_payment` to run through `asyncio.to_thread`; the regression test failed on `MainThread` first, then passed. Removed `swiggy_client`/`wa_client` from the public webhook route; the internal handler keeps them for tests, and an OpenAPI test proves they are gone. Deleted `keep_warm.yml`, split runtime/dev requirements, pointed CI at `requirements-dev.txt`, and fixed README's install line. Fixed a test-suite connection leak: each DB test now closes its loop-bound pool; the suite passed twice back-to-back and left 0 `grocer_test` connections. Deduped the cap warning into `format_cap_warning`. Proof: `verify.ps1 -Db` exit 0 (184 offline + 81 DB, ruff, 9 routes); `.scratch/verify_cleanup_final_20261107.log`, `.scratch/verify_cleanup_db_run1_20261107.log`, `.scratch/verify_cleanup_db_run2_20261107.log`. |
 | Offline tests | **PASS 2026-11-04:** 182 offline + 81 DB = 263 passed, 20 live deselected (`pytest -q -m "not live"`). |
 | DB tests | **PASS 2026-11-04:** 78 passed on `grocer_test`, and `verify.ps1 -Db` exits 0 end to end (schema check, ruff, offline + DB tests, Next production build) after the batch-4 dedupe. |
 | Basket path | **DONE 2026-10-28, merged in `2c63289`:** adds always add and increment an existing line; sizes are exact (200 g never becomes 400 g, 500 g never becomes 1 kg); every missing item is named; explicit set applies with a receipt; remove/clear still confirm. Abuse caps: 20 messages/hour/user, 10 items/message, quantity 1–99, media reply. Proof: 146 offline + 73 DB + Next build; exact paneer/rice regression test. Live route check: 3 cases pass; multi-item, eggs, Hinglish, bare "milk" and remove were blocked by the shared Groq TPM. |

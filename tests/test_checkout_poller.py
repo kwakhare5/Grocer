@@ -7,7 +7,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from backend.agent.checkout_executor import check_and_settle_payment
+from backend.agent.checkout_settlement import check_and_settle_payment
 
 
 class _FakeConn:

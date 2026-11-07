@@ -230,15 +230,11 @@ class FixtureSwiggyClient(SwiggyClient):
         self,
         payment_method: str = "UPI",
         address_id: str | None = None,
-        intent_app: str | None = None,
     ) -> CheckoutData:
         args: dict[str, Any] = {"paymentMethod": payment_method}
         if address_id:
             args["addressId"] = address_id
         if payment_method.upper() == "UPI":
-            if intent_app:
-                args["intentApp"] = intent_app
-            else:
-                args["generateUPIQR"] = True
+            args["generateUPIQR"] = True
         self.last_checkout_args = args
         return self.call_remote_tool("checkout", args, CheckoutData)

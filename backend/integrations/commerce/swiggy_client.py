@@ -417,17 +417,13 @@ class SwiggyClient:
         self,
         payment_method: str = "UPI",
         address_id: str | None = None,
-        intent_app: str | None = None,
     ) -> CheckoutData:
         args: dict[str, Any] = {"paymentMethod": payment_method}
         if address_id:
             args["addressId"] = address_id
-        # Swiggy rejects UPI checkout without an intent app or a QR request.
+        # Swiggy rejects UPI checkout without a QR request.
         if payment_method.upper() == "UPI":
-            if intent_app:
-                args["intentApp"] = intent_app
-            else:
-                args["generateUPIQR"] = True
+            args["generateUPIQR"] = True
         return self.call_remote_tool("checkout", args, CheckoutData)
 
     def check_payment_status(

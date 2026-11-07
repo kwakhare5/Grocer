@@ -33,14 +33,16 @@ from backend.agent.approval import (
     create_checkout_approval,
 )
 from backend.agent.checkout_executor import (
-    check_and_settle_payment,
     execute_3_lock_checkout,
     format_whatsapp_cta_url_button,
+    verify_lock_1_authority,
+    verify_lock_2_truth,
+)
+from backend.agent.checkout_settlement import (
+    check_and_settle_payment,
     poll_in_flight_deliveries_batch,
     poll_pending_checkouts_batch,
     reconcile_attempting_checkouts,
-    verify_lock_1_authority,
-    verify_lock_2_truth,
 )
 from backend.agent.customer_advocate import (
     parse_price_to_paise,
@@ -124,7 +126,6 @@ class ScriptedClient:
         self,
         payment_method: str = "UPI",
         address_id: str | None = None,
-        intent_app: str | None = None,
     ) -> CheckoutData:
         self.checkout_calls += 1
         self.checkout_failed = True
@@ -360,19 +361,13 @@ def test_whatsapp_cta_url_button_formatting_and_scheme_guard():
 
 
 def test_upi_checkout_sends_qr_request(swiggy_client):
-    """UPI checkout carries generateUPIQR, or an intent app when one is chosen."""
+    """UPI checkout always requests a QR code."""
     swiggy_client.checkout(payment_method="UPI", address_id="addr_01HXYZ")
     assert swiggy_client.last_checkout_args == {
         "paymentMethod": "UPI",
         "addressId": "addr_01HXYZ",
         "generateUPIQR": True,
     }
-
-    swiggy_client.checkout(
-        payment_method="UPI", address_id="addr_01HXYZ", intent_app="gpay://upi/"
-    )
-    assert swiggy_client.last_checkout_args["intentApp"] == "gpay://upi/"
-    assert "generateUPIQR" not in swiggy_client.last_checkout_args
 
     swiggy_client.checkout(payment_method="COD", address_id="addr_01HXYZ")
     assert swiggy_client.last_checkout_args == {
@@ -1186,3 +1181,47 @@ async def test_payment_poller_keeps_unverified_row_pending():
             "SELECT status FROM grocer.checkouts WHERE id = $1;", checkout_id
         )
     assert status == "pending_payment"
+
+
+@pytest.mark.db
+@pytest.mark.asyncio
+async def test_payment_poller_commits_each_settlement_before_the_next_row():
+    """A failure on one checkout must not roll back a checkout already settled in the same tick."""
+    from types import SimpleNamespace
+
+    pool = await get_db_pool()
+    settled_id, settled_approval = await _insert_checkout(
+        pool, status="pending_payment", order_ids=["OK_ORDER"], age_minutes=30
+    )
+    broken_id, _ = await _insert_checkout(
+        pool, status="pending_payment", order_ids=["BOOM_ORDER"], age_minutes=29
+    )
+
+    class BoomOnSecondRow:
+        def check_payment_status(self, paas_id=None, order_id=None):
+            if order_id == "BOOM_ORDER":
+                raise TypeError("simulated unexpected failure")
+            return SimpleNamespace(
+                status="SUCCESS",
+                isTerminalSuccess=True,
+                confirmed=True,
+                orderStatus="PLACED",
+            )
+
+    with pytest.raises(TypeError):
+        await poll_pending_checkouts_batch(pool=pool, swiggy_client=BoomOnSecondRow())
+
+    async with pool.acquire() as conn:
+        settled_status = await conn.fetchval(
+            "SELECT status FROM grocer.checkouts WHERE id = $1;", settled_id
+        )
+        settled_approval_status = await conn.fetchval(
+            "SELECT status FROM grocer.approvals WHERE id = $1;",
+            uuid.UUID(settled_approval),
+        )
+        broken_status = await conn.fetchval(
+            "SELECT status FROM grocer.checkouts WHERE id = $1;", broken_id
+        )
+    assert settled_status == "placed"
+    assert settled_approval_status == "consumed"
+    assert broken_status == "pending_payment"

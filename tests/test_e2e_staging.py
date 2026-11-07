@@ -24,11 +24,13 @@ from backend.agent.approval import (
     create_checkout_approval,
 )
 from backend.agent.checkout_executor import (
-    check_and_settle_payment,
     execute_3_lock_checkout,
-    poll_in_flight_deliveries_batch,
     verify_lock_1_authority,
     verify_lock_2_truth,
+)
+from backend.agent.checkout_settlement import (
+    check_and_settle_payment,
+    poll_in_flight_deliveries_batch,
 )
 from backend.agent.customer_advocate import (
     extract_cart_to_pay_paise,

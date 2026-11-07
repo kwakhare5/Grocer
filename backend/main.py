@@ -30,7 +30,7 @@ logger = logging.getLogger("grocer.main")
 
 async def _run_delivery_poller_loop() -> None:
     """Periodically poll in-flight deliveries across dark stores and push milestone updates."""
-    from backend.agent.checkout_executor import poll_in_flight_deliveries_batch
+    from backend.agent.checkout_settlement import poll_in_flight_deliveries_batch
     from backend.channels.whatsapp_client import WhatsAppClient
 
     wa_client = WhatsAppClient()
@@ -69,7 +69,7 @@ async def _run_delivery_poller_loop() -> None:
 
 async def _run_payment_poller_loop() -> None:
     """Settle paid checkouts by polling Swiggy with each customer's own token."""
-    from backend.agent.checkout_executor import poll_pending_checkouts_batch
+    from backend.agent.checkout_settlement import poll_pending_checkouts_batch
     from backend.channels.whatsapp_client import WhatsAppClient
 
     wa_client = WhatsAppClient()

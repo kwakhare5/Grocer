@@ -8,7 +8,9 @@ Enforces:
 
 from __future__ import annotations
 
+import hashlib
 import logging
+import time
 from dataclasses import dataclass
 from typing import Any
 
@@ -16,9 +18,32 @@ import httpx
 
 from backend.config import settings
 from backend.integrations.commerce.schemas import CartData, rupees_to_paise
-from backend.integrations.commerce.swiggy_client import SwiggyClient
+from backend.integrations.commerce.swiggy_client import SwiggyClient, SwiggyToolError
 
 logger = logging.getLogger("grocer.customer_advocate")
+
+_COUPON_DISABLED_UNTIL: dict[str, float] = {}
+_COUPON_DISABLED_TTL_SECONDS = 3600
+
+
+def _coupon_cache_key(client: SwiggyClient) -> str | None:
+    token = getattr(client, "auth_token", None)
+    if not token:
+        return None
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def _coupons_disabled(client: SwiggyClient) -> bool:
+    key = _coupon_cache_key(client)
+    if not key:
+        return False
+    return _COUPON_DISABLED_UNTIL.get(key, 0.0) > time.monotonic()
+
+
+def _remember_coupons_disabled(client: SwiggyClient) -> None:
+    key = _coupon_cache_key(client)
+    if key:
+        _COUPON_DISABLED_UNTIL[key] = time.monotonic() + _COUPON_DISABLED_TTL_SECONDS
 
 
 @dataclass
@@ -107,11 +132,20 @@ def optimize_coupons(
             final_cart=cart,
         )
 
+    if _coupons_disabled(swiggy_client):
+        return CouponOptimizationResult(
+            original_to_pay_paise=initial_to_pay_paise,
+            final_to_pay_paise=initial_to_pay_paise,
+            final_cart=cart,
+        )
+
     try:
         coupons_data = swiggy_client.list_coupons(address_id=address_id)
         candidate_coupons = [c for c in coupons_data.availableCoupons if c.isApplicable]
     except (httpx.HTTPError, ValueError, KeyError, RuntimeError) as exc:
         logger.warning("Failed to list coupons: %s", exc)
+        if isinstance(exc, SwiggyToolError) and "not enabled" in str(exc).lower():
+            _remember_coupons_disabled(swiggy_client)
         return CouponOptimizationResult(
             original_to_pay_paise=initial_to_pay_paise,
             final_to_pay_paise=initial_to_pay_paise,

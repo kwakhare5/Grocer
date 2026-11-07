@@ -1380,3 +1380,16 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: qualified the landing coupon line; `_list_coupons` returns a plain unavailable reply on `SwiggyToolError`; the empty payment list names UPI and asks for an item; `live_smoke.py` prints address labels only, reads payment apps while a test item is in the cart, and clears the cart when the starting cart was empty.
 - **Proof**: 14 read-action tests pass; `verify.ps1 -Db` exit 0 — 187 offline + 82 DB, ruff, 9 routes (`.scratch/verify_fixes_20261107.log`); live cart add → 6 UPI apps → clear, cart back to 0 items and ₹0.
 - **Still broken**: coupon savings stay unavailable until Swiggy enables the tool; handset delivery, reconnect, address writes and ticks remain open. The Gumloop doc, scratch profile and merged-branch deletions were blocked by the host and wait for Karan's explicit delete instruction.
+
+### [GROCER — Coupon Retry Cache] 2026-11-07
+
+#### Work Card: Disabled Coupon Tools Stop Costing a Call
+
+- **Problem**: every cart write retried `list_coupons` against an account where Swiggy has not enabled the tool, adding about 0.7s and a warning on each turn.
+- **Change**: remember the "not enabled" answer for one hour per token and skip the call; transient errors still retry.
+- **Proof**: 3 coupon tests pass; offline suite 188 passed; full gate running at the time of writing.
+- **Still broken**: no real coupon savings until Swiggy enables the tool; the cache change is uncommitted.
+
+#### Gate Result
+
+- `verify.ps1 -Db` exit 0: 188 offline + 82 DB, ruff, 9 routes, 290 collected (`.scratch/verify_coupon_20261107.log`). The cache change is committed with this card.

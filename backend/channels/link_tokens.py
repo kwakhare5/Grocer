@@ -28,6 +28,11 @@ def issue_link_token(wa_id: str, ttl_seconds: int = LINK_TOKEN_TTL_SECONDS) -> s
     return f"{body}.{_sign(body)}"
 
 
+def login_url(wa_id: str) -> str:
+    """The bot issues the link, so the link names the number being connected."""
+    return f"https://grocerr.vercel.app?t={issue_link_token(wa_id)}"
+
+
 def verify_link_token(token: str, now: float | None = None) -> str | None:
     """Return the WhatsApp id when the token is genuine and unexpired."""
     parts = (token or "").split(".")

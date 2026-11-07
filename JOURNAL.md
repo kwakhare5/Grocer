@@ -1335,3 +1335,12 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: rewrote STATUS to current state only, keeping sections 0–10, capability truth, Gate 2, open proofs, ADR status, rules and the handoff checklist. The pre-cut detail is preserved in git at `aa395f0` and summarized in this journal; no repository history was deleted. TASKS current actions and the ARCHITECTURE module map now name `turn_pipeline.py`.
 - **Proof**: STATUS is 207 lines; `git diff --check` clean; `verify.ps1 -Db` exit 0 in `.scratch/verify_structure_final_20261107.log`.
 - **Still broken**: the optional checkout split, the LLM round and the live handset proofs remain open.
+
+### [GROCER — Structure Cleanup Phase 3] 2026-11-07
+
+#### Work Card: Commands and Onboarding Out of the Webhook
+
+- **Problem**: after the turn extraction, `whatsapp.py` still held the media/connect/delete command block and the full location-pin and typed-address onboarding block inside `handle_webhook`.
+- **Change**: moved media, connect-code and delete-my-data handling to `whatsapp_commands.py`; moved location-pin and typed-address steps to `whatsapp_onboarding.py`; moved the signed login URL to `link_tokens.login_url`. The webhook now calls each helper and appends the returned result, or continues. No message, SQL or control order changed. `whatsapp.py` is 436 lines.
+- **Proof**: `verify.ps1 -Db` exit 0 (185 offline + 81 DB, ruff, 9 routes); `.scratch/verify_structure_phase3_20261107.log`.
+- **Still broken**: the optional checkout split, the LLM round and the live handset proofs remain open. The branch is not merged.

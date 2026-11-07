@@ -437,7 +437,9 @@ backend/
 ├── database.py                 # asyncpg pool and tracked migrations
 │
 ├── channels/                   # WhatsApp transport and deterministic routing
-│   ├── whatsapp.py             # Webhook, HMAC, dedupe, lock, onboarding, retry
+│   ├── whatsapp.py             # Webhook, HMAC, dedupe, lock, auth gate, retry
+│   ├── whatsapp_commands.py    # Media, connect codes and delete-my-data
+│   ├── whatsapp_onboarding.py  # Location pin and typed address steps
 │   ├── turn_pipeline.py        # One conversational turn: route, read, plan, add, receipt
 │   ├── turn_context.py         # One turn: connection, customer, client, history
 │   ├── turn_read.py            # Read capabilities: answer, never write

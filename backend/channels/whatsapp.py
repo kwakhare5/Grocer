@@ -8,13 +8,15 @@ import logging
 import time
 from typing import Any
 
-import httpx
 from fastapi import APIRouter, HTTPException, Request, Response
 
 from backend.channels.button_router import dispatch_button_action
+from backend.channels.link_tokens import login_url
 from backend.channels.reactions import reaction_for_result
 from backend.channels.turn_pipeline import run_commerce_turn
+from backend.channels.whatsapp_commands import handle_text_command
 from backend.channels.whatsapp_crypto import verify_signature, verify_webhook_challenge
+from backend.channels.whatsapp_onboarding import handle_onboarding
 from backend.channels.whatsapp_parser import parse_webhook_payload
 from backend.config import settings
 from backend.database import get_db_pool
@@ -60,13 +62,6 @@ def _react_in_background(wa_client: Any, msg: Any, result: dict[str, Any]) -> No
     task.add_done_callback(_REACTION_TASKS.discard)
 
 
-def _login_url(wa_id: str) -> str:
-    """The bot issues the link, so the link names the number being connected."""
-    from backend.channels.link_tokens import issue_link_token
-
-    return f"https://grocerr.vercel.app?t={issue_link_token(wa_id)}"
-
-
 def _swiggy_tool_error_reply(exc: Exception) -> str:
     from backend.agent.read_actions import swiggy_failure_reply
 
@@ -104,7 +99,7 @@ async def _park_and_prompt(
         to_wa_id=wa_id,
         body_text=body_text,
         button_text=button_text,
-        url=_login_url(wa_id),
+        url=login_url(wa_id),
     )
 
 
@@ -319,102 +314,13 @@ async def handle_webhook(
                     )
                     continue
 
-            # 7b. Photos, voice notes and stickers get one honest reply, not silence.
-            if msg.message_type == "unsupported":
-                raw_type = str((msg.raw_payload or {}).get("type") or "").lower()
-                if raw_type == "reaction":
-                    results.append(
-                        {"status": "ignored_reaction", "wa_message_id": msg.wa_message_id}
-                    )
-                    continue
-                await conn.execute(
-                    "UPDATE grocer.inbound_messages SET status = 'unsupported_message' "
-                    "WHERE id = $1;",
-                    inbound_id,
-                )
-                await wa_client.send_text_message(
-                    to_wa_id=msg.sender_wa_id,
-                    text=(
-                        "I can only read text and location pins right now. "
-                        "Please type what you need."
-                    ),
-                )
-                results.append(
-                    {"status": "unsupported_message", "wa_message_id": msg.wa_message_id}
-                )
+            # 7b. Deterministic text commands run before commerce.
+            command_result = await handle_text_command(
+                conn, msg, user_id, inbound_id, wa_client
+            )
+            if command_result is not None:
+                results.append(command_result)
                 continue
-
-            # 7c. Website connect code. The typed number must send its own code
-            # before any login link leaves the bot.
-            if msg.text and msg.text.strip().lower().startswith("connect "):
-                from backend.channels.link_tokens import verify_link_token
-
-                code = msg.text.strip().split(None, 1)[1].strip()
-                typed_wa_id = verify_link_token(code)
-                if typed_wa_id is None:
-                    await conn.execute(
-                        "UPDATE grocer.inbound_messages SET status = 'connect_invalid' "
-                        "WHERE id = $1;",
-                        inbound_id,
-                    )
-                    await wa_client.send_text_message(
-                        to_wa_id=msg.sender_wa_id,
-                        text=(
-                            "That connect code is invalid or expired. "
-                            "Enter your number on the website again for a fresh one."
-                        ),
-                    )
-                    results.append({"status": "connect_invalid"})
-                    continue
-                if typed_wa_id != msg.sender_wa_id:
-                    await conn.execute(
-                        "UPDATE grocer.inbound_messages SET status = 'connect_mismatch' "
-                        "WHERE id = $1;",
-                        inbound_id,
-                    )
-                    await wa_client.send_text_message(
-                        to_wa_id=msg.sender_wa_id,
-                        text=(
-                            "That code belongs to a different number. "
-                            "Message me from the number you entered on the website."
-                        ),
-                    )
-                    results.append({"status": "connect_mismatch"})
-                    continue
-
-                await conn.execute(
-                    "UPDATE grocer.inbound_messages SET status = 'connect_confirmed' "
-                    "WHERE id = $1;",
-                    inbound_id,
-                )
-                await wa_client.send_cta_url_button(
-                    to_wa_id=msg.sender_wa_id,
-                    body_text=(
-                        "*Number confirmed.* Tap below to sign in to Swiggy. "
-                        "I'll be ready in your chat when you're back."
-                    ),
-                    button_text="Connect Swiggy",
-                    url=_login_url(msg.sender_wa_id),
-                )
-                results.append({"status": "connect_confirmed"})
-                continue
-
-            # 8. Deterministic admin/privacy commands (DPDP) take priority over commerce
-            if msg.text and msg.text.strip().lower() == "delete my data":
-                from backend.agent.dpdp import handle_delete_my_data
-
-                cmd_res = await handle_delete_my_data(conn, str(user_id))
-                if cmd_res is not None:
-                    from backend.channels.whatsapp_client import WhatsAppClient
-
-                    wa_client = wa_client or WhatsAppClient()
-                    if cmd_res.get("message"):
-                        await wa_client.send_text_message(
-                            to_wa_id=msg.sender_wa_id,
-                            text=cmd_res["message"],
-                        )
-                    results.append(cmd_res)
-                    continue
 
             # 9. Commerce + onboarding: requires a live Swiggy token
             if msg.message_type == "location" or msg.text:
@@ -442,7 +348,7 @@ async def handle_webhook(
                             first_connect=True,
                         )
                     else:
-                        login_url = _login_url(msg.sender_wa_id)
+                        login_url_value = login_url(msg.sender_wa_id)
                         await wa_client.send_cta_url_button(
                             to_wa_id=msg.sender_wa_id,
                             body_text=(
@@ -450,165 +356,19 @@ async def handle_webhook(
                                 "Connect your Swiggy account to shop Instamart in 10-15 minutes:"
                             ),
                             button_text="Connect Swiggy",
-                            url=login_url,
+                            url=login_url_value,
                         )
                     results.append({"status": "auth_required", "wa_id": msg.sender_wa_id})
                     continue
 
                 client = swiggy_client or SwiggyClient(auth_token=user_token)
 
-                # 9a. WhatsApp location pin -> geocode + persist delivery coords
-                if (
-                    msg.message_type == "location"
-                    and msg.latitude is not None
-                    and msg.longitude is not None
-                ):
-                    from backend.agent.address_lifecycle import (
-                        AddressOnboardingFlow,
-                        OnboardingStep,
-                    )
-
-                    try:
-                        flow = AddressOnboardingFlow(client)
-                        turn = flow.start_from_location(msg.latitude, msg.longitude)
-                    except (httpx.HTTPError, ValueError, KeyError, RuntimeError) as exc:
-                        logger.warning("Onboarding geocode failed: %s", exc)
-                        await wa_client.send_text_message(
-                            to_wa_id=msg.sender_wa_id,
-                            text="Sorry, I couldn't resolve that location. Please share your pin again.",
-                        )
-                        results.append(
-                            {"status": "onboarding_location_failed", "wa_id": msg.sender_wa_id}
-                        )
-                        continue
-
-                    await conn.execute(
-                        """
-                        INSERT INTO grocer.sessions (
-                            user_id, onboarding_state, onboarding_context,
-                            delivery_latitude, delivery_longitude, last_active_at
-                        )
-                        VALUES ($1, $2, $3::jsonb, $4, $5, now())
-                        ON CONFLICT (user_id) DO UPDATE SET
-                            onboarding_state = $2,
-                            onboarding_context = $3::jsonb,
-                            delivery_latitude = $4,
-                            delivery_longitude = $5,
-                            last_active_at = now();
-                        """,
-                        user_id,
-                        turn.next_step.value,
-                        json.dumps(turn.context),
-                        msg.latitude,
-                        msg.longitude,
-                    )
-                    await wa_client.send_text_message(
-                        to_wa_id=msg.sender_wa_id, text=turn.prompt
-                    )
-                    results.append(
-                        {"status": "onboarding_location_captured", "wa_id": msg.sender_wa_id}
-                    )
-                    continue
-
-                # 9b. Onboarding follow-up text (flat -> name -> city+PIN)
-                from backend.agent.address_lifecycle import (
-                    AddressOnboardingFlow,
-                    OnboardingStep,
+                # 9a/9b. Location-pin and typed-address onboarding.
+                onboarding_result = await handle_onboarding(
+                    conn, msg, user_id, wa_client, client
                 )
-
-                session_onboarding = await conn.fetchrow(
-                    "SELECT onboarding_state, onboarding_context FROM grocer.sessions WHERE user_id = $1;",
-                    user_id,
-                )
-                onboarding_state = (
-                    session_onboarding["onboarding_state"] if session_onboarding else None
-                )
-                onboarding_ctx = (
-                    json.loads(session_onboarding["onboarding_context"])
-                    if session_onboarding and session_onboarding["onboarding_context"]
-                    else {}
-                )
-
-                if onboarding_state and onboarding_state != OnboardingStep.DONE.value:
-                    try:
-                        flow = AddressOnboardingFlow(client)
-                        turn = flow.advance(
-                            step=onboarding_state,
-                            context=onboarding_ctx,
-                            text=msg.text,
-                            wa_id=msg.sender_wa_id,
-                        )
-                    except (httpx.HTTPError, ValueError, KeyError, RuntimeError) as exc:
-                        logger.warning("Onboarding step failed: %s", exc)
-                        await wa_client.send_text_message(
-                            to_wa_id=msg.sender_wa_id,
-                            text="Something went wrong saving your address. Please try again.",
-                        )
-                        results.append(
-                            {"status": "onboarding_failed", "wa_id": msg.sender_wa_id}
-                        )
-                        continue
-
-                    if turn.completed and turn.address_id:
-                        await conn.execute(
-                            """
-                            INSERT INTO grocer.sessions (user_id, active_address_id, onboarding_state, onboarding_context, last_active_at)
-                            VALUES ($1, $2, NULL, NULL, now())
-                            ON CONFLICT (user_id) DO UPDATE SET
-                                active_address_id = $2,
-                                onboarding_state = NULL,
-                                onboarding_context = NULL,
-                                last_active_at = now();
-                            """,
-                            user_id,
-                            turn.address_id,
-                        )
-                        await conn.execute(
-                            "UPDATE grocer.users SET display_name = $1, updated_at = now() WHERE id = $2;",
-                            turn.context.get("name") or "",
-                            user_id,
-                        )
-                        lat = turn.context.get("latitude")
-                        lng = turn.context.get("longitude")
-                        if lat is not None and lng is not None:
-                            await conn.execute(
-                                """
-                                INSERT INTO grocer.address_coords (address_id, user_id, latitude, longitude)
-                                VALUES ($1, $2, $3, $4)
-                                ON CONFLICT (address_id) DO UPDATE SET
-                                    latitude = EXCLUDED.latitude,
-                                    longitude = EXCLUDED.longitude;
-                                """,
-                                turn.address_id,
-                                user_id,
-                                lat,
-                                lng,
-                            )
-                    else:
-                        await conn.execute(
-                            """
-                            INSERT INTO grocer.sessions (user_id, onboarding_state, onboarding_context, last_active_at)
-                            VALUES ($1, $2, $3::jsonb, now())
-                            ON CONFLICT (user_id) DO UPDATE SET
-                                onboarding_state = $2,
-                                onboarding_context = $3::jsonb,
-                                last_active_at = now();
-                            """,
-                            user_id,
-                            turn.next_step.value,
-                            json.dumps(turn.context),
-                        )
-
-                    await wa_client.send_text_message(
-                        to_wa_id=msg.sender_wa_id, text=turn.prompt
-                    )
-                    results.append(
-                        {
-                            "status": "onboarding_advanced",
-                            "wa_id": msg.sender_wa_id,
-                            "step": turn.next_step.value,
-                        }
-                    )
+                if onboarding_result is not None:
+                    results.append(onboarding_result)
                     continue
 
                 begin_turn(msg.wa_message_id)

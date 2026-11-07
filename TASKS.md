@@ -48,7 +48,7 @@ The bar is still full tool coverage. These experiences use existing tools, so th
 
 ## Current next actions (2026-11-07)
 
-Local `main` is `aa395f0` and deployed. `chore/structure-cleanup` has two code commits plus this docs cut, unmerged and unpushed: the conversational turn moved verbatim to `turn_pipeline.py`, both add paths share one pay-receipt builder, and STATUS is now a current status page. Last gate: `verify.ps1 -Db` exit 0 — 185 offline + 81 DB, ruff, 9 routes. Collection: **286 tests** (185 offline, 81 DB, 20 live-only; 92 scripted). Offline scorecard 31/31; live scorecard 25/26 on 2026-11-04.
+Local `main` is `aa395f0` and deployed. `chore/structure-cleanup` has three code commits plus this docs pass, unmerged and unpushed: the conversational turn moved verbatim to `turn_pipeline.py`, media/connect/delete commands and onboarding moved to their own modules, both add paths share one pay-receipt builder, and STATUS is now a current status page. Last gate: `verify.ps1 -Db` exit 0 — 185 offline + 81 DB, ruff, 9 routes. Collection: **286 tests** (185 offline, 81 DB, 20 live-only; 92 scripted). Offline scorecard 31/31; live scorecard 25/26 on 2026-11-04.
 
 1. Decide whether to merge the structure branch.
 2. Remaining live proofs: OAuth reconnect, address add/delete, the 24h scrub, typed plan pick, same-name picker, reactions/blue ticks.

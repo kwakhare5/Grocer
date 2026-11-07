@@ -1,7 +1,7 @@
 # HANDOFF — Grocer — 2026-11-07
 
 **Goal:** structure cleanup without behavior changes. Checkout stays locked.
-**Changes:** `chore/structure-cleanup` (unmerged): the conversational turn moved verbatim from `whatsapp.py` to `turn_pipeline.py`; both add paths share one pay-receipt builder; STATUS cut from 429 to 207 lines; TASKS/ARCHITECTURE synced. `main` at `aa395f0` is deployed.
+**Changes:** `chore/structure-cleanup` (unmerged): the conversational turn moved verbatim to `turn_pipeline.py`; media/connect/delete commands to `whatsapp_commands.py`; onboarding to `whatsapp_onboarding.py`; `whatsapp.py` 1,042 → 436 lines; both add paths share one pay-receipt builder; STATUS cut to 207 lines. `main` at `aa395f0` is deployed.
 **Passing:** `verify.ps1 -Db` exit 0 — 185 offline + 81 DB, ruff, 9 routes; 286 collected.
 **Next action:** decide whether to merge the structure branch, then run the live handset proofs. No push or merge until Karan says.
 **Still broken:** live checkout, reconnect, address add/delete, 24h scrub, demo video; checkout split and LLM simplification remain deferred.

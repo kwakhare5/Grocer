@@ -11,7 +11,7 @@
 
 | Item | Current fact |
 |---|---|
-| Git | `main` is `aa395f0` and deployed. Work branch `chore/structure-cleanup` has two code commits plus this docs cut, is not pushed and not merged. Rollback target: `db6a297`. |
+| Git | `main` is `aa395f0` and deployed. Work branch `chore/structure-cleanup` has three code commits plus this docs pass, is not pushed and not merged. Rollback target: `db6a297`. |
 | Supabase | One project until launch. App data lives in the `postgres` database, schema `grocer` (8 app tables + `schema_migrations`); migrations 001–010 applied. Tests use the separate `grocer_test` database. |
 | LLM | Groq `openai/gpt-oss-120b` is the only LLM, through `backend/agent/llm.py`. Free tier: 8k tokens/minute, 200k/day; pace live runs. |
 | Swiggy auth | Allowlisted OAuth redirect `https://grocerr.vercel.app/`. Backend calls `https://mcp.swiggy.com/im` with the customer token. |
@@ -36,7 +36,7 @@
 | Current gate | **PASS 2026-11-07:** `verify.ps1 -Db` exit 0 — schema, ruff, 185 offline + 81 database tests, Next 16.4.3 build with 9 routes. |
 | Test collection | **286 tests:** 185 offline, 81 DB, 20 live-only, 92 of the offline tests scripted. Live is excluded by default. |
 | Production deploy | `aa395f0` is live on Render and Vercel. `/health` returned 200 with `database: connected`; the new webhook route no longer exposes `swiggy_client` / `wa_client`; Vercel `/proof` shows 286. |
-| Structure branch | `chore/structure-cleanup`: `whatsapp.py` 1,042 → 676 lines, the conversational turn moved verbatim to `turn_pipeline.py` (377 lines), and both add paths share one pay-receipt builder. Unmerged, unpushed. |
+| Structure branch | `chore/structure-cleanup`: `whatsapp.py` 1,042 → 436 lines; the conversational turn moved verbatim to `turn_pipeline.py` (377 lines); media/connect/delete commands moved to `whatsapp_commands.py`; location and typed-address steps moved to `whatsapp_onboarding.py`; both add paths share one pay-receipt builder. Unmerged, unpushed. |
 | Router eval | **40/40 exact (2026-10-31):** 0 unsafe writes, 0 under-acted, 0 errors; avg 1312ms, p95 1735ms, max 1889ms. |
 | Offline scorecard | **31/31 (2026-10-28):** Python checks with the model out of the loop. |
 | Live scorecard | **25/26 by intent (2026-11-04):** half one 12/13, half two 13/13. The one miss was an empty-cart payment expectation, later disproved with items. |
@@ -152,7 +152,7 @@ Live tests are excluded by default (`-m live` opts in). Scripted tests are never
 
 ## 8. Next Action
 
-**Where we are (2026-11-07).** `main` at `aa395f0` is live on Render and Vercel; `/health` is 200 and the new webhook signature is live. The structure branch has two code commits plus this docs cut and is not merged. The gate is green at 185 offline + 81 DB, ruff and 9 routes.
+**Where we are (2026-11-07).** `main` at `aa395f0` is live on Render and Vercel; `/health` is 200 and the new webhook signature is live. The structure branch has three code commits plus this docs pass and is not merged. The gate is green at 185 offline + 81 DB, ruff and 9 routes.
 
 **Do next, in order:**
 1. Live handset proofs: OAuth reconnect, address add/delete, typed plan pick, same-name picker, reactions/blue ticks.

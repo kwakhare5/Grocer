@@ -10,10 +10,9 @@ from typing import Any
 import httpx
 
 from backend.agent.approval import create_checkout_approval
-from backend.agent.candidate_evaluator import format_paise_to_rupees
 from backend.agent.composite_cart import MAX_RECEIPT_ITEM_LINES, CompositeCartManager
 from backend.agent.customer_advocate import get_session_budget_cap
-from backend.channels.button_router import format_cap_warning, send_receipt
+from backend.channels.button_router import build_pay_receipt, send_receipt
 from backend.integrations.commerce.swiggy_client import SwiggyClient
 from backend.observability import set_turn_context
 
@@ -291,42 +290,39 @@ async def run_commerce_turn(
             address_id=active_addr_id or "default",
         )
 
-        to_pay_formatted = format_paise_to_rupees(approval.to_pay_paise)
-        receipt_body = cart_res.receipt_text
+        warnings: list[str] = []
         if unfound_queries:
             detail = ", ".join(unfound_queries)
             if alternative_hints:
                 detail += "\nSimilar: " + "; ".join(alternative_hints)
-            receipt_body += f"\n\n⚠️ *Not added:* {detail}"
+            warnings.append(f"\n\n⚠️ *Not added:* {detail}")
         pending_names = [
             describe_item(target) for target, _ in choice_prompts
         ]
         if pending_names:
-            receipt_body += (
-                "\n\n⚠️ *Waiting for your pick:* "
-                + ", ".join(pending_names)
+            warnings.append(
+                "\n\n⚠️ *Waiting for your pick:* " + ", ".join(pending_names)
             )
         cap_paise = await get_session_budget_cap(conn, user_id)
-        if approval.to_pay_paise > int(cap_paise):
-            receipt_body += format_cap_warning(cap_paise)
 
-        buttons: list[tuple[str, str]] = [
-            (f"pay:{approval.id}", f"Pay {to_pay_formatted}")
-        ]
+        extra_buttons: list[tuple[str, str]] = []
         if len(cart_res.cart.items) > MAX_RECEIPT_ITEM_LINES:
-            buttons.append(("cart:view", "View basket"))
+            extra_buttons.append(("cart:view", "View basket"))
         fresh_id = _fresh_button_id(cart_res.added_lines)
-        if cart_res.baseline_count and fresh_id and len(buttons) < 3:
-            buttons.append((fresh_id, "Keep only new"))
-        if (
-            len(vague_spins) == 1
-            and len(items_to_add) == 1
-            and len(buttons) < 3
-        ):
-            buttons.append(
+        if cart_res.baseline_count and fresh_id:
+            extra_buttons.append((fresh_id, "Keep only new"))
+        if len(vague_spins) == 1 and len(items_to_add) == 1:
+            extra_buttons.append(
                 (f"item:change:{next(iter(vague_spins))}", "Change item")
             )
 
+        receipt_body, buttons = build_pay_receipt(
+            cart_res.receipt_text,
+            approval,
+            cap_paise,
+            warnings=warnings,
+            extra_buttons=extra_buttons,
+        )
         await send_receipt(
             wa_client,
             msg.sender_wa_id,

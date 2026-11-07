@@ -1317,3 +1317,12 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: moved `run_turn` verbatim into `backend/channels/turn_pipeline.py` as `run_commerce_turn`; `whatsapp.py` imports it and calls it at both retry sites. No logic, copy, SQL or order of operations changed. `_fresh_button_id` moved with it.
 - **Proof**: `whatsapp.py` 1,042 → 676 lines; `turn_pipeline.py` is 377 lines; import check passes; `verify.ps1 -Db` exit 0 (185 offline + 81 DB, ruff, 9 routes); `.scratch/verify_structure_phase1_20261107.log`.
 - **Still broken**: the remaining onboarding, command and ingestion blocks are still in `whatsapp.py`; receipt dedupe, the optional checkout split, the LLM round and the live proofs remain open.
+
+### [GROCER — Structure Cleanup Phase 2] 2026-11-07
+
+#### Work Card: One Pay-Receipt Builder for Both Add Paths
+
+- **Problem**: the text add path and the button add path each built their own pay label, cap warning, button order and receipt send, so a copy or order change had to be made twice.
+- **Change**: added `build_pay_receipt` in `button_router.py`; both `send_add_receipt` and `run_commerce_turn` now pass their body, warnings and extra buttons through it. The money write and approval creation stay where they were. The builder caps the button list at three and keeps the same pay-first order.
+- **Proof**: `verify.ps1 -Db` exit 0 (185 offline + 81 DB, ruff, 9 routes); DB suite 81 passed (`.scratch/verify_structure_phase2_20261107.log`); no copy changed.
+- **Still broken**: the STATUS hard cut, the optional checkout split, the LLM round and the live handset proofs remain open.

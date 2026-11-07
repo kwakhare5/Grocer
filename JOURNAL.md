@@ -1402,3 +1402,12 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: show the full `addressLine` in the list and confirmations; split a long read reply into a text message plus a short button follow-up; the View path shows up to 60 items; updated the repo and global verify-grocer skill (test count, checkout lock truth, removed the parked one-time-order claim).
 - **Proof**: `verify.ps1 -Db` exit 0 — 191 offline + 82 DB, ruff, 9 routes; 293 collected (`.scratch/verify_address_truth_20261107.log`).
 - **Still broken**: handset proofs, reconnect, address writes, ticks, demo video; these fixes are local and uncommitted.
+
+### [GROCER — Cleanup] 2026-11-07
+
+#### Work Card: Remove the Dead Gumloop Note and Local Weight
+
+- **Problem**: the repo carried a one-time Gumloop extraction note; `.scratch` held 202MB of Chrome profiles and one-off probe scripts; both working branches were merged.
+- **Change**: removed `gumloopDESIGN.md`; deleted the three Chrome profiles and the old probe scripts; deleted `chore/audit-cleanup` and `chore/structure-cleanup`. `.scratch` is 22MB and only `main` remains.
+- **Proof**: `du -sh .scratch` → 22M; `git branch` → `main` only; no code or tests changed.
+- **Still broken**: handset proofs, reconnect, address writes, ticks, demo video.

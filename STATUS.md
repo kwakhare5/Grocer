@@ -33,10 +33,10 @@
 
 | Item | State |
 |---|---|
-| Current gate | **PASS 2026-11-07:** `verify.ps1 -Db` exit 0 — schema, ruff, 185 offline + 81 database tests, Next 16.4.3 build with 9 routes. |
-| Test collection | **286 tests:** 185 offline, 81 DB, 20 live-only, 92 of the offline tests scripted. Live is excluded by default. |
+| Current gate | **PASS 2026-11-07:** `verify.ps1 -Db` exit 0 — schema, ruff, 185 offline + 82 database tests, Next 16.4.3 build with 9 routes. |
+| Test collection | **287 tests:** 185 offline, 82 DB, 20 live-only, 92 of the offline tests scripted. Live is excluded by default. |
 | Production deploy | `aa395f0` is live on Render and Vercel. `/health` returned 200 with `database: connected`; the new webhook route no longer exposes `swiggy_client` / `wa_client`; Vercel `/proof` shows 286. |
-| Structure branch | `chore/structure-cleanup`: `whatsapp.py` 1,042 → 436 lines; the conversational turn moved verbatim to `turn_pipeline.py` (377 lines); media/connect/delete commands moved to `whatsapp_commands.py`; location and typed-address steps moved to `whatsapp_onboarding.py`; both add paths share one pay-receipt builder. Unmerged, unpushed. |
+| Structure branch | `chore/structure-cleanup`: `whatsapp.py` 1,042 → 436 lines; the conversational turn moved verbatim to `turn_pipeline.py` (377 lines); media/connect/delete commands moved to `whatsapp_commands.py`; location and typed-address steps moved to `whatsapp_onboarding.py`; both add paths share one pay-receipt builder; `checkout_executor.py` split into placement and `checkout_settlement.py`; both background pollers claim and settle one row per transaction; the unused `intent_app` option and one duplicate CSS rule are gone. Unmerged, unpushed. |
 | Router eval | **40/40 exact (2026-10-31):** 0 unsafe writes, 0 under-acted, 0 errors; avg 1312ms, p95 1735ms, max 1889ms. |
 | Offline scorecard | **31/31 (2026-10-28):** Python checks with the model out of the loop. |
 | Live scorecard | **25/26 by intent (2026-11-04):** half one 12/13, half two 13/13. The one miss was an empty-cart payment expectation, later disproved with items. |
@@ -118,13 +118,13 @@ ruff check backend tests
 All checks passed!
 
 pytest -q -m "not db and not live"
-185 passed, 101 deselected
+185 passed, 102 deselected
 
 pytest -q -m "db"
-81 passed, 205 deselected
+82 passed, 205 deselected
 
 pytest --collect-only -q
-286 tests collected
+287 tests collected
 ```
 
 Live tests are excluded by default (`-m live` opts in). Scripted tests are never counted as live proof. No test was weakened to pass.
@@ -152,7 +152,7 @@ Live tests are excluded by default (`-m live` opts in). Scripted tests are never
 
 ## 8. Next Action
 
-**Where we are (2026-11-07).** `main` at `aa395f0` is live on Render and Vercel; `/health` is 200 and the new webhook signature is live. The structure branch has three code commits plus this docs pass and is not merged. The gate is green at 185 offline + 81 DB, ruff and 9 routes.
+**Where we are (2026-11-07).** `main` at `aa395f0` is live on Render and Vercel; `/health` is 200 and the new webhook signature is live. The structure branch is seven commits ahead, unmerged and unpushed. The gate is green at 185 offline + 82 DB, ruff and 9 routes.
 
 **Do next, in order:**
 1. Live handset proofs: OAuth reconnect, address add/delete, typed plan pick, same-name picker, reactions/blue ticks.

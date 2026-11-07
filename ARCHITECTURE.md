@@ -256,7 +256,7 @@ sequenceDiagram
 
 ---
 
-### Layer 5: The 3-Lock Safety Gate & Checkout (`backend/agent/approval.py` & `checkout_executor.py`)
+### Layer 5: The 3-Lock Safety Gate & Checkout (`backend/agent/approval.py`, `checkout_executor.py` & `checkout_settlement.py`)
 An order can **never** be placed unless all 3 locks pass simultaneously:
 
 ```
@@ -288,10 +288,10 @@ check.
 - **Payment Link Delivery:**
   - Swiggy's `checkout` response provides an authoritative HTTPS `bridgeUrl`.
   - Grocer delivers this link as a WhatsApp CTA URL button: `[Pay ₹X via UPI]`. Tapping opens Swiggy's secure web payment screen where the customer completes the UPI payment.
-  - UPI sends `generateUPIQR=true`, or `intentApp` when one is supplied. A recovered order (the response was lost but `get_orders` proved it) has no bridge link; the customer is told to pay in the Swiggy app.
+  - UPI always sends `generateUPIQR=true`. A recovered order (the response was lost but `get_orders` proved it) has no bridge link; the customer is told to pay in the Swiggy app.
 - **Payment Lifecycle & Polling:**
   - Target: honor Swiggy's `pollingIntervalInMs` and `maxTimeToPollForInMs` from the checkout response. Use `check_payment_status`; call `confirm_order` once after a successful terminal payment if Swiggy has not auto-confirmed.
-  - Current: the payment loop sleeps 15 seconds and the delivery loop sleeps 30 seconds. It does not read Swiggy's interval fields.
+  - Current: the payment loop sleeps 15 seconds and the delivery loop sleeps 30 seconds. It does not read Swiggy's interval fields. Each checkout row is claimed with `FOR UPDATE SKIP LOCKED` and settled in its own transaction, so a failure on one row cannot roll back or hold up the others.
   - Milestones: 3 (Packed, On the Way with Swiggy's ETA, Delivered). Each order id in a checkout is polled, and `notified_milestones` (migration 004) latches every order+milestone so it fires once. `SwiggyAuthExpiredError` is caught per row, and a pending payment made while Render slept is checked on wake before any stale-failure mark.
 - **Post-Payment Session Reset (ADR 0010):**
   - Target: reset the basket and dialogue state after payment confirms.
@@ -467,7 +467,8 @@ backend/
 │   ├── address_actions.py      # Switch and two-tap delete with live guards
 │   ├── address_lifecycle.py    # Address list, switch, delete and pin onboarding
 │   ├── approval.py             # Paise math, fingerprint, approval latch
-│   ├── checkout_executor.py    # 3-lock checkout, settlement, pollers
+│   ├── checkout_executor.py    # 3-lock gate, order placement and receipts
+│   ├── checkout_settlement.py  # Settlement, recovery and background pollers
 │   ├── composite_cart.py       # Target cart assembly, read-after-write
 │   ├── customer_advocate.py    # Coupons and integer paise math
 │   ├── delivery_tracker.py     # Milestone notifications

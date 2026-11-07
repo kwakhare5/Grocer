@@ -1344,3 +1344,12 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: moved media, connect-code and delete-my-data handling to `whatsapp_commands.py`; moved location-pin and typed-address steps to `whatsapp_onboarding.py`; moved the signed login URL to `link_tokens.login_url`. The webhook now calls each helper and appends the returned result, or continues. No message, SQL or control order changed. `whatsapp.py` is 436 lines.
 - **Proof**: `verify.ps1 -Db` exit 0 (185 offline + 81 DB, ruff, 9 routes); `.scratch/verify_structure_phase3_20261107.log`.
 - **Still broken**: the optional checkout split, the LLM round and the live handset proofs remain open. The branch is not merged.
+
+### [GROCER — Audit Leftovers] 2026-11-07
+
+#### Work Card: Checkout Split and Per-Row Settlement
+
+- **Problem**: `checkout_executor.py` was 1,115 lines, and both background pollers held one transaction across a whole batch of Swiggy calls, so a crash rolled back settlements already completed in that batch.
+- **Change**: moved reconciliation, settlement and both pollers to `checkout_settlement.py`; each row is now claimed with `FOR UPDATE SKIP LOCKED` and settled in its own transaction; removed the unused `intent_app` checkout option and one exact duplicate landing rule.
+- **Proof**: the new test failed first with `pending_payment` on the settled row, then passed after the fix; 27 checkout tests pass; `verify.ps1 -Db` exit 0 — 185 offline + 82 DB, ruff, 9 routes (`.scratch/verify_all_20261107.log`); landing screenshots identical at 1440/1024/768/390/360 (`.scratch/css_before`, `.scratch/css_after`).
+- **Still broken**: live handset proofs, the 24h scrub, the demo video and the LLM prompt trim remain open. The branch is not merged or pushed. No real order has been placed.

@@ -100,9 +100,9 @@ On macOS or Linux, run the same steps directly: `python scripts/verify_db.py`,
 Database tests refuse to run unless `TEST_DATABASE_URL` names the separate
 `grocer_test` database. Tests never write production data.
 
-Current collection: **286 tests** — 185 offline, 81 database, 20 live-only;
+Current collection: **287 tests** — 185 offline, 82 database, 20 live-only;
 92 of the offline tests inject a scripted external client on purpose.
-`verify.ps1 -Db` runs the 185 offline and 81 database tests.
+`verify.ps1 -Db` runs the 185 offline and 82 database tests.
 
 GitHub Actions runs ruff, every non-live test on a throwaway Postgres, and the
 Next build on each push to `main`. It runs after the push, alongside Render's

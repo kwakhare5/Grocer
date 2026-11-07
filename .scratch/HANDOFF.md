@@ -1,17 +1,17 @@
 # HANDOFF — Grocer — 2026-11-07
 
-**Goal:** deploy the truth fixes, then handset-check one message. Checkout stays locked.
-**Changes:** full Swiggy address lines in the list and switch/delete confirmations; long read replies split into text plus buttons; View basket shows up to 60 items instead of 20; coupon tools cached when disabled; verify-grocer skill synced to the repo and global copy.
+**Goal:** verify the deployed truth fixes, then handset-check one message. Checkout stays locked.
+**Changes:** full Swiggy address lines in the list and confirmations; long read replies split into text plus buttons; View basket shows up to 60 items; coupon tools cached when disabled; verify-grocer skill synced; dead Gumloop note, Chrome profiles, probe scripts and both merged branches removed.
 **Passing:** `verify.ps1 -Db` exit 0 — 191 offline + 82 DB, ruff, 9 routes; 293 collected; live reads OK; live router 5/5; live cart add → 6 UPI apps → cleared.
-**Next action:** push the local commits on Karan's word; then one handset message for the delivery layer.
-**Still broken:** handset reconnect/address writes/ticks; coupon savings blocked by Swiggy; demo video missing; cleanup deletion needs Karan's exact file names.
+**Next action:** confirm the Render/Vercel deploy, then one handset message for the delivery layer.
+**Still broken:** handset reconnect/address writes/ticks; coupon savings blocked by Swiggy; demo video missing.
 
 ## Current truth
 
-- `main` at `a557c3a` is deployed on Render and Vercel. Four local commits are not pushed (`dbab521`, `dcf5a25`, plus the address/view/skill commit).
+- `main` carries four local commits on top of the live `a557c3a`: coupon truth, coupon cache, address/view truth, cleanup. The push and deploy verification are next.
 - Checkout locked (`LIVE_CHECKOUT_ENABLED=false`). No real order has ever been placed.
 - The live cart is empty again.
-- The repo and global `verify-grocer` skills are now identical.
+- `.scratch` is 22MB; only `main` remains; the repo and global `verify-grocer` skills match.
 
 ## Unproven
 

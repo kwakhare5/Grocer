@@ -286,7 +286,7 @@ async def dispatch_button_action(
                     from backend.agent.composite_cart import format_cart_receipt
 
                     cart = await asyncio.to_thread(client.get_cart, active)
-                    reply = BasketReply(format_cart_receipt(cart))
+                    reply = BasketReply(format_cart_receipt(cart, max_item_lines=60))
                 elif button_id == "cart:clear":
                     reply = await apply_clear(client, active)
                 elif button_id.startswith("cart:fresh:"):

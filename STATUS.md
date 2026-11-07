@@ -33,8 +33,8 @@
 
 | Item | State |
 |---|---|
-| Current gate | **PASS 2026-11-07:** `verify.ps1 -Db` exit 0 — schema, ruff, 188 offline + 82 database tests, Next 16.4.3 build with 9 routes. |
-| Test collection | **290 tests:** 188 offline, 82 DB, 20 live-only, 92 of the offline tests scripted. Live is excluded by default. |
+| Current gate | **PASS 2026-11-07:** `verify.ps1 -Db` exit 0 — schema, ruff, 191 offline + 82 database tests, Next 16.4.3 build with 9 routes. |
+| Test collection | **293 tests:** 191 offline, 82 DB, 20 live-only, 92 of the offline tests scripted. Live is excluded by default. |
 | Production deploy | `main` auto-deploys Render and Vercel. The structure cleanup was verified live at `a557c3a`: Render deploy `dep-dbnhbjm8bjmc73a800ng` is `live`, `/health` returns 200 with `database: connected`, the webhook exposes no test hooks, and Vercel `/proof` shows 287. |
 | Structure cleanup | Merged to `main` at `a557c3a`: `whatsapp.py` 1,042 → 436 lines; the conversational turn moved verbatim to `turn_pipeline.py` (377 lines); media/connect/delete commands moved to `whatsapp_commands.py`; location and typed-address steps moved to `whatsapp_onboarding.py`; both add paths share one pay-receipt builder; `checkout_executor.py` split into placement and `checkout_settlement.py`; both background pollers claim and settle one row per transaction; the unused `intent_app` option and one duplicate CSS rule are gone. |
 | Router eval | **40/40 exact (2026-10-31):** 0 unsafe writes, 0 under-acted, 0 errors; avg 1312ms, p95 1735ms, max 1889ms. |
@@ -118,13 +118,13 @@ ruff check backend tests
 All checks passed!
 
 pytest -q -m "not db and not live"
-188 passed, 102 deselected
+191 passed, 102 deselected
 
 pytest -q -m "db"
-82 passed, 208 deselected
+82 passed, 211 deselected
 
 pytest --collect-only -q
-290 tests collected
+293 tests collected
 ```
 
 Live tests are excluded by default (`-m live` opts in). Scripted tests are never counted as live proof. No test was weakened to pass.
@@ -152,7 +152,7 @@ Live tests are excluded by default (`-m live` opts in). Scripted tests are never
 
 ## 8. Next Action
 
-**Where we are (2026-11-07).** `main` at `a557c3a` is live on Render and Vercel; `/health` is 200 and Vercel `/proof` shows 287. The structure cleanup is merged and deployed. The gate is green at 188 offline + 82 DB, ruff and 9 routes.
+**Where we are (2026-11-07).** `main` at `a557c3a` is live on Render and Vercel; `/health` is 200 and Vercel `/proof` shows 287. The structure cleanup is merged and deployed. The gate is green at 191 offline + 82 DB, ruff and 9 routes.
 
 **Do next, in order:**
 1. Live handset proofs: OAuth reconnect, address add/delete, typed plan pick, same-name picker, reactions/blue ticks.

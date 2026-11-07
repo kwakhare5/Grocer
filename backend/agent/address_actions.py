@@ -132,7 +132,7 @@ async def handle_switch_request(
 
     await _save_active_address(conn, user_id, target.id)
     return ReadReply(
-        f"Done. Your active address is now *{_label(target)}* — {_short(target.addressLine, 60)}."
+        f"Done. Your active address is now *{_label(target)}* — {target.addressLine}."
     )
 
 
@@ -248,7 +248,7 @@ async def handle_delete_request(
         )
 
     return ReadReply(
-        f"Delete *{_label(target)}* — {_short(target.addressLine, 60)}? This can't be undone.",
+        f"Delete *{_label(target)}* — {target.addressLine}? This can't be undone.",
         [(f"addr:del:{target.id}", "Yes, delete"), ("addr:keep", "Cancel")],
     )
 

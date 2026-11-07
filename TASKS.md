@@ -48,7 +48,7 @@ The bar is still full tool coverage. These experiences use existing tools, so th
 
 ## Current next actions (2026-11-07)
 
-Local `main` is `aa395f0` and deployed. `chore/structure-cleanup` is seven commits ahead, unmerged and unpushed: the conversational turn, commands and onboarding moved out of the webhook; both add paths share one pay-receipt builder; checkout placement and settlement are separate modules; both pollers claim and settle one row per transaction; the unused `intent_app` option and one duplicate CSS rule are gone. Last gate: `verify.ps1 -Db` exit 0 — 185 offline + 82 DB, ruff, 9 routes. Collection: **287 tests** (185 offline, 82 DB, 20 live-only; 92 scripted). Offline scorecard 31/31; live scorecard 25/26 on 2026-11-04.
+Local `main` is `aa395f0` and deployed. `chore/structure-cleanup` is unmerged and unpushed: the conversational turn, commands and onboarding moved out of the webhook; both add paths share one pay-receipt builder; checkout placement and settlement are separate modules; both pollers claim and settle one row per transaction; the unused `intent_app` option and one duplicate CSS rule are gone. Last gate: `verify.ps1 -Db` exit 0 — 185 offline + 82 DB, ruff, 9 routes. Collection: **287 tests** (185 offline, 82 DB, 20 live-only; 92 scripted). Offline scorecard 31/31; live scorecard 25/26 on 2026-11-04.
 
 1. Run the live handset proofs before the token window closes; reconnect first.
 2. Add `public/demo.mp4` and verify the player, or keep the recording stage.

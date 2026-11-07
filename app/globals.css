@@ -1208,10 +1208,6 @@ h3 {
 }
 
 /* Try a message */
-.kicker--blue::before {
-  background: var(--blue);
-}
-
 .try {
   display: grid;
   grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);

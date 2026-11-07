@@ -1308,3 +1308,12 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: set the current counts to 286 collected (185 offline, 81 DB, 20 live-only, 92 scripted) in STATUS, README, TASKS and `/proof`; made the pay button and receipt say UPI only; removed the PRD map-link promise and marked Journey 6 parked; corrected the confidence floors; rewrote the fixture docstrings as hand-written placeholders; synced README, TASKS and DESIGN with the shipped state. Replaced the flaky webhook timing bound with a deterministic 100ms dispatch test while keeping the webhook's no-Swiggy assertions.
 - **Proof**: `verify.ps1 -Db` exit 0 — ruff clean, 185 offline + 81 DB, 9 routes; `npm run build` passes; no source `UPI / Card` copy remains; `.scratch/verify_docs_final3_20261107.log`.
 - **Still broken**: live checkout, OAuth reconnect, address add/delete, the 24h scrub, typed pick, same-name picker, reactions/blue ticks and the demo video remain open. LLM simplification stays deferred. The branch is unmerged and unpushed.
+
+### [GROCER — Structure Cleanup Phase 1] 2026-11-07
+
+#### Work Card: Conversational Turn Lifted Out of the Webhook
+
+- **Problem**: `backend/channels/whatsapp.py` was 1,042 lines and `handle_webhook` carried a 340-line nested `run_turn` inside the message loop, which made the ingestion path and the commerce path one unit.
+- **Change**: moved `run_turn` verbatim into `backend/channels/turn_pipeline.py` as `run_commerce_turn`; `whatsapp.py` imports it and calls it at both retry sites. No logic, copy, SQL or order of operations changed. `_fresh_button_id` moved with it.
+- **Proof**: `whatsapp.py` 1,042 → 676 lines; `turn_pipeline.py` is 377 lines; import check passes; `verify.ps1 -Db` exit 0 (185 offline + 81 DB, ruff, 9 routes); `.scratch/verify_structure_phase1_20261107.log`.
+- **Still broken**: the remaining onboarding, command and ingestion blocks are still in `whatsapp.py`; receipt dedupe, the optional checkout split, the LLM round and the live proofs remain open.

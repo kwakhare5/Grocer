@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+from uuid import uuid4
+
 from backend.agent.customer_advocate import optimize_coupons
 from backend.integrations.commerce.schemas import CartData, CartItem
+from backend.integrations.commerce.swiggy_client import SwiggyToolError
 
 
 def _item(spin: str, name: str, qty: int, price: float) -> CartItem:
@@ -85,3 +88,28 @@ def test_a_coupon_that_changes_items_is_ignored():
     assert result.savings_paise == 0
     assert result.final_to_pay_paise == 18500
     assert client.writes
+
+
+class DisabledCouponClient:
+    def __init__(self) -> None:
+        self.auth_token = f"test-{uuid4().hex}"
+        self.list_calls = 0
+
+    def list_coupons(self, address_id: str | None = None):
+        self.list_calls += 1
+        raise SwiggyToolError("Coupon tools are not enabled for your account yet.")
+
+    def apply_coupon(self, code: str) -> CartData:
+        raise AssertionError("must not apply a coupon when the tool is disabled")
+
+
+def test_disabled_coupon_tool_is_not_retried_every_turn():
+    cart = _cart([_item("spin_milk", "Milk", 2, 70.0)], 15000)
+    client = DisabledCouponClient()
+
+    first = optimize_coupons(cart, client, "addr_01")
+    second = optimize_coupons(cart, client, "addr_01")
+
+    assert client.list_calls == 1
+    assert first.savings_paise == 0
+    assert second.savings_paise == 0

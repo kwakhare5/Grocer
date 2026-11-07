@@ -37,9 +37,9 @@ const RUNS = [
   },
   {
     label: "Automated tests",
-    result: "289",
+    result: "290",
     date: "7 Nov 2026",
-    note: "187 offline and 82 database tests; 20 live-only tests are excluded.",
+    note: "188 offline and 82 database tests; 20 live-only tests are excluded.",
   },
   {
     label: "Production code",

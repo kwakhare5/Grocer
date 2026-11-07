@@ -153,6 +153,7 @@ sequenceDiagram
 - **Durable Deduplication:** Inbound messages are inserted into `inbound_messages` with `ON CONFLICT (wa_message_id) DO NOTHING`. The user and message rows commit before the turn runs, so a later exception cannot roll the dedupe row back. Fixed in Phase 3.
 - **Stale Message Dropping:** Discards any inbound webhook with a timestamp older than 15 minutes. A message that arrives after Render wakes can be dropped with no reply; that is a known UX gap.
 - **Per-User Concurrency Lock:** Serializes operations per user using the session-scoped `pg_try_advisory_lock(hashtext(user_id))`. A quick second message waits up to 12 seconds for the first turn, then runs against the fresh cart and history. If the turn is still running, the message is marked `concurrency_wait_timeout` and the customer gets an honest "send that again" reply (`backend/channels/whatsapp.py`).
+- **Turn Pipeline (`turn_pipeline.py`):** one function runs the conversational turn — session/address load, plan pick, routing, read/basket/address dispatch, add plan, approval and receipt. The webhook keeps HMAC, dedupe, the lock, onboarding and the refresh retry. Moved verbatim out of the webhook on 2026-11-07; no logic changed.
 - **Abuse Limits (2026-10-28):** 20 messages per user per hour; the first over the limit gets one warning, the rest are recorded and dropped. A message can carry at most 10 items and each quantity is clamped to 1–99. Photos, voice notes and stickers get one honest "type it" reply instead of silence. One sender cannot exhaust the shared free AI budget or the store calls for everyone.
 - **Presence:** Every accepted inbound message is marked read with a 25-second typing indicator (`POST /messages` with `status=read` and `typing_indicator`). The call runs as a fire-and-forget task after dedupe, so a slow Meta call never delays the turn; failures are logged only. Built 2026-10-27.
 - **Fast Button Dispatcher (`button_router.py`):**
@@ -436,7 +437,8 @@ backend/
 ├── database.py                 # asyncpg pool and tracked migrations
 │
 ├── channels/                   # WhatsApp transport and deterministic routing
-│   ├── whatsapp.py             # Webhook, HMAC, dedupe, per-user lock, turn dispatch
+│   ├── whatsapp.py             # Webhook, HMAC, dedupe, lock, onboarding, retry
+│   ├── turn_pipeline.py        # One conversational turn: route, read, plan, add, receipt
 │   ├── turn_context.py         # One turn: connection, customer, client, history
 │   ├── turn_read.py            # Read capabilities: answer, never write
 │   ├── turn_address.py         # Switch, delete and start of a typed address

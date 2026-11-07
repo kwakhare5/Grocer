@@ -48,11 +48,12 @@ The bar is still full tool coverage. These experiences use existing tools, so th
 
 ## Current next actions (2026-11-07)
 
-Local `main` is `3aadf93`, one docs commit over origin `c16b924`. The audit fixes live on `chore/audit-cleanup` in two local commits (checkout settlement off the event loop, webhook hook removal, test-pool close, button dedupe); they are not pushed or merged. Last gate: `verify.ps1 -Db` exit 0 — 185 offline + 81 DB, ruff, 9 routes. Collection: **286 tests** (185 offline, 81 DB, 20 live-only; 92 scripted). Offline scorecard 31/31; live scorecard 25/26 on 2026-11-04.
+Local `main` is `aa395f0` and deployed. `chore/structure-cleanup` has two code commits plus this docs cut, unmerged and unpushed: the conversational turn moved verbatim to `turn_pipeline.py`, both add paths share one pay-receipt builder, and STATUS is now a current status page. Last gate: `verify.ps1 -Db` exit 0 — 185 offline + 81 DB, ruff, 9 routes. Collection: **286 tests** (185 offline, 81 DB, 20 live-only; 92 scripted). Offline scorecard 31/31; live scorecard 25/26 on 2026-11-04.
 
-1. Docs truth pass (this change): current counts, fixture provenance, README/TASKS sync.
-2. Remaining live proofs: OAuth reconnect, address add/delete, the 24h scrub, typed plan pick, same-name picker, reactions/blue ticks, and the demo video.
-3. First real order is Karan's, after handoff. Checkout stays locked.
+1. Decide whether to merge the structure branch.
+2. Remaining live proofs: OAuth reconnect, address add/delete, the 24h scrub, typed plan pick, same-name picker, reactions/blue ticks.
+3. Add `public/demo.mp4` and verify the player, or keep the recording stage.
+4. First real order is Karan's, after handoff. Checkout stays locked.
 
 The 2026-11-03/04 batch proof history is in `JOURNAL.md`; this file keeps the plan, not the changelog.
 

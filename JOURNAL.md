@@ -1326,3 +1326,12 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: added `build_pay_receipt` in `button_router.py`; both `send_add_receipt` and `run_commerce_turn` now pass their body, warnings and extra buttons through it. The money write and approval creation stay where they were. The builder caps the button list at three and keeps the same pay-first order.
 - **Proof**: `verify.ps1 -Db` exit 0 (185 offline + 81 DB, ruff, 9 routes); DB suite 81 passed (`.scratch/verify_structure_phase2_20261107.log`); no copy changed.
 - **Still broken**: the STATUS hard cut, the optional checkout split, the LLM round and the live handset proofs remain open.
+
+### [GROCER — STATUS History Cut] 2026-11-07
+
+#### Work Card: STATUS Becomes a Status Page
+
+- **Problem**: STATUS had grown to 429 lines and carried the full dated changelog, so current truth was buried and stale counts kept resurfacing.
+- **Change**: rewrote STATUS to current state only, keeping sections 0–10, capability truth, Gate 2, open proofs, ADR status, rules and the handoff checklist. The pre-cut detail is preserved in git at `aa395f0` and summarized in this journal; no repository history was deleted. TASKS current actions and the ARCHITECTURE module map now name `turn_pipeline.py`.
+- **Proof**: STATUS is 207 lines; `git diff --check` clean; `verify.ps1 -Db` exit 0 in `.scratch/verify_structure_final_20261107.log`.
+- **Still broken**: the optional checkout split, the LLM round and the live handset proofs remain open.

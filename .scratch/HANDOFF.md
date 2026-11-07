@@ -1,10 +1,10 @@
 # HANDOFF — Grocer — 2026-11-07
 
-**Goal:** audit cleanup without behavior changes. Checkout stays locked.
-**Changes:** three local commits on `chore/audit-cleanup` (unmerged): checkout settlement off the event loop; public webhook hooks removed; test-pool leak closed; button lookups/auth replies deduped and background sends tracked; docs truth pass with counts 286/185/81/20/92, UPI-only pay copy, honest fixture provenance, parked map/Send-to-Mom claims.
-**Passing:** `verify.ps1 -Db` exit 0 — 185 offline + 81 DB, ruff, 9 routes; DB suite green; 0 leaked `grocer_test` connections.
-**Next action:** decide whether to push/merge the branch, then run the live proofs (reconnect, address add/delete, 24h scrub, typed pick, same-name picker, reactions/ticks) and add the demo video. No push or merge until Karan says.
-**Still broken:** live checkout, reconnect, address add/delete, 24h scrub, demo video; LLM simplification deferred.
+**Goal:** structure cleanup without behavior changes. Checkout stays locked.
+**Changes:** `chore/structure-cleanup` (unmerged): the conversational turn moved verbatim from `whatsapp.py` to `turn_pipeline.py`; both add paths share one pay-receipt builder; STATUS cut from 429 to 207 lines; TASKS/ARCHITECTURE synced. `main` at `aa395f0` is deployed.
+**Passing:** `verify.ps1 -Db` exit 0 — 185 offline + 81 DB, ruff, 9 routes; 286 collected.
+**Next action:** decide whether to merge the structure branch, then run the live handset proofs. No push or merge until Karan says.
+**Still broken:** live checkout, reconnect, address add/delete, 24h scrub, demo video; checkout split and LLM simplification remain deferred.
 
 ## Current truth
 

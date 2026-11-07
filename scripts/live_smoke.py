@@ -31,7 +31,7 @@ from backend.agent.read_actions import build_read_reply
 from backend.agent.router import SafetyClass, route_message
 from backend.config import settings
 from backend.database import close_db_pool, get_db_pool
-from backend.integrations.commerce.swiggy_client import SwiggyClient
+from backend.integrations.commerce.swiggy_client import SwiggyClient, SwiggyToolError
 from backend.integrations.commerce.token_vault import resolve_user_token
 
 CHAT_CASES = (
@@ -89,7 +89,7 @@ async def stage_reads(client: SwiggyClient, address_id: str | None) -> None:
     print(f"addresses: {len(addresses.addresses)} (default {addresses.resolution.defaultAddressId})")
     for addr in addresses.addresses[:5]:
         label = addr.addressCategory or addr.addressTag or "Address"
-        print(f"  - {label}: {addr.addressLine[:34]}…")
+        print(f"  - {label}")
 
     products = await asyncio.to_thread(
         client.search_products, "milk", address_id, None, None, 0
@@ -119,9 +119,13 @@ async def stage_reads(client: SwiggyClient, address_id: str | None) -> None:
     methods = [m.displayName or m.id for m in options.allMethods if m.enabled is not False]
     print(f"payment methods: {', '.join(methods[:6]) or 'none'}")
 
-    coupons = await asyncio.to_thread(client.list_coupons, address_id)
-    usable = [c.couponCode for c in coupons.availableCoupons if c.isApplicable]
-    print(f"coupons for this cart: {', '.join(usable[:5]) or 'none'}")
+    try:
+        coupons = await asyncio.to_thread(client.list_coupons, address_id)
+    except SwiggyToolError as exc:
+        print(f"coupons: unavailable ({exc})")
+    else:
+        usable = [c.couponCode for c in coupons.availableCoupons if c.isApplicable]
+        print(f"coupons for this cart: {', '.join(usable[:5]) or 'none'}")
 
 
 async def stage_cart(client: SwiggyClient, address_id: str | None) -> None:
@@ -155,11 +159,22 @@ async def stage_cart(client: SwiggyClient, address_id: str | None) -> None:
     if added_cart.removedOutOfStockItems:
         print(f"out of stock: {[i.itemName for i in added_cart.removedOutOfStockItems]}")
 
-    restored = await asyncio.to_thread(client.update_cart, original_items, address_id)
-    restored_items = sorted((i.spinId, i.quantity) for i in restored.items)
-    expected = sorted((i["spinId"], i["quantity"]) for i in original_items)
-    assert restored_items == expected, f"cart restore mismatch: {restored_items} != {expected}"
-    print(f"restored: {len(restored.items)} items, to pay {restored.billBreakdown.toPay.value}")
+    options = await asyncio.to_thread(client.get_payment_options, address_id)
+    methods = [m.displayName or m.id for m in options.allMethods if m.enabled is not False]
+    print(f"payment methods with items: {', '.join(methods[:6]) or 'none'}")
+
+    if original_items:
+        restored = await asyncio.to_thread(client.update_cart, original_items, address_id)
+        restored_items = sorted((i.spinId, i.quantity) for i in restored.items)
+        expected = sorted((i["spinId"], i["quantity"]) for i in original_items)
+        assert restored_items == expected, f"cart restore mismatch: {restored_items} != {expected}"
+        print(f"restored: {len(restored.items)} items, to pay {restored.billBreakdown.toPay.value}")
+    else:
+        # Swiggy rejects update_cart with an empty list, so clear instead.
+        await asyncio.to_thread(client.clear_cart)
+        cleared = await asyncio.to_thread(client.get_cart, address_id)
+        assert not cleared.items, f"cart clear left {len(cleared.items)} items"
+        print("restored: empty cart (cleared)")
 
 
 async def stage_chat(client: SwiggyClient, address_id: str | None) -> None:

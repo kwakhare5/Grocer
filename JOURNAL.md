@@ -1362,3 +1362,21 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: fast-forwarded `main` from `aa395f0` to `a557c3a` and pushed; Render and Vercel auto-deployed.
 - **Proof**: Render deploy `dep-dbnhbjm8bjmc73a800ng` is `live` on `a557c3a`; `/health` returned 200 with `database: connected`; Vercel `/proof` shows 287; the webhook OpenAPI exposes no test hooks.
 - **Still broken**: live handset proofs, the 24h scrub, the demo video and the LLM prompt trim remain open. Checkout stays locked; no real order has been placed.
+
+### [GROCER — Live Smoke] 2026-11-07
+
+#### Work Card: Live Read and Router Check
+
+- **Problem**: the handset pass was deferred, so the current commit needed a quick live check without the phone.
+- **Change**: ran the live read stage and five live router cases; changed `scripts/live_smoke.py` to print address labels only, never address lines, and to treat the coupon-tool error as non-fatal.
+- **Proof**: reads OK — 3 addresses (labels only), 20 milk products with real prices, empty cart, 0 orders, 6.4s; router 5/5 with 0 unsafe writes, 0 under-acted, 0 errors, avg 2249ms (`.scratch/eval_router_groq_20261107_122217.json`).
+- **Still broken**: Swiggy says coupon tools are not enabled for this account; WhatsApp delivery, reconnect, address writes and reactions still need the handset. The script fix and this card are uncommitted.
+
+### [GROCER — Coupon Truth and Live Cart Sweep] 2026-11-07
+
+#### Work Card: Disabled Coupons and Empty-Cart Payments
+
+- **Problem**: Swiggy returns `Coupon tools are not enabled for your account yet.` The landing promised coupon savings, the coupon read exposed Swiggy's internal wording, and "show payment options" said no methods existed for an empty cart.
+- **Change**: qualified the landing coupon line; `_list_coupons` returns a plain unavailable reply on `SwiggyToolError`; the empty payment list names UPI and asks for an item; `live_smoke.py` prints address labels only, reads payment apps while a test item is in the cart, and clears the cart when the starting cart was empty.
+- **Proof**: 14 read-action tests pass; `verify.ps1 -Db` exit 0 — 187 offline + 82 DB, ruff, 9 routes (`.scratch/verify_fixes_20261107.log`); live cart add → 6 UPI apps → clear, cart back to 0 items and ₹0.
+- **Still broken**: coupon savings stay unavailable until Swiggy enables the tool; handset delivery, reconnect, address writes and ticks remain open. The Gumloop doc, scratch profile and merged-branch deletions were blocked by the host and wait for Karan's explicit delete instruction.

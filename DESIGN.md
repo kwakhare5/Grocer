@@ -51,7 +51,7 @@ Rules for every add receipt:
 
 Live since 2026-10-27: an add receipt shows only the change plus a delta line ("You already had N items (₹X). Basket now: M items."), and any Swiggy stock cap is printed with the capped quantity. A fresh-basket add still prints the whole basket.
 
-Live since 2026-10-28: the receipt names the coupon and its rupee saving, coupons run on every cart write, and a receipt over the 1024-character button limit is sent whole as text with Pay/Clear in a short follow-up (`send_receipt`, `backend/channels/button_router.py`). The interactive body limit still truncates non-receipt bodies, which are short by design.
+Live since 2026-10-28: the receipt names the coupon and its rupee saving when Swiggy returns one. Coupon checks run on every cart write; this account returns "Coupon tools are not enabled", so the check no-ops until Swiggy enables it. A receipt over the 1024-character button limit is sent whole as text with Pay/Clear in a short follow-up (`send_receipt`, `backend/channels/button_router.py`). The interactive body limit still truncates non-receipt bodies, which are short by design.
 
 ## A3. Out-of-stock and unserviceable items
 

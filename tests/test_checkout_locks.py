@@ -1,6 +1,6 @@
 """Grocer — Phase 4 3-Lock Payment Safety Gate & Checkout Test Suite.
 
-Strictly verified against committed real Swiggy MCP staging fixtures and live Supabase PostgreSQL.
+Strictly exercised against committed contract fixtures (hand-written, placeholder IDs) and live Supabase PostgreSQL.
 Enforces:
 1. Lock 1 (Authority): Physical button ID required; text "yes" strictly rejected.
 2. Lock 2 (Truth): Live cart re-verification, 100% stock, integer paise, ₹1 price drift abort, launch cap.
@@ -348,7 +348,7 @@ def test_whatsapp_cta_url_button_formatting_and_scheme_guard():
         amount_paise=14900,
     )
     assert btn["type"] == "cta_url"
-    assert btn["parameters"]["display_text"] == "Pay ₹149 (UPI / Card)"
+    assert btn["parameters"]["display_text"] == "Pay ₹149 via UPI"
     assert btn["parameters"]["url"].startswith("https://")
 
     # upi:// scheme must raise ValueError

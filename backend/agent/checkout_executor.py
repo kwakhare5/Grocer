@@ -206,7 +206,7 @@ def format_whatsapp_cta_url_button(bridge_url: str, amount_paise: int) -> dict[s
     return {
         "type": "cta_url",
         "parameters": {
-            "display_text": f"Pay {amount_rs} (UPI / Card)",
+            "display_text": f"Pay {amount_rs} via UPI",
             "url": bridge_url,
         },
     }
@@ -624,13 +624,13 @@ async def execute_3_lock_checkout(
         if placed.split_failures:
             receipt += f"\n\n⚠️ {len(placed.split_failures)} part of your basket could not be ordered."
         if bridge_url:
-            receipt += "\n\nTap the secure button below to pay via UPI or card on Swiggy."
+            receipt += "\n\nTap the secure button below to pay via UPI on Swiggy."
     elif bridge_url:
         receipt = (
             f"💳 *Order #{order_ids[0]} Initiated*\n"
             f"Total: {total}\n"
             f"Delivering to: {destination}\n\n"
-            f"Tap the secure button below to pay via UPI or card on Swiggy."
+            f"Tap the secure button below to pay via UPI on Swiggy."
         )
     else:
         receipt = (

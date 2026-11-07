@@ -35,7 +35,7 @@ _Current_: the CAS, the attempt row and the result commit separately. No transac
 _Avoid_: Payment gate, order validation, checkout lock
 
 **Bridge URL**:
-An authoritative Swiggy HTTPS web payment link rendered in a WhatsApp CTA URL button where the customer completes mobile UPI or card payment.
+An authoritative Swiggy HTTPS web payment link rendered in a WhatsApp CTA URL button where the customer completes mobile UPI payment. V1 supports UPI only; COD and card paths are parked.
 _Avoid_: Deep link, UPI intent, payment gateway
 
 **Split Order**:

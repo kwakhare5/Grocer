@@ -31,7 +31,7 @@ Instead, Grocer operates on a clean, decoupled **Brain vs. Muscle** architecture
   - Intercepts physical button taps (`pay:<id>`, `addr:set:<id>` / `addr:del:<id>`, `cart:clear`) without the LLM. Target: under 50ms. Current: the checkout button still calls Swiggy synchronously before replying, so the target is not met (see `STATUS.md` §4).
   - Enforces the **3-Lock Checkout Gate**—an order can ONLY be paid for if the user physically taps a WhatsApp button. Text "yes" never spends money.
 * **Swiggy Instamart MCP (The Source of Truth):**
-  - All 20 native Instamart MCP tools run live over HTTPS JSON-RPC (`https://mcp.swiggy.com/im`). Production code must not contain fake Swiggy branches; current fixture/catalog branches are listed in `STATUS.md` P1.
+  - All 20 native Instamart MCP tools run live over HTTPS JSON-RPC (`https://mcp.swiggy.com/im`). Production code must not contain fake Swiggy branches; contract fixtures live under `tests/fixtures/` and use placeholder IDs, so they prove response shape, not live behavior.
 * **Meta WhatsApp Cloud API (The Interface):**
   - Interactive buttons (max 3 per message), list pickers (max 10 rows), location pins, and HTTPS payment buttons.
 
@@ -81,7 +81,7 @@ flowchart TD
         FAST_PATH -- "On [Pay ₹X] Tap" --> LOCK1["Lock 1: Authority\n(Physical button tap required; text 'yes' rejected)"]
         LOCK1 --> LOCK2["Lock 2: Truth\n(Re-read live cart: 0 unserviceable, paise exact match, <= ₹1,000 cap)"]
         LOCK2 --> LOCK3["Lock 3: Exactly-Once\n(Atomic DB CAS prevents double charges)"]
-        LOCK3 --> SWIGGY_PAY["Swiggy HTTPS bridgeUrl\n(Customer pays via UPI/Card in mobile browser)"]
+        LOCK3 --> SWIGGY_PAY["Swiggy HTTPS bridgeUrl\n(Customer pays via UPI in mobile browser)"]
         SWIGGY_PAY --> POLLER["5-Minute Background Poller\n(~19s long-poll on check_payment_status)"]
         POLLER -- "On Success" --> TRACK["Rider + ETA Tracking\n(track_order; no map URL in the tool answer)"]
     end
@@ -126,14 +126,14 @@ sequenceDiagram
 
     Cart->>Advocate: evaluate_cart(cart)
     Note over Advocate: Runs coupon checks (max 2)<br/>Checks net-savings & small-cart fee thresholds
-    Advocate-->>User: Verified receipt card + [Pay ₹115 (UPI / Card)] button
+    Advocate-->>User: Verified receipt card + [Pay ₹115 via UPI] button
 
     User->>Ingest: Taps [Pay ₹115] button
     Ingest->>Gate: Execute 3-Lock Checkout (no LLM; not yet 50ms)
     Note over Gate: Lock 1: Physical button verified<br/>Lock 2: Live cart verified (paise match, stock 100%)<br/>Lock 3: Atomic DB CAS claimed
     Gate->>Swiggy: checkout(paymentMethod="UPI")
     Swiggy-->>Gate: Returns orderId, paasId, bridgeUrl
-    Gate-->>User: WhatsApp CTA URL button "[Pay ₹115 (UPI / Card)]"
+    Gate-->>User: WhatsApp CTA URL button "[Pay ₹115 via UPI]"
 
     Note over Gate: Background poller checks check_payment_status (~19s)
     User->>Swiggy: Completes UPI payment in GPay/PhonePe
@@ -164,7 +164,7 @@ sequenceDiagram
 ### Layer 2: Conversational Brain (`backend/agent/`)
 - **Capability Router (ADR 0012):** The LLM returns one routing decision per message — a capability from the fixed list, the extracted arguments, and a confidence score. Python validates the capability and makes every Swiggy call.
 - **Safety Classes:** Every capability is labelled `read`, `basket`, `account` or `money`. A read capability stops before any write path. This is enforced in Python dispatch, not in the prompt.
-- **Safe Path:** Unknown capability, or confidence below the floor, produces read-only options when a concrete product exists, otherwise a clarifying question. Floors: read 0.70, basket 0.80, account 0.85, money 0.95 (`backend/agent/router.py:92`). Nothing is written on a guess.
+- **Safe Path:** Unknown capability, or confidence below the floor, produces read-only options when a concrete product exists, otherwise a clarifying question. Floors: read 0.00, basket 0.80, account 0.85, money 0.95 (`backend/agent/router.py:95`). Reads have no floor because they cannot write; every write class keeps its floor. Nothing is written on a guess.
 - **One adapter, no provider SDKs:** routing and candidate evaluation both call `backend.agent.llm.complete_json`, backed by Groq only. A basket turn makes one routing call, then one batched candidate-evaluation call for every item with candidates; a unique exact brand+size match skips the second call. The legacy second intent call and the direct Gemini calls are gone. Prompts use JSON mode.
 - **Basket State & Pack Math (2026-10-28):** The model names add / set / remove from the customer's words; Python reads the live cart and decides whether an add increments or creates a line. Each item carries `amount` and `unit`; Python converts the amount to whole packs and accepts only a pack that meets it exactly. A 200 g request never becomes 400 g, and 500 g never becomes 1 kg; the item is named as "Not added" or becomes a choice. Adds and explicit total sets apply immediately with a receipt; only remove and clear keep a confirm button. Every named item ends added, asked, or refused.
 - **Two-Step Search & Candidate Evaluation (Kills Blind `res[0]`):**
@@ -286,7 +286,7 @@ check.
 - **Failure reconcile:** the pre-checkout order snapshot is required. On timeout, 5xx or a malformed response, `get_orders` is compared with that snapshot; a new order means success, none means the call is retried once, and an unreachable order list marks the attempt `unknown` so the customer is told not to retry. `reconcile_attempting_checkouts` runs from the payment poller and resolves attempts left by a crash.
 - **Payment Link Delivery:**
   - Swiggy's `checkout` response provides an authoritative HTTPS `bridgeUrl`.
-  - Grocer delivers this link as a WhatsApp CTA URL button: `[Pay ₹X (UPI / Card)]`. Tapping opens Swiggy's web payment screen where the customer taps to open GPay, PhonePe, Paytm, or cards.
+  - Grocer delivers this link as a WhatsApp CTA URL button: `[Pay ₹X via UPI]`. Tapping opens Swiggy's secure web payment screen where the customer completes the UPI payment.
   - UPI sends `generateUPIQR=true`, or `intentApp` when one is supplied. A recovered order (the response was lost but `get_orders` proved it) has no bridge link; the customer is told to pay in the Swiggy app.
 - **Payment Lifecycle & Polling:**
   - Target: honor Swiggy's `pollingIntervalInMs` and `maxTimeToPollForInMs` from the checkout response. Use `check_payment_status`; call `confirm_order` once after a successful terminal payment if Swiggy has not auto-confirmed.

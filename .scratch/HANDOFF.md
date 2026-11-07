@@ -1,9 +1,9 @@
 # HANDOFF — Grocer — 2026-11-07
 
 **Goal:** audit cleanup without behavior changes. Checkout stays locked.
-**Changes:** Phase 1 on `chore/audit-cleanup` (unmerged): checkout settlement runs its sync Swiggy calls via `asyncio.to_thread`; the public webhook route no longer exposes test client hooks; `keep_warm.yml` deleted; runtime/dev requirements split; each DB test closes its loop-bound pool; one cap-warning helper. Phase 2: one button-context lookup, one auth copy/result, and all 16 background sends tracked with failure logging. Two regression tests added. README and STATUS updated.
-**Passing:** `verify.ps1 -Db` exit 0 — 184 offline + 81 DB, ruff, 9 routes; DB suite passed after both phases and left 0 `grocer_test` connections.
-**Next action:** docs truth pass — slim STATUS, fix the remaining conflicting counts, correct fixture provenance, sync README/TASKS. No push or merge until Karan says.
+**Changes:** three local commits on `chore/audit-cleanup` (unmerged): checkout settlement off the event loop; public webhook hooks removed; test-pool leak closed; button lookups/auth replies deduped and background sends tracked; docs truth pass with counts 286/185/81/20/92, UPI-only pay copy, honest fixture provenance, parked map/Send-to-Mom claims.
+**Passing:** `verify.ps1 -Db` exit 0 — 185 offline + 81 DB, ruff, 9 routes; DB suite green; 0 leaked `grocer_test` connections.
+**Next action:** decide whether to push/merge the branch, then run the live proofs (reconnect, address add/delete, 24h scrub, typed pick, same-name picker, reactions/ticks) and add the demo video. No push or merge until Karan says.
 **Still broken:** live checkout, reconnect, address add/delete, 24h scrub, demo video; LLM simplification deferred.
 
 ## Current truth

@@ -68,7 +68,7 @@ WhatsApp UI is in [DESIGN.md](DESIGN.md); decisions are in `docs/adr/`.
 Python 3.12 and Node.js 20+.
 
 ```bash
-pip install -r requirements.txt
+pip install -r requirements-dev.txt
 npm ci
 python scripts/migrate.py
 uvicorn backend.main:app --port 8000

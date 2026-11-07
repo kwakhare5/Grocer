@@ -67,6 +67,16 @@ async def _prepare_test_database(request: pytest.FixtureRequest) -> None:
         _BASELINE_USER_IDS = {row["id"] for row in rows}
 
 
+@pytest.fixture(autouse=True)
+async def _close_test_pool(request: pytest.FixtureRequest) -> None:
+    """Each test gets its own event loop, so release the loop-bound pool."""
+    yield
+    if request.node.get_closest_marker("db") is not None:
+        from backend.database import close_db_pool
+
+        await close_db_pool()
+
+
 async def _delete_rows_not_in_baseline(baseline: set[str]) -> None:
     conn = await asyncpg.connect(dsn=settings.TEST_DATABASE_URL)
     try:

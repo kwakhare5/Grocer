@@ -1,14 +1,14 @@
-# HANDOFF — Grocer — 2026-11-04
+# HANDOFF — Grocer — 2026-11-07
 
-**Goal:** launch-ready v1. Checkout stays locked.
-**Changes:** copy cleanup + phone pass — hero rebuilt as a phone-style WhatsApp sample; connect form meta block removed; demo and Try disclaimers cut to four honesty anchors; four-fact strip; sample cap meter (₹187 of ₹1,000, 18.7%); black demo slate with REC chip; dead chat/button/receipt CSS removed. Previous graphics/motion pass is in the same unpushed stack.
-**Passing:** `verify.ps1 -Db` exit 0 — 182 offline + 81 DB, ruff, 9 routes; 0 overflow, 0 console errors and 0 hidden reveals at 1440/1024/768/390/360; phone bubbles opacity 1, cap fill scaleX 0.187; reduced-motion and no-JS show all content; no repeated disclaimers.
-**Next action:** add `public/demo.mp4` and verify the player, or keep the black recording stage; then the remaining live journeys.
-**Still broken:** demo video absent; live reconnect, address add/delete, 24h live scrub, typed plan, same-name picker, reactions/ticks and location pin remain open.
+**Goal:** audit cleanup without behavior changes. Checkout stays locked.
+**Changes:** Phase 1 on `chore/audit-cleanup` (unmerged): checkout settlement now runs its three sync Swiggy calls via `asyncio.to_thread`; the public webhook route no longer exposes test client hooks; `keep_warm.yml` deleted; runtime/dev requirements split and CI uses dev; each DB test closes its loop-bound pool, ending the Supabase connection leak; one cap-warning helper. Two regression tests added. README install line and a STATUS row updated.
+**Passing:** `verify.ps1 -Db` exit 0 — 184 offline + 81 DB, ruff, 9 routes; DB suite passed twice back-to-back and left 0 `grocer_test` connections.
+**Next action:** Phase 2 — dedupe the six user+address lookups and auth-expired replies in `button_router.py`, then the docs truth pass. No push or merge until Karan says.
+**Still broken:** live checkout, reconnect, address add/delete, 24h scrub, demo video; LLM simplification deferred; STATUS still carries older conflicting test counts outside the new row.
 
 ## Current truth
 
-- Remote `main` is `c16b924`; Vercel serves the graphics + phone pass and production repeats the five-width audit with 0 overflow, 0 console errors and 0 hidden reveals. A docs-only proof commit is local on top.
+- Local `main` is `3aadf93`, one docs commit over origin `c16b924`. Audit fixes live on `chore/audit-cleanup`, unmerged and unpushed.
 - Checkout locked (`LIVE_CHECKOUT_ENABLED=false`). No real order has ever been placed.
 - Cart still holds the live test adds from the 25/26 scorecard. Clear it through the stored token when testing ends.
 - Local `.env` uses the documented dummy WhatsApp number; use production for handset tests.

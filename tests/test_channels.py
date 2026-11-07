@@ -27,6 +27,14 @@ from backend.database import get_db_pool
 from backend.main import app
 
 
+def test_webhook_route_does_not_expose_client_injection_params():
+    params = app.openapi()["paths"]["/api/whatsapp/webhook"]["post"].get("parameters", [])
+    names = {param["name"] for param in params}
+
+    assert "swiggy_client" not in names
+    assert "wa_client" not in names
+
+
 def _compute_signature(payload_bytes: bytes, secret: str) -> str:
     sig = hmac.new(secret.encode("utf-8"), payload_bytes, hashlib.sha256).hexdigest()
     return f"sha256={sig}"

@@ -675,7 +675,8 @@ async def check_and_settle_payment(
     last_status = "PENDING"
     paid = 0
     for oid in ids:
-        status_data: PaymentStatusData = swiggy_client.check_payment_status(
+        status_data: PaymentStatusData = await asyncio.to_thread(
+            swiggy_client.check_payment_status,
             paas_id=paas_id,
             order_id=oid,
         )
@@ -693,7 +694,11 @@ async def check_and_settle_payment(
         # Swiggy did not auto-confirm. confirm_order is idempotent.
         if not status_data.confirmed and paas_id:
             try:
-                confirm_res = swiggy_client.confirm_order(order_id=oid, paas_id=paas_id)
+                confirm_res = await asyncio.to_thread(
+                    swiggy_client.confirm_order,
+                    order_id=oid,
+                    paas_id=paas_id,
+                )
             except (httpx.HTTPError, ValueError, KeyError, RuntimeError) as exc:
                 logger.warning("confirm_order failed for %s: %s", oid, exc)
                 continue
@@ -772,7 +777,7 @@ async def check_and_settle_payment(
     )
     try:
         tracking = (
-            swiggy_client.track_order(primary_order_id, lat, lng)
+            await asyncio.to_thread(swiggy_client.track_order, primary_order_id, lat, lng)
             if lat is not None and lng is not None
             else None
         )

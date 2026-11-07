@@ -135,7 +135,7 @@ Live in code since 2026-10-28: the model names the dish, people count and each i
 
 - UPI is the first path. The customer taps the CTA, pays on Swiggy's HTTPS page, and Grocer polls `check_payment_status`.
 - `checkout` is not idempotent. On a 5xx or network failure, check `get_orders` before retrying. Never blind-retry.
-- UPI sends `generateUPIQR=true`, or `intentApp` when one is supplied. Fixed in Phase 3.
+- UPI always sends `generateUPIQR=true`. Fixed in Phase 3.
 - UPI is the only path this build can place. COD and SwiggyPay are parked; the payment answer says they cannot be used yet.
 - The ₹1,000 cap is a safety limit, not a product upsell. The customer must explicitly raise it.
 

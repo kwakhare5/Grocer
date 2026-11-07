@@ -20,6 +20,7 @@ from backend.agent.router import Capability, RoutingDecision
 from backend.integrations.commerce.swiggy_client import (
     SwiggyAuthExpiredError,
     SwiggyClient,
+    SwiggyToolError,
 )
 
 logger = logging.getLogger("grocer.read_actions")
@@ -170,7 +171,10 @@ async def _store_info(client: SwiggyClient, address_id: str | None) -> str:
 
 
 async def _list_coupons(client: SwiggyClient, address_id: str | None) -> str:
-    data = await asyncio.to_thread(client.list_coupons, address_id)
+    try:
+        data = await asyncio.to_thread(client.list_coupons, address_id)
+    except SwiggyToolError:
+        return "Coupons aren't available on your Swiggy account yet. Everything else still works."
     usable = [coupon for coupon in data.availableCoupons if coupon.isApplicable]
     if not usable:
         return "No coupons are available for your basket right now."
@@ -341,7 +345,10 @@ async def _payment_options(client: SwiggyClient) -> str:
             "💳 Swiggy lists " + ", ".join(others) + ", but I can't place a UPI order "
             "for you right now."
         )
-    return "No payment methods are available for your account right now."
+    return (
+        "💳 I can only take payment by UPI in this build. "
+        "Swiggy isn't listing any payment apps right now; add an item and ask again."
+    )
 
 
 def _cancel_help() -> str:

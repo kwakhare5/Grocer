@@ -48,7 +48,7 @@ The bar is still full tool coverage. These experiences use existing tools, so th
 
 ## Current next actions (2026-11-07)
 
-`main` at `a557c3a` is deployed; the structure cleanup is merged and live: the conversational turn, commands and onboarding moved out of the webhook; both add paths share one pay-receipt builder; checkout placement and settlement are separate modules; both pollers claim and settle one row per transaction; the unused `intent_app` option and one duplicate CSS rule are gone. Last gate: `verify.ps1 -Db` exit 0 — 185 offline + 82 DB, ruff, 9 routes. Collection: **287 tests** (185 offline, 82 DB, 20 live-only; 92 scripted). Offline scorecard 31/31; live scorecard 25/26 on 2026-11-04.
+`main` at `a557c3a` is deployed; the structure cleanup is merged and live: the conversational turn, commands and onboarding moved out of the webhook; both add paths share one pay-receipt builder; checkout placement and settlement are separate modules; both pollers claim and settle one row per transaction; the unused `intent_app` option and one duplicate CSS rule are gone. Last gate: `verify.ps1 -Db` exit 0 — 187 offline + 82 DB, ruff, 9 routes. Collection: **289 tests** (187 offline, 82 DB, 20 live-only; 92 scripted). Offline scorecard 31/31; live scorecard 25/26 on 2026-11-04. Coupons are blocked by Swiggy account entitlement; no ask was sent.
 
 1. Run the live handset proofs before the token window closes; reconnect first.
 2. Add `public/demo.mp4` and verify the player, or keep the recording stage.

@@ -43,7 +43,8 @@ WhatsApp Cloud API -> FastAPI webhook -> Python capability router
 - `LIVE_CHECKOUT_ENABLED=false` by default, enforced in code.
 - Out of stock, a closed store, or a failed API call is reported honestly. No
   silent omissions.
-- The best valid coupon is applied only when the payable total does not go up.
+- The best valid coupon is applied only when the payable total does not go up,
+  when Swiggy enables coupon tools for the account.
 
 ## Privacy
 
@@ -55,7 +56,7 @@ WhatsApp Cloud API -> FastAPI webhook -> Python capability router
 
 | Area | State |
 |---|---|
-| Chat, basket adds/sets/removes, addresses, coupons, orders, tracking, privacy | Live, except reorder, live address add/delete and the 24h scrub proof (see `STATUS.md`) |
+| Chat, basket adds/sets/removes, addresses, coupons, orders, tracking, privacy | Live, except coupons (Swiggy has not enabled coupon tools for this account), reorder, live address add/delete and the 24h scrub proof (see `STATUS.md`) |
 | Recipe plans, reactions, support reports | Code-complete; handset proofs open |
 | Checkout and payment | Never live-tested; no order has been placed |
 
@@ -100,9 +101,9 @@ On macOS or Linux, run the same steps directly: `python scripts/verify_db.py`,
 Database tests refuse to run unless `TEST_DATABASE_URL` names the separate
 `grocer_test` database. Tests never write production data.
 
-Current collection: **287 tests** — 185 offline, 82 database, 20 live-only;
+Current collection: **289 tests** — 187 offline, 82 database, 20 live-only;
 92 of the offline tests inject a scripted external client on purpose.
-`verify.ps1 -Db` runs the 185 offline and 82 database tests.
+`verify.ps1 -Db` runs the 187 offline and 82 database tests.
 
 GitHub Actions runs ruff, every non-live test on a throwaway Postgres, and the
 Next build on each push to `main`. It runs after the push, alongside Render's

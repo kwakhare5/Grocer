@@ -64,7 +64,7 @@ export const FEATURES = [
   },
   {
     title: "Let coupons be checked",
-    body: "Valid coupons are checked on every basket change, and the savings show on the receipt.",
+    body: "Coupons are checked when Swiggy makes them available on your account; any savings show on the receipt.",
     tone: "red",
     mark: "coupon",
   },

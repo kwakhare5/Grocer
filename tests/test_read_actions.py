@@ -8,6 +8,7 @@ vague request like "milk".
 from __future__ import annotations
 
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from fixture_client import FixtureSwiggyClient
@@ -335,3 +336,45 @@ async def test_payment_options_say_upi_only():
     assert "Google Pay" in text
     assert "Swiggy Money" in text
     assert "can't use those yet" in text
+
+
+class _NoMethodsClient:
+    def get_payment_options(self):
+        return SimpleNamespace(allMethods=[])
+
+
+class _CouponsDisabledClient:
+    def list_coupons(self, address_id=None):
+        raise SwiggyToolError("Coupon tools are not enabled for your account yet.")
+
+
+@pytest.mark.asyncio
+async def test_payment_options_with_no_methods_still_names_upi():
+    reply = await build_read_reply(
+        RoutingDecision(
+            capability=Capability.PAYMENT_OPTIONS,
+            safety=SafetyClass.READ,
+            confidence=1.0,
+        ),
+        _NoMethodsClient(),
+        "addr_01",
+    )
+
+    assert "UPI" in reply.text
+    assert "add an item" in reply.text.lower()
+
+
+@pytest.mark.asyncio
+async def test_coupons_disabled_is_honest_without_internal_error():
+    reply = await build_read_reply(
+        RoutingDecision(
+            capability=Capability.LIST_COUPONS,
+            safety=SafetyClass.READ,
+            confidence=1.0,
+        ),
+        _CouponsDisabledClient(),
+        "addr_01",
+    )
+
+    assert "aren't available" in reply.text
+    assert "not enabled" not in reply.text.lower()

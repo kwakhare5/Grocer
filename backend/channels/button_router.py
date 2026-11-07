@@ -10,6 +10,8 @@ from typing import Any
 import asyncpg
 import httpx
 
+from backend.agent.candidate_evaluator import format_paise_to_rupees
+
 logger = logging.getLogger("grocer.button_router")
 
 
@@ -78,13 +80,38 @@ def _auth_result(
 
 def format_cap_warning(cap_paise: int) -> str:
     """The one cap warning used by every receipt path."""
-    from backend.agent.candidate_evaluator import format_paise_to_rupees
-
     return (
         f"\n\n⚠️ This is above your "
         f"{format_paise_to_rupees(int(cap_paise))} safety cap. "
         "You'll be asked to raise it when you tap Pay."
     )
+
+
+def build_pay_receipt(
+    body: str,
+    approval: Any,
+    cap_paise: int,
+    *,
+    warnings: list[str] | None = None,
+    extra_buttons: list[tuple[str, str]] | None = None,
+    include_clear: bool = False,
+) -> tuple[str, list[tuple[str, str]]]:
+    """One pay button, one cap check and one button order for every add receipt."""
+    for warning in warnings or []:
+        body += warning
+    if approval.to_pay_paise > int(cap_paise):
+        body += format_cap_warning(cap_paise)
+
+    buttons = [
+        (
+            f"pay:{approval.id}",
+            f"Pay {format_paise_to_rupees(int(approval.to_pay_paise))}",
+        )
+    ]
+    buttons.extend(extra_buttons or [])
+    if include_clear:
+        buttons.append(("cart:clear", "Clear basket"))
+    return body, buttons[:3]
 
 
 async def _reply_and_return(
@@ -128,7 +155,6 @@ async def send_add_receipt(
 ) -> dict[str, Any]:
     """One payable receipt for any button path that writes the basket."""
     from backend.agent.approval import create_checkout_approval
-    from backend.agent.candidate_evaluator import format_paise_to_rupees
     from backend.agent.composite_cart import format_cart_receipt
     from backend.agent.customer_advocate import get_session_budget_cap
 
@@ -140,18 +166,10 @@ async def send_add_receipt(
     )
     body = format_cart_receipt(cart)
     cap_paise = await get_session_budget_cap(conn, user_id)
-    if approval.to_pay_paise > int(cap_paise):
-        body += format_cap_warning(cap_paise)
-    pay_label = format_paise_to_rupees(approval.to_pay_paise)
-    await send_receipt(
-        wa_client,
-        wa_id,
-        body,
-        [
-            (f"pay:{approval.id}", f"Pay {pay_label}"),
-            ("cart:clear", "Clear basket"),
-        ],
+    body, buttons = build_pay_receipt(
+        body, approval, cap_paise, include_clear=True
     )
+    await send_receipt(wa_client, wa_id, body, buttons)
     return {
         "status": status,
         "action": action,

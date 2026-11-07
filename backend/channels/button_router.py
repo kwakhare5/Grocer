@@ -23,6 +23,57 @@ BUTTON_UNKNOWN_USER = (
     "Send your message again and I'll rebuild it."
 )
 BUTTON_STALE = "That button is out of date. Send your request again and I'll rebuild it."
+AUTH_EXPIRED = "Your Swiggy login has expired. Please reconnect your account."
+
+_BACKGROUND_TASKS: set[asyncio.Task[Any]] = set()
+
+
+def _log_background_result(task: asyncio.Task[Any]) -> None:
+    _BACKGROUND_TASKS.discard(task)
+    if not task.cancelled():
+        exc = task.exception()
+        if exc:
+            logger.warning("Background WhatsApp send failed: %s", exc)
+
+
+def _spawn(coro: Any) -> None:
+    task = asyncio.get_running_loop().create_task(coro)
+    _BACKGROUND_TASKS.add(task)
+    task.add_done_callback(_log_background_result)
+
+
+async def _fetch_user_id(conn: Any, wa_id: str) -> Any:
+    return await conn.fetchval(
+        "SELECT id FROM grocer.users WHERE wa_id = $1;", wa_id
+    )
+
+
+async def _fetch_active_address(conn: Any, user_id: Any) -> Any:
+    return await conn.fetchval(
+        "SELECT active_address_id FROM grocer.sessions WHERE user_id = $1;",
+        user_id,
+    )
+
+
+async def _load_button_context(conn: Any, wa_id: str) -> tuple[Any, Any]:
+    user_id = await _fetch_user_id(conn, wa_id)
+    if not user_id:
+        return None, None
+    return user_id, await _fetch_active_address(conn, user_id)
+
+
+def _auth_result(
+    button_id: str,
+    *,
+    message: str | None = None,
+    approval_id: str | None = None,
+) -> dict[str, Any]:
+    result: dict[str, Any] = {"status": "auth_required", "action": button_id}
+    if message is not None:
+        result["message"] = message
+    if approval_id is not None:
+        result["approval_id"] = approval_id
+    return result
 
 
 def format_cap_warning(cap_paise: int) -> str:
@@ -189,7 +240,7 @@ async def dispatch_button_action(
 
         if button_id == "cart:keep":
             text = "Okay, your basket is unchanged."
-            asyncio.create_task(wa_client.send_text_message(to_wa_id=wa_id, text=text))
+            _spawn(wa_client.send_text_message(to_wa_id=wa_id, text=text))
             return {"status": "basket_kept", "action": button_id, "message": text}
 
         if not pool:
@@ -198,27 +249,18 @@ async def dispatch_button_action(
             )
 
         async with pool.acquire() as conn:
-            user_id = await conn.fetchval(
-                "SELECT id FROM grocer.users WHERE wa_id = $1;", wa_id
-            )
+            user_id, active = await _load_button_context(conn, wa_id)
             if not user_id:
                 return await _reply_and_return(
                     wa_client, wa_id, button_id, BUTTON_UNKNOWN_USER, "unknown_user"
                 )
 
-            active = await conn.fetchval(
-                "SELECT active_address_id FROM grocer.sessions WHERE user_id = $1;",
-                user_id,
-            )
             client = swiggy_client or await resolve_user_client(user_id)
             if client is None:
-                reply = BasketReply(
-                    "Your Swiggy login has expired. Please reconnect your account."
+                _spawn(
+                    wa_client.send_text_message(to_wa_id=wa_id, text=AUTH_EXPIRED)
                 )
-                asyncio.create_task(
-                    wa_client.send_text_message(to_wa_id=wa_id, text=reply.text)
-                )
-                return {"status": "auth_required", "action": button_id}
+                return _auth_result(button_id)
 
             special_result: dict[str, Any] | None = None
             try:
@@ -279,7 +321,7 @@ async def dispatch_button_action(
 
         if special_result is not None:
             return special_result
-        asyncio.create_task(wa_client.send_text_message(to_wa_id=wa_id, text=reply.text))
+        _spawn(wa_client.send_text_message(to_wa_id=wa_id, text=reply.text))
         return {"status": "basket_updated", "action": button_id, "message": reply.text}
 
     # 1b. Meal plan confirmation taps (ADR 0009). The plan is stored, not encoded.
@@ -301,9 +343,7 @@ async def dispatch_button_action(
             )
 
         async with pool.acquire() as conn:
-            user_id = await conn.fetchval(
-                "SELECT id FROM grocer.users WHERE wa_id = $1;", wa_id
-            )
+            user_id = await _fetch_user_id(conn, wa_id)
             if not user_id:
                 return await _reply_and_return(
                     wa_client, wa_id, button_id, BUTTON_UNKNOWN_USER, "unknown_user"
@@ -341,11 +381,8 @@ async def dispatch_button_action(
 
             client = swiggy_client or await resolve_user_client(user_id)
             if client is None:
-                await wa_client.send_text_message(
-                    to_wa_id=wa_id,
-                    text="Your Swiggy login expired. Please reconnect your account.",
-                )
-                return {"status": "auth_required", "action": button_id}
+                await wa_client.send_text_message(to_wa_id=wa_id, text=AUTH_EXPIRED)
+                return _auth_result(button_id)
 
             try:
                 confirmed = await confirm_plan(
@@ -383,27 +420,18 @@ async def dispatch_button_action(
             )
 
         async with pool.acquire() as conn:
-            user_id = await conn.fetchval(
-                "SELECT id FROM grocer.users WHERE wa_id = $1;", wa_id
-            )
+            user_id, active = await _load_button_context(conn, wa_id)
             if not user_id:
                 return await _reply_and_return(
                     wa_client, wa_id, button_id, BUTTON_UNKNOWN_USER, "unknown_user"
                 )
 
-            active = await conn.fetchval(
-                "SELECT active_address_id FROM grocer.sessions WHERE user_id = $1;",
-                user_id,
-            )
             client = swiggy_client or await resolve_user_client(user_id)
             if client is None:
-                reply = OrderReply(
-                    "Your Swiggy login has expired. Please reconnect your account."
+                _spawn(
+                    wa_client.send_text_message(to_wa_id=wa_id, text=AUTH_EXPIRED)
                 )
-                asyncio.create_task(
-                    wa_client.send_text_message(to_wa_id=wa_id, text=reply.text)
-                )
-                return {"status": "auth_required", "action": button_id}
+                return _auth_result(button_id)
 
             try:
                 reply = await apply_reorder(client, active, target_arg)
@@ -411,7 +439,7 @@ async def dispatch_button_action(
                 logger.warning("Reorder button action failed: %s", exc)
                 reply = OrderReply("That reorder didn't go through. Nothing was changed.")
 
-        asyncio.create_task(wa_client.send_text_message(to_wa_id=wa_id, text=reply.text))
+        _spawn(wa_client.send_text_message(to_wa_id=wa_id, text=reply.text))
         return {"status": "reorder_applied", "action": button_id, "message": reply.text}
 
     # 3. Checkout Payment Authorization (Lock 1 Authority -> 3-Lock Execution)
@@ -424,22 +452,18 @@ async def dispatch_button_action(
             from backend.integrations.commerce.token_vault import resolve_user_client
 
             async with pool.acquire() as conn:
-                user_id = await conn.fetchval(
-                    "SELECT id FROM grocer.users WHERE wa_id = $1;",
-                    wa_id,
-                )
+                user_id = await _fetch_user_id(conn, wa_id)
 
             if user_id:
                 client = swiggy_client or await resolve_user_client(user_id)
                 if client is None:
                     # The approval is untouched: nothing was claimed, so the same
                     # button still works once the customer reconnects.
-                    return {
-                        "status": "auth_required",
-                        "action": button_id,
-                        "approval_id": target_arg,
-                        "message": "Swiggy login expired. Please reconnect your account.",
-                    }
+                    return _auth_result(
+                        button_id,
+                        approval_id=target_arg,
+                        message=AUTH_EXPIRED,
+                    )
 
                 checkout_res = await execute_3_lock_checkout(
                     pool=pool,
@@ -451,7 +475,7 @@ async def dispatch_button_action(
                 )
 
                 if checkout_res.success and checkout_res.bridge_url:
-                    asyncio.create_task(
+                    _spawn(
                         wa_client.send_cta_url_button(
                             to_wa_id=wa_id,
                             body_text=(
@@ -464,7 +488,7 @@ async def dispatch_button_action(
                     )
                 elif checkout_res.success and checkout_res.receipt_text:
                     # Cash/COD and split orders have no payment link to tap.
-                    asyncio.create_task(
+                    _spawn(
                         wa_client.send_text_message(
                             to_wa_id=wa_id,
                             text=checkout_res.receipt_text,
@@ -473,7 +497,7 @@ async def dispatch_button_action(
                 elif not checkout_res.success and checkout_res.error_message:
                     if checkout_res.cta_button and checkout_res.cta_button.get("parameters"):
                         btn_param = checkout_res.cta_button["parameters"]
-                        asyncio.create_task(
+                        _spawn(
                             wa_client.send_quick_reply_buttons(
                                 to_wa_id=wa_id,
                                 body_text=f"⚠️ *Payment Notice:*\n\n{checkout_res.error_message}",
@@ -481,7 +505,7 @@ async def dispatch_button_action(
                             )
                         )
                     else:
-                        asyncio.create_task(
+                        _spawn(
                             wa_client.send_text_message(
                                 to_wa_id=wa_id,
                                 text=f"⚠️ *Payment Notice:*\n\n{checkout_res.error_message}",
@@ -515,7 +539,6 @@ async def dispatch_button_action(
     # 3. Delivery Address Switch / Delete confirmation tap
     if prefix == "addr":
         from backend.agent.address_actions import apply_delete, apply_switch
-        from backend.agent.read_actions import ReadReply
         from backend.channels.whatsapp_client import WhatsAppClient
         from backend.integrations.commerce.token_vault import resolve_user_client
 
@@ -524,7 +547,7 @@ async def dispatch_button_action(
 
         if action == "keep" or not address_id:
             text = "Okay, nothing changed."
-            asyncio.create_task(wa_client.send_text_message(to_wa_id=wa_id, text=text))
+            _spawn(wa_client.send_text_message(to_wa_id=wa_id, text=text))
             return {"status": "address_kept", "action": button_id, "message": text}
 
         if not pool:
@@ -533,34 +556,25 @@ async def dispatch_button_action(
             )
 
         async with pool.acquire() as conn:
-            user_id = await conn.fetchval(
-                "SELECT id FROM grocer.users WHERE wa_id = $1;", wa_id
-            )
+            user_id, active = await _load_button_context(conn, wa_id)
             if not user_id:
                 return await _reply_and_return(
                     wa_client, wa_id, button_id, BUTTON_UNKNOWN_USER, "unknown_user"
                 )
 
-            active = await conn.fetchval(
-                "SELECT active_address_id FROM grocer.sessions WHERE user_id = $1;",
-                user_id,
-            )
             client = swiggy_client or await resolve_user_client(user_id)
             if client is None:
-                reply = ReadReply(
-                    "Your Swiggy login has expired. Please reconnect your account."
+                _spawn(
+                    wa_client.send_text_message(to_wa_id=wa_id, text=AUTH_EXPIRED)
                 )
-                asyncio.create_task(
-                    wa_client.send_text_message(to_wa_id=wa_id, text=reply.text)
-                )
-                return {"status": "auth_required", "action": button_id}
+                return _auth_result(button_id)
 
             if action == "set":
                 reply = await apply_switch(client, conn, user_id, address_id)
             else:
                 reply = await apply_delete(client, active, address_id)
 
-        asyncio.create_task(wa_client.send_text_message(to_wa_id=wa_id, text=reply.text))
+        _spawn(wa_client.send_text_message(to_wa_id=wa_id, text=reply.text))
         return {
             "status": "address_updated",
             "action": button_id,
@@ -586,26 +600,18 @@ async def dispatch_button_action(
             )
 
         async with pool.acquire() as conn:
-            user_id = await conn.fetchval(
-                "SELECT id FROM grocer.users WHERE wa_id = $1;", wa_id
-            )
+            user_id = await _fetch_user_id(conn, wa_id)
             if not user_id:
                 return await _reply_and_return(
                     wa_client, wa_id, button_id, BUTTON_UNKNOWN_USER, "unknown_user"
                 )
-            active = await conn.fetchval(
-                "SELECT active_address_id FROM grocer.sessions WHERE user_id = $1;",
-                user_id,
-            )
+            active = await _fetch_active_address(conn, user_id)
             client = swiggy_client or await resolve_user_client(user_id)
             if client is None:
-                asyncio.create_task(
-                    wa_client.send_text_message(
-                        to_wa_id=wa_id,
-                        text="Your Swiggy login has expired. Please reconnect your account.",
-                    )
+                _spawn(
+                    wa_client.send_text_message(to_wa_id=wa_id, text=AUTH_EXPIRED)
                 )
-                return {"status": "auth_required", "action": button_id}
+                return _auth_result(button_id)
 
             try:
                 cart = await asyncio.to_thread(client.get_cart, active)
@@ -657,7 +663,7 @@ async def dispatch_button_action(
                     "I couldn't load alternatives just now. Please try again."
                 )
 
-        asyncio.create_task(wa_client.send_text_message(to_wa_id=wa_id, text=reply.text))
+        _spawn(wa_client.send_text_message(to_wa_id=wa_id, text=reply.text))
         return {
             "status": "item_change",
             "action": button_id,
@@ -704,10 +710,7 @@ async def dispatch_button_action(
 
         pay_button: tuple[str, str] | None = None
         async with pool.acquire() as conn:
-            user_id = await conn.fetchval(
-                "SELECT id FROM grocer.users WHERE wa_id = $1;",
-                wa_id,
-            )
+            user_id = await _fetch_user_id(conn, wa_id)
             if not user_id:
                 return await _reply_and_return(
                     wa_client,
@@ -738,7 +741,7 @@ async def dispatch_button_action(
                         )
 
         if pay_button:
-            asyncio.create_task(
+            _spawn(
                 wa_client.send_quick_reply_buttons(
                     to_wa_id=wa_id,
                     body_text=(
@@ -749,7 +752,7 @@ async def dispatch_button_action(
                 )
             )
         else:
-            asyncio.create_task(
+            _spawn(
                 wa_client.send_text_message(
                     to_wa_id=wa_id,
                     text=(

@@ -1,10 +1,10 @@
 # HANDOFF — Grocer — 2026-11-07
 
 **Goal:** audit cleanup without behavior changes. Checkout stays locked.
-**Changes:** Phase 1 on `chore/audit-cleanup` (unmerged): checkout settlement now runs its three sync Swiggy calls via `asyncio.to_thread`; the public webhook route no longer exposes test client hooks; `keep_warm.yml` deleted; runtime/dev requirements split and CI uses dev; each DB test closes its loop-bound pool, ending the Supabase connection leak; one cap-warning helper. Two regression tests added. README install line and a STATUS row updated.
-**Passing:** `verify.ps1 -Db` exit 0 — 184 offline + 81 DB, ruff, 9 routes; DB suite passed twice back-to-back and left 0 `grocer_test` connections.
-**Next action:** Phase 2 — dedupe the six user+address lookups and auth-expired replies in `button_router.py`, then the docs truth pass. No push or merge until Karan says.
-**Still broken:** live checkout, reconnect, address add/delete, 24h scrub, demo video; LLM simplification deferred; STATUS still carries older conflicting test counts outside the new row.
+**Changes:** Phase 1 on `chore/audit-cleanup` (unmerged): checkout settlement runs its sync Swiggy calls via `asyncio.to_thread`; the public webhook route no longer exposes test client hooks; `keep_warm.yml` deleted; runtime/dev requirements split; each DB test closes its loop-bound pool; one cap-warning helper. Phase 2: one button-context lookup, one auth copy/result, and all 16 background sends tracked with failure logging. Two regression tests added. README and STATUS updated.
+**Passing:** `verify.ps1 -Db` exit 0 — 184 offline + 81 DB, ruff, 9 routes; DB suite passed after both phases and left 0 `grocer_test` connections.
+**Next action:** docs truth pass — slim STATUS, fix the remaining conflicting counts, correct fixture provenance, sync README/TASKS. No push or merge until Karan says.
+**Still broken:** live checkout, reconnect, address add/delete, 24h scrub, demo video; LLM simplification deferred.
 
 ## Current truth
 

@@ -81,4 +81,3 @@ Proof standards:
 ## Helpers
 
 - `scripts/drive_grocer.py`: Command-line driver for HMAC signing, webhook dispatch, and DB inspection.
-- `verify.ps1`: Universal project test runner (Ruff lint, the full offline and DB pytest suites, Next.js production build).

@@ -497,7 +497,7 @@ Repository root:
 > Current phase, blockers and acceptance conditions live in `STATUS.md`. This section covers how any task is judged, not what is left to do.
 
 A task or phase is considered complete **ONLY** when:
-1. `.\verify.ps1` (or the documented test command) exits 0 with pasted raw terminal output. `verify.ps1 -Db` exits 0 as of 2026-10-27.
+1. `/verify-grocer` (or `pytest`) exits 0 with pasted raw terminal output.
 2. Production code has no fake Swiggy, WhatsApp, database, or LLM branches.
 3. Contract tests use recorded real Swiggy responses. Gate proof uses live calls. Fixtures prove shape; they never count as live proof.
 4. DB tests use the `grocer_test` database, never the real one.

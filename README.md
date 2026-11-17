@@ -89,13 +89,15 @@ Without it the page renders no number and disables the button with a visible not
 ## Tests
 
 ```powershell
-.\verify.ps1        # schema (needs DATABASE_URL), lint, offline tests, web build
-.\verify.ps1 -Db    # adds the database suite on grocer_test
+python scripts/verify_db.py   # schema check (needs DATABASE_URL)
+ruff check backend tests
+pytest -q -m "not db and not live"
+pytest -q -m db               # needs TEST_DATABASE_URL on grocer_test
+npm run build
 ```
 
-On macOS or Linux, run the same steps directly: `python scripts/verify_db.py`,
-`ruff check backend tests`, `pytest -q -m "not db and not live"`, then
-`npm run build`.
+The same commands work on macOS and Linux. The maintained walkthrough lives in
+`.agents/skills/verify-grocer/SKILL.md`.
 
 `pytest -m live` calls real external services; the gate and CI pass `-m "not live"`, so a bare `pytest` would run them too.
 Database tests refuse to run unless `TEST_DATABASE_URL` names the separate
@@ -103,7 +105,7 @@ Database tests refuse to run unless `TEST_DATABASE_URL` names the separate
 
 Current collection: **293 tests** — 191 offline, 82 database, 20 live-only;
 92 of the offline tests inject a scripted external client on purpose.
-`verify.ps1 -Db` runs the 191 offline and 82 database tests.
+The full gate runs the 191 offline and 82 database tests.
 
 GitHub Actions runs ruff, every non-live test on a throwaway Postgres, and the
 Next build on each push to `main`. It runs after the push, alongside Render's

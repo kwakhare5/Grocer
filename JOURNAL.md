@@ -1411,3 +1411,23 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: removed `gumloopDESIGN.md`; deleted the three Chrome profiles and the old probe scripts; deleted `chore/audit-cleanup` and `chore/structure-cleanup`. `.scratch` is 22MB and only `main` remains.
 - **Proof**: `du -sh .scratch` → 22M; `git branch` → `main` only; no code or tests changed.
 - **Still broken**: handset proofs, reconnect, address writes, ticks, demo video.
+
+
+### [GROCER — Truth Pass and Cleanup] 2026-11-17
+
+#### Work Card: Docs Match Reality
+
+- **Problem**: README, STATUS, DESIGN and TASKS still pointed at the deleted `verify.ps1`; STATUS cited two different `main` commits and a merged branch as open; the proof page claimed the backend was live while `/health` returns 503; `.env` carried four dead Gemini/commerce keys.
+- **Change**: rewrote the stale doc lines, corrected STATUS to `279ad7a` plus the live outage, put the proof page in past tense with a new date, removed the four dead `.env` keys and added the four missing `.env.example` keys, fixed the Gemini docstring; deleted pycache, the 2026-10 skill backup and 38 uncited scratch images (9.4 MB).
+- **Proof**: ruff clean; 191 offline tests pass; Next build 9 routes (`.scratch/verify_docs_20261117.log`, `.scratch/build_proof_20261117.log`); `.scratch` 22M → 13M; DB suite not re-run because no DB-touching code changed.
+- **Still broken**: production DB link (stale Supavisor URL), expired WhatsApp token, no keep-warm pinger, demo video and the handset proofs; changes are local and uncommitted.
+
+
+### [GROCER — Production Restored] 2026-11-17
+
+#### Work Card: Database Link and Keep-Alive
+
+- **Problem**: Render could not reach Supabase (`ENOTFOUND tenant/user postgres.rxaqlqvhdoiduadikjeb`). The stored pooler URL held stale credentials; the direct host is IPv6-only; nothing kept the free service awake since the keep-warm workflow was deleted on 2026-11-07.
+- **Change**: rewrote Render's `DATABASE_URL` with the working `aws-0-ap-south-1` pooler and current password, set `ENVIRONMENT=production`, and redeployed. Added Supabase `pg_cron` job `grocer-keepalive` pinging `/health` every 5 minutes through `pg_net`, plus a daily response cleanup job.
+- **Proof**: deploy `dep-dbtt6t0u01pc73d1oj6g` live; `/health` 200 `{"status":"healthy","database":"connected","environment":"production"}`; manual ping returned 200; first scheduled run at 04:10 UTC succeeded. WhatsApp sends still fail with Meta 401 (token expired 2026-11-08).
+- **Still broken**: expired WhatsApp token, demo video, handset proofs, coupon entitlement. Checkout stays locked; no real order placed.

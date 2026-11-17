@@ -43,9 +43,9 @@ const RUNS = [
   },
   {
     label: "Production code",
-    result: "Backend live on Render; /health returned 200",
-    date: "4 Nov 2026",
-    note: "No real order placed.",
+    result: "Render deploy served /health 200",
+    date: "17 Nov 2026",
+    note: "Database connected; no real order placed.",
   },
   {
     label: "Landing build",
@@ -89,7 +89,7 @@ export default function ProofPage() {
             <h1 className="page__title">What is proven.</h1>
             <p className="page__lead">The recorded runs behind the site.</p>
             <p className="page__updated">
-              Last updated 7 November 2026. No real order has been placed.
+              Last updated 17 November 2026. No real order has been placed.
             </p>
           </div>
 

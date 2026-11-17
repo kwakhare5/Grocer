@@ -1,6 +1,6 @@
 # STATUS.md — Grocer Current Truth
 
-> **Updated:** 2026-11-07
+> **Updated:** 2026-11-17
 > **Authority:** This is the only current status document. `PRD.md` is the v1 target. `ARCHITECTURE.md` is the design plus known gaps. `DESIGN.md` is the WhatsApp UI plus the website landing page. `TASKS.md` is the plan. `JOURNAL.md` is append-only history. `docs/adr/` records decisions, amended not rewritten.
 > **Rule:** DONE needs a proof command, date, and raw output. Everything else is PARTIAL, BROKEN, or NOT VERIFIED. A green test is not proof that the live product works.
 > **History:** the pre-2026-11-07 detailed proof log is preserved in git at `aa395f0` and in `JOURNAL.md`; this page keeps current state, open proofs and rules only.
@@ -11,13 +11,13 @@
 
 | Item | Current fact |
 |---|---|
-| Git | `main` is `aa395f0` and deployed. Work branch `chore/structure-cleanup` has three code commits plus this docs pass, is not pushed and not merged. Rollback target: `db6a297`. |
+| Git | `main` is `279ad7a` and deployed; working tree clean, no work branches. Production database link restored 2026-11-17; WhatsApp sends still blocked by the expired token. |
 | Supabase | One project until launch. App data lives in the `postgres` database, schema `grocer` (8 app tables + `schema_migrations`); migrations 001–010 applied. Tests use the separate `grocer_test` database. |
 | LLM | Groq `openai/gpt-oss-120b` is the only LLM, through `backend/agent/llm.py`. Free tier: 8k tokens/minute, 200k/day; pace live runs. |
 | Swiggy auth | Allowlisted OAuth redirect `https://grocerr.vercel.app/`. Backend calls `https://mcp.swiggy.com/im` with the customer token. |
 | Checkout | `LIVE_CHECKOUT_ENABLED=false`, enforced in code before any Swiggy call. The build is real-order capable; no live order. |
 | Order cap | ₹1,000 default (`100000` paise); raises need a tap and stay under the max cap. |
-| Hosting | Render free plan (sleeps when idle); pollers reconcile from the database on wake. Vercel hosts the landing page. `keep_warm.yml` was deleted 2026-11-07. |
+| Hosting | Render free plan (spins down after 15 min idle; 750 instance-hours/month). A Supabase `pg_cron` job pings `/health` every 5 minutes through `pg_net`, so Render and the database both stay awake; a daily job purges old responses. Vercel hosts the landing page. |
 | Landing number | The page renders no phone number. The chat link comes only from `NEXT_PUBLIC_WHATSAPP_NUMBER`. |
 | Product goal | Chat is the front door to all 20 Instamart tools. `PRD.md` §3 journeys are examples, not a checklist. |
 | Build-time order policy | No live order during the build. Checkout proof is simulated plus recorded responses. Karan places the first real order after handoff. |
@@ -33,9 +33,10 @@
 
 | Item | State |
 |---|---|
-| Current gate | **PASS 2026-11-07:** `verify.ps1 -Db` exit 0 — schema, ruff, 191 offline + 82 database tests, Next 16.4.3 build with 9 routes. |
+| Current gate | **PASS 2026-11-17:** ruff clean, 191 offline + 82 database tests, Next 16.4.3 build with 9 routes (`.scratch/gate_20261117.log`, `.scratch/gate_db2_20261117.log`, `.scratch/build_20261117.log`). The DB suite needs `NO_PROXY` cleared in Git Bash or httpx fails on `[::1]`. |
 | Test collection | **293 tests:** 191 offline, 82 DB, 20 live-only, 92 of the offline tests scripted. Live is excluded by default. |
-| Production deploy | `main` auto-deploys Render and Vercel. The structure cleanup was verified live at `a557c3a`: Render deploy `dep-dbnhbjm8bjmc73a800ng` is `live`, `/health` returns 200 with `database: connected`, the webhook exposes no test hooks, and Vercel `/proof` shows 287. |
+| Production deploy | `main` auto-deploys Render and Vercel. Render deploy `dep-dbtt6t0u01pc73d1oj6g` (2026-11-17) is `live`; `/health` returns **200** `{"status":"healthy","database":"connected","environment":"production"}`. Vercel landing and `/proof` return 200. |
+| Live status (2026-11-17) | **Database link fixed.** Render's `DATABASE_URL` held stale credentials for `aws-0-ap-south-1.pooler.supabase.com`; rewritten with the current project password and redeployed. Keep-alive: `pg_cron` job `grocer-keepalive` pings `/health` every 5 min (first scheduled run 04:10 UTC, succeeded), cleanup job `grocer-net-cleanup` runs daily. **Still blocked:** the WhatsApp access token expired 2026-11-08 (Meta 401), so the bot cannot send until Karan supplies a new token. |
 | Structure cleanup | Merged to `main` at `a557c3a`: `whatsapp.py` 1,042 → 436 lines; the conversational turn moved verbatim to `turn_pipeline.py` (377 lines); media/connect/delete commands moved to `whatsapp_commands.py`; location and typed-address steps moved to `whatsapp_onboarding.py`; both add paths share one pay-receipt builder; `checkout_executor.py` split into placement and `checkout_settlement.py`; both background pollers claim and settle one row per transaction; the unused `intent_app` option and one duplicate CSS rule are gone. |
 | Router eval | **40/40 exact (2026-10-31):** 0 unsafe writes, 0 under-acted, 0 errors; avg 1312ms, p95 1735ms, max 1889ms. |
 | Offline scorecard | **31/31 (2026-10-28):** Python checks with the model out of the loop. |
@@ -103,7 +104,7 @@ Gate 2 is read-only. No checkout, order, payment call, or address write is in sc
 
 ---
 
-## 6. Test Truth (2026-11-07)
+## 6. Test Truth (2026-11-17)
 
 | Kind | Where | Proves | Does not prove |
 |---|---|---|---|
@@ -152,14 +153,15 @@ Live tests are excluded by default (`-m live` opts in). Scripted tests are never
 
 ## 8. Next Action
 
-**Where we are (2026-11-07).** `main` at `a557c3a` is live on Render and Vercel; `/health` is 200 and Vercel `/proof` shows 287. The structure cleanup is merged and deployed. The gate is green at 191 offline + 82 DB, ruff and 9 routes.
+**Where we are (2026-11-17).** `main` is `279ad7a`, local gate is green (ruff, 191 offline + 82 DB, 9-route build), Vercel is live, Render `/health` is 200 with the database connected, and a 5-minute keep-alive keeps both awake. The WhatsApp token is still expired, so the bot cannot send.
 
 **Do next, in order:**
-1. Live handset proofs: OAuth reconnect, address add/delete, typed plan pick, same-name picker, reactions/blue ticks.
-2. Check the 24h scrub after a real day of traffic.
-3. Add `public/demo.mp4` and verify the player, or keep the recording stage.
-4. Decide whether to merge `chore/structure-cleanup`.
-5. The first real order is Karan's, after handoff. Checkout stays locked.
+1. Set a fresh WhatsApp access token on Render and in `.env`; send one real message and confirm the reply.
+2. Re-run the live handset proofs: OAuth reconnect, address add/delete, typed plan pick, same-name picker, reactions/ticks.
+3. Check the 24h scrub after a real day of traffic.
+4. Add `public/demo.mp4` and verify the player, or keep the recording stage.
+5. Record the Builder Club demo against the live bot.
+6. The first real order is Karan's, after handoff. Checkout stays locked.
 
 **No push or merge without Karan's explicit go.** No live order during the build.
 

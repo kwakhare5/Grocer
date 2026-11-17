@@ -233,7 +233,7 @@ async def dispatch_button_action(
 ) -> dict[str, Any]:
     """Execute interactive WhatsApp button taps directly in Python in <50ms.
 
-    Bypasses Gemini LLM completely for instant app-like responsiveness.
+    Bypasses the LLM completely for instant app-like responsiveness.
     """
     logger.info("Dispatching fast button action: %s", button_id)
 

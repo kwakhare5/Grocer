@@ -1431,3 +1431,9 @@ A chronological record of project milestones, architectural decisions, and verif
 - **Change**: rewrote Render's `DATABASE_URL` with the working `aws-0-ap-south-1` pooler and current password, set `ENVIRONMENT=production`, and redeployed. Added Supabase `pg_cron` job `grocer-keepalive` pinging `/health` every 5 minutes through `pg_net`, plus a daily response cleanup job.
 - **Proof**: deploy `dep-dbtt6t0u01pc73d1oj6g` live; `/health` 200 `{"status":"healthy","database":"connected","environment":"production"}`; manual ping returned 200; first scheduled run at 04:10 UTC succeeded. WhatsApp sends still fail with Meta 401 (token expired 2026-11-08).
 - **Still broken**: expired WhatsApp token, demo video, handset proofs, coupon entitlement. Checkout stays locked; no real order placed.
+
+#### Follow-up: Landing Deploy and Webhook Proof
+
+- Vercel ignored the push, so the build went out with `vercel --prod` (linked project `grocer`); the CLI's stray `.gitignore` lines were reverted.
+- Webhook challenge returns `200 grocer-check`, so Meta can reach and verify the endpoint.
+- `/proof` now serves 17 Nov with `Render deploy served /health 200`.

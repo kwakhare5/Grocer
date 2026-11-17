@@ -11,7 +11,7 @@
 
 | Item | Current fact |
 |---|---|
-| Git | `main` is `279ad7a` and deployed; working tree clean, no work branches. Production database link restored 2026-11-17; WhatsApp sends still blocked by the expired token. |
+| Git | `main` is `279ad7a`; working tree clean. Production is healthy and the bot answers WhatsApp again (token restored 2026-11-17). |
 | Supabase | One project until launch. App data lives in the `postgres` database, schema `grocer` (8 app tables + `schema_migrations`); migrations 001–010 applied. Tests use the separate `grocer_test` database. |
 | LLM | Groq `openai/gpt-oss-120b` is the only LLM, through `backend/agent/llm.py`. Free tier: 8k tokens/minute, 200k/day; pace live runs. |
 | Swiggy auth | Allowlisted OAuth redirect `https://grocerr.vercel.app/`. Backend calls `https://mcp.swiggy.com/im` with the customer token. |
@@ -36,7 +36,7 @@
 | Current gate | **PASS 2026-11-17:** ruff clean, 191 offline + 82 database tests, Next 16.4.3 build with 9 routes (`.scratch/gate_20261117.log`, `.scratch/gate_db2_20261117.log`, `.scratch/build_20261117.log`). The DB suite needs `NO_PROXY` cleared in Git Bash or httpx fails on `[::1]`. |
 | Test collection | **293 tests:** 191 offline, 82 DB, 20 live-only, 92 of the offline tests scripted. Live is excluded by default. |
 | Production deploy | `main` auto-deploys Render and Vercel. Render deploy `dep-dbtt6t0u01pc73d1oj6g` (2026-11-17) is `live`; `/health` returns **200** `{"status":"healthy","database":"connected","environment":"production"}`. Vercel landing and `/proof` return 200. |
-| Live status (2026-11-17) | **Database link fixed.** Render's `DATABASE_URL` held stale credentials for `aws-0-ap-south-1.pooler.supabase.com`; rewritten with the current project password and redeployed. Keep-alive: `pg_cron` job `grocer-keepalive` pings `/health` every 5 min (first scheduled run 04:10 UTC, succeeded), cleanup job `grocer-net-cleanup` runs daily. **Still blocked:** the WhatsApp access token expired 2026-11-08 (Meta 401), so the bot cannot send until Karan supplies a new token. |
+| Live status (2026-11-17) | **WhatsApp restored.** A new system-user token replaced the expired one on Render and in `.env`; Graph returns 200 (quality GREEN) and the webhook is subscribed to `https://grocer-backend-qwk4.onrender.com/api/whatsapp/webhook`. Karan sent a live message at 04:48 UTC: Meta delivered it, the app answered 200, and the bot replied with the connect prompt. Keep-alive: `pg_cron` job `grocer-keepalive` pings `/health` every 5 min; cleanup job `grocer-net-cleanup` runs daily. **Open:** the stored Swiggy refresh token is dead (`refresh token exchange failed: HTTP 400`), so shopping needs a reconnect first. |
 | Structure cleanup | Merged to `main` at `a557c3a`: `whatsapp.py` 1,042 → 436 lines; the conversational turn moved verbatim to `turn_pipeline.py` (377 lines); media/connect/delete commands moved to `whatsapp_commands.py`; location and typed-address steps moved to `whatsapp_onboarding.py`; both add paths share one pay-receipt builder; `checkout_executor.py` split into placement and `checkout_settlement.py`; both background pollers claim and settle one row per transaction; the unused `intent_app` option and one duplicate CSS rule are gone. |
 | Router eval | **40/40 exact (2026-10-31):** 0 unsafe writes, 0 under-acted, 0 errors; avg 1312ms, p95 1735ms, max 1889ms. |
 | Offline scorecard | **31/31 (2026-10-28):** Python checks with the model out of the loop. |
@@ -153,11 +153,11 @@ Live tests are excluded by default (`-m live` opts in). Scripted tests are never
 
 ## 8. Next Action
 
-**Where we are (2026-11-17).** `main` is `279ad7a`, local gate is green (ruff, 191 offline + 82 DB, 9-route build), Vercel is live, Render `/health` is 200 with the database connected, and a 5-minute keep-alive keeps both awake. The WhatsApp token is still expired, so the bot cannot send.
+**Where we are (2026-11-17).** `main` is `279ad7a`, local gate is green (ruff, 191 offline + 82 DB, 9-route build), Vercel is live, Render `/health` is 200, WhatsApp round-trips again, and a 5-minute keep-alive keeps both awake. The Swiggy refresh token is dead, so the bot currently answers with the connect prompt.
 
 **Do next, in order:**
-1. Set a fresh WhatsApp access token on Render and in `.env`; send one real message and confirm the reply.
-2. Re-run the live handset proofs: OAuth reconnect, address add/delete, typed plan pick, same-name picker, reactions/ticks.
+1. Reconnect Swiggy from the bot's link, then confirm a real add and receipt.
+2. Re-run the live handset proofs: address add/delete, typed plan pick, same-name picker, reactions/ticks.
 3. Check the 24h scrub after a real day of traffic.
 4. Add `public/demo.mp4` and verify the player, or keep the recording stage.
 5. Record the Builder Club demo against the live bot.

@@ -1437,3 +1437,13 @@ A chronological record of project milestones, architectural decisions, and verif
 - Vercel ignored the push, so the build went out with `vercel --prod` (linked project `grocer`); the CLI's stray `.gitignore` lines were reverted.
 - Webhook challenge returns `200 grocer-check`, so Meta can reach and verify the endpoint.
 - `/proof` now serves 17 Nov with `Render deploy served /health 200`.
+
+
+### [GROCER — WhatsApp Restored] 2026-11-17
+
+#### Work Card: New Token and Live Round-Trip
+
+- **Problem**: the WhatsApp access token expired 2026-11-08, so every send failed with Meta 401 even after the database link came back. Meta's WhatsApp Business MCP could not be used: client registration is rejected for Qoder (`MCP_OAUTH_CLIENT_REGISTRATION_REJECTED`, 400).
+- **Change**: validated a new system-user token against Graph, wrote it to Render and `.env` without printing it, redeployed, and removed the rejected connector.
+- **Proof**: Graph `GET /{phone-number-id}` 200, quality GREEN; webhook subscribed to the Render callback; Karan's live message at 04:48 UTC was delivered (four Meta POSTs, all 200) and the bot replied with the connect prompt (inbound row `awaiting_link`). `/health` 200 on `dep-dbttn72fngtc73a72pn0`.
+- **Still broken**: the Swiggy refresh token fails (`exchange failed: HTTP 400`), so shopping needs a reconnect; demo video, handset proofs and coupon entitlement stay open. Checkout locked; no real order.
